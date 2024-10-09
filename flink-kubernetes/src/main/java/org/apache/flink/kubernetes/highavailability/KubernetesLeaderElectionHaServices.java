@@ -29,7 +29,7 @@ import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.AbstractHaServices;
 import org.apache.flink.runtime.highavailability.FileSystemJobResultStore;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -151,8 +151,8 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices {
     }
 
     @Override
-    protected JobGraphStore createJobGraphStore() throws Exception {
-        return KubernetesUtils.createJobGraphStore(
+    protected ExecutionPlanStore createExecutionPlanStore() throws Exception {
+        return KubernetesUtils.createExecutionPlanStore(
                 configuration, kubeClient, getClusterConfigMap(), lockIdentity);
     }
 

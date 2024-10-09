@@ -19,19 +19,26 @@
 package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.util.ZooKeeperUtils;
 
-/** Singleton {@link JobGraphStoreUtil} implementation for ZooKeeper. */
-public enum ZooKeeperJobGraphStoreUtil implements JobGraphStoreUtil {
-    INSTANCE;
+/**
+ * ExecutionPlanStore utility interfaces. For example, convert a name(e.g. ZooKeeper path, key name
+ * in Kubernetes ConfigMap) to {@link JobID}, or vice versa.
+ */
+public interface ExecutionPlanStoreUtil {
 
-    @Override
-    public String jobIDToName(JobID jobId) {
-        return ZooKeeperUtils.getPathForJob(jobId);
-    }
+    /**
+     * Get the name in external storage from job id.
+     *
+     * @param jobId job id
+     * @return Key name in ConfigMap or child path name in ZooKeeper
+     */
+    String jobIDToName(JobID jobId);
 
-    @Override
-    public JobID nameToJobID(String name) {
-        return JobID.fromHexString(name);
-    }
+    /**
+     * Get the job id from name.
+     *
+     * @param name Key name in ConfigMap or child path name in ZooKeeper
+     * @return parsed job id.
+     */
+    JobID nameToJobID(String name);
 }

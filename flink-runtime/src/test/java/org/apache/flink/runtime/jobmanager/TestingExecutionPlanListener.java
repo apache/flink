@@ -20,30 +20,31 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import java.util.ArrayList;
+import java.util.List;
 
-/** {@link JobGraphStoreWatcher} implementation for testing purposes. */
-public class TestingJobGraphStoreWatcher implements JobGraphStoreWatcher {
+/** {@link ExecutionPlanStore.ExecutionPlanListener} implementation for testing purposes. */
+public class TestingExecutionPlanListener implements ExecutionPlanStore.ExecutionPlanListener {
 
-    private JobGraphStore.JobGraphListener jobGraphListener;
+    private final List<JobID> addedExecutionPlans = new ArrayList<>();
 
-    @Override
-    public void start(JobGraphStore.JobGraphListener jobGraphListener) {
-        this.jobGraphListener = jobGraphListener;
-    }
+    private final List<JobID> removedExecutionPlans = new ArrayList<>();
 
     @Override
-    public void stop() {
-        // noop
+    public void onAddedExecutionPlan(JobID jobId) {
+        addedExecutionPlans.add(jobId);
     }
 
-    public void addJobGraph(JobID jobID) {
-        checkNotNull(jobGraphListener, "TestingJobGraphStoreWatcher is not started.");
-        jobGraphListener.onAddedJobGraph(jobID);
+    @Override
+    public void onRemovedExecutionPlan(JobID jobId) {
+        removedExecutionPlans.add(jobId);
     }
 
-    public void removeJobGraph(JobID jobID) {
-        checkNotNull(jobGraphListener, "TestingJobGraphStoreWatcher is not started.");
-        jobGraphListener.onRemovedJobGraph(jobID);
+    public List<JobID> getAddedExecutionPlans() {
+        return addedExecutionPlans;
+    }
+
+    public List<JobID> getRemovedExecutionPlans() {
+        return removedExecutionPlans;
     }
 }

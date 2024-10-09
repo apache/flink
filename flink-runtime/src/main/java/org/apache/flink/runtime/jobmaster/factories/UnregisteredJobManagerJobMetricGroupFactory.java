@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.jobmaster.factories;
 
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 
 import javax.annotation.Nonnull;
 
@@ -32,7 +32,7 @@ public enum UnregisteredJobManagerJobMetricGroupFactory implements JobManagerJob
     INSTANCE;
 
     @Override
-    public JobManagerJobMetricGroup create(@Nonnull JobGraph jobGraph) {
+    public JobManagerJobMetricGroup create(@Nonnull ExecutionPlan executionPlan) {
         return UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup();
     }
 }

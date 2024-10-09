@@ -63,6 +63,11 @@ public class TestingJobManagerSharedServicesBuilder {
                 Executors.newSingleThreadScheduledExecutor();
 
         return new JobManagerSharedServices(
-                executorService, executorService, libraryCacheManager, shuffleMaster, blobWriter);
+                executorService,
+                executorService,
+                executorService,
+                libraryCacheManager,
+                shuffleMaster,
+                blobWriter);
     }
 }

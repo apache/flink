@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * IT Tests for the {@link KubernetesStateHandleStore}. We expect only the leader could update the
  * state store. The standby JobManagers update operations should not be issued. This is a
  * "check-leadership-and-update" behavior test. It is a very basic requirement for {@link
- * org.apache.flink.runtime.jobmanager.JobGraphStore} and {@link
+ * org.apache.flink.runtime.jobmanager.ExecutionPlanStore} and {@link
  * org.apache.flink.runtime.checkpoint.CompletedCheckpointStore} implementation for Kubernetes.
  */
 class KubernetesStateHandleStoreITCase {

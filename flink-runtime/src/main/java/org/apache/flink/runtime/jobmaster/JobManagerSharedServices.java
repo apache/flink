@@ -64,10 +64,12 @@ public class JobManagerSharedServices {
     private final ShuffleMaster<?> shuffleMaster;
 
     @Nonnull private final BlobWriter blobWriter;
+    private final ExecutorService serializationExecutor;
 
     public JobManagerSharedServices(
             ScheduledExecutorService futureExecutor,
             ExecutorService ioExecutor,
+            ExecutorService serializationExecutor,
             LibraryCacheManager libraryCacheManager,
             ShuffleMaster<?> shuffleMaster,
             @Nonnull BlobWriter blobWriter) {
@@ -77,6 +79,7 @@ public class JobManagerSharedServices {
         this.libraryCacheManager = checkNotNull(libraryCacheManager);
         this.shuffleMaster = checkNotNull(shuffleMaster);
         this.blobWriter = blobWriter;
+        this.serializationExecutor = checkNotNull(serializationExecutor);
     }
 
     public ScheduledExecutorService getFutureExecutor() {
@@ -85,6 +88,10 @@ public class JobManagerSharedServices {
 
     public Executor getIoExecutor() {
         return ioExecutor;
+    }
+
+    public ExecutorService getSerializationExecutor() {
+        return serializationExecutor;
     }
 
     public LibraryCacheManager getLibraryCacheManager() {
@@ -114,7 +121,11 @@ public class JobManagerSharedServices {
 
         try {
             ExecutorUtils.gracefulShutdown(
-                    SHUTDOWN_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS, futureExecutor, ioExecutor);
+                    SHUTDOWN_TIMEOUT.toMillis(),
+                    TimeUnit.MILLISECONDS,
+                    futureExecutor,
+                    ioExecutor,
+                    serializationExecutor);
         } catch (Throwable t) {
             exception = t;
         }
@@ -176,6 +187,11 @@ public class JobManagerSharedServices {
                 Executors.newFixedThreadPool(
                         jobManagerIoPoolSize, new ExecutorThreadFactory("jobmanager-io"));
 
+        ExecutorService serializationExecutor =
+                Executors.newFixedThreadPool(
+                        numberCPUCores,
+                        new ExecutorThreadFactory("flink-operator-serialization-io"));
+
         final ShuffleMasterContext shuffleMasterContext =
                 new ShuffleMasterContextImpl(config, fatalErrorHandler);
         final ShuffleMaster<?> shuffleMaster =
@@ -184,6 +200,11 @@ public class JobManagerSharedServices {
         shuffleMaster.start();
 
         return new JobManagerSharedServices(
-                futureExecutor, ioExecutor, libraryCacheManager, shuffleMaster, blobServer);
+                futureExecutor,
+                ioExecutor,
+                serializationExecutor,
+                libraryCacheManager,
+                shuffleMaster,
+                blobServer);
     }
 }

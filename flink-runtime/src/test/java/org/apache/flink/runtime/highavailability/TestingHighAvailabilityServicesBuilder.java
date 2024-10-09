@@ -22,8 +22,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.jobmanager.StandaloneJobGraphStore;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
+import org.apache.flink.runtime.jobmanager.StandaloneExecutionPlanStore;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.StandaloneLeaderElection;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
@@ -68,7 +68,7 @@ public class TestingHighAvailabilityServicesBuilder {
     private CheckpointRecoveryFactory checkpointRecoveryFactory =
             new StandaloneCheckpointRecoveryFactory();
 
-    private JobGraphStore jobGraphStore = new StandaloneJobGraphStore();
+    private ExecutionPlanStore executionPlanStore = new StandaloneExecutionPlanStore();
 
     private JobResultStore jobResultStore = new EmbeddedJobResultStore();
 
@@ -98,7 +98,7 @@ public class TestingHighAvailabilityServicesBuilder {
                 webMonitorEndpointLeaderElection);
 
         testingHighAvailabilityServices.setCheckpointRecoveryFactory(checkpointRecoveryFactory);
-        testingHighAvailabilityServices.setJobGraphStore(jobGraphStore);
+        testingHighAvailabilityServices.setExecutionPlanStore(executionPlanStore);
         testingHighAvailabilityServices.setJobResultStore(jobResultStore);
 
         testingHighAvailabilityServices.setCloseFuture(closeFuture);
@@ -161,8 +161,9 @@ public class TestingHighAvailabilityServicesBuilder {
         return this;
     }
 
-    public TestingHighAvailabilityServicesBuilder setJobGraphStore(JobGraphStore jobGraphStore) {
-        this.jobGraphStore = jobGraphStore;
+    public TestingHighAvailabilityServicesBuilder setExecutionPlanStore(
+            ExecutionPlanStore executionPlanStore) {
+        this.executionPlanStore = executionPlanStore;
         return this;
     }
 

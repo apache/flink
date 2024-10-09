@@ -24,8 +24,8 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.SupplierWithException;
 
 /**
- * {@link JobPersistenceComponentFactory} implementation which creates a {@link JobGraphStore} using
- * the provided {@link HighAvailabilityServices}.
+ * {@link JobPersistenceComponentFactory} implementation which creates a {@link ExecutionPlanStore}
+ * using the provided {@link HighAvailabilityServices}.
  */
 public class HaServicesJobPersistenceComponentFactory implements JobPersistenceComponentFactory {
     private final HighAvailabilityServices highAvailabilityServices;
@@ -36,8 +36,8 @@ public class HaServicesJobPersistenceComponentFactory implements JobPersistenceC
     }
 
     @Override
-    public JobGraphStore createJobGraphStore() {
-        return create(highAvailabilityServices::getJobGraphStore, JobGraphStore.class);
+    public ExecutionPlanStore createExecutionPlanStore() {
+        return create(highAvailabilityServices::getExecutionPlanStore, ExecutionPlanStore.class);
     }
 
     @Override

@@ -23,7 +23,7 @@ import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -66,7 +66,7 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
     private volatile CheckpointRecoveryFactory checkpointRecoveryFactory;
 
-    private volatile JobGraphStore jobGraphStore;
+    private volatile ExecutionPlanStore executionPlanStore;
 
     private volatile JobResultStore jobResultStore = new EmbeddedJobResultStore();
 
@@ -120,8 +120,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
         this.checkpointRecoveryFactory = checkpointRecoveryFactory;
     }
 
-    public void setJobGraphStore(JobGraphStore jobGraphStore) {
-        this.jobGraphStore = jobGraphStore;
+    public void setExecutionPlanStore(ExecutionPlanStore executionPlanStore) {
+        this.executionPlanStore = executionPlanStore;
     }
 
     public void setJobResultStore(JobResultStore jobResultStore) {
@@ -249,13 +249,13 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
     }
 
     @Override
-    public JobGraphStore getJobGraphStore() {
-        JobGraphStore store = jobGraphStore;
+    public ExecutionPlanStore getExecutionPlanStore() {
+        ExecutionPlanStore store = executionPlanStore;
 
         if (store != null) {
             return store;
         } else {
-            throw new IllegalStateException("JobGraphStore has not been set");
+            throw new IllegalStateException("ExecutionPlanStore has not been set");
         }
     }
 

@@ -269,7 +269,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
                 throw new PossibleInconsistentStateException(e);
             }
 
-            // We wrap the exception here so that it could be caught in DefaultJobGraphStore
+            // We wrap the exception here so that it could be caught in DefaultExecutionPlanStore
             throw ExceptionUtils.findThrowable(e, KeeperException.NoNodeException.class)
                     .map(
                             nnee ->
@@ -620,7 +620,8 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
             } catch (KeeperException.NoNodeException ex) {
                 // We could run into this exception because the parent node does not exist when we
                 // are trying to lock.
-                // We wrap the exception here so that it could be caught in DefaultJobGraphStore
+                // We wrap the exception here so that it could be caught in
+                // DefaultExecutionPlanStore
                 throw new NotExistException("ZooKeeper node " + path + " does not exist.", ex);
             }
         }
@@ -636,7 +637,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
 
             return retrievableStateHandle;
         } catch (KeeperException.NoNodeException ex) {
-            // We wrap the exception here so that it could be caught in DefaultJobGraphStore
+            // We wrap the exception here so that it could be caught in DefaultExecutionPlanStore
             throw new NotExistException("ZooKeeper node " + path + " does not exist.", ex);
         } catch (IOException | ClassNotFoundException e) {
             throw new IOException(

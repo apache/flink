@@ -52,7 +52,7 @@ public class SessionDispatcherLeaderProcessFactory implements DispatcherLeaderPr
         return SessionDispatcherLeaderProcess.create(
                 leaderSessionID,
                 dispatcherGatewayServiceFactory,
-                jobPersistenceComponentFactory.createJobGraphStore(),
+                jobPersistenceComponentFactory.createExecutionPlanStore(),
                 jobPersistenceComponentFactory.createJobResultStore(),
                 ioExecutor,
                 fatalErrorHandler);

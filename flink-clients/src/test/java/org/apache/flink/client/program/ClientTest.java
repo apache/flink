@@ -497,6 +497,7 @@ class ClientTest {
                     return (pipeline, config, classLoader) -> {
                         final int parallelism = config.get(CoreOptions.DEFAULT_PARALLELISM);
                         final JobGraph jobGraph = streamGraph.getJobGraph();
+                        jobGraph.setJobID(new JobID());
 
                         final ExecutionConfigAccessor accessor =
                                 ExecutionConfigAccessor.fromConfiguration(config);

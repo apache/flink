@@ -16,29 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager;
+package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.api.common.JobID;
+/** Path parameter identifying operators. */
+public class UserDefinedOperatorIDParameter extends MessagePathParameter<String> {
 
-/**
- * JobGraphStore utility interfaces. For example, convert a name(e.g. ZooKeeper path, key name in
- * Kubernetes ConfigMap) to {@link JobID}, or vice versa.
- */
-public interface JobGraphStoreUtil {
+    public static final String KEY = "userDefinedOperatorId";
 
-    /**
-     * Get the name in external storage from job id.
-     *
-     * @param jobId job id
-     * @return Key name in ConfigMap or child path name in ZooKeeper
-     */
-    String jobIDToName(JobID jobId);
+    public UserDefinedOperatorIDParameter() {
+        super(KEY);
+    }
 
-    /**
-     * Get the job id from name.
-     *
-     * @param name Key name in ConfigMap or child path name in ZooKeeper
-     * @return parsed job id.
-     */
-    JobID nameToJobID(String name);
+    @Override
+    protected String convertFromString(String value) throws ConversionException {
+        return value;
+    }
+
+    @Override
+    protected String convertToString(String value) {
+        return value;
+    }
+
+    @Override
+    public String getDescription() {
+        return "string value that identifies an operator.";
+    }
 }

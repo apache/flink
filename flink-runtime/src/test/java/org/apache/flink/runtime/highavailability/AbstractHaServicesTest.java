@@ -23,7 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.util.FlinkException;
@@ -212,7 +212,7 @@ class AbstractHaServicesTest {
         }
 
         @Override
-        protected JobGraphStore createJobGraphStore() throws Exception {
+        protected ExecutionPlanStore createExecutionPlanStore() throws Exception {
             throw new UnsupportedOperationException("Not supported by this test implementation.");
         }
 

@@ -30,7 +30,7 @@ import java.util.function.Function;
 class TestingDispatcherGatewayService
         implements AbstractDispatcherLeaderProcess.DispatcherGatewayService {
 
-    private final Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction;
+    private final Function<JobID, CompletableFuture<Void>> onRemovedExecutionPlanFunction;
 
     private final DispatcherGateway dispatcherGateway;
 
@@ -41,12 +41,12 @@ class TestingDispatcherGatewayService
 
     private TestingDispatcherGatewayService(
             CompletableFuture<Void> terminationFuture,
-            Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction,
+            Function<JobID, CompletableFuture<Void>> onRemovedExecutionPlanFunction,
             DispatcherGateway dispatcherGateway,
             CompletableFuture<ApplicationStatus> shutDownFuture,
             boolean completeTerminationFutureOnClose) {
         this.terminationFuture = terminationFuture;
-        this.onRemovedJobGraphFunction = onRemovedJobGraphFunction;
+        this.onRemovedExecutionPlanFunction = onRemovedExecutionPlanFunction;
         this.dispatcherGateway = dispatcherGateway;
         this.shutDownFuture = shutDownFuture;
         this.completeTerminationFutureOnClose = completeTerminationFutureOnClose;
@@ -58,8 +58,8 @@ class TestingDispatcherGatewayService
     }
 
     @Override
-    public CompletableFuture<Void> onRemovedJobGraph(JobID jobId) {
-        return onRemovedJobGraphFunction.apply(jobId);
+    public CompletableFuture<Void> onRemovedExecutionPlan(JobID jobId) {
+        return onRemovedExecutionPlanFunction.apply(jobId);
     }
 
     @Override
@@ -88,7 +88,7 @@ class TestingDispatcherGatewayService
 
         private CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
 
-        private Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction =
+        private Function<JobID, CompletableFuture<Void>> onRemovedExecutionPlanFunction =
                 ignored -> FutureUtils.completedVoidFuture();
 
         private DispatcherGateway dispatcherGateway = TestingDispatcherGateway.newBuilder().build();
@@ -110,8 +110,8 @@ class TestingDispatcherGatewayService
         }
 
         public Builder setOnRemovedJobGraphFunction(
-                Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction) {
-            this.onRemovedJobGraphFunction = onRemovedJobGraphFunction;
+                Function<JobID, CompletableFuture<Void>> onRemovedExecutionPlanFunction) {
+            this.onRemovedExecutionPlanFunction = onRemovedExecutionPlanFunction;
             return this;
         }
 
@@ -128,7 +128,7 @@ class TestingDispatcherGatewayService
         public TestingDispatcherGatewayService build() {
             return new TestingDispatcherGatewayService(
                     terminationFuture,
-                    onRemovedJobGraphFunction,
+                    onRemovedExecutionPlanFunction,
                     dispatcherGateway,
                     shutDownFuture,
                     completeTerminationFutureOnClose);

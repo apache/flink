@@ -64,7 +64,6 @@ import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
 import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
-import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -1023,18 +1022,21 @@ public class DataStream<T> {
         StreamExecutionEnvironment env = getExecutionEnvironment();
         CollectSinkOperatorFactory<T> factory =
                 new CollectSinkOperatorFactory<>(serializer, accumulatorName);
-        CollectSinkOperator<T> operator = (CollectSinkOperator<T>) factory.getOperator();
+        CollectStreamSink<T> sink = new CollectStreamSink<>(this, factory);
+        sink.name("Data stream collect sink");
+
+        String userDefinedOperatorId = "dataStreamCollect_" + sink.getTransformation().getId();
+        sink.uid(userDefinedOperatorId);
+
         long resultFetchTimeout =
                 env.getConfiguration().get(RpcOptions.ASK_TIMEOUT_DURATION).toMillis();
         CollectResultIterator<T> iterator =
                 new CollectResultIterator<>(
-                        operator.getOperatorIdFuture(),
+                        userDefinedOperatorId,
                         serializer,
                         accumulatorName,
                         env.getCheckpointConfig(),
                         resultFetchTimeout);
-        CollectStreamSink<T> sink = new CollectStreamSink<>(this, factory);
-        sink.name("Data stream collect sink");
         env.addOperator(sink.getTransformation());
 
         env.registerCollectIterator(iterator);

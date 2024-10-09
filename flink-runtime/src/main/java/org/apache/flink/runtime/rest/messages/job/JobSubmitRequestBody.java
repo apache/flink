@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.messages.job;
 
 import org.apache.flink.runtime.rest.messages.RequestBody;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonAlias;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -39,12 +40,14 @@ import java.util.Objects;
 public final class JobSubmitRequestBody implements RequestBody {
 
     public static final String FIELD_NAME_JOB_GRAPH = "jobGraphFileName";
+    public static final String FIELD_NAME_EXECUTION_PLAN = "executionPlanFileName";
     private static final String FIELD_NAME_JOB_JARS = "jobJarFileNames";
     private static final String FIELD_NAME_JOB_ARTIFACTS = "jobArtifactFileNames";
 
-    @JsonProperty(FIELD_NAME_JOB_GRAPH)
+    @JsonProperty(FIELD_NAME_EXECUTION_PLAN)
+    @JsonAlias(FIELD_NAME_JOB_GRAPH)
     @Nullable
-    public final String jobGraphFileName;
+    public final String executionPlanFileName;
 
     @JsonProperty(FIELD_NAME_JOB_JARS)
     @Nonnull
@@ -56,11 +59,11 @@ public final class JobSubmitRequestBody implements RequestBody {
 
     @JsonCreator
     public JobSubmitRequestBody(
-            @Nullable @JsonProperty(FIELD_NAME_JOB_GRAPH) String jobGraphFileName,
+            @Nullable @JsonProperty(FIELD_NAME_EXECUTION_PLAN) String executionPlanFileName,
             @Nullable @JsonProperty(FIELD_NAME_JOB_JARS) Collection<String> jarFileNames,
             @Nullable @JsonProperty(FIELD_NAME_JOB_ARTIFACTS)
                     Collection<DistributedCacheFile> artifactFileNames) {
-        this.jobGraphFileName = jobGraphFileName;
+        this.executionPlanFileName = executionPlanFileName;
         if (jarFileNames == null) {
             this.jarFileNames = Collections.emptyList();
         } else {
@@ -82,21 +85,21 @@ public final class JobSubmitRequestBody implements RequestBody {
             return false;
         }
         JobSubmitRequestBody that = (JobSubmitRequestBody) o;
-        return Objects.equals(jobGraphFileName, that.jobGraphFileName)
+        return Objects.equals(executionPlanFileName, that.executionPlanFileName)
                 && Objects.equals(jarFileNames, that.jarFileNames)
                 && Objects.equals(artifactFileNames, that.artifactFileNames);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(jobGraphFileName, jarFileNames, artifactFileNames);
+        return Objects.hash(executionPlanFileName, jarFileNames, artifactFileNames);
     }
 
     @Override
     public String toString() {
         return "JobSubmitRequestBody{"
-                + "jobGraphFileName='"
-                + jobGraphFileName
+                + "executionPlanFileName='"
+                + executionPlanFileName
                 + '\''
                 + ", jarFileNames="
                 + jarFileNames

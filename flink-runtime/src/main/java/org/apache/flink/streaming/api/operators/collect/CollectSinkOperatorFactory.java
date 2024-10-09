@@ -75,7 +75,6 @@ public class CollectSinkOperatorFactory<IN> extends SimpleUdfStreamOperatorFacto
     @Override
     public OperatorCoordinator.Provider getCoordinatorProvider(
             String operatorName, OperatorID operatorID) {
-        operator.getOperatorIdFuture().complete(operatorID);
         return new CollectSinkOperatorCoordinator.Provider(operatorID, socketTimeoutMillis);
     }
 
