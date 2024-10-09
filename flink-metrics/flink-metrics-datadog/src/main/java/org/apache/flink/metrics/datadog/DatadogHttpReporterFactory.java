@@ -41,7 +41,7 @@ public class DatadogHttpReporterFactory implements MetricReporterFactory {
 
     @Override
     public MetricReporter createMetricReporter(Properties config) {
-        final String apiKey = config.getProperty(API_KEY, null);
+        final String apiKey = config.getProperty(API_KEY, System.getenv("DD_API_KEY"));
         final String proxyHost = config.getProperty(PROXY_HOST, null);
         final int proxyPort = Integer.valueOf(config.getProperty(PROXY_PORT, "8080"));
         final String rawDataCenter = config.getProperty(DATA_CENTER, "US");
