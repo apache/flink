@@ -76,9 +76,10 @@ public final class PartitionPushDownSpec extends SourceAbilitySpecBase {
     @Override
     public String getDigests(SourceAbilityContext context) {
         return "partitions=["
-                + convertMapListToOrderedMapList(this.partitions).stream()
-                .map(Object::toString)
-                .collect(Collectors.joining(", "))
+                + this.partitions.stream()
+                        .map(this::convertToOrderedMap)
+                        .map(Object::toString)
+                        .collect(Collectors.joining(", "))
                 + "]";
     }
 
@@ -102,17 +103,7 @@ public final class PartitionPushDownSpec extends SourceAbilitySpecBase {
         return Objects.hash(super.hashCode(), partitions);
     }
 
-    private List<Map<String, String>> convertMapListToOrderedMapList(
-            List<Map<String, String>> inputMap) {
-        List<Map<String, String>> orderedMapList = new ArrayList<>();
-        inputMap.forEach(
-                mp -> {
-                    Map<String, String> orderedMap = new TreeMap<>();
-                    for (Map.Entry<String, String> entry : mp.entrySet()) {
-                        orderedMap.put(entry.getKey(), entry.getValue());
-                    }
-                    orderedMapList.add(orderedMap);
-                });
-        return orderedMapList;
+    private Map<String, String> convertToOrderedMap(Map<String, String> inputMap) {
+        return new TreeMap<>(inputMap);
     }
 }
