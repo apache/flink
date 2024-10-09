@@ -245,7 +245,7 @@ function run_group_2 {
 
     MVN_LOGGING_OPTIONS="-Dlog.dir=${DEBUG_FILES_OUTPUT_DIR} -DlogBackupDir=${DEBUG_FILES_OUTPUT_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES"
     MVN_COMMON_OPTIONS="-Dfast -Pskip-webui-build"
-    e2e_modules=$(find flink-end-to-end-tests -mindepth 2 -maxdepth 5 -name 'pom.xml' -not -path "flink-end-to-end-tests/flink-end-to-end-tests-hive/*" -printf '%h\n' | sort -u | tr '\n' ',')
+    e2e_modules=$(find flink-end-to-end-tests -mindepth 2 -maxdepth 5 -name 'pom.xml' -not -path "flink-end-to-end-tests/flink-end-to-end-tests-hive/*" -not -path "flink-end-to-end-tests/flink-sql-gateway-test/*" -printf '%h\n' | sort -u | tr '\n' ',')
     e2e_modules="${e2e_modules},$(find flink-walkthroughs -mindepth 2 -maxdepth 2 -name 'pom.xml' -printf '%h\n' | sort -u | tr '\n' ',')"
 
     PROFILE="$PROFILE -Prun-end-to-end-tests"
