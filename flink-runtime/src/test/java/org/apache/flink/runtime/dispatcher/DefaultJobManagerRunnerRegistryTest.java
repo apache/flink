@@ -168,8 +168,6 @@ class DefaultJobManagerRunnerRegistryTest {
                         Executors.directExecutor(),
                         new TestComponentMainThreadExecutor(Thread.currentThread()));
 
-        // Wait for the unregister future to complete
-        cleanupResult.get();
         FlinkAssertions.assertThatFuture(cleanupResult)
                 .as("Wait for the unregistration to complete")
                 .eventuallySucceeds();
