@@ -318,32 +318,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/JobIdsWithStatusOverview'
-    post:
-      description: "Submits a job. This call is primarily intended to be used by the\
-        \ Flink client. This call expects a multipart/form-data request that consists\
-        \ of file uploads for the serialized JobGraph, jars and distributed cache\
-        \ artifacts and an attribute named \"request\" for the JSON payload."
-      operationId: submitJob
-      requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              properties:
-                request:
-                  $ref: '#/components/schemas/JobSubmitRequestBody'
-                filename:
-                  type: array
-                  items:
-                    type: string
-                    format: binary
-        required: true
-      responses:
-        "202":
-          description: The request was successful.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/JobSubmitResponseBody'
   /jobs/metrics:
     get:
       description: Provides access to aggregated job metrics.
@@ -2503,24 +2477,6 @@ components:
       properties:
         status:
           $ref: '#/components/schemas/JobStatus'
-    JobSubmitRequestBody:
-      type: object
-      properties:
-        jobArtifactFileNames:
-          type: array
-          items:
-            $ref: '#/components/schemas/DistributedCacheFile'
-        jobGraphFileName:
-          type: string
-        jobJarFileNames:
-          type: array
-          items:
-            type: string
-    JobSubmitResponseBody:
-      type: object
-      properties:
-        jobUrl:
-          type: string
     JobType:
       type: string
       enum:
