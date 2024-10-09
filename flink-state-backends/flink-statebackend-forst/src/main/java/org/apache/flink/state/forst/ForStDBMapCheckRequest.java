@@ -20,9 +20,9 @@ package org.apache.flink.state.forst;
 
 import org.apache.flink.core.state.InternalStateFuture;
 
-import org.rocksdb.RocksDB;
-import org.rocksdb.RocksDBException;
-import org.rocksdb.RocksIterator;
+import org.forstdb.RocksDB;
+import org.forstdb.RocksDBException;
+import org.forstdb.RocksIterator;
 
 import java.io.IOException;
 
@@ -36,6 +36,8 @@ import static org.apache.flink.state.forst.ForStDBIterRequest.startWithKeyPrefix
  * @param <V> The type of value in map check request.
  */
 public class ForStDBMapCheckRequest<K, N, V> extends ForStDBGetRequest<K, N, V, Boolean> {
+
+    private static final byte[] VALID_PLACEHOLDER = new byte[0];
 
     /** Number of bytes required to prefix the key groups. */
     private final int keyGroupPrefixBytes;
@@ -60,7 +62,7 @@ public class ForStDBMapCheckRequest<K, N, V> extends ForStDBGetRequest<K, N, V, 
             try (RocksIterator iter = db.newIterator(getColumnFamilyHandle())) {
                 iter.seek(key);
                 if (iter.isValid() && startWithKeyPrefix(key, iter.key(), keyGroupPrefixBytes)) {
-                    completeStateFuture(new byte[0]);
+                    completeStateFuture(VALID_PLACEHOLDER);
                 } else {
                     completeStateFuture(null);
                 }

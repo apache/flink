@@ -43,7 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link InternalTimerServiceAsyncImpl}. */
 class InternalTimerServiceAsyncImplTest {
-    private AsyncExecutionController asyncExecutionController;
+    private AsyncExecutionController<String> asyncExecutionController;
     private TestKeyContext keyContext;
     private TestProcessingTimeService processingTimeService;
     private InternalTimerServiceAsyncImpl<Integer, String> service;
@@ -59,14 +59,15 @@ class InternalTimerServiceAsyncImplTest {
     @BeforeEach
     void setup() throws Exception {
         asyncExecutionController =
-                new AsyncExecutionController(
+                new AsyncExecutionController<>(
                         new SyncMailboxExecutor(),
                         exceptionHandler,
                         new MockStateExecutor(),
                         128,
                         2,
                         1000L,
-                        10);
+                        10,
+                        null);
         // ensure arbitrary key is in the key group
         int totalKeyGroups = 128;
         KeyGroupRange testKeyGroupList = new KeyGroupRange(0, totalKeyGroups - 1);

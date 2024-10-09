@@ -19,6 +19,7 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -52,7 +53,8 @@ public class ForStInitITCase {
                     tempFolder.getAbsolutePath(),
                     () -> {
                         throw new ExpectedTestException();
-                    });
+                    },
+                    Executors.directExecutor());
             fail("Not throwing expected exception.");
         } catch (IOException ignored) {
             // ignored

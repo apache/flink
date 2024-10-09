@@ -30,6 +30,7 @@ import org.apache.flink.datastream.api.stream.KeyedPartitionStream.ProcessConfig
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream;
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.ProcessConfigurableAndNonKeyedPartitionStream;
 import org.apache.flink.datastream.impl.ExecutionEnvironmentImpl;
+import org.apache.flink.datastream.impl.attribute.AttributeParser;
 import org.apache.flink.datastream.impl.operators.KeyedTwoInputBroadcastProcessOperator;
 import org.apache.flink.datastream.impl.operators.TwoInputBroadcastProcessOperator;
 import org.apache.flink.datastream.impl.utils.StreamUtils;
@@ -77,6 +78,7 @@ public class BroadcastStreamImpl<T> extends AbstractDataStream<T> implements Bro
                         this,
                         outTypeInfo,
                         processOperator);
+        outTransformation.setAttribute(AttributeParser.parseAttribute(processFunction));
         environment.addOperator(outTransformation);
         return StreamUtils.wrapWithConfigureHandle(
                 new NonKeyedPartitionStreamImpl<>(environment, outTransformation));
@@ -105,6 +107,7 @@ public class BroadcastStreamImpl<T> extends AbstractDataStream<T> implements Bro
                         this,
                         outTypeInfo,
                         processOperator);
+        outTransformation.setAttribute(AttributeParser.parseAttribute(processFunction));
         environment.addOperator(outTransformation);
         return StreamUtils.wrapWithConfigureHandle(
                 new NonKeyedPartitionStreamImpl<>(environment, outTransformation));
@@ -133,6 +136,7 @@ public class BroadcastStreamImpl<T> extends AbstractDataStream<T> implements Bro
 
         NonKeyedPartitionStreamImpl<OUT> outputStream =
                 new NonKeyedPartitionStreamImpl<>(environment, outTransformation);
+        outTransformation.setAttribute(AttributeParser.parseAttribute(processFunction));
         environment.addOperator(outTransformation);
         // Construct a keyed stream directly without partitionTransformation to avoid shuffle.
         return StreamUtils.wrapWithConfigureHandle(

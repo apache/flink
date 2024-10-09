@@ -18,15 +18,10 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.Sets;
-
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -89,30 +84,5 @@ class ConfigOptionTest {
 
         assertThat(fallbackKeys).containsExactlyInAnyOrder("fallback1", "fallback2");
         assertThat(deprecatedKeys).containsExactlyInAnyOrder("deprecated1", "deprecated2");
-    }
-
-    @Test
-    void testDeprecationForDeprecatedKeys() {
-        String[] deprecatedKeys = new String[] {"deprecated1", "deprecated2"};
-        final Set<String> expectedDeprecatedKeys = new HashSet<>(Arrays.asList(deprecatedKeys));
-
-        final ConfigOption<Integer> optionWithDeprecatedKeys =
-                ConfigOptions.key("key")
-                        .intType()
-                        .defaultValue(0)
-                        .withDeprecatedKeys(deprecatedKeys)
-                        .withFallbackKeys("fallback1");
-
-        assertThat(optionWithDeprecatedKeys.hasDeprecatedKeys()).isTrue();
-        assertThat(Sets.newHashSet(optionWithDeprecatedKeys.deprecatedKeys()))
-                .isEqualTo(expectedDeprecatedKeys);
-    }
-
-    @Test
-    void testNoDeprecationForFallbackKeysWithoutDeprecated() {
-        final ConfigOption<Integer> optionWithFallbackKeys =
-                ConfigOptions.key("key").intType().defaultValue(0).withFallbackKeys("fallback1");
-
-        assertThat(optionWithFallbackKeys.hasDeprecatedKeys()).isFalse();
     }
 }

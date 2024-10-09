@@ -18,11 +18,11 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -45,13 +45,14 @@ class InteractionsCountingTaskManagerGateway extends SimpleAckingTaskManagerGate
 
     @Override
     public CompletableFuture<Acknowledge> cancelTask(
-            ExecutionAttemptID executionAttemptID, Time timeout) {
+            ExecutionAttemptID executionAttemptID, Duration timeout) {
         cancelTaskCount.incrementAndGet();
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
     @Override
-    public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
+    public CompletableFuture<Acknowledge> submitTask(
+            TaskDeploymentDescriptor tdd, Duration timeout) {
         submitTaskCount.incrementAndGet();
         submitLatch.countDown();
         return CompletableFuture.completedFuture(Acknowledge.get());

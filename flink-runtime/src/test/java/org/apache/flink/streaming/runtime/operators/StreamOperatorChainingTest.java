@@ -32,7 +32,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -51,6 +51,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.streaming.api.operators.StreamOperatorUtils.setupStreamOperator;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for stream operator chaining behaviour. */
@@ -133,7 +134,8 @@ class StreamOperatorChainingTest {
             OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain =
                     createOperatorChain(streamConfig, environment, mockTask);
 
-            headOperator.setup(mockTask, streamConfig, operatorChain.getMainOperatorOutput());
+            setupStreamOperator(
+                    headOperator, mockTask, streamConfig, operatorChain.getMainOperatorOutput());
 
             operatorChain.initializeStateAndOpenOperators(null);
 
@@ -259,7 +261,8 @@ class StreamOperatorChainingTest {
             OperatorChain<Integer, StreamMap<Integer, Integer>> operatorChain =
                     createOperatorChain(streamConfig, environment, mockTask);
 
-            headOperator.setup(mockTask, streamConfig, operatorChain.getMainOperatorOutput());
+            setupStreamOperator(
+                    headOperator, mockTask, streamConfig, operatorChain.getMainOperatorOutput());
 
             operatorChain.initializeStateAndOpenOperators(null);
 

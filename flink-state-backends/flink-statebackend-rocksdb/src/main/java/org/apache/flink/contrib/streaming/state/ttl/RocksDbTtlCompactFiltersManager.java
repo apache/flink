@@ -135,7 +135,7 @@ public class RocksDbTtlCompactFiltersManager {
             FlinkCompactionFilterFactory compactionFilterFactory =
                     compactionFilterFactories.get(stateDesc.getName());
             Preconditions.checkNotNull(compactionFilterFactory);
-            long ttl = ttlConfig.getTtl().toMilliseconds();
+            long ttl = ttlConfig.getTimeToLive().toMillis();
 
             ColumnFamilyOptions columnFamilyOptions =
                     columnFamilyOptionsMap.get(stateDesc.getName());

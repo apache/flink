@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
@@ -74,6 +73,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -88,7 +88,7 @@ class ZooKeeperDefaultDispatcherRunnerTest {
     private static final Logger LOG =
             LoggerFactory.getLogger(ZooKeeperDefaultDispatcherRunnerTest.class);
 
-    private static final Time TESTING_TIMEOUT = Time.seconds(10L);
+    private static final Duration TESTING_TIMEOUT = Duration.ofSeconds(10L);
 
     @RegisterExtension
     public static AllCallbackWrapper<ZooKeeperExtension> zooKeeperExtensionWrapper =

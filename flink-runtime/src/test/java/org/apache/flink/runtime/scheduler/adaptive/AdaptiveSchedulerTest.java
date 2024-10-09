@@ -28,6 +28,7 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.failure.TestingFailureEnricher;
 import org.apache.flink.core.testutils.FlinkAssertions;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
@@ -130,6 +131,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.temporal.Temporal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -141,6 +143,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -149,11 +152,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
-import static org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter.forMainThread;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.apache.flink.runtime.jobgraph.JobGraphTestUtils.streamingJobGraph;
@@ -203,24 +207,40 @@ public class AdaptiveSchedulerTest {
     }
 
     private static void closeInExecutorService(
-            @Nullable AdaptiveScheduler scheduler, ComponentMainThreadExecutor executor) {
+            @Nullable AdaptiveScheduler scheduler, Executor executor) {
         if (scheduler != null) {
             final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
             executor.execute(
                     () -> {
                         try {
-                            // no matter what state the scheduler is in; we have to go to Finished
-                            // state to please the Preconditions of the close call
-                            if (scheduler.getState().getClass() != Finished.class) {
-                                scheduler.goToFinished(
-                                        scheduler.getArchivedExecutionGraph(
-                                                JobStatus.CANCELED, null));
-                            }
+                            scheduler.cancel();
+
                             FutureUtils.forward(scheduler.closeAsync(), closeFuture);
                         } catch (Throwable t) {
                             closeFuture.completeExceptionally(t);
                         }
                     });
+
+            // we have to wait for the job termination outside the main thread because the
+            // cancellation tasks are scheduled on the main thread as well.
+            scheduler
+                    .getJobTerminationFuture()
+                    .whenCompleteAsync(
+                            (jobStatus, error) -> {
+                                assertThat(scheduler.getState().getClass())
+                                        .isEqualTo(Finished.class);
+
+                                if (error != null) {
+                                    closeFuture.completeExceptionally(error);
+                                } else {
+                                    try {
+                                        FutureUtils.forward(scheduler.closeAsync(), closeFuture);
+                                    } catch (Throwable t) {
+                                        closeFuture.completeExceptionally(t);
+                                    }
+                                }
+                            },
+                            executor);
             assertThatFuture(closeFuture).eventuallySucceeds();
         }
     }
@@ -307,7 +327,7 @@ public class AdaptiveSchedulerTest {
         final State state = scheduler.getState();
 
         assertThat(scheduler.isState(state)).isTrue();
-        assertThat(scheduler.isState(new DummyState())).isFalse();
+        assertThat(scheduler.isState(new DummyState(scheduler))).isFalse();
     }
 
     @Test
@@ -334,7 +354,7 @@ public class AdaptiveSchedulerTest {
                         .build();
 
         AtomicBoolean ran = new AtomicBoolean(false);
-        scheduler.runIfState(new DummyState(), () -> ran.set(true));
+        scheduler.runIfState(new DummyState(scheduler), () -> ran.set(true));
         assertThat(ran.get()).isFalse();
     }
 
@@ -391,10 +411,12 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final Configuration configuration = new Configuration();
-        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
+        configuration.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,
+                Duration.ofMillis(1L));
 
         scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -447,10 +469,12 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final Configuration configuration = new Configuration();
-        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
+        configuration.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,
+                Duration.ofMillis(1L));
 
         scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -540,7 +564,8 @@ public class AdaptiveSchedulerTest {
         final Duration resourceTimeout = Duration.ofMinutes(1234);
         final Configuration configuration = new Configuration();
 
-        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, resourceTimeout);
+        configuration.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT, resourceTimeout);
 
         final AdaptiveScheduler scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -591,15 +616,12 @@ public class AdaptiveSchedulerTest {
                         Duration.ZERO,
                         mainThreadExecutor);
 
-        final Configuration configuration = createConfigurationWithNoTimeouts();
-        configuration.set(JobManagerOptions.MIN_PARALLELISM_INCREASE, 1);
-
         scheduler =
                 new AdaptiveSchedulerBuilder(
                                 jobGraph,
                                 singleThreadMainThreadExecutor,
                                 EXECUTOR_RESOURCE.getExecutor())
-                        .setJobMasterConfiguration(configuration)
+                        .setJobMasterConfiguration(createConfigurationWithNoTimeouts())
                         .setJobManagerJobMetricGroup(
                                 JobManagerMetricGroup.createJobManagerMetricGroup(
                                                 metricRegistry, "localhost")
@@ -672,11 +694,12 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final Configuration configuration = createConfigurationWithNoTimeouts();
-        configuration.set(JobManagerOptions.MIN_PARALLELISM_INCREASE, 1);
-        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(10L));
+        configuration.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,
+                Duration.ofMillis(10L));
         configuration.set(
                 MetricOptions.JOB_STATUS_METRICS,
                 Arrays.asList(MetricOptions.JobStatusMetrics.TOTAL_TIME));
@@ -760,7 +783,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -781,7 +804,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.SCHEDULER_MODE, SchedulerExecutionMode.REACTIVE);
@@ -810,10 +833,12 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final Configuration configuration = new Configuration();
-        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
+        configuration.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,
+                Duration.ofMillis(1L));
 
         scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -892,7 +917,9 @@ public class AdaptiveSchedulerTest {
 
         // transition into next state, for which the job state is still INITIALIZING
         runInMainThread(
-                () -> scheduler.transitionToState(new DummyState.Factory(JobStatus.INITIALIZING)));
+                () ->
+                        scheduler.transitionToState(
+                                new DummyState.Factory(scheduler, JobStatus.INITIALIZING)));
 
         assertThat(numStatusUpdates).hasValue(0);
     }
@@ -901,10 +928,12 @@ public class AdaptiveSchedulerTest {
     void testJobStatusListenerNotifiedOfJobStatusChanges() throws Exception {
         final JobGraph jobGraph = createJobGraph();
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final Configuration configuration = new Configuration();
-        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
+        configuration.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,
+                Duration.ofMillis(1L));
 
         final CompletableFuture<Void> jobCreatedNotification = new CompletableFuture<>();
         final CompletableFuture<Void> jobRunningNotification = new CompletableFuture<>();
@@ -1022,13 +1051,14 @@ public class AdaptiveSchedulerTest {
                                 EXECUTOR_RESOURCE.getExecutor())
                         .build();
 
-        final LifecycleMethodCapturingState firstState = new LifecycleMethodCapturingState();
+        final LifecycleMethodCapturingState firstState =
+                new LifecycleMethodCapturingState(scheduler);
 
         runInMainThread(() -> scheduler.transitionToState(new StateInstanceFactory(firstState)));
 
         firstState.reset();
 
-        runInMainThread(() -> scheduler.transitionToState(new DummyState.Factory()));
+        runInMainThread(() -> scheduler.transitionToState(new DummyState.Factory(scheduler)));
 
         assertThat(firstState.onLeaveCalled).isTrue();
         assertThat(firstState.onLeaveNewStateArgument.equals(DummyState.class)).isTrue();
@@ -1043,7 +1073,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = streamingJobGraph(vertex);
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -1111,7 +1141,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         scheduler = createSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool);
 
@@ -1146,7 +1176,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         scheduler = createSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool);
 
@@ -1172,7 +1202,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         scheduler = createSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool);
 
@@ -1208,7 +1238,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         scheduler = createSchedulerWithNoTimeouts(jobGraph, declarativeSlotPool);
         int scaledUpParallelism = PARALLELISM * 10;
@@ -1273,7 +1303,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final int availableSlots = 1;
         JobResourceRequirements initialJobResourceRequirements =
@@ -1284,7 +1314,8 @@ public class AdaptiveSchedulerTest {
                         .withConfigurationOverride(
                                 conf -> {
                                     conf.set(
-                                            JobManagerOptions.RESOURCE_WAIT_TIMEOUT,
+                                            JobManagerOptions
+                                                    .SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,
                                             Duration.ofMillis(1));
                                     return conf;
                                 })
@@ -1311,7 +1342,7 @@ public class AdaptiveSchedulerTest {
         final JobGraph jobGraph = createJobGraph();
 
         final DefaultDeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID());
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
 
         final int availableSlots = 1;
         JobResourceRequirements initialJobResourceRequirements =
@@ -1339,10 +1370,19 @@ public class AdaptiveSchedulerTest {
 
     private static Configuration createConfigurationWithNoTimeouts() {
         return new Configuration()
-                .set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(-1L))
-                .set(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, Duration.ofMillis(1L))
-                .set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, Duration.ofMillis(1L))
-                .set(JobManagerOptions.MAXIMUM_DELAY_FOR_SCALE_TRIGGER, Duration.ZERO);
+                .set(
+                        JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,
+                        Duration.ofMillis(-1L))
+                .set(
+                        JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT,
+                        Duration.ofMillis(1L))
+                .set(
+                        JobManagerOptions.SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING,
+                        Duration.ofMillis(1L))
+                .set(
+                        JobManagerOptions.SCHEDULER_EXECUTING_RESOURCE_STABILIZATION_TIMEOUT,
+                        Duration.ofMillis(1L))
+                .set(JobManagerOptions.SCHEDULER_RESCALE_TRIGGER_MAX_DELAY, Duration.ZERO);
     }
 
     private AdaptiveSchedulerBuilder prepareSchedulerWithNoTimeouts(
@@ -2027,7 +2067,8 @@ public class AdaptiveSchedulerTest {
         configuration.set(JobManagerOptions.SLOT_IDLE_TIMEOUT, slotIdleTimeout);
 
         final DeclarativeSlotPool declarativeSlotPool =
-                createDeclarativeSlotPool(jobGraph.getJobID(), slotIdleTimeout);
+                createDeclarativeSlotPool(
+                        jobGraph.getJobID(), singleThreadMainThreadExecutor, slotIdleTimeout);
         scheduler =
                 new AdaptiveSchedulerBuilder(
                                 jobGraph,
@@ -2176,15 +2217,20 @@ public class AdaptiveSchedulerTest {
 
     @Test
     void testScalingIntervalConfigurationIsRespected() throws ConfigurationException {
-        final Duration scalingIntervalMin = Duration.ofMillis(1337);
-        final Duration scalingIntervalMax = Duration.ofMillis(7331);
+        final Duration executingCooldownTimeout = Duration.ofMillis(1337);
+        final Duration scalingStabilizationTimeout = Duration.ofMillis(7331);
         final Configuration configuration = createConfigurationWithNoTimeouts();
-        configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, scalingIntervalMin);
-        configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX, scalingIntervalMax);
+        configuration.set(
+                JobManagerOptions.SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING,
+                executingCooldownTimeout);
+        configuration.set(
+                JobManagerOptions.SCHEDULER_EXECUTING_RESOURCE_STABILIZATION_TIMEOUT,
+                scalingStabilizationTimeout);
 
         final AdaptiveScheduler.Settings settings = AdaptiveScheduler.Settings.of(configuration);
-        assertThat(settings.getScalingIntervalMin()).isEqualTo(scalingIntervalMin);
-        assertThat(settings.getScalingIntervalMax()).isEqualTo(scalingIntervalMax);
+        assertThat(settings.getExecutingCooldownTimeout()).isEqualTo(executingCooldownTimeout);
+        assertThat(settings.getExecutingResourceStabilizationTimeout())
+                .isEqualTo(scalingStabilizationTimeout);
     }
 
     @Test
@@ -2247,9 +2293,132 @@ public class AdaptiveSchedulerTest {
         assertThat(eventQueue.take()).as("Only one event should have been observed.").isEqualTo(1);
     }
 
+    @Test
+    void testGoToWaitingForResourcesConfiguresStateTransitionManagerFactory() throws Exception {
+        final OneShotLatch latch = new OneShotLatch();
+        final TestingStateTransitionManagerFactory factory =
+                new TestingStateTransitionManagerFactory(
+                        ctx ->
+                                TestingStateTransitionManager.withOnChangeEventOnly(
+                                        () -> {
+                                            if (ctx instanceof WaitingForResources) {
+                                                latch.trigger();
+                                            }
+                                        }));
+
+        final Configuration configuration = new Configuration();
+        final Duration resourceStabilizationTimeout = Duration.ofMillis(10L);
+        configuration.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT,
+                resourceStabilizationTimeout);
+
+        scheduler =
+                new AdaptiveSchedulerBuilder(
+                                createJobGraph(),
+                                singleThreadMainThreadExecutor,
+                                EXECUTOR_RESOURCE.getExecutor())
+                        .setStateTransitionManagerFactory(factory)
+                        .setJobMasterConfiguration(configuration)
+                        .build();
+
+        // start scheduling to reach Executing state
+        singleThreadMainThreadExecutor.execute(scheduler::startScheduling);
+
+        // let's wait for the onChange event in Executing state.
+        latch.await();
+
+        assertThat(scheduler.getState()).isInstanceOf(WaitingForResources.class);
+        assertThat(factory.cooldownTimeout).isEqualTo(Duration.ZERO);
+        assertThat(factory.maximumDelayForTrigger).isEqualTo(Duration.ZERO);
+        assertThat(factory.resourceStabilizationTimeout).isEqualTo(resourceStabilizationTimeout);
+    }
+
+    @Test
+    void testGoToExecutingConfiguresStateTransitionManagerFactory() throws Exception {
+        final OneShotLatch latch = new OneShotLatch();
+        final TestingStateTransitionManagerFactory factory =
+                new TestingStateTransitionManagerFactory(
+                        ctx ->
+                                TestingStateTransitionManager.withOnChangeEventOnly(
+                                        () -> {
+                                            if (ctx instanceof WaitingForResources) {
+                                                ctx.transitionToSubsequentState();
+                                            }
+                                            if (ctx instanceof Executing) {
+                                                latch.trigger();
+                                            }
+                                        }));
+
+        final Configuration configuration = new Configuration();
+        final Duration executingCooldownTimeout = Duration.ofMillis(1L);
+        final Duration executingResourceStabilizationTimeout = Duration.ofMillis(5L);
+        final Duration maxDelayForTrigger = Duration.ofMillis(10L);
+
+        configuration.set(
+                JobManagerOptions.SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING,
+                executingCooldownTimeout);
+        configuration.set(
+                JobManagerOptions.SCHEDULER_RESCALE_TRIGGER_MAX_DELAY, maxDelayForTrigger);
+        configuration.set(
+                JobManagerOptions.SCHEDULER_EXECUTING_RESOURCE_STABILIZATION_TIMEOUT,
+                executingResourceStabilizationTimeout);
+
+        scheduler =
+                new AdaptiveSchedulerBuilder(
+                                createJobGraph(),
+                                singleThreadMainThreadExecutor,
+                                EXECUTOR_RESOURCE.getExecutor())
+                        .setJobMasterConfiguration(configuration)
+                        .setDeclarativeSlotPool(getSlotPoolWithFreeSlots(PARALLELISM))
+                        .setStateTransitionManagerFactory(factory)
+                        .build();
+
+        // start scheduling to reach Executing state
+        singleThreadMainThreadExecutor.execute(scheduler::startScheduling);
+
+        // let's wait for the onChange event in Executing state.
+        latch.await();
+
+        assertThat(scheduler.getState()).isInstanceOf(Executing.class);
+        assertThat(factory.cooldownTimeout).isEqualTo(executingCooldownTimeout);
+        assertThat(factory.maximumDelayForTrigger).isEqualTo(maxDelayForTrigger);
+        assertThat(factory.resourceStabilizationTimeout)
+                .isEqualTo(executingResourceStabilizationTimeout);
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Utils
     // ---------------------------------------------------------------------------------------------
+
+    private static class TestingStateTransitionManagerFactory
+            implements AdaptiveScheduler.StateTransitionManagerFactory {
+
+        private final Function<StateTransitionManager.Context, StateTransitionManager>
+                stateTransitionManagerCreator;
+
+        private Duration cooldownTimeout;
+        private Duration resourceStabilizationTimeout;
+        private Duration maximumDelayForTrigger;
+
+        public TestingStateTransitionManagerFactory(
+                Function<StateTransitionManager.Context, StateTransitionManager>
+                        stateTransitionManagerCreator) {
+            this.stateTransitionManagerCreator = stateTransitionManagerCreator;
+        }
+
+        public StateTransitionManager create(
+                StateTransitionManager.Context context,
+                Supplier<Temporal> ignoredClock,
+                Duration cooldownTimeout,
+                Duration resourceStabilizationTimeout,
+                Duration maximumDelayForTrigger) {
+            this.cooldownTimeout = cooldownTimeout;
+            this.resourceStabilizationTimeout = resourceStabilizationTimeout;
+            this.maximumDelayForTrigger = maximumDelayForTrigger;
+
+            return stateTransitionManagerCreator.apply(context);
+        }
+    }
 
     private AdaptiveScheduler createSchedulerThatReachesExecutingState(
             int parallelism,
@@ -2259,7 +2428,7 @@ public class AdaptiveSchedulerTest {
             throws Exception {
         final Configuration config = new Configuration();
         config.set(
-                JobManagerOptions.SCHEDULER_SCALE_ON_FAILED_CHECKPOINTS_COUNT,
+                JobManagerOptions.SCHEDULER_RESCALE_TRIGGER_MAX_CHECKPOINT_FAILURES,
                 onFailedCheckpointCount);
 
         final JobGraph jobGraph =
@@ -2274,30 +2443,7 @@ public class AdaptiveSchedulerTest {
                         .build();
         SchedulerTestingUtils.enableCheckpointing(jobGraph);
 
-        // testing SlotPool instance that would allow for the scheduler to transition to Executing
-        // state
-        final DeclarativeSlotPool slotPool =
-                new TestingDeclarativeSlotPoolBuilder()
-                        .setContainsFreeSlotFunction(allocationID -> true)
-                        .setReserveFreeSlotFunction(
-                                (allocationId, resourceProfile) ->
-                                        TestingPhysicalSlot.builder()
-                                                .withAllocationID(allocationId)
-                                                .build())
-                        .setGetFreeSlotTrackerSupplier(
-                                () ->
-                                        TestingFreeSlotTracker.newBuilder()
-                                                .setGetFreeSlotsInformationSupplier(
-                                                        () ->
-                                                                IntStream.range(0, parallelism)
-                                                                        .mapToObj(
-                                                                                v ->
-                                                                                        new TestingSlot())
-                                                                        .collect(
-                                                                                Collectors.toSet()))
-                                                .build())
-                        .build();
-
+        final DeclarativeSlotPool slotPool = getSlotPoolWithFreeSlots(parallelism);
         final AtomicInteger eventCounter = new AtomicInteger();
         scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -2307,14 +2453,23 @@ public class AdaptiveSchedulerTest {
                         .setJobMasterConfiguration(config)
                         .setDeclarativeSlotPool(slotPool)
                         .setStateTransitionManagerFactory(
-                                new TestingStateTransitionManager.Factory(
-                                        () -> {},
-                                        () -> {
-                                            singleThreadMainThreadExecutor
-                                                    .assertRunningInMainThread();
+                                (context,
+                                        ignoredClock,
+                                        ignoredCooldown,
+                                        ignoredResourceStabilizationTimeout,
+                                        ignoredMaxTriggerDelay) ->
+                                        TestingStateTransitionManager.withOnTriggerEventOnly(
+                                                () -> {
+                                                    singleThreadMainThreadExecutor
+                                                            .assertRunningInMainThread();
 
-                                            eventQueue.offer(eventCounter.getAndIncrement());
-                                        }))
+                                                    if (context instanceof WaitingForResources) {
+                                                        context.transitionToSubsequentState();
+                                                    } else if (context instanceof Executing) {
+                                                        eventQueue.offer(
+                                                                eventCounter.getAndIncrement());
+                                                    }
+                                                }))
                         .setCheckpointStatsTrackerFactory(
                                 (metricGroup, listener) -> {
                                     assertThat(statsListenerInstantiatedFuture)
@@ -2350,12 +2505,13 @@ public class AdaptiveSchedulerTest {
                                                 executionAttemptId, ExecutionState.CANCELED)));
     }
 
-    private static DefaultDeclarativeSlotPool createDeclarativeSlotPool(JobID jobId) {
-        return createDeclarativeSlotPool(jobId, DEFAULT_TIMEOUT);
+    private static DefaultDeclarativeSlotPool createDeclarativeSlotPool(
+            JobID jobId, ComponentMainThreadExecutor mainThreadExecutor) {
+        return createDeclarativeSlotPool(jobId, mainThreadExecutor, DEFAULT_TIMEOUT);
     }
 
     private static DefaultDeclarativeSlotPool createDeclarativeSlotPool(
-            JobID jobId, Duration idleSlotTimeout) {
+            JobID jobId, ComponentMainThreadExecutor mainThreadExecutor, Duration idleSlotTimeout) {
         return new DefaultDeclarativeSlotPool(
                 jobId,
                 new DefaultAllocatedSlotPool(),
@@ -2363,7 +2519,31 @@ public class AdaptiveSchedulerTest {
                 idleSlotTimeout,
                 DEFAULT_TIMEOUT,
                 Duration.ZERO,
-                forMainThread());
+                mainThreadExecutor);
+    }
+
+    /**
+     * Creates a testing SlotPool instance that would allow for the scheduler to transition to
+     * Executing state.
+     */
+    private static DeclarativeSlotPool getSlotPoolWithFreeSlots(int freeSlots) {
+        return new TestingDeclarativeSlotPoolBuilder()
+                .setContainsFreeSlotFunction(allocationID -> true)
+                .setReserveFreeSlotFunction(
+                        (allocationId, resourceProfile) ->
+                                TestingPhysicalSlot.builder()
+                                        .withAllocationID(allocationId)
+                                        .build())
+                .setGetFreeSlotTrackerSupplier(
+                        () ->
+                                TestingFreeSlotTracker.newBuilder()
+                                        .setGetFreeSlotsInformationSupplier(
+                                                () ->
+                                                        IntStream.range(0, freeSlots)
+                                                                .mapToObj(v -> new TestingSlot())
+                                                                .collect(Collectors.toSet()))
+                                        .build())
+                .build();
     }
 
     private static JobGraph createJobGraph() {
@@ -2373,6 +2553,10 @@ public class AdaptiveSchedulerTest {
     private static class LifecycleMethodCapturingState extends DummyState {
         boolean onLeaveCalled = false;
         @Nullable Class<? extends State> onLeaveNewStateArgument = null;
+
+        public LifecycleMethodCapturingState(Context context) {
+            super(context);
+        }
 
         void reset() {
             onLeaveCalled = false;
@@ -2473,52 +2657,35 @@ public class AdaptiveSchedulerTest {
         }
     }
 
-    static class DummyState implements State {
+    static class DummyState extends StateWithoutExecutionGraph {
 
         private final JobStatus jobStatus;
 
-        public DummyState() {
-            this(JobStatus.RUNNING);
+        public DummyState(StateWithoutExecutionGraph.Context context) {
+            this(context, JobStatus.RUNNING);
         }
 
-        public DummyState(JobStatus jobStatus) {
+        public DummyState(StateWithoutExecutionGraph.Context context, JobStatus jobStatus) {
+            super(context, AdaptiveSchedulerTest.LOG);
             this.jobStatus = jobStatus;
         }
-
-        @Override
-        public void cancel() {}
-
-        @Override
-        public void suspend(Throwable cause) {}
 
         @Override
         public JobStatus getJobStatus() {
             return jobStatus;
         }
 
-        @Override
-        public ArchivedExecutionGraph getJob() {
-            return null;
-        }
-
-        @Override
-        public void handleGlobalFailure(
-                Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {}
-
-        @Override
-        public Logger getLogger() {
-            return null;
-        }
-
         private static class Factory implements StateFactory<DummyState> {
 
+            private final StateWithoutExecutionGraph.Context context;
             private final JobStatus jobStatus;
 
-            public Factory() {
-                this(JobStatus.RUNNING);
+            public Factory(StateWithoutExecutionGraph.Context context) {
+                this(context, JobStatus.RUNNING);
             }
 
-            public Factory(JobStatus jobStatus) {
+            public Factory(StateWithoutExecutionGraph.Context context, JobStatus jobStatus) {
+                this.context = context;
                 this.jobStatus = jobStatus;
             }
 
@@ -2529,7 +2696,7 @@ public class AdaptiveSchedulerTest {
 
             @Override
             public DummyState getState() {
-                return new DummyState(jobStatus);
+                return new DummyState(context, jobStatus);
             }
         }
     }
@@ -2581,10 +2748,12 @@ public class AdaptiveSchedulerTest {
                             completedCheckpointStore, checkpointIDCounter);
 
             final DefaultDeclarativeSlotPool declarativeSlotPool =
-                    createDeclarativeSlotPool(jobGraph.getJobID());
+                    createDeclarativeSlotPool(jobGraph.getJobID(), mainThreadExecutor);
 
             final Configuration configuration = new Configuration();
-            configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
+            configuration.set(
+                    JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,
+                    Duration.ofMillis(1L));
 
             AdaptiveSchedulerBuilder builder =
                     new AdaptiveSchedulerBuilder(

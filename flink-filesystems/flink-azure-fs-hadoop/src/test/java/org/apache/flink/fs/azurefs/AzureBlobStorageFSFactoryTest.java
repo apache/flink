@@ -29,6 +29,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.net.URI;
 import java.util.stream.Stream;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getIntConfigOption;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the AzureFSFactory. */
@@ -63,7 +64,7 @@ class AzureBlobStorageFSFactoryTest {
         final URI uri = URI.create(uriString);
 
         Configuration config = new Configuration();
-        config.setInteger("fs.azure.io.retry.max.retries", 0);
+        config.set(getIntConfigOption("fs.azure.io.retry.max.retries"), 0);
         factory.configure(config);
 
         assertThatThrownBy(() -> factory.create(uri)).isInstanceOf(AzureException.class);

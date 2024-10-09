@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
@@ -85,8 +86,8 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
             "--fromSavepoint",
             savepointRestoreSettings.getRestorePath(),
             "--allowNonRestoredState",
-            "--webui-port",
-            String.valueOf(restPort),
+            "-D",
+            "rest.port=" + restPort,
             "--job-classname",
             JOB_CLASS_NAME,
             "--jars",
@@ -143,8 +144,8 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
         final String[] args = {
             "--configDir",
             confDirPath,
-            "--webui-port",
-            String.valueOf(restPort),
+            "-D",
+            "rest.port=" + restPort,
             "--job-classname",
             JOB_CLASS_NAME,
             String.format("-D%s=%s", key, value),
@@ -154,10 +155,13 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
 
         final StandaloneApplicationClusterConfiguration clusterConfiguration =
                 commandLineParser.parse(args);
+        final Configuration configuration =
+                StandaloneApplicationClusterEntryPoint.loadConfigurationFromClusterConfig(
+                        clusterConfiguration);
 
         assertThat(clusterConfiguration.getConfigDir()).isEqualTo(confDirPath);
         assertThat(clusterConfiguration.getJobClassName()).isEqualTo(JOB_CLASS_NAME);
-        assertThat(clusterConfiguration.getRestPort()).isEqualTo(restPort);
+        assertThat(configuration.get(RestOptions.PORT)).isEqualTo(restPort);
         final Properties dynamicProperties = clusterConfiguration.getDynamicProperties();
 
         assertThat(dynamicProperties).containsEntry(key, value);
@@ -177,11 +181,15 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
         final StandaloneApplicationClusterConfiguration clusterConfiguration =
                 commandLineParser.parse(args);
 
+        final Configuration configuration =
+                StandaloneApplicationClusterEntryPoint.loadConfigurationFromClusterConfig(
+                        clusterConfiguration);
+
         assertThat(clusterConfiguration.getConfigDir()).isEqualTo(confDirPath);
         assertThat(clusterConfiguration.getDynamicProperties()).isEqualTo(new Properties());
         assertThat(clusterConfiguration.getArgs()).isEqualTo(new String[0]);
-        assertThat(clusterConfiguration.getRestPort()).isEqualTo(-1);
-        assertThat(clusterConfiguration.getHostname()).isNull();
+        assertThat(configuration.get(RestOptions.PORT)).isEqualTo(8081);
+        assertThat(configuration.get(JobManagerOptions.ADDRESS)).isNull();
         assertThat(clusterConfiguration.getSavepointRestoreSettings())
                 .isEqualTo(SavepointRestoreSettings.none());
         assertThat(clusterConfiguration.getJobId()).isNull();
@@ -280,11 +288,21 @@ class StandaloneApplicationClusterConfigurationParserFactoryTest {
     void testHostOption() throws FlinkParseException {
         final String hostName = "user-specified-hostname";
         final String[] args = {
-            "--configDir", confDirPath, "--job-classname", "foobar", "--host", hostName
+            "--configDir",
+            confDirPath,
+            "--job-classname",
+            "foobar",
+            "-D",
+            "jobmanager.rpc.address=" + hostName
         };
         final StandaloneApplicationClusterConfiguration applicationClusterConfiguration =
                 commandLineParser.parse(args);
-        assertThat(applicationClusterConfiguration.getHostname()).isEqualTo(hostName);
+
+        final Configuration configuration =
+                StandaloneApplicationClusterEntryPoint.loadConfigurationFromClusterConfig(
+                        applicationClusterConfiguration);
+
+        assertThat(configuration.get(JobManagerOptions.ADDRESS)).isEqualTo(hostName);
     }
 
     @Test

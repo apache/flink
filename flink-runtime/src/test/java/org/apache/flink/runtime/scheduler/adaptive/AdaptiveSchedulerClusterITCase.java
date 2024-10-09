@@ -18,9 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.WebOptions;
@@ -45,6 +43,7 @@ import org.apache.flink.runtime.testtasks.OnceBlockingNoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -93,8 +92,15 @@ public class AdaptiveSchedulerClusterITCase {
         final Configuration configuration = new Configuration();
 
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
-        configuration.set(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, Duration.ofMillis(1L));
-        configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, Duration.ofMillis(1L));
+        configuration.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT,
+                Duration.ofMillis(1L));
+        configuration.set(
+                JobManagerOptions.SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING,
+                Duration.ofMillis(1L));
+        configuration.set(
+                JobManagerOptions.SCHEDULER_EXECUTING_RESOURCE_STABILIZATION_TIMEOUT,
+                Duration.ofMillis(1L));
         // required for #testCheckpointStatsPersistedAcrossRescale
         configuration.set(WebOptions.CHECKPOINTS_HISTORY_SIZE, Integer.MAX_VALUE);
 
@@ -181,6 +187,12 @@ public class AdaptiveSchedulerClusterITCase {
 
         miniCluster.submitJob(jobGraph).join();
 
+        // wait until the desired parallelism is reached
+        waitUntilParallelismForVertexReached(
+                jobGraph.getJobID(),
+                JOB_VERTEX_ID,
+                NUMBER_SLOTS_PER_TASK_MANAGER * NUMBER_TASK_MANAGERS);
+
         // wait until some checkpoints have been completed
         CommonTestUtils.waitUntilCondition(
                 () ->
@@ -246,6 +258,11 @@ public class AdaptiveSchedulerClusterITCase {
         public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
             return CompletableFuture.completedFuture(null);
         }
+
+        @Override
+        public Future<Void> notifyCheckpointSubsumedAsync(long checkpointId) {
+            return CompletableFuture.completedFuture(null);
+        }
     }
 
     private JobGraph createBlockingJobGraph(int parallelism) throws IOException {
@@ -257,9 +274,7 @@ public class AdaptiveSchedulerClusterITCase {
 
         final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(blockingOperator);
 
-        ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
-        jobGraph.setExecutionConfig(executionConfig);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(jobGraph, 1, 0L);
 
         return jobGraph;
     }

@@ -29,7 +29,7 @@ import org.apache.flink.runtime.io.network.partition.BoundedBlockingSubpartition
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageConfiguration;
 import org.apache.flink.runtime.throughput.BufferDebloatConfiguration;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
-import org.apache.flink.runtime.util.PortRange;
+import org.apache.flink.util.PortRange;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -105,9 +105,6 @@ public class NettyShuffleEnvironmentConfiguration {
 
     private final BufferDebloatConfiguration debloatConfiguration;
 
-    /** The maximum number of tpc connections between taskmanagers for data communication. */
-    private final int maxNumberOfConnections;
-
     private final boolean connectionReuseEnabled;
 
     private final int maxOverdraftBuffersPerGate;
@@ -135,7 +132,6 @@ public class NettyShuffleEnvironmentConfiguration {
             int sortShuffleMinBuffers,
             int sortShuffleMinParallelism,
             BufferDebloatConfiguration debloatConfiguration,
-            int maxNumberOfConnections,
             boolean connectionReuseEnabled,
             int maxOverdraftBuffersPerGate,
             @Nullable TieredStorageConfiguration tieredStorageConfiguration) {
@@ -160,7 +156,6 @@ public class NettyShuffleEnvironmentConfiguration {
         this.sortShuffleMinBuffers = sortShuffleMinBuffers;
         this.sortShuffleMinParallelism = sortShuffleMinParallelism;
         this.debloatConfiguration = debloatConfiguration;
-        this.maxNumberOfConnections = maxNumberOfConnections;
         this.connectionReuseEnabled = connectionReuseEnabled;
         this.maxOverdraftBuffersPerGate = maxOverdraftBuffersPerGate;
         this.tieredStorageConfiguration = tieredStorageConfiguration;
@@ -256,10 +251,6 @@ public class NettyShuffleEnvironmentConfiguration {
         return maxBuffersPerChannel;
     }
 
-    public int getMaxNumberOfConnections() {
-        return maxNumberOfConnections;
-    }
-
     public int getMaxOverdraftBuffersPerGate() {
         return maxOverdraftBuffersPerGate;
     }
@@ -299,7 +290,7 @@ public class NettyShuffleEnvironmentConfiguration {
                         dataBindPortRange);
 
         final int numberOfNetworkBuffers =
-                calculateNumberOfNetworkBuffers(configuration, networkMemorySize, pageSize);
+                calculateNumberOfNetworkBuffers(networkMemorySize, pageSize);
 
         int initialRequestBackoff =
                 configuration.get(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL);
@@ -313,30 +304,21 @@ public class NettyShuffleEnvironmentConfiguration {
                                                 .NETWORK_PARTITION_REQUEST_TIMEOUT)
                                 .toMillis();
 
-        int buffersPerChannel =
-                configuration.get(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL);
-        int extraBuffersPerGate =
-                configuration.get(NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE);
+        int buffersPerChannel = 2;
+        int extraBuffersPerGate = 8;
 
         Optional<Integer> maxRequiredBuffersPerGate =
                 configuration.getOptional(
                         NettyShuffleEnvironmentOptions.NETWORK_READ_MAX_REQUIRED_BUFFERS_PER_GATE);
 
-        int maxBuffersPerChannel =
-                configuration.get(NettyShuffleEnvironmentOptions.NETWORK_MAX_BUFFERS_PER_CHANNEL);
-
-        int maxOverdraftBuffersPerGate =
-                configuration.get(
-                        NettyShuffleEnvironmentOptions.NETWORK_MAX_OVERDRAFT_BUFFERS_PER_GATE);
+        int maxBuffersPerChannel = 10;
 
         long batchShuffleReadMemoryBytes =
                 configuration.get(TaskManagerOptions.NETWORK_BATCH_SHUFFLE_READ_MEMORY).getBytes();
 
         int sortShuffleMinBuffers =
                 configuration.get(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS);
-        int sortShuffleMinParallelism =
-                configuration.get(
-                        NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM);
+        int sortShuffleMinParallelism = 1;
 
         boolean isNetworkDetailedMetrics =
                 configuration.get(NettyShuffleEnvironmentOptions.NETWORK_DETAILED_METRICS);
@@ -351,49 +333,23 @@ public class NettyShuffleEnvironmentConfiguration {
                 configuration.get(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_REQUEST_TIMEOUT);
 
         BoundedBlockingSubpartitionType blockingSubpartitionType =
-                getBlockingSubpartitionType(configuration);
+                BoundedBlockingSubpartitionType.FILE;
 
         CompressionCodec compressionCodec =
                 configuration.get(NettyShuffleEnvironmentOptions.SHUFFLE_COMPRESSION_CODEC);
 
-        boolean batchShuffleCompressionEnabled;
-        if (compressionCodec == CompressionCodec.NONE) {
-            batchShuffleCompressionEnabled = false;
-        } else {
-            batchShuffleCompressionEnabled =
-                    configuration.get(
-                            NettyShuffleEnvironmentOptions.BATCH_SHUFFLE_COMPRESSION_ENABLED);
-
-            if (!batchShuffleCompressionEnabled) {
-                LOG.warn(
-                        "Deprecated configuration key {} is used to disable the compression. "
-                                + "Please set the {} to \"None\" to disable the compression.",
-                        NettyShuffleEnvironmentOptions.BATCH_SHUFFLE_COMPRESSION_ENABLED.key(),
-                        NettyShuffleEnvironmentOptions.SHUFFLE_COMPRESSION_CODEC.key());
-            }
-        }
-
-        int maxNumConnections =
-                Math.max(
-                        1,
-                        configuration.get(NettyShuffleEnvironmentOptions.MAX_NUM_TCP_CONNECTIONS));
+        boolean batchShuffleCompressionEnabled = compressionCodec != CompressionCodec.NONE;
 
         boolean connectionReuseEnabled =
                 configuration.get(
                         NettyShuffleEnvironmentOptions.TCP_CONNECTION_REUSE_ACROSS_JOBS_ENABLED);
 
-        checkArgument(buffersPerChannel >= 0, "Must be non-negative.");
         checkArgument(
                 !maxRequiredBuffersPerGate.isPresent() || maxRequiredBuffersPerGate.get() >= 1,
                 String.format(
                         "At least one buffer is required for each gate, please increase the value of %s.",
                         NettyShuffleEnvironmentOptions.NETWORK_READ_MAX_REQUIRED_BUFFERS_PER_GATE
                                 .key()));
-        checkArgument(
-                extraBuffersPerGate >= 1,
-                String.format(
-                        "The configured floating buffer should be at least 1, please increase the value of %s.",
-                        NettyShuffleEnvironmentOptions.NETWORK_EXTRA_BUFFERS_PER_GATE.key()));
 
         TieredStorageConfiguration tieredStorageConfiguration = null;
         if ((configuration.get(BATCH_SHUFFLE_MODE) == ALL_EXCHANGES_HYBRID_FULL
@@ -422,9 +378,8 @@ public class NettyShuffleEnvironmentConfiguration {
                 sortShuffleMinBuffers,
                 sortShuffleMinParallelism,
                 BufferDebloatConfiguration.fromConfiguration(configuration),
-                maxNumConnections,
                 connectionReuseEnabled,
-                maxOverdraftBuffersPerGate,
+                20,
                 tieredStorageConfiguration);
     }
 
@@ -454,15 +409,11 @@ public class NettyShuffleEnvironmentConfiguration {
     /**
      * Calculates the number of network buffers based on configuration and jvm heap size.
      *
-     * @param configuration configuration object
      * @param networkMemorySize the size of memory reserved for shuffle environment
      * @param pageSize size of memory segment
      * @return the number of network buffers
      */
-    private static int calculateNumberOfNetworkBuffers(
-            Configuration configuration, MemorySize networkMemorySize, int pageSize) {
-
-        logIfIgnoringOldConfigs(configuration);
+    private static int calculateNumberOfNetworkBuffers(MemorySize networkMemorySize, int pageSize) {
 
         // tolerate offcuts between intended and allocated memory due to segmentation (will be
         // available to the user-space memory)
@@ -475,15 +426,6 @@ public class NettyShuffleEnvironmentConfiguration {
         }
 
         return (int) numberOfNetworkBuffersLong;
-    }
-
-    @SuppressWarnings("deprecation")
-    private static void logIfIgnoringOldConfigs(Configuration configuration) {
-        if (configuration.contains(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS)) {
-            LOG.info(
-                    "Ignoring old (but still present) network buffer configuration via {}.",
-                    NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS.key());
-        }
     }
 
     /**
@@ -522,20 +464,6 @@ public class NettyShuffleEnvironmentConfiguration {
         return nettyConfig;
     }
 
-    private static BoundedBlockingSubpartitionType getBlockingSubpartitionType(
-            Configuration config) {
-        String transport = config.get(NettyShuffleEnvironmentOptions.NETWORK_BLOCKING_SHUFFLE_TYPE);
-
-        switch (transport) {
-            case "mmap":
-                return BoundedBlockingSubpartitionType.FILE_MMAP;
-            case "file":
-                return BoundedBlockingSubpartitionType.FILE;
-            default:
-                return BoundedBlockingSubpartitionType.AUTO;
-        }
-    }
-
     // ------------------------------------------------------------------------
 
     @Override
@@ -557,7 +485,6 @@ public class NettyShuffleEnvironmentConfiguration {
         result = 31 * result + Objects.hashCode(batchShuffleReadMemoryBytes);
         result = 31 * result + sortShuffleMinBuffers;
         result = 31 * result + sortShuffleMinParallelism;
-        result = 31 * result + maxNumberOfConnections;
         result = 31 * result + (connectionReuseEnabled ? 1 : 0);
         result = 31 * result + maxOverdraftBuffersPerGate;
         return result;
@@ -591,7 +518,6 @@ public class NettyShuffleEnvironmentConfiguration {
                     && this.maxBuffersPerChannel == that.maxBuffersPerChannel
                     && this.partitionRequestListenerTimeout == that.partitionRequestListenerTimeout
                     && Objects.equals(this.compressionCodec, that.compressionCodec)
-                    && this.maxNumberOfConnections == that.maxNumberOfConnections
                     && this.connectionReuseEnabled == that.connectionReuseEnabled
                     && this.maxOverdraftBuffersPerGate == that.maxOverdraftBuffersPerGate;
         }
@@ -632,8 +558,6 @@ public class NettyShuffleEnvironmentConfiguration {
                 + sortShuffleMinBuffers
                 + ", sortShuffleMinParallelism="
                 + sortShuffleMinParallelism
-                + ", maxNumberOfConnections="
-                + maxNumberOfConnections
                 + ", connectionReuseEnabled="
                 + connectionReuseEnabled
                 + ", maxOverdraftBuffersPerGate="

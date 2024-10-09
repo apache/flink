@@ -20,8 +20,8 @@ package org.apache.flink.streaming.examples.statemachine;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.examples.statemachine.event.Event;
 import org.apache.flink.streaming.examples.statemachine.generator.EventsGeneratorFunction;
 import org.apache.flink.streaming.examples.statemachine.kafka.EventDeSerializationSchema;
+import org.apache.flink.util.ParameterTool;
 
 /**
  * Job to generate input events that are written to Kafka, for the {@link StateMachineExample} job.
@@ -67,15 +68,16 @@ public class KafkaEventsGeneratorJob {
                         WatermarkStrategy.noWatermarks(),
                         "Events Generator Source")
                 .sinkTo(
-                        KafkaSink.<Event>builder()
-                                .setBootstrapServers(brokers)
-                                .setRecordSerializer(
-                                        KafkaRecordSerializationSchema.builder()
-                                                .setValueSerializationSchema(
-                                                        new EventDeSerializationSchema())
-                                                .setTopic(kafkaTopic)
-                                                .build())
-                                .build());
+                        (Sink)
+                                KafkaSink.<Event>builder()
+                                        .setBootstrapServers(brokers)
+                                        .setRecordSerializer(
+                                                KafkaRecordSerializationSchema.builder()
+                                                        .setValueSerializationSchema(
+                                                                new EventDeSerializationSchema())
+                                                        .setTopic(kafkaTopic)
+                                                        .build())
+                                        .build());
 
         // trigger program execution
         env.execute("State machine example Kafka events generator job");

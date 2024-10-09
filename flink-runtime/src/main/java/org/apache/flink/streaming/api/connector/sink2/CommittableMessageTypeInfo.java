@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.connector.sink2;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -50,7 +49,6 @@ public class CommittableMessageTypeInfo<CommT> extends TypeInformation<Committab
      * @param committableSerializerFactory factory to create the serializer for a {@link
      *     CommittableMessage}
      * @param <CommT> type of the committable
-     * @return
      */
     public static <CommT> TypeInformation<CommittableMessage<CommT>> of(
             SerializableSupplier<SimpleVersionedSerializer<CommT>> committableSerializerFactory) {
@@ -86,6 +84,7 @@ public class CommittableMessageTypeInfo<CommT> extends TypeInformation<Committab
         return 1;
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     public Class<CommittableMessage<CommT>> getTypeClass() {
         return (Class) CommittableMessage.class;
@@ -112,11 +111,6 @@ public class CommittableMessageTypeInfo<CommT> extends TypeInformation<Committab
                 return from;
             }
         };
-    }
-
-    @Override
-    public TypeSerializer<CommittableMessage<CommT>> createSerializer(ExecutionConfig config) {
-        return createSerializer(config.getSerializerConfig());
     }
 
     @Override

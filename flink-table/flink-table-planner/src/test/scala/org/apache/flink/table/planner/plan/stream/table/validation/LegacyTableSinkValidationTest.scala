@@ -17,14 +17,14 @@
  */
 package org.apache.flink.table.planner.plan.stream.table.validation
 
-import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.api.common.eventtime._
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.planner.runtime.utils.{TestData, TestingAppendSink, TestingUpsertTableSink}
+import org.apache.flink.table.legacy.api.TableSchema
+import org.apache.flink.table.planner.runtime.utils.{StreamingEnvUtil, TestData, TestingAppendSink, TestingUpsertTableSink}
 import org.apache.flink.table.planner.utils.{MemoryTableSourceSinkUtil, TableTestBase, TableTestUtil}
-import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.junit.jupiter.api.Test
@@ -36,7 +36,9 @@ class LegacyTableSinkValidationTest extends TableTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
-    val t = env.fromCollection(TestData.smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val t = StreamingEnvUtil
+      .fromCollection(env, TestData.smallTupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
 
     // must fail because table is not append-only
     assertThatExceptionOfType(classOf[ValidationException])
@@ -55,9 +57,20 @@ class LegacyTableSinkValidationTest extends TableTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
-    val t = env
-      .fromCollection(TestData.tupleData3)
-      .assignAscendingTimestamps(_._1.toLong)
+    val t = StreamingEnvUtil
+      .fromCollection(env, TestData.tupleData3)
+      .assignTimestampsAndWatermarks(new WatermarkStrategy[(Int, Long, String)]() {
+
+        override def createWatermarkGenerator(context: WatermarkGeneratorSupplier.Context)
+            : WatermarkGenerator[(Int, Long, String)] = {
+          new AscendingTimestampsWatermarks[(Int, Long, String)]
+        }
+
+        override def createTimestampAssigner(
+            context: TimestampAssignerSupplier.Context): TimestampAssigner[(Int, Long, String)] = {
+          (e: (Int, Long, String), _: Long) => e._1.toLong
+        }
+      })
       .toTable(tEnv, 'id, 'num, 'text)
 
     val sink = new TestingUpsertTableSink(Array(0, 1))
@@ -83,8 +96,12 @@ class LegacyTableSinkValidationTest extends TableTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
-    val ds1 = env.fromCollection(TestData.tupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(TestData.tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, TestData.tupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, TestData.tupleData5)
+      .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     // must fail because table is not append-only
     assertThatExceptionOfType(classOf[TableException])
@@ -104,7 +121,8 @@ class LegacyTableSinkValidationTest extends TableTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
-    val sourceTable = env.fromCollection(TestData.tupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val sourceTable =
+      StreamingEnvUtil.fromCollection(env, TestData.tupleData3).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("source", sourceTable)
     val resultTable = tEnv.sqlQuery("select a, b, c, b as d from source")
 

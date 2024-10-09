@@ -17,11 +17,8 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
-import org.apache.flink.api.common.time.Time
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{AggregatePhaseStrategy, OptimizerConfigOptions}
-import org.apache.flink.table.planner.plan.rules.physical.stream.IncrementalAggregateRule
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 

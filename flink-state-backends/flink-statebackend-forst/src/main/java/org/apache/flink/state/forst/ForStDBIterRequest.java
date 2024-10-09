@@ -21,8 +21,8 @@ package org.apache.flink.state.forst;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.util.Preconditions;
 
-import org.rocksdb.RocksDB;
-import org.rocksdb.RocksIterator;
+import org.forstdb.RocksDB;
+import org.forstdb.RocksIterator;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;

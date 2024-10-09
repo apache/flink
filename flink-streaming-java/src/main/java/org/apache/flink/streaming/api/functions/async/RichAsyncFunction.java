@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.functions.async;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -112,12 +111,6 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
         @Override
         public OperatorMetricGroup getMetricGroup() {
             return runtimeContext.getMetricGroup();
-        }
-
-        @Override
-        @Deprecated
-        public ExecutionConfig getExecutionConfig() {
-            return runtimeContext.getExecutionConfig();
         }
 
         @Override

@@ -17,11 +17,12 @@
  */
 package org.apache.flink.table.planner.runtime.stream.table
 
-import org.apache.flink.api.scala._
 import org.apache.flink.core.testutils.EachCallbackWrapper
-import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.expressions.utils.{Func18, FuncWithOpen, RichFunc2}
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
@@ -278,7 +279,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     )
 
     val rowType = Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
-    val in = env.fromElements(row, row)(rowType).toTable(tEnv).as("a", "b", "c")
+    val in = StreamingEnvUtil.fromElements(env, row, row)(rowType).toTable(tEnv).as("a", "b", "c")
 
     val tableFunc = new TableFunc6()
     val result = in
@@ -369,7 +370,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     )
 
     val rowType = Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
-    val in = env.fromElements(row, row)(rowType).toTable(tEnv).as("a", "b", "c")
+    val in = StreamingEnvUtil.fromElements(env, row, row)(rowType).toTable(tEnv).as("a", "b", "c")
     val result = in.select(rf('a).as('d)).joinLateral(call(tf, 'd).as('e))
 
     val sink = new TestingAppendSink
@@ -385,6 +386,6 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     data.+=((2, 2L, "John#19"))
     data.+=((3, 2L, "Anna#44"))
     data.+=((4, 3L, "nosharp"))
-    env.fromCollection(data)
+    StreamingEnvUtil.fromCollection(env, data)
   }
 }

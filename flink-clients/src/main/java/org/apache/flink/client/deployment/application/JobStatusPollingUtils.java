@@ -21,11 +21,11 @@ package org.apache.flink.client.deployment.application;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -50,14 +50,14 @@ class JobStatusPollingUtils {
             final DispatcherGateway dispatcherGateway,
             final JobID jobId,
             final ScheduledExecutor scheduledExecutor,
-            final Time rpcTimeout,
-            final Time retryPeriod) {
+            final Duration rpcTimeout,
+            final Duration retryPeriod) {
 
         return pollJobResultAsync(
                 () -> dispatcherGateway.requestJobStatus(jobId, rpcTimeout),
                 () -> dispatcherGateway.requestJobResult(jobId, rpcTimeout),
                 scheduledExecutor,
-                retryPeriod.toMilliseconds());
+                retryPeriod.toMillis());
     }
 
     @VisibleForTesting

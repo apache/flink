@@ -23,7 +23,6 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
@@ -108,12 +107,6 @@ public class SavepointDeepCopyTest extends AbstractTestBaseJUnit4 {
             ValueStateDescriptor<Tuple2<String, String>> stateDescriptor =
                     new ValueStateDescriptor<>("state", Types.TUPLE(Types.STRING, Types.STRING));
             state = getRuntimeContext().getState(stateDescriptor);
-        }
-
-        @Override
-        public void open(Configuration parameters) throws Exception {
-            throw new UnsupportedOperationException(
-                    "This method is deprecated and shouldn't be invoked. Please use open(OpenContext) instead.");
         }
 
         @Override

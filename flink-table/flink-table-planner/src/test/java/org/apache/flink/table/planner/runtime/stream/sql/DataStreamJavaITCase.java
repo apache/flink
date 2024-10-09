@@ -41,7 +41,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
@@ -88,6 +87,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -377,7 +377,7 @@ class DataStreamJavaITCase {
         testResult(
                 tableEnv.toDataStream(table)
                         .keyBy(k -> k.getField("f2"))
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(5)))
+                        .window(TumblingEventTimeWindows.of(Duration.ofMillis(5)))
                         .<Row>apply(
                                 (key, window, input, out) -> {
                                     int sum = 0;
@@ -446,7 +446,7 @@ class DataStreamJavaITCase {
         // test event time window and field access
         testResult(
                 result.keyBy(k -> k.getField("f1"))
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(5)))
+                        .window(TumblingEventTimeWindows.of(Duration.ofMillis(5)))
                         .<Row>apply(
                                 (key, window, input, out) -> {
                                     int sum = 0;

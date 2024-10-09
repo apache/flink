@@ -101,6 +101,7 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
 
         final SourceOperator<OUT, ?> sourceOperator =
                 instantiateSourceOperator(
+                        parameters,
                         source::createReader,
                         gateway,
                         source.getSplitSerializer(),
@@ -119,10 +120,6 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                         emitProgressiveWatermarks,
                         parameters.getContainingTask().getCanEmitBatchOfRecords());
 
-        sourceOperator.setup(
-                parameters.getContainingTask(),
-                parameters.getStreamConfig(),
-                parameters.getOutput());
         parameters.getOperatorEventDispatcher().registerEventHandler(operatorId, sourceOperator);
 
         // today's lunch is generics spaghetti
@@ -177,6 +174,7 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
     @SuppressWarnings("unchecked")
     private static <T, SplitT extends SourceSplit>
             SourceOperator<T, SplitT> instantiateSourceOperator(
+                    StreamOperatorParameters<T> parameters,
                     FunctionWithException<SourceReaderContext, SourceReader<T, ?>, Exception>
                             readerFactory,
                     OperatorEventGateway eventGateway,
@@ -200,6 +198,7 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                 (SimpleVersionedSerializer<SplitT>) splitSerializer;
 
         return new SourceOperator<>(
+                parameters,
                 typedReaderFactory,
                 eventGateway,
                 typedSplitSerializer,

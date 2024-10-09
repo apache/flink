@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.common import (ExecutionConfig, RestartStrategies, ExecutionMode, Configuration)
+from pyflink.common import (ExecutionConfig, Configuration)
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 from pyflink.util.java_utils import get_j_env_configuration
@@ -91,67 +91,6 @@ class ExecutionConfigTests(PyFlinkTestCase):
 
         self.assertEqual(self.execution_config.get_task_cancellation_timeout(), 3000)
 
-    def test_get_set_restart_strategy(self):
-
-        self.execution_config.set_restart_strategy(RestartStrategies.no_restart())
-
-        self.assertEqual(self.execution_config.get_restart_strategy(),
-                         RestartStrategies.no_restart())
-
-        self.execution_config.set_restart_strategy(
-            RestartStrategies.failure_rate_restart(5, 10000, 5000))
-
-        self.assertIsInstance(self.execution_config.get_restart_strategy(),
-                              RestartStrategies.FailureRateRestartStrategyConfiguration)
-
-        self.execution_config.set_restart_strategy(RestartStrategies.fixed_delay_restart(4, 10000))
-
-        self.assertIsInstance(self.execution_config.get_restart_strategy(),
-                              RestartStrategies.FixedDelayRestartStrategyConfiguration)
-
-        self.execution_config.set_restart_strategy(RestartStrategies.fall_back_restart())
-
-        self.assertEqual(self.execution_config.get_restart_strategy(),
-                         RestartStrategies.fall_back_restart())
-
-    def test_get_set_execution_mode(self):
-
-        self.execution_config.set_execution_mode(ExecutionMode.BATCH)
-
-        self.assertEqual(self.execution_config.get_execution_mode(), ExecutionMode.BATCH)
-
-        self.execution_config.set_execution_mode(ExecutionMode.PIPELINED)
-
-        self.assertEqual(self.execution_config.get_execution_mode(), ExecutionMode.PIPELINED)
-
-        self.execution_config.set_execution_mode(ExecutionMode.BATCH_FORCED)
-
-        self.assertEqual(self.execution_config.get_execution_mode(), ExecutionMode.BATCH_FORCED)
-
-        self.execution_config.set_execution_mode(ExecutionMode.PIPELINED_FORCED)
-
-        self.assertEqual(self.execution_config.get_execution_mode(), ExecutionMode.PIPELINED_FORCED)
-
-    def test_disable_enable_force_kryo(self):
-
-        self.execution_config.disable_force_kryo()
-
-        self.assertFalse(self.execution_config.is_force_kryo_enabled())
-
-        self.execution_config.enable_force_kryo()
-
-        self.assertTrue(self.execution_config.is_force_kryo_enabled())
-
-    def test_disable_enable_generic_types(self):
-
-        self.execution_config.disable_generic_types()
-
-        self.assertTrue(self.execution_config.has_generic_types_disabled())
-
-        self.execution_config.enable_generic_types()
-
-        self.assertFalse(self.execution_config.has_generic_types_disabled())
-
     def test_disable_enable_auto_generated_uids(self):
 
         self.execution_config.disable_auto_generated_uids()
@@ -161,16 +100,6 @@ class ExecutionConfigTests(PyFlinkTestCase):
         self.execution_config.enable_auto_generated_uids()
 
         self.assertTrue(self.execution_config.has_auto_generated_uids_enabled())
-
-    def test_disable_enable_force_avro(self):
-
-        self.execution_config.disable_force_avro()
-
-        self.assertFalse(self.execution_config.is_force_avro_enabled())
-
-        self.execution_config.enable_force_avro()
-
-        self.assertTrue(self.execution_config.is_force_avro_enabled())
 
     def test_disable_enable_object_reuse(self):
 
@@ -187,60 +116,6 @@ class ExecutionConfigTests(PyFlinkTestCase):
         self.execution_config.set_global_job_parameters({"hello": "world"})
 
         self.assertEqual(self.execution_config.get_global_job_parameters(), {"hello": "world"})
-
-    def test_add_default_kryo_serializer(self):
-
-        self.execution_config.add_default_kryo_serializer(
-            "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
-            "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
-
-        class_dict = self.execution_config.get_default_kryo_serializer_classes()
-
-        self.assertEqual(class_dict,
-                         {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
-                          'org.apache.flink.runtime.state'
-                          '.StateBackendTestBase$CustomKryoTestSerializer'})
-
-    def test_register_type_with_kryo_serializer(self):
-
-        self.execution_config.register_type_with_kryo_serializer(
-            "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
-            "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
-
-        class_dict = self.execution_config.get_registered_types_with_kryo_serializer_classes()
-
-        self.assertEqual(class_dict,
-                         {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
-                          'org.apache.flink.runtime.state'
-                          '.StateBackendTestBase$CustomKryoTestSerializer'})
-
-    def test_register_pojo_type(self):
-
-        self.execution_config.register_pojo_type(
-            "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo")
-
-        type_list = self.execution_config.get_registered_pojo_types()
-
-        self.assertEqual(type_list,
-                         ["org.apache.flink.runtime.state.StateBackendTestBase$TestPojo"])
-
-    def test_register_kryo_type(self):
-
-        self.execution_config.register_kryo_type(
-            "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo")
-
-        type_list = self.execution_config.get_registered_kryo_types()
-
-        self.assertEqual(type_list,
-                         ["org.apache.flink.runtime.state.StateBackendTestBase$TestPojo"])
-
-    def test_auto_type_registration(self):
-
-        self.assertFalse(self.execution_config.is_auto_type_registration_disabled())
-
-        self.execution_config.disable_auto_type_registration()
-
-        self.assertTrue(self.execution_config.is_auto_type_registration_disabled())
 
     def test_get_set_use_snapshot_compression(self):
 

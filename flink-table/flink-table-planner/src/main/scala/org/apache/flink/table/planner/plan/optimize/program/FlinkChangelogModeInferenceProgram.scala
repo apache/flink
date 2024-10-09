@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.optimize.program
 
+import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, StreamTableSink, UpsertStreamTableSink}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
@@ -31,7 +32,6 @@ import org.apache.flink.table.planner.plan.utils.RankProcessStrategy.{AppendFast
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
-import org.apache.flink.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, StreamTableSink, UpsertStreamTableSink}
 import org.apache.flink.types.RowKind
 
 import org.apache.calcite.rel.RelNode
@@ -154,18 +154,6 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val sinkTrait = sink.getTraitSet.plus(ModifyKindSetTrait.EMPTY)
         // ignore required trait from context, because sink is the true root
         sink.copy(sinkTrait, children).asInstanceOf[StreamPhysicalRel]
-
-      case deduplicate: StreamPhysicalDeduplicate =>
-        // deduplicate only support insert only as input
-        val children = visitChildren(deduplicate, ModifyKindSetTrait.INSERT_ONLY)
-        val providedTrait = if (!deduplicate.keepLastRow && !deduplicate.isRowtime) {
-          // only proctime first row deduplicate does not produce UPDATE changes
-          ModifyKindSetTrait.INSERT_ONLY
-        } else {
-          // other deduplicate produce update changes
-          ModifyKindSetTrait.ALL_CHANGES
-        }
-        createNewNode(deduplicate, children, providedTrait, requiredTrait, requester)
 
       case agg: StreamPhysicalGroupAggregate =>
         // agg support all changes in input
@@ -490,7 +478,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           createNewNode(rel, children, requiredTrait)
 
         case _: StreamPhysicalWindowRank | _: StreamPhysicalWindowDeduplicate |
-            _: StreamPhysicalDeduplicate | _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch |
+            _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch |
             _: StreamPhysicalOverAggregate | _: StreamPhysicalIntervalJoin |
             _: StreamPhysicalPythonOverAggregate | _: StreamPhysicalWindowJoin =>
           // WindowRank, WindowDeduplicate, Deduplicate, TemporalSort, CEP, OverAggregate,

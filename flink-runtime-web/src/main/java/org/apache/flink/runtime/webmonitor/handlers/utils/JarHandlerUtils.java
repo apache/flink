@@ -37,7 +37,6 @@ import org.apache.flink.runtime.webmonitor.handlers.JarIdPathParameter;
 import org.apache.flink.runtime.webmonitor.handlers.JarRequestBody;
 import org.apache.flink.runtime.webmonitor.handlers.ParallelismQueryParameter;
 import org.apache.flink.runtime.webmonitor.handlers.ProgramArgQueryParameter;
-import org.apache.flink.runtime.webmonitor.handlers.ProgramArgsQueryParameter;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -240,30 +239,11 @@ public class JarHandlerUtils {
             List<String> getProgramArgs(HandlerRequest<R> request, Logger log)
                     throws RestHandlerException {
         JarRequestBody requestBody = request.getRequestBody();
-        @SuppressWarnings("deprecation")
-        List<String> programArgs =
-                tokenizeArguments(
-                        fromRequestBodyOrQueryParameter(
-                                emptyToNull(requestBody.getProgramArguments()),
-                                () -> getQueryParameter(request, ProgramArgsQueryParameter.class),
-                                null,
-                                log));
-        List<String> programArgsList =
-                fromRequestBodyOrQueryParameter(
-                        requestBody.getProgramArgumentsList(),
-                        () -> request.getQueryParameter(ProgramArgQueryParameter.class),
-                        null,
-                        log);
-        if (!programArgsList.isEmpty()) {
-            if (!programArgs.isEmpty()) {
-                throw new RestHandlerException(
-                        "Confusing request: programArgs and programArgsList are specified, please, use only programArgsList",
-                        HttpResponseStatus.BAD_REQUEST);
-            }
-            return programArgsList;
-        } else {
-            return programArgs;
-        }
+        return fromRequestBodyOrQueryParameter(
+                requestBody.getProgramArgumentsList(),
+                () -> request.getQueryParameter(ProgramArgQueryParameter.class),
+                null,
+                log);
     }
 
     private static final Pattern ARGUMENTS_TOKENIZE_PATTERN =

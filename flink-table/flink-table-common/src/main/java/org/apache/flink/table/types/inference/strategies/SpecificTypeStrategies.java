@@ -25,6 +25,7 @@ import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategy;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import java.util.Optional;
 
@@ -92,6 +93,18 @@ public final class SpecificTypeStrategies {
 
     /** See {@link DecimalTimesTypeStrategy}. */
     public static final TypeStrategy DECIMAL_TIMES = new DecimalTimesTypeStrategy();
+
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#PERCENTILE}. */
+    public static final TypeStrategy PERCENTILE =
+            callContext ->
+                    Optional.of(
+                            callContext
+                                            .getArgumentDataTypes()
+                                            .get(1)
+                                            .getLogicalType()
+                                            .is(LogicalTypeRoot.ARRAY)
+                                    ? DataTypes.ARRAY(DataTypes.DOUBLE())
+                                    : DataTypes.DOUBLE());
 
     /** See {@link SourceWatermarkTypeStrategy}. */
     public static final TypeStrategy SOURCE_WATERMARK = new SourceWatermarkTypeStrategy();

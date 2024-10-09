@@ -20,7 +20,6 @@ package org.apache.flink.api.common.functions;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.Configuration;
 
 /**
  * An base interface for all rich user-defined functions. This class defines methods for the life
@@ -29,51 +28,6 @@ import org.apache.flink.configuration.Configuration;
  */
 @Public
 public interface RichFunction extends Function {
-
-    /**
-     * Initialization method for the function. It is called before the actual working methods (like
-     * <i>map</i> or <i>join</i>) and thus suitable for one time setup work. For functions that are
-     * part of an iteration, this method will be invoked at the beginning of each iteration
-     * superstep.
-     *
-     * <p>The configuration object passed to the function can be used for configuration and
-     * initialization. The configuration contains all parameters that were configured on the
-     * function in the program composition.
-     *
-     * <pre>{@code
-     * public class MyFilter extends RichFilterFunction<String> {
-     *
-     *     private String searchString;
-     *
-     *     public void open(Configuration parameters) {
-     *         this.searchString = parameters.getString("foo");
-     *     }
-     *
-     *     public boolean filter(String value) {
-     *         return value.equals(searchString);
-     *     }
-     * }
-     * }</pre>
-     *
-     * <p>By default, this method does nothing.
-     *
-     * @param parameters The configuration containing the parameters attached to the contract.
-     * @throws Exception Implementations may forward exceptions, which are caught by the runtime.
-     *     When the runtime catches an exception, it aborts the task and lets the fail-over logic
-     *     decide whether to retry the task execution.
-     * @see org.apache.flink.configuration.Configuration
-     * @deprecated This method is deprecated since Flink 1.19. The users are recommended to
-     *     implement {@code open(OpenContext openContext)} and implement {@code open(Configuration
-     *     parameters)} with an empty body instead. 1. If you implement {@code open(OpenContext
-     *     openContext)}, the {@code open(OpenContext openContext)} will be invoked and the {@code
-     *     open(Configuration parameters)} won't be invoked. 2. If you don't implement {@code
-     *     open(OpenContext openContext)}, the {@code open(Configuration parameters)} will be
-     *     invoked in the default implementation of the {@code open(OpenContext openContext)}.
-     * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=263425231">
-     *     FLIP-344: Remove parameter in RichFunction#open </a>
-     */
-    @Deprecated
-    void open(Configuration parameters) throws Exception;
 
     /**
      * Initialization method for the function. It is called before the actual working methods (like
@@ -100,14 +54,6 @@ public interface RichFunction extends Function {
      * }
      * }</pre>
      *
-     * <p>By default, this method does nothing.
-     *
-     * <p>1. If you implement {@code open(OpenContext openContext)}, the {@code open(OpenContext
-     * openContext)} will be invoked and the {@code open(Configuration parameters)} won't be
-     * invoked. 2. If you don't implement {@code open(OpenContext openContext)}, the {@code
-     * open(Configuration parameters)} will be invoked in the default implementation of the {@code
-     * open(OpenContext openContext)}.
-     *
      * @param openContext The context containing information about the context in which the function
      *     is opened.
      * @throws Exception Implementations may forward exceptions, which are caught by the runtime.
@@ -115,9 +61,7 @@ public interface RichFunction extends Function {
      *     decide whether to retry the task execution.
      */
     @PublicEvolving
-    default void open(OpenContext openContext) throws Exception {
-        open(new Configuration());
-    }
+    void open(OpenContext openContext) throws Exception;
 
     /**
      * Tear-down method for the user code. It is called after the last call to the main working

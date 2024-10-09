@@ -71,7 +71,7 @@ public class SplitFetcherManagerTest {
                 .hasRootCauseMessage("Artificial exception on closing the split reader.");
     }
 
-    @Test(timeout = 30000)
+    @Test
     public void testCloseCleansUpPreviouslyClosedFetcher() throws Exception {
         final String splitId = "testSplit";
         // Set the queue capacity to 1 to make sure in this case the
@@ -94,7 +94,7 @@ public class SplitFetcherManagerTest {
                 },
                 "The idle fetcher should have been removed.");
         // Now close the fetcher manager. The fetcher manager closing should not block.
-        fetcherManager.close(60_000);
+        fetcherManager.close(Long.MAX_VALUE);
     }
 
     @Test

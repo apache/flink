@@ -22,13 +22,13 @@ import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.PrintSinkFunction;
 import org.apache.flink.streaming.tests.artificialstate.ComplexPayload;
+import org.apache.flink.util.ParameterTool;
 
 import java.util.Collections;
 import java.util.List;
@@ -36,7 +36,7 @@ import java.util.List;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createArtificialKeyedStateMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createEventSource;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSemanticsCheckMapper;
-import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createTimestampExtractor;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createWatermarkStrategy;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
 
 /**
@@ -94,7 +94,7 @@ public class StatefulStreamJobUpgradeTestProgram {
                 env.addSource(createEventSource(pt))
                         .name("EventSource")
                         .uid("EventSource")
-                        .assignTimestampsAndWatermarks(createTimestampExtractor(pt))
+                        .assignTimestampsAndWatermarks(createWatermarkStrategy(pt))
                         .keyBy(Event::getKey);
 
         List<TypeSerializer<ComplexPayload>> stateSer =
@@ -119,7 +119,7 @@ public class StatefulStreamJobUpgradeTestProgram {
                 env.addSource(createEventSource(pt))
                         .name("EventSource")
                         .uid("EventSource")
-                        .assignTimestampsAndWatermarks(createTimestampExtractor(pt))
+                        .assignTimestampsAndWatermarks(createWatermarkStrategy(pt))
                         .map(new UpgradeEvent())
                         .keyBy(UpgradedEvent::getKey);
 

@@ -52,7 +52,7 @@ public class MyMapper extends RichMapFunction<String, String> {
   private transient Counter counter;
 
   @Override
-  public void open(Configuration config) {
+  public void open(OpenContext ctx) {
     this.counter = getRuntimeContext()
       .getMetricGroup()
       .counter("myCounter");
@@ -116,7 +116,7 @@ public class MyMapper extends RichMapFunction<String, String> {
   private transient Counter counter;
 
   @Override
-  public void open(Configuration config) {
+  public void open(OpenContext ctx) {
     this.counter = getRuntimeContext()
       .getMetricGroup()
       .counter("myCustomCounter", new CustomCounter());
@@ -173,7 +173,7 @@ public class MyMapper extends RichMapFunction<String, String> {
   private transient int valueToExpose = 0;
 
   @Override
-  public void open(Configuration config) {
+  public void open(OpenContext ctx) {
     getRuntimeContext()
       .getMetricGroup()
       .gauge("MyGauge", new Gauge<Integer>() {
@@ -247,7 +247,7 @@ public class MyMapper extends RichMapFunction<Long, Long> {
   private transient Histogram histogram;
 
   @Override
-  public void open(Configuration config) {
+  public void open(OpenContext ctx) {
     this.histogram = getRuntimeContext()
       .getMetricGroup()
       .histogram("myHistogram", new MyHistogram());
@@ -307,7 +307,7 @@ public class MyMapper extends RichMapFunction<Long, Long> {
   private transient Histogram histogram;
 
   @Override
-  public void open(Configuration config) {
+  public void open(OpenContext ctx) {
     com.codahale.metrics.Histogram dropwizardHistogram =
       new com.codahale.metrics.Histogram(new SlidingWindowReservoir(500));
 
@@ -366,7 +366,7 @@ public class MyMapper extends RichMapFunction<Long, Long> {
   private transient Meter meter;
 
   @Override
-  public void open(Configuration config) {
+  public void open(OpenContext ctx) {
     this.meter = getRuntimeContext()
       .getMetricGroup()
       .meter("myMeter", new MyMeter());
@@ -440,7 +440,7 @@ public class MyMapper extends RichMapFunction<Long, Long> {
   private transient Meter meter;
 
   @Override
-  public void open(Configuration config) {
+  public void open(OpenContext ctx) {
     com.codahale.metrics.Meter dropwizardMeter = new com.codahale.metrics.Meter();
 
     this.meter = getRuntimeContext()
@@ -1270,11 +1270,6 @@ Whether these metrics are reported depends on the [metrics.job.status.enable]({{
       <td>Gauge</td>
     </tr>
     <tr>
-      <td>fullRestarts</td>
-      <td><span class="label label-danger">Attention:</span> deprecated, use <b>numRestarts</b>.</td>
-      <td>Gauge</td>
-    </tr>
-    <tr>
       <td>numRestarts</td>
       <td>The total number of restarts since this job was submitted, including full restarts and fine-grained restarts.</td>
       <td>Gauge</td>
@@ -1310,6 +1305,11 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
     <tr>
       <td>lastCompletedCheckpointId</td>
       <td>The identifier of the last completed checkpoint.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastCheckpointCompletedTimestamp</td>
+      <td>The timestamp of the last completed checkpoint (in milliseconds).</td>
       <td>Gauge</td>
     </tr>
     <tr>

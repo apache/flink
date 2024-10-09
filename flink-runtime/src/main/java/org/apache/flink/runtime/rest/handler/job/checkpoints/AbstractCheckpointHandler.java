@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job.checkpoints;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -37,6 +36,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.shaded.guava32.com.google.common.cache.Cache;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -54,7 +54,7 @@ public abstract class AbstractCheckpointHandler<
 
     protected AbstractCheckpointHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             MessageHeaders<EmptyRequestBody, R, M> messageHeaders,
             Executor executor,

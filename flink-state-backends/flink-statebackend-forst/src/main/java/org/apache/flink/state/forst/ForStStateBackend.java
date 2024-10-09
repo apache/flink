@@ -20,11 +20,14 @@ package org.apache.flink.state.forst;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
@@ -32,15 +35,21 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractManagedMemoryStateBackend;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.StreamCompressionDecorator;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.state.forst.ForStMemoryControllerUtils.ForStMemoryFactory;
+import org.apache.flink.state.forst.sync.ForStPriorityQueueConfig;
+import org.apache.flink.state.forst.sync.ForStSyncKeyedStateBackendBuilder;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.rocksdb.NativeLibraryLoader;
-import org.rocksdb.RocksDB;
+import org.forstdb.NativeLibraryLoader;
+import org.forstdb.RocksDB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +66,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * A {@link org.apache.flink.runtime.state.StateBackend} that stores its state in a ForSt instance.
@@ -127,12 +141,18 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
     /** Factory for Write Buffer Manager and Block Cache. */
     private final ForStMemoryFactory forStMemoryFactory;
+
+    /**
+     * The configuration for rocksdb priorityQueue state settings (priorityQueue state type, etc.).
+     */
+    private final ForStPriorityQueueConfig priorityQueueConfig;
     // ------------------------------------------------------------------------
 
     /** Creates a new {@code ForStStateBackend} for storing state. */
     public ForStStateBackend() {
         this.nativeMetricOptions = new ForStNativeMetricOptions();
         this.memoryConfiguration = new ForStMemoryConfiguration();
+        this.priorityQueueConfig = new ForStPriorityQueueConfig();
         this.forStMemoryFactory = ForStMemoryFactory.DEFAULT;
     }
 
@@ -156,6 +176,10 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
             String remoteDirStr = config.get(ForStOptions.REMOTE_DIRECTORY);
             this.remoteForStDirectory = remoteDirStr == null ? null : new Path(remoteDirStr);
         }
+
+        this.priorityQueueConfig =
+                ForStPriorityQueueConfig.fromOtherAndConfiguration(
+                        original.priorityQueueConfig, config);
 
         // configure local directories
         if (original.localForStDirectories != null) {
@@ -292,7 +316,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         // first, make sure that the ForSt JNI library is loaded
         // we do this explicitly here to have better error handling
         String tempDir = env.getTaskManagerInfo().getTmpWorkingDirectory().getAbsolutePath();
-        ensureForStIsLoaded(tempDir);
+        ensureForStIsLoaded(tempDir, env.getAsyncOperationsThreadPool());
 
         // replace all characters that are not legal for filenames with underscore
         String fileCompatibleIdentifier =
@@ -331,12 +355,19 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
         ForStKeyedStateBackendBuilder<K> builder =
                 new ForStKeyedStateBackendBuilder<>(
+                                parameters.getOperatorIdentifier(),
+                                env.getUserCodeClassLoader().asClassLoader(),
                                 resourceContainer,
                                 stateName -> resourceContainer.getColumnOptions(),
                                 parameters.getKeySerializer(),
                                 parameters.getNumberOfKeyGroups(),
+                                parameters.getKeyGroupRange(),
                                 parameters.getMetricGroup(),
-                                parameters.getStateHandles())
+                                parameters.getCustomInitializationMetrics(),
+                                parameters.getStateHandles(),
+                                parameters.getCancelStreamRegistry())
+                        // TODO: remove after support more snapshot strategy
+                        .setEnableIncrementalCheckpointing(true)
                         .setNativeMetricOptions(
                                 resourceContainer.getMemoryWatcherOptions(nativeMetricOptions));
         return builder.build();
@@ -344,8 +375,80 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
     @Override
     public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-            KeyedStateBackendParameters<K> parameters) {
-        throw new UnsupportedOperationException("Don't support createKeyedStateBackend yet");
+            KeyedStateBackendParameters<K> parameters) throws IOException {
+        Environment env = parameters.getEnv();
+
+        // first, make sure that the RocksDB JNI library is loaded
+        // we do this explicitly here to have better error handling
+        String tempDir = env.getTaskManagerInfo().getTmpWorkingDirectory().getAbsolutePath();
+        ensureForStIsLoaded(tempDir, env.getAsyncOperationsThreadPool());
+
+        // replace all characters that are not legal for filenames with underscore
+        String fileCompatibleIdentifier =
+                parameters.getOperatorIdentifier().replaceAll("[^a-zA-Z0-9\\-]", "_");
+
+        lazyInitializeForJob(env, fileCompatibleIdentifier);
+
+        File instanceBasePath =
+                new File(
+                        getNextStoragePath(),
+                        "job_"
+                                + jobId
+                                + "_op_"
+                                + fileCompatibleIdentifier
+                                + "_uuid_"
+                                + UUID.randomUUID());
+
+        LocalRecoveryConfig localRecoveryConfig =
+                env.getTaskStateManager().createLocalRecoveryConfig();
+
+        final OpaqueMemoryResource<ForStSharedResources> sharedResources =
+                ForStOperationUtils.allocateSharedCachesIfConfigured(
+                        memoryConfiguration,
+                        env,
+                        parameters.getManagedMemoryFraction(),
+                        LOG,
+                        forStMemoryFactory);
+        if (sharedResources != null) {
+            LOG.info("Obtained shared RocksDB cache of size {} bytes", sharedResources.getSize());
+        }
+        final ForStResourceContainer resourceContainer =
+                createOptionsAndResourceContainer(
+                        sharedResources,
+                        instanceBasePath,
+                        null,
+                        nativeMetricOptions.isStatisticsEnabled());
+
+        ExecutionConfig executionConfig = env.getExecutionConfig();
+        StreamCompressionDecorator keyGroupCompressionDecorator =
+                getCompressionDecorator(executionConfig);
+
+        LatencyTrackingStateConfig latencyTrackingStateConfig =
+                latencyTrackingConfigBuilder.setMetricGroup(parameters.getMetricGroup()).build();
+        ForStSyncKeyedStateBackendBuilder<K> builder =
+                new ForStSyncKeyedStateBackendBuilder<>(
+                                parameters.getOperatorIdentifier(),
+                                env.getUserCodeClassLoader().asClassLoader(),
+                                instanceBasePath,
+                                resourceContainer,
+                                stateName -> resourceContainer.getColumnOptions(),
+                                parameters.getKvStateRegistry(),
+                                parameters.getKeySerializer(),
+                                parameters.getNumberOfKeyGroups(),
+                                parameters.getKeyGroupRange(),
+                                executionConfig,
+                                localRecoveryConfig,
+                                priorityQueueConfig,
+                                parameters.getTtlTimeProvider(),
+                                latencyTrackingStateConfig,
+                                parameters.getMetricGroup(),
+                                parameters.getCustomInitializationMetrics(),
+                                parameters.getStateHandles(),
+                                keyGroupCompressionDecorator,
+                                parameters.getCancelStreamRegistry())
+                        .setNativeMetricOptions(
+                                resourceContainer.getMemoryWatcherOptions(nativeMetricOptions));
+        return builder.build();
     }
 
     @Override
@@ -517,7 +620,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
     // ------------------------------------------------------------------------
 
     /**
-     * Sets {@link org.rocksdb.Options} for the ForSt instances. Because the options are not
+     * Sets {@link org.forstdb.Options} for the ForSt instances. Because the options are not
      * serializable and hold native code references, they must be specified through a factory.
      *
      * <p>The options created by the factory here are applied on top of user-configured options from
@@ -530,7 +633,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         this.forStOptionsFactory = optionsFactory;
     }
 
-    /** Gets {@link org.rocksdb.Options} for the ForSt instances. */
+    /** Gets {@link org.forstdb.Options} for the ForSt instances. */
     @Nullable
     public ForStOptionsFactory getForStOptions() {
         return forStOptionsFactory;
@@ -601,8 +704,8 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
     // ------------------------------------------------------------------------
 
     @VisibleForTesting
-    static void ensureForStIsLoaded(String tempDirectory) throws IOException {
-        ensureForStIsLoaded(tempDirectory, NativeLibraryLoader::getInstance);
+    static void ensureForStIsLoaded(String tempDirectory, Executor executor) throws IOException {
+        ensureForStIsLoaded(tempDirectory, NativeLibraryLoader::getInstance, executor);
     }
 
     @VisibleForTesting
@@ -612,7 +715,9 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
     @VisibleForTesting
     static void ensureForStIsLoaded(
-            String tempDirectory, Supplier<NativeLibraryLoader> nativeLibraryLoaderSupplier)
+            String tempDirectory,
+            Supplier<NativeLibraryLoader> nativeLibraryLoaderSupplier,
+            Executor executor)
             throws IOException {
         synchronized (ForStStateBackend.class) {
             if (!forStInitialized) {
@@ -624,7 +729,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
                 Throwable lastException = null;
                 for (int attempt = 1; attempt <= FORST_LIB_LOADING_ATTEMPTS; attempt++) {
-                    File rocksLibFolder = null;
+                    AtomicReference<File> rocksLibFolder = new AtomicReference<>(null);
                     try {
                         // when multiple instances of this class and ForSt exist in different
                         // class loaders, then we can see the following exception:
@@ -639,22 +744,38 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                         // loaders, but
                         //  apparently not when coming from the same file path, so there we go)
 
-                        rocksLibFolder = new File(tempDirParent, "rocksdb-lib-" + new AbstractID());
+                        // We use an async procedure to load the library, to make current thread be
+                        // able to interrupt for a fast quit.
+                        CompletableFuture<Void> future =
+                                FutureUtils.runAsync(
+                                        () -> {
+                                            File libFolder =
+                                                    new File(
+                                                            tempDirParent,
+                                                            "rocksdb-lib-" + new AbstractID());
+                                            rocksLibFolder.set(libFolder);
 
-                        // make sure the temp path exists
-                        LOG.debug(
-                                "Attempting to create ForSt native library folder {}",
-                                rocksLibFolder);
-                        // noinspection ResultOfMethodCallIgnored
-                        rocksLibFolder.mkdirs();
+                                            // make sure the temp path exists
+                                            LOG.debug(
+                                                    "Attempting to create ForSt native library folder {}",
+                                                    libFolder);
+                                            // noinspection ResultOfMethodCallIgnored
+                                            libFolder.mkdirs();
 
-                        // explicitly load the JNI dependency if it has not been loaded before
-                        nativeLibraryLoaderSupplier
-                                .get()
-                                .loadLibrary(rocksLibFolder.getAbsolutePath());
+                                            // explicitly load the JNI dependency if it has not been
+                                            // loaded before
+                                            nativeLibraryLoaderSupplier
+                                                    .get()
+                                                    .loadLibrary(libFolder.getAbsolutePath());
 
-                        // this initialization here should validate that the loading succeeded
-                        RocksDB.loadLibrary();
+                                            // this initialization here should validate that the
+                                            // loading succeeded
+                                            RocksDB.loadLibrary();
+                                        },
+                                        executor);
+
+                        // wait for finish or be interrupted.
+                        future.get();
 
                         // seems to have worked
                         LOG.info("Successfully loaded ForSt native library");
@@ -673,7 +794,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                                     tt);
                         }
 
-                        FileUtils.deleteDirectoryQuietly(rocksLibFolder);
+                        FileUtils.deleteDirectoryQuietly(rocksLibFolder.get());
                     }
                 }
 
@@ -687,5 +808,22 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         final Field initField = NativeLibraryLoader.class.getDeclaredField("initialized");
         initField.setAccessible(true);
         initField.setBoolean(null, false);
+    }
+
+    /** The options to chose for the type of priority queue state. */
+    public enum PriorityQueueStateType implements DescribedEnum {
+        HEAP(text("Heap-based")),
+        ForStDB(text("Implementation based on RocksDB"));
+
+        private final InlineElement description;
+
+        PriorityQueueStateType(InlineElement description) {
+            this.description = description;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
     }
 }

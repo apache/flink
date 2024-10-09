@@ -125,24 +125,6 @@ public class CliOptionsParser {
                                     + "functions, table sources, or sinks. Can be used multiple times.")
                     .build();
 
-    @Deprecated
-    public static final Option OPTION_UPDATE =
-            Option.builder("u")
-                    .required(false)
-                    .longOpt("update")
-                    .numberOfArgs(1)
-                    .argName("SQL update statement")
-                    .desc(
-                            String.format(
-                                    "Deprecated Experimental (for testing only!) feature: Instructs the SQL Client to immediately execute "
-                                            + "the given update statement after starting up. The process is shut down after the "
-                                            + "statement has been submitted to the cluster and returns an appropriate return code. "
-                                            + "Currently, this feature is only supported for INSERT INTO statements that declare "
-                                            + "the target sink table."
-                                            + "Please use option -%s to submit update statement.",
-                                    OPTION_FILE.getOpt()))
-                    .build();
-
     public static final Option OPTION_HISTORY =
             Option.builder("hist")
                     .required(false)
@@ -176,7 +158,6 @@ public class CliOptionsParser {
         options.addOption(OPTION_SESSION_CONFIG);
         options.addOption(OPTION_INIT_FILE);
         options.addOption(OPTION_FILE);
-        options.addOption(OPTION_UPDATE);
         options.addOption(OPTION_HISTORY);
     }
 
@@ -270,7 +251,6 @@ public class CliOptionsParser {
                     checkSessionId(line),
                     checkUrl(line, CliOptionsParser.OPTION_INIT_FILE),
                     checkUrl(line, CliOptionsParser.OPTION_FILE),
-                    line.getOptionValue(CliOptionsParser.OPTION_UPDATE.getOpt()),
                     line.getOptionValue(CliOptionsParser.OPTION_HISTORY.getOpt()),
                     checkUrls(line, CliOptionsParser.OPTION_JAR),
                     checkUrls(line, CliOptionsParser.OPTION_LIBRARY),
@@ -290,7 +270,6 @@ public class CliOptionsParser {
                     checkSessionId(line),
                     checkUrl(line, CliOptionsParser.OPTION_INIT_FILE),
                     checkUrl(line, CliOptionsParser.OPTION_FILE),
-                    line.getOptionValue(CliOptionsParser.OPTION_UPDATE.getOpt()),
                     line.getOptionValue(CliOptionsParser.OPTION_HISTORY.getOpt()),
                     line.hasOption(CliOptionsParser.OPTION_ENDPOINT_ADDRESS.getOpt())
                             ? parseGatewayAddress(

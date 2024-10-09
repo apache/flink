@@ -24,6 +24,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.util.DataFormatConverters.{getConverterForDataType, DataFormatConverter}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
+import org.apache.flink.table.legacy.types.logical.TypeInformationRawType
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexDistinctKeyVariable, RexFieldVariable}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}

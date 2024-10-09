@@ -19,7 +19,6 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.OpenContext;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -32,12 +31,13 @@ import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
@@ -82,7 +82,7 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBaseJUnit
 
     @Test
     public void testImmediateCheckpointing() throws Exception {
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        RestartStrategyUtils.configureNoRestartStrategy(env);
         // Checkpointing is enabled with a large interval, and no checkpoints will be triggered.
         env.enableCheckpointing(
                 Duration.ofNanos(Long.MAX_VALUE) /* max duration allowed by FLINK */.toMillis());
@@ -103,7 +103,7 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBaseJUnit
         try (MiniCluster miniCluster = new MiniCluster(cfg)) {
             miniCluster.start();
 
-            env.setRestartStrategy(RestartStrategies.noRestart());
+            RestartStrategyUtils.configureNoRestartStrategy(env);
             env.enableCheckpointing(100);
             JobGraph jobGraph = getStreamGraph(env, true, false).getJobGraph();
             miniCluster.submitJob(jobGraph).get();

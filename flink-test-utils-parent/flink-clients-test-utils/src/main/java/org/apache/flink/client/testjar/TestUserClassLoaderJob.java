@@ -18,11 +18,11 @@
 
 package org.apache.flink.client.testjar;
 
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.util.ParameterTool;
 
 /** This class can used to test situation that the jar is not in the system classpath. */
 public class TestUserClassLoaderJob {

@@ -25,7 +25,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.io.FileOutputFormat;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
@@ -33,7 +32,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.CheckpointType;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -66,7 +65,6 @@ import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipCont
 import org.apache.flink.runtime.io.network.partition.ClusterPartitionManager;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -160,7 +158,7 @@ public class MiniCluster implements AutoCloseableAsync {
     /** The configuration for this mini cluster. */
     private final MiniClusterConfiguration miniClusterConfiguration;
 
-    private final Time rpcTimeout;
+    private final Duration rpcTimeout;
 
     @GuardedBy("lock")
     private final List<TaskExecutor> taskManagers;
@@ -973,12 +971,12 @@ public class MiniCluster implements AutoCloseableAsync {
 
     public CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
             JobID jobId,
-            OperatorID operatorId,
+            String operatorUid,
             SerializedValue<CoordinationRequest> serializedRequest) {
         return runDispatcherCommand(
                 dispatcherGateway ->
                         dispatcherGateway.deliverCoordinationRequestToCoordinator(
-                                jobId, operatorId, serializedRequest, rpcTimeout));
+                                jobId, operatorUid, serializedRequest, rpcTimeout));
     }
 
     public CompletableFuture<ResourceOverview> getResourceOverview() {
@@ -1093,10 +1091,10 @@ public class MiniCluster implements AutoCloseableAsync {
         final SavepointRestoreSettings savepointRestoreSettings =
                 jobGraph.getSavepointRestoreSettings();
         if (overrideRestoreModeForChangelogStateBackend
-                && savepointRestoreSettings.getRestoreMode() == RestoreMode.NO_CLAIM) {
+                && savepointRestoreSettings.getRecoveryClaimMode() == RecoveryClaimMode.NO_CLAIM) {
             final Configuration conf = new Configuration();
             SavepointRestoreSettings.toConfiguration(savepointRestoreSettings, conf);
-            conf.set(StateRecoveryOptions.RESTORE_MODE, RestoreMode.LEGACY);
+            conf.set(StateRecoveryOptions.RESTORE_MODE, RecoveryClaimMode.LEGACY);
             jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.fromConfiguration(conf));
         }
     }

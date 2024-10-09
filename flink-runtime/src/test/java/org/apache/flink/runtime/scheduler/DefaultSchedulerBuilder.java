@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -64,6 +63,7 @@ import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -91,7 +91,7 @@ public class DefaultSchedulerBuilder {
     private CheckpointsCleaner checkpointCleaner = new CheckpointsCleaner();
     private CheckpointRecoveryFactory checkpointRecoveryFactory =
             new StandaloneCheckpointRecoveryFactory();
-    private Time rpcTimeout = Time.seconds(300);
+    private Duration rpcTimeout = Duration.ofSeconds(300);
     private BlobWriter blobWriter = VoidBlobWriter.getInstance();
     private JobManagerJobMetricGroup jobManagerJobMetricGroup =
             UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup();
@@ -188,7 +188,7 @@ public class DefaultSchedulerBuilder {
         return this;
     }
 
-    public DefaultSchedulerBuilder setRpcTimeout(Time rpcTimeout) {
+    public DefaultSchedulerBuilder setRpcTimeout(Duration rpcTimeout) {
         this.rpcTimeout = rpcTimeout;
         return this;
     }

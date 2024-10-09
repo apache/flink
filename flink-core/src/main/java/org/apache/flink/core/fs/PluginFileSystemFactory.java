@@ -195,13 +195,6 @@ public class PluginFileSystemFactory implements FileSystemFactory {
         }
 
         @Override
-        public FileSystemKind getKind() {
-            try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
-                return inner.getKind();
-            }
-        }
-
-        @Override
         public boolean rename(final Path src, final Path dst) throws IOException {
             try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(loader)) {
                 return inner.rename(src, dst);

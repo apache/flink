@@ -26,7 +26,7 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.TestingClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.FlinkException;
 
@@ -139,35 +139,35 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 
     @Test
     void testClaimRestoreModeParsing() throws Exception {
-        testRestoreMode("-rm", "claim", RestoreMode.CLAIM);
+        testRestoreMode("-rm", "claim", RecoveryClaimMode.CLAIM);
     }
 
     @Test
     void testLegacyRestoreModeParsing() throws Exception {
-        testRestoreMode("-rm", "legacy", RestoreMode.LEGACY);
+        testRestoreMode("-rm", "legacy", RecoveryClaimMode.LEGACY);
     }
 
     @Test
     void testNoClaimRestoreModeParsing() throws Exception {
-        testRestoreMode("-rm", "no_claim", RestoreMode.NO_CLAIM);
+        testRestoreMode("-rm", "no_claim", RecoveryClaimMode.NO_CLAIM);
     }
 
     @Test
     void testClaimRestoreModeParsingLongOption() throws Exception {
-        testRestoreMode("--claimMode", "claim", RestoreMode.CLAIM);
+        testRestoreMode("--claimMode", "claim", RecoveryClaimMode.CLAIM);
     }
 
     @Test
     void testLegacyRestoreModeParsingLongOption() throws Exception {
-        testRestoreMode("--claimMode", "legacy", RestoreMode.LEGACY);
+        testRestoreMode("--claimMode", "legacy", RecoveryClaimMode.LEGACY);
     }
 
     @Test
     void testNoClaimRestoreModeParsingLongOption() throws Exception {
-        testRestoreMode("--claimMode", "no_claim", RestoreMode.NO_CLAIM);
+        testRestoreMode("--claimMode", "no_claim", RecoveryClaimMode.NO_CLAIM);
     }
 
-    private void testRestoreMode(String flag, String arg, RestoreMode expectedMode)
+    private void testRestoreMode(String flag, String arg, RecoveryClaimMode expectedMode)
             throws Exception {
         String[] parameters = {"-s", "expectedSavepointPath", "-n", flag, arg, getTestJarPath()};
 
@@ -179,7 +179,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 
         SavepointRestoreSettings savepointSettings = executionOptions.getSavepointRestoreSettings();
         assertThat(savepointSettings.restoreSavepoint()).isTrue();
-        assertThat(savepointSettings.getRestoreMode()).isEqualTo(expectedMode);
+        assertThat(savepointSettings.getRecoveryClaimMode()).isEqualTo(expectedMode);
         assertThat(savepointSettings.getRestorePath()).isEqualTo("expectedSavepointPath");
         assertThat(savepointSettings.allowNonRestoredState()).isTrue();
     }
@@ -286,7 +286,6 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
                         new GenericCLI(configuration, CliFrontendTestUtils.getConfigDir()));
 
         testFrontend.run(new String[] {option, value, getTestJarPath()});
-        assertThat(testFrontend.runApplicationCalled).isFalse();
         assertThat(testFrontend.runCalled).isTrue();
         assertThat(testFrontend.application).isFalse();
         assertThat(testFrontend.executeProgramCalled).isTrue();
@@ -310,24 +309,6 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
                         new GenericCLI(configuration, CliFrontendTestUtils.getConfigDir()));
 
         testFrontend.run(new String[] {option, value, getTestJarPath()});
-        assertThat(testFrontend.runApplicationCalled).isFalse();
-        assertThat(testFrontend.runCalled).isTrue();
-        assertThat(testFrontend.application).isTrue();
-        assertThat(testFrontend.executeProgramCalled).isFalse();
-    }
-
-    @ParameterizedTest
-    @MethodSource("applicationTypeParams")
-    void testRunApplicationWithApplicationTypeDeployment(String option, String value)
-            throws Exception {
-        final Configuration configuration = new Configuration();
-        final RunApplicationTestingCliFrontend testFrontend =
-                new RunApplicationTestingCliFrontend(
-                        configuration,
-                        new GenericCLI(configuration, CliFrontendTestUtils.getConfigDir()));
-
-        testFrontend.runApplication(new String[] {option, value, getTestJarPath()});
-        assertThat(testFrontend.runApplicationCalled).isTrue();
         assertThat(testFrontend.runCalled).isTrue();
         assertThat(testFrontend.application).isTrue();
         assertThat(testFrontend.executeProgramCalled).isFalse();
@@ -377,7 +358,6 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
     private static final class RunApplicationTestingCliFrontend extends CliFrontend {
 
         private boolean runCalled;
-        private boolean runApplicationCalled;
         private boolean application;
         private boolean executeProgramCalled;
 
@@ -393,12 +373,6 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
         protected void run(String[] args) throws Exception {
             super.run(args);
             runCalled = true;
-        }
-
-        @Override
-        protected void runApplication(String[] args) throws Exception {
-            super.runApplication(args);
-            runApplicationCalled = true;
         }
 
         @Override

@@ -38,7 +38,6 @@ import org.apache.flink.table.planner.plan.abilities.source.PartitionPushDownSpe
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilityContext;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
 import org.apache.flink.table.planner.plan.utils.PartitionPruner;
 import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
 import org.apache.flink.table.planner.plan.utils.RexNodeToExpressionConverter;
@@ -126,7 +125,6 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
         Tuple2<Seq<RexNode>, Seq<RexNode>> allPredicates =
                 RexNodeExtractor.extractPartitionPredicateList(
                         filter.getCondition(),
-                        FlinkRelOptUtil.getMaxCnfNodeCount(scan),
                         inputFieldNames.toArray(new String[0]),
                         rexBuilder,
                         partitionFieldNames.toArray(new String[0]));

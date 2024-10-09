@@ -35,9 +35,7 @@ import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.legacy.DiscardingSink;
 import org.apache.flink.util.TernaryBoolean;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -133,9 +131,10 @@ class StreamExecutionEnvironmentComplexConfigurationTest {
     void testLoadingKryoSerializersFromConfiguration() {
         Configuration configuration = new Configuration();
         configuration.setString(
-                "pipeline.default-kryo-serializers",
-                "class:'org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentComplexConfigurationTest$CustomPojo'"
-                        + ",serializer:'org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentComplexConfigurationTest$CustomPojoSerializer'");
+                "pipeline.serialization-config",
+                "{org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentComplexConfigurationTest$CustomPojo:"
+                        + " {type: kryo, kryo-type: default, class:"
+                        + " org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentComplexConfigurationTest$CustomPojoSerializer}}");
 
         // mutate config according to configuration
         StreamExecutionEnvironment envFromConfiguration =
@@ -149,20 +148,6 @@ class StreamExecutionEnvironmentComplexConfigurationTest {
                                 .getSerializerConfig()
                                 .getDefaultKryoSerializerClasses())
                 .isEqualTo(serializers);
-    }
-
-    @Test
-    void testNotOverridingStateBackendWithDefaultsFromConfiguration() {
-        StreamExecutionEnvironment envFromConfiguration =
-                StreamExecutionEnvironment.getExecutionEnvironment();
-        envFromConfiguration.setStateBackend(new MemoryStateBackend());
-
-        // mutate config according to configuration
-        envFromConfiguration.configure(
-                new Configuration(), Thread.currentThread().getContextClassLoader());
-
-        StateBackend actualStateBackend = envFromConfiguration.getStateBackend();
-        assertThat(actualStateBackend).isInstanceOf(MemoryStateBackend.class);
     }
 
     @Test

@@ -18,9 +18,9 @@
 
 package org.apache.flink.streaming.connectors.wikiedits;
 
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.connectors.wikiedits.legacy.WikipediaEditsSource;
 import org.apache.flink.testutils.junit.RetryOnFailure;
 import org.apache.flink.testutils.junit.extensions.retry.RetryExtension;
 
@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -53,7 +54,7 @@ class WikipediaEditsSourceTest {
     @RetryOnFailure(times = 1)
     void testWikipediaEditsSource() throws Exception {
         if (canConnect(1, TimeUnit.SECONDS)) {
-            final Time testTimeout = Time.seconds(60);
+            final Duration testTimeout = Duration.ofSeconds(60);
             final WikipediaEditsSource wikipediaEditsSource = new WikipediaEditsSource();
 
             ExecutorService executorService = null;
@@ -116,8 +117,8 @@ class WikipediaEditsSourceTest {
         }
     }
 
-    private long deadlineNanos(Time testTimeout) {
-        return System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(testTimeout.toMilliseconds());
+    private long deadlineNanos(Duration testTimeout) {
+        return System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(testTimeout.toMillis());
     }
 
     private static class CollectingSourceContext<T> implements SourceFunction.SourceContext<T> {

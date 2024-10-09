@@ -15,6 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import unittest
+
 from pyflink.common import Types
 from pyflink.datastream.connectors.cassandra import CassandraSink, MapperOptions, ConsistencyLevel
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
@@ -22,6 +24,7 @@ from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
 
 class CassandraSinkTest(PyFlinkStreamingTestCase):
 
+    @unittest.skip("Disable due to cassandra connectors is not support 2.0 for new.")
     def test_cassandra_sink(self):
         type_info = Types.ROW([Types.STRING(), Types.INT()])
         ds = self.env.from_collection([('ab', 1), ('bdc', 2), ('cfgs', 3), ('deeefg', 4)],

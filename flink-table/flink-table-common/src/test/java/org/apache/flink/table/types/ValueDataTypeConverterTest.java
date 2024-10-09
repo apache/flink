@@ -57,6 +57,7 @@ class ValueDataTypeConverterTest {
                 of(BigDecimal.ZERO, DataTypes.DECIMAL(1, 0)),
                 of(new BigDecimal("12.123"), DataTypes.DECIMAL(5, 3)),
                 of(new BigDecimal("1E+36"), DataTypes.DECIMAL(37, 0)),
+                of(new BigDecimal("0.000"), DataTypes.DECIMAL(4, 3)),
                 of(12, DataTypes.INT()),
                 of(LocalTime.of(13, 24, 25, 1000), DataTypes.TIME(6)),
                 of(LocalTime.of(13, 24, 25, 0), DataTypes.TIME(0)),

@@ -188,7 +188,6 @@ class JarHandlerUtilsTest {
             String entryClass, Integer parallelism, Map<String, String> flinkConfiguration) {
         return new JarPlanRequestBody(
                 entryClass,
-                null,
                 Arrays.asList("arg1", "arg2"),
                 parallelism,
                 JobID.generate(),

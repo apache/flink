@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils._
@@ -44,7 +43,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     data.+=(("1", "2"))
     data.+=(("5", "1"))
 
-    val da = env.fromCollection(data).toTable(tEnv, 'a1, 'a2)
+    val da = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a1, 'a2)
     tEnv.createTemporaryView("a", da)
 
     assertThatThrownBy(() => tEnv.sqlQuery(sqlQuery).toRetractStream[Row])

@@ -198,19 +198,19 @@ data_stream.key_by(lambda x: x[1]).reduce(lambda a, b: (a[0] + b[0], b[1]))
 ```java
 dataStream
   .keyBy(value -> value.f0)
-  .window(TumblingEventTimeWindows.of(Time.seconds(5))); 
+  .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))); 
 ```
 {{< /tab >}}
 {{< tab "Scala">}}
 ```scala
 dataStream
   .keyBy(_._1)
-  .window(TumblingEventTimeWindows.of(Time.seconds(5))) 
+  .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))) 
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-data_stream.key_by(lambda x: x[1]).window(TumblingEventTimeWindows.of(Time.seconds(5)))
+data_stream.key_by(lambda x: x[1]).window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -228,18 +228,18 @@ data_stream.key_by(lambda x: x[1]).window(TumblingEventTimeWindows.of(Time.secon
 {{< tab "Java">}}
 ```java
 dataStream
-  .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)));
+  .windowAll(TumblingEventTimeWindows.of(Duration.ofSeconds(5)));
 ```
 {{< /tab >}}
 {{< tab "Scala">}}
 ```scala
 dataStream
-  .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)))
+  .windowAll(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-data_stream.window_all(TumblingEventTimeWindows.of(Time.seconds(5)))
+data_stream.window_all(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -386,7 +386,7 @@ data_stream.union(otherStream1, otherStream2, ...)
 ```java
 dataStream.join(otherStream)
     .where(<key selector>).equalTo(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(3)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
     .apply (new JoinFunction () {...});
 ```
 {{< /tab >}}
@@ -394,7 +394,7 @@ dataStream.join(otherStream)
 ```scala
 dataStream.join(otherStream)
     .where(<key selector>).equalTo(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(3)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
     .apply { ... }
 ```
 {{< /tab >}}
@@ -414,7 +414,7 @@ Python 中尚不支持此特性。
 // this will join the two streams so that
 // key1 == key2 && leftTs - 2 < rightTs < leftTs + 2
 keyedStream.intervalJoin(otherKeyedStream)
-    .between(Time.milliseconds(-2), Time.milliseconds(2)) // lower and upper bound
+    .between(Duration.ofMillis(-2), Duration.ofMillis(2)) // lower and upper bound
     .upperBoundExclusive(true) // optional
     .lowerBoundExclusive(true) // optional
     .process(new IntervalJoinFunction() {...});
@@ -425,7 +425,7 @@ keyedStream.intervalJoin(otherKeyedStream)
 // this will join the two streams so that
 // key1 == key2 && leftTs - 2 < rightTs < leftTs + 2
 keyedStream.intervalJoin(otherKeyedStream)
-    .between(Time.milliseconds(-2), Time.milliseconds(2)) 
+    .between(Duration.ofMillis(-2), Duration.ofMillis(2)) 
     // lower and upper bound
     .upperBoundExclusive(true) // optional
     .lowerBoundExclusive(true) // optional
@@ -447,7 +447,7 @@ Python 中尚不支持此特性。
 ```java
 dataStream.coGroup(otherStream)
     .where(0).equalTo(1)
-    .window(TumblingEventTimeWindows.of(Time.seconds(3)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
     .apply (new CoGroupFunction () {...});
 ```
 {{< /tab >}}
@@ -455,7 +455,7 @@ dataStream.coGroup(otherStream)
 ```scala
 dataStream.coGroup(otherStream)
     .where(0).equalTo(1)
-    .window(TumblingEventTimeWindows.of(Time.seconds(3)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
     .apply {}
 ```
 {{< /tab >}}

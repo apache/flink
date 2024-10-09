@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.ArchivedExecutionConfig;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
@@ -35,6 +34,7 @@ import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivi
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -47,7 +47,7 @@ public class JobConfigHandler
 
     public JobConfigHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             MessageHeaders<EmptyRequestBody, JobConfigInfo, JobMessageParameters> messageHeaders,
             ExecutionGraphCache executionGraphCache,

@@ -47,7 +47,8 @@ class UnmodifiableConfigurationTest {
     @Test
     void testExceptionOnSet() {
         @SuppressWarnings("rawtypes")
-        final ConfigOption rawOption = ConfigOptions.key("testkey").defaultValue("value");
+        final ConfigOption rawOption =
+                ConfigOptions.key("testkey").stringType().defaultValue("value");
 
         Map<Class<?>, Object> parameters = new HashMap<>();
         parameters.put(byte[].class, new byte[0]);

@@ -104,7 +104,7 @@ class CatalogITCase {
         URLClassLoader classLoader =
                 ClassLoaderUtils.withRoot(TempDirUtils.newFolder(temporaryFolder))
                         .addResource(
-                                "META-INF/services/org.apache.flink.table.factories.TableFactory",
+                                "META-INF/services/org.apache.flink.table.legacy.factories.TableFactory",
                                 "UserCatalogFactory")
                         .addClass(
                                 className,

@@ -19,12 +19,12 @@ package org.apache.flink.table.planner.plan.rules.physical.common
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.connector.source.LookupTableSource
+import org.apache.flink.table.legacy.sources.LookupableTableSource
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.common.{CommonPhysicalLegacyTableSourceScan, CommonPhysicalLookupJoin, CommonPhysicalTableSourceScan}
 import org.apache.flink.table.planner.plan.rules.common.CommonTemporalTableJoinRule
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
 import org.apache.flink.table.planner.plan.utils.JoinUtil
-import org.apache.flink.table.sources.LookupableTableSource
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptTable}
 import org.apache.calcite.plan.RelOptRule.{any, operand}

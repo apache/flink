@@ -20,11 +20,11 @@ package org.apache.flink.table.planner.plan.optimize;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
+import org.apache.flink.table.legacy.api.TableSchema;
+import org.apache.flink.table.legacy.api.constraints.UniqueConstraint;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
@@ -34,7 +34,6 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalC
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalChangelogNormalize;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCorrelateBase;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDataStreamScan;
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDeduplicate;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDropUpdateBefore;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExpand;
@@ -70,7 +69,7 @@ import org.apache.flink.table.planner.plan.utils.RankProcessStrategy;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
-import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec;
+import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.types.RowKind;
 
@@ -184,8 +183,6 @@ public class StreamNonDeterministicUpdatePlanVisitor {
             return visitOverAggregate((StreamPhysicalOverAggregateBase) rel, requireDeterminism);
         } else if (rel instanceof StreamPhysicalRank) {
             return visitRank((StreamPhysicalRank) rel, requireDeterminism);
-        } else if (rel instanceof StreamPhysicalDeduplicate) {
-            return visitDeduplicate((StreamPhysicalDeduplicate) rel, requireDeterminism);
         } else if (rel instanceof StreamPhysicalWindowDeduplicate) {
             return visitWindowDeduplicate(
                     (StreamPhysicalWindowDeduplicate) rel, requireDeterminism);
@@ -674,22 +671,6 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                                 "Can not infer the determinism for unsupported rank strategy: %s, this is a bug, please file an issue.",
                                 rank.rankStrategy()));
             }
-        }
-    }
-
-    private StreamPhysicalRel visitDeduplicate(
-            final StreamPhysicalDeduplicate dedup, final ImmutableBitSet requireDeterminism) {
-        // output row type same as input and does not change output columns' order
-        if (inputInsertOnly(dedup)) {
-            // similar to rank, output is deterministic when input is insert only, so required
-            // determinism always be satisfied here.
-            return transmitDeterminismRequirement(dedup, NO_REQUIRED_DETERMINISM);
-        } else {
-            // Deduplicate always has unique key currently(exec node has null check and inner
-            // state only support data with keys), so only pass the left columns of required
-            // determinism to input.
-            return transmitDeterminismRequirement(
-                    dedup, requireDeterminism.except(ImmutableBitSet.of(dedup.getUniqueKeys())));
         }
     }
 

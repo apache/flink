@@ -154,6 +154,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ORDER_
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OVER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.OVERLAY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PARSE_URL;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PERCENTILE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.PLUS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.POSITION;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.POWER;
@@ -2425,5 +2426,44 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType jsonQuery(String path, DataType returnType) {
         return jsonQuery(path, returnType, JsonQueryWrapper.WITHOUT_ARRAY);
+    }
+
+    /** See {@link BaseExpressions#percentile(Object, Object)}. */
+    public OutType percentile(InType percentage) {
+        return toApiSpecificExpression(
+                unresolvedCall(PERCENTILE, toExpr(), objectToExpression(percentage)));
+    }
+
+    /**
+     * Returns the exact percentile value of {@code expr} at the specified {@code percentage} in a
+     * group.
+     *
+     * <p>{@code percentage} must be a literal numeric value between [0.0, 1.0] or an array of such
+     * values. If a variable expression is passed to this function, the result will be calculated
+     * using any one of them.
+     *
+     * <p>{@code frequency} describes how many times {@code expr} should be counted, the default
+     * value is 1.
+     *
+     * <p>If no {@code expr} lies exactly at the desired percentile, the result is calculated using
+     * linear interpolation of the two nearest exprs. If {@code expr} or {@code frequency} is null,
+     * or {@code frequency} is not positive, the input row will be ignored.
+     *
+     * <p>NOTE: It is recommended to use this function in a window scenario, as it typically offers
+     * better performance. In a regular group aggregation scenario, users should be aware of the
+     * performance overhead caused by a full sort triggered by each record.
+     *
+     * @param percentage A NUMERIC NOT NULL or ARRAY&lt;NUMERIC NOT NULL&gt; NOT NULL expression.
+     * @param frequency An optional INTEGER_NUMERIC expression.
+     * @return A DOUBLE if percentage is numeric, or an ARRAY&lt;DOUBLE&gt; if percentage is an
+     *     array. null if percentage is an empty array.
+     */
+    public OutType percentile(InType percentage, InType frequency) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        PERCENTILE,
+                        toExpr(),
+                        objectToExpression(percentage),
+                        objectToExpression(frequency)));
     }
 }

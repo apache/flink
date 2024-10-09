@@ -22,7 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 
-import javax.annotation.Nullable;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -31,6 +31,7 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -38,20 +39,20 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
-/** Manages the committables coming from one subtask. */
+/** Manages the committables coming from one upstream subtask. */
 class SubtaskCommittableManager<CommT> {
     private final Deque<CommitRequestImpl<CommT>> requests;
-    private int numExpectedCommittables;
-    @Nullable private final Long checkpointId;
+    private final int numExpectedCommittables;
+    private final long checkpointId;
     private final int subtaskId;
     private int numDrained;
     private int numFailed;
-    private SinkCommitterMetricGroup metricGroup;
+    private final SinkCommitterMetricGroup metricGroup;
 
     SubtaskCommittableManager(
             int numExpectedCommittables,
             int subtaskId,
-            @Nullable Long checkpointId,
+            long checkpointId,
             SinkCommitterMetricGroup metricGroup) {
         this(
                 Collections.emptyList(),
@@ -69,7 +70,7 @@ class SubtaskCommittableManager<CommT> {
             int numDrained,
             int numFailed,
             int subtaskId,
-            @Nullable Long checkpointId,
+            long checkpointId,
             SinkCommitterMetricGroup metricGroup) {
         this.checkpointId = checkpointId;
         this.subtaskId = subtaskId;
@@ -179,8 +180,7 @@ class SubtaskCommittableManager<CommT> {
     }
 
     @VisibleForTesting
-    @Nullable
-    Long getCheckpointId() {
+    long getCheckpointId() {
         return checkpointId;
     }
 
@@ -189,12 +189,17 @@ class SubtaskCommittableManager<CommT> {
     }
 
     SubtaskCommittableManager<CommT> merge(SubtaskCommittableManager<CommT> other) {
-        checkArgument(other.getSubtaskId() == this.getSubtaskId());
-        this.numExpectedCommittables += other.numExpectedCommittables;
-        this.requests.addAll(other.requests);
-        this.numDrained += other.numDrained;
-        this.numFailed += other.numFailed;
-        return this;
+        checkArgument(other.getSubtaskId() == this.getSubtaskId(), "Different subtasks.");
+        checkArgument(other.getCheckpointId() == this.getCheckpointId(), "Different checkpoints.");
+        return new SubtaskCommittableManager<>(
+                Stream.concat(requests.stream(), other.requests.stream())
+                        .collect(Collectors.toList()),
+                numExpectedCommittables + other.numExpectedCommittables,
+                numDrained + other.numDrained,
+                numFailed + other.numFailed,
+                subtaskId,
+                checkpointId,
+                metricGroup);
     }
 
     SubtaskCommittableManager<CommT> copy() {
@@ -206,5 +211,46 @@ class SubtaskCommittableManager<CommT> {
                 subtaskId,
                 checkpointId,
                 metricGroup);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        SubtaskCommittableManager<?> that = (SubtaskCommittableManager<?>) o;
+        return numExpectedCommittables == that.numExpectedCommittables
+                && checkpointId == that.checkpointId
+                && subtaskId == that.subtaskId
+                && numDrained == that.numDrained
+                && numFailed == that.numFailed
+                && Iterables.elementsEqual(requests, that.requests);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                requests, numExpectedCommittables, checkpointId, subtaskId, numDrained, numFailed);
+    }
+
+    @Override
+    public String toString() {
+        return "SubtaskCommittableManager{"
+                + "requests="
+                + requests
+                + ", numExpectedCommittables="
+                + numExpectedCommittables
+                + ", checkpointId="
+                + checkpointId
+                + ", subtaskId="
+                + subtaskId
+                + ", numDrained="
+                + numDrained
+                + ", numFailed="
+                + numFailed
+                + '}';
     }
 }

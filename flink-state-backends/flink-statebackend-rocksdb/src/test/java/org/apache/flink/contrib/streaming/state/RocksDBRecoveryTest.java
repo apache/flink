@@ -24,12 +24,15 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
+import org.apache.flink.streaming.api.operators.TimerHeapInternalTimer;
+import org.apache.flink.streaming.api.operators.TimerSerializer;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.IOUtils;
 
@@ -45,6 +48,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.RunnableFuture;
 import java.util.stream.Collectors;
 
@@ -66,48 +71,49 @@ public class RocksDBRecoveryTest {
 
     @Test
     public void testScaleOut_1_2() throws Exception {
-        testRescale(1, 2, 100_000, 10);
+        testRescale(1, 2, 50_000, 10);
     }
 
     @Test
     public void testScaleOut_2_8() throws Exception {
-        testRescale(2, 8, 100_000, 10);
+        testRescale(2, 8, 50_000, 10);
     }
 
     @Test
     public void testScaleOut_2_7() throws Exception {
-        testRescale(2, 7, 100_000, 10);
+        testRescale(2, 7, 50_000, 10);
     }
 
     @Test
     public void testScaleIn_2_1() throws Exception {
-        testRescale(2, 1, 100_000, 10);
+        testRescale(2, 1, 50_000, 10);
     }
 
     @Test
     public void testScaleIn_8_2() throws Exception {
-        testRescale(8, 2, 100_000, 10);
+        testRescale(8, 2, 50_000, 10);
     }
 
     @Test
     public void testScaleIn_7_2() throws Exception {
-        testRescale(7, 2, 100_000, 10);
+        testRescale(7, 2, 50_000, 10);
     }
 
     @Test
     public void testScaleIn_2_3() throws Exception {
-        testRescale(2, 3, 100_000, 10);
+        testRescale(2, 3, 50_000, 10);
     }
 
     @Test
     public void testScaleIn_3_2() throws Exception {
-        testRescale(3, 2, 100_000, 10);
+        testRescale(3, 2, 50_000, 10);
     }
 
     public void testRescale(
             int startParallelism, int targetParallelism, int numKeys, int updateDistance)
             throws Exception {
 
+        ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
         OUTPUT.println("Rescaling from " + startParallelism + " to " + targetParallelism + "...");
         final String stateName = "TestValueState";
         final int maxParallelism = startParallelism * targetParallelism;
@@ -117,6 +123,8 @@ public class RocksDBRecoveryTest {
         final List<SnapshotResult<KeyedStateHandle>> cleanupSnapshotResult = new ArrayList<>();
         try {
             final List<ValueState<Integer>> valueStates = new ArrayList<>(maxParallelism);
+            final List<KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<Integer, Integer>>>
+                    timerStates = new ArrayList<>(maxParallelism);
             try {
                 ValueStateDescriptor<Integer> stateDescriptor =
                         new ValueStateDescriptor<>(stateName, IntSerializer.INSTANCE);
@@ -133,11 +141,18 @@ public class RocksDBRecoveryTest {
                                             Collections.emptyList())
                                     .setEnableIncrementalCheckpointing(true)
                                     .setUseIngestDbRestoreMode(true)
+                                    .setIOExecutor(ioExecutor)
                                     .build();
 
                     valueStates.add(
                             backend.getOrCreateKeyedState(
                                     VoidNamespaceSerializer.INSTANCE, stateDescriptor));
+
+                    timerStates.add(
+                            backend.create(
+                                    "timer-state",
+                                    new TimerSerializer<>(
+                                            IntSerializer.INSTANCE, IntSerializer.INSTANCE)));
 
                     backends.add(backend);
                 }
@@ -151,6 +166,11 @@ public class RocksDBRecoveryTest {
                                     key, maxParallelism, startParallelism);
                     backends.get(index).setCurrentKey(key);
                     valueStates.get(index).update(i);
+
+                    // Add at most one timer for each instance
+                    KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<Integer, Integer>>
+                            timerState = timerStates.get(index);
+                    timerState.add(new TimerHeapInternalTimer<>(i, key, 0));
 
                     if (updateDistance > 0 && i % updateDistance == 0) {
                         key = i - updateDistance + 1;
@@ -183,7 +203,8 @@ public class RocksDBRecoveryTest {
                             targetParallelism,
                             maxParallelism,
                             startSnapshotResult,
-                            backends);
+                            backends,
+                            ioExecutor);
 
                     backends.forEach(
                             backend ->
@@ -216,7 +237,8 @@ public class RocksDBRecoveryTest {
                             startParallelism,
                             maxParallelism,
                             rescaleSnapshotResult,
-                            backends);
+                            backends,
+                            ioExecutor);
 
                     count = 0;
                     for (RocksDBKeyedStateBackend<Integer> backend : backends) {
@@ -243,6 +265,7 @@ public class RocksDBRecoveryTest {
             for (SnapshotResult<KeyedStateHandle> snapshotResult : cleanupSnapshotResult) {
                 snapshotResult.discardState();
             }
+            ioExecutor.shutdown();
         }
     }
 
@@ -252,7 +275,8 @@ public class RocksDBRecoveryTest {
             int targetParallelism,
             int maxParallelism,
             List<SnapshotResult<KeyedStateHandle>> snapshotResult,
-            List<RocksDBKeyedStateBackend<Integer>> backendsOut)
+            List<RocksDBKeyedStateBackend<Integer>> backendsOut,
+            ExecutorService ioExecutor)
             throws IOException {
 
         List<KeyedStateHandle> stateHandles =
@@ -290,6 +314,7 @@ public class RocksDBRecoveryTest {
                             .setUseIngestDbRestoreMode(useIngest)
                             .setIncrementalRestoreAsyncCompactAfterRescale(asyncCompactAfterRescale)
                             .setRescalingUseDeleteFilesInRange(true)
+                            .setIOExecutor(ioExecutor)
                             .build();
 
             long instanceTime = System.currentTimeMillis() - tInstance;

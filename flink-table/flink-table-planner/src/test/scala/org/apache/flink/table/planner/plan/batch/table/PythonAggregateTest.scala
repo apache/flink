@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.batch.table
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.PandasAggregateFunction
 import org.apache.flink.table.planner.utils.TableTestBase

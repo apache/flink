@@ -17,10 +17,9 @@
  */
 package org.apache.flink.table.planner.runtime.stream.table
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingRetractSink}
+import org.apache.flink.table.api.bridge.scala.{dataStreamConversions, tableConversions}
+import org.apache.flink.table.planner.runtime.utils.{StreamingEnvUtil, StreamingWithStateTestBase, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
@@ -47,9 +46,9 @@ class SubQueryITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(
       (4, "hello")
     )
 
-    val tableA = env.fromCollection(dataA).toTable(tEnv, 'a, 'b, 'c)
+    val tableA = StreamingEnvUtil.fromCollection(env, dataA).toTable(tEnv, 'a, 'b, 'c)
 
-    val tableB = env.fromCollection(dataB).toTable(tEnv, 'x, 'y)
+    val tableB = StreamingEnvUtil.fromCollection(env, dataB).toTable(tEnv, 'x, 'y)
 
     val result = tableA.where('a.in(tableB.select('x)))
 
@@ -85,9 +84,9 @@ class SubQueryITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(
       (-1, "Hanoi-1")
     )
 
-    val tableA = env.fromCollection(dataA).toTable(tEnv, 'a, 'b, 'c)
+    val tableA = StreamingEnvUtil.fromCollection(env, dataA).toTable(tEnv, 'a, 'b, 'c)
 
-    val tableB = env.fromCollection(dataB).toTable(tEnv, 'x, 'y)
+    val tableB = StreamingEnvUtil.fromCollection(env, dataB).toTable(tEnv, 'x, 'y)
 
     val result = tableA
       .where('a.in(tableB.where('y.like("%Hanoi%")).groupBy('y).select('x.sum)))
@@ -126,11 +125,11 @@ class SubQueryITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(
       (2L, "Cool")
     )
 
-    val tableA = env.fromCollection(dataA).toTable(tEnv, 'a, 'b, 'c)
+    val tableA = StreamingEnvUtil.fromCollection(env, dataA).toTable(tEnv, 'a, 'b, 'c)
 
-    val tableB = env.fromCollection(dataB).toTable(tEnv, 'x, 'y)
+    val tableB = StreamingEnvUtil.fromCollection(env, dataB).toTable(tEnv, 'x, 'y)
 
-    val tableC = env.fromCollection(dataC).toTable(tEnv, 'w, 'z)
+    val tableC = StreamingEnvUtil.fromCollection(env, dataC).toTable(tEnv, 'w, 'z)
 
     val result = tableA
       .where('a.in(tableB.select('x)) && 'b.in(tableC.select('w)))

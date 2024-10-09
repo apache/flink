@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.tpcds.utils;
 
-import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.util.ParameterTool;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;

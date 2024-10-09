@@ -83,7 +83,7 @@ Congratulations! You have successfully run a Flink application by deploying Flin
 
 ## Deployment Modes Supported by Flink on YARN
 
-For production use, we recommend deploying Flink Applications in the [Per-job or Application Mode]({{< ref "docs/deployment/overview" >}}#deployment-modes), as these modes provide a better isolation for the Applications.
+For production use, we recommend deploying Flink Applications in the [Application Mode]({{< ref "docs/deployment/overview" >}}#deployment-modes), as these modes provide a better isolation for the Applications.
 
 ### Application Mode
 
@@ -91,7 +91,7 @@ Application Mode will launch a Flink cluster on YARN, where the main() method of
 The cluster will shut down as soon as the application has finished. You can manually stop the cluster using `yarn application -kill <ApplicationId>` or by cancelling the Flink job.
 
 ```bash
-./bin/flink run-application -t yarn-application ./examples/streaming/TopSpeedWindowing.jar
+./bin/flink run -t yarn-application ./examples/streaming/TopSpeedWindowing.jar
 ```
 
 
@@ -111,7 +111,7 @@ and pre-upload your application jar to a location accessible by all nodes in you
 command could look like: 
 
 ```bash
-./bin/flink run-application -t yarn-application \
+./bin/flink run -t yarn-application \
 	-Dyarn.provided.lib.dirs="hdfs://myhdfs/my-remote-flink-dist-dir" \
 	hdfs://myhdfs/jars/my-application.jar
 ```
@@ -119,28 +119,6 @@ command could look like:
 The above will allow the job submission to be extra lightweight as the needed Flink jars and the application jar
 are  going to be picked up by the specified remote locations rather than be shipped to the cluster by the 
 client.
-
-### Per-Job Cluster Mode
-
-The Per-job Cluster mode will launch a Flink cluster on YARN, then run the provided application jar locally and finally submit the JobGraph to the JobManager on YARN. If you pass the `--detached` argument, the client will stop once the submission is accepted.
-
-The YARN cluster will stop once the job has stopped.
-
-```bash
-./bin/flink run -t yarn-per-job --detached ./examples/streaming/TopSpeedWindowing.jar
-```
-
-Once a Per-Job Cluster is deployed, you can interact with it for operations like cancelling or taking a savepoint.
-
-```bash
-# List running job on the cluster
-./bin/flink list -t yarn-per-job -Dyarn.application.id=application_XXXX_YY
-# Cancel running job
-./bin/flink cancel -t yarn-per-job -Dyarn.application.id=application_XXXX_YY <jobId>
-```
-
-Note that cancelling your job on an Per-Job Cluster will stop the cluster.
-
 
 ### Session Mode
 
@@ -241,9 +219,9 @@ The configuration parameter for specifying the REST endpoint port is [rest.bind-
 
 When deploying Flink with Session Mode on Yarn, only the JAR file specified in startup command will be recognized as user-jars and included into user classpath.
 
-**PerJob Mode & Application Mode**
+**Application Mode**
 
-When deploying Flink with PerJob/Application Mode on Yarn, the JAR file specified in startup command and all JAR files in Flink's `usrlib` folder will be recognized as user-jars.
+When deploying Flink with Application Mode on Yarn, the JAR file specified in startup command and all JAR files in Flink's `usrlib` folder will be recognized as user-jars.
 By default Flink will include the user-jars into the system classpath. This behavior can be controlled with the [yarn.classpath.include-user-jar]({{< ref "docs/deployment/config" >}}#yarn-classpath-include-user-jar) parameter.
 
 When setting this to `DISABLED` Flink will include the jar in the user classpath instead.

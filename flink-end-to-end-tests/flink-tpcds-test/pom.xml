@@ -31,7 +31,7 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java</artifactId>
+			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>

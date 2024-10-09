@@ -30,7 +30,6 @@ import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
 import org.apache.flink.datastream.impl.context.UnsupportedProcessingTimeManager;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -50,8 +49,6 @@ public class ProcessOperator<IN, OUT>
 
     public ProcessOperator(OneInputStreamProcessFunction<IN, OUT> userFunction) {
         super(userFunction);
-
-        chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
     @Override

@@ -54,8 +54,8 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestTaskLocalStateStore;
 import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.util.LongArrayList;
@@ -184,7 +184,7 @@ class StateInitializationContextImplTest {
 
         environment.setTaskStateManager(manager);
 
-        StateBackend stateBackend = new MemoryStateBackend(1024);
+        StateBackend stateBackend = new HashMapStateBackend();
         StreamTaskStateInitializer streamTaskStateManager =
                 new StreamTaskStateInitializerImpl(
                         environment,

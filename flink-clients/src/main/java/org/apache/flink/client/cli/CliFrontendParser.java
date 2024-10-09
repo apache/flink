@@ -21,7 +21,7 @@ package org.apache.flink.client.cli;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.StateRecoveryOptions;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.apache.commons.cli.CommandLine;
@@ -34,8 +34,6 @@ import org.apache.commons.cli.ParseException;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * A simple command line parser (based on Apache Commons CLI) that extracts command line options.
@@ -87,19 +85,6 @@ public class CliFrontendParser {
                     false,
                     "If the job is submitted in attached mode, perform a best-effort cluster shutdown "
                             + "when the CLI is terminated abruptly, e.g., in response to a user interrupt, such as typing Ctrl + C.");
-
-    /**
-     * @deprecated use non-prefixed variant {@link #DETACHED_OPTION} for both YARN and non-YARN
-     *     deployments
-     */
-    @Deprecated
-    public static final Option YARN_DETACHED_OPTION =
-            new Option(
-                    "yd",
-                    "yarndetached",
-                    false,
-                    "If present, runs "
-                            + "the job in detached mode (deprecated; use non-YARN specific option instead)");
 
     public static final Option ARGS_OPTION =
             new Option(
@@ -332,7 +317,6 @@ public class CliFrontendParser {
 
         DETACHED_OPTION.setRequired(false);
         SHUTDOWN_IF_ATTACHED_OPTION.setRequired(false);
-        YARN_DETACHED_OPTION.setRequired(false);
 
         ARGS_OPTION.setRequired(false);
         ARGS_OPTION.setArgName("programArgs");
@@ -400,7 +384,6 @@ public class CliFrontendParser {
         options.addOption(ARGS_OPTION);
         options.addOption(DETACHED_OPTION);
         options.addOption(SHUTDOWN_IF_ATTACHED_OPTION);
-        options.addOption(YARN_DETACHED_OPTION);
         options.addOption(PY_OPTION);
         options.addOption(PYFILES_OPTION);
         options.addOption(PYMODULE_OPTION);
@@ -529,7 +512,6 @@ public class CliFrontendParser {
         System.out.println("The following actions are available:");
 
         printHelpForRun(customCommandLines);
-        printHelpForRunApplication(customCommandLines);
         printHelpForInfo();
         printHelpForList(customCommandLines);
         printHelpForStop(customCommandLines);
@@ -552,28 +534,6 @@ public class CliFrontendParser {
 
         printCustomCliOptions(customCommandLines, formatter, true);
 
-        System.out.println();
-    }
-
-    public static void printHelpForRunApplication(
-            Collection<CustomCommandLine> customCommandLines) {
-        HelpFormatter formatter = new HelpFormatter();
-        formatter.setLeftPadding(5);
-        formatter.setWidth(80);
-
-        System.out.println("\nDEPRECATED: Please use \"run\" for Application Mode as well.");
-        System.out.println("\nAction \"run-application\" runs an application in Application Mode.");
-        System.out.println("\n  Syntax: run-application [OPTIONS] <jar-file> <arguments>");
-        formatter.setSyntaxPrefix("  \"run-application\" action options:");
-
-        // Only GenericCLI works with application mode, the other CLIs will be phased out
-        // in the future
-        List<CustomCommandLine> filteredCommandLines =
-                customCommandLines.stream()
-                        .filter((cli) -> cli instanceof GenericCLI)
-                        .collect(Collectors.toList());
-
-        printCustomCliOptions(filteredCommandLines, formatter, true);
         System.out.println();
     }
 
@@ -697,25 +657,25 @@ public class CliFrontendParser {
             String savepointPath = commandLine.getOptionValue(SAVEPOINT_PATH_OPTION.getOpt());
             boolean allowNonRestoredState =
                     commandLine.hasOption(SAVEPOINT_ALLOW_NON_RESTORED_OPTION.getOpt());
-            final RestoreMode restoreMode;
+            final RecoveryClaimMode recoveryClaimMode;
             if (commandLine.hasOption(SAVEPOINT_CLAIM_MODE)) {
-                restoreMode =
+                recoveryClaimMode =
                         ConfigurationUtils.convertValue(
                                 commandLine.getOptionValue(SAVEPOINT_CLAIM_MODE),
-                                RestoreMode.class);
+                                RecoveryClaimMode.class);
             } else if (commandLine.hasOption(SAVEPOINT_RESTORE_MODE)) {
-                restoreMode =
+                recoveryClaimMode =
                         ConfigurationUtils.convertValue(
                                 commandLine.getOptionValue(SAVEPOINT_RESTORE_MODE),
-                                RestoreMode.class);
+                                RecoveryClaimMode.class);
                 System.out.printf(
                         "The option '%s' is deprecated. Please use '%s' instead.%n",
                         SAVEPOINT_RESTORE_MODE.getLongOpt(), SAVEPOINT_CLAIM_MODE.getLongOpt());
             } else {
-                restoreMode = StateRecoveryOptions.RESTORE_MODE.defaultValue();
+                recoveryClaimMode = StateRecoveryOptions.RESTORE_MODE.defaultValue();
             }
             return SavepointRestoreSettings.forPath(
-                    savepointPath, allowNonRestoredState, restoreMode);
+                    savepointPath, allowNonRestoredState, recoveryClaimMode);
         } else {
             return SavepointRestoreSettings.none();
         }

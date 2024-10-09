@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.entrypoint;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.util.TestLogger;
 
@@ -48,21 +51,21 @@ public class EntrypointClusterConfigurationParserFactoryTest extends TestLogger 
         final String[] args = {
             "--configDir",
             configDir,
-            "--executionMode",
-            "cluster",
-            "--host",
-            "localhost",
-            "-r",
-            String.valueOf(restPort),
+            "-D",
+            "jobmanager.rpc.address=localhost",
+            "-D",
+            "rest.port=" + restPort,
             String.format("-D%s=%s", key, value),
             arg1,
             arg2
         };
 
         final EntrypointClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
+        final Configuration dynamicPropertiesConfig =
+                ConfigurationUtils.createConfiguration(clusterConfiguration.getDynamicProperties());
 
         assertThat(clusterConfiguration.getConfigDir(), is(equalTo(configDir)));
-        assertThat(clusterConfiguration.getRestPort(), is(equalTo(restPort)));
+        assertThat(dynamicPropertiesConfig.get(RestOptions.PORT), is(equalTo(restPort)));
         final Properties dynamicProperties = clusterConfiguration.getDynamicProperties();
 
         assertThat(dynamicProperties, hasEntry(key, value));
@@ -76,9 +79,11 @@ public class EntrypointClusterConfigurationParserFactoryTest extends TestLogger 
         final String[] args = {"--configDir", configDir};
 
         final EntrypointClusterConfiguration clusterConfiguration = commandLineParser.parse(args);
+        final Configuration dynamicProperties =
+                ConfigurationUtils.createConfiguration(clusterConfiguration.getDynamicProperties());
 
         assertThat(clusterConfiguration.getConfigDir(), is(equalTo(configDir)));
-        assertThat(clusterConfiguration.getRestPort(), is(equalTo(-1)));
+        assertThat(dynamicProperties.get(RestOptions.PORT), is(equalTo(8081)));
     }
 
     @Test(expected = FlinkParseException.class)

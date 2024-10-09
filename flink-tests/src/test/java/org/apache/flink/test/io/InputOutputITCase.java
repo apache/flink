@@ -20,7 +20,8 @@ package org.apache.flink.test.io;
 
 import org.apache.flink.api.common.operators.util.TestNonRichInputFormat;
 import org.apache.flink.api.common.operators.util.TestNonRichOutputFormat;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.legacy.OutputFormatSinkFunction;
 import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
 import static org.junit.Assert.fail;
@@ -33,9 +34,10 @@ public class InputOutputITCase extends JavaProgramTestBaseJUnit4 {
     @Override
     protected void testProgram() throws Exception {
 
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         TestNonRichOutputFormat output = new TestNonRichOutputFormat();
-        env.createInput(new TestNonRichInputFormat()).output(output);
+        env.createInput(new TestNonRichInputFormat())
+                .addSink(new OutputFormatSinkFunction<>(output));
         try {
             env.execute();
         } catch (Exception e) {

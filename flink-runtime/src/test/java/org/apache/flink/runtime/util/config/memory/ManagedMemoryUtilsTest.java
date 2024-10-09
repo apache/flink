@@ -42,7 +42,6 @@ class ManagedMemoryUtilsTest {
 
     private static final double DELTA = 0.000001;
 
-    private static final int DATA_PROC_WEIGHT = 111;
     private static final int PYTHON_WEIGHT = 222;
     private static final int OPERATOR_WEIGHT = 333;
     private static final int STATE_BACKEND_WEIGHT = 444;
@@ -56,10 +55,6 @@ class ManagedMemoryUtilsTest {
                                     TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS,
                                     new HashMap<String, String>() {
                                         {
-                                            put(
-                                                    TaskManagerOptions
-                                                            .MANAGED_MEMORY_CONSUMER_NAME_DATAPROC,
-                                                    String.valueOf(DATA_PROC_WEIGHT));
                                             put(
                                                     TaskManagerOptions
                                                             .MANAGED_MEMORY_CONSUMER_NAME_PYTHON,
@@ -87,10 +82,6 @@ class ManagedMemoryUtilsTest {
                                         {
                                             put(
                                                     TaskManagerOptions
-                                                            .MANAGED_MEMORY_CONSUMER_NAME_DATAPROC,
-                                                    String.valueOf(DATA_PROC_WEIGHT));
-                                            put(
-                                                    TaskManagerOptions
                                                             .MANAGED_MEMORY_CONSUMER_NAME_PYTHON,
                                                     String.valueOf(PYTHON_WEIGHT));
                                         }
@@ -112,24 +103,6 @@ class ManagedMemoryUtilsTest {
         final Map<ManagedMemoryUseCase, Integer> configuredWeights =
                 ManagedMemoryUtils.getManagedMemoryUseCaseWeightsFromConfig(
                         CONFIG_WITH_ALL_USE_CASES);
-
-        assertThat(configuredWeights).isEqualTo(expectedWeights);
-    }
-
-    @Test
-    void testGetWeightsFromConfigLegacy() {
-        final Map<ManagedMemoryUseCase, Integer> expectedWeights =
-                new HashMap<ManagedMemoryUseCase, Integer>() {
-                    {
-                        put(ManagedMemoryUseCase.OPERATOR, DATA_PROC_WEIGHT);
-                        put(ManagedMemoryUseCase.STATE_BACKEND, DATA_PROC_WEIGHT);
-                        put(ManagedMemoryUseCase.PYTHON, PYTHON_WEIGHT);
-                    }
-                };
-
-        final Map<ManagedMemoryUseCase, Integer> configuredWeights =
-                ManagedMemoryUtils.getManagedMemoryUseCaseWeightsFromConfig(
-                        CONFIG_WITH_LEGACY_USE_CASES);
 
         assertThat(configuredWeights).isEqualTo(expectedWeights);
     }

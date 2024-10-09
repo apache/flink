@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
@@ -53,11 +52,6 @@ class TupleTypeInfoTest extends TypeInformationTestBase<TupleTypeInfo<?>> {
                     @Override
                     public TypeSerializer<Tuple1> createSerializer(SerializerConfig config) {
                         return null;
-                    }
-
-                    @Override
-                    public TypeSerializer<Tuple1> createSerializer(ExecutionConfig config) {
-                        return createSerializer(config.getSerializerConfig());
                     }
 
                     @Override

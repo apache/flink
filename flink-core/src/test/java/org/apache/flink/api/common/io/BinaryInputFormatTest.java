@@ -33,6 +33,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 
+import static org.apache.flink.configuration.ConfigurationUtils.getLongConfigOption;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Fail.fail;
 
@@ -48,11 +49,6 @@ class BinaryInputFormatTest {
         protected Record deserialize(Record record, DataInputView dataInput) {
             return record;
         }
-
-        @Override
-        public boolean supportsMultiPaths() {
-            return true;
-        }
     }
 
     @Test
@@ -67,7 +63,7 @@ class BinaryInputFormatTest {
                         "test_create_input_splits_with_one_file", blockSize, numBlocks);
 
         final Configuration config = new Configuration();
-        config.setLong("input.block_size", blockSize + 10);
+        config.set(getLongConfigOption("input.block_size"), blockSize + 10L);
 
         final BinaryInputFormat<Record> inputFormat = new MyBinaryInputFormat();
         inputFormat.setFilePath(tempFile.toURI().toString());
@@ -184,7 +180,7 @@ class BinaryInputFormatTest {
                         "test_create_input_splits_with_empty_split", blockSize, numBlocks);
 
         final Configuration config = new Configuration();
-        config.setLong("input.block_size", blockSize + 10);
+        config.set(getLongConfigOption("input.block_size"), blockSize + 10L);
 
         final BinaryInputFormat<Record> inputFormat = new MyBinaryInputFormat();
         inputFormat.setFilePath(tempFile.toURI().toString());

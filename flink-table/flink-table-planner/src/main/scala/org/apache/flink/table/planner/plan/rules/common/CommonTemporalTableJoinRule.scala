@@ -19,10 +19,10 @@ package org.apache.flink.table.planner.plan.rules.common
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.connector.source.LookupTableSource
+import org.apache.flink.table.legacy.sources.LookupableTableSource
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalLegacyTableSourceScan, FlinkLogicalRel, FlinkLogicalSnapshot, FlinkLogicalTableSourceScan}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalLookupJoin, StreamPhysicalTemporalJoin}
 import org.apache.flink.table.planner.plan.schema.{LegacyTableSourceTable, TableSourceTable, TimeIndicatorRelDataType}
-import org.apache.flink.table.sources.LookupableTableSource
 
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.rel.RelNode

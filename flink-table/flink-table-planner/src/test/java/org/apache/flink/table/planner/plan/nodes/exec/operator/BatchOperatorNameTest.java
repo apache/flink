@@ -20,13 +20,13 @@ package org.apache.flink.table.planner.plan.nodes.exec.operator;
 
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.legacy.api.TableSchema;
+import org.apache.flink.table.legacy.sinks.TableSink;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.table.planner.utils.TestLegacyFilterableTableSource;
-import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.Row;
 

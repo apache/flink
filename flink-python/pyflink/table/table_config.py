@@ -190,9 +190,9 @@ class TableConfig(object):
                          least 5 minutes greater than minTime. Set to
                          0 (zero) to never clean-up the state.
         """
-        j_time_class = get_gateway().jvm.org.apache.flink.api.common.time.Time
-        j_min_time = j_time_class.milliseconds(long(round(min_time.total_seconds() * 1000)))
-        j_max_time = j_time_class.milliseconds(long(round(max_time.total_seconds() * 1000)))
+        j_duration_class = get_gateway().jvm.java.time.Duration
+        j_min_time = j_duration_class.ofSeconds(long(round(min_time.total_seconds())))
+        j_max_time = j_duration_class.ofSeconds(long(round(max_time.total_seconds())))
         self._j_table_config.setIdleStateRetentionTime(j_min_time, j_max_time)
 
     def set_idle_state_retention(self, duration: datetime.timedelta):

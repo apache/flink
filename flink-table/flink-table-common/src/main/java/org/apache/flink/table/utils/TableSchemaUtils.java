@@ -19,14 +19,14 @@
 package org.apache.flink.table.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableColumn;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.WatermarkSpec;
-import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.legacy.api.TableColumn;
+import org.apache.flink.table.legacy.api.TableSchema;
+import org.apache.flink.table.legacy.api.WatermarkSpec;
+import org.apache.flink.table.legacy.api.constraints.UniqueConstraint;
+import org.apache.flink.table.legacy.sinks.TableSink;
+import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Preconditions;
 

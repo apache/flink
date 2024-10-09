@@ -18,13 +18,15 @@
 package org.apache.flink.table.planner.sinks
 
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator
-import org.apache.flink.api.common.io.RichOutputFormat
+import org.apache.flink.api.common.io.{OutputFormat, RichOutputFormat}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.legacy.table.sinks.StreamTableSink
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
-import org.apache.flink.table.sinks.{StreamTableSink, TableSink, TableSinkBase}
+import org.apache.flink.table.legacy.sinks.TableSink
+import org.apache.flink.table.sinks.TableSinkBase
 import org.apache.flink.types.Row
 
 /** A simple [[TableSink]] to emit data as T to a collection. */
@@ -70,7 +72,7 @@ class CollectOutputFormat[T](id: String, typeSerializer: TypeSerializer[T])
     getRuntimeContext.addAccumulator(id, accumulator)
   }
 
-  override def open(taskNumber: Int, numTasks: Int): Unit = {
+  override def open(context: OutputFormat.InitializationContext): Unit = {
     this.accumulator = new SerializedListAccumulator[T]
   }
 }

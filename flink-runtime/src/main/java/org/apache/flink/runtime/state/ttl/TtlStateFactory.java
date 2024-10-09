@@ -90,7 +90,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
         this.stateBackend = stateBackend;
         this.ttlConfig = stateDesc.getTtlConfig();
         this.timeProvider = timeProvider;
-        this.ttl = ttlConfig.getTtl().toMilliseconds();
+        this.ttl = ttlConfig.getTimeToLive().toMillis();
         this.stateFactories = createStateFactories();
         this.incrementalCleanup = getTtlIncrementalCleanup();
     }

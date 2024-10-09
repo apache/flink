@@ -19,14 +19,13 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.deployment.application.ApplicationRunner;
 import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.StateRecoveryOptions;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
@@ -41,6 +40,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import javax.annotation.Nonnull;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -68,7 +68,7 @@ public class JarRunHandler
 
     public JarRunHandler(
             final GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
-            final Time timeout,
+            final Duration timeout,
             final Map<String, String> responseHeaders,
             final MessageHeaders<JarRunRequestBody, JarRunResponseBody, JarRunMessageParameters>
                     messageHeaders,
@@ -149,27 +149,28 @@ public class JarRunHandler
                                                 request, SavepointPathQueryParameter.class)),
                         effectiveConfiguration.get(StateRecoveryOptions.SAVEPOINT_PATH),
                         log);
-        final RestoreMode restoreMode =
-                Optional.ofNullable(requestBody.getRestoreMode())
+        final RecoveryClaimMode recoveryClaimMode =
+                Optional.ofNullable(requestBody.getRecoveryClaimMode())
                         .orElseGet(
                                 () ->
                                         effectiveConfiguration.get(
                                                 StateRecoveryOptions.RESTORE_MODE));
         if (requestBody.isDeprecatedRestoreModeHasValue()) {
-            log.warn("The option 'restoreMode' is deprecated, please use 'claimMode' instead.");
+            log.warn(
+                    "The option 'restoreMode' is deprecated, please use 'recoveryClaimMode' instead.");
         }
-        if (restoreMode.equals(RestoreMode.LEGACY)) {
+        if (recoveryClaimMode.equals(RecoveryClaimMode.LEGACY)) {
             log.warn(
                     "The {} restore mode is deprecated, please use {} or {} mode instead.",
-                    RestoreMode.LEGACY,
-                    RestoreMode.CLAIM,
-                    RestoreMode.NO_CLAIM);
+                    RecoveryClaimMode.LEGACY,
+                    RecoveryClaimMode.CLAIM,
+                    RecoveryClaimMode.NO_CLAIM);
         }
         final SavepointRestoreSettings savepointRestoreSettings;
         if (savepointPath != null) {
             savepointRestoreSettings =
                     SavepointRestoreSettings.forPath(
-                            savepointPath, allowNonRestoredState, restoreMode);
+                            savepointPath, allowNonRestoredState, recoveryClaimMode);
         } else {
             savepointRestoreSettings = SavepointRestoreSettings.none();
         }

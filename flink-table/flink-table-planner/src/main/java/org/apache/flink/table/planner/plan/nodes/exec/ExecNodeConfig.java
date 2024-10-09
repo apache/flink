@@ -109,8 +109,7 @@ public final class ExecNodeConfig implements ReadableConfig {
         final UidGeneration uidGeneration = get(ExecutionConfigOptions.TABLE_EXEC_UID_GENERATION);
         switch (uidGeneration) {
             case PLAN_ONLY:
-                return isCompiled
-                        && !get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS);
+                return isCompiled;
             case ALWAYS:
                 return true;
             case DISABLED:

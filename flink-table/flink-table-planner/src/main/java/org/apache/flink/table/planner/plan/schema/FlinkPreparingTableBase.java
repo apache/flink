@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.schema;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
-import org.apache.flink.table.sources.TableSource;
 
 import org.apache.flink.shaded.guava32.com.google.common.base.Strings;
 import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableList;

@@ -18,11 +18,12 @@
 
 package org.apache.flink.table.runtime.operators.join.stream;
 
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec;
+import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.CharType;
@@ -138,7 +139,8 @@ public abstract class StreamingJoinOperatorTestBase {
             };
 
     /** Create streaming join operator according to {@link TestInfo}. */
-    protected abstract AbstractStreamingJoinOperator createJoinOperator(TestInfo testInfo);
+    protected abstract TwoInputStreamOperator<RowData, RowData, RowData> createJoinOperator(
+            TestInfo testInfo);
 
     /** Get the output row type of join operator. */
     protected abstract RowType getOutputType();

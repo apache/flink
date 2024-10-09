@@ -36,12 +36,12 @@ LogicalProject(EXPR$0=[$1])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
-+- HashAggregate(isMerge=[false], groupBy=[c], select=[c, COUNT(*) AS EXPR$0])
-   +- Exchange(distribution=[keep_input_as_is[hash[c]]])
-      +- Calc(select=[c])
-         +- Exchange(distribution=[keep_input_as_is[hash[a]]])
++- HashAggregate(isMerge=[true], groupBy=[c], select=[c, Final_COUNT(count1$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[c]])
+      +- LocalHashAggregate(groupBy=[c], select=[c, Partial_COUNT(*) AS count1$0])
+         +- Calc(select=[c])
             +- HashAggregate(isMerge=[true], groupBy=[a, c], select=[a, c])
-               +- Exchange(distribution=[hash[c]])
+               +- Exchange(distribution=[hash[a, c]])
                   +- LocalHashAggregate(groupBy=[a, c], select=[a, c])
                      +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -526,13 +526,15 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], cnt=[$4])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[((a = d) AND (b = cnt))], select=[a, b, c, d, cnt], build=[right])\n:- [#1] Exchange(distribution=[hash[a]])\n+- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS cnt])\n   +- [#2] Exchange(distribution=[hash[d]])\n])
-:- Exchange(distribution=[hash[a]])
+HashJoin(joinType=[InnerJoin], where=[((a = d) AND (b = cnt))], select=[a, b, c, d, cnt], build=[right])
+:- Exchange(distribution=[hash[a, b]])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Exchange(distribution=[hash[d]])
-   +- LocalHashAggregate(groupBy=[d], select=[d, Partial_COUNT(f) AS count$0])
-      +- Calc(select=[d, f])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
++- Exchange(distribution=[hash[d, cnt]])
+   +- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS cnt])
+      +- Exchange(distribution=[hash[d]])
+         +- LocalHashAggregate(groupBy=[d], select=[d, Partial_COUNT(f) AS count$0])
+            +- Calc(select=[d, f])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -674,14 +676,13 @@ LogicalProject(sum_b=[$2], avg_b=[/(CASE(>(COUNT($2) OVER (PARTITION BY $1), 0),
 Calc(select=[sum_b, (CASE((w0$o0 > 0), w0$o1, null:BIGINT) / w0$o0) AS avg_b, w1$o0 AS rn, c])
 +- OverAggregate(partitionBy=[c], window#0=[COUNT(sum_b) AS w0$o0, $SUM0(sum_b) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], window#1=[RANK(*) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[c, sum_b, w0$o0, w0$o1, w1$o0])
    +- Exchange(distribution=[forward])
-      +- Calc(select=[c, sum_b])
-         +- Exchange(distribution=[forward])
-            +- Sort(orderBy=[c ASC])
-               +- Exchange(distribution=[forward])
-                  +- HashAggregate(isMerge=[true], groupBy=[a, c], select=[a, c, Final_SUM(sum$0) AS sum_b])
-                     +- Exchange(distribution=[hash[c]])
-                        +- LocalHashAggregate(groupBy=[a, c], select=[a, c, Partial_SUM(b) AS sum$0])
-                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- Sort(orderBy=[c ASC])
+         +- Exchange(distribution=[hash[c]])
+            +- Calc(select=[c, sum_b])
+               +- HashAggregate(isMerge=[true], groupBy=[a, c], select=[a, c, Final_SUM(sum$0) AS sum_b])
+                  +- Exchange(distribution=[hash[a, c]])
+                     +- LocalHashAggregate(groupBy=[a, c], select=[a, c, Partial_SUM(b) AS sum$0])
+                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -742,17 +743,16 @@ LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
     <Resource name="optimized exec plan">
       <![CDATA[
 HashAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$1])
-+- Exchange(distribution=[keep_input_as_is[hash[a]]])
++- Exchange(distribution=[hash[a]])
    +- Calc(select=[a, b])
-      +- Exchange(distribution=[keep_input_as_is[hash[a]]])
-         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a, c], orderBy=[b ASC], global=[true], select=[a, b, c])
-            +- Exchange(distribution=[forward])
-               +- Sort(orderBy=[a ASC, c ASC, b ASC])
-                  +- Exchange(distribution=[hash[a]])
-                     +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a, c], orderBy=[b ASC], global=[false], select=[a, b, c])
-                        +- Exchange(distribution=[forward])
-                           +- Sort(orderBy=[a ASC, c ASC, b ASC])
-                              +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a, c], orderBy=[b ASC], global=[true], select=[a, b, c])
+         +- Exchange(distribution=[forward])
+            +- Sort(orderBy=[a ASC, c ASC, b ASC])
+               +- Exchange(distribution=[hash[a, c]])
+                  +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a, c], orderBy=[b ASC], global=[false], select=[a, b, c])
+                     +- Exchange(distribution=[forward])
+                        +- Sort(orderBy=[a ASC, c ASC, b ASC])
+                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1049,7 +1049,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a0=[$6], b0=[$7],
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0], leftSorted=[true], rightSorted=[true])\n:- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f])\n:  :- [#1] Exchange(distribution=[hash[a]])\n:  +- [#2] Exchange(distribution=[hash[d]])\n+- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f])\n   :- [#3] Exchange(distribution=[hash[a]])\n   +- [#4] Exchange(distribution=[hash[d]])\n])
+MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0])\n:- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f])\n:  :- [#1] Exchange(distribution=[hash[a]])\n:  +- [#2] Exchange(distribution=[hash[d]])\n+- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f])\n   :- [#3] Exchange(distribution=[hash[a]])\n   +- [#4] Exchange(distribution=[hash[d]])\n])
 :- Exchange(distribution=[hash[a]])
 :  +- Calc(select=[a, b, c], where=[LIKE(c, 'He%')])
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -1137,7 +1137,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a0=[$6], b0=[$7],
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0], leftSorted=[true])\n:- SortMergeJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, b, c, d, e, f])\n:  :- [#2] Exchange(distribution=[hash[a]])\n:  +- [#3] Exchange(distribution=[hash[d]])\n+- [#1] Exchange(distribution=[hash[d]])\n])
+MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0])\n:- SortMergeJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, b, c, d, e, f])\n:  :- [#2] Exchange(distribution=[hash[a]])\n:  +- [#3] Exchange(distribution=[hash[d]])\n+- [#1] Exchange(distribution=[hash[d]])\n])
 :- Exchange(distribution=[hash[d]])
 :  +- SortMergeJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, b, c, d, e, f])
 :     :- Exchange(distribution=[hash[a]])
@@ -1181,7 +1181,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a0=[$6], b0=[$7],
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0], rightSorted=[true])\n:- [#1] Exchange(distribution=[hash[a]])\n+- SortMergeJoin(joinType=[RightOuterJoin], where=[(a = d)], select=[a, b, c, d, e, f])\n   :- [#2] Exchange(distribution=[hash[a]])\n   +- [#3] Exchange(distribution=[hash[d]])\n])
+MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, e, f, a0, b0, c0, d0, e0, f0])\n:- [#1] Exchange(distribution=[hash[a]])\n+- SortMergeJoin(joinType=[RightOuterJoin], where=[(a = d)], select=[a, b, c, d, e, f])\n   :- [#2] Exchange(distribution=[hash[a]])\n   +- [#3] Exchange(distribution=[hash[d]])\n])
 :- Exchange(distribution=[hash[a]])
 :  +- SortMergeJoin(joinType=[RightOuterJoin], where=[(a = d)], select=[a, b, c, d, e, f])
 :     :- Exchange(distribution=[hash[a]])

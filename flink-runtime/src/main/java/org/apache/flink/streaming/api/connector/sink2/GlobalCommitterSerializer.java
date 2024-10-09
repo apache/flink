@@ -48,20 +48,14 @@ class GlobalCommitterSerializer<CommT, GlobalCommT>
 
     private final CommittableCollectorSerializer<CommT> committableCollectorSerializer;
     @Nullable private final SimpleVersionedSerializer<GlobalCommT> globalCommittableSerializer;
-    private final int subtaskId;
-    private final int numberOfSubtasks;
     private final SinkCommitterMetricGroup metricGroup;
 
     GlobalCommitterSerializer(
             CommittableCollectorSerializer<CommT> committableCollectorSerializer,
             @Nullable SimpleVersionedSerializer<GlobalCommT> globalCommittableSerializer,
-            int subtaskId,
-            int numberOfSubtasks,
             SinkCommitterMetricGroup metricGroup) {
         this.committableCollectorSerializer = checkNotNull(committableCollectorSerializer);
         this.globalCommittableSerializer = globalCommittableSerializer;
-        this.subtaskId = subtaskId;
-        this.numberOfSubtasks = numberOfSubtasks;
         this.metricGroup = metricGroup;
     }
 
@@ -111,8 +105,7 @@ class GlobalCommitterSerializer<CommT, GlobalCommT>
                 SinkV1CommittableDeserializer.readVersionAndDeserializeList(
                         globalCommittableSerializer, in);
         return new GlobalCommittableWrapper<>(
-                new CommittableCollector<>(subtaskId, numberOfSubtasks, metricGroup),
-                globalCommittables);
+                new CommittableCollector<>(metricGroup), globalCommittables);
     }
 
     private GlobalCommittableWrapper<CommT, GlobalCommT> deserializeV2(DataInputView in)

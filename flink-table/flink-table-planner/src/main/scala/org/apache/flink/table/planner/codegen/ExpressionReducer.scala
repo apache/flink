@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.api.common.functions.{MapFunction, OpenContext, RichMapFunction}
+import org.apache.flink.api.common.functions.{DefaultOpenContext, MapFunction, OpenContext, RichMapFunction, WithConfigurationOpenContext}
 import org.apache.flink.configuration.{Configuration, PipelineOptions, ReadableConfig}
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.data.{DecimalData, GenericRowData, TimestampData}
@@ -107,7 +107,7 @@ class ExpressionReducer(
       .getOrElse(new Configuration)
     val reduced =
       try {
-        richMapFunction.open(parameters)
+        richMapFunction.open(new WithConfigurationOpenContext(parameters))
         // execute
         richMapFunction.map(EMPTY_ROW)
       } catch {
@@ -315,7 +315,7 @@ class ConstantCodeGeneratorContext(tableConfig: ReadableConfig, classLoader: Cla
     super.addReusableFunction(
       function,
       classOf[FunctionContext],
-      Seq("null", "this.getClass().getClassLoader()", "parameters"))
+      Seq("null", "this.getClass().getClassLoader()", "openContext"))
   }
 
   override def addReusableConverter(dataType: DataType, classLoaderTerm: String = null): String = {

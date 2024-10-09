@@ -33,6 +33,8 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
@@ -51,7 +53,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import static org.apache.flink.api.common.restartstrategy.RestartStrategies.noRestart;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 
 /**
@@ -120,13 +121,13 @@ public class TaskManagerWideRocksDbMemorySharingITCase extends TestLogger {
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.setParallelism(PARALLELISM);
 
+        // currently we could not use config option to replace RocksDBMemoryFactory
         EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend(true);
         backend.setRocksDBMemoryFactory(memoryFactory);
-        env.setStateBackend(backend);
 
         // don't flush memtables by checkpoints
         env.enableCheckpointing(24 * 60 * 60 * 1000, CheckpointingMode.EXACTLY_ONCE);
-        env.setRestartStrategy(noRestart());
+        RestartStrategyUtils.configureNoRestartStrategy(env);
 
         DataStreamSource<Long> src = env.fromSequence(Long.MIN_VALUE, Long.MAX_VALUE);
         src.keyBy(number -> number)
@@ -157,7 +158,7 @@ public class TaskManagerWideRocksDbMemorySharingITCase extends TestLogger {
                             }
                         })
                 .sinkTo(new DiscardingSink<>());
-        return env.getStreamGraph().getJobGraph();
+        return StateBackendUtils.configureStateBackendAndGetJobGraph(env, backend);
     }
 
     private static Configuration getConfiguration() {

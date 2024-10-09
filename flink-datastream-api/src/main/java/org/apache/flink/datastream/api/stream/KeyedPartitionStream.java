@@ -26,7 +26,7 @@ import org.apache.flink.datastream.api.function.TwoInputBroadcastStreamProcessFu
 import org.apache.flink.datastream.api.function.TwoInputNonBroadcastStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoOutputStreamProcessFunction;
 import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.ProcessConfigurableAndNonKeyedPartitionStream;
-import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.TwoNonKeyedPartitionStreams;
+import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.ProcessConfigurableAndTwoNonKeyedPartitionStream;
 
 /**
  * This interface represents a kind of partitioned data stream. For this stream, each key is a
@@ -76,9 +76,9 @@ public interface KeyedPartitionStream<K, T> extends DataStream {
      * @param processFunction to perform two output operation.
      * @param keySelector1 to select the key of first output.
      * @param keySelector2 to select the key of second output.
-     * @return new {@link TwoKeyedPartitionStreams} with this operation.
+     * @return new {@link ProcessConfigurableAndTwoKeyedPartitionStreams} with this operation.
      */
-    <OUT1, OUT2> TwoKeyedPartitionStreams<K, OUT1, OUT2> process(
+    <OUT1, OUT2> ProcessConfigurableAndTwoKeyedPartitionStreams<K, OUT1, OUT2> process(
             TwoOutputStreamProcessFunction<T, OUT1, OUT2> processFunction,
             KeySelector<OUT1, K> keySelector1,
             KeySelector<OUT2, K> keySelector2);
@@ -87,9 +87,9 @@ public interface KeyedPartitionStream<K, T> extends DataStream {
      * Apply a two output operation to this {@link KeyedPartitionStream}.
      *
      * @param processFunction to perform two output operation.
-     * @return new {@link TwoNonKeyedPartitionStreams} with this operation.
+     * @return new {@link ProcessConfigurableAndTwoNonKeyedPartitionStream} with this operation.
      */
-    <OUT1, OUT2> TwoNonKeyedPartitionStreams<OUT1, OUT2> process(
+    <OUT1, OUT2> ProcessConfigurableAndTwoNonKeyedPartitionStream<OUT1, OUT2> process(
             TwoOutputStreamProcessFunction<T, OUT1, OUT2> processFunction);
 
     /**
@@ -209,7 +209,8 @@ public interface KeyedPartitionStream<K, T> extends DataStream {
      * the return value of operation with two output.
      */
     @Experimental
-    interface TwoKeyedPartitionStreams<K, T1, T2> {
+    interface ProcessConfigurableAndTwoKeyedPartitionStreams<K, T1, T2>
+            extends ProcessConfigurable<ProcessConfigurableAndTwoKeyedPartitionStreams<K, T1, T2>> {
         /** Get the first stream. */
         ProcessConfigurableAndKeyedPartitionStream<K, T1> getFirst();
 

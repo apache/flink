@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark
 import org.apache.flink.table.expressions.{ApiExpressionUtils, Expression, TableSymbol, TimePointUnit}
 import org.apache.flink.table.expressions.ApiExpressionUtils.{unresolvedCall, unresolvedRef, valueLiteral}
-import org.apache.flink.table.functions.{ImperativeAggregateFunction, ScalarFunction, TableFunction, UserDefinedFunctionHelper, _}
+import org.apache.flink.table.functions._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{DISTINCT, RANGE_TO}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
@@ -33,6 +33,7 @@ import java.sql.{Date, Time, Timestamp}
 import java.time.{LocalDate, LocalDateTime, LocalTime}
 import java.util.{List => JList, Map => JMap}
 
+import scala.language.experimental.macros
 import scala.language.implicitConversions
 
 /**
@@ -46,7 +47,7 @@ import scala.language.implicitConversions
  * @see
  *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
-@deprecated(since = "1.18.0")
+@Deprecated
 @PublicEvolving
 trait ImplicitExpressionConversions {
 

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.attribute.Attribute;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -73,7 +74,7 @@ import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.UdfStreamOperatorFactory;
-import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
+import org.apache.flink.streaming.api.operators.legacy.YieldingOperatorFactory;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardForConsecutiveHashPartitioner;
@@ -187,9 +188,6 @@ public class StreamingJobGraphGenerator {
 
     private final Map<Integer, InputOutputFormatContainer> chainedInputOutputFormats;
 
-    // the ids of nodes whose output result partition type should be set to BLOCKING
-    private final Set<Integer> outputBlockingNodesID;
-
     private final StreamGraphHasher defaultStreamGraphHasher;
     private final List<StreamGraphHasher> legacyStreamGraphHashers;
 
@@ -230,7 +228,6 @@ public class StreamingJobGraphGenerator {
         this.chainedMinResources = new HashMap<>();
         this.chainedPreferredResources = new HashMap<>();
         this.chainedInputOutputFormats = new HashMap<>();
-        this.outputBlockingNodesID = new HashSet<>();
         this.physicalEdgesInOrder = new ArrayList<>();
         this.serializationExecutor = Preconditions.checkNotNull(serializationExecutor);
         this.chainInfos = new HashMap<>();
@@ -337,6 +334,17 @@ public class StreamingJobGraphGenerator {
         }
 
         return jobGraph;
+    }
+
+    /**
+     * Creates an instance of {@link OperatorID} based on the provided operator unique identifier
+     * (UID).
+     *
+     * @param operatorUid the unique identifier of the operator, used to generate the hash
+     * @return a new {@link OperatorID} instance generated from the specified operator UID
+     */
+    public static OperatorID generateOperatorID(String operatorUid) {
+        return new OperatorID(StreamGraphHasherV2.generateUserSpecifiedHash(operatorUid));
     }
 
     private void waitForSerializationFuturesAndUpdateJobVertices()
@@ -504,12 +512,6 @@ public class StreamingJobGraphGenerator {
 
         if (checkpointConfig.isCheckpointingEnabled()) {
             // temporarily forbid checkpointing for iterative jobs
-            if (streamGraph.isIterative() && !checkpointConfig.isForceCheckpointing()) {
-                throw new UnsupportedOperationException(
-                        "Checkpointing is currently not supported by default for iterative jobs, as we cannot guarantee exactly once semantics. "
-                                + "State checkpoints happen normally, but records in-transit during the snapshot will be lost upon failure. "
-                                + "\nThe user can force enable state checkpoints with the reduced guarantees by calling: env.enableCheckpointing(interval,true)");
-            }
             if (streamGraph.isIterative()
                     && checkpointConfig.isUnalignedCheckpointsEnabled()
                     && !checkpointConfig.isForceUnalignedCheckpoints()) {
@@ -682,10 +684,12 @@ public class StreamingJobGraphGenerator {
             List<StreamEdge> nonChainableOutputs = new ArrayList<StreamEdge>();
 
             StreamNode currentNode = streamGraph.getStreamNode(currentNodeId);
-
-            boolean isOutputOnlyAfterEndOfStream = currentNode.isOutputOnlyAfterEndOfStream();
-            if (isOutputOnlyAfterEndOfStream) {
-                outputBlockingNodesID.add(currentNode.getId());
+            Attribute currentNodeAttribute = currentNode.getAttribute();
+            boolean isNoOutputUntilEndOfInput =
+                    currentNode.isOutputOnlyAfterEndOfStream()
+                            || currentNodeAttribute.isNoOutputUntilEndOfInput();
+            if (isNoOutputUntilEndOfInput) {
+                currentNodeAttribute.setNoOutputUntilEndOfInput(true);
             }
 
             for (StreamEdge outEdge : currentNode.getOutEdges()) {
@@ -697,9 +701,12 @@ public class StreamingJobGraphGenerator {
             }
 
             for (StreamEdge chainable : chainableOutputs) {
-                // Mark downstream nodes in the same chain as outputBlocking
-                if (isOutputOnlyAfterEndOfStream) {
-                    outputBlockingNodesID.add(chainable.getTargetId());
+                StreamNode targetNode = streamGraph.getStreamNode(chainable.getTargetId());
+                Attribute targetNodeAttribute = targetNode.getAttribute();
+                if (isNoOutputUntilEndOfInput) {
+                    if (targetNodeAttribute != null) {
+                        targetNodeAttribute.setNoOutputUntilEndOfInput(true);
+                    }
                 }
                 transitiveOutEdges.addAll(
                         createChain(
@@ -708,8 +715,9 @@ public class StreamingJobGraphGenerator {
                                 chainInfo,
                                 chainEntryPoints));
                 // Mark upstream nodes in the same chain as outputBlocking
-                if (outputBlockingNodesID.contains(chainable.getTargetId())) {
-                    outputBlockingNodesID.add(currentNodeId);
+                if (targetNodeAttribute != null
+                        && targetNodeAttribute.isNoOutputUntilEndOfInput()) {
+                    currentNodeAttribute.setNoOutputUntilEndOfInput(true);
                 }
             }
 
@@ -757,7 +765,7 @@ public class StreamingJobGraphGenerator {
                             : new StreamConfig(new Configuration());
 
             tryConvertPartitionerForDynamicGraph(chainableOutputs, nonChainableOutputs);
-
+            config.setAttribute(currentNodeAttribute);
             setOperatorConfig(currentNodeId, config, chainInfo.getChainedSources());
 
             setOperatorChainedOutputsConfig(config, chainableOutputs);
@@ -981,16 +989,21 @@ public class StreamingJobGraphGenerator {
 
         JobVertexID jobVertexId = new JobVertexID(hash);
 
-        List<Tuple2<byte[], byte[]>> chainedOperators =
+        List<ChainedOperatorHashInfo> chainedOperators =
                 chainInfo.getChainedOperatorHashes(streamNodeId);
         List<OperatorIDPair> operatorIDPairs = new ArrayList<>();
         if (chainedOperators != null) {
-            for (Tuple2<byte[], byte[]> chainedOperator : chainedOperators) {
+            for (ChainedOperatorHashInfo chainedOperator : chainedOperators) {
                 OperatorID userDefinedOperatorID =
-                        chainedOperator.f1 == null ? null : new OperatorID(chainedOperator.f1);
+                        chainedOperator.getUserDefinedOperatorID() == null
+                                ? null
+                                : new OperatorID(chainedOperator.getUserDefinedOperatorID());
                 operatorIDPairs.add(
                         OperatorIDPair.of(
-                                new OperatorID(chainedOperator.f0), userDefinedOperatorID));
+                                new OperatorID(chainedOperator.getGeneratedOperatorID()),
+                                userDefinedOperatorID,
+                                chainedOperator.getStreamNode().getOperatorName(),
+                                chainedOperator.getStreamNode().getTransformationUID()));
             }
         }
 
@@ -1126,8 +1139,6 @@ public class StreamingJobGraphGenerator {
         config.setTypeSerializerOut(vertex.getTypeSerializerOut());
 
         config.setStreamOperatorFactory(vertex.getOperatorFactory());
-
-        config.setTimeCharacteristic(streamGraph.getTimeCharacteristic());
 
         final CheckpointConfig checkpointCfg = streamGraph.getCheckpointConfig();
 
@@ -1504,7 +1515,9 @@ public class StreamingJobGraphGenerator {
     }
 
     private ResultPartitionType determineUndefinedResultPartitionType(StreamEdge edge) {
-        if (outputBlockingNodesID.contains(edge.getSourceId())) {
+        Attribute sourceNodeAttribute =
+                streamGraph.getStreamNode(edge.getSourceId()).getAttribute();
+        if (sourceNodeAttribute.isNoOutputUntilEndOfInput()) {
             edge.setBufferTimeout(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
             return ResultPartitionType.BLOCKING;
         }
@@ -2104,7 +2117,7 @@ public class StreamingJobGraphGenerator {
         private final Integer startNodeId;
         private final Map<Integer, byte[]> hashes;
         private final List<Map<Integer, byte[]>> legacyHashes;
-        private final Map<Integer, List<Tuple2<byte[], byte[]>>> chainedOperatorHashes;
+        private final Map<Integer, List<ChainedOperatorHashInfo>> chainedOperatorHashes;
         private final Map<Integer, ChainedSourceInfo> chainedSources;
         private final List<OperatorCoordinator.Provider> coordinatorProviders;
         private final StreamGraph streamGraph;
@@ -2136,7 +2149,7 @@ public class StreamingJobGraphGenerator {
             return startNodeId;
         }
 
-        private List<Tuple2<byte[], byte[]>> getChainedOperatorHashes(int startNodeId) {
+        private List<ChainedOperatorHashInfo> getChainedOperatorHashes(int startNodeId) {
             return chainedOperatorHashes.get(startNodeId);
         }
 
@@ -2156,13 +2169,15 @@ public class StreamingJobGraphGenerator {
             recordChainedNode(currentNodeId);
             StreamNode streamNode = streamGraph.getStreamNode(currentNodeId);
 
-            List<Tuple2<byte[], byte[]>> operatorHashes =
+            List<ChainedOperatorHashInfo> operatorHashes =
                     chainedOperatorHashes.computeIfAbsent(startNodeId, k -> new ArrayList<>());
 
             byte[] primaryHashBytes = hashes.get(currentNodeId);
 
             for (Map<Integer, byte[]> legacyHash : legacyHashes) {
-                operatorHashes.add(new Tuple2<>(primaryHashBytes, legacyHash.get(currentNodeId)));
+                operatorHashes.add(
+                        new ChainedOperatorHashInfo(
+                                primaryHashBytes, legacyHash.get(currentNodeId), streamNode));
             }
 
             streamNode
@@ -2192,6 +2207,33 @@ public class StreamingJobGraphGenerator {
 
         private List<StreamNode> getAllChainedNodes() {
             return chainedNodes;
+        }
+    }
+
+    private static final class ChainedOperatorHashInfo {
+        private final byte[] generatedOperatorID;
+        private final byte[] userDefinedOperatorID;
+        private final StreamNode streamNode;
+
+        ChainedOperatorHashInfo(
+                final byte[] generatedOperatorID,
+                final byte[] userDefinedOperatorID,
+                final StreamNode streamNode) {
+            this.generatedOperatorID = generatedOperatorID;
+            this.userDefinedOperatorID = userDefinedOperatorID;
+            this.streamNode = streamNode;
+        }
+
+        public byte[] getGeneratedOperatorID() {
+            return generatedOperatorID;
+        }
+
+        public byte[] getUserDefinedOperatorID() {
+            return userDefinedOperatorID;
+        }
+
+        public StreamNode getStreamNode() {
+            return streamNode;
         }
     }
 

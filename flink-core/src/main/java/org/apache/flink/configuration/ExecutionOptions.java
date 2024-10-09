@@ -83,7 +83,7 @@ public class ExecutionOptions {
                                     .build());
 
     /**
-     * Should be moved to {@code ExecutionCheckpointingOptions} along with {@code
+     * Should be moved to {@code CheckpointingOptions} along with {@code
      * ExecutionConfig#useSnapshotCompression}, which should be put into {@code CheckpointConfig}.
      */
     public static final ConfigOption<Boolean> SNAPSHOT_COMPRESSION =

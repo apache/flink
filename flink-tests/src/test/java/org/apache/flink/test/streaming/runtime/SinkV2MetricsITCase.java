@@ -20,6 +20,7 @@ package org.apache.flink.test.streaming.runtime;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.metrics.Counter;
@@ -140,9 +141,8 @@ public class SinkV2MetricsITCase extends TestLogger {
         env.fromSequence(0, numCommittables - 1)
                 .returns(BasicTypeInfo.LONG_TYPE_INFO)
                 .sinkTo(
-                        TestSinkV2.<Long>newBuilder()
-                                .setCommitter(new MetricCommitter(beforeLatch, afterLatch))
-                                .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
+                        (TestSinkV2.<Long>newBuilder()
+                                        .setCommitter(new MetricCommitter(beforeLatch, afterLatch)))
                                 .build())
                 .name(TEST_SINK_NAME);
         JobClient jobClient = env.executeAsync();
@@ -278,7 +278,7 @@ public class SinkV2MetricsITCase extends TestLogger {
         private long sendTime;
 
         @Override
-        public void init(Sink.InitContext context) {
+        public void init(WriterInitContext context) {
             this.metricGroup = context.metricGroup();
             metricGroup.setCurrentSendTimeGauge(() -> sendTime);
         }

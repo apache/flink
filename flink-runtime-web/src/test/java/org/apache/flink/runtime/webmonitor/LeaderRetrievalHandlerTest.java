@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.handler.LeaderRetrievalHandler;
 import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
@@ -28,7 +27,6 @@ import org.apache.flink.runtime.rest.handler.util.KeepAliveWrite;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
-import org.apache.flink.util.TimeUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
@@ -40,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
@@ -65,7 +64,7 @@ class LeaderRetrievalHandlerTest {
 
         final Configuration configuration = new Configuration();
         final Router router = new Router();
-        final Time timeout = Time.seconds(10L);
+        final Duration timeout = Duration.ofSeconds(10L);
         final CompletableFuture<RestfulGateway> gatewayFuture = new CompletableFuture<>();
         final GatewayRetriever<RestfulGateway> gatewayRetriever = () -> gatewayFuture;
         final RestfulGateway gateway = new TestingRestfulGateway.Builder().build();
@@ -79,19 +78,18 @@ class LeaderRetrievalHandlerTest {
         try (HttpTestClient httpClient =
                 new HttpTestClient("localhost", bootstrap.getServerPort())) {
             // 1. no leader gateway available --> Service unavailable
-            httpClient.sendGetRequest(restPath, TimeUtils.toDuration(timeout));
+            httpClient.sendGetRequest(restPath, timeout);
 
-            HttpTestClient.SimpleHttpResponse response =
-                    httpClient.getNextResponse(TimeUtils.toDuration(timeout));
+            HttpTestClient.SimpleHttpResponse response = httpClient.getNextResponse(timeout);
 
             assertThat(response.getStatus()).isEqualTo(HttpResponseStatus.SERVICE_UNAVAILABLE);
 
             // 2. with leader
             gatewayFuture.complete(gateway);
 
-            httpClient.sendGetRequest(restPath, TimeUtils.toDuration(timeout));
+            httpClient.sendGetRequest(restPath, timeout);
 
-            response = httpClient.getNextResponse(TimeUtils.toDuration(timeout));
+            response = httpClient.getNextResponse(timeout);
 
             assertThat(response.getStatus()).isEqualTo(HttpResponseStatus.OK);
             assertThat(response.getContent()).isEqualTo(RESPONSE_MESSAGE);
@@ -104,7 +102,8 @@ class LeaderRetrievalHandlerTest {
     private static class TestingHandler extends LeaderRetrievalHandler<RestfulGateway> {
 
         protected TestingHandler(
-                @Nonnull GatewayRetriever<RestfulGateway> leaderRetriever, @Nonnull Time timeout) {
+                @Nonnull GatewayRetriever<RestfulGateway> leaderRetriever,
+                @Nonnull Duration timeout) {
             super(leaderRetriever, timeout, Collections.emptyMap());
         }
 

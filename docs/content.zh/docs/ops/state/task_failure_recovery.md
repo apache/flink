@@ -69,7 +69,7 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
   3, // 尝试重启的次数
-  Time.of(10, TimeUnit.SECONDS) // 延时
+  Duration.ofSeconds(10) // 延时
 ))
 ```
 {{< /tab >}}
@@ -126,7 +126,7 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
   3, // 尝试重启的次数
-  Time.of(10, TimeUnit.SECONDS) // 延时
+  Duration.ofSeconds(10) // 延时
 ))
 ```
 {{< /tab >}}
@@ -172,10 +172,10 @@ restart-strategy.exponential-delay.attempts-before-reset-backoff: 10
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.setRestartStrategy(RestartStrategies.exponentialDelayRestart(
-  Time.milliseconds(1),
-  Time.milliseconds(1000),
+  Duration.ofMillis(1),
+  Duration.ofMillis(1000),
   1.1, // exponential multiplier
-  Time.milliseconds(2000), // 重置延迟时间到初始值的阈值
+  Duration.ofMillis(2000), // 重置延迟时间到初始值的阈值
   0.1 // jitter
 ));
 ```
@@ -184,10 +184,10 @@ env.setRestartStrategy(RestartStrategies.exponentialDelayRestart(
 ```scala
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.exponentialDelayRestart(
-  Time.of(1, TimeUnit.MILLISECONDS), // initial delay between restarts
-  Time.of(1000, TimeUnit.MILLISECONDS), // maximum delay between restarts
+  Duration.ofMillis(1), // initial delay between restarts
+  Duration.ofMillis(1000), // maximum delay between restarts
   1.1, // exponential multiplier
-  Time.of(2, TimeUnit.SECONDS), // 重置延迟时间到初始值的阈值
+  Duration.ofSeconds(2), // 重置延迟时间到初始值的阈值
   0.1 // jitter
 ))
 ```
@@ -279,8 +279,8 @@ StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironm
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.failureRateRestart(
   3, // 每个时间间隔的最大故障次数
-  Time.of(5, TimeUnit.MINUTES), // 测量故障率的时间间隔
-  Time.of(10, TimeUnit.SECONDS) // 延时
+  Duration.ofMinutes(5), // 测量故障率的时间间隔
+  Duration.ofSeconds(10) // 延时
 ))
 ```
 {{< /tab >}}

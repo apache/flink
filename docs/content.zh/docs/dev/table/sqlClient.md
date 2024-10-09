@@ -360,21 +360,6 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
      -s,--session <session identifier>          The identifier for a session.
                                                 'default' is the default
                                                 identifier.
-     -u,--update <SQL update statement>         Deprecated Experimental (for
-                                                testing only!) feature:
-                                                Instructs the SQL Client to
-                                                immediately execute the given
-                                                update statement after starting
-                                                up. The process is shut down
-                                                after the statement has been
-                                                submitted to the cluster and
-                                                returns an appropriate return
-                                                code. Currently, this feature is
-                                                only supported for INSERT INTO
-                                                statements that declare the
-                                                target sink table.Please use
-                                                option -f to submit update
-                                                statement.
 
 
 Mode "gateway" mode connects to the SQL gateway for submission.
@@ -401,18 +386,6 @@ Mode "gateway" mode connects to the SQL gateway for submission.
                                            or insert into the init file.
      -s,--session <session identifier>     The identifier for a session.
                                            'default' is the default identifier.
-     -u,--update <SQL update statement>    Deprecated Experimental (for testing
-                                           only!) feature: Instructs the SQL
-                                           Client to immediately execute the
-                                           given update statement after starting
-                                           up. The process is shut down after
-                                           the statement has been submitted to
-                                           the cluster and returns an
-                                           appropriate return code. Currently,
-                                           this feature is only supported for
-                                           INSERT INTO statements that declare
-                                           the target sink table.Please use
-                                           option -f to submit update statement.
 ```
 
 ### SQL Client Configuration

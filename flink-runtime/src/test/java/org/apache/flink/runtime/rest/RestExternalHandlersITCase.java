@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.testutils.FlinkAssertions;
@@ -46,17 +45,19 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT cases for {@link RestClient} and {@link RestServerEndpoint}. */
 class RestExternalHandlersITCase {
 
-    private static final Time timeout = Time.seconds(10L);
+    private static final Duration timeout = Duration.ofSeconds(10L);
     private static final String REQUEST_URL = "/nonExisting1";
     private static final String REDIRECT1_URL = "/nonExisting2";
     private static final String REDIRECT2_URL = "/nonExisting3";
@@ -116,7 +117,7 @@ class RestExternalHandlersITCase {
         }
 
         if (serverEndpoint != null) {
-            serverEndpoint.closeAsync().get(timeout.getSize(), timeout.getUnit());
+            serverEndpoint.closeAsync().get(timeout.toMillis(), TimeUnit.MILLISECONDS);
             serverEndpoint = null;
         }
     }

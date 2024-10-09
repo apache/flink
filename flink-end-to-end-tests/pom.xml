@@ -42,13 +42,10 @@ under the License.
 		<module>flink-cli-test</module>
 		<module>flink-parent-child-classloading-test-program</module>
 		<module>flink-parent-child-classloading-test-lib-package</module>
-		<module>flink-dataset-allround-test</module>
-		<module>flink-dataset-fine-grained-recovery-test</module>
 		<module>flink-datastream-allround-test</module>
 		<module>flink-batch-sql-test</module>
 		<module>flink-stream-sql-test</module>
 		<module>flink-distributed-cache-via-blob-test</module>
-		<module>flink-high-parallelism-iterations-test</module>
 		<module>flink-stream-stateful-job-upgrade-test</module>
 		<module>flink-queryable-state-test</module>
 		<module>flink-local-recovery-and-allocation-test</module>
@@ -73,7 +70,6 @@ under the License.
 		<module>flink-end-to-end-tests-scala</module>
 		<module>flink-end-to-end-tests-sql</module>
 		<module>flink-end-to-end-tests-jdbc-driver</module>
-		<module>flink-end-to-end-tests-hive</module>
 		<module>flink-end-to-end-tests-restclient</module>
 		<module>flink-failure-enricher-test</module>
     </modules>

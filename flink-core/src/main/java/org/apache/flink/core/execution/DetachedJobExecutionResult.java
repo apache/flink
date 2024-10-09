@@ -63,11 +63,6 @@ public final class DetachedJobExecutionResult extends JobExecutionResult {
     }
 
     @Override
-    public Integer getIntCounterResult(String accumulatorName) {
-        throw new InvalidProgramException(DETACHED_MESSAGE + JOB_RESULT_MESSAGE);
-    }
-
-    @Override
     public JobID getJobID() {
         return super.getJobID();
     }

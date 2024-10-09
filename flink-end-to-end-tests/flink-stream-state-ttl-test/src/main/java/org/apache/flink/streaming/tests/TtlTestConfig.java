@@ -18,10 +18,11 @@
 
 package org.apache.flink.streaming.tests;
 
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.util.ParameterTool;
+
+import java.time.Duration;
 
 class TtlTestConfig {
     private static final ConfigOption<Integer> UPDATE_GENERATOR_SRC_KEYSPACE =
@@ -44,14 +45,14 @@ class TtlTestConfig {
     final int keySpace;
     final long sleepAfterElements;
     final long sleepTime;
-    final Time ttl;
+    final Duration ttl;
     final long reportStatAfterUpdatesNum;
 
     private TtlTestConfig(
             int keySpace,
             long sleepAfterElements,
             long sleepTime,
-            Time ttl,
+            Duration ttl,
             long reportStatAfterUpdatesNum) {
         this.keySpace = keySpace;
         this.sleepAfterElements = sleepAfterElements;
@@ -73,8 +74,8 @@ class TtlTestConfig {
                 pt.getLong(
                         UPDATE_GENERATOR_SRC_SLEEP_TIME.key(),
                         UPDATE_GENERATOR_SRC_SLEEP_TIME.defaultValue());
-        Time ttl =
-                Time.milliseconds(
+        Duration ttl =
+                Duration.ofMillis(
                         pt.getLong(
                                 STATE_TTL_VERIFIER_TTL_MILLI.key(),
                                 STATE_TTL_VERIFIER_TTL_MILLI.defaultValue()));

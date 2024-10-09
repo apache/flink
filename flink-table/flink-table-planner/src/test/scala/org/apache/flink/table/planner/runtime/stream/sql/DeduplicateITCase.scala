@@ -17,9 +17,8 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
+import org.apache.flink.api.common.eventtime.{AscendingTimestampsWatermarks, TimestampAssigner, TimestampAssignerSupplier, WatermarkGenerator, WatermarkGeneratorSupplier, WatermarkStrategy}
 import org.apache.flink.core.testutils.EachCallbackWrapper
-import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
@@ -180,8 +179,8 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
 
   @TestTemplate
   def testFirstRowOnRowtime(): Unit = {
-    val t = env
-      .fromCollection(rowtimeTestData)
+    val t = StreamingEnvUtil
+      .fromCollection(env, rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
     tEnv.createTemporaryView("T", t)
@@ -219,8 +218,8 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
     tEnv.getConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES_ENABLED,
       Boolean.box(true))
-    val t = env
-      .fromCollection(rowtimeTestData)
+    val t = StreamingEnvUtil
+      .fromCollection(env, rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
     tEnv.createTemporaryView("T", t)
@@ -252,8 +251,8 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
 
   @TestTemplate
   def testFirstRowOnRowTimeFollowedByUnboundedAgg(): Unit = {
-    val t = env
-      .fromCollection(rowtimeTestData)
+    val t = StreamingEnvUtil
+      .fromCollection(env, rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
     tEnv.createTemporaryView("T", t)
@@ -288,8 +287,8 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
 
   @TestTemplate
   def testLastRowOnRowtime(): Unit = {
-    val t = env
-      .fromCollection(rowtimeTestData)
+    val t = StreamingEnvUtil
+      .fromCollection(env, rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
     tEnv.createTemporaryView("T", t)
@@ -331,8 +330,8 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
     tEnv.getConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES_ENABLED,
       Boolean.box(true))
-    val t = env
-      .fromCollection(rowtimeTestData)
+    val t = StreamingEnvUtil
+      .fromCollection(env, rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
     tEnv.createTemporaryView("T", t)
@@ -366,8 +365,8 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
 
   @TestTemplate
   def testLastRowOnRowTimeFollowedByUnboundedAgg(): Unit = {
-    val t = env
-      .fromCollection(rowtimeTestData)
+    val t = StreamingEnvUtil
+      .fromCollection(env, rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
     tEnv.createTemporaryView("T", t)
@@ -416,6 +415,13 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   }
 }
 
-class RowtimeExtractor extends AscendingTimestampExtractor[(Int, Long, String)] {
-  override def extractAscendingTimestamp(element: (Int, Long, String)): Long = element._2
+class RowtimeExtractor extends WatermarkStrategy[(Int, Long, String)] {
+  override def createWatermarkGenerator(
+      context: WatermarkGeneratorSupplier.Context): WatermarkGenerator[(Int, Long, String)] =
+    new AscendingTimestampsWatermarks[(Int, Long, String)]
+
+  override def createTimestampAssigner(
+      context: TimestampAssignerSupplier.Context): TimestampAssigner[(Int, Long, String)] = {
+    (e: (Int, Long, String), _: Long) => e._2
+  }
 }

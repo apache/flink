@@ -20,7 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
@@ -238,7 +238,9 @@ class CheckpointCoordinatorRestoringTest {
         final ExecutionGraph executionGraph = createExecutionGraph(vertices);
         final EmbeddedCompletedCheckpointStore store =
                 new EmbeddedCompletedCheckpointStore(
-                        completedCheckpoints.size(), completedCheckpoints, RestoreMode.DEFAULT);
+                        completedCheckpoints.size(),
+                        completedCheckpoints,
+                        RecoveryClaimMode.DEFAULT);
 
         // set up the coordinator and validate the initial state
         final CheckpointCoordinator coordinator =
@@ -659,7 +661,8 @@ class CheckpointCoordinatorRestoringTest {
 
         // prepare vertex1 state
         for (Tuple2<JobVertexID, OperatorID> id : Arrays.asList(id1, id2)) {
-            OperatorState taskState = new OperatorState(id.f1, parallelism1, maxParallelism1);
+            OperatorState taskState =
+                    new OperatorState(null, null, id.f1, parallelism1, maxParallelism1);
             operatorStates.put(id.f1, taskState);
             for (int index = 0; index < taskState.getParallelism(); index++) {
                 OperatorSubtaskState subtaskState =
@@ -679,7 +682,8 @@ class CheckpointCoordinatorRestoringTest {
                 new ArrayList<>();
         // prepare vertex2 state
         for (Tuple2<JobVertexID, OperatorID> id : Arrays.asList(id3, id4)) {
-            OperatorState operatorState = new OperatorState(id.f1, parallelism2, maxParallelism2);
+            OperatorState operatorState =
+                    new OperatorState(null, null, id.f1, parallelism2, maxParallelism2);
             operatorStates.put(id.f1, operatorState);
             List<ChainedStateHandle<OperatorStateHandle>> expectedManagedOperatorState =
                     new ArrayList<>();
@@ -780,7 +784,7 @@ class CheckpointCoordinatorRestoringTest {
         // set up the coordinator and validate the initial state
         SharedStateRegistry sharedStateRegistry =
                 SharedStateRegistry.DEFAULT_FACTORY.create(
-                        Executors.directExecutor(), emptyList(), RestoreMode.DEFAULT);
+                        Executors.directExecutor(), emptyList(), RecoveryClaimMode.DEFAULT);
         CheckpointCoordinator coord =
                 new CheckpointCoordinatorBuilder()
                         .setCompletedCheckpointStore(
@@ -1083,7 +1087,7 @@ class CheckpointCoordinatorRestoringTest {
         Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
         operatorStates.put(
                 op1.getGeneratedOperatorID(),
-                new FullyFinishedOperatorState(op1.getGeneratedOperatorID(), 1, 1));
+                new FullyFinishedOperatorState(null, null, op1.getGeneratedOperatorID(), 1, 1));
         CompletedCheckpoint completedCheckpoint =
                 new CompletedCheckpoint(
                         graph.getJobID(),

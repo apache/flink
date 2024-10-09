@@ -40,7 +40,6 @@ import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalAggregateProcessWindowFunction;
@@ -112,12 +111,6 @@ public class WindowOperatorBuilder<T, K, W extends Window> {
         }
 
         this.trigger = trigger;
-    }
-
-    /** @deprecated Use {@link #allowedLateness(Duration)}. */
-    @Deprecated
-    public void allowedLateness(Time lateness) {
-        allowedLateness(lateness.toDuration());
     }
 
     public void allowedLateness(Duration lateness) {

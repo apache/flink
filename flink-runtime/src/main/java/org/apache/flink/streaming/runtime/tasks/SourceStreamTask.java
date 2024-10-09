@@ -30,7 +30,7 @@ import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.checkpoint.ExternallyInducedSource;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
@@ -58,9 +58,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @param <OUT> Type of the output elements of this source.
  * @param <SRC> Type of the source function for the stream source operator
  * @param <OP> Type of the stream source operator
- * @deprecated This class is based on the {@link
- *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
- *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+ * @deprecated This class is based on the {@link SourceFunction} API, which is due to be removed.
+ *     Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
 @Deprecated
 @Internal

@@ -96,11 +96,11 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
-		<!-- Flink Scala (included only in the loader-bundle) -->
+		<!-- Flink Table API Scala (included only in the loader-bundle) -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-api-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -158,14 +158,6 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!-- Table API Scala dependencies -->
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-scala_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-api-scala-bridge_${scala.binary.version}</artifactId>
@@ -440,6 +432,17 @@ under the License.
 						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<configuration>
+					<!-- flink-table-planner throws NPE in JDK 11 when we specify ignore-source-errors.
+					See https://bugs.openjdk.org/browse/JDK-8268582. We get around this exception by not
+					generating the class hierarchy pages. -->
+					<notree>true</notree>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>

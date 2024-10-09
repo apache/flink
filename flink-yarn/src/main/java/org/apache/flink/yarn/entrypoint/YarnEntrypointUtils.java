@@ -18,14 +18,11 @@
 
 package org.apache.flink.yarn.entrypoint;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.Utils;
@@ -44,10 +41,7 @@ import java.util.Optional;
 import static org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils.tryFindUserLibDirectory;
 import static org.apache.flink.util.Preconditions.checkState;
 
-/**
- * This class contains utility methods for the {@link YarnSessionClusterEntrypoint} and {@link
- * YarnJobClusterEntrypoint}.
- */
+/** This class contains utility methods for the {@link YarnSessionClusterEntrypoint}. */
 public class YarnEntrypointUtils {
 
     public static Configuration loadConfiguration(
@@ -67,29 +61,10 @@ public class YarnEntrypointUtils {
         configuration.set(RestOptions.ADDRESS, hostname);
         configuration.set(RestOptions.BIND_ADDRESS, hostname);
 
-        // if a web monitor shall be started, set the port to random binding
-        if (configuration.get(WebOptions.PORT, 0) >= 0) {
-            configuration.set(WebOptions.PORT, 0);
-        }
-
         if (!configuration.contains(RestOptions.BIND_PORT)) {
             // set the REST port to 0 to select it randomly
             configuration.set(RestOptions.BIND_PORT, "0");
         }
-
-        // if the user has set the deprecated YARN-specific config keys, we add the
-        // corresponding generic config keys instead. that way, later code needs not
-        // deal with deprecated config keys
-
-        BootstrapTools.substituteDeprecatedConfigPrefix(
-                configuration,
-                ConfigConstants.YARN_APPLICATION_MASTER_ENV_PREFIX,
-                ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX);
-
-        BootstrapTools.substituteDeprecatedConfigPrefix(
-                configuration,
-                ConfigConstants.YARN_TASK_MANAGER_ENV_PREFIX,
-                ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX);
 
         final String keytabPath =
                 Utils.resolveKeytabPath(

@@ -55,8 +55,9 @@ source "${FLINK_DIR}/bin/bash-java-utils.sh"
 if [[ -z "${FLINK_CONF_DIR:-}" ]]; then
     FLINK_CONF_DIR="$FLINK_DIR/conf"
 fi
-setJavaRun "$FLINK_CONF_DIR"
 FLINK_CONF=${FLINK_CONF_DIR}/config.yaml
+setJavaRun "$FLINK_CONF"
+
 # Flatten the configuration file config.yaml to enable end-to-end test cases which will modify 
 # it directly through shell scripts.
 output=$(updateAndGetFlinkConfiguration "${FLINK_CONF_DIR}" "${FLINK_DIR}/bin" "${FLINK_DIR}/lib" -flatten)
@@ -877,7 +878,7 @@ function wait_for_restart_to_complete {
     while [[ ${current_num_restarts} -lt ${expected_num_restarts} ]]; do
         echo "Still waiting for restarts. Expected: $expected_num_restarts Current: $current_num_restarts"
         sleep 5
-        current_num_restarts=$(get_job_metric ${jobid} "fullRestarts")
+        current_num_restarts=$(get_job_metric ${jobid} "numRestarts")
         if [[ -z ${current_num_restarts} ]]; then
             current_num_restarts=${base_num_restarts}
         fi

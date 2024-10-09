@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen
 
+import org.apache.flink.api.common.functions.DefaultOpenContext
 import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.metrics.Gauge
 import org.apache.flink.table.data.{RowData, TimestampData}
@@ -157,7 +158,7 @@ object LongHashJoinGenerator {
     val condRefs = ctx.addReusableObject(condFunc.getReferences, "condRefs")
     ctx.addReusableInitStatement(s"condFunc = new ${condFunc.getClassName}($condRefs);")
     ctx.addReusableOpenStatement(s"condFunc.setRuntimeContext(getRuntimeContext());")
-    ctx.addReusableOpenStatement(s"condFunc.open(new ${className[Configuration]}());")
+    ctx.addReusableOpenStatement(s"condFunc.open(new ${className[DefaultOpenContext]}());")
     ctx.addReusableCloseStatement(s"condFunc.close();")
 
     val leftIsBuildTerm = newName(ctx, "leftIsBuild")
@@ -206,7 +207,7 @@ object LongHashJoinGenerator {
          |      computeMemorySize(),
          |      getContainingTask().getEnvironment().getIOManager(),
          |      $buildRowSize,
-         |      ${buildRowCount}L / getRuntimeContext().getNumberOfParallelSubtasks());
+         |      ${buildRowCount}L / getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks());
          |  }
          |
          |  @Override

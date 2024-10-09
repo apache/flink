@@ -35,6 +35,13 @@ under the License.
 
 	<packaging>jar</packaging>
 
+	<properties>
+		<surefire.module.config><!--
+			chill ArraysAsListSerializer
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
+	</properties>
+
 	<dependencies>
 		<!-- Flink dependencies -->
 		<dependency>
@@ -45,6 +52,11 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-api-java</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -61,6 +73,27 @@ under the License.
 		<dependency>
 			<groupId>org.scala-lang</groupId>
 			<artifactId>scala-compiler</artifactId>
+		</dependency>
+
+		<!--
+		The KryoSerializer dynamically loads Kryo instances via Chill and requires that Chill
+		is in the classpath.
+		-->
+		<dependency>
+			<groupId>com.twitter</groupId>
+			<artifactId>chill_${scala.binary.version}</artifactId>
+			<version>${chill.version}</version>
+			<!-- exclusions for dependency conversion -->
+			<exclusions>
+				<exclusion>
+					<groupId>com.esotericsoftware.kryo</groupId>
+					<artifactId>kryo</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.scala-lang</groupId>
+					<artifactId>scala-library</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- Test dependencies -->
@@ -83,6 +116,20 @@ under the License.
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-migration-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
 	</dependencies>
 
 	<build>
@@ -165,4 +212,66 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<profile>
+			<id>generate-migration-test-data</id>
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-antrun-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>generate-migration-test-data</id>
+								<phase>package</phase>
+								<goals>
+									<goal>run</goal>
+								</goals>
+								<configuration>
+									<target>
+										<condition property="optional.classes" value="--classes '${generate.classes}'"
+												   else="">
+											<isset property="generate.classes"/>
+										</condition>
+										<condition property="optional.prefixes"
+												   value="--prefixes '${generate.prefixes}'" else="">
+											<isset property="generate.prefixes"/>
+										</condition>
+										<java classname="org.apache.flink.test.migration.MigrationTestsSnapshotGenerator"
+											  fork="true" failonerror="true" dir="${project.basedir}">
+											<classpath refid="maven.test.classpath"/>
+											<arg value="--dir"/>
+											<arg line="${project.basedir}"/>
+											<arg value="--version"/>
+											<arg value="${generate.version}"/>
+											<arg line="${optional.classes}"/>
+											<arg line="${optional.prefixes}"/>
+										</java>
+									</target>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<id>java17</id>
+			<activation>
+				<jdk>[17,)</jdk>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>com.github.siom79.japicmp</groupId>
+						<artifactId>japicmp-maven-plugin</artifactId>
+						<configuration>
+							<!-- version bump broke the checks -->
+							<skip>true</skip>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>

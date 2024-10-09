@@ -63,9 +63,9 @@ public class ForStGeneralMultiGetOperationTest extends ForStDBOperationTestBase 
             db.put(request.getColumnFamilyHandle(), keyBytes, valueBytes);
         }
 
-        ExecutorService executor = Executors.newFixedThreadPool(4);
+        ExecutorService executor = Executors.newFixedThreadPool(3);
         ForStGeneralMultiGetOperation generalMultiGetOperation =
-                new ForStGeneralMultiGetOperation(db, batchGetRequest, executor);
+                new ForStGeneralMultiGetOperation(db, batchGetRequest, executor, 3, null);
         generalMultiGetOperation.process().get();
 
         for (Tuple2<String, TestStateFuture<String>> tuple : resultCheckList) {

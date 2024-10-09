@@ -36,8 +36,8 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.lineage.DefaultLineageDataset;
 import org.apache.flink.streaming.api.lineage.LineageDataset;
 import org.apache.flink.streaming.api.lineage.LineageVertex;
@@ -691,12 +691,12 @@ final class TestValuesRuntimeFunctions {
         }
 
         @Override
-        public void open(int taskNumber, int numTasks) throws IOException {
+        public void open(InitializationContext context) throws IOException {
             this.localRawResult = new ArrayList<>();
             synchronized (LOCK) {
                 globalRawResult
                         .computeIfAbsent(tableName, k -> new HashMap<>())
-                        .put(taskNumber, localRawResult);
+                        .put(context.getTaskNumber(), localRawResult);
             }
         }
 

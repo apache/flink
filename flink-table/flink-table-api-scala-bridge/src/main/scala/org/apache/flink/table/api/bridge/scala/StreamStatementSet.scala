@@ -18,7 +18,6 @@
 package org.apache.flink.table.api.bridge.scala
 
 import org.apache.flink.annotation.PublicEvolving
-import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api.{ExplainDetail, StatementSet, Table, TableDescriptor, TablePipeline}
 
 /**
@@ -38,7 +37,7 @@ import org.apache.flink.table.api.{ExplainDetail, StatementSet, Table, TableDesc
  * @see
  *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
-@deprecated(org.apache.flink.api.scala.FLIP_265_WARNING, since = "1.18.0")
+@deprecated(org.apache.flink.table.api.FLIP_265_WARNING, since = "1.18.0")
 @PublicEvolving
 trait StreamStatementSet extends StatementSet {
 

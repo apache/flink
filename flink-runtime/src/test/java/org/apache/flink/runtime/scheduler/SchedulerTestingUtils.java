@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobWriter;
@@ -64,6 +63,7 @@ import org.apache.flink.util.TernaryBoolean;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -85,7 +85,7 @@ public class SchedulerTestingUtils {
 
     private static final long DEFAULT_CHECKPOINT_TIMEOUT_MS = 10 * 60 * 1000;
 
-    private static final Time DEFAULT_TIMEOUT = Time.seconds(300);
+    private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(300);
 
     private SchedulerTestingUtils() {}
 
@@ -329,7 +329,7 @@ public class SchedulerTestingUtils {
 
     public static SlotSharingExecutionSlotAllocatorFactory
             newSlotSharingExecutionSlotAllocatorFactory(
-                    PhysicalSlotProvider physicalSlotProvider, Time allocationTimeout) {
+                    PhysicalSlotProvider physicalSlotProvider, Duration allocationTimeout) {
         return new SlotSharingExecutionSlotAllocatorFactory(
                 physicalSlotProvider,
                 true,

@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
@@ -108,7 +107,7 @@ class PruneAggregateCallITCase(
     TableTestUtil.createTemporaryView[(Int, Long, String)](
       tEnv,
       "MyTable",
-      failingDataSource(TestData.smallTupleData3).javaStream,
+      failingDataSource(TestData.smallTupleData3),
       Some(Array($"a", $"b", $"c")),
       Some(Array(true, true, true)),
       Some(FlinkStatistic.UNKNOWN)
@@ -117,7 +116,7 @@ class PruneAggregateCallITCase(
     TableTestUtil.createTemporaryView[(Int, Long, Int, String, Long)](
       tEnv,
       "MyTable2",
-      failingDataSource(TestData.smallTupleData5).javaStream,
+      failingDataSource(TestData.smallTupleData5),
       Some(Array($"a", $"b", $"c", $"d", $"e")),
       Some(Array(true, true, true, true, true)),
       Some(FlinkStatistic.builder().uniqueKeys(Set(Set("b").asJava).asJava).build())

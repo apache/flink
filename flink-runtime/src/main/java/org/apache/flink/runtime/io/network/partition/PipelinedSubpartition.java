@@ -75,10 +75,7 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
 
     // ------------------------------------------------------------------------
 
-    /**
-     * Number of exclusive credits per input channel at the downstream tasks configured by {@link
-     * org.apache.flink.configuration.NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_PER_CHANNEL}.
-     */
+    /** Number of exclusive credits per input channel at the downstream tasks. */
     private final int receiverExclusiveBuffersPerChannel;
 
     /** All buffers of this subpartition. Access to the buffers is synchronized on this object. */

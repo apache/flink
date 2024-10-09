@@ -176,19 +176,19 @@ DataStream<T> input = ...;
 // 滚动 event-time 窗口
 input
     .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>);
 
 // 滚动 processing-time 窗口
 input
     .keyBy(<key selector>)
-    .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+    .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>);
 
 // 长度为一天的滚动 event-time 窗口， 偏移量为 -8 小时。
 input
     .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.days(1), Time.hours(-8)))
+    .window(TumblingEventTimeWindows.of(Duration.ofDays(1), Duration.ofHours(-8)))
     .<windowed transformation>(<window function>);
 ```
 {{< /tab >}}
@@ -199,19 +199,19 @@ val input: DataStream[T] = ...
 // 滚动 event-time 窗口
 input
     .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>)
 
 // 滚动 processing-time 窗口
 input
     .keyBy(<key selector>)
-    .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+    .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>)
 
 // 长度为一天的滚动 event-time 窗口，偏移量为 -8 小时。
 input
     .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.days(1), Time.hours(-8)))
+    .window(TumblingEventTimeWindows.of(Duration.ofDays(1), Duration.ofHours(-8)))
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
@@ -222,32 +222,32 @@ input = ...  # type: DataStream
 # 滚动 event-time 窗口
 input \
     .key_by(<key selector>) \
-    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))) \
     .<windowed transformation>(<window function>)
 
 # 滚动 processing-time 窗口
 input \
     .key_by(<key selector>) \
-    .window(TumblingProcessingTimeWindows.of(Time.seconds(5))) \
+    .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5))) \
     .<windowed transformation>(<window function>)
 
 # 长度为一天的滚动 event-time 窗口，偏移量为 -8 小时。
 input \
     .key_by(<key selector>) \
-    .window(TumblingEventTimeWindows.of(Time.days(1), Time.hours(-8))) \
+    .window(TumblingEventTimeWindows.of(Duration.ofDays(1), Duration.ofHours(-8))) \
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-时间间隔可以用 `Time.milliseconds(x)`、`Time.seconds(x)`、`Time.minutes(x)` 等来指定。
+时间间隔可以用 `Duration.ofMillis(x)`、`Duration.ofSeconds(x)`、`Duration.ofMinutes(x)` 等来指定。
 
 如上一个例子所示，滚动窗口的 assigners 也可以传入可选的 `offset` 参数。这个参数可以用来对齐窗口。
 比如说，不设置 offset 时，长度为一小时的滚动窗口会与 linux 的 epoch 对齐。
 你会得到如 `1:00:00.000 - 1:59:59.999`、`2:00:00.000 - 2:59:59.999` 等。
 如果你想改变对齐方式，你可以设置一个 offset。如果设置了 15 分钟的 offset，
 你会得到 `1:15:00.000 - 2:14:59.999`、`2:15:00.000 - 3:14:59.999` 等。
-一个重要的 offset 用例是根据 UTC-0 调整窗口的时差。比如说，在中国你可能会设置 offset 为 `Time.hours(-8)`。
+一个重要的 offset 用例是根据 UTC-0 调整窗口的时差。比如说，在中国你可能会设置 offset 为 `Duration.ofHours(-8)`。
 
 ### 滑动窗口（Sliding Windows）
 
@@ -270,19 +270,19 @@ DataStream<T> input = ...;
 // 滑动 event-time 窗口
 input
     .keyBy(<key selector>)
-    .window(SlidingEventTimeWindows.of(Time.seconds(10), Time.seconds(5)))
+    .window(SlidingEventTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>);
 
 // 滑动 processing-time 窗口
 input
     .keyBy(<key selector>)
-    .window(SlidingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(5)))
+    .window(SlidingProcessingTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>);
 
 // 滑动 processing-time 窗口，偏移量为 -8 小时
 input
     .keyBy(<key selector>)
-    .window(SlidingProcessingTimeWindows.of(Time.hours(12), Time.hours(1), Time.hours(-8)))
+    .window(SlidingProcessingTimeWindows.of(Duration.ofHours(12), Duration.ofHours(1), Duration.ofHours(-8)))
     .<windowed transformation>(<window function>);
 ```
 {{< /tab >}}
@@ -293,19 +293,19 @@ val input: DataStream[T] = ...
 // 滑动 event-time 窗口
 input
     .keyBy(<key selector>)
-    .window(SlidingEventTimeWindows.of(Time.seconds(10), Time.seconds(5)))
+    .window(SlidingEventTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>)
 
 // 滑动 processing-time 窗口
 input
     .keyBy(<key selector>)
-    .window(SlidingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(5)))
+    .window(SlidingProcessingTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5)))
     .<windowed transformation>(<window function>)
 
 // 滑动 processing-time 窗口，偏移量为 -8 小时
 input
     .keyBy(<key selector>)
-    .window(SlidingProcessingTimeWindows.of(Time.hours(12), Time.hours(1), Time.hours(-8)))
+    .window(SlidingProcessingTimeWindows.of(Duration.ofHours(12), Duration.ofHours(1), Duration.ofHours(-8)))
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
@@ -316,32 +316,32 @@ input = ...  # type: DataStream
 # 滑动 event-time 窗口
 input \
     .key_by(<key selector>) \
-    .window(SlidingEventTimeWindows.of(Time.seconds(10), Time.seconds(5))) \
+    .window(SlidingEventTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5))) \
     .<windowed transformation>(<window function>)
 
 # 滑动 processing-time 窗口
 input \
     .key_by(<key selector>) \
-    .window(SlidingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(5))) \
+    .window(SlidingProcessingTimeWindows.of(Duration.ofSeconds(10), Duration.ofSeconds(5))) \
     .<windowed transformation>(<window function>)
 
 # 滑动 processing-time 窗口，偏移量为 -8 小时
 input \
     .key_by(<key selector>) \
-    .window(SlidingProcessingTimeWindows.of(Time.hours(12), Time.hours(1), Time.hours(-8))) \
+    .window(SlidingProcessingTimeWindows.of(Duration.ofHours(12), Duration.ofHours(1), Duration.ofHours(-8))) \
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-时间间隔可以使用 `Time.milliseconds(x)`、`Time.seconds(x)`、`Time.minutes(x)` 等来指定。
+时间间隔可以使用 `Duration.ofMillis(x)`、`Duration.ofSeconds(x)`、`Duration.ofMinutes(x)` 等来指定。
 
 如上一个例子所示，滚动窗口的 assigners 也可以传入可选的 `offset` 参数。这个参数可以用来对齐窗口。
 比如说，不设置 offset 时，长度为一小时、滑动距离为 30 分钟的滑动窗口会与 linux 的 epoch 对齐。
 你会得到如 `1:00:00.000 - 1:59:59.999`, `1:30:00.000 - 2:29:59.999` 等。
 如果你想改变对齐方式，你可以设置一个 offset。
 如果设置了 15 分钟的 offset，你会得到 `1:15:00.000 - 2:14:59.999`、`1:45:00.000 - 2:44:59.999` 等。
-一个重要的 offset 用例是根据 UTC-0 调整窗口的时差。比如说，在中国你可能会设置 offset 为 `Time.hours(-8)`。
+一个重要的 offset 用例是根据 UTC-0 调整窗口的时差。比如说，在中国你可能会设置 offset 为 `Duration.ofHours(-8)`。
 
 ### 会话窗口（Session Windows）
 
@@ -364,7 +364,7 @@ DataStream<T> input = ...;
 // 设置了固定间隔的 event-time 会话窗口
 input
     .keyBy(<key selector>)
-    .window(EventTimeSessionWindows.withGap(Time.minutes(10)))
+    .window(EventTimeSessionWindows.withGap(Duration.ofMinutes(10)))
     .<windowed transformation>(<window function>);
     
 // 设置了动态间隔的 event-time 会话窗口
@@ -378,7 +378,7 @@ input
 // 设置了固定间隔的 processing-time session 窗口
 input
     .keyBy(<key selector>)
-    .window(ProcessingTimeSessionWindows.withGap(Time.minutes(10)))
+    .window(ProcessingTimeSessionWindows.withGap(Duration.ofMinutes(10)))
     .<windowed transformation>(<window function>);
     
 // 设置了动态间隔的 processing-time 会话窗口
@@ -397,7 +397,7 @@ val input: DataStream[T] = ...
 // 设置了固定间隔的 event-time 会话窗口
 input
     .keyBy(<key selector>)
-    .window(EventTimeSessionWindows.withGap(Time.minutes(10)))
+    .window(EventTimeSessionWindows.withGap(Duration.ofMinutes(10)))
     .<windowed transformation>(<window function>)
 
 // 设置了动态间隔的 event-time 会话窗口
@@ -413,7 +413,7 @@ input
 // 设置了固定间隔的 processing-time 会话窗口
 input
     .keyBy(<key selector>)
-    .window(ProcessingTimeSessionWindows.withGap(Time.minutes(10)))
+    .window(ProcessingTimeSessionWindows.withGap(Duration.ofMinutes(10)))
     .<windowed transformation>(<window function>)
 
 
@@ -440,7 +440,7 @@ class MySessionWindowTimeGapExtractor(SessionWindowTimeGapExtractor):
 # 设置了固定间隔的 event-time 会话窗口
 input \
     .key_by(<key selector>) \
-    .window(EventTimeSessionWindows.with_gap(Time.minutes(10))) \
+    .window(EventTimeSessionWindows.with_gap(Duration.ofMinutes(10))) \
     .<windowed transformation>(<window function>)
 
 # 设置了动态间隔的 event-time 会话窗口
@@ -452,7 +452,7 @@ input \
 # 设置了固定间隔的 processing-time 会话窗口
 input \
     .key_by(<key selector>) \
-    .window(ProcessingTimeSessionWindows.with_gap(Time.minutes(10))) \
+    .window(ProcessingTimeSessionWindows.with_gap(Duration.ofMinutes(10))) \
     .<windowed transformation>(<window function>)
 
 # 设置了动态间隔的 processing-time 会话窗口
@@ -464,7 +464,7 @@ input \
 {{< /tab >}}
 {{< /tabs >}}
 
-固定间隔可以使用 `Time.milliseconds(x)`、`Time.seconds(x)`、`Time.minutes(x)` 等来设置。
+固定间隔可以使用 `Duration.ofMillis(x)`、`Duration.ofSeconds(x)`、`Duration.ofMinutes(x)` 等来设置。
 
 动态间隔可以通过实现 `SessionWindowTimeGapExtractor` 接口来指定。
 
@@ -919,7 +919,7 @@ DataStream<Tuple2<String, Long>> input = ...;
 
 input
   .keyBy(t -> t.f0)
-  .window(TumblingEventTimeWindows.of(Time.minutes(5)))
+  .window(TumblingEventTimeWindows.of(Duration.ofMinutes(5)))
   .process(new MyProcessWindowFunction());
 
 /* ... */
@@ -945,7 +945,7 @@ val input: DataStream[(String, Long)] = ...
 
 input
   .keyBy(_._1)
-  .window(TumblingEventTimeWindows.of(Time.minutes(5)))
+  .window(TumblingEventTimeWindows.of(Duration.ofMinutes(5)))
   .process(new MyProcessWindowFunction())
 
 /* ... */
@@ -968,7 +968,7 @@ input = ...  # type: DataStream
 
 input \
     .key_by(lambda v: v[0]) \
-    .window(TumblingEventTimeWindows.of(Time.minutes(5))) \
+    .window(TumblingEventTimeWindows.of(Duration.ofMinutes(5))) \
     .process(MyProcessWindowFunction())
 
 # ...
@@ -1627,11 +1627,11 @@ DataStream<Integer> input = ...;
 
 DataStream<Integer> resultsPerKey = input
     .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .reduce(new Summer());
 
 DataStream<Integer> globalResults = resultsPerKey
-    .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .windowAll(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .process(new TopKWindowFunction());
 
 ```
@@ -1642,11 +1642,11 @@ val input: DataStream[Int] = ...
 
 val resultsPerKey = input
     .keyBy(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .reduce(new Summer())
 
 val globalResults = resultsPerKey
-    .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .windowAll(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
     .process(new TopKWindowFunction())
 ```
 {{< /tab >}}
@@ -1656,11 +1656,11 @@ input = ...  # type: DataStream
 
 results_per_key = input \
     .key_by(<key selector>) \
-    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))) \
     .reduce(Summer())
 
 global_results = results_per_key \
-    .window_all(TumblingProcessingTimeWindows.of(Time.seconds(5))) \
+    .window_all(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5))) \
     .process(TopKWindowFunction())
 ```
 {{< /tab >}}

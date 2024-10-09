@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.table.api.ExplainDetail
 import org.apache.flink.table.api.config.{AggregatePhaseStrategy, OptimizerConfigOptions}
 import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder

@@ -407,9 +407,8 @@ public class PendingCheckpoint implements Checkpoint {
             if (operatorSubtaskStates != null && operatorSubtaskStates.isTaskDeployedAsFinished()) {
                 checkpointPlan.reportTaskFinishedOnRestore(vertex);
             } else {
-                List<OperatorIDPair> operatorIDs = vertex.getJobVertex().getOperatorIDs();
-                for (OperatorIDPair operatorID : operatorIDs) {
-                    updateOperatorState(vertex, operatorSubtaskStates, operatorID);
+                for (OperatorIDPair operatorIDPair : vertex.getJobVertex().getOperatorIDs()) {
+                    updateOperatorState(vertex, operatorSubtaskStates, operatorIDPair);
                 }
 
                 if (operatorSubtaskStates != null && operatorSubtaskStates.isTaskFinished()) {
@@ -464,22 +463,27 @@ public class PendingCheckpoint implements Checkpoint {
     private void updateOperatorState(
             ExecutionVertex vertex,
             TaskStateSnapshot operatorSubtaskStates,
-            OperatorIDPair operatorID) {
-        OperatorState operatorState = operatorStates.get(operatorID.getGeneratedOperatorID());
+            OperatorIDPair operatorIDPair) {
+        OperatorState operatorState = operatorStates.get(operatorIDPair.getGeneratedOperatorID());
 
         if (operatorState == null) {
             operatorState =
                     new OperatorState(
-                            operatorID.getGeneratedOperatorID(),
+                            operatorIDPair.getUserDefinedOperatorName(),
+                            operatorIDPair.getUserDefinedOperatorUid(),
+                            operatorIDPair.getGeneratedOperatorID(),
                             vertex.getTotalNumberOfParallelSubtasks(),
                             vertex.getMaxParallelism());
-            operatorStates.put(operatorID.getGeneratedOperatorID(), operatorState);
+            operatorStates.put(operatorIDPair.getGeneratedOperatorID(), operatorState);
+        } else {
+            operatorState.setOperatorName(operatorIDPair.getUserDefinedOperatorName());
+            operatorState.setOperatorUid(operatorIDPair.getUserDefinedOperatorUid());
         }
         OperatorSubtaskState operatorSubtaskState =
                 operatorSubtaskStates == null
                         ? null
                         : operatorSubtaskStates.getSubtaskStateByOperatorID(
-                                operatorID.getGeneratedOperatorID());
+                                operatorIDPair.getGeneratedOperatorID());
 
         if (operatorSubtaskState != null) {
             operatorState.putState(vertex.getParallelSubtaskIndex(), operatorSubtaskState);
@@ -507,6 +511,8 @@ public class PendingCheckpoint implements Checkpoint {
             if (operatorState == null) {
                 operatorState =
                         new OperatorState(
+                                null,
+                                null,
                                 operatorId,
                                 coordinatorInfo.currentParallelism(),
                                 coordinatorInfo.maxParallelism());

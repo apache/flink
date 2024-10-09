@@ -50,7 +50,7 @@ public class TestManagedTableSink
 
     @Override
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
-        return SinkProvider.of(new TestManagedSink(this.context.getObjectIdentifier(), basePath));
+        return SinkV2Provider.of(new TestManagedSink(this.context.getObjectIdentifier(), basePath));
     }
 
     @Override

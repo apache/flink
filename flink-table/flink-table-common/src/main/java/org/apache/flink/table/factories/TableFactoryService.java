@@ -21,7 +21,8 @@ package org.apache.flink.table.factories;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.descriptors.Descriptor;
+import org.apache.flink.table.legacy.descriptors.Descriptor;
+import org.apache.flink.table.legacy.factories.TableFactory;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;

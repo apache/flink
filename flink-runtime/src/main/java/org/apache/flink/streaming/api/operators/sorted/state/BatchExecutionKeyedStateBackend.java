@@ -126,6 +126,11 @@ public class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedSt
     }
 
     @Override
+    public void setCurrentKeyAndKeyGroup(K newKey, int newKeyGroupIndex) {
+        setCurrentKey(newKey);
+    }
+
+    @Override
     public TypeSerializer<K> getKeySerializer() {
         return keySerializer;
     }

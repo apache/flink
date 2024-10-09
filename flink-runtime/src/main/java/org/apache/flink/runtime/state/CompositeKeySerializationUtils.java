@@ -40,6 +40,18 @@ public class CompositeKeySerializationUtils {
         return keyGroup;
     }
 
+    public static int extractKeyGroup(int keyGroupPrefixBytes, byte[] rocksDBKey) {
+        if (rocksDBKey.length < keyGroupPrefixBytes) {
+            return -1;
+        }
+        int keyGroup = 0;
+        for (int i = 0; i < keyGroupPrefixBytes; ++i) {
+            keyGroup <<= 8;
+            keyGroup |= (rocksDBKey[i] & 0xFF);
+        }
+        return keyGroup;
+    }
+
     public static <K> K readKey(
             TypeSerializer<K> keySerializer,
             DataInputDeserializer inputView,

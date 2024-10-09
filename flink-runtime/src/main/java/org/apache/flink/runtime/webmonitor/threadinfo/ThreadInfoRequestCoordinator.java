@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor.threadinfo;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.TaskThreadInfoResponse;
 import org.apache.flink.runtime.messages.ThreadInfoSample;
@@ -101,7 +100,7 @@ public class ThreadInfoRequestCoordinator
             // messages to the task managers, but only wait for the responses
             // and then ignore them.
             long expectedDuration = numSamples * delayBetweenSamples.toMillis();
-            Time timeout = Time.milliseconds(expectedDuration + requestTimeout.toMillis());
+            Duration timeout = requestTimeout.plusMillis(expectedDuration);
 
             // Add the pending request before scheduling the discard task to
             // prevent races with removing it again.
@@ -125,7 +124,7 @@ public class ThreadInfoRequestCoordinator
             Map<ImmutableSet<ExecutionAttemptID>, CompletableFuture<TaskExecutorThreadInfoGateway>>
                     executionWithGateways,
             ThreadInfoSamplesRequest requestParams,
-            Time timeout) {
+            Duration timeout) {
 
         // Trigger samples collection from all subtasks
         for (Map.Entry<

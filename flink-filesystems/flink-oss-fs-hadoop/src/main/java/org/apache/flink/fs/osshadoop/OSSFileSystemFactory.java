@@ -57,6 +57,7 @@ public class OSSFileSystemFactory implements FileSystemFactory {
 
     public static final ConfigOption<Long> PART_UPLOAD_MIN_SIZE =
             ConfigOptions.key("oss.upload.min.part.size")
+                    .longType()
                     .defaultValue(FlinkOSSFileSystem.MULTIPART_UPLOAD_PART_SIZE_MIN)
                     .withDescription(
                             "This option is relevant to the Recoverable Writer and sets the min size of data that "
@@ -65,6 +66,7 @@ public class OSSFileSystemFactory implements FileSystemFactory {
 
     public static final ConfigOption<Integer> MAX_CONCURRENT_UPLOADS =
             ConfigOptions.key("oss.upload.max.concurrent.uploads")
+                    .intType()
                     .defaultValue(Runtime.getRuntime().availableProcessors())
                     .withDescription(
                             "This option is relevant to the Recoverable Writer and limits the number of "

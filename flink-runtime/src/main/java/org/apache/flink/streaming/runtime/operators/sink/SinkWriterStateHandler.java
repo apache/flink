@@ -22,9 +22,9 @@ import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.runtime.state.StateInitializationContext;
 
 /**
- * Manages the state of a {@link org.apache.flink.api.connector.sink.SinkWriter}. There are only two
- * flavors: stateless handled by {@link StatelessSinkWriterStateHandler} and stateful handled with
- * {@link StatefulSinkWriterStateHandler}.
+ * Manages the state of a {@link org.apache.flink.api.connector.sink2.SinkWriter}. There are only
+ * two flavors: stateless handled by {@link StatelessSinkWriterStateHandler} and stateful handled
+ * with {@link StatefulSinkWriterStateHandler}.
  *
  * @param <InputT> the input type
  */

@@ -38,6 +38,7 @@ import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.legacy.factories.TableFactory;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.watermark.WatermarkEmitStrategy;

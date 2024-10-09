@@ -20,12 +20,12 @@ package org.apache.flink.test.recovery;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 
 import org.junit.Test;
@@ -47,7 +47,7 @@ public class FastFailuresITCase extends AbstractTestBaseJUnit4 {
 
         env.setParallelism(parallelism);
         env.enableCheckpointing(1000);
-        env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(210, 0));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 210, 0L);
 
         DataStream<Tuple2<Integer, Integer>> input =
                 env.addSource(
@@ -67,7 +67,7 @@ public class FastFailuresITCase extends AbstractTestBaseJUnit4 {
                             public void cancel() {}
                         });
 
-        input.keyBy(0)
+        input.keyBy(x -> x.f0)
                 .map(
                         new MapFunction<Tuple2<Integer, Integer>, Integer>() {
 

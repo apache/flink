@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.sink.committables;
 
-import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
@@ -32,6 +32,7 @@ import org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions;
 import org.apache.flink.shaded.guava32.com.google.common.collect.Streams;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -66,19 +67,18 @@ class CommittableCollectorSerializerTest {
         final byte[] serialized = out.getCopyOfBuffer();
         final CommittableCollector<Integer> committableCollector =
                 SERIALIZER.deserialize(1, serialized);
-        assertThat(committableCollector.getNumberOfSubtasks()).isEqualTo(1);
+
         assertThat(committableCollector.isFinished()).isFalse();
-        assertThat(committableCollector.getSubtaskId()).isEqualTo(0);
-        final Collection<CheckpointCommittableManagerImpl<Integer>> checkpointCommittables =
-                committableCollector.getCheckpointCommittables();
-        assertThat(checkpointCommittables).hasSize(1);
-        final SubtaskCommittableManager<Integer> subtaskCommittableManager =
-                checkpointCommittables.iterator().next().getSubtaskCommittableManager(0);
-        assertThat(
-                        subtaskCommittableManager
-                                .getPendingRequests()
-                                .map(CommitRequestImpl::getCommittable)
-                                .collect(Collectors.toList()))
+
+        assertThat(committableCollector.getCheckpointCommittables())
+                .singleElement()
+                .extracting(
+                        checkpointCommittable ->
+                                checkpointCommittable
+                                        .getSubtaskCommittableManager(0)
+                                        .getPendingRequests()
+                                        .map(CommitRequestImpl::getCommittable),
+                        InstanceOfAssertFactories.stream(Integer.class))
                 .containsExactly(1, 2, 3);
     }
 
@@ -92,7 +92,7 @@ class CommittableCollectorSerializerTest {
                         COMMITTABLE_SERIALIZER, subtaskId, numberOfSubtasks, METRIC_GROUP);
 
         final CommittableCollector<Integer> committableCollector =
-                new CommittableCollector<>(subtaskId, numberOfSubtasks, METRIC_GROUP);
+                new CommittableCollector<>(METRIC_GROUP);
         committableCollector.addMessage(
                 new CommittableSummary<>(subtaskId, numberOfSubtasks, 1L, 1, 1, 0));
         committableCollector.addMessage(
@@ -104,9 +104,7 @@ class CommittableCollectorSerializerTest {
                 ccSerializer.deserialize(2, SERIALIZER.serialize(committableCollector));
 
         // Expect the subtask Id equal to the origin of the collector
-        assertThat(copy.getSubtaskId()).isEqualTo(subtaskId);
         assertThat(copy.isFinished()).isFalse();
-        assertThat(copy.getNumberOfSubtasks()).isEqualTo(numberOfSubtasks);
 
         // assert original CommittableCollector
         assertCommittableCollector(
@@ -136,7 +134,7 @@ class CommittableCollectorSerializerTest {
                         COMMITTABLE_SERIALIZER, subtaskId, numberOfSubtasks, METRIC_GROUP);
 
         final CommittableCollector<Integer> committableCollector =
-                new CommittableCollector<>(subtaskId, numberOfSubtasks, METRIC_GROUP);
+                new CommittableCollector<>(METRIC_GROUP);
         committableCollector.addMessage(
                 new CommittableSummary<>(subtaskId, numberOfSubtasks, 1L, 1, 1, 0));
         committableCollector.addMessage(
@@ -148,9 +146,7 @@ class CommittableCollectorSerializerTest {
                 ccSerializer.deserialize(2, SERIALIZER.serialize(committableCollector));
 
         // Expect the subtask Id equal to the origin of the collector
-        assertThat(copy.getSubtaskId()).isEqualTo(subtaskId);
         assertThat(copy.isFinished()).isFalse();
-        assertThat(copy.getNumberOfSubtasks()).isEqualTo(numberOfSubtasks);
 
         // assert original CommittableCollector
         assertCommittableCollector(
@@ -161,22 +157,17 @@ class CommittableCollectorSerializerTest {
                 Collections.singletonList(Collections.singletonList(1)));
 
         // assert deserialized CommittableCollector
-        assertCommittableCollector(
-                "Deserialized CommittableCollector",
-                subtaskId,
-                numberOfSubtasks,
-                copy,
-                Collections.singletonList(Arrays.asList(1, 1)));
+        assertThat(copy).isEqualTo(committableCollector);
     }
 
     @Test
     void testAlignSubtaskCommittableManagerCheckpointWithCheckpointCommittableManagerCheckpointId()
             throws IOException {
         // Create CommittableCollector holding a higher checkpointId than
-        // Sink.InitContext#INITIAL_CHECKPOINT_ID
-        long checkpointId = Sink.InitContext.INITIAL_CHECKPOINT_ID + 1;
+        // WriterInitContext#INITIAL_CHECKPOINT_ID
+        long checkpointId = WriterInitContext.INITIAL_CHECKPOINT_ID + 1;
         final CommittableCollector<Integer> committableCollector =
-                new CommittableCollector<>(SUBTASK_ID, NUMBER_OF_SUBTASKS, METRIC_GROUP);
+                new CommittableCollector<>(METRIC_GROUP);
         committableCollector.addMessage(
                 new CommittableSummary<>(SUBTASK_ID, NUMBER_OF_SUBTASKS, checkpointId, 1, 1, 0));
         committableCollector.addMessage(new CommittableWithLineage<>(1, checkpointId, SUBTASK_ID));
@@ -197,7 +188,7 @@ class CommittableCollectorSerializerTest {
      * @param assertMessageHeading prefix used for assertion fail message.
      * @param subtaskId subtaskId to get {@link SubtaskCommittableManager} from {@link
      *     CheckpointCommittableManagerImpl}
-     * @param expectedNumberOfSubtasks expected number of subtasks for {@link CommittableSummary}
+     * @param numberOfSubtasks expected number of subtasks for {@link CommittableSummary}
      * @param committableCollector collector to get {@link CheckpointCommittableManager}s from.
      * @param committablesPerSubtaskPerCheckpoint every of the list element represents expected
      *     number of pending request per {@link SubtaskCommittableManager}.
@@ -205,7 +196,7 @@ class CommittableCollectorSerializerTest {
     private void assertCommittableCollector(
             String assertMessageHeading,
             int subtaskId,
-            int expectedNumberOfSubtasks,
+            int numberOfSubtasks,
             CommittableCollector<Integer> committableCollector,
             List<List<Integer>> committablesPerSubtaskPerCheckpoint) {
 
@@ -235,9 +226,10 @@ class CommittableCollectorSerializerTest {
                                                                         subtaskId);
 
                                         SinkV2Assertions.assertThat(
-                                                        checkpointCommittableManager.getSummary())
+                                                        checkpointCommittableManager.getSummary(
+                                                                subtaskId, numberOfSubtasks))
                                                 .hasSubtaskId(subtaskId)
-                                                .hasNumberOfSubtasks(expectedNumberOfSubtasks);
+                                                .hasNumberOfSubtasks(numberOfSubtasks);
 
                                         assertPendingRequests(
                                                 subtaskCommittableManager,

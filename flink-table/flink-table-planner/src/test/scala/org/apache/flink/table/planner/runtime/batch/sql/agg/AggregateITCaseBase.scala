@@ -21,11 +21,11 @@ import org.apache.flink.api.common.BatchShuffleMode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfoBase}
-import org.apache.flink.api.scala._
 import org.apache.flink.configuration.{ExecutionOptions, JobManagerOptions}
 import org.apache.flink.configuration.JobManagerOptions.SchedulerType
-import org.apache.flink.table.api.{DataTypes, TableException, Types}
+import org.apache.flink.table.api._
 import org.apache.flink.table.data.DecimalDataUtils
+import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row

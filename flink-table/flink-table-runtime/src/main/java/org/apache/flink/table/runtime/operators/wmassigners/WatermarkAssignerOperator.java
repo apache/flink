@@ -22,8 +22,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.util.PausableRelativeClock;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -82,16 +82,16 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
      * @param idleTimeout (idleness checking timeout)
      */
     public WatermarkAssignerOperator(
+            StreamOperatorParameters<RowData> parameters,
             int rowtimeFieldIndex,
             WatermarkGenerator watermarkGenerator,
             long idleTimeout,
             ProcessingTimeService processingTimeService) {
-
+        super(parameters);
         this.rowtimeFieldIndex = rowtimeFieldIndex;
         this.watermarkGenerator = watermarkGenerator;
 
         this.idleTimeout = idleTimeout;
-        this.chainingStrategy = ChainingStrategy.ALWAYS;
 
         this.processingTimeService = checkNotNull(processingTimeService);
     }

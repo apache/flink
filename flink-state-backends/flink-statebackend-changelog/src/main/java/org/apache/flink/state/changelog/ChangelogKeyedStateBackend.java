@@ -299,6 +299,11 @@ public class ChangelogKeyedStateBackend<K>
     }
 
     @Override
+    public void setCurrentKeyAndKeyGroup(K newKey, int newKeyGroupIndex) {
+        keyedStateBackend.setCurrentKeyAndKeyGroup(newKey, newKeyGroupIndex);
+    }
+
+    @Override
     public TypeSerializer<K> getKeySerializer() {
         return keyedStateBackend.getKeySerializer();
     }

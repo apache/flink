@@ -19,12 +19,12 @@
 package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.functions.OpenContext;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
+import org.apache.flink.util.ParameterTool;
 
 import org.apache.flink.shaded.netty4.io.netty.util.internal.OutOfDirectMemoryError;
 
@@ -101,12 +101,6 @@ public class NettyShuffleMemoryControlTestProgram {
         env.execute("Netty Shuffle Memory Control Test");
     }
 
-    /**
-     * @deprecated This class is based on the {@link
-     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
-     *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
-     */
-    @Deprecated
     private static class StringSourceFunction extends RichParallelSourceFunction<String> {
         private static final long serialVersionUID = 1L;
 

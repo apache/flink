@@ -51,7 +51,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-sql-connector-hive-${hive.version}_${scala.binary.version}</artifactId>
+			<artifactId>flink-sql-connector-hive-${hive.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -148,7 +148,7 @@ under the License.
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
 									<artifactId>
-										flink-sql-connector-hive-${hive.version}_${scala.binary.version}
+										flink-sql-connector-hive-${hive.version}
 									</artifactId>
 									<version>${project.version}</version>
 									<destFileName>

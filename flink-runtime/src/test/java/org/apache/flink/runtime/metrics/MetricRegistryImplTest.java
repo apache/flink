@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.metrics;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Counter;
@@ -50,6 +49,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -102,7 +102,7 @@ class MetricRegistryImplTest {
         for (int x = 0; x < 10; x++) {
             MetricDumpSerialization.MetricSerializationResult metricSerializationResult =
                     metricQueryServiceGateway
-                            .queryMetrics(Time.seconds(5))
+                            .queryMetrics(Duration.ofSeconds(5))
                             .get(5, TimeUnit.SECONDS);
 
             if (metricSerializationResult.numCounters == 1) {

@@ -33,8 +33,11 @@ import org.apache.flink.table.catalog.listener.CatalogModificationListener;
 import org.apache.flink.table.catalog.listener.CatalogModificationListenerFactory;
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.legacy.factories.TableFactory;
+import org.apache.flink.table.legacy.factories.TableSinkFactory;
+import org.apache.flink.table.legacy.factories.TableSourceFactory;
+import org.apache.flink.table.legacy.sinks.TableSink;
+import org.apache.flink.table.legacy.sources.TableSource;
 
 import javax.annotation.Nullable;
 

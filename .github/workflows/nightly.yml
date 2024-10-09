@@ -28,17 +28,6 @@ jobs:
     name: "Pre-compile Checks"
     uses: ./.github/workflows/template.pre-compile-checks.yml
 
-  java8:
-    name: "Java 8"
-    uses: ./.github/workflows/template.flink-ci.yml
-    with:
-      workflow-caller-id: java8
-      environment: 'PROFILE="-Dinclude_hadoop_aws"'
-      jdk_version: 8
-    secrets:
-      s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
-      s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
-      s3_secret_key: ${{ secrets.IT_CASE_S3_SECRET_KEY }}
   java11:
     name: "Java 11"
     uses: ./.github/workflows/template.flink-ci.yml
@@ -78,7 +67,7 @@ jobs:
     with:
       workflow-caller-id: hadoop313
       environment: 'PROFILE="-Dflink.hadoop.version=3.2.3 -Phadoop3-tests,hive3"'
-      jdk_version: 8
+      jdk_version: 11
     secrets:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}
@@ -89,7 +78,7 @@ jobs:
     with:
       workflow-caller-id: adaptive-scheduler
       environment: 'PROFILE="-Penable-adaptive-scheduler"'
-      jdk_version: 8
+      jdk_version: 11
     secrets:
       s3_bucket: ${{ secrets.IT_CASE_S3_BUCKET }}
       s3_access_key: ${{ secrets.IT_CASE_S3_ACCESS_KEY }}

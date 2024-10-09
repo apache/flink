@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.taskexecutor.slot;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.memory.MemoryManager;
 
+import java.time.Duration;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -49,11 +49,9 @@ public enum TaskSlotUtils {
     }
 
     public static <T extends TaskSlotPayload> TaskSlotTable<T> createTaskSlotTable(
-            int numberOfSlots, Time timeout, ScheduledExecutorService executorService) {
+            int numberOfSlots, Duration timeout, ScheduledExecutorService executorService) {
         return createTaskSlotTable(
-                numberOfSlots,
-                createDefaultTimerService(timeout.toMilliseconds()),
-                executorService);
+                numberOfSlots, createDefaultTimerService(timeout.toMillis()), executorService);
     }
 
     public static <T extends TaskSlotPayload> TaskSlotTableImpl<T> createTaskSlotTable(

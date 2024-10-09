@@ -21,7 +21,6 @@ package org.apache.flink.python.chain;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.api.scala.typeutils.Types;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunction;
@@ -35,6 +34,7 @@ import org.apache.flink.streaming.api.operators.python.process.ExternalPythonPro
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
+import org.apache.flink.table.legacy.api.Types;
 
 import org.junit.jupiter.api.Test;
 

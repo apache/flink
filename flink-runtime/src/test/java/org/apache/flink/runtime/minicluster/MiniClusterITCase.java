@@ -18,9 +18,7 @@
 
 package org.apache.flink.runtime.minicluster;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobSubmissionResult;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
@@ -46,6 +44,7 @@ import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables.Sender;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testtasks.WaitingNoOpInvokable;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -111,7 +110,8 @@ class MiniClusterITCase {
         // this triggers the failure for the default scheduler
         config.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, slotRequestTimeout);
         // this triggers the failure for the adaptive scheduler
-        config.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, slotRequestTimeout);
+        config.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT, slotRequestTimeout);
 
         // we have to disable sending the slot-unavailable request to allow for the timeout to kick
         // in
@@ -134,7 +134,8 @@ class MiniClusterITCase {
         // this triggers the failure for the default scheduler
         config.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, slotRequestTimeout);
         // this triggers the failure for the adaptive scheduler
-        config.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, slotRequestTimeout);
+        config.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT, slotRequestTimeout);
 
         // overwrite the default check delay to speed up the test execution
         config.set(ResourceManagerOptions.REQUIREMENTS_CHECK_DELAY, Duration.ofMillis(20));
@@ -704,10 +705,7 @@ class MiniClusterITCase {
 
         final JobGraph jg = JobGraphTestUtils.streamingJobGraph(task);
 
-        final ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(
-                RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000));
-        jg.setExecutionConfig(executionConfig);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(jg, Integer.MAX_VALUE, 1000);
 
         return jg;
     }

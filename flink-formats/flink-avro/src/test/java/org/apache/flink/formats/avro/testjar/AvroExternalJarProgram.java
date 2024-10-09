@@ -20,12 +20,13 @@ package org.apache.flink.formats.avro.testjar;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.AvroInputFormat;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.io.DatumWriter;
@@ -140,6 +141,14 @@ public class AvroExternalJarProgram {
         }
     }
 
+    private static final class KeyAssigner implements KeySelector<Tuple2<String, MyUser>, String> {
+
+        @Override
+        public String getKey(Tuple2<String, MyUser> record) throws Exception {
+            return record.f0;
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
     //  Test Data
     // --------------------------------------------------------------------------------------------
@@ -199,15 +208,15 @@ public class AvroExternalJarProgram {
     public static void main(String[] args) throws Exception {
         String inputPath = args[0];
 
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataSet<MyUser> input =
+        DataStream<MyUser> input =
                 env.createInput(new AvroInputFormat<MyUser>(new Path(inputPath), MyUser.class));
 
-        DataSet<Tuple2<String, MyUser>> result =
-                input.map(new NameExtractor()).groupBy(0).reduce(new NameGrouper());
+        DataStream<Tuple2<String, MyUser>> result =
+                input.map(new NameExtractor()).keyBy(new KeyAssigner()).reduce(new NameGrouper());
 
-        result.output(new DiscardingOutputFormat<Tuple2<String, MyUser>>());
+        result.sinkTo(new DiscardingSink<>());
         env.execute();
     }
 }

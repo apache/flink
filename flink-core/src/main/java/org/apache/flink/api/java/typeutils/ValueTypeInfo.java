@@ -192,12 +192,6 @@ public class ValueTypeInfo<T extends Value> extends TypeInformation<T> implement
         }
     }
 
-    @Override
-    @Deprecated
-    public TypeSerializer<T> createSerializer(ExecutionConfig config) {
-        return createSerializer(config.getSerializerConfig());
-    }
-
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
     @PublicEvolving

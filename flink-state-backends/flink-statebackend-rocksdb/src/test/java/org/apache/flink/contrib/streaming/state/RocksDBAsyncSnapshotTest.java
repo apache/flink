@@ -48,7 +48,6 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestTaskStateManager;
@@ -56,7 +55,7 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.state.testutils.BackendForTestStream;
 import org.apache.flink.runtime.state.testutils.BackendForTestStream.StreamFactory;
 import org.apache.flink.runtime.state.testutils.TestCheckpointStreamFactory;
@@ -142,10 +141,11 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
         File dbDir = temporaryFolder.newFolder();
 
-        RocksDBStateBackend backend = new RocksDBStateBackend(new MemoryStateBackend());
+        EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend();
         backend.setDbStoragePath(dbDir.getAbsolutePath());
 
         streamConfig.setStateBackend(backend);
+        streamConfig.setCheckpointStorage(new JobManagerCheckpointStorage());
 
         streamConfig.setStreamOperator(new AsyncCheckpointOperator());
         streamConfig.setOperatorID(new OperatorID());
@@ -329,13 +329,12 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
         // to avoid serialization of the above factory instance, we need to pass it in
         // through a static variable
 
-        StateBackend stateBackend =
-                new BackendForTestStream(new StaticForwardFactory(blockerCheckpointStreamFactory));
-
-        RocksDBStateBackend backend = new RocksDBStateBackend(stateBackend);
+        EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend();
         backend.setDbStoragePath(dbDir.getAbsolutePath());
 
         streamConfig.setStateBackend(backend);
+        streamConfig.setCheckpointStorage(
+                new BackendForTestStream(new StaticForwardFactory(blockerCheckpointStreamFactory)));
 
         streamConfig.setStreamOperator(new AsyncCheckpointOperator());
         streamConfig.setOperatorID(new OperatorID());
@@ -412,8 +411,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
         final IOException testException = new IOException("Test exception");
         FailingStream outputStream = new FailingStream(testException);
 
-        RocksDBStateBackend backend =
-                new RocksDBStateBackend((StateBackend) new MemoryStateBackend());
+        EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend();
 
         backend.setDbStoragePath(temporaryFolder.newFolder().toURI().toString());
 

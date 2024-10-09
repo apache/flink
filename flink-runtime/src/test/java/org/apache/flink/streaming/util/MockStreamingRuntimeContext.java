@@ -39,6 +39,8 @@ public class MockStreamingRuntimeContext extends StreamingRuntimeContext {
     private final int numParallelSubtasks;
     private final int subtaskIndex;
 
+    private final MockEnvironment environment;
+
     public MockStreamingRuntimeContext(
             boolean isCheckpointingEnabled, int numParallelSubtasks, int subtaskIndex) {
 
@@ -66,6 +68,11 @@ public class MockStreamingRuntimeContext extends StreamingRuntimeContext {
         this.isCheckpointingEnabled = isCheckpointingEnabled;
         this.numParallelSubtasks = numParallelSubtasks;
         this.subtaskIndex = subtaskIndex;
+        this.environment = environment;
+    }
+
+    public ExecutionConfig getExecutionConfig() {
+        return environment.getExecutionConfig();
     }
 
     @Override

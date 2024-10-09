@@ -95,9 +95,7 @@ public class SchedulerBenchmarkUtils {
 
         jobGraph.setJobType(jobConfiguration.getJobType());
 
-        final ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setExecutionMode(jobConfiguration.getExecutionMode());
-        jobGraph.setExecutionConfig(executionConfig);
+        jobGraph.setExecutionConfig(new ExecutionConfig());
 
         return jobGraph;
     }

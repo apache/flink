@@ -42,7 +42,7 @@ each driver during each hour, like this:
 // compute the sum of the tips per hour for each driver
 DataStream<Tuple3<Long, Long, Float>> hourlyTips = fares
         .keyBy((TaxiFare fare) -> fare.driverId)
-        .window(TumblingEventTimeWindows.of(Time.hours(1)))
+        .window(TumblingEventTimeWindows.of(Duration.ofHours(1)))
         .process(new AddTips());
 ```
 
@@ -53,7 +53,7 @@ It is reasonably straightforward, and educational, to do the same thing with a
 // compute the sum of the tips per hour for each driver
 DataStream<Tuple3<Long, Long, Float>> hourlyTips = fares
         .keyBy((TaxiFare fare) -> fare.driverId)
-        .process(new PseudoWindow(Time.hours(1)));
+        .process(new PseudoWindow(Duration.ofHours(1)));
 ```
 
 In this code snippet a `KeyedProcessFunction` called `PseudoWindow` is being applied to a keyed
@@ -75,7 +75,7 @@ public static class PseudoWindow extends
 
     @Override
     // Called once during initialization.
-    public void open(Configuration conf) {
+    public void open(OpenContext ctx) {
         . . .
     }
 
@@ -116,7 +116,7 @@ Things to be aware of:
 private transient MapState<Long, Float> sumOfTips;
 
 @Override
-public void open(Configuration conf) {
+public void open(OpenContext ctx) {
 
     MapStateDescriptor<Long, Float> sumDesc =
             new MapStateDescriptor<>("sumOfTips", Long.class, Float.class);
@@ -250,7 +250,7 @@ and when accessing the stream from this side output in the `main` method of the 
 // compute the sum of the tips per hour for each driver
 SingleOutputStreamOperator hourlyTips = fares
         .keyBy((TaxiFare fare) -> fare.driverId)
-        .process(new PseudoWindow(Time.hours(1)));
+        .process(new PseudoWindow(Duration.ofHours(1)));
 
 hourlyTips.getSideOutput(lateFares).print();
 ```

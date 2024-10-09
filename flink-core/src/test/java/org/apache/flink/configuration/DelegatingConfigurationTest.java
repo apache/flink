@@ -155,52 +155,44 @@ class DelegatingConfigurationTest {
                 ConfigOptions.key("integer.key").intType().noDefaultValue();
 
         // integerOption doesn't exist in delegatingConf, and it should be overrideDefault.
-        original.setInteger(integerOption, 1);
-        assertThat(delegatingConf.getInteger(integerOption, 2)).isEqualTo(2);
+        original.set(integerOption, 1);
+        assertThat(delegatingConf.get(integerOption, 2)).isEqualTo(2);
         assertThat(delegatingConf.get(integerOption, 2)).isEqualTo(2);
 
         // integerOption exists in delegatingConf, and it should be value that set before.
-        delegatingConf.setInteger(integerOption, 3);
-        assertThat(delegatingConf.getInteger(integerOption, 2)).isEqualTo(3);
+        delegatingConf.set(integerOption, 3);
+        assertThat(delegatingConf.get(integerOption, 2)).isEqualTo(3);
         assertThat(delegatingConf.get(integerOption, 2)).isEqualTo(3);
 
         // Test for float
         ConfigOption<Float> floatOption =
                 ConfigOptions.key("float.key").floatType().noDefaultValue();
-        original.setFloat(floatOption, 4f);
-        assertThat(delegatingConf.getFloat(floatOption, 5f)).isEqualTo(5f);
+        original.set(floatOption, 4f);
         assertThat(delegatingConf.get(floatOption, 5f)).isEqualTo(5f);
-        delegatingConf.setFloat(floatOption, 6f);
-        assertThat(delegatingConf.getFloat(floatOption, 5f)).isEqualTo(6f);
+        delegatingConf.set(floatOption, 6f);
         assertThat(delegatingConf.get(floatOption, 5f)).isEqualTo(6f);
 
         // Test for double
         ConfigOption<Double> doubleOption =
                 ConfigOptions.key("double.key").doubleType().noDefaultValue();
-        original.setDouble(doubleOption, 7d);
-        assertThat(delegatingConf.getDouble(doubleOption, 8d)).isEqualTo(8d);
+        original.set(doubleOption, 7d);
         assertThat(delegatingConf.get(doubleOption, 8d)).isEqualTo(8d);
-        delegatingConf.setDouble(doubleOption, 9f);
-        assertThat(delegatingConf.getDouble(doubleOption, 8d)).isEqualTo(9f);
+        delegatingConf.set(doubleOption, 9d);
         assertThat(delegatingConf.get(doubleOption, 8d)).isEqualTo(9f);
 
         // Test for long
         ConfigOption<Long> longOption = ConfigOptions.key("long.key").longType().noDefaultValue();
-        original.setLong(longOption, 10L);
-        assertThat(delegatingConf.getLong(longOption, 11L)).isEqualTo(11L);
+        original.set(longOption, 10L);
         assertThat(delegatingConf.get(longOption, 11L)).isEqualTo(11L);
-        delegatingConf.setLong(longOption, 12L);
-        assertThat(delegatingConf.getLong(longOption, 11L)).isEqualTo(12L);
+        delegatingConf.set(longOption, 12L);
         assertThat(delegatingConf.get(longOption, 11L)).isEqualTo(12L);
 
         // Test for boolean
         ConfigOption<Boolean> booleanOption =
                 ConfigOptions.key("boolean.key").booleanType().noDefaultValue();
-        original.setBoolean(booleanOption, false);
-        assertThat(delegatingConf.getBoolean(booleanOption, true)).isEqualTo(true);
+        original.set(booleanOption, false);
         assertThat(delegatingConf.get(booleanOption, true)).isEqualTo(true);
-        delegatingConf.setBoolean(booleanOption, false);
-        assertThat(delegatingConf.getBoolean(booleanOption, true)).isEqualTo(false);
+        delegatingConf.set(booleanOption, false);
         assertThat(delegatingConf.get(booleanOption, true)).isEqualTo(false);
     }
 
@@ -217,13 +209,11 @@ class DelegatingConfigurationTest {
         assertThat(delegatingConf.get(integerOption)).isZero();
         delegatingConf.removeConfig(integerOption);
         assertThat(delegatingConf.getOptional(integerOption)).isEmpty();
-        assertThat(delegatingConf.getInteger(integerOption.key(), 0)).isZero();
 
         // Test for removeKey
         delegatingConf.set(integerOption, 0);
-        assertThat(delegatingConf.getInteger(integerOption, -1)).isZero();
+        assertThat(delegatingConf.get(integerOption, -1)).isZero();
         delegatingConf.removeKey(integerOption.key());
         assertThat(delegatingConf.getOptional(integerOption)).isEmpty();
-        assertThat(delegatingConf.getInteger(integerOption.key(), 0)).isZero();
     }
 }

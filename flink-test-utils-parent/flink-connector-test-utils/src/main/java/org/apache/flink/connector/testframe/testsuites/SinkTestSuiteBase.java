@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -32,7 +31,6 @@ import org.apache.flink.connector.testframe.environment.TestEnvironment;
 import org.apache.flink.connector.testframe.environment.TestEnvironmentSettings;
 import org.apache.flink.connector.testframe.external.ExternalSystemDataReader;
 import org.apache.flink.connector.testframe.external.sink.DataStreamSinkExternalContext;
-import org.apache.flink.connector.testframe.external.sink.DataStreamSinkV1ExternalContext;
 import org.apache.flink.connector.testframe.external.sink.DataStreamSinkV2ExternalContext;
 import org.apache.flink.connector.testframe.external.sink.TestingSinkSettings;
 import org.apache.flink.connector.testframe.junit.extensions.ConnectorTestingExtension;
@@ -50,9 +48,9 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
-import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.commons.math3.util.Precision;
@@ -238,7 +236,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
                         TestEnvironmentSettings.builder()
                                 .setConnectorJarPaths(externalContext.getConnectorJarPaths())
                                 .build());
-        execEnv.setRestartStrategy(RestartStrategies.noRestart());
+        RestartStrategyUtils.configureNoRestartStrategy(execEnv);
 
         // Step 2: Generate test data
         final List<T> testRecords = generateTestData(sinkSettings, externalContext);
@@ -573,11 +571,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
             DataStreamSinkExternalContext<T> context,
             TestingSinkSettings sinkSettings) {
         try {
-            if (context instanceof DataStreamSinkV1ExternalContext) {
-                org.apache.flink.api.connector.sink.Sink<T, ?, ?, ?> sinkV1 =
-                        ((DataStreamSinkV1ExternalContext<T>) context).createSink(sinkSettings);
-                return dataStream.sinkTo(sinkV1);
-            } else if (context instanceof DataStreamSinkV2ExternalContext) {
+            if (context instanceof DataStreamSinkV2ExternalContext) {
                 Sink<T> sinkV2 =
                         ((DataStreamSinkV2ExternalContext<T>) context).createSink(sinkSettings);
                 return dataStream.sinkTo(sinkV2);
@@ -602,9 +596,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
      * </ul>
      */
     private String getSinkMetricFilter(DataStreamSinkExternalContext<T> context) {
-        if (context instanceof DataStreamSinkV1ExternalContext) {
-            return null;
-        } else if (context instanceof DataStreamSinkV2ExternalContext) {
+        if (context instanceof DataStreamSinkV2ExternalContext) {
             // See class `SinkTransformationTranslator`
             return "Writer";
         } else {
@@ -620,12 +612,12 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
         String accumulatorName = "dataStreamCollect_" + UUID.randomUUID();
         CollectSinkOperatorFactory<T> factory =
                 new CollectSinkOperatorFactory<>(serializer, accumulatorName);
-        CollectSinkOperator<T> operator = (CollectSinkOperator<T>) factory.getOperator();
+
         CollectStreamSink<T> sink = new CollectStreamSink<>(stream, factory);
         sink.name("Data stream collect sink");
         stream.getExecutionEnvironment().addOperator(sink.getTransformation());
         return new CollectResultIterator<>(
-                operator.getOperatorIdFuture(),
+                accumulatorName,
                 serializer,
                 accumulatorName,
                 stream.getExecutionEnvironment().getCheckpointConfig(),

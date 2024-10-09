@@ -20,12 +20,12 @@ package org.apache.flink.table.planner.connectors;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.ScanTableSource;
-import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.data.RowData;
 

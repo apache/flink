@@ -19,7 +19,6 @@
 package org.apache.flink.test.runtime;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.RpcOptions;
@@ -82,30 +81,18 @@ public class ShuffleCompressionITCase {
     }
 
     @Test
-    public void testNoDataCompressionForBoundedBlockingShuffle() throws Exception {
-        Configuration configuration = new Configuration();
-        configuration.set(NettyShuffleEnvironmentOptions.BATCH_SHUFFLE_COMPRESSION_ENABLED, false);
-        configuration.set(RpcOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(1));
-        configuration.set(
-                NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM,
-                Integer.MAX_VALUE);
-
-        JobGraph jobGraph = createJobGraph(ResultPartitionType.BLOCKING, ExecutionMode.BATCH);
-        JobGraphRunningUtil.execute(jobGraph, configuration, NUM_TASKMANAGERS, NUM_SLOTS);
-    }
-
-    @Test
     public void testNoDataCompressionForSortMergeBlockingShuffle() throws Exception {
         Configuration configuration = new Configuration();
-        configuration.set(NettyShuffleEnvironmentOptions.BATCH_SHUFFLE_COMPRESSION_ENABLED, false);
+        configuration.set(
+                NettyShuffleEnvironmentOptions.SHUFFLE_COMPRESSION_CODEC,
+                NettyShuffleEnvironmentOptions.CompressionCodec.NONE);
         configuration.set(RpcOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(1));
 
-        JobGraph jobGraph = createJobGraph(ResultPartitionType.BLOCKING, ExecutionMode.BATCH);
+        JobGraph jobGraph = createJobGraph(ResultPartitionType.BLOCKING);
         JobGraphRunningUtil.execute(jobGraph, configuration, NUM_TASKMANAGERS, NUM_SLOTS);
     }
 
-    private static JobGraph createJobGraph(
-            ResultPartitionType resultPartitionType, ExecutionMode executionMode)
+    private static JobGraph createJobGraph(ResultPartitionType resultPartitionType)
             throws IOException {
         SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
 
@@ -122,7 +109,6 @@ public class ShuffleCompressionITCase {
         sink.connectNewDataSetAsInput(source, DistributionPattern.ALL_TO_ALL, resultPartitionType);
 
         ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setExecutionMode(executionMode);
 
         return JobGraphBuilder.newBatchJobGraphBuilder()
                 .addJobVertices(Arrays.asList(source, sink))
@@ -141,11 +127,6 @@ public class ShuffleCompressionITCase {
         public void invoke() throws Exception {
             ResultPartitionWriter resultPartitionWriter = getEnvironment().getWriter(0);
             RecordWriterBuilder<LongValue> recordWriterBuilder = new RecordWriterBuilder<>();
-            if (getEnvironment().getExecutionConfig().getExecutionMode()
-                    == ExecutionMode.PIPELINED) {
-                // enable output flush for pipeline mode
-                recordWriterBuilder.setTimeout(100);
-            }
             if (useBroadcastPartitioner) {
                 recordWriterBuilder.setChannelSelector(new BroadcastPartitioner());
             }

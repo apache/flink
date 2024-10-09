@@ -94,18 +94,6 @@ if [ $EXIT_CODE != 0 ] ; then
   exit $EXIT_CODE
 fi
 
-echo "============ Checking Scaladocs ============"
-
-scaladoc_output=/tmp/scaladoc.out
-
-$MVN scala:doc -Dcheckstyle.skip=true -Denforcer.skip=true -Dspotless.skip=true -pl flink-scala 2> ${scaladoc_output}
-EXIT_CODE=$?
-if [ $EXIT_CODE != 0 ] ; then
-  echo "ERROR in Scaladocs. Printing full output:"
-  cat ${scaladoc_output}
-  exit $EXIT_CODE
-fi
-
 echo "============ Checking bundled dependencies marked as optional ============"
 
 MVN=$MVN ${CI_DIR}/verify_bundled_optional.sh $MVN_CLEAN_COMPILE_OUT || exit $?

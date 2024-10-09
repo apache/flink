@@ -17,8 +17,7 @@
  */
 package org.apache.flink.table.planner.runtime.stream.table
 
-import org.apache.flink.api.common.time.Time
-import org.apache.flink.api.scala._
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink}
@@ -27,7 +26,6 @@ import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.planner.utils.Top3
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
-import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.TestTemplate
@@ -338,6 +336,8 @@ class GroupWindowTableAggregateITCase(mode: StateBackendMode)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, Double, Float, BigDecimal, String)](0L))
       .map(t => (t._2, t._6))
+      .returns(implicitly[TypeInformation[(Int, String)]])
+
     val table = stream.toTable(tEnv, 'int, 'string, 'rowtime.rowtime)
 
     val top3 = new Top3

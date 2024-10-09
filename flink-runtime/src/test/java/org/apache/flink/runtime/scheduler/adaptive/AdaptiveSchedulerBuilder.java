@@ -17,7 +17,6 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.failure.FailureEnricher;
@@ -98,7 +97,8 @@ public class AdaptiveSchedulerBuilder {
     /**
      * {@code null} indicates that the default factory will be used based on the set configuration.
      */
-    @Nullable private StateTransitionManager.Factory stateTransitionManagerFactory = null;
+    @Nullable
+    private AdaptiveScheduler.StateTransitionManagerFactory stateTransitionManagerFactory = null;
 
     private BiFunction<JobManagerJobMetricGroup, CheckpointStatsListener, CheckpointStatsTracker>
             checkpointStatsTrackerFactory =
@@ -160,8 +160,8 @@ public class AdaptiveSchedulerBuilder {
         return this;
     }
 
-    public AdaptiveSchedulerBuilder setRpcTimeout(final Time rpcTimeout) {
-        this.rpcTimeout = rpcTimeout.toDuration();
+    public AdaptiveSchedulerBuilder setRpcTimeout(final Duration rpcTimeout) {
+        this.rpcTimeout = rpcTimeout;
         return this;
     }
 
@@ -226,7 +226,8 @@ public class AdaptiveSchedulerBuilder {
     }
 
     public AdaptiveSchedulerBuilder setStateTransitionManagerFactory(
-            @Nullable StateTransitionManager.Factory stateTransitionManagerFactory) {
+            @Nullable
+                    AdaptiveScheduler.StateTransitionManagerFactory stateTransitionManagerFactory) {
         this.stateTransitionManagerFactory = stateTransitionManagerFactory;
         return this;
     }
@@ -250,7 +251,7 @@ public class AdaptiveSchedulerBuilder {
                         new DefaultExecutionDeploymentTracker(),
                         executorService,
                         executorService,
-                        Time.fromDuration(rpcTimeout),
+                        rpcTimeout,
                         jobManagerJobMetricGroup,
                         blobWriter,
                         shuffleMaster,
@@ -261,7 +262,7 @@ public class AdaptiveSchedulerBuilder {
         return new AdaptiveScheduler(
                 settings,
                 stateTransitionManagerFactory == null
-                        ? DefaultStateTransitionManager.Factory.fromSettings(settings)
+                        ? DefaultStateTransitionManager::new
                         : stateTransitionManagerFactory,
                 checkpointStatsTrackerFactory,
                 jobGraph,

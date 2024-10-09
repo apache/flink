@@ -35,10 +35,12 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.util.List;
 import java.util.function.IntSupplier;
 
+import static org.apache.flink.streaming.api.connector.sink2.CommittableMessage.EOI;
 import static org.apache.flink.streaming.runtime.operators.sink.SinkTestUtil.fromOutput;
 import static org.apache.flink.streaming.runtime.operators.sink.SinkTestUtil.toCommittableSummary;
 import static org.apache.flink.streaming.runtime.operators.sink.SinkTestUtil.toCommittableWithLinage;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 abstract class CommitterOperatorTestBase {
 
@@ -77,7 +79,7 @@ abstract class CommitterOperatorTestBase {
                     .hasOverallCommittables(committableSummary.getNumberOfCommittables())
                     .hasPendingCommittables(0);
             SinkV2Assertions.assertThat(toCommittableWithLinage(output.get(1)))
-                    .isEqualTo(copyCommittableWithDifferentOrigin(committableWithLineage, 0));
+                    .isEqualTo(committableWithLineage.withSubtaskId(0));
         } else {
             assertThat(testHarness.getOutput()).isEmpty();
         }
@@ -85,7 +87,7 @@ abstract class CommitterOperatorTestBase {
     }
 
     @Test
-    void testWaitForCommittablesOfLatestCheckpointBeforeCommitting() throws Exception {
+    void ensureAllCommittablesArrivedBeforeCommitting() throws Exception {
         SinkAndCounters sinkAndCounters = sinkWithPostCommit();
         final OneInputStreamOperatorTestHarness<
                         CommittableMessage<String>, CommittableMessage<String>>
@@ -108,8 +110,7 @@ abstract class CommitterOperatorTestBase {
         final CommittableWithLineage<String> second = new CommittableWithLineage<>("2", 1L, 1);
         testHarness.processElement(new StreamRecord<>(second));
 
-        // Trigger commit Retry
-        testHarness.getProcessingTimeService().setCurrentTime(2000);
+        assertThatCode(() -> testHarness.notifyOfCompletedCheckpoint(1)).doesNotThrowAnyException();
 
         final List<StreamElement> output = fromOutput(testHarness.getOutput());
         assertThat(output).hasSize(3);
@@ -119,45 +120,9 @@ abstract class CommitterOperatorTestBase {
                 .hasOverallCommittables(committableSummary.getNumberOfCommittables())
                 .hasPendingCommittables(0);
         SinkV2Assertions.assertThat(toCommittableWithLinage(output.get(1)))
-                .isEqualTo(copyCommittableWithDifferentOrigin(first, 0));
+                .isEqualTo(first.withSubtaskId(0));
         SinkV2Assertions.assertThat(toCommittableWithLinage(output.get(2)))
-                .isEqualTo(copyCommittableWithDifferentOrigin(second, 0));
-        testHarness.close();
-    }
-
-    @Test
-    void testImmediatelyCommitLateCommittables() throws Exception {
-        SinkAndCounters sinkAndCounters = sinkWithPostCommit();
-
-        final OneInputStreamOperatorTestHarness<
-                        CommittableMessage<String>, CommittableMessage<String>>
-                testHarness = createTestHarness(sinkAndCounters.sink, false, true);
-        testHarness.open();
-
-        final CommittableSummary<String> committableSummary =
-                new CommittableSummary<>(1, 1, 1L, 1, 1, 0);
-        testHarness.processElement(new StreamRecord<>(committableSummary));
-
-        // Receive notify checkpoint completed before the last data. This might happen for unaligned
-        // checkpoints.
-        testHarness.notifyOfCompletedCheckpoint(1);
-
-        assertThat(testHarness.getOutput()).isEmpty();
-
-        final CommittableWithLineage<String> first = new CommittableWithLineage<>("1", 1L, 1);
-
-        // Commit elements with lower or equal the latest checkpoint id immediately
-        testHarness.processElement(new StreamRecord<>(first));
-
-        final List<StreamElement> output = fromOutput(testHarness.getOutput());
-        assertThat(output).hasSize(2);
-        assertThat(sinkAndCounters.commitCounter.getAsInt()).isEqualTo(1);
-        SinkV2Assertions.assertThat(toCommittableSummary(output.get(0)))
-                .hasFailedCommittables(committableSummary.getNumberOfFailedCommittables())
-                .hasOverallCommittables(committableSummary.getNumberOfCommittables())
-                .hasPendingCommittables(0);
-        SinkV2Assertions.assertThat(toCommittableWithLinage(output.get(1)))
-                .isEqualTo(copyCommittableWithDifferentOrigin(first, 0));
+                .isEqualTo(second.withSubtaskId(0));
         testHarness.close();
     }
 
@@ -171,15 +136,15 @@ abstract class CommitterOperatorTestBase {
         testHarness.open();
 
         final CommittableSummary<String> committableSummary =
-                new CommittableSummary<>(1, 2, null, 1, 1, 0);
+                new CommittableSummary<>(1, 2, EOI, 1, 1, 0);
         testHarness.processElement(new StreamRecord<>(committableSummary));
         final CommittableSummary<String> committableSummary2 =
-                new CommittableSummary<>(2, 2, null, 1, 1, 0);
+                new CommittableSummary<>(2, 2, EOI, 1, 1, 0);
         testHarness.processElement(new StreamRecord<>(committableSummary2));
 
-        final CommittableWithLineage<String> first = new CommittableWithLineage<>("1", null, 1);
+        final CommittableWithLineage<String> first = new CommittableWithLineage<>("1", EOI, 1);
         testHarness.processElement(new StreamRecord<>(first));
-        final CommittableWithLineage<String> second = new CommittableWithLineage<>("1", null, 2);
+        final CommittableWithLineage<String> second = new CommittableWithLineage<>("1", EOI, 2);
         testHarness.processElement(new StreamRecord<>(second));
 
         testHarness.endInput();
@@ -196,9 +161,9 @@ abstract class CommitterOperatorTestBase {
                 .hasOverallCommittables(2)
                 .hasPendingCommittables(0);
         SinkV2Assertions.assertThat(toCommittableWithLinage(output.get(1)))
-                .isEqualTo(copyCommittableWithDifferentOrigin(first, 0));
+                .isEqualTo(first.withSubtaskId(0));
         SinkV2Assertions.assertThat(toCommittableWithLinage(output.get(2)))
-                .isEqualTo(copyCommittableWithDifferentOrigin(second, 0));
+                .isEqualTo(second.withSubtaskId(0));
         testHarness.close();
     }
 
@@ -318,23 +283,13 @@ abstract class CommitterOperatorTestBase {
                 .hasOverallCommittables(1)
                 .hasFailedCommittables(0);
         SinkV2Assertions.assertThat(toCommittableWithLinage(output.get(1)))
-                .isEqualTo(copyCommittableWithDifferentOrigin(committableWithLineage, 0));
+                .isEqualTo(committableWithLineage.withSubtaskId(0));
 
         // Future emission calls should change the output
         testHarness.notifyOfCompletedCheckpoint(2);
         testHarness.endInput();
 
         assertThat(testHarness.getOutput()).hasSize(2);
-    }
-
-    CommittableWithLineage<?> copyCommittableWithDifferentOrigin(
-            CommittableWithLineage<?> committable, int subtaskId) {
-        return new CommittableWithLineage<>(
-                committable.getCommittable(),
-                committable.getCheckpointId().isPresent()
-                        ? committable.getCheckpointId().getAsLong()
-                        : null,
-                subtaskId);
     }
 
     private OneInputStreamOperatorTestHarness<

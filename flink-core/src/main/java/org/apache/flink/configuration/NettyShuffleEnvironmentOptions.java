@@ -81,29 +81,6 @@ public class NettyShuffleEnvironmentOptions {
                                     + SecurityOptions.SSL_INTERNAL_ENABLED.key()
                                     + ") is set to true");
 
-    /**
-     * Boolean flag indicating whether the shuffle data will be compressed for batch shuffle mode.
-     *
-     * <p>Note: Data is compressed per buffer and compression can incur extra CPU overhead so it is
-     * more effective for IO bounded scenario when data compression ratio is high.
-     *
-     * @deprecated This option is deprecated in 1.20 and will be removed in 2.0. Please set the
-     *     {@link NettyShuffleEnvironmentOptions#SHUFFLE_COMPRESSION_CODEC} to NONE to disable the
-     *     compression.
-     */
-    @Deprecated
-    public static final ConfigOption<Boolean> BATCH_SHUFFLE_COMPRESSION_ENABLED =
-            key("taskmanager.network.batch-shuffle.compression.enabled")
-                    .booleanType()
-                    .defaultValue(true)
-                    .withDeprecatedKeys("taskmanager.network.blocking-shuffle.compression.enabled")
-                    .withDescription(
-                            "Boolean flag indicating whether the shuffle data will be compressed "
-                                    + "for batch shuffle mode. Note that data is compressed per "
-                                    + "buffer and compression can incur extra CPU overhead, so it "
-                                    + "is more effective for IO bounded scenario when compression "
-                                    + "ratio is high.");
-
     /** The codec to be used when compressing shuffle data. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<CompressionCodec> SHUFFLE_COMPRESSION_CODEC =
@@ -142,73 +119,6 @@ public class NettyShuffleEnvironmentOptions {
                             "Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths.");
 
     /**
-     * Number of buffers used in the network stack. This defines the number of possible tasks and
-     * shuffles.
-     *
-     * @deprecated use {@link TaskManagerOptions#NETWORK_MEMORY_FRACTION}, {@link
-     *     TaskManagerOptions#NETWORK_MEMORY_MIN}, and {@link TaskManagerOptions#NETWORK_MEMORY_MAX}
-     *     instead
-     */
-    @Deprecated
-    public static final ConfigOption<Integer> NETWORK_NUM_BUFFERS =
-            key("taskmanager.network.numberOfBuffers").intType().defaultValue(2048);
-
-    /**
-     * Fraction of JVM memory to use for network buffers.
-     *
-     * @deprecated use {@link TaskManagerOptions#NETWORK_MEMORY_FRACTION} instead
-     */
-    @Deprecated
-    public static final ConfigOption<Float> NETWORK_BUFFERS_MEMORY_FRACTION =
-            key("taskmanager.network.memory.fraction")
-                    .floatType()
-                    .defaultValue(0.1f)
-                    .withDescription(
-                            "Fraction of JVM memory to use for network buffers. This determines how many streaming"
-                                    + " data exchange channels a TaskManager can have at the same time and how well buffered the channels"
-                                    + " are. If a job is rejected or you get a warning that the system has not enough buffers available,"
-                                    + " increase this value or the min/max values below. Also note, that \"taskmanager.network.memory.min\""
-                                    + "` and \"taskmanager.network.memory.max\" may override this fraction.");
-
-    /**
-     * Minimum memory size for network buffers.
-     *
-     * @deprecated use {@link TaskManagerOptions#NETWORK_MEMORY_MIN} instead
-     */
-    @Deprecated
-    public static final ConfigOption<String> NETWORK_BUFFERS_MEMORY_MIN =
-            key("taskmanager.network.memory.min")
-                    .stringType()
-                    .defaultValue("64mb")
-                    .withDescription("Minimum memory size for network buffers.");
-
-    /**
-     * Maximum memory size for network buffers.
-     *
-     * @deprecated use {@link TaskManagerOptions#NETWORK_MEMORY_MAX} instead
-     */
-    @Deprecated
-    public static final ConfigOption<String> NETWORK_BUFFERS_MEMORY_MAX =
-            key("taskmanager.network.memory.max")
-                    .stringType()
-                    .defaultValue("1gb")
-                    .withDescription("Maximum memory size for network buffers.");
-
-    /**
-     * The maximum number of tpc connections between taskmanagers for data communication.
-     *
-     * @deprecated The option is unnecessary. It is deprecated in 1.20 and will be removed and
-     *     hard-coded to 1 in 2.0.
-     */
-    @Deprecated
-    public static final ConfigOption<Integer> MAX_NUM_TCP_CONNECTIONS =
-            key("taskmanager.network.max-num-tcp-connections")
-                    .intType()
-                    .defaultValue(1)
-                    .withDescription(
-                            "The maximum number of tpc connections between taskmanagers for data communication.");
-
-    /**
      * The maximum number of network read buffers that are required by an input gate. (An input gate
      * is responsible for reading data from all subtasks of an upstream task.) The number of buffers
      * needed by an input gate is dynamically calculated in runtime, depending on various factors
@@ -240,72 +150,6 @@ public class NettyShuffleEnvironmentOptions {
                                     + " configured value should be at least 1.");
 
     /**
-     * Number of network buffers for each outgoing/incoming channel (subpartition/input channel).
-     * The minimum valid value for the option is 0. When the option is configured as 0, the
-     * exclusive network buffers used per downstream incoming channel will be 0, but for each
-     * upstream outgoing channel, max(1, configured value) will be used. In other words we ensure
-     * that, for performance reasons, at least one buffer is used per outgoing channel regardless of
-     * the configuration.
-     *
-     * @deprecated This option is deprecated in 1.20 and will be removed in 2.0 to simplify the
-     *     configuration of network buffers.
-     */
-    @Deprecated
-    public static final ConfigOption<Integer> NETWORK_BUFFERS_PER_CHANNEL =
-            key("taskmanager.network.memory.buffers-per-channel")
-                    .intType()
-                    .defaultValue(2)
-                    .withDescription(
-                            String.format(
-                                    "Number of exclusive network buffers for each outgoing/incoming"
-                                            + " channel (subpartition/input channel) in the credit-based"
-                                            + " flow control model. For the outgoing channel(subpartition),"
-                                            + " this value is the effective exclusive buffers per channel."
-                                            + " For the incoming channel(input channel), this value"
-                                            + " is the max number of exclusive buffers per channel,"
-                                            + " the number of effective exclusive network buffers per"
-                                            + " channel is dynamically calculated from %s and the"
-                                            + " effective range is from 0 to the configured value."
-                                            + " The minimum valid value for the option is 0. When"
-                                            + " the option is configured as 0, the exclusive network"
-                                            + " buffers used by downstream incoming channel will be"
-                                            + " 0, but for each upstream outgoing channel, max(1,"
-                                            + " configured value) will be used. In other words, we"
-                                            + " ensure that, for performance reasons, at least one"
-                                            + " buffer is used per outgoing channel regardless of"
-                                            + " the configuration.",
-                                    NETWORK_READ_MAX_REQUIRED_BUFFERS_PER_GATE.key()));
-
-    /**
-     * Number of floating network buffers for each outgoing/incoming gate (result partition/input
-     * gate).
-     *
-     * @deprecated This option is deprecated in 1.20 and will be removed in 2.0 to simplify the
-     *     configuration of network buffers.
-     */
-    @Deprecated
-    public static final ConfigOption<Integer> NETWORK_EXTRA_BUFFERS_PER_GATE =
-            key("taskmanager.network.memory.floating-buffers-per-gate")
-                    .intType()
-                    .defaultValue(8)
-                    .withDescription(
-                            String.format(
-                                    "Number of floating network buffers for each outgoing/incoming"
-                                            + " gate (result partition/input gate). In credit-based"
-                                            + " flow control mode, this indicates how many floating"
-                                            + " credits are shared among all the channels. The floating"
-                                            + " buffers can help relieve back-pressure caused by"
-                                            + " unbalanced data distribution among the subpartitions."
-                                            + " For the outgoing gate(result partition), this value"
-                                            + " is the effective floating buffers per gate. For the"
-                                            + " incoming gate(input gate), this value is a recommended"
-                                            + " number of floating buffers, the number of effective"
-                                            + " floating network buffers per gate is dynamically"
-                                            + " calculated from %s and the range of effective floating"
-                                            + " buffers is from 0 to (parallelism - 1).",
-                                    NETWORK_READ_MAX_REQUIRED_BUFFERS_PER_GATE.key()));
-
-    /**
      * Minimum number of network buffers required per blocking result partition for sort-shuffle.
      */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
@@ -324,95 +168,6 @@ public class NettyShuffleEnvironmentOptions {
                                     + " the size of total network memory to avoid the 'insufficient"
                                     + " number of network buffers' error if you are increasing this"
                                     + " config value.");
-
-    /**
-     * Parallelism threshold to switch between sort-based blocking shuffle and hash-based blocking
-     * shuffle.
-     *
-     * @deprecated The hash-based blocking shuffle is deprecated in 1.20 and will be totally removed
-     *     in 2.0.
-     */
-    @Deprecated
-    public static final ConfigOption<Integer> NETWORK_SORT_SHUFFLE_MIN_PARALLELISM =
-            key("taskmanager.network.sort-shuffle.min-parallelism")
-                    .intType()
-                    .defaultValue(1)
-                    .withDescription(
-                            String.format(
-                                    "Parallelism threshold to switch between sort-based blocking "
-                                            + "shuffle and hash-based blocking shuffle, which means"
-                                            + " for batch jobs of smaller parallelism, hash-shuffle"
-                                            + " will be used and for batch jobs of larger or equal "
-                                            + "parallelism, sort-shuffle will be used. The value 1 "
-                                            + "means that sort-shuffle is the default option. Note:"
-                                            + " For production usage, you may also need to tune "
-                                            + "'%s' and '%s' for better performance.",
-                                    NETWORK_SORT_SHUFFLE_MIN_BUFFERS.key(),
-                                    // raw string key is used here to avoid interdependence, a test
-                                    // is implemented to guard that when the target key is modified,
-                                    // this raw value must be changed correspondingly
-                                    "taskmanager.memory.framework.off-heap.batch-shuffle.size"));
-
-    /**
-     * Number of max buffers can be used for each output subpartition.
-     *
-     * @deprecated This option is deprecated in 1.20 and will be removed in 2.0 to simplify the
-     *     configuration of network buffers.
-     */
-    @Deprecated
-    public static final ConfigOption<Integer> NETWORK_MAX_BUFFERS_PER_CHANNEL =
-            key("taskmanager.network.memory.max-buffers-per-channel")
-                    .intType()
-                    .defaultValue(10)
-                    .withDescription(
-                            "Number of max buffers that can be used for each channel. If a channel exceeds the number of max"
-                                    + " buffers, it will make the task become unavailable, cause the back pressure and block the data processing. This"
-                                    + " might speed up checkpoint alignment by preventing excessive growth of the buffered in-flight data in"
-                                    + " case of data skew and high number of configured floating buffers. This limit is not strictly guaranteed,"
-                                    + " and can be ignored by things like flatMap operators, records spanning multiple buffers or single timer"
-                                    + " producing large amount of data.");
-
-    /**
-     * Number of max overdraft network buffers to use for each ResultPartition.
-     *
-     * @deprecated This option is deprecated in 1.20 and will be removed in 2.0 to simplify the
-     *     configuration of network buffers.
-     */
-    @Deprecated
-    public static final ConfigOption<Integer> NETWORK_MAX_OVERDRAFT_BUFFERS_PER_GATE =
-            key("taskmanager.network.memory.max-overdraft-buffers-per-gate")
-                    .intType()
-                    .defaultValue(5)
-                    .withDescription(
-                            "Number of max overdraft network buffers to use for each ResultPartition. The overdraft buffers"
-                                    + " will be used when the subtask cannot apply to the normal buffers  due to back pressure,"
-                                    + " while subtask is performing an action that can not be interrupted in the middle,  like"
-                                    + " serializing a large record, flatMap operator producing multiple records for one single"
-                                    + " input record or processing time timer producing large output. In situations like that"
-                                    + " system will allow subtask to request overdraft buffers, so that the subtask can finish"
-                                    + " such uninterruptible action, without blocking unaligned checkpoints for long period of"
-                                    + " time. Overdraft buffers are provided on best effort basis only if the system has some"
-                                    + " unused buffers available. Subtask that has used overdraft buffers won't be allowed to"
-                                    + " process any more records until the overdraft buffers are returned to the pool."
-                                    + " It should be noted that this config option only takes effect for Pipelined Shuffle.");
-
-    /**
-     * The timeout for requesting exclusive buffers for each channel.
-     *
-     * @deprecated This option is deprecated in 1.20 and will be removed in 2.0 to simplify the
-     *     configuration of network buffers. Please use {@link
-     *     NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_REQUEST_TIMEOUT} instead.
-     */
-    @Deprecated
-    public static final ConfigOption<Long> NETWORK_EXCLUSIVE_BUFFERS_REQUEST_TIMEOUT_MILLISECONDS =
-            key("taskmanager.network.memory.exclusive-buffers-request-timeout-ms")
-                    .longType()
-                    .defaultValue(30000L)
-                    .withDescription(
-                            "The timeout for requesting exclusive buffers for each channel. Since the number of maximum buffers and "
-                                    + "the number of required buffers is not the same for local buffer pools, there may be deadlock cases that the upstream"
-                                    + "tasks have occupied all the buffers and the downstream tasks are waiting for the exclusive buffers. The timeout breaks"
-                                    + "the tie by failing the request of exclusive buffers and ask users to increase the number of total buffers.");
 
     /** The timeout for requesting buffers for each channel. */
     @Documentation.ExcludeFromDocumentation(
@@ -460,29 +215,11 @@ public class NettyShuffleEnvironmentOptions {
                                     + "Note: If this option is not configured the remote storage will be disabled.");
 
     /**
-     * @deprecated The hash-based blocking shuffle is deprecated in 1.20 and will be totally removed
-     *     in 2.0.
-     */
-    @Deprecated
-    public static final ConfigOption<String> NETWORK_BLOCKING_SHUFFLE_TYPE =
-            key("taskmanager.network.blocking-shuffle.type")
-                    .stringType()
-                    .defaultValue("file")
-                    .withDescription(
-                            "The blocking shuffle type, either \"mmap\" or \"file\". The \"auto\" means selecting the property type automatically"
-                                    + " based on system memory architecture (64 bit for mmap and 32 bit for file). Note that the memory usage of mmap is not accounted"
-                                    + " by configured memory limits, but some resource frameworks like yarn would track this memory usage and kill the container once"
-                                    + " memory exceeding some threshold. Also note that this option is experimental and might be changed future.");
-
-    /**
      * Whether to reuse tcp connections across multi jobs. If set to true, tcp connections will not
      * be released after job finishes. The subsequent jobs will be free from the overhead of the
      * connection re-establish. However, this may lead to an increase in the total number of
      * connections on your machine. When it reaches the upper limit, you can set it to false to
      * release idle connections.
-     *
-     * <p>Note: To avoid connection leak, you must set {@link #MAX_NUM_TCP_CONNECTIONS} to a smaller
-     * value before you enable tcp connection reuse.
      */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Boolean> TCP_CONNECTION_REUSE_ACROSS_JOBS_ENABLED =
@@ -495,62 +232,11 @@ public class NettyShuffleEnvironmentOptions {
                                     + "jobs will be free from the overhead of the connection re-establish. "
                                     + "However, this may lead to an increase in the total number of connections "
                                     + "on your machine. When it reaches the upper limit, you can set it to false "
-                                    + "to release idle connections. Note that to avoid connection leak, you must set "
-                                    + MAX_NUM_TCP_CONNECTIONS.key()
-                                    + " to a smaller value before you "
-                                    + "enable tcp connection reuse.");
+                                    + "to release idle connections.");
 
     // ------------------------------------------------------------------------
     //  Netty Options
     // ------------------------------------------------------------------------
-
-    /**
-     * @deprecated It is not recommended to use the option. It is deprecated in 1.20 and will be
-     *     totally removed in 2.0.
-     */
-    @Deprecated
-    public static final ConfigOption<Integer> NUM_ARENAS =
-            key("taskmanager.network.netty.num-arenas")
-                    .intType()
-                    .defaultValue(-1)
-                    .withDeprecatedKeys("taskmanager.net.num-arenas")
-                    .withDescription("The number of Netty arenas.");
-
-    /**
-     * @deprecated It is not recommended to use the option. It is deprecated in 1.20 and will be
-     *     totally removed in 2.0.
-     */
-    @Deprecated
-    public static final ConfigOption<Integer> NUM_THREADS_SERVER =
-            key("taskmanager.network.netty.server.numThreads")
-                    .intType()
-                    .defaultValue(-1)
-                    .withDeprecatedKeys("taskmanager.net.server.numThreads")
-                    .withDescription("The number of Netty server threads.");
-
-    /**
-     * @deprecated It is not recommended to use the option. It is deprecated in 1.20 and will be
-     *     totally removed in 2.0.
-     */
-    @Deprecated
-    public static final ConfigOption<Integer> NUM_THREADS_CLIENT =
-            key("taskmanager.network.netty.client.numThreads")
-                    .intType()
-                    .defaultValue(-1)
-                    .withDeprecatedKeys("taskmanager.net.client.numThreads")
-                    .withDescription("The number of Netty client threads.");
-
-    /**
-     * @deprecated It is not recommended to use the option. It is deprecated in 1.20 and will be
-     *     totally removed in 2.0.
-     */
-    @Deprecated
-    public static final ConfigOption<Integer> CONNECT_BACKLOG =
-            key("taskmanager.network.netty.server.backlog")
-                    .intType()
-                    .defaultValue(0) // default: 0 => Netty's default
-                    .withDeprecatedKeys("taskmanager.net.server.backlog")
-                    .withDescription("The netty server connection backlog.");
 
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> CLIENT_CONNECT_TIMEOUT_SECONDS =
@@ -569,35 +255,6 @@ public class NettyShuffleEnvironmentOptions {
                     .withDescription(
                             "The number of retry attempts for network communication."
                                     + " Currently it's only used for establishing input/output channel connections");
-
-    /**
-     * @deprecated It is not recommended to use the option. It is deprecated in 1.20 and will be
-     *     totally removed in 2.0.
-     */
-    @Deprecated
-    public static final ConfigOption<Integer> SEND_RECEIVE_BUFFER_SIZE =
-            key("taskmanager.network.netty.sendReceiveBufferSize")
-                    .intType()
-                    .defaultValue(0) // default: 0 => Netty's default
-                    .withDeprecatedKeys("taskmanager.net.sendReceiveBufferSize")
-                    .withDescription(
-                            "The Netty send and receive buffer size. This defaults to the system buffer size"
-                                    + " (cat /proc/sys/net/ipv4/tcp_[rw]mem) and is 4 MiB in modern Linux.");
-
-    /**
-     * @deprecated It is not recommended to use the option. It is deprecated in 1.20 and will be
-     *     totally removed in 2.0.
-     */
-    @Deprecated
-    public static final ConfigOption<String> TRANSPORT_TYPE =
-            key("taskmanager.network.netty.transport")
-                    .stringType()
-                    .defaultValue("auto")
-                    .withDeprecatedKeys("taskmanager.net.transport")
-                    .withDescription(
-                            "The Netty transport type, either \"nio\" or \"epoll\". The \"auto\" means selecting the property mode automatically"
-                                    + " based on the platform. Note that the \"epoll\" mode can get better performance, less GC and have more advanced features which are"
-                                    + " only available on modern Linux.");
 
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> CLIENT_TCP_KEEP_IDLE_SECONDS =

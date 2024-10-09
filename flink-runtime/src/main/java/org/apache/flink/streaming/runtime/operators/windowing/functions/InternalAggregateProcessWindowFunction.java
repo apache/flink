@@ -21,7 +21,7 @@ package org.apache.flink.streaming.runtime.operators.windowing.functions;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.java.operators.translation.WrappingFunction;
+import org.apache.flink.api.common.functions.WrappingFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;

@@ -17,7 +17,8 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.api.{DataTypes, TableSchema}
+import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableConfigUtils, TestLegacyFilterableTableSource}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime

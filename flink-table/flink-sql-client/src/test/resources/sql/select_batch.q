@@ -60,7 +60,7 @@ FROM (VALUES
 !ok
 
 # ==========================================================================
-# Testing behavior of sql-client.display.max-column-width
+# Testing behavior of table.display.max-column-width
 # Only variable width columns are impacted at the moment => STRING, but not TIMESTAMP nor BOOLEAN
 # ==========================================================================
 
@@ -87,7 +87,7 @@ SELECT * from testUserData;
 4 rows in set
 !ok
 
-SET 'sql-client.display.max-column-width' = '10';
+SET 'table.display.max-column-width' = '10';
 [INFO] Execute statement succeeded.
 !info
 
@@ -103,7 +103,7 @@ SELECT * from testUserData;
 4 rows in set
 !ok
 
-SET 'sql-client.display.max-column-width' = '40';
+SET 'table.display.max-column-width' = '40';
 [INFO] Execute statement succeeded.
 !info
 
@@ -124,7 +124,7 @@ DROP TEMPORARY VIEW testUserData;
 [INFO] Execute statement succeeded.
 !info
 
-SET 'sql-client.display.max-column-width' = '30';
+SET 'table.display.max-column-width' = '30';
 [INFO] Execute statement succeeded.
 !info
 

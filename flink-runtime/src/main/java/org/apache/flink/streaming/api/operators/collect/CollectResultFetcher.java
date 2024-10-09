@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerial
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.dispatcher.UnavailableDispatcherOperationException;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequestGateway;
 import org.apache.flink.util.ExceptionUtils;
@@ -39,7 +38,6 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -52,7 +50,7 @@ public class CollectResultFetcher<T> {
 
     private final AbstractCollectResultBuffer<T> buffer;
 
-    private final CompletableFuture<OperatorID> operatorIdFuture;
+    private final String operatorUid;
     private final String accumulatorName;
     private final int retryMillis;
     private final long resultFetchTimeout;
@@ -65,21 +63,21 @@ public class CollectResultFetcher<T> {
 
     public CollectResultFetcher(
             AbstractCollectResultBuffer<T> buffer,
-            CompletableFuture<OperatorID> operatorIdFuture,
+            String operatorUid,
             String accumulatorName,
             long resultFetchTimeout) {
-        this(buffer, operatorIdFuture, accumulatorName, DEFAULT_RETRY_MILLIS, resultFetchTimeout);
+        this(buffer, operatorUid, accumulatorName, DEFAULT_RETRY_MILLIS, resultFetchTimeout);
     }
 
     CollectResultFetcher(
             AbstractCollectResultBuffer<T> buffer,
-            CompletableFuture<OperatorID> operatorIdFuture,
+            String operatorUid,
             String accumulatorName,
             int retryMillis,
             long resultFetchTimeout) {
         this.buffer = buffer;
 
-        this.operatorIdFuture = operatorIdFuture;
+        this.operatorUid = operatorUid;
         this.accumulatorName = accumulatorName;
         this.retryMillis = retryMillis;
         this.resultFetchTimeout = resultFetchTimeout;
@@ -165,12 +163,11 @@ public class CollectResultFetcher<T> {
             throws InterruptedException, ExecutionException {
         checkJobClientConfigured();
 
-        OperatorID operatorId = operatorIdFuture.getNow(null);
-        Preconditions.checkNotNull(operatorId, "Unknown operator ID. This is a bug.");
+        Preconditions.checkNotNull(operatorUid, "Unknown operator unique id. This is a bug.");
 
         CollectCoordinationRequest request = new CollectCoordinationRequest(version, offset);
         return (CollectCoordinationResponse)
-                gateway.sendCoordinationRequest(operatorId, request).get();
+                gateway.sendCoordinationRequest(operatorUid, request).get();
     }
 
     private Tuple2<Long, CollectCoordinationResponse> getAccumulatorResults() throws IOException {

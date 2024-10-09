@@ -22,7 +22,6 @@ import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -38,6 +37,8 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
 import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -74,7 +75,7 @@ class AbstractStreamOperatorTestHarnessTest {
             result.config.setStateKeySerializer(IntSerializer.INSTANCE);
             result.config.serializeAllConfigs();
 
-            Time timeToLive = Time.hours(1);
+            Duration timeToLive = Duration.ofHours(1);
             result.initializeState(OperatorSubtaskState.builder().build());
             result.open();
 
@@ -93,7 +94,7 @@ class AbstractStreamOperatorTestHarnessTest {
             result.setStateTtlProcessingTime(0L);
             state.update(expectedValue);
             assertThat(state.value()).isEqualTo(expectedValue);
-            result.setStateTtlProcessingTime(timeToLive.toMilliseconds() + 1);
+            result.setStateTtlProcessingTime(timeToLive.toMillis() + 1);
             assertThat(state.value()).isNull();
         }
     }

@@ -25,7 +25,7 @@ import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
 import org.apache.flink.runtime.asyncprocessing.EpochManager.ParallelMode;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.runtime.state.v2.InternalPartitionedState;
+import org.apache.flink.runtime.state.v2.internal.InternalPartitionedState;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -35,6 +35,8 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -51,9 +53,11 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @param <K> the type of the key
  */
-public class AsyncExecutionController<K> implements StateRequestHandler {
+public class AsyncExecutionController<K> implements StateRequestHandler, Closeable {
 
     private static final Logger LOG = LoggerFactory.getLogger(AsyncExecutionController.class);
+
+    private static final long DEFAULT_BUFFER_TIMEOUT_CHECK_INTERVAL = 100;
 
     /**
      * The batch size. When the number of state requests in the active buffer exceeds the batch
@@ -61,12 +65,23 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
      */
     private final int batchSize;
 
+    /** The runner for callbacks. Basically a wrapper of mailbox executor. */
+    private final BatchCallbackRunner callbackRunner;
+
     /**
      * The timeout of {@link StateRequestBuffer#activeQueue} triggering in milliseconds. If the
      * activeQueue has not reached the {@link #batchSize} within 'buffer-timeout' milliseconds, a
      * trigger will perform actively.
      */
     private final long bufferTimeout;
+
+    /**
+     * There might be huge overhead when inserting a timer for each buffer. A periodic check is a
+     * good trade-off to save much GC and CPU for this. This var defines the interval for periodic
+     * check of timeout. As a result, the real trigger time of timeout buffer might be [timeout,
+     * timeout+interval]. We don't make it configurable for now.
+     */
+    private final long bufferTimeoutCheckInterval = DEFAULT_BUFFER_TIMEOUT_CHECK_INTERVAL;
 
     /** The max allowed number of in-flight records. */
     private final int maxInFlightRecordNum;
@@ -111,11 +126,20 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
     /** The reference of epoch manager. */
     final EpochManager epochManager;
 
+    /** The listener of context switch. */
+    final SwitchContextListener<K> switchContextListener;
+
     /**
      * The parallel mode of epoch execution. Keep this field internal for now, until we could see
      * the concrete need for {@link ParallelMode#PARALLEL_BETWEEN_EPOCH} from average users.
      */
     final ParallelMode epochParallelMode = ParallelMode.SERIAL_BETWEEN_EPOCH;
+
+    /** A guard for waiting new mail. */
+    private final Object notifyLock = new Object();
+
+    /** Flag indicating if this AEC is under waiting status. */
+    private volatile boolean waitingMail = false;
 
     public AsyncExecutionController(
             MailboxExecutor mailboxExecutor,
@@ -124,11 +148,14 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
             int maxParallelism,
             int batchSize,
             long bufferTimeout,
-            int maxInFlightRecords) {
+            int maxInFlightRecords,
+            SwitchContextListener<K> switchContextListener) {
         this.keyAccountingUnit = new KeyAccountingUnit<>(maxInFlightRecords);
         this.mailboxExecutor = mailboxExecutor;
         this.exceptionHandler = exceptionHandler;
-        this.stateFutureFactory = new StateFutureFactory<>(this, mailboxExecutor, exceptionHandler);
+        this.callbackRunner = new BatchCallbackRunner(mailboxExecutor, this::notifyNewMail);
+        this.stateFutureFactory = new StateFutureFactory<>(this, callbackRunner, exceptionHandler);
+
         this.stateExecutor = stateExecutor;
         this.batchSize = batchSize;
         this.bufferTimeout = bufferTimeout;
@@ -138,6 +165,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
         this.stateRequestsBuffer =
                 new StateRequestBuffer<>(
                         bufferTimeout,
+                        bufferTimeoutCheckInterval,
                         (scheduledSeq) ->
                                 mailboxExecutor.execute(
                                         () -> {
@@ -148,6 +176,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
                                         "AEC-buffer-timeout"));
 
         this.epochManager = new EpochManager(this);
+        this.switchContextListener = switchContextListener;
         LOG.info(
                 "Create AsyncExecutionController: batchSize {}, bufferTimeout {}, maxInFlightRecordNum {}, epochParallelMode {}",
                 this.batchSize,
@@ -189,6 +218,9 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
      */
     public void setCurrentContext(RecordContext<K> switchingContext) {
         currentContext = switchingContext;
+        if (switchContextListener != null) {
+            switchContextListener.switchContext(switchingContext);
+        }
     }
 
     /**
@@ -203,9 +235,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
         RecordContext<K> nextRecordCtx =
                 stateRequestsBuffer.tryActivateOneByKey(toDispose.getKey());
         if (nextRecordCtx != null) {
-            Preconditions.checkState(
-                    tryOccupyKey(nextRecordCtx),
-                    String.format("key(%s) is already occupied.", nextRecordCtx.getKey()));
+            Preconditions.checkState(tryOccupyKey(nextRecordCtx));
         }
     }
 
@@ -239,7 +269,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
             @Nullable State state, StateRequestType type, @Nullable IN payload) {
         // Step 1: build state future & assign context.
         InternalStateFuture<OUT> stateFuture = stateFutureFactory.create(currentContext);
-        StateRequest<K, IN, OUT> request =
+        StateRequest<K, ?, IN, OUT> request =
                 new StateRequest<>(state, type, payload, stateFuture, currentContext);
 
         // Step 2: try to seize the capacity, if the current in-flight records exceeds the limit,
@@ -278,11 +308,11 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
         currentContext.setNamespace(state, namespace);
     }
 
-    <IN, OUT> void insertActiveBuffer(StateRequest<K, IN, OUT> request) {
+    <IN, OUT> void insertActiveBuffer(StateRequest<K, ?, IN, OUT> request) {
         stateRequestsBuffer.enqueueToActive(request);
     }
 
-    <IN, OUT> void insertBlockingBuffer(StateRequest<K, IN, OUT> request) {
+    <IN, OUT> void insertBlockingBuffer(StateRequest<K, ?, IN, OUT> request) {
         stateRequestsBuffer.enqueueToBlocking(request);
     }
 
@@ -343,13 +373,41 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
         try {
             while (inFlightRecordNum.get() > targetNum) {
                 if (!mailboxExecutor.tryYield()) {
-                    triggerIfNeeded(true);
-                    Thread.sleep(1);
+                    // We force trigger the buffer if targetNum == 0 (for draining) or the state
+                    // executor is not fully loaded.
+                    if (targetNum == 0 || !stateExecutor.fullyLoaded()) {
+                        triggerIfNeeded(true);
+                    }
+                    waitForNewMails();
                 }
             }
         } catch (InterruptedException ignored) {
             // ignore the interrupted exception to avoid throwing fatal error when the task cancel
             // or exit.
+        }
+    }
+
+    /** Wait for new mails if there is no more mail. */
+    private void waitForNewMails() throws InterruptedException {
+        if (!callbackRunner.isHasMail()) {
+            synchronized (notifyLock) {
+                if (!callbackRunner.isHasMail()) {
+                    waitingMail = true;
+                    notifyLock.wait(1);
+                    waitingMail = false;
+                }
+            }
+        }
+    }
+
+    /** Notify this AEC there is a mail, wake up from waiting. */
+    private void notifyNewMail() {
+        if (waitingMail) {
+            synchronized (notifyLock) {
+                if (waitingMail) {
+                    notifyLock.notify();
+                }
+            }
         }
     }
 
@@ -373,5 +431,15 @@ public class AsyncExecutionController<K> implements StateRequestHandler {
     @VisibleForTesting
     public int getInFlightRecordNum() {
         return inFlightRecordNum.get();
+    }
+
+    @Override
+    public void close() throws IOException {
+        stateRequestsBuffer.close();
+    }
+
+    /** A listener listens the key context switch. */
+    public interface SwitchContextListener<K> {
+        void switchContext(RecordContext<K> context);
     }
 }

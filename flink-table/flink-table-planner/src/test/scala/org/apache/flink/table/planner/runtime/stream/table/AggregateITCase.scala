@@ -17,14 +17,13 @@
  */
 package org.apache.flink.table.planner.runtime.stream.table
 
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.DataTypes.DECIMAL
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.planner.runtime.utils.{JavaUserDefinedAggFunctions, StreamingWithStateTestBase, TestingRetractSink, TestingUpsertTableSink}
+import org.apache.flink.table.legacy.api.Types
+import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, DataViewTestAgg, WeightedAvg}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
@@ -33,6 +32,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTe
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.data.Percentage
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
@@ -364,8 +364,8 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     data.+=((12, 5L, "B"))
 
     val distinct = new CountDistinct
-    val t = env
-      .fromCollection(data)
+    val t = StreamingEnvUtil
+      .fromCollection(env, data)
       .toTable(tEnv, 'a, 'b, 'c)
       .groupBy('b)
       .select('b, distinct('c), call(classOf[DataViewTestAgg], 'c, 'b))
@@ -390,8 +390,8 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     data.+=((4, 3L, "C"))
     data.+=((5, 3L, "C"))
 
-    val t = env
-      .fromCollection(data)
+    val t = StreamingEnvUtil
+      .fromCollection(env, data)
       .toTable(tEnv, 'a, 'b, 'c)
       .groupBy('c)
       .select('c, 'b.max)
@@ -564,5 +564,38 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     // with the one calculated for plus()/minus(), which result in loosing a decimal digit.
     val expected = List("0.51760137,6172.51760137432650000000,6.17283945061728350000,1.66666667")
     assertThat(sink.getRetractResults).isEqualTo(expected)
+  }
+
+  @TestTemplate
+  def testPercentile(): Unit = {
+    val t = failingDataSource(tupleData5)
+      .toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
+      .groupBy('e)
+      .select(
+        'e,
+        'a.percentile(0.7).as('swo),
+        'a.percentile(0.7, 'b).as('sw),
+        'a.percentile(array(0.3, 0.1, 0.7)).as('mwo),
+        'a.percentile(array(0.3, 0.1, 0.7), 'b).as('mw))
+      .select('e, 'swo, 'sw, 'mwo.at(1), 'mwo.at(2), 'mwo.at(3), 'mw.at(1), 'mw.at(2), 'mw.at(3))
+
+    val sink = new TestingRetractSink
+    t.toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List(
+      List(4.0, 5.0, 2.4, 1.4, 4.0, 4.0, 2.2, 5.0),
+      List(4.2, 5.0, 3.0, 2.6, 4.2, 4.0, 3.0, 5.0),
+      List(5.0, 5.0, 4.2, 3.4, 5.0, 5.0, 3.0, 5.0))
+    val ERROR_RATE = Percentage.withPercentage(1e-6)
+
+    val result = sink.getRetractResults.sorted
+    for (i <- result.indices) {
+      val actual = result(i).split(",")
+      assertThat(actual(0).toInt).isEqualTo(i + 1)
+      for (j <- expected(i).indices) {
+        assertThat(actual(j + 1).toDouble).isCloseTo(expected(i)(j), ERROR_RATE)
+      }
+    }
   }
 }

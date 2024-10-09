@@ -21,9 +21,7 @@ package org.apache.flink.streaming.api.connector.sink2;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.connector.sink2.Committer;
 
-import javax.annotation.Nullable;
-
-import java.util.OptionalLong;
+import java.util.Objects;
 import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -35,10 +33,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Experimental
 public class CommittableWithLineage<CommT> implements CommittableMessage<CommT> {
     private final CommT committable;
-    @Nullable private final Long checkpointId;
+    private final long checkpointId;
     private final int subtaskId;
 
-    public CommittableWithLineage(CommT committable, @Nullable Long checkpointId, int subtaskId) {
+    public CommittableWithLineage(CommT committable, long checkpointId, int subtaskId) {
         this.committable = checkNotNull(committable);
         this.checkpointId = checkpointId;
         this.subtaskId = subtaskId;
@@ -52,11 +50,47 @@ public class CommittableWithLineage<CommT> implements CommittableMessage<CommT> 
         return subtaskId;
     }
 
-    public OptionalLong getCheckpointId() {
-        return checkpointId == null ? OptionalLong.empty() : OptionalLong.of(checkpointId);
+    public long getCheckpointIdOrEOI() {
+        return checkpointId;
     }
 
     public <NewCommT> CommittableWithLineage<NewCommT> map(Function<CommT, NewCommT> mapper) {
         return new CommittableWithLineage<>(mapper.apply(committable), checkpointId, subtaskId);
+    }
+
+    /** Creates a shallow copy with the given subtaskId. */
+    public CommittableWithLineage<CommT> withSubtaskId(int subtaskId) {
+        return new CommittableWithLineage<>(committable, checkpointId, subtaskId);
+    }
+
+    @Override
+    public String toString() {
+        return "CommittableWithLineage{"
+                + "committable="
+                + committable
+                + ", checkpointId="
+                + checkpointId
+                + ", subtaskId="
+                + subtaskId
+                + '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        CommittableWithLineage<?> that = (CommittableWithLineage<?>) o;
+        return checkpointId == that.checkpointId
+                && subtaskId == that.subtaskId
+                && Objects.equals(committable, that.committable);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(committable, checkpointId, subtaskId);
     }
 }

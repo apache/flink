@@ -125,13 +125,6 @@ under the License.
 			<scope>test</scope>
 			<type>test-jar</type>
 		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-optimizer</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
 		
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -146,28 +139,6 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
-		
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-scala_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -180,40 +151,36 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-examples-batch</artifactId>
+			<artifactId>flink-examples-streaming</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<!-- Exclude the `flink-connector-kafka` dependency;
+				otherwise, the `org.apache.flink.test.completeness.TypeSerializerTestCoverageTest`
+				will fail because it checks the subclass of `TypeSerializer` within the
+				`flink-connector-kafka` module. The failure message will be: "Could not find test
+				'org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer$NextTransactionalIdHintSerializerTest'
+				that covers 'org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer$NextTransactionalIdHintSerializer'." -->
+				<exclusion>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-connector-kafka</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-hadoop-compatibility</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-hadoop-compatibility_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-hadoop-compatibility_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-optimizer</artifactId>
+			<artifactId>flink-hadoop-compatibility</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -518,25 +485,6 @@ under the License.
 						</configuration>
 					</execution>
 
-					<execution>
-						<id>create-kmeans-jar</id>
-						<phase>process-test-classes</phase>
-						<goals>
-							<goal>single</goal>
-						</goals>
-						<configuration>
-							<archive>
-								<manifest>
-									<mainClass>org.apache.flink.test.classloading.jar.KMeansForTest</mainClass>
-								</manifest>
-							</archive>
-							<finalName>kmeans</finalName>
-							<attach>false</attach>
-							<descriptors>
-								<descriptor>src/test/assembly/test-kmeans-assembly.xml</descriptor>
-							</descriptors>
-						</configuration>
-					</execution>
 					<execution>
 						<id>create-usercodetype-jar</id>
 						<phase>process-test-classes</phase>

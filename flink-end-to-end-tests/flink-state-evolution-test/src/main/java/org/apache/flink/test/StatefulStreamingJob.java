@@ -20,21 +20,22 @@ package org.apache.flink.test;
 
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.avro.generated.Address;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.configuration.RestartStrategyOptions;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.types.Either;
+import org.apache.flink.util.ParameterTool;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -47,14 +48,7 @@ public class StatefulStreamingJob {
 
     private static final String EXPECTED_DEFAULT_VALUE = "123";
 
-    /**
-     * Stub source that emits one record per second.
-     *
-     * @deprecated This class is based on the {@link
-     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
-     *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
-     */
-    @Deprecated
+    /** Stub source that emits one record per second. */
     public static class MySource extends RichParallelSourceFunction<Integer> {
 
         private static final long serialVersionUID = 1L;
@@ -156,10 +150,11 @@ public class StatefulStreamingJob {
         final String checkpointDir = pt.getRequired("checkpoint.dir");
         Configuration configuration = new Configuration();
         configuration.set(PipelineOptions.GENERIC_TYPES, false);
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
-        env.setStateBackend(new FsStateBackend(checkpointDir));
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        configuration.set(StateBackendOptions.STATE_BACKEND, "hashmap");
+        configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
         env.enableCheckpointing(1000L);
 
         env.addSource(new MySource())

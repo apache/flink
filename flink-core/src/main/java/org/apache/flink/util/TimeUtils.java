@@ -18,8 +18,6 @@
 
 package org.apache.flink.util;
 
-import org.apache.flink.api.common.time.Time;
-
 import java.math.BigInteger;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -110,7 +108,7 @@ public class TimeUtils {
             throw new IllegalArgumentException(
                     "The value '"
                             + number
-                            + "' cannot be represented as java.time.Duration (numeric overflow).",
+                            + "' cannot be represented as Duration (numeric overflow).",
                     e);
         }
     }
@@ -268,40 +266,6 @@ public class TimeUtils {
 
         private static String createTimeUnitString(TimeUnit timeUnit) {
             return timeUnit.name() + ": (" + String.join(" | ", timeUnit.getLabels()) + ")";
-        }
-    }
-
-    /**
-     * Translates {@link Time} to {@link Duration}.
-     *
-     * @param time time to transform into duration
-     * @return duration equal to the given time
-     * @deprecated Use {@link Duration} APIs
-     */
-    @Deprecated
-    public static Duration toDuration(Time time) {
-        return Duration.of(time.getSize(), toChronoUnit(time.getUnit()));
-    }
-
-    private static ChronoUnit toChronoUnit(java.util.concurrent.TimeUnit timeUnit) {
-        switch (timeUnit) {
-            case NANOSECONDS:
-                return ChronoUnit.NANOS;
-            case MICROSECONDS:
-                return ChronoUnit.MICROS;
-            case MILLISECONDS:
-                return ChronoUnit.MILLIS;
-            case SECONDS:
-                return ChronoUnit.SECONDS;
-            case MINUTES:
-                return ChronoUnit.MINUTES;
-            case HOURS:
-                return ChronoUnit.HOURS;
-            case DAYS:
-                return ChronoUnit.DAYS;
-            default:
-                throw new IllegalArgumentException(
-                        String.format("Unsupported time unit %s.", timeUnit));
         }
     }
 }

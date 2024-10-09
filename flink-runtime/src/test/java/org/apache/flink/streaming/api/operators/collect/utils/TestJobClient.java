@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.SavepointFormatType;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequestGateway;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequestHandler;
@@ -41,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TestJobClient implements JobClient, CoordinationRequestGateway {
 
     private final JobID jobId;
-    private final OperatorID operatorId;
+    private final String operatorUid;
     private final CoordinationRequestHandler handler;
     private final JobInfoProvider infoProvider;
 
@@ -50,11 +49,11 @@ public class TestJobClient implements JobClient, CoordinationRequestGateway {
 
     public TestJobClient(
             JobID jobId,
-            OperatorID operatorId,
+            String operatorUid,
             CoordinationRequestHandler handler,
             JobInfoProvider infoProvider) {
         this.jobId = jobId;
-        this.operatorId = operatorId;
+        this.operatorUid = operatorUid;
         this.handler = handler;
         this.infoProvider = infoProvider;
 
@@ -104,12 +103,12 @@ public class TestJobClient implements JobClient, CoordinationRequestGateway {
 
     @Override
     public CompletableFuture<CoordinationResponse> sendCoordinationRequest(
-            OperatorID operatorId, CoordinationRequest request) {
+            String operatorUid, CoordinationRequest request) {
         if (jobStatus.isGloballyTerminalState()) {
             throw new RuntimeException("Job terminated");
         }
 
-        assertThat(operatorId).isEqualTo(this.operatorId);
+        assertThat(operatorUid).isEqualTo(this.operatorUid);
         CoordinationResponse response;
         try {
             response = handler.handleCoordinationRequest(request).get();

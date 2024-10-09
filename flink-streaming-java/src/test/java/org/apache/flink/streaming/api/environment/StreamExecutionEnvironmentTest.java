@@ -39,8 +39,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.FromElementsFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
@@ -395,7 +395,7 @@ class StreamExecutionEnvironmentTest {
         assertThat(env.getConfig().isPeriodicMaterializeEnabled())
                 .isEqualTo(StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED.defaultValue());
 
-        config.setBoolean(StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED.key(), false);
+        config.set(StateChangelogOptions.PERIODIC_MATERIALIZATION_ENABLED, false);
         env.configure(config, this.getClass().getClassLoader());
         assertThat(env.getConfig().isPeriodicMaterializeEnabled()).isFalse();
     }

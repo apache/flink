@@ -21,6 +21,7 @@ package org.apache.flink.runtime.security.token;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.security.token.DelegationTokenReceiver;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -31,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -57,7 +59,11 @@ public class DelegationTokenReceiverRepository {
             Configuration configuration, @Nullable PluginManager pluginManager) {
         this.configuration = checkNotNull(configuration, "Flink configuration must not be null");
         this.pluginManager = pluginManager;
-        this.delegationTokenReceivers = loadReceivers();
+        if (configuration.get(SecurityOptions.DELEGATION_TOKENS_ENABLED)) {
+            this.delegationTokenReceivers = loadReceivers();
+        } else {
+            this.delegationTokenReceivers = Collections.emptyMap();
+        }
     }
 
     private Map<String, DelegationTokenReceiver> loadReceivers() {
@@ -74,8 +80,9 @@ public class DelegationTokenReceiverRepository {
                                     receiver.serviceName());
                             checkState(
                                     !receivers.containsKey(receiver.serviceName()),
-                                    "Delegation token receiver with service name {} has multiple implementations",
-                                    receiver.serviceName());
+                                    "Delegation token receiver with service name "
+                                            + receiver.serviceName()
+                                            + " has multiple implementations");
                             receivers.put(receiver.serviceName(), receiver);
                         } else {
                             LOG.info(

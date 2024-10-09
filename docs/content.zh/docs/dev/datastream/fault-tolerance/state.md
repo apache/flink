@@ -160,7 +160,7 @@ public class CountWindowAverage extends RichFlatMapFunction<Tuple2<Long, Long>, 
     }
 
     @Override
-    public void open(Configuration config) {
+    public void open(OpenContext ctx) {
         ValueStateDescriptor<Tuple2<Long, Long>> descriptor =
                 new ValueStateDescriptor<>(
                         "average", // the state name
@@ -302,7 +302,7 @@ env.execute()
 ```java
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.time.Time;
+import java.time.Duration;
 
 StateTtlConfig ttlConfig = StateTtlConfig
     .newBuilder(Duration.ofSeconds(1))
@@ -318,7 +318,7 @@ stateDescriptor.enableTimeToLive(ttlConfig);
 ```scala
 import org.apache.flink.api.common.state.StateTtlConfig
 import org.apache.flink.api.common.state.ValueStateDescriptor
-import org.apache.flink.api.common.time.Time
+import java.time.Duration
 
 val ttlConfig = StateTtlConfig
     .newBuilder(Duration.ofSeconds(1))
@@ -337,7 +337,7 @@ from pyflink.common.typeinfo import Types
 from pyflink.datastream.state import ValueStateDescriptor, StateTtlConfig
 
 ttl_config = StateTtlConfig \
-  .new_builder(Time.seconds(1)) \
+  .new_builder(Duration.ofSeconds(1)) \
   .set_update_type(StateTtlConfig.UpdateType.OnCreateAndWrite) \
   .set_state_visibility(StateTtlConfig.StateVisibility.NeverReturnExpired) \
   .build()
@@ -420,7 +420,7 @@ from pyflink.common.time import Time
 from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
-  .new_builder(Time.seconds(1)) \
+  .new_builder(Duration.ofSeconds(1)) \
   .disable_cleanup_in_background() \
   .build()
 ```
@@ -438,7 +438,7 @@ ttl_config = StateTtlConfig \
 {{< tab "Java" >}}
 ```java
 import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.time.Time;
+import java.time.Duration;
 
 StateTtlConfig ttlConfig = StateTtlConfig
     .newBuilder(Duration.ofSeconds(1))
@@ -449,7 +449,7 @@ StateTtlConfig ttlConfig = StateTtlConfig
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.api.common.state.StateTtlConfig
-import org.apache.flink.api.common.time.Time
+import java.time.Duration
 
 val ttlConfig = StateTtlConfig
     .newBuilder(Duration.ofSeconds(1))
@@ -463,7 +463,7 @@ from pyflink.common.time import Time
 from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
-  .new_builder(Time.seconds(1)) \
+  .new_builder(Duration.ofSeconds(1)) \
   .cleanup_full_snapshot() \
   .build()
 ```
@@ -507,7 +507,7 @@ from pyflink.common.time import Time
 from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
-  .new_builder(Time.seconds(1)) \
+  .new_builder(Duration.ofSeconds(1)) \
   .cleanup_incrementally(10, True) \
   .build()
 ```

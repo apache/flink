@@ -19,10 +19,10 @@ package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.shaded.guava32.com.google.common.base.Preconditions
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
+import org.apache.flink.table.legacy.sources.TableSource
 import org.apache.flink.table.planner.JMap
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.TableSource
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{RelOptSchema, RelOptTable}

@@ -28,48 +28,39 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.EnumTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
-import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.functions.query.QueryableAppendingStateOperator;
 import org.apache.flink.streaming.api.functions.query.QueryableValueStateOperator;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
-import org.apache.flink.streaming.api.operators.LegacyKeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.co.IntervalJoinOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.ReduceTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
-import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
-import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.Utils;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -307,68 +298,6 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
     }
 
     /**
-     * Applies the given {@link ProcessFunction} on the input stream, thereby creating a transformed
-     * output stream.
-     *
-     * <p>The function will be called for every element in the input streams and can produce zero or
-     * more output elements. Contrary to the {@link DataStream#flatMap(FlatMapFunction)} function,
-     * this function can also query the time and set timers. When reacting to the firing of set
-     * timers the function can directly emit elements and/or register yet more timers.
-     *
-     * @param processFunction The {@link ProcessFunction} that is called for each element in the
-     *     stream.
-     * @param <R> The type of elements emitted by the {@code ProcessFunction}.
-     * @return The transformed {@link DataStream}.
-     * @deprecated Use {@link KeyedStream#process(KeyedProcessFunction)}
-     */
-    @Deprecated
-    @Override
-    @PublicEvolving
-    public <R> SingleOutputStreamOperator<R> process(ProcessFunction<T, R> processFunction) {
-
-        TypeInformation<R> outType =
-                TypeExtractor.getUnaryOperatorReturnType(
-                        processFunction,
-                        ProcessFunction.class,
-                        0,
-                        1,
-                        TypeExtractor.NO_INDEX,
-                        getType(),
-                        Utils.getCallLocationName(),
-                        true);
-
-        return process(processFunction, outType);
-    }
-
-    /**
-     * Applies the given {@link ProcessFunction} on the input stream, thereby creating a transformed
-     * output stream.
-     *
-     * <p>The function will be called for every element in the input streams and can produce zero or
-     * more output elements. Contrary to the {@link DataStream#flatMap(FlatMapFunction)} function,
-     * this function can also query the time and set timers. When reacting to the firing of set
-     * timers the function can directly emit elements and/or register yet more timers.
-     *
-     * @param processFunction The {@link ProcessFunction} that is called for each element in the
-     *     stream.
-     * @param outputType {@link TypeInformation} for the result type of the function.
-     * @param <R> The type of elements emitted by the {@code ProcessFunction}.
-     * @return The transformed {@link DataStream}.
-     * @deprecated Use {@link KeyedStream#process(KeyedProcessFunction, TypeInformation)}
-     */
-    @Deprecated
-    @Override
-    @Internal
-    public <R> SingleOutputStreamOperator<R> process(
-            ProcessFunction<T, R> processFunction, TypeInformation<R> outputType) {
-
-        LegacyKeyedProcessOperator<KEY, T, R> operator =
-                new LegacyKeyedProcessOperator<>(clean(processFunction));
-
-        return transform("Process", outputType, operator);
-    }
-
-    /**
      * Applies the given {@link KeyedProcessFunction} on the input stream, thereby creating a
      * transformed output stream.
      *
@@ -483,27 +412,6 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
         public IntervalJoin<T1, T2, KEY> inProcessingTime() {
             timeBehaviour = TimeBehaviour.ProcessingTime;
             return this;
-        }
-
-        /**
-         * Specifies the time boundaries over which the join operation works, so that
-         *
-         * <pre>
-         * leftElement.timestamp + lowerBound <= rightElement.timestamp <= leftElement.timestamp + upperBound
-         * </pre>
-         *
-         * <p>By default both the lower and the upper bound are inclusive. This can be configured
-         * with {@link IntervalJoined#lowerBoundExclusive()} and {@link
-         * IntervalJoined#upperBoundExclusive()}
-         *
-         * @param lowerBound The lower bound. Needs to be smaller than or equal to the upperBound
-         * @param upperBound The upper bound. Needs to be bigger than or equal to the lowerBound
-         * @deprecated Use {@link #between(Duration, Duration)}
-         */
-        @Deprecated
-        @PublicEvolving
-        public IntervalJoined<T1, T2, KEY> between(Time lowerBound, Time upperBound) {
-            return between(lowerBound.toDuration(), upperBound.toDuration());
         }
 
         /**
@@ -692,50 +600,6 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
     // ------------------------------------------------------------------------
     //  Windowing
     // ------------------------------------------------------------------------
-
-    /**
-     * Windows this {@code KeyedStream} into tumbling time windows.
-     *
-     * <p>This is a shortcut for either {@code .window(TumblingEventTimeWindows.of(size))} or {@code
-     * .window(TumblingProcessingTimeWindows.of(size))} depending on the time characteristic set
-     * using {@link
-     * org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
-     *
-     * @param size The size of the window.
-     * @deprecated Please use {@link #window(WindowAssigner)} with either {@link
-     *     TumblingEventTimeWindows} or {@link TumblingProcessingTimeWindows}. For more information,
-     *     see the deprecation notice on {@link TimeCharacteristic}
-     */
-    @Deprecated
-    public WindowedStream<T, KEY, TimeWindow> timeWindow(Time size) {
-        if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
-            return window(TumblingProcessingTimeWindows.of(size));
-        } else {
-            return window(TumblingEventTimeWindows.of(size));
-        }
-    }
-
-    /**
-     * Windows this {@code KeyedStream} into sliding time windows.
-     *
-     * <p>This is a shortcut for either {@code .window(SlidingEventTimeWindows.of(size, slide))} or
-     * {@code .window(SlidingProcessingTimeWindows.of(size, slide))} depending on the time
-     * characteristic set using {@link
-     * org.apache.flink.streaming.api.environment.StreamExecutionEnvironment#setStreamTimeCharacteristic(org.apache.flink.streaming.api.TimeCharacteristic)}
-     *
-     * @param size The size of the window.
-     * @deprecated Please use {@link #window(WindowAssigner)} with either {@link
-     *     SlidingEventTimeWindows} or {@link SlidingProcessingTimeWindows}. For more information,
-     *     see the deprecation notice on {@link TimeCharacteristic}
-     */
-    @Deprecated
-    public WindowedStream<T, KEY, TimeWindow> timeWindow(Time size, Time slide) {
-        if (environment.getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime) {
-            return window(SlidingProcessingTimeWindows.of(size, slide));
-        } else {
-            return window(SlidingEventTimeWindows.of(size, slide));
-        }
-    }
 
     /**
      * Windows this {@code KeyedStream} into tumbling count windows.

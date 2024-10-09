@@ -189,6 +189,28 @@ class RTASITCase extends StreamingTestBase {
     }
 
     @Test
+    void testReplaceTableAsSelectWithColumnOrdering() throws Exception {
+        tEnv().executeSql(
+                        "REPLACE TABLE target"
+                                + " (c, a)"
+                                + " WITH ('connector' = 'values', 'bounded' = 'true')"
+                                + " AS SELECT a, c FROM source")
+                .await();
+
+        // verify written rows
+        assertThat(TestValuesTableFactory.getResultsAsStrings("target").toString())
+                .isEqualTo("[" + "+I[Hi, 1], " + "+I[Hello, 2], " + "+I[Hello world, 3]" + "]");
+
+        // verify the table after replacing
+        CatalogTable expectCatalogTable =
+                getExpectCatalogTable(
+                        new String[] {"c", "a"},
+                        new AbstractDataType[] {DataTypes.STRING(), DataTypes.INT()});
+
+        verifyCatalogTable(expectCatalogTable, getCatalogTable("target"));
+    }
+
+    @Test
     void testCreateOrReplaceTableASWithSortLimit() throws Exception {
         tEnv().executeSql(
                         "CREATE OR REPLACE TABLE target WITH ('connector' = 'values',"

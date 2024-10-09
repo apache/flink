@@ -434,7 +434,7 @@ class YARNHighAvailabilityITCase extends YarnTestBase {
             final RestClusterClient<ApplicationId> restClusterClient, final JobID jobId)
             throws Exception {
 
-        return getJobMetric(restClusterClient, jobId, "fullRestarts")
+        return getJobMetric(restClusterClient, jobId, "numRestarts")
                 .map(Metric::getValue)
                 .map(Integer::parseInt)
                 .orElse(0);

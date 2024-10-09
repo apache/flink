@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.taskmanager;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
@@ -47,6 +46,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
@@ -94,7 +94,7 @@ class TaskManagerStdoutFileHandlerTest {
 
     @Test
     void testStdoutFileHandlerHandleFileNotFoundException() throws Exception {
-        final Time cacheEntryDuration = Time.milliseconds(1000L);
+        final Duration cacheEntryDuration = Duration.ofMillis(1000L);
         final TestingChannelHandlerContext testingContext;
         CompletableFuture<Void> handleFuture;
         try (TestingTaskManagerStdoutFileHandler testingTaskManagerStdoutFileHandler =
@@ -124,7 +124,7 @@ class TaskManagerStdoutFileHandlerTest {
 
     @Test
     void testStdoutFileHandlerHandleOtherException() throws Exception {
-        final Time cacheEntryDuration = Time.milliseconds(1000L);
+        final Duration cacheEntryDuration = Duration.ofMillis(1000L);
         final TestingChannelHandlerContext testingContext;
         CompletableFuture<Void> handleFuture;
         try (TestingTaskManagerStdoutFileHandler testingTaskManagerStdoutFileHandler =
@@ -144,7 +144,7 @@ class TaskManagerStdoutFileHandlerTest {
     }
 
     private TestingTaskManagerStdoutFileHandler createTestTaskManagerStdoutFileHandler(
-            Time cacheEntryDuration, Exception exceptionForRequestFileUpload) {
+            Duration cacheEntryDuration, Exception exceptionForRequestFileUpload) {
         final ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 
         return new TestingTaskManagerStdoutFileHandler(

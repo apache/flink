@@ -56,8 +56,6 @@ import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.ExternalQueryOperation;
 import org.apache.flink.table.operations.OutputConversionModifyOperation;
 import org.apache.flink.table.resource.ResourceManager;
-import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
@@ -391,11 +389,5 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
                         wrapWithChangeFlag(typeInfo),
                         OutputConversionModifyOperation.UpdateMode.RETRACT);
         return toStreamInternal(table, modifyOperation);
-    }
-
-    @Override
-    protected void validateTableSource(TableSource<?> tableSource) {
-        super.validateTableSource(tableSource);
-        validateTimeCharacteristic(TableSourceValidation.hasRowtimeAttribute(tableSource));
     }
 }

@@ -19,14 +19,12 @@
 package org.apache.flink.streaming.api.utils;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.util.ProtoUtils;
 
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -82,7 +80,7 @@ class ProtoUtilsTest {
                         .build();
         FlinkFnApi.StateDescriptor.StateTTLConfig stateTTLConfigProto =
                 FlinkFnApi.StateDescriptor.StateTTLConfig.newBuilder()
-                        .setTtl(Time.of(1000, TimeUnit.MILLISECONDS).toMilliseconds())
+                        .setTtl(1000)
                         .setUpdateType(
                                 FlinkFnApi.StateDescriptor.StateTTLConfig.UpdateType
                                         .OnCreateAndWrite)
@@ -99,7 +97,7 @@ class ProtoUtilsTest {
                 .isEqualTo(StateTtlConfig.UpdateType.OnCreateAndWrite);
         assertThat(stateTTLConfig.getStateVisibility())
                 .isEqualTo(StateTtlConfig.StateVisibility.NeverReturnExpired);
-        assertThat(stateTTLConfig.getTtl()).isEqualTo(Time.milliseconds(1000));
+        assertThat(stateTTLConfig.getTimeToLive()).isEqualTo(Duration.ofMillis(1000));
         assertThat(stateTTLConfig.getTtlTimeCharacteristic())
                 .isEqualTo(StateTtlConfig.TtlTimeCharacteristic.ProcessingTime);
 

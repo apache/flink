@@ -20,8 +20,8 @@ package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.connectors.hive.FlinkHiveException;
-import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
+import org.apache.flink.table.legacy.api.constraints.UniqueConstraint;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;

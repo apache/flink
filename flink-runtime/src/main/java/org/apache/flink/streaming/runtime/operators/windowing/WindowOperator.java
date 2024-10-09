@@ -41,7 +41,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
@@ -52,13 +51,14 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.internal.InternalAppendingState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMergingState;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OperatorAttributes;
 import org.apache.flink.streaming.api.operators.OperatorAttributesBuilder;
+import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
@@ -69,9 +69,10 @@ import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.functions.InternalWindowFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.OutputTag;
 
-import java.io.Serializable;
 import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -206,8 +207,19 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
         this.trigger = checkNotNull(trigger);
         this.allowedLateness = allowedLateness;
         this.lateDataOutputTag = lateDataOutputTag;
+    }
 
-        setChainingStrategy(ChainingStrategy.ALWAYS);
+    @Override
+    public void setup(
+            StreamTask<?, ?> containingTask,
+            StreamConfig config,
+            Output<StreamRecord<OUT>> output) {
+        super.setup(containingTask, config, output);
+    }
+
+    @Override
+    public void setProcessingTimeService(ProcessingTimeService processingTimeService) {
+        super.setProcessingTimeService(processingTimeService);
     }
 
     @Override
@@ -836,41 +848,6 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
         public long getCurrentWatermark() {
             return internalTimerService.currentWatermark();
-        }
-
-        @Override
-        public <S extends Serializable> ValueState<S> getKeyValueState(
-                String name, Class<S> stateType, S defaultState) {
-            checkNotNull(stateType, "The state type class must not be null");
-
-            TypeInformation<S> typeInfo;
-            try {
-                typeInfo = TypeExtractor.getForClass(stateType);
-            } catch (Exception e) {
-                throw new RuntimeException(
-                        "Cannot analyze type '"
-                                + stateType.getName()
-                                + "' from the class alone, due to generic type parameters. "
-                                + "Please specify the TypeInformation directly.",
-                        e);
-            }
-
-            return getKeyValueState(name, typeInfo, defaultState);
-        }
-
-        @Override
-        public <S extends Serializable> ValueState<S> getKeyValueState(
-                String name, TypeInformation<S> stateType, S defaultState) {
-
-            checkNotNull(name, "The name of the state must not be null");
-            checkNotNull(stateType, "The state type information must not be null");
-
-            ValueStateDescriptor<S> stateDesc =
-                    new ValueStateDescriptor<>(
-                            name,
-                            stateType.createSerializer(getExecutionConfig().getSerializerConfig()),
-                            defaultState);
-            return getPartitionedState(stateDesc);
         }
 
         @SuppressWarnings("unchecked")

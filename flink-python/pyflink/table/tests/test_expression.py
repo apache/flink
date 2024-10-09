@@ -126,6 +126,12 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         self.assertEqual('hex(a)', str(expr1.hex))
         self.assertEqual("UNHEX(a)", str(expr1.unhex))
         self.assertEqual('truncate(a, 3)', str(expr1.truncate(3)))
+        self.assertEqual('PERCENTILE(a, 0.5)', str(expr1.percentile(0.5)))
+        self.assertEqual('PERCENTILE(a, 0.5, b)',
+                         str(expr1.percentile(0.5, expr2)))
+        self.assertEqual('PERCENTILE(a, array(0.1, 0.5))', str(expr1.percentile(array(0.1, 0.5))))
+        self.assertEqual('PERCENTILE(a, array(0.1, 0.5), b)',
+                         str(expr1.percentile(array(0.1, 0.5), expr2)))
 
         # string functions
         self.assertEqual('substring(a, b)', str(expr1.substring(expr2)))
@@ -179,6 +185,7 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
         # regexp functions
         self.assertEqual("regexp(a, b)", str(expr1.regexp(expr2)))
         self.assertEqual("REGEXP_COUNT(a, b)", str(expr1.regexp_count(expr2)))
+        self.assertEqual('regexpExtract(a, b)', str(expr1.regexp_extract(expr2)))
         self.assertEqual('regexpExtract(a, b, 3)', str(expr1.regexp_extract(expr2, 3)))
         self.assertEqual('REGEXP_EXTRACT_ALL(a, b)', str(expr1.regexp_extract_all(expr2)))
         self.assertEqual('REGEXP_EXTRACT_ALL(a, b, 3)', str(expr1.regexp_extract_all(expr2, 3)))

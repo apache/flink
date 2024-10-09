@@ -101,18 +101,18 @@ function aws_cli() {
 # Arguments:
 #   $1 - local path to save folder with files
 #   $2 - s3 key full path prefix
-#   $3 - s3 file name prefix w/o directory to filter files by name (optional)
-#   $4 - recursive?
+#   $3 - recursive?
+#   $4 - s3 file name prefix w/o directory to filter files by name (optional)
 # Returns:
 #   None
 ###################################
 function s3_get_by_full_path_and_filename_prefix() {
   local args=
-  if [[ $3 ]]; then
-    args=" --exclude '*' --include '*/${3}[!/]*'"
-  fi
-  if [[ "$4" == true ]]; then
+  if [[ "$3" == true ]]; then
     args="$args --recursive"
+  fi
+  if [[ $4 ]]; then
+    args="$args --exclude '*' --include '*/${4}[!/]*'"
   fi
   local relative_dir=${1#$TEST_INFRA_DIR}
   aws_cli s3 cp --quiet "s3://$IT_CASE_S3_BUCKET/$2" "/hostdir/${relative_dir}" $args

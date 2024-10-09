@@ -17,10 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.data.RowData
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.functions._
@@ -46,7 +43,6 @@ import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory
 import org.apache.flink.table.runtime.dataview.DataViewSpec
 import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction
 import org.apache.flink.table.runtime.groupwindow._
-import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.inference.TypeInferenceUtil
@@ -501,9 +497,17 @@ object AggregateUtil extends Enumeration {
       hasStateBackedDataViews: Boolean,
       needsRetraction: Boolean): AggregateInfo =
     call.getAggregation match {
+      // In the new function stack, for imperativeFunction, the conversion from
+      // BuiltInFunctionDefinition to SqlAggFunction is unnecessary, we can simply create
+      // AggregateInfo through BuiltInFunctionDefinition and runtime implementation (obtained from
+      // AggFunctionFactory) directly.
+      // NOTE: make sure to use .runtimeProvided() in BuiltInFunctionDefinition in this case.
       case bridging: BridgingSqlAggFunction =>
         // The FunctionDefinition maybe also instance of DeclarativeAggregateFunction
-        if (bridging.getDefinition.isInstanceOf[DeclarativeAggregateFunction]) {
+        if (
+          bridging.getDefinition.isInstanceOf[BuiltInFunctionDefinition] || bridging.getDefinition
+            .isInstanceOf[DeclarativeAggregateFunction]
+        ) {
           createAggregateInfoFromInternalFunction(
             call,
             udf,

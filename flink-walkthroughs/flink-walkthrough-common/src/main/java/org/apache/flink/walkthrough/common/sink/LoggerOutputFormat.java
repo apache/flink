@@ -36,7 +36,7 @@ public class LoggerOutputFormat implements OutputFormat<String> {
     public void configure(Configuration parameters) {}
 
     @Override
-    public void open(int taskNumber, int numTasks) {}
+    public void open(InitializationContext context) {}
 
     @Override
     public void writeRecord(String record) {

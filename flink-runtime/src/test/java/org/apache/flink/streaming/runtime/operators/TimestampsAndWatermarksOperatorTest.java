@@ -246,8 +246,8 @@ class TimestampsAndWatermarksOperatorTest {
     void watermarksWithIdlenessUnderBackpressure() throws Exception {
         long idleTimeout = 100;
 
-        TimestampsAndWatermarksOperator<Tuple2<Boolean, Long>> operator =
-                new TimestampsAndWatermarksOperator<>(
+        TimestampsAndWatermarksOperatorFactory<Tuple2<Boolean, Long>> operator =
+                new TimestampsAndWatermarksOperatorFactory<>(
                         WatermarkStrategy.forGenerator((ctx) -> new PunctuatedWatermarkGenerator())
                                 .withTimestampAssigner((ctx) -> new TupleExtractor())
                                 .withIdleness(Duration.ofMillis(idleTimeout)),
@@ -285,8 +285,8 @@ class TimestampsAndWatermarksOperatorTest {
     private static <T> OneInputStreamOperatorTestHarness<T, T> createTestHarness(
             WatermarkStrategy<T> watermarkStrategy) throws Exception {
 
-        final TimestampsAndWatermarksOperator<T> operator =
-                new TimestampsAndWatermarksOperator<>(watermarkStrategy, true);
+        final TimestampsAndWatermarksOperatorFactory<T> operator =
+                new TimestampsAndWatermarksOperatorFactory<>(watermarkStrategy, true);
 
         OneInputStreamOperatorTestHarness<T, T> testHarness =
                 new OneInputStreamOperatorTestHarness<>(operator);
@@ -301,8 +301,8 @@ class TimestampsAndWatermarksOperatorTest {
     private static <T> OneInputStreamOperatorTestHarness<T, T> createBatchHarness(
             WatermarkStrategy<T> watermarkStrategy) throws Exception {
 
-        final TimestampsAndWatermarksOperator<T> operator =
-                new TimestampsAndWatermarksOperator<>(watermarkStrategy, false);
+        final TimestampsAndWatermarksOperatorFactory<T> operator =
+                new TimestampsAndWatermarksOperatorFactory<>(watermarkStrategy, false);
 
         OneInputStreamOperatorTestHarness<T, T> testHarness =
                 new OneInputStreamOperatorTestHarness<>(operator);

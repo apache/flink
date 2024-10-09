@@ -65,7 +65,11 @@ public class NonKeyedPartitionWindowedStream<T> implements PartitionWindowedStre
         TypeInformation<R> resultType =
                 TypeExtractor.getMapPartitionReturnTypes(
                         mapPartitionFunction, input.getType(), opName, true);
+
+        // This operator is set to be non-chained as it doesn't use task main thread to write
+        // records to output, which may introduce risks to downstream chained operators.
         return input.transform(opName, resultType, new MapPartitionOperator<>(mapPartitionFunction))
+                .disableChaining()
                 .setParallelism(input.getParallelism());
     }
 

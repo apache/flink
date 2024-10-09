@@ -31,7 +31,7 @@ import java.io.ObjectOutputStream;
  * serialization.
  */
 @Internal
-public class MetadataV4Serializer implements MetadataSerializer {
+public class MetadataV4Serializer extends MetadataV3Serializer {
 
     public static final MetadataSerializer INSTANCE = new MetadataV4Serializer();
     public static final int VERSION = 4;
@@ -45,15 +45,14 @@ public class MetadataV4Serializer implements MetadataSerializer {
     public CheckpointMetadata deserialize(
             DataInputStream dis, ClassLoader userCodeClassLoader, String externalPointer)
             throws IOException {
-        return MetadataV3Serializer.INSTANCE
-                .deserialize(dis, userCodeClassLoader, externalPointer)
+        return super.deserialize(dis, userCodeClassLoader, externalPointer)
                 .withProperties(deserializeProperties(dis));
     }
 
     @Override
     public void serialize(CheckpointMetadata checkpointMetadata, DataOutputStream dos)
             throws IOException {
-        MetadataV3Serializer.INSTANCE.serialize(checkpointMetadata, dos);
+        super.serialize(checkpointMetadata, dos);
         serializeProperties(checkpointMetadata.getCheckpointProperties(), dos);
     }
 
@@ -66,7 +65,7 @@ public class MetadataV4Serializer implements MetadataSerializer {
         }
     }
 
-    private static void serializeProperties(CheckpointProperties properties, DataOutputStream dos)
+    private void serializeProperties(CheckpointProperties properties, DataOutputStream dos)
             throws IOException {
         new ObjectOutputStream(dos).writeObject(properties); // closed outside
     }

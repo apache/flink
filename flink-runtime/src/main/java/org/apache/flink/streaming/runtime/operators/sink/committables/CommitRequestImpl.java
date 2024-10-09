@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 
+import java.util.Objects;
+
 /**
  * Internal implementation to commit a specific committable and handle the response.
  *
@@ -117,5 +119,36 @@ public class CommitRequestImpl<CommT> implements Committer.CommitRequest<CommT> 
 
     CommitRequestImpl<CommT> copy() {
         return new CommitRequestImpl<>(committable, numRetries, state, metricGroup);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        CommitRequestImpl<?> that = (CommitRequestImpl<?>) o;
+        return numRetries == that.numRetries
+                && Objects.equals(committable, that.committable)
+                && state == that.state;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(committable, numRetries, state);
+    }
+
+    @Override
+    public String toString() {
+        return "CommitRequestImpl{"
+                + "state="
+                + state
+                + ", numRetries="
+                + numRetries
+                + ", committable="
+                + committable
+                + '}';
     }
 }

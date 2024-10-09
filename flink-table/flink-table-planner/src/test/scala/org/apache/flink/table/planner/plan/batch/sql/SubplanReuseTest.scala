@@ -17,11 +17,8 @@
  */
 package org.apache.flink.table.planner.plan.batch.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
-import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSortMergeJoinRule
-import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED
 import org.apache.flink.table.planner.plan.utils.OperatorType
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.{NonDeterministicTableFunc, StringSplit}
@@ -221,7 +218,6 @@ class SubplanReuseTest extends TableTestBase {
 
   @Test
   def testSubplanReuseOnSort(): Unit = {
-    util.tableEnv.getConfig.set(TABLE_EXEC_RANGE_SORT_ENABLED, Boolean.box(true))
     val sqlQuery =
       """
         |WITH r AS (SELECT c, SUM(a) a, SUM(b) b FROM x GROUP BY c ORDER BY a, b DESC)
@@ -277,9 +273,6 @@ class SubplanReuseTest extends TableTestBase {
   def testSubplanReuseOnSortMergeJoin(): Unit = {
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,NestedLoopJoin")
-    util.tableEnv.getConfig.set(
-      BatchPhysicalSortMergeJoinRule.TABLE_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED,
-      Boolean.box(true))
     val sqlQuery =
       """
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')

@@ -63,19 +63,6 @@ public class Constants {
     public static final String LABEL_COMPONENT_JOB_MANAGER = "jobmanager";
     public static final String LABEL_COMPONENT_TASK_MANAGER = "taskmanager";
 
-    /**
-     * This constant is deprecated since we do not use it for deletion currently. We still keep the
-     * constants here for backward compatibility.
-     */
-    @Deprecated public static final String LABEL_CONFIGMAP_TYPE_KEY = "configmap-type";
-
-    /**
-     * This constant is deprecated since we do not use it for deletion currently. We still keep the
-     * constants here for backward compatibility.
-     */
-    @Deprecated
-    public static final String LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY = "high-availability";
-
     // Use fixed port in kubernetes, it needs to be exposed.
     public static final int REST_PORT = 8081;
     public static final int BLOB_SERVER_PORT = 6124;

@@ -21,10 +21,11 @@ package org.apache.flink.contrib.streaming.state.ttl;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.runtime.state.ttl.StateBackendTestContext;
 import org.apache.flink.runtime.state.ttl.TtlStateTestBase;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -52,6 +53,17 @@ public abstract class RocksDBTtlStateTestBase extends TtlStateTestBase {
             protected StateBackend createStateBackend() {
                 return RocksDBTtlStateTestBase.this.createStateBackend();
             }
+
+            @Override
+            protected CheckpointStorage createCheckpointStorage() {
+                String checkpointPath;
+                try {
+                    checkpointPath = TempDirUtils.newFolder(tempFolder).toURI().toString();
+                } catch (IOException e) {
+                    throw new FlinkRuntimeException("Failed to init rocksdb test state backend");
+                }
+                return new FileSystemCheckpointStorage(checkpointPath);
+            }
         };
     }
 
@@ -59,16 +71,13 @@ public abstract class RocksDBTtlStateTestBase extends TtlStateTestBase {
 
     StateBackend createStateBackend(TernaryBoolean enableIncrementalCheckpointing) {
         String dbPath;
-        String checkpointPath;
         try {
             dbPath = TempDirUtils.newFolder(tempFolder).getAbsolutePath();
-            checkpointPath = TempDirUtils.newFolder(tempFolder).toURI().toString();
         } catch (IOException e) {
             throw new FlinkRuntimeException("Failed to init rocksdb test state backend");
         }
-        RocksDBStateBackend backend =
-                new RocksDBStateBackend(
-                        new FsStateBackend(checkpointPath), enableIncrementalCheckpointing);
+        EmbeddedRocksDBStateBackend backend =
+                new EmbeddedRocksDBStateBackend(enableIncrementalCheckpointing);
         Configuration config = new Configuration();
         backend = backend.configure(config, Thread.currentThread().getContextClassLoader());
         backend.setDbStoragePath(dbPath);
