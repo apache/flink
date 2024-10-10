@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.functions.sink.legacy.OutputFormatSinkFunc
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OperatingSystem;
@@ -40,6 +41,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.TextInputFormat;
 import org.apache.hadoop.mapred.TextOutputFormat;
+import org.junit.experimental.categories.Category;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -48,6 +50,11 @@ import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Test WordCount with Hadoop input and output "mapred" (legacy) formats. */
 @ExtendWith(ParameterizedTestExtension.class)
+// This test case has been updated from dataset to a datastream.
+// It is essentially a batch job, but the HadoopInputFormat is an unbounded source.
+// As a result, the test case cannot be set to batch runtime mode and should not run with the
+// adaptive scheduler.
+@Category(FailsWithAdaptiveScheduler.class)
 class WordCountMapredITCase extends JavaProgramTestBase {
 
     private String textPath;
