@@ -31,19 +31,21 @@ public class CompressibleFSDataInputStream extends FSDataInputStream {
 
     private final FSDataInputStream delegate;
     private final InputStream compressingDelegate;
+    private final boolean compressed;
 
     public CompressibleFSDataInputStream(
             FSDataInputStream delegate, StreamCompressionDecorator compressionDecorator)
             throws IOException {
         this.delegate = delegate;
         this.compressingDelegate = compressionDecorator.decorateWithCompression(delegate);
+        this.compressed = compressionDecorator != UncompressedStreamCompressionDecorator.INSTANCE;
     }
 
     @Override
     public void seek(long desired) throws IOException {
-        final int available = compressingDelegate.available();
-        if (available > 0) {
-            if (available != compressingDelegate.skip(available)) {
+        if (compressed) {
+            final int available = compressingDelegate.available();
+            if (available > 0 && available != compressingDelegate.skip(available)) {
                 throw new IOException("Unable to skip buffered data.");
             }
         }
