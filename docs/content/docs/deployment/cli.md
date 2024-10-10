@@ -400,9 +400,10 @@ Flink is compatible with multiple cluster management frameworks like
 Resource Provider section. Jobs can be submitted in different [Deployment Modes]({{< ref "docs/deployment/overview" >}}#deployment-modes). 
 The parameterization of a job submission differs based on the underlying framework and Deployment Mode. 
 
-`bin/flink` offers a parameter `--target` to handle the different options. In addition to that, jobs 
-have to be submitted using `run` (for [Session]({{< ref "docs/deployment/overview" >}}#session-mode) 
-and [Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode)). See the following summary of 
+`bin/flink` offers a parameter `--target` to handle the different options. In addition to that, jobs
+have to be submitted using either `run` (for [Session]({{< ref "docs/deployment/overview" >}}#session-mode)
+and [Per-Job Mode (deprecated)]({{< ref "docs/deployment/overview" >}}#per-job-mode)) or `run-application` (for
+[Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode)). See the following summary of
 parameter combinations: 
 * YARN
   * `./bin/flink run --target yarn-session`: Submission to an already running Flink on YARN cluster
@@ -467,6 +468,13 @@ $ ./bin/flink run \
 ```bash
 $ ./bin/flink run \
       --jobmanager <jobmanagerHost>:8081 \
+      --python examples/python/table/word_count.py
+```
+
+- Run a PyFlink job using a [YARN cluster in Per-Job Mode]({{< ref "docs/deployment/resource-providers/yarn" >}}#per-job-cluster-mode):
+```bash
+$ ./bin/flink run \
+      --target yarn-per-job
       --python examples/python/table/word_count.py
 ```
 
