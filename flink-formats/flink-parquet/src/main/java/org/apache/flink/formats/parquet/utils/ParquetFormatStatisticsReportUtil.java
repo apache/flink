@@ -31,7 +31,6 @@ import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.parquet.Preconditions;
 import org.apache.parquet.column.statistics.BinaryStatistics;
 import org.apache.parquet.column.statistics.DoubleStatistics;
 import org.apache.parquet.column.statistics.FloatStatistics;
@@ -63,6 +62,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Utils for Parquet format statistics report. */
 public class ParquetFormatStatisticsReportUtil {
@@ -316,7 +317,7 @@ public class ParquetFormatStatisticsReportUtil {
     }
 
     private static Timestamp binaryToTimestamp(Binary timestamp, boolean utcTimestamp) {
-        Preconditions.checkArgument(timestamp.length() == 12, "Must be 12 bytes");
+        checkArgument(timestamp.length() == 12, "Must be 12 bytes");
         ByteBuffer buf = timestamp.toByteBuffer();
         buf.order(ByteOrder.LITTLE_ENDIAN);
         long timeOfDayNanos = buf.getLong();
