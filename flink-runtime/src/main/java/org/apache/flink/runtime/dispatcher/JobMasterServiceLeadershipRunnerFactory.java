@@ -64,7 +64,7 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
             long initializationTimestamp)
             throws Exception {
 
-        checkArgument(jobGraph.getNumberOfVertices() > 0, "The given job is empty");
+        checkArgument(!jobGraph.isEmpty(), "The given job is empty");
 
         final JobMasterConfiguration jobMasterConfiguration =
                 JobMasterConfiguration.fromConfiguration(configuration);

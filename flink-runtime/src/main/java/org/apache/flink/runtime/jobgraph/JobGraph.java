@@ -67,7 +67,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class JobGraph implements ExecutionPlan {
 
+    private static final long serialVersionUID = 1L;
+
     // --- job and configuration ---
+
+    private long initialClientHeartbeatTimeout;
 
     /** List of task vertices included in this job graph. */
     private final Map<JobVertexID, JobVertex> taskVertices =
@@ -681,11 +685,11 @@ public class JobGraph implements ExecutionPlan {
     }
 
     public void setInitialClientHeartbeatTimeout(long initialClientHeartbeatTimeout) {
-        jobConfiguration.set(INITIAL_CLIENT_HEARTBEAT_TIMEOUT, initialClientHeartbeatTimeout);
+        this.initialClientHeartbeatTimeout = initialClientHeartbeatTimeout;
     }
 
     @Override
     public long getInitialClientHeartbeatTimeout() {
-        return jobConfiguration.get(INITIAL_CLIENT_HEARTBEAT_TIMEOUT);
+        return initialClientHeartbeatTimeout;
     }
 }

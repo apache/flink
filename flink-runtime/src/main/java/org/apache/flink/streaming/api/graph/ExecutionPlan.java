@@ -22,8 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
@@ -47,12 +45,6 @@ import java.util.Map;
  */
 @Internal
 public interface ExecutionPlan extends Serializable {
-    long serialVersionUID = 1L;
-
-    ConfigOption<Long> INITIAL_CLIENT_HEARTBEAT_TIMEOUT =
-            ConfigOptions.key("initialClientHeartbeatTimeout")
-                    .longType()
-                    .defaultValue(Long.MIN_VALUE);
 
     /**
      * Gets the unique identifier of the job.
