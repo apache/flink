@@ -36,7 +36,6 @@ import org.apache.flink.util.Collector;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -128,8 +127,7 @@ class KeyedPartitionWindowedStreamITCase {
                             public void mapPartition(
                                     Iterable<Tuple2<String, String>> values, Collector<String> out)
                                     throws Exception {
-                                Assertions.assertTrue(
-                                        isOpen, "RichMapPartition has not call open method");
+                                assertThat(isOpen).isTrue();
                             }
                         })
                 .sinkTo(new DiscardingSink<>());
