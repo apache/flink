@@ -25,9 +25,9 @@ import static org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriter
 import static org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfiguration.DEFAULT_REQUEST_TIMEOUT_MS;
 
 /** Tests for {@link AsyncSinkWriterConfiguration#builder()}. */
-public class AsyncSinkWriterConfigurationBuilderTest {
+class AsyncSinkWriterConfigurationBuilderTest {
     @Test
-    public void testBuilderSetsValueForTimeoutAndFailOnTimeout() {
+    void testBuilderSetsValueForTimeoutAndFailOnTimeout() {
         AsyncSinkWriterConfiguration configuration =
                 AsyncSinkWriterConfiguration.builder()
                         .setMaxBatchSize(1)
@@ -44,7 +44,7 @@ public class AsyncSinkWriterConfigurationBuilderTest {
     }
 
     @Test
-    public void testBuilderSetsDefaultValuesForTimeoutAndFailOnTimeout() {
+    void testBuilderSetsDefaultValuesForTimeoutAndFailOnTimeout() {
         AsyncSinkWriterConfiguration configuration =
                 AsyncSinkWriterConfiguration.builder()
                         .setMaxBatchSize(1)
