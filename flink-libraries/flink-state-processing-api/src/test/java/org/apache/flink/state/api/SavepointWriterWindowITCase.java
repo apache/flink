@@ -44,7 +44,6 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.AbstractID;
@@ -55,6 +54,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -172,7 +172,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBaseJUnit4 {
         WindowedStateTransformation<Tuple2<String, Integer>, String, TimeWindow> transformation =
                 OperatorTransformation.bootstrapWith(bootstrapData)
                         .keyBy(tuple -> tuple.f0, Types.STRING)
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(5)));
+                        .window(TumblingEventTimeWindows.of(Duration.ofMillis(5)));
 
         SavepointWriter.newSavepoint(env, stateBackend, 128)
                 .withOperator(
@@ -185,7 +185,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBaseJUnit4 {
                 env.addSource(new MaxWatermarkSource<Tuple2<String, Integer>>())
                         .returns(TUPLE_TYPE_INFO)
                         .keyBy(tuple -> tuple.f0)
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(5)));
+                        .window(TumblingEventTimeWindows.of(Duration.ofMillis(5)));
 
         DataStream<Tuple2<String, Integer>> windowed = windowStream.window(stream).uid(UID);
         CloseableIterator<Tuple2<String, Integer>> future = windowed.collectAsync();
@@ -216,7 +216,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBaseJUnit4 {
         WindowedStateTransformation<Tuple2<String, Integer>, String, TimeWindow> transformation =
                 OperatorTransformation.bootstrapWith(bootstrapData)
                         .keyBy(tuple -> tuple.f0, Types.STRING)
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(5)))
+                        .window(TumblingEventTimeWindows.of(Duration.ofMillis(5)))
                         .evictor(CountEvictor.of(1));
 
         SavepointWriter.newSavepoint(env, stateBackend, 128)
@@ -230,7 +230,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBaseJUnit4 {
                 env.addSource(new MaxWatermarkSource<Tuple2<String, Integer>>())
                         .returns(TUPLE_TYPE_INFO)
                         .keyBy(tuple -> tuple.f0)
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(5)))
+                        .window(TumblingEventTimeWindows.of(Duration.ofMillis(5)))
                         .evictor(CountEvictor.of(1));
 
         DataStream<Tuple2<String, Integer>> windowed = windowStream.window(stream).uid(UID);
@@ -263,7 +263,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBaseJUnit4 {
                         .keyBy(tuple -> tuple.f0, Types.STRING)
                         .window(
                                 SlidingEventTimeWindows.of(
-                                        Time.milliseconds(5), Time.milliseconds(1)));
+                                        Duration.ofMillis(5), Duration.ofMillis(1)));
 
         SavepointWriter.newSavepoint(env, stateBackend, 128)
                 .withOperator(
@@ -278,7 +278,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBaseJUnit4 {
                         .keyBy(tuple -> tuple.f0)
                         .window(
                                 SlidingEventTimeWindows.of(
-                                        Time.milliseconds(5), Time.milliseconds(1)));
+                                        Duration.ofMillis(5), Duration.ofMillis(1)));
 
         DataStream<Tuple2<String, Integer>> windowed = windowStream.window(stream).uid(UID);
         CloseableIterator<Tuple2<String, Integer>> future = windowed.collectAsync();
@@ -311,7 +311,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBaseJUnit4 {
                         .keyBy(tuple -> tuple.f0, Types.STRING)
                         .window(
                                 SlidingEventTimeWindows.of(
-                                        Time.milliseconds(5), Time.milliseconds(1)))
+                                        Duration.ofMillis(5), Duration.ofMillis(1)))
                         .evictor(CountEvictor.of(1));
 
         SavepointWriter.newSavepoint(env, stateBackend, 128)
@@ -327,7 +327,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBaseJUnit4 {
                         .keyBy(tuple -> tuple.f0)
                         .window(
                                 SlidingEventTimeWindows.of(
-                                        Time.milliseconds(5), Time.milliseconds(1)))
+                                        Duration.ofMillis(5), Duration.ofMillis(1)))
                         .evictor(CountEvictor.of(1));
 
         DataStream<Tuple2<String, Integer>> windowed = windowStream.window(stream).uid(UID);

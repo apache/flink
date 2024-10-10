@@ -24,47 +24,9 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 
-import java.util.Iterator;
-
 /** A collection of utilities for {@link DataStream DataStreams}. */
 @Experimental
 public final class DataStreamUtils {
-
-    /**
-     * Triggers the distributed execution of the streaming dataflow and returns an iterator over the
-     * elements of the given DataStream.
-     *
-     * <p>The DataStream application is executed in the regular distributed manner on the target
-     * environment, and the events from the stream are polled back to this application process and
-     * thread through Flink's REST API.
-     *
-     * @deprecated Please use {@link DataStream#executeAndCollect()}.
-     */
-    @Deprecated
-    public static <OUT> Iterator<OUT> collect(DataStream<OUT> stream) {
-        return collect(stream, "Data Stream Collect");
-    }
-
-    /**
-     * Triggers the distributed execution of the streaming dataflow and returns an iterator over the
-     * elements of the given DataStream.
-     *
-     * <p>The DataStream application is executed in the regular distributed manner on the target
-     * environment, and the events from the stream are polled back to this application process and
-     * thread through Flink's REST API.
-     *
-     * @deprecated Please use {@link DataStream#executeAndCollect()}.
-     */
-    @Deprecated
-    public static <OUT> Iterator<OUT> collect(DataStream<OUT> stream, String executionJobName) {
-        try {
-            return stream.executeAndCollect(executionJobName);
-        } catch (Exception e) {
-            // this "wrap as unchecked" step is here only to preserve the exception signature
-            // backwards compatible.
-            throw new RuntimeException("Failed to execute data stream", e);
-        }
-    }
 
     // ------------------------------------------------------------------------
     //  Deriving a KeyedStream from a stream already partitioned by key

@@ -20,8 +20,6 @@ package org.apache.flink.streaming.api.connector.sink2;
 
 import org.apache.flink.annotation.Experimental;
 
-import java.util.OptionalLong;
-
 /** The message send from {@code SinkWriter} to {@code Committer}. */
 @Experimental
 public interface CommittableMessage<CommT> {
@@ -33,18 +31,6 @@ public interface CommittableMessage<CommT> {
 
     /** The subtask that created this committable. */
     int getSubtaskId();
-
-    /**
-     * Returns the checkpoint id or empty if the message does not belong to a checkpoint. In that
-     * case, the committable was created at the end of input (e.g., in batch mode).
-     *
-     * @see #getCheckpointIdOrEOI()
-     */
-    @Deprecated
-    default OptionalLong getCheckpointId() {
-        long checkpointIdOrEOI = getCheckpointIdOrEOI();
-        return checkpointIdOrEOI == EOI ? OptionalLong.empty() : OptionalLong.of(checkpointIdOrEOI);
-    }
 
     /**
      * Returns the checkpoint id or EOI if this message belong to the final checkpoint or the batch

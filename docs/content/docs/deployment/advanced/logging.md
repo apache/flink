@@ -55,17 +55,29 @@ Alternatively, it can be configured explicitly - [log4j pattern layout](https://
 
 ## Configuring Log4j 2
 
-Log4j 2 is controlled using property files.
+Log4j 2 is controlled using a mixture of property files and configuration.
+
+### Log4j 2 property files
 
 The Flink distribution ships with the following log4j properties files in the `conf` directory, which are used automatically if Log4j 2 is enabled:
 
-- `log4j-cli.properties`: used by the command line interface (e.g., `flink run`)
+- `log4j-cli.properties`: used by the command line interface (e.g., `flink run`, `sql-client`)
 - `log4j-session.properties`: used by the command line interface when starting a Kubernetes/Yarn session cluster (i.e., `kubernetes-session.sh`/`yarn-session.sh`)
 - `log4j-console.properties`: used for Job-/TaskManagers if they are run in the foreground (e.g., Kubernetes)
 - `log4j.properties`: used for Job-/TaskManagers by default
 
 Log4j periodically scans this file for changes and adjusts the logging behavior if necessary.
-By default this check happens every 30 seconds and is controlled by the `monitorInterval` setting in the Log4j properties files.
+By default, this check happens every 30 seconds and is controlled by the `monitorInterval` setting in the Log4j properties files.
+
+### Log4j 2 configuration
+
+The following [logging-related configuration options]({{< ref "docs/deployment/config">}}#jvm-and-logging-options) are available:
+
+| Configuration  | Description                                                             | Default                         |
+|----------------|-------------------------------------------------------------------------|---------------------------------|
+| `env.log.dir`  | The directory where the Flink logs are saved. Must be an absolute path. | `log` folder under Flink's home |
+| `env.log.level` | Root logger level.                                                      | `INFO`                          |
+| `env.log.max`  | The maximum number of old log files to keep.                            | 10                              |
 
 ### Compatibility with Log4j 1
 

@@ -25,8 +25,8 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.rocksdb.RocksDB;
-import org.rocksdb.WriteOptions;
+import org.forstdb.RocksDB;
+import org.forstdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,6 +74,7 @@ public class ForStStateExecutor implements StateExecutor {
     private final AtomicLong ongoing;
 
     public ForStStateExecutor(
+            boolean coordinatorInline,
             boolean isWriteInline,
             int readIoParallelism,
             int writeIoParallelism,
@@ -82,8 +83,11 @@ public class ForStStateExecutor implements StateExecutor {
         if (isWriteInline) {
             Preconditions.checkState(readIoParallelism > 0);
             this.coordinatorThread =
-                    Executors.newSingleThreadScheduledExecutor(
-                            new ExecutorThreadFactory("ForSt-StateExecutor-Coordinator-And-Write"));
+                    coordinatorInline
+                            ? org.apache.flink.util.concurrent.Executors.newDirectExecutorService()
+                            : Executors.newSingleThreadExecutor(
+                                    new ExecutorThreadFactory(
+                                            "ForSt-StateExecutor-Coordinator-And-Write"));
             this.readThreadCount = readIoParallelism;
             this.readThreads =
                     Executors.newFixedThreadPool(
@@ -95,8 +99,10 @@ public class ForStStateExecutor implements StateExecutor {
         } else {
             Preconditions.checkState(readIoParallelism > 0 || writeIoParallelism > 0);
             this.coordinatorThread =
-                    Executors.newSingleThreadScheduledExecutor(
-                            new ExecutorThreadFactory("ForSt-StateExecutor-Coordinator"));
+                    coordinatorInline
+                            ? org.apache.flink.util.concurrent.Executors.newDirectExecutorService()
+                            : Executors.newSingleThreadExecutor(
+                                    new ExecutorThreadFactory("ForSt-StateExecutor-Coordinator"));
             if (readIoParallelism <= 0 || writeIoParallelism <= 0) {
                 this.readThreadCount = Math.max(readIoParallelism, writeIoParallelism);
                 this.readThreads =
@@ -230,11 +236,12 @@ public class ForStStateExecutor implements StateExecutor {
 
     @Override
     public void shutdown() {
+        // Coordinator should be shutdown before others, since it submit jobs to others.
+        coordinatorThread.shutdown();
         readThreads.shutdown();
         if (!sharedWriteThread) {
             writeThreads.shutdown();
         }
-        coordinatorThread.shutdown();
         LOG.info("Shutting down the ForStStateExecutor.");
     }
 }

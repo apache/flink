@@ -36,7 +36,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -261,12 +260,6 @@ public class FlinkConfigLoaderTest {
                             + ": "
                             + "name:file1,path:'file:///tmp/file1';name:file2,path:'hdfs:///tmp/file2'"
                             + "\n");
-            fw.write(
-                    "pipeline.default-kryo-serializers"
-                            + ": "
-                            + "class:org.example.ExampleClass,serializer:org.example.ExampleSerializer1;"
-                            + " class:org.example.ExampleClass2,serializer:org.example.ExampleSerializer2"
-                            + "\n");
         }
         Map<String, String> configuration =
                 ConfigurationFileMigrationUtils.loadLegacyYAMLResource(file);
@@ -287,19 +280,6 @@ public class FlinkConfigLoaderTest {
                 GlobalConfiguration.loadConfiguration(newConfigFolder.toString());
         assertThat(configuration.getOrDefault(TEST_CONFIG_KEY, null))
                 .isEqualTo(standardYamlConfig.getString(TEST_CONFIG_KEY, null));
-
-        List<String> serializers =
-                ConfigurationUtils.convertToList(
-                        configuration.get(PipelineOptions.KRYO_DEFAULT_SERIALIZERS.key()),
-                        String.class);
-        assertThat(
-                        serializers.stream()
-                                .map(ConfigurationUtils::parseStringToMap)
-                                .collect(Collectors.toList()))
-                .isEqualTo(
-                        standardYamlConfig.get(PipelineOptions.KRYO_DEFAULT_SERIALIZERS).stream()
-                                .map(ConfigurationUtils::parseStringToMap)
-                                .collect(Collectors.toList()));
 
         List<String> cachedFiles =
                 ConfigurationUtils.convertToList(

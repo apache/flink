@@ -56,6 +56,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Implementation of the {@link org.apache.flink.api.common.functions.RuntimeContext}, for streaming
@@ -72,6 +73,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
     private final ProcessingTimeService processingTimeService;
     private @Nullable KeyedStateStore keyedStateStore;
     private @Nullable KeyedStateStoreV2 keyedStateStoreV2;
+    private SupportKeyedStateApiSet supportKeyedStateApiSet;
     private final ExternalResourceInfoProvider externalResourceInfoProvider;
 
     @VisibleForTesting
@@ -110,6 +112,8 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
         this.operatorUniqueID = checkNotNull(operatorID).toString();
         this.processingTimeService = processingTimeService;
         this.keyedStateStore = keyedStateStore;
+        // By default, support state v1
+        this.supportKeyedStateApiSet = SupportKeyedStateApiSet.STATE_V1;
         this.externalResourceInfoProvider = externalResourceInfoProvider;
     }
 
@@ -119,6 +123,8 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 
     public void setKeyedStateStoreV2(@Nullable KeyedStateStoreV2 keyedStateStoreV2) {
         this.keyedStateStoreV2 = keyedStateStoreV2;
+        // Only if the keyedStateStoreV2 is set, this context is switch to support state v2
+        this.supportKeyedStateApiSet = SupportKeyedStateApiSet.STATE_V2;
     }
 
     // ------------------------------------------------------------------------
@@ -245,6 +251,12 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
     private KeyedStateStore checkPreconditionsAndGetKeyedStateStore(
             StateDescriptor<?, ?> stateDescriptor) {
         checkNotNull(stateDescriptor, "The state properties must not be null");
+        checkState(
+                supportKeyedStateApiSet == SupportKeyedStateApiSet.STATE_V1,
+                "Current operator integrates the logic of async processing, "
+                        + "thus only support state v2 APIs. Please use StateDescriptor under "
+                        + "'org.apache.flink.runtime.state.v2' or make current operator extend "
+                        + "from AbstractStreamOperator/AbstractStreamOperatorV2.");
         checkNotNull(
                 keyedStateStore,
                 String.format(
@@ -294,6 +306,12 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
     private KeyedStateStoreV2 checkPreconditionsAndGetKeyedStateStoreV2(
             org.apache.flink.runtime.state.v2.StateDescriptor<?> stateDescriptor) {
         checkNotNull(stateDescriptor, "The state properties must not be null");
+        checkState(
+                supportKeyedStateApiSet == SupportKeyedStateApiSet.STATE_V2,
+                "Current operator does not integrate the logic of async processing, "
+                        + "thus only support state v1 APIs. Please use StateDescriptor under "
+                        + "'org.apache.flink.runtime.state' or make current operator extend from "
+                        + "AbstractAsyncStateStreamOperator/AbstractAsyncStateStreamOperatorV2.");
         checkNotNull(
                 keyedStateStoreV2,
                 String.format(
@@ -311,5 +329,14 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
      */
     public boolean isCheckpointingEnabled() {
         return streamConfig.isCheckpointingEnabled();
+    }
+
+    /**
+     * Currently, we only support one keyed state api set. This is determined by the stream
+     * operator. This will be set via {@link #setKeyedStateStore} or {@link #setKeyedStateStoreV2}.
+     */
+    private enum SupportKeyedStateApiSet {
+        STATE_V1,
+        STATE_V2
     }
 }

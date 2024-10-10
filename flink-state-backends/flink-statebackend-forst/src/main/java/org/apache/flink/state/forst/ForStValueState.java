@@ -34,7 +34,7 @@ import org.apache.flink.runtime.state.v2.AbstractValueState;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.util.Preconditions;
 
-import org.rocksdb.ColumnFamilyHandle;
+import org.forstdb.ColumnFamilyHandle;
 
 import java.io.IOException;
 import java.util.function.Supplier;

@@ -19,7 +19,6 @@ package org.apache.flink.table.api.bridge.scala.internal
 
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
@@ -31,10 +30,11 @@ import org.apache.flink.table.delegation.{Executor, Planner}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.factories.{PlannerFactoryUtil, TableFactoryUtil}
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserDefinedFunctionHelper}
+import org.apache.flink.table.legacy.sources.TableSource
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations._
 import org.apache.flink.table.resource.ResourceManager
-import org.apache.flink.table.sources.{TableSource, TableSourceValidation}
+import org.apache.flink.table.sources.TableSourceValidation
 import org.apache.flink.table.types.AbstractDataType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
@@ -262,22 +262,6 @@ class StreamTableEnvironmentImpl(
       typeInfo,
       accTypeInfo
     )
-  }
-
-  override protected def validateTableSource(tableSource: TableSource[_]): Unit = {
-    super.validateTableSource(tableSource)
-    // check that event-time is enabled if table source includes rowtime attributes
-    if (
-      TableSourceValidation.hasRowtimeAttribute(tableSource) &&
-      executionEnvironment.getStreamTimeCharacteristic != TimeCharacteristic.EventTime
-    ) {
-      throw new TableException(
-        String.format(
-          "A rowtime attribute requires an EventTime time characteristic in stream " +
-            "environment. But is: %s}",
-          executionEnvironment.getStreamTimeCharacteristic
-        ))
-    }
   }
 
   override def createTemporaryView[T](

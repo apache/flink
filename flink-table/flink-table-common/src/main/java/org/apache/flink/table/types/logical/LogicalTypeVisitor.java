@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.legacy.types.logical.TypeInformationRawType;
 
 /**
  * The visitor definition of {@link LogicalType}. The visitor transforms a logical type into

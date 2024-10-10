@@ -18,12 +18,17 @@
 
 package org.apache.flink.state.forst.restore;
 
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.state.forst.ForStNativeMetricMonitor;
 
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksDB;
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.RocksDB;
 
 import javax.annotation.Nullable;
+
+import java.util.Collection;
+import java.util.SortedMap;
+import java.util.UUID;
 
 /** Entity holding result of ForSt instance restore. */
 public class ForStRestoreResult {
@@ -31,17 +36,40 @@ public class ForStRestoreResult {
     private final ColumnFamilyHandle defaultColumnFamilyHandle;
     @Nullable private final ForStNativeMetricMonitor nativeMetricMonitor;
 
+    // fields only for incremental restore
+    private final long lastCompletedCheckpointId;
+    private final UUID backendUID;
+    private final SortedMap<Long, Collection<HandleAndLocalPath>> restoredSstFiles;
+
     public ForStRestoreResult(
             RocksDB db,
             ColumnFamilyHandle defaultColumnFamilyHandle,
-            ForStNativeMetricMonitor nativeMetricMonitor) {
+            @Nullable ForStNativeMetricMonitor nativeMetricMonitor,
+            long lastCompletedCheckpointId,
+            UUID backendUID,
+            SortedMap<Long, Collection<HandleAndLocalPath>> restoredSstFiles) {
         this.db = db;
         this.defaultColumnFamilyHandle = defaultColumnFamilyHandle;
         this.nativeMetricMonitor = nativeMetricMonitor;
+        this.lastCompletedCheckpointId = lastCompletedCheckpointId;
+        this.backendUID = backendUID;
+        this.restoredSstFiles = restoredSstFiles;
     }
 
     public RocksDB getDb() {
         return db;
+    }
+
+    public long getLastCompletedCheckpointId() {
+        return lastCompletedCheckpointId;
+    }
+
+    public UUID getBackendUID() {
+        return backendUID;
+    }
+
+    public SortedMap<Long, Collection<HandleAndLocalPath>> getRestoredSstFiles() {
+        return restoredSstFiles;
     }
 
     public ColumnFamilyHandle getDefaultColumnFamilyHandle() {

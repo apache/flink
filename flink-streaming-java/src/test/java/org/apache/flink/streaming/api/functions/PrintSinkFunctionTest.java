@@ -18,8 +18,8 @@
 package org.apache.flink.streaming.api.functions;
 
 import org.apache.flink.api.common.functions.DefaultOpenContext;
-import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
+import org.apache.flink.streaming.api.functions.sink.legacy.PrintSinkFunction;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 
 import org.junit.jupiter.api.AfterEach;

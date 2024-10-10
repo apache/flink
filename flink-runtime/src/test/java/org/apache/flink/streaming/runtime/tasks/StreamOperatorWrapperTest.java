@@ -99,7 +99,6 @@ class StreamOperatorWrapperTest {
                                 processingTimeService,
                                 mailboxExecutor,
                                 timerMailController);
-                streamOperator.setProcessingTimeService(processingTimeService);
 
                 StreamOperatorWrapper<?, ?> operatorWrapper =
                         new StreamOperatorWrapper<>(
@@ -281,6 +280,7 @@ class StreamOperatorWrapperTest {
 
             processingTimeService.registerTimer(
                     Long.MAX_VALUE, t2 -> output.add("[" + name + "]: Timer not triggered"));
+            super.setProcessingTimeService(processingTimeService);
         }
 
         public String getName() {

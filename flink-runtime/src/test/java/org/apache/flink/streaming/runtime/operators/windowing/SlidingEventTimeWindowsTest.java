@@ -21,11 +21,12 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
 import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -40,7 +41,7 @@ class SlidingEventTimeWindowsTest {
                 mock(WindowAssigner.WindowAssignerContext.class);
 
         SlidingEventTimeWindows assigner =
-                SlidingEventTimeWindows.of(Time.milliseconds(5000), Time.milliseconds(1000));
+                SlidingEventTimeWindows.of(Duration.ofMillis(5000), Duration.ofMillis(1000));
 
         assertThat(assigner.assignWindows("String", 0L, mockContext))
                 .containsExactlyInAnyOrder(
@@ -74,7 +75,7 @@ class SlidingEventTimeWindowsTest {
 
         SlidingEventTimeWindows assigner =
                 SlidingEventTimeWindows.of(
-                        Time.milliseconds(5000), Time.milliseconds(1000), Time.milliseconds(100));
+                        Duration.ofMillis(5000), Duration.ofMillis(1000), Duration.ofMillis(100));
 
         assertThat(assigner.assignWindows("String", 100L, mockContext))
                 .containsExactlyInAnyOrder(
@@ -108,7 +109,7 @@ class SlidingEventTimeWindowsTest {
 
         SlidingEventTimeWindows assigner =
                 SlidingEventTimeWindows.of(
-                        Time.milliseconds(5000), Time.milliseconds(1000), Time.milliseconds(-100));
+                        Duration.ofMillis(5000), Duration.ofMillis(1000), Duration.ofMillis(-100));
 
         assertThat(assigner.assignWindows("String", 0L, mockContext))
                 .containsExactlyInAnyOrder(
@@ -144,7 +145,7 @@ class SlidingEventTimeWindowsTest {
 
         SlidingEventTimeWindows assigner =
                 SlidingEventTimeWindows.of(
-                        Time.seconds(5), Time.seconds(1), Time.milliseconds(500));
+                        Duration.ofSeconds(5), Duration.ofSeconds(1), Duration.ofMillis(500));
 
         assertThat(assigner.assignWindows("String", 100L, mockContext))
                 .containsExactlyInAnyOrder(
@@ -174,32 +175,44 @@ class SlidingEventTimeWindowsTest {
     @Test
     void testInvalidParameters() {
 
-        assertThatThrownBy(() -> SlidingEventTimeWindows.of(Time.seconds(-2), Time.seconds(1)))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("abs(offset) < slide and size > 0");
-
-        assertThatThrownBy(() -> SlidingEventTimeWindows.of(Time.seconds(2), Time.seconds(-1)))
+        assertThatThrownBy(
+                        () ->
+                                SlidingEventTimeWindows.of(
+                                        Duration.ofSeconds(-2), Duration.ofSeconds(1)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("abs(offset) < slide and size > 0");
 
         assertThatThrownBy(
                         () ->
                                 SlidingEventTimeWindows.of(
-                                        Time.seconds(-20), Time.seconds(10), Time.seconds(-1)))
+                                        Duration.ofSeconds(2), Duration.ofSeconds(-1)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("abs(offset) < slide and size > 0");
 
         assertThatThrownBy(
                         () ->
                                 SlidingEventTimeWindows.of(
-                                        Time.seconds(20), Time.seconds(10), Time.seconds(-11)))
+                                        Duration.ofSeconds(-20),
+                                        Duration.ofSeconds(10),
+                                        Duration.ofSeconds(-1)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("abs(offset) < slide and size > 0");
 
         assertThatThrownBy(
                         () ->
                                 SlidingEventTimeWindows.of(
-                                        Time.seconds(20), Time.seconds(10), Time.seconds(11)))
+                                        Duration.ofSeconds(20),
+                                        Duration.ofSeconds(10),
+                                        Duration.ofSeconds(-11)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("abs(offset) < slide and size > 0");
+
+        assertThatThrownBy(
+                        () ->
+                                SlidingEventTimeWindows.of(
+                                        Duration.ofSeconds(20),
+                                        Duration.ofSeconds(10),
+                                        Duration.ofSeconds(11)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("abs(offset) < slide and size > 0");
     }
@@ -207,7 +220,7 @@ class SlidingEventTimeWindowsTest {
     @Test
     void testProperties() {
         SlidingEventTimeWindows assigner =
-                SlidingEventTimeWindows.of(Time.seconds(5), Time.milliseconds(100));
+                SlidingEventTimeWindows.of(Duration.ofSeconds(5), Duration.ofMillis(100));
 
         assertThat(assigner.isEventTime()).isTrue();
         assertThat(assigner.getWindowSerializer(new ExecutionConfig()))

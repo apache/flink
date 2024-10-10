@@ -25,13 +25,13 @@ import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase
 import org.apache.flink.table.api.{createTuple2TypeInformation, TableException}
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.data.util.RowDataUtil
+import org.apache.flink.table.legacy.sinks.TableSink
 import org.apache.flink.table.planner.codegen.CodeGenUtils.genToExternalConverterWithLegacy
 import org.apache.flink.table.planner.codegen.GeneratedExpression.NO_CODE
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.{generateCollect, generateCollectWithTimestamp}
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
-import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.RowType
 

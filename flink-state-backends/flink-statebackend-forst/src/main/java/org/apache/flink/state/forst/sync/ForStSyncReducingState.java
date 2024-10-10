@@ -28,8 +28,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksDBException;
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.RocksDBException;
 
 import java.io.IOException;
 import java.util.Collection;

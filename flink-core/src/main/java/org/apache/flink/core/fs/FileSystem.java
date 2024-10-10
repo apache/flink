@@ -615,14 +615,6 @@ public abstract class FileSystem implements IFileSystem {
     }
 
     /**
-     * Gets a description of the characteristics of this file system.
-     *
-     * @deprecated this method is not used anymore.
-     */
-    @Deprecated
-    public abstract FileSystemKind getKind();
-
-    /**
      * Return the number of bytes that large input files should be optimally be split into to
      * minimize I/O time.
      *

@@ -56,11 +56,8 @@ public class CompactCoordinatorFactory extends AbstractStreamOperatorFactory<Com
             StreamOperatorParameters<CompactorRequest> parameters) {
         try {
             final CompactCoordinator compactOperator =
-                    new CompactCoordinator(strategy, committableSerializerSupplier.get());
-            compactOperator.setup(
-                    parameters.getContainingTask(),
-                    parameters.getStreamConfig(),
-                    parameters.getOutput());
+                    new CompactCoordinator(
+                            parameters, strategy, committableSerializerSupplier.get());
             return (T) compactOperator;
         } catch (Exception e) {
             throw new IllegalStateException(

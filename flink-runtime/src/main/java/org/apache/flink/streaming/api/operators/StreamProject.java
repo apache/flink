@@ -39,8 +39,6 @@ public class StreamProject<IN, OUT extends Tuple> extends AbstractStreamOperator
         this.fields = fields;
         this.numFields = this.fields.length;
         this.outSerializer = outSerializer;
-
-        chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
     @Override

@@ -62,7 +62,7 @@ public class StateBackendITCase extends AbstractTestBaseJUnit4 {
         RestartStrategyUtils.configureNoRestartStrategy(see);
 
         see.fromData(new Tuple2<>("Hello", 1))
-                .keyBy(0)
+                .keyBy(x -> x.f0)
                 .map(
                         new RichMapFunction<Tuple2<String, Integer>, String>() {
                             private static final long serialVersionUID = 1L;

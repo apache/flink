@@ -20,8 +20,10 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.operators.Keys;
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -39,6 +41,8 @@ import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
 import org.apache.flink.streaming.api.operators.co.LegacyKeyedCoProcessOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
+import org.apache.flink.streaming.util.keys.KeySelectorUtil;
+import org.apache.flink.util.Utils;
 
 import static java.util.Objects.requireNonNull;
 
@@ -117,30 +121,36 @@ public class ConnectedStreams<IN1, IN2> {
      * KeyBy operation for connected data stream. Assigns keys to the elements of input1 and input2
      * according to keyPosition1 and keyPosition2.
      *
+     * @deprecated use {@link #keyBy(KeySelector, KeySelector)}
      * @param keyPosition1 The field used to compute the hashcode of the elements in the first input
      *     stream.
      * @param keyPosition2 The field used to compute the hashcode of the elements in the second
      *     input stream.
      * @return The grouped {@link ConnectedStreams}
      */
+    @Deprecated
     public ConnectedStreams<IN1, IN2> keyBy(int keyPosition1, int keyPosition2) {
         return new ConnectedStreams<>(
                 this.environment,
-                inputStream1.keyBy(keyPosition1),
-                inputStream2.keyBy(keyPosition2));
+                keyBy(inputStream1, keyPosition1),
+                keyBy(inputStream2, keyPosition2));
     }
 
     /**
      * KeyBy operation for connected data stream. Assigns keys to the elements of input1 and input2
      * according to keyPositions1 and keyPositions2.
      *
+     * @deprecated use {@link #keyBy(KeySelector, KeySelector)}
      * @param keyPositions1 The fields used to group the first input stream.
      * @param keyPositions2 The fields used to group the second input stream.
      * @return The grouped {@link ConnectedStreams}
      */
+    @Deprecated
     public ConnectedStreams<IN1, IN2> keyBy(int[] keyPositions1, int[] keyPositions2) {
         return new ConnectedStreams<>(
-                environment, inputStream1.keyBy(keyPositions1), inputStream2.keyBy(keyPositions2));
+                environment,
+                keyBy(inputStream1, keyPositions1),
+                keyBy(inputStream2, keyPositions2));
     }
 
     /**
@@ -149,13 +159,15 @@ public class ConnectedStreams<IN1, IN2> {
      * a public field or a getter method with parentheses of the {@link DataStream}S underlying
      * type. A dot can be used to drill down into objects, as in {@code "field1.getInnerField2()" }.
      *
+     * @deprecated use {@link #keyBy(KeySelector, KeySelector)}
      * @param field1 The grouping expression for the first input
      * @param field2 The grouping expression for the second input
      * @return The grouped {@link ConnectedStreams}
      */
+    @Deprecated
     public ConnectedStreams<IN1, IN2> keyBy(String field1, String field2) {
         return new ConnectedStreams<>(
-                environment, inputStream1.keyBy(field1), inputStream2.keyBy(field2));
+                environment, keyBy(inputStream1, field1), keyBy(inputStream2, field2));
     }
 
     /**
@@ -164,13 +176,30 @@ public class ConnectedStreams<IN1, IN2> {
      * field or a getter method with parentheses of the {@link DataStream}S underlying type. A dot
      * can be used to drill down into objects, as in {@code "field1.getInnerField2()" } .
      *
+     * @deprecated use {@link #keyBy(KeySelector, KeySelector)}
      * @param fields1 The grouping expressions for the first input
      * @param fields2 The grouping expressions for the second input
      * @return The grouped {@link ConnectedStreams}
      */
+    @Deprecated
     public ConnectedStreams<IN1, IN2> keyBy(String[] fields1, String[] fields2) {
         return new ConnectedStreams<>(
-                environment, inputStream1.keyBy(fields1), inputStream2.keyBy(fields2));
+                environment, keyBy(inputStream1, fields1), keyBy(inputStream2, fields2));
+    }
+
+    private static <T> DataStream<T> keyBy(DataStream<T> inputStream, int... keyPositions) {
+        if (inputStream.getType() instanceof BasicArrayTypeInfo
+                || inputStream.getType() instanceof PrimitiveArrayTypeInfo) {
+            return inputStream.keyBy(
+                    KeySelectorUtil.getSelectorForArray(keyPositions, inputStream.getType()));
+        } else {
+            return inputStream.keyBy(
+                    new Keys.ExpressionKeys<>(keyPositions, inputStream.getType()));
+        }
+    }
+
+    private static <T> DataStream<T> keyBy(DataStream<T> inputStream, String... fields) {
+        return inputStream.keyBy(new Keys.ExpressionKeys<>(fields, inputStream.getType()));
     }
 
     /**

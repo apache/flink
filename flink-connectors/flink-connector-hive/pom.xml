@@ -702,13 +702,7 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!--flink-java and flink-clients test dependencies used for HiveInputFormatTest-->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
+		<!--flink-clients test dependencies used for HiveInputFormatTest-->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients</artifactId>
@@ -1288,14 +1282,14 @@ under the License.
 									<artifact>org.apache.flink:flink-orc</artifact>
 									<excludes>
 										<exclude>META-INF/services/org.apache.flink.table.factories.Factory</exclude>
-										<exclude>META-INF/services/org.apache.flink.table.factories.TableFactory</exclude>
+										<exclude>META-INF/services/org.apache.flink.table.legacy.factories.TableFactory</exclude>
 									</excludes>
 								</filter>
 								<filter>
 									<artifact>org.apache.flink:flink-parquet</artifact>
 									<excludes>
 										<exclude>META-INF/services/org.apache.flink.table.factories.Factory</exclude>
-										<exclude>META-INF/services/org.apache.flink.table.factories.TableFactory</exclude>
+										<exclude>META-INF/services/org.apache.flink.table.legacy.factories.TableFactory</exclude>
 									</excludes>
 								</filter>
 							</filters>

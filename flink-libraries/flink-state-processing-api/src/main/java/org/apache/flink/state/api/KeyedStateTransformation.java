@@ -24,6 +24,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.state.api.functions.KeyedStateBootstrapFunction;
 import org.apache.flink.state.api.output.operators.KeyedStateBootstrapOperator;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
@@ -77,7 +78,9 @@ public class KeyedStateTransformation<K, T> {
             KeyedStateBootstrapFunction<K, T> processFunction) {
         SavepointWriterOperatorFactory factory =
                 (timestamp, path) ->
-                        new KeyedStateBootstrapOperator<>(timestamp, path, processFunction);
+                        SimpleOperatorFactory.of(
+                                new KeyedStateBootstrapOperator<>(
+                                        timestamp, path, processFunction));
         return transform(factory);
     }
 

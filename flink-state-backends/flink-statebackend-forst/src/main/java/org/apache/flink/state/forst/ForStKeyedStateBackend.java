@@ -20,6 +20,8 @@ package org.apache.flink.state.forst;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataInputDeserializer;
@@ -34,6 +36,8 @@ import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
+import org.apache.flink.runtime.state.StateSnapshotTransformer;
+import org.apache.flink.runtime.state.v2.AggregatingStateDescriptor;
 import org.apache.flink.runtime.state.v2.ListStateDescriptor;
 import org.apache.flink.runtime.state.v2.ReducingStateDescriptor;
 import org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo;
@@ -43,10 +47,11 @@ import org.apache.flink.state.forst.snapshot.ForStSnapshotStrategyBase;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StateMigrationException;
 
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.RocksDB;
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.ColumnFamilyOptions;
+import org.forstdb.RocksDB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -138,11 +143,8 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
     @GuardedBy("lock")
     private final Set<StateExecutor> managedStateExecutors;
 
-    /** The flag indicating whether ForStKeyedStateBackend is closed. */
+    /** Mark whether this backend is already disposed and prevent duplicate disposing. */
     @GuardedBy("lock")
-    private boolean closed = false;
-
-    // mark whether this backend is already disposed and prevent duplicate disposing
     private boolean disposed = false;
 
     public ForStKeyedStateBackend(
@@ -188,15 +190,16 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
     public <N, S extends State, SV> S createState(
             @Nonnull N defaultNamespace,
             @Nonnull TypeSerializer<N> namespaceSerializer,
-            @Nonnull StateDescriptor<SV> stateDesc) {
+            @Nonnull StateDescriptor<SV> stateDesc)
+            throws Exception {
         Preconditions.checkNotNull(
                 stateRequestHandler,
                 "A non-null stateRequestHandler must be setup before createState");
-        ColumnFamilyHandle columnFamilyHandle =
-                ForStOperationUtils.createColumnFamilyHandle(
-                        stateDesc.getStateId(), db, columnFamilyOptionsFactory);
 
-        registerKvStateInformation(stateDesc, namespaceSerializer, columnFamilyHandle);
+        Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> registerResult =
+                tryRegisterKvStateInformation(stateDesc, namespaceSerializer);
+
+        ColumnFamilyHandle columnFamilyHandle = registerResult.f0;
 
         switch (stateDesc.getType()) {
             case VALUE:
@@ -245,37 +248,118 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                                 namespaceSerializer::duplicate,
                                 valueSerializerView,
                                 valueDeserializerView);
+            case AGGREGATING:
+                return (S)
+                        new ForStAggregatingState<>(
+                                (AggregatingStateDescriptor<?, SV, ?>) stateDesc,
+                                stateRequestHandler,
+                                columnFamilyHandle,
+                                serializedKeyBuilder,
+                                defaultNamespace,
+                                namespaceSerializer::duplicate,
+                                valueSerializerView,
+                                valueDeserializerView);
             default:
                 throw new UnsupportedOperationException(
                         String.format("Unsupported state type: %s", stateDesc.getType()));
         }
     }
 
-    private <N, SV> void registerKvStateInformation(
-            @Nonnull StateDescriptor<SV> stateDesc,
-            TypeSerializer<N> namespaceSerializer,
-            ColumnFamilyHandle columnFamilyHandle) {
-        kvStateInformation.put(
-                stateDesc.getStateId(),
-                new ForStKvStateInfo(
-                        columnFamilyHandle,
-                        new RegisteredKeyValueStateBackendMetaInfo<>(
-                                stateDesc.getStateId(),
-                                stateDesc.getType(),
-                                namespaceSerializer,
-                                stateDesc.getSerializer())));
+    private <N, SV>
+            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
+                    tryRegisterKvStateInformation(
+                            StateDescriptor<SV> stateDesc, TypeSerializer<N> namespaceSerializer)
+                            throws Exception {
+
+        ForStKvStateInfo oldStateInfo = kvStateInformation.get(stateDesc.getStateId());
+
+        TypeSerializer<SV> stateSerializer = stateDesc.getSerializer();
+
+        ForStKvStateInfo newStateInfo;
+        RegisteredKeyValueStateBackendMetaInfo<N, SV> newMetaInfo;
+        if (oldStateInfo != null) {
+            @SuppressWarnings("unchecked")
+            RegisteredKeyValueStateBackendMetaInfo<N, SV> castedMetaInfo =
+                    (RegisteredKeyValueStateBackendMetaInfo<N, SV>) oldStateInfo.metaInfo;
+
+            newMetaInfo =
+                    updateRestoredStateMetaInfo(
+                            Tuple2.of(oldStateInfo.columnFamilyHandle, castedMetaInfo),
+                            stateDesc,
+                            stateSerializer,
+                            namespaceSerializer);
+
+            newStateInfo = new ForStKvStateInfo(oldStateInfo.columnFamilyHandle, newMetaInfo);
+            kvStateInformation.put(stateDesc.getStateId(), newStateInfo);
+        } else {
+            newMetaInfo =
+                    new RegisteredKeyValueStateBackendMetaInfo<>(
+                            stateDesc.getStateId(),
+                            stateDesc.getType(),
+                            namespaceSerializer,
+                            stateSerializer,
+                            StateSnapshotTransformer.StateSnapshotTransformFactory.noTransform());
+
+            newStateInfo =
+                    ForStOperationUtils.createStateInfo(
+                            newMetaInfo, db, columnFamilyOptionsFactory);
+            ForStOperationUtils.registerKvStateInformation(
+                    this.kvStateInformation,
+                    this.nativeMetricMonitor,
+                    stateDesc.getStateId(),
+                    newStateInfo);
+        }
+
+        return Tuple2.of(newStateInfo.columnFamilyHandle, newMetaInfo);
+    }
+
+    private <N, SV> RegisteredKeyValueStateBackendMetaInfo<N, SV> updateRestoredStateMetaInfo(
+            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> oldStateInfo,
+            StateDescriptor<SV> stateDesc,
+            TypeSerializer<SV> stateSerializer,
+            TypeSerializer<N> namespaceSerializer)
+            throws Exception {
+
+        RegisteredKeyValueStateBackendMetaInfo<N, SV> restoredKvStateMetaInfo = oldStateInfo.f1;
+
+        restoredKvStateMetaInfo.checkStateMetaInfo(stateDesc);
+
+        // fetch current serializer now because if it is incompatible, we can't access it anymore to
+        // improve the error message
+        TypeSerializer<SV> previousStateSerializer = restoredKvStateMetaInfo.getStateSerializer();
+
+        TypeSerializerSchemaCompatibility<SV> newStateSerializerCompatibility =
+                restoredKvStateMetaInfo.updateStateSerializer(stateSerializer);
+
+        if (!stateSerializer.equals(previousStateSerializer)
+                && newStateSerializerCompatibility.isCompatibleAfterMigration()) {
+
+            // TODO: 2024/6/6 wangfeifan - Implement state migration
+            throw new UnsupportedOperationException("State migration not support yet.");
+
+        } else if (newStateSerializerCompatibility.isIncompatible()) {
+            throw new StateMigrationException(
+                    "The new state serializer ("
+                            + stateSerializer
+                            + ") must not be incompatible with the old state serializer ("
+                            + previousStateSerializer
+                            + ").");
+        }
+
+        return restoredKvStateMetaInfo;
     }
 
     @Override
     @Nonnull
     public StateExecutor createStateExecutor() {
         synchronized (lock) {
-            if (closed) {
+            if (disposed) {
                 throw new FlinkRuntimeException(
                         "Attempt to create StateExecutor after ForStKeyedStateBackend is disposed.");
             }
             StateExecutor stateExecutor =
                     new ForStStateExecutor(
+                            optionsContainer.isCoordinatorInline(),
                             optionsContainer.isWriteInline(),
                             optionsContainer.getReadIoParallelism(),
                             optionsContainer.getWriteIoParallelism(),
@@ -325,51 +409,49 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
     /** Should only be called by one thread, and only after all accesses to the DB happened. */
     @Override
     public void dispose() {
-        if (this.disposed) {
-            return;
-        }
         synchronized (lock) {
-            if (!closed) {
-                IOUtils.closeQuietly(this);
+            if (this.disposed) {
+                return;
             }
-        }
-
-        // IMPORTANT: null reference to signal potential async checkpoint workers that the db was
-        // disposed, as
-        // working on the disposed object results in SEGFAULTS.
-        if (db != null) {
-
-            // Metric collection occurs on a background thread. When this method returns
-            // it is guaranteed that thr ForSt reference has been invalidated
-            // and no more metric collection will be attempted against the database.
-            if (nativeMetricMonitor != null) {
-                nativeMetricMonitor.close();
+            for (StateExecutor executor : managedStateExecutors) {
+                executor.shutdown();
             }
+            // IMPORTANT: null reference to signal potential async checkpoint workers that the db
+            // was disposed, as working on the disposed object results in SEGFAULTS.
+            if (db != null) {
 
-            IOUtils.closeQuietly(defaultColumnFamily);
+                // Metric collection occurs on a background thread. When this method returns
+                // it is guaranteed that thr ForSt reference has been invalidated
+                // and no more metric collection will be attempted against the database.
+                if (nativeMetricMonitor != null) {
+                    nativeMetricMonitor.close();
+                }
 
-            // ... and finally close the DB instance ...
-            IOUtils.closeQuietly(db);
+                IOUtils.closeQuietly(defaultColumnFamily);
 
-            LOG.info(
-                    "Closed ForSt State Backend. Cleaning up ForSt local working directory {}, remote working directory {}.",
-                    optionsContainer.getLocalBasePath(),
-                    optionsContainer.getRemoteBasePath());
+                // ... and finally close the DB instance ...
+                IOUtils.closeQuietly(db);
 
-            try {
-                optionsContainer.clearDirectories();
-            } catch (Exception ex) {
-                LOG.warn(
-                        "Could not delete ForSt local working directory {}, remote working directory {}.",
+                LOG.info(
+                        "Closed ForSt State Backend. Cleaning up ForSt local working directory {}, remote working directory {}.",
                         optionsContainer.getLocalBasePath(),
-                        optionsContainer.getRemoteBasePath(),
-                        ex);
-            }
+                        optionsContainer.getRemoteBasePath());
 
-            IOUtils.closeQuietly(optionsContainer);
+                try {
+                    optionsContainer.clearDirectories();
+                } catch (Exception ex) {
+                    LOG.warn(
+                            "Could not delete ForSt local working directory {}, remote working directory {}.",
+                            optionsContainer.getLocalBasePath(),
+                            optionsContainer.getRemoteBasePath(),
+                            ex);
+                }
+
+                IOUtils.closeQuietly(optionsContainer);
+            }
+            IOUtils.closeQuietly(snapshotStrategy);
+            this.disposed = true;
         }
-        IOUtils.closeQuietly(snapshotStrategy);
-        this.disposed = true;
     }
 
     @VisibleForTesting
@@ -384,15 +466,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
 
     @Override
     public void close() throws IOException {
-        synchronized (lock) {
-            if (closed) {
-                return;
-            }
-            closed = true;
-            for (StateExecutor executor : managedStateExecutors) {
-                executor.shutdown();
-            }
-        }
+        dispose();
     }
 
     /** ForSt specific information about the k/v states. */

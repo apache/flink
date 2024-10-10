@@ -19,18 +19,19 @@ package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple
+import org.apache.flink.legacy.table.sinks.UpsertStreamTableSink
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.api.config.OptimizerConfigOptions.NonDeterministicUpdateStrategy
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.data.RowData
+import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.planner.JBoolean
 import org.apache.flink.table.planner.expressions.utils.{TestNonDeterministicUdaf, TestNonDeterministicUdf, TestNonDeterministicUdtf}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
-import org.apache.flink.table.sinks.UpsertStreamTableSink
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.table.types.utils.TypeConversions

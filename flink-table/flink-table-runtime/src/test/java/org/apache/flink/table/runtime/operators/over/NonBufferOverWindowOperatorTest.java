@@ -26,6 +26,7 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -146,24 +147,29 @@ class NonBufferOverWindowOperatorTest {
                 .thenReturn(0.99);
         when(streamConfig.getOperatorID()).thenReturn(new OperatorID());
         operator =
-                new NonBufferOverWindowOperator(functions, comparator, resetAccumulators) {
+                new NonBufferOverWindowOperator(
+                        new StreamOperatorParameters<>(
+                                task,
+                                streamConfig,
+                                new ConsumerOutput(
+                                        r ->
+                                                collect.add(
+                                                        GenericRowData.of(
+                                                                r.getInt(0),
+                                                                r.getLong(1),
+                                                                r.getLong(2),
+                                                                r.getLong(3),
+                                                                r.getLong(4)))),
+                                TestProcessingTimeService::new,
+                                null,
+                                null),
+                        functions,
+                        comparator,
+                        resetAccumulators) {
                     public StreamingRuntimeContext getRuntimeContext() {
                         return mock(StreamingRuntimeContext.class);
                     }
                 };
-        operator.setProcessingTimeService(new TestProcessingTimeService());
-        operator.setup(
-                task,
-                streamConfig,
-                new ConsumerOutput(
-                        r ->
-                                collect.add(
-                                        GenericRowData.of(
-                                                r.getInt(0),
-                                                r.getLong(1),
-                                                r.getLong(2),
-                                                r.getLong(3),
-                                                r.getLong(4)))));
         operator.open();
         addRow(0, 1L, 4L);
         addRow(0, 1L, 1L);

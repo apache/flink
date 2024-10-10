@@ -37,11 +37,10 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -57,6 +56,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -99,7 +99,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
         }
 
         env.addSource(new RandomTupleSource(numEventsPerInstance, numUniqueKeys))
-                .keyBy(0)
+                .keyBy(x -> x.f0)
                 .addSink(new ToPartitionFileSink(partitionFiles));
 
         env.execute();
@@ -114,7 +114,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
                         TypeInformation.of(Integer.class))
                 .window(
                         TumblingEventTimeWindows.of(
-                                Time.seconds(
+                                Duration.ofSeconds(
                                         1))) // test that also timers and aggregated state work as
                 // expected
                 .reduce(

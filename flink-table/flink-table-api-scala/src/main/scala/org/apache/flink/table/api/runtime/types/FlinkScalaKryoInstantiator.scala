@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.api.runtime.types
 
-import org.apache.flink.api.java.typeutils.runtime.kryo.FlinkChillPackageRegistrar
+import org.apache.flink.streaming.util.serialize.FlinkChillPackageRegistrar
 
 import _root_.java.io.Serializable
 import com.twitter.chill._

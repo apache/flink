@@ -23,7 +23,7 @@ import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 
-import org.rocksdb.RocksIterator;
+import org.forstdb.RocksIterator;
 
 import javax.annotation.Nullable;
 

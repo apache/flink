@@ -21,9 +21,7 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -32,14 +30,14 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -56,7 +54,6 @@ class TimeWindowTranslationTest {
     @Test
     void testAlignedWindowDeprecation() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         DataStream<Tuple2<String, Integer>> source =
                 env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
@@ -64,10 +61,10 @@ class TimeWindowTranslationTest {
         DummyReducer reducer = new DummyReducer();
 
         DataStream<Tuple2<String, Integer>> window1 =
-                source.keyBy(0)
-                        .timeWindow(
-                                Time.of(1000, TimeUnit.MILLISECONDS),
-                                Time.of(100, TimeUnit.MILLISECONDS))
+                source.keyBy(x -> x.f0)
+                        .window(
+                                TumblingProcessingTimeWindows.of(
+                                        Duration.ofMillis(1000), Duration.ofMillis(100)))
                         .reduce(reducer);
 
         OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform1 =
@@ -78,23 +75,20 @@ class TimeWindowTranslationTest {
         assertThat(operator1).isInstanceOf(WindowOperator.class);
 
         DataStream<Tuple2<String, Integer>> window2 =
-                source.keyBy(0)
-                        .timeWindow(Time.of(1000, TimeUnit.MILLISECONDS))
+                source.keyBy(x -> x.f0)
+                        .window(TumblingProcessingTimeWindows.of(Duration.ofMillis(1000)))
                         .apply(
                                 new WindowFunction<
                                         Tuple2<String, Integer>,
                                         Tuple2<String, Integer>,
-                                        Tuple,
+                                        String,
                                         TimeWindow>() {
-                                    private static final long serialVersionUID = 1L;
-
                                     @Override
                                     public void apply(
-                                            Tuple tuple,
+                                            String str,
                                             TimeWindow window,
                                             Iterable<Tuple2<String, Integer>> values,
-                                            Collector<Tuple2<String, Integer>> out)
-                                            throws Exception {}
+                                            Collector<Tuple2<String, Integer>> out) {}
                                 });
 
         OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform2 =
@@ -109,16 +103,15 @@ class TimeWindowTranslationTest {
     @SuppressWarnings("rawtypes")
     void testReduceEventTimeWindows() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
         DataStream<Tuple2<String, Integer>> source =
                 env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
-                source.keyBy(0)
-                        .timeWindow(
-                                Time.of(1000, TimeUnit.MILLISECONDS),
-                                Time.of(100, TimeUnit.MILLISECONDS))
+                source.keyBy(x -> x.f0)
+                        .window(
+                                SlidingEventTimeWindows.of(
+                                        Duration.ofMillis(1000), Duration.ofMillis(100)))
                         .reduce(new DummyReducer());
 
         OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform1 =
@@ -137,29 +130,25 @@ class TimeWindowTranslationTest {
     @SuppressWarnings("rawtypes")
     void testApplyEventTimeWindows() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
 
         DataStream<Tuple2<String, Integer>> source =
                 env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
-                source.keyBy(0)
-                        .timeWindow(Time.of(1000, TimeUnit.MILLISECONDS))
+                source.keyBy(x -> x.f0)
+                        .window(TumblingEventTimeWindows.of(Duration.ofMillis(1000)))
                         .apply(
                                 new WindowFunction<
                                         Tuple2<String, Integer>,
                                         Tuple2<String, Integer>,
-                                        Tuple,
+                                        String,
                                         TimeWindow>() {
-                                    private static final long serialVersionUID = 1L;
-
                                     @Override
                                     public void apply(
-                                            Tuple tuple,
+                                            String str,
                                             TimeWindow window,
                                             Iterable<Tuple2<String, Integer>> values,
-                                            Collector<Tuple2<String, Integer>> out)
-                                            throws Exception {}
+                                            Collector<Tuple2<String, Integer>> out) {}
                                 });
 
         OneInputTransformation<Tuple2<String, Integer>, Tuple2<String, Integer>> transform1 =

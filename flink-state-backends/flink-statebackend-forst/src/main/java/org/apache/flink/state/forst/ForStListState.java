@@ -35,7 +35,7 @@ import org.apache.flink.runtime.state.v2.AbstractListState;
 import org.apache.flink.runtime.state.v2.ListStateDescriptor;
 import org.apache.flink.util.Preconditions;
 
-import org.rocksdb.ColumnFamilyHandle;
+import org.forstdb.ColumnFamilyHandle;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -45,7 +45,7 @@ import java.util.function.Supplier;
 /**
  * The {@link AbstractListState} implement for ForStDB.
  *
- * <p>{@link ForStStateBackend} must ensure that we set the {@link org.rocksdb.StringAppendOperator}
+ * <p>{@link ForStStateBackend} must ensure that we set the {@link org.forstdb.StringAppendOperator}
  * on the column family that we use for our state since we use the {@code merge()} call.
  *
  * @param <K> The type of the key.

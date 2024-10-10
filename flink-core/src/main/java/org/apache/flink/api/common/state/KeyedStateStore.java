@@ -46,7 +46,7 @@ public interface KeyedStateStore {
      *
      *     private ValueState<Long> state;
      *
-     *     public void open(Configuration cfg) {
+     *     public void open(OpenContext ctx) {
      *         state = getRuntimeContext().getState(
      *                 new ValueStateDescriptor<Long>("count", LongSerializer.INSTANCE, 0L));
      *     }
@@ -83,7 +83,7 @@ public interface KeyedStateStore {
      *
      *     private ListState<MyType> state;
      *
-     *     public void open(Configuration cfg) {
+     *     public void open(OpenContext ctx) {
      *         state = getRuntimeContext().getListState(
      *                 new ListStateDescriptor<>("myState", MyType.class));
      *     }
@@ -124,7 +124,7 @@ public interface KeyedStateStore {
      *
      *     private ReducingState<Long> state;
      *
-     *     public void open(Configuration cfg) {
+     *     public void open(OpenContext ctx) {
      *         state = getRuntimeContext().getReducingState(
      *                 new ReducingStateDescriptor<>("sum", (a, b) -> a + b, Long.class));
      *     }
@@ -162,7 +162,7 @@ public interface KeyedStateStore {
      *
      *     private AggregatingState<MyType, Long> state;
      *
-     *     public void open(Configuration cfg) {
+     *     public void open(OpenContext ctx) {
      *         state = getRuntimeContext().getAggregatingState(
      *                 new AggregatingStateDescriptor<>("sum", aggregateFunction, Long.class));
      *     }
@@ -202,7 +202,7 @@ public interface KeyedStateStore {
      *
      *     private MapState<MyType, Long> state;
      *
-     *     public void open(Configuration cfg) {
+     *     public void open(OpenContext ctx) {
      *         state = getRuntimeContext().getMapState(
      *                 new MapStateDescriptor<>("sum", MyType.class, Long.class));
      *     }

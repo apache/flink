@@ -19,9 +19,9 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.Schema;
+import org.apache.flink.table.legacy.api.TableSchema;
+import org.apache.flink.table.legacy.descriptors.Schema;
 
 import org.junit.jupiter.api.Test;
 

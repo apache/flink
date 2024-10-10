@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.metrics.CharacterFilter;
+import org.apache.flink.metrics.LogicalScopeProvider;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -252,13 +253,11 @@ class AbstractMetricGroupTest {
                     .withFailMessage("Reporters were not properly instantiated")
                     .hasSize(2);
             assertThat(
-                            ((FrontMetricGroup<AbstractMetricGroup<?>>)
-                                            reporter1.findAdded(counterName).group)
+                            LogicalScopeProvider.castFrom(reporter1.findAdded(counterName).group)
                                     .getLogicalScope(reporter1, '-'))
                     .isEqualTo("taskmanager-X-C");
             assertThat(
-                            ((FrontMetricGroup<AbstractMetricGroup<?>>)
-                                            reporter2.findAdded(counterName).group)
+                            LogicalScopeProvider.castFrom(reporter2.findAdded(counterName).group)
                                     .getLogicalScope(reporter2, ','))
                     .isEqualTo("taskmanager,B,X");
         } finally {

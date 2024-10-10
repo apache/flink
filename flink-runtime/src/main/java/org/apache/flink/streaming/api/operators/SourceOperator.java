@@ -206,6 +206,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private transient PausableRelativeClock mainInputActivityClock;
 
     public SourceOperator(
+            StreamOperatorParameters<OUT> parameters,
             FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
                     readerFactory,
             OperatorEventGateway operatorEventGateway,
@@ -216,7 +217,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             String localHostname,
             boolean emitProgressiveWatermarks,
             CanEmitBatchOfRecordsChecker canEmitBatchOfRecords) {
-
+        super(parameters);
         this.readerFactory = checkNotNull(readerFactory);
         this.operatorEventGateway = checkNotNull(operatorEventGateway);
         this.splitSerializer = checkNotNull(splitSerializer);
@@ -232,7 +233,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     }
 
     @Override
-    public void setup(
+    protected void setup(
             StreamTask<?, ?> containingTask,
             StreamConfig config,
             Output<StreamRecord<OUT>> output) {

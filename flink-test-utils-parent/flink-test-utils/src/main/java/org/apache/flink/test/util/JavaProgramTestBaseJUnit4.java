@@ -19,7 +19,7 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -49,22 +49,16 @@ public abstract class JavaProgramTestBaseJUnit4 extends AbstractTestBaseJUnit4 {
      */
     private int numberOfTestRepetitions = 1;
 
-    private boolean isCollectionExecution;
-
     public void setNumberOfTestRepetitions(int numberOfTestRepetitions) {
         this.numberOfTestRepetitions = numberOfTestRepetitions;
     }
 
     public int getParallelism() {
-        return isCollectionExecution ? 1 : MINI_CLUSTER_RESOURCE.getNumberSlots();
+        return MINI_CLUSTER_RESOURCE.getNumberSlots();
     }
 
     public JobExecutionResult getLatestExecutionResult() {
         return this.latestExecutionResult;
-    }
-
-    public boolean isCollectionExecution() {
-        return isCollectionExecution;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -87,8 +81,6 @@ public abstract class JavaProgramTestBaseJUnit4 extends AbstractTestBaseJUnit4 {
 
     @Test
     public void testJobWithObjectReuse() throws Exception {
-        isCollectionExecution = false;
-
         // pre-submit
         try {
             preSubmit();
@@ -102,7 +94,7 @@ public abstract class JavaProgramTestBaseJUnit4 extends AbstractTestBaseJUnit4 {
         // We should fix that we are able to get access to the latest execution result from a
         // different
         // execution environment and how the object reuse mode is enabled
-        TestEnvironment env = MINI_CLUSTER_RESOURCE.getTestEnvironment();
+        TestStreamEnvironment env = MINI_CLUSTER_RESOURCE.getTestStreamEnvironment();
         env.getConfig().enableObjectReuse();
 
         // Possibly run the test multiple times
@@ -133,8 +125,6 @@ public abstract class JavaProgramTestBaseJUnit4 extends AbstractTestBaseJUnit4 {
 
     @Test
     public void testJobWithoutObjectReuse() throws Exception {
-        isCollectionExecution = false;
-
         // pre-submit
         try {
             preSubmit();
@@ -148,7 +138,7 @@ public abstract class JavaProgramTestBaseJUnit4 extends AbstractTestBaseJUnit4 {
         // We should fix that we are able to get access to the latest execution result from a
         // different
         // execution environment and how the object reuse mode is enabled
-        ExecutionEnvironment env = MINI_CLUSTER_RESOURCE.getTestEnvironment();
+        TestStreamEnvironment env = MINI_CLUSTER_RESOURCE.getTestStreamEnvironment();
         env.getConfig().disableObjectReuse();
 
         // Possibly run the test multiple times
@@ -166,54 +156,6 @@ public abstract class JavaProgramTestBaseJUnit4 extends AbstractTestBaseJUnit4 {
             Assert.assertNotNull(
                     "The test program never triggered an execution.", this.latestExecutionResult);
         }
-
-        // post-submit
-        try {
-            postSubmit();
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            Assert.fail("Post-submit work caused an error: " + e.getMessage());
-        }
-    }
-
-    @Test
-    public void testJobCollectionExecution() throws Exception {
-
-        // check if collection execution should be skipped.
-        if (this.skipCollectionExecution()) {
-            return;
-        }
-
-        isCollectionExecution = true;
-
-        // pre-submit
-        try {
-            preSubmit();
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            Assert.fail("Pre-submit work caused an error: " + e.getMessage());
-        }
-
-        // prepare the test environment
-        CollectionTestEnvironment env = new CollectionTestEnvironment();
-        env.setAsContext();
-
-        // call the test program
-        try {
-            testProgram();
-            this.latestExecutionResult = env.getLastJobExecutionResult();
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            Assert.fail("Error while calling the test program: " + e.getMessage());
-        } finally {
-            MINI_CLUSTER_RESOURCE.getTestEnvironment().setAsContext();
-        }
-
-        Assert.assertNotNull(
-                "The test program never triggered an execution.", this.latestExecutionResult);
 
         // post-submit
         try {

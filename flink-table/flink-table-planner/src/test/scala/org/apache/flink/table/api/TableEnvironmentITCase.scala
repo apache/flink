@@ -24,6 +24,7 @@ import org.apache.flink.table.api.bridge.scala.{dataStreamConversions, StreamTab
 import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.catalog._
+import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.runtime.utils.{StreamingEnvUtil, TestingAppendSink}

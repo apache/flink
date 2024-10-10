@@ -19,27 +19,32 @@ package org.apache.flink.table.api.typeutils
 
 import org.apache.flink.api.common.io.FileInputFormat
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
-import org.apache.flink.api.java.ExecutionEnvironment
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, ResultTypeQueryable}
+import org.apache.flink.core.fs
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.typeutils.TypeExtractionTest.{CustomBeanClass, CustomTypeInputFormat}
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+
+import java.nio.file.Path
 
 import scala.beans.BeanProperty
 
 class TypeExtractionTest {
 
   @Test
-  def testResultTypeQueryable(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val producedType = env.createInput(new CustomTypeInputFormat).getType()
+  def testResultTypeQueryable(@TempDir tempDir: Path): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val producedType =
+      env.createInput(new CustomTypeInputFormat(tempDir.toAbsolutePath.toString)).getType()
     assertThat(producedType).isEqualTo(BasicTypeInfo.LONG_TYPE_INFO)
   }
 
   @Test
   def testBeanPropertyClass(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
     val producedType = env.fromElements(new CustomBeanClass()).getType()
     assertThat(producedType).isInstanceOf(classOf[PojoTypeInfo[_]])
     val pojoTypeInfo = producedType.asInstanceOf[PojoTypeInfo[_]]
@@ -50,7 +55,9 @@ class TypeExtractionTest {
 }
 
 object TypeExtractionTest {
-  class CustomTypeInputFormat extends FileInputFormat[String] with ResultTypeQueryable[Long] {
+  class CustomTypeInputFormat(tempDir: String)
+    extends FileInputFormat[String]
+    with ResultTypeQueryable[Long] {
 
     override def getProducedType: TypeInformation[Long] =
       BasicTypeInfo.LONG_TYPE_INFO.asInstanceOf[TypeInformation[Long]]
@@ -58,6 +65,10 @@ object TypeExtractionTest {
     override def reachedEnd(): Boolean = throw new UnsupportedOperationException()
 
     override def nextRecord(reuse: String): String = throw new UnsupportedOperationException()
+
+    override def getFilePaths: Array[fs.Path] = {
+      Array(new fs.Path(tempDir))
+    }
   }
 
   class CustomBeanClass(@BeanProperty var prop: Int, var prop2: Long) {

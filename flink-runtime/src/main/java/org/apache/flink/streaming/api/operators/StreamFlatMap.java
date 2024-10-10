@@ -32,7 +32,6 @@ public class StreamFlatMap<IN, OUT> extends AbstractUdfStreamOperator<OUT, FlatM
 
     public StreamFlatMap(FlatMapFunction<IN, OUT> flatMapper) {
         super(flatMapper);
-        chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
     @Override

@@ -18,7 +18,8 @@
 package org.apache.flink.connector.base.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.connector.sink2.StatefulSink;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SupportsWriterState;
 import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.util.Preconditions;
@@ -48,7 +49,7 @@ import static org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriter
  */
 @PublicEvolving
 public abstract class AsyncSinkBase<InputT, RequestEntryT extends Serializable>
-        implements StatefulSink<InputT, BufferedRequestState<RequestEntryT>> {
+        implements SupportsWriterState<InputT, BufferedRequestState<RequestEntryT>>, Sink<InputT> {
 
     private final ElementConverter<InputT, RequestEntryT> elementConverter;
     private final int maxBatchSize;

@@ -135,7 +135,7 @@ public class KeyedSortPartitionOperator<INPUT, KEY> extends AbstractStreamOperat
     }
 
     @Override
-    public void setup(
+    protected void setup(
             StreamTask<?, ?> containingTask,
             StreamConfig config,
             Output<StreamRecord<INPUT>> output) {

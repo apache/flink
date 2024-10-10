@@ -594,8 +594,6 @@ env = StreamExecutionEnvironment.get_execution_environment()
 # set various configuration early
 env.set_max_parallelism(256)
 
-env.get_config().add_default_kryo_serializer("type_class_name", "serializer_class_name")
-
 env.get_checkpoint_config().set_checkpointing_mode(CheckpointingMode.EXACTLY_ONCE)
 
 # then switch to Python Table API

@@ -18,23 +18,21 @@
 
 package org.apache.flink.test.operators;
 
-import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4;
-import org.apache.flink.test.util.TestBaseUtils.TupleComparator;
-import org.apache.flink.util.Collector;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -69,18 +67,18 @@ public class ObjectReuseITCase extends MultipleProgramsTestBaseJUnit4 {
 
     @Test
     public void testKeyedReduce() throws Exception {
-
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         if (objectReuse) {
             env.getConfig().enableObjectReuse();
         } else {
             env.getConfig().disableObjectReuse();
         }
 
-        DataSet<Tuple2<String, Integer>> input = env.fromCollection(REDUCE_DATA);
+        DataStreamSource<Tuple2<String, Integer>> input = env.fromData(REDUCE_DATA);
 
-        DataSet<Tuple2<String, Integer>> result =
-                input.groupBy(0)
+        DataStream<Tuple2<String, Integer>> result =
+                input.keyBy(x -> x.f0)
                         .reduce(
                                 new ReduceFunction<Tuple2<String, Integer>>() {
 
@@ -93,150 +91,45 @@ public class ObjectReuseITCase extends MultipleProgramsTestBaseJUnit4 {
                                     }
                                 });
 
-        Tuple2<String, Integer> res = result.collect().get(0);
+        Tuple2<String, Integer> res = result.executeAndCollect().next();
         assertEquals(new Tuple2<>("a", 60), res);
     }
 
     @Test
     public void testGlobalReduce() throws Exception {
 
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         if (objectReuse) {
             env.getConfig().enableObjectReuse();
         } else {
             env.getConfig().disableObjectReuse();
         }
 
-        DataSet<Tuple2<String, Integer>> input = env.fromCollection(REDUCE_DATA);
+        DataStreamSource<Tuple2<String, Integer>> input = env.fromData(REDUCE_DATA);
 
-        DataSet<Tuple2<String, Integer>> result =
-                input.reduce(
-                        new ReduceFunction<Tuple2<String, Integer>>() {
-
-                            @Override
-                            public Tuple2<String, Integer> reduce(
-                                    Tuple2<String, Integer> value1,
-                                    Tuple2<String, Integer> value2) {
-
-                                if (value1.f1 % 3 == 0) {
-                                    value1.f1 += value2.f1;
-                                    return value1;
-                                } else {
-                                    value2.f1 += value1.f1;
-                                    return value2;
-                                }
-                            }
-                        });
-
-        Tuple2<String, Integer> res = result.collect().get(0);
-        assertEquals(new Tuple2<>("a", 60), res);
-    }
-
-    @Test
-    public void testKeyedGroupReduce() throws Exception {
-
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        if (objectReuse) {
-            env.getConfig().enableObjectReuse();
-        } else {
-            env.getConfig().disableObjectReuse();
-        }
-
-        DataSet<Tuple2<String, Integer>> input = env.fromCollection(GROUP_REDUCE_DATA);
-
-        DataSet<Tuple2<String, Integer>> result =
-                input.groupBy(0)
-                        .reduceGroup(
-                                new GroupReduceFunction<
-                                        Tuple2<String, Integer>, Tuple2<String, Integer>>() {
+        DataStream<Tuple2<String, Integer>> result =
+                input.windowAll(GlobalWindows.createWithEndOfStreamTrigger())
+                        .reduce(
+                                new ReduceFunction<Tuple2<String, Integer>>() {
 
                                     @Override
-                                    public void reduce(
-                                            Iterable<Tuple2<String, Integer>> values,
-                                            Collector<Tuple2<String, Integer>> out) {
-                                        List<Tuple2<String, Integer>> list = new ArrayList<>();
-                                        for (Tuple2<String, Integer> val : values) {
-                                            list.add(val);
-                                        }
+                                    public Tuple2<String, Integer> reduce(
+                                            Tuple2<String, Integer> value1,
+                                            Tuple2<String, Integer> value2) {
 
-                                        for (Tuple2<String, Integer> val : list) {
-                                            out.collect(val);
+                                        if (value1.f1 % 3 == 0) {
+                                            value1.f1 += value2.f1;
+                                            return value1;
+                                        } else {
+                                            value2.f1 += value1.f1;
+                                            return value2;
                                         }
                                     }
                                 });
 
-        List<Tuple2<String, Integer>> is = result.collect();
-        Collections.sort(is, new TupleComparator<Tuple2<String, Integer>>());
-
-        List<Tuple2<String, Integer>> expected =
-                env.getConfig().isObjectReuseEnabled()
-                        ? Arrays.asList(
-                                new Tuple2<>("a", 4),
-                                new Tuple2<>("a", 4),
-                                new Tuple2<>("a", 5),
-                                new Tuple2<>("a", 5),
-                                new Tuple2<>("a", 5))
-                        : Arrays.asList(
-                                new Tuple2<>("a", 1),
-                                new Tuple2<>("a", 2),
-                                new Tuple2<>("a", 3),
-                                new Tuple2<>("a", 4),
-                                new Tuple2<>("a", 5));
-
-        assertEquals(expected, is);
-    }
-
-    @Test
-    public void testGlobalGroupReduce() throws Exception {
-
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        if (objectReuse) {
-            env.getConfig().enableObjectReuse();
-        } else {
-            env.getConfig().disableObjectReuse();
-        }
-
-        DataSet<Tuple2<String, Integer>> input = env.fromCollection(GROUP_REDUCE_DATA);
-
-        DataSet<Tuple2<String, Integer>> result =
-                input.reduceGroup(
-                        new GroupReduceFunction<
-                                Tuple2<String, Integer>, Tuple2<String, Integer>>() {
-
-                            @Override
-                            public void reduce(
-                                    Iterable<Tuple2<String, Integer>> values,
-                                    Collector<Tuple2<String, Integer>> out) {
-                                List<Tuple2<String, Integer>> list = new ArrayList<>();
-                                for (Tuple2<String, Integer> val : values) {
-                                    list.add(val);
-                                }
-
-                                for (Tuple2<String, Integer> val : list) {
-                                    out.collect(val);
-                                }
-                            }
-                        });
-
-        List<Tuple2<String, Integer>> is = result.collect();
-        Collections.sort(is, new TupleComparator<Tuple2<String, Integer>>());
-
-        List<Tuple2<String, Integer>> expected =
-                env.getConfig().isObjectReuseEnabled()
-                        ? Arrays.asList(
-                                new Tuple2<>("a", 4),
-                                new Tuple2<>("a", 4),
-                                new Tuple2<>("a", 5),
-                                new Tuple2<>("a", 5),
-                                new Tuple2<>("a", 5))
-                        : Arrays.asList(
-                                new Tuple2<>("a", 1),
-                                new Tuple2<>("a", 2),
-                                new Tuple2<>("a", 3),
-                                new Tuple2<>("a", 4),
-                                new Tuple2<>("a", 5));
-
-        assertEquals(expected, is);
+        Tuple2<String, Integer> res = result.executeAndCollect().next();
+        assertEquals(new Tuple2<>("a", 60), res);
     }
 
     @Parameterized.Parameters(name = "Execution mode = CLUSTER, Reuse = {0}")

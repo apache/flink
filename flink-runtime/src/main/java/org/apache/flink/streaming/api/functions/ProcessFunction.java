@@ -92,8 +92,7 @@ public abstract class ProcessFunction<I, O> extends AbstractRichFunction {
         /**
          * Timestamp of the element currently being processed or timestamp of a firing timer.
          *
-         * <p>This might be {@code null}, for example if the time characteristic of your program is
-         * set to {@link org.apache.flink.streaming.api.TimeCharacteristic#ProcessingTime}.
+         * <p>This might be {@code null}, depending on the stream's watermark strategy.
          */
         public abstract Long timestamp();
 

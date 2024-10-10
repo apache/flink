@@ -30,7 +30,6 @@ public class StreamMap<IN, OUT> extends AbstractUdfStreamOperator<OUT, MapFuncti
 
     public StreamMap(MapFunction<IN, OUT> mapper) {
         super(mapper);
-        chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
     @Override

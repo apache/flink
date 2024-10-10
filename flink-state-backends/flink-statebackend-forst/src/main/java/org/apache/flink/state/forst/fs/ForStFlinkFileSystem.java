@@ -23,7 +23,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.BlockLocation;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.Preconditions;
 
@@ -49,14 +48,15 @@ public class ForStFlinkFileSystem extends FileSystem {
 
     private static final Map<String, String> remoteLocalMapping = new ConcurrentHashMap<>();
     private static final Function<String, Boolean> miscFileFilter = s -> !s.endsWith(".sst");
-    private static final FileSystem localFS = FileSystem.getLocalFileSystem();
 
+    private final FileSystem localFS;
     private final FileSystem delegateFS;
     private final String remoteBase;
     private final Function<String, Boolean> localFileFilter;
     private final String localBase;
 
     public ForStFlinkFileSystem(FileSystem delegateFS, String remoteBase, String localBase) {
+        this.localFS = FileSystem.getLocalFileSystem();
         this.delegateFS = delegateFS;
         this.localFileFilter = miscFileFilter;
         this.remoteBase = remoteBase;
@@ -311,11 +311,6 @@ public class ForStFlinkFileSystem extends FileSystem {
     @Override
     public boolean isDistributedFS() {
         return delegateFS.isDistributedFS();
-    }
-
-    @Override
-    public FileSystemKind getKind() {
-        return delegateFS.getKind();
     }
 
     private Tuple2<Boolean, Path> tryBuildLocalPath(Path path) {

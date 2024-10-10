@@ -417,7 +417,7 @@ public class Pattern<T, F extends T> {
      * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
      */
     public Pattern<T, F> times(int times) {
-        return times(times, (Duration) null);
+        return times(times, null);
     }
 
     /**
@@ -447,7 +447,7 @@ public class Pattern<T, F extends T> {
      * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
      */
     public Pattern<T, F> times(int from, int to) {
-        return times(from, to, (Duration) null);
+        return times(from, to, null);
     }
 
     /**
@@ -481,7 +481,7 @@ public class Pattern<T, F extends T> {
      * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
      */
     public Pattern<T, F> timesOrMore(int times) {
-        return timesOrMore(times, (Duration) null);
+        return timesOrMore(times, null);
     }
 
     /**

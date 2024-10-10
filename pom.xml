@@ -67,12 +67,10 @@ under the License.
 		<module>flink-architecture-tests</module>
 		<module>flink-core-api</module>
 		<module>flink-core</module>
-		<module>flink-java</module>
 		<module>flink-filesystems</module>
 		<module>flink-rpc</module>
 		<module>flink-runtime</module>
 		<module>flink-runtime-web</module>
-		<module>flink-optimizer</module>
 		<module>flink-streaming-java</module>
 		<module>flink-connectors</module>
 		<module>flink-formats</module>
@@ -127,7 +125,7 @@ under the License.
 		<flink.shaded.jackson.version>2.15.3</flink.shaded.jackson.version>
 		<flink.shaded.jsonpath.version>2.7.0</flink.shaded.jsonpath.version>
 		<flink.markBundledAsOptional>true</flink.markBundledAsOptional>
-		<target.java.version>1.8</target.java.version>
+		<target.java.version>11</target.java.version>
 		<slf4j.version>1.7.36</slf4j.version>
 		<log4j.version>2.17.1</log4j.version>
 		<!-- Overwrite default values from parent pom.
@@ -146,7 +144,7 @@ under the License.
 		<!-- Project `flink-benchmarks` uses zk testing server in `curator-test` for performance
 		benchmark, please confirm it will not affect the benchmarks when the version is bumped. -->
 		<curator.version>5.4.0</curator.version>
-		<avro.version>1.11.3</avro.version>
+		<avro.version>1.11.4</avro.version>
 		<!-- Version for transitive Jackson dependencies that are not used within Flink itself.-->
 		<jackson-bom.version>2.15.3</jackson-bom.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
@@ -1062,40 +1060,8 @@ under the License.
 								</excludedGroups>
 							</configuration>
 						</plugin>
-						<plugin>
-							<groupId>org.apache.maven.plugins</groupId>
-							<artifactId>maven-javadoc-plugin</artifactId>
-							<configuration>
-								<additionalJOptions>
-									<additionalJOption>--add-exports=java.base/sun.net.util=ALL-UNNAMED</additionalJOption>
-									<additionalJOption>--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED</additionalJOption>
-								</additionalJOptions>
-							</configuration>
-						</plugin>
 					</plugins>
 				</pluginManagement>
-			</build>
-		</profile>
-
-		<profile>
-			<id>java11-target</id>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-compiler-plugin</artifactId>
-						<configuration>
-							<source>11</source>
-							<target>11</target>
-							<compilerArgs combine.children="append">
-								<arg>--add-exports=java.base/sun.net.util=ALL-UNNAMED</arg>
-								<arg>--add-exports=java.management/sun.management=ALL-UNNAMED</arg>
-								<arg>--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED</arg>
-								<arg>--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED</arg>
-							</compilerArgs>
-						</configuration>
-					</plugin>
-				</plugins>
 			</build>
 		</profile>
 
@@ -1431,7 +1397,7 @@ under the License.
 				</property>
 			</activation>
 			<properties>
-				<target.java.version>1.8</target.java.version>
+				<target.java.version>11</target.java.version>
 			</properties>
 			<build>
 				<plugins>
@@ -1463,7 +1429,7 @@ under the License.
 										<!-- versions for certain build tools are enforced to match the CI setup -->
 										<!-- the rules below should stay in sync with Flink Release wiki documentation and the CI scripts -->
 										<requireJavaVersion>
-											<version>[1.8.0,1.8.1)</version>
+											<version>[11.0.0,11.1.0)</version>
 										</requireJavaVersion>
 									</rules>
 								</configuration>
@@ -2127,6 +2093,10 @@ under the License.
 						<compilerArgs>
 							<!-- Prevents recompilation due to missing package-info.class, see MCOMPILER-205 -->
 							<arg>-Xpkginfo:always</arg>
+							<arg>--add-exports=java.base/sun.net.util=ALL-UNNAMED</arg>
+							<arg>--add-exports=java.management/sun.management=ALL-UNNAMED</arg>
+							<arg>--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED</arg>
+							<arg>--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED</arg>
 						</compilerArgs>
 					</configuration>
 				</plugin>
@@ -2216,9 +2186,12 @@ under the License.
 					<configuration>
 						<quiet>true</quiet>
 						<detectOfflineLinks>false</detectOfflineLinks>
+						<release>11</release>
 						<additionalJOptions>
 							<additionalJOption>-Xdoclint:none</additionalJOption>
 							<additionalJOption>--allow-script-in-comments</additionalJOption>
+							<!-- Suppress the error that is accepted by JDK 8 but not by JDK 11. -->
+							<additionalJOption>--ignore-source-errors</additionalJOption>
 						</additionalJOptions>
 					</configuration>
 				</plugin>
@@ -2271,7 +2244,13 @@ under the License.
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-shade-plugin</artifactId>
-					<version>3.5.1</version>
+					<version>3.5.3</version>
+				</plugin>
+				<!-- Pin the version of the maven remote resource plugin -->
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-remote-resources-plugin</artifactId>
+					<version>3.2.0</version>
 				</plugin>
 
 				<plugin>
@@ -2294,7 +2273,6 @@ under the License.
 					<configuration>
 						<args>
 							<arg>-nobootcp</arg>
-							<arg>-target:jvm-${target.java.version}</arg>
 						</args>
 						<jvmArgs>
 							<arg>-Xss2m</arg>
@@ -2339,6 +2317,19 @@ under the License.
 								<!-- Mark these 2 methods to @Internal. Tracked under FLINK-34130, should be removed in 2.0 -->
 								<exclude>org.apache.flink.configuration.Configuration#getBytes(java.lang.String,byte[])</exclude>
 								<exclude>org.apache.flink.configuration.Configuration#setBytes(java.lang.String,byte[])</exclude>
+								<!-- FLIP-344: Remove parameter in RichFunction#open in 2.0 -->
+								<exclude>org.apache.flink.api.common.functions.AbstractRichFunction#open(org.apache.flink.configuration.Configuration)</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichCoGroupFunction</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichCrossFunction</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichFilterFunction</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichFlatJoinFunction</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichFlatMapFunction</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichGroupCombineFunction</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichGroupReduceFunction</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichJoinFunction</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichMapFunction</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichMapPartitionFunction</exclude>
+								<exclude>org.apache.flink.api.common.functions.RichReduceFunction</exclude>
 								<!-- FLINK-34085 Deprecated string config should be removed in 2.0 -->
 								<exclude>org.apache.flink.configuration.ConfigConstants</exclude>
 								<!-- FLINK-35886: WatermarksWithIdleness constructor was marked as deprecated -->
@@ -2363,7 +2354,6 @@ under the License.
 								<exclude>org.apache.flink.streaming.api.datastream.CoGroupedStreams</exclude>
 								<exclude>org.apache.flink.streaming.api.datastream.ConnectedStreams</exclude>
 								<exclude>org.apache.flink.streaming.api.datastream.DataStream</exclude>
-								<exclude>org.apache.flink.streaming.api.datastream.IterativeStream</exclude>
 								<exclude>apache.flink.streaming.api.datastream.JoinedStreams</exclude>
 								<exclude>org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator</exclude>
 								<exclude>org.apache.flink.streaming.api.datastream.WindowedStream</exclude>
@@ -2385,7 +2375,6 @@ under the License.
 								<exclude>org.apache.flink.streaming.api.functions.sink.SinkFunction</exclude>
 								<exclude>org.apache.flink.streaming.api.functions.source.SourceFunction</exclude>
 								<exclude>org.apache.flink.streaming.api.functions.windowing.WindowFunction</exclude>
-								<exclude>org.apache.flink.streaming.api.windowing.time.Time</exclude>
 								<exclude>org.apache.flink.streaming.api.functions.source.RichSourceFunction</exclude>
 								<exclude>org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction</exclude>
 								<exclude>org.apache.flink.streaming.api.functions.source.ParallelSourceFunction</exclude>
@@ -2393,6 +2382,16 @@ under the License.
 								<exclude>
 									org.apache.flink.api.common.functions.RuntimeContext#getExecutionConfig()
 								</exclude>
+								<!-- FLINK-3992 Do not implement deprecated Key interface in flink 2.0 -->
+								<exclude>org.apache.flink.types.DoubleValue</exclude>
+								<exclude>org.apache.flink.types.FloatValue</exclude>
+								<exclude>org.apache.flink.types.NormalizableKey</exclude>
+								<!-- FLINK-36366 Remove deprecate API in flink-core -->
+								<exclude>org.apache.flink.api.common.io.SerializedOutputFormat</exclude>
+								<exclude>org.apache.flink.api.common.io.OutputFormat</exclude>
+								<exclude>org.apache.flink.api.common.io.FinalizeOnMaster</exclude>
+								<exclude>org.apache.flink.api.common.io.FileOutputFormat</exclude>
+								<exclude>org.apache.flink.api.common.io.BinaryOutputFormat</exclude>
 								<!-- FLINK-5336 Remove IOReadableWritable from Path in flink-2.0. -->
 								<exclude>org.apache.flink.core.fs.Path</exclude>
 								<!-- The following exclusions are due to the flink-hadoop-compatibility_${scala.binary.version} module has renamed to flink-hadoop-compatibility. -->
@@ -2401,8 +2400,16 @@ under the License.
 								<exclude>org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat</exclude>
 								<exclude>org.apache.flink.api.java.hadoop.mapreduce.HadoopOutputFormat</exclude>
 								<exclude>org.apache.flink.api.java.typeutils.WritableTypeInfo</exclude>
+								<!-- The following exclusions are due to classes being relocated from the flink-java
+									module to the flink-core module. -->
+								<exclude>org.apache.flink.api.java.utils.AbstractParameterTool</exclude>
+								<exclude>org.apache.flink.api.java.utils.ParameterTool</exclude>
 								<!-- FLINK-36327 Remove dependency about flink-scala and flink-streaming-scala in table module in flink-2.0 -->
 								<exclude>org.apache.flink.table.api.typeutils.*</exclude>
+								<!-- FLINK-36245 Remove Sink.InitContext in flink-2.0. -->
+								<exclude>org.apache.flink.api.connector.sink2.Sink</exclude>
+								<!-- FLINK-36245 move SourceFunction to legacy package in flink-2.0. -->
+								<exclude>org.apache.flink.walkthrough.common.source.TransactionSource</exclude>
 								<!-- MARKER: end exclusions -->
 							</excludes>
 							<accessModifier>public</accessModifier>

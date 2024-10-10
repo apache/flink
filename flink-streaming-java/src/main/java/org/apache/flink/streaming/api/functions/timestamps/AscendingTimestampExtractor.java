@@ -19,8 +19,8 @@
 package org.apache.flink.streaming.api.functions.timestamps;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.operators.util.WatermarkStrategyWithPeriodicWatermarks;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +36,8 @@ import static java.util.Objects.requireNonNull;
  */
 @Deprecated
 @PublicEvolving
-public abstract class AscendingTimestampExtractor<T> implements AssignerWithPeriodicWatermarks<T> {
+public abstract class AscendingTimestampExtractor<T>
+        implements WatermarkStrategyWithPeriodicWatermarks<T> {
 
     private static final long serialVersionUID = 1L;
 

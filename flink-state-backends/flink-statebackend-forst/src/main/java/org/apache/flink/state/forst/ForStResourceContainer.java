@@ -30,19 +30,19 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
-import org.rocksdb.BlockBasedTableConfig;
-import org.rocksdb.BloomFilter;
-import org.rocksdb.Cache;
-import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
-import org.rocksdb.Filter;
-import org.rocksdb.FlinkEnv;
-import org.rocksdb.IndexType;
-import org.rocksdb.PlainTableConfig;
-import org.rocksdb.ReadOptions;
-import org.rocksdb.Statistics;
-import org.rocksdb.TableFormatConfig;
-import org.rocksdb.WriteOptions;
+import org.forstdb.BlockBasedTableConfig;
+import org.forstdb.BloomFilter;
+import org.forstdb.Cache;
+import org.forstdb.ColumnFamilyOptions;
+import org.forstdb.DBOptions;
+import org.forstdb.Filter;
+import org.forstdb.FlinkEnv;
+import org.forstdb.IndexType;
+import org.forstdb.PlainTableConfig;
+import org.forstdb.ReadOptions;
+import org.forstdb.Statistics;
+import org.forstdb.TableFormatConfig;
+import org.forstdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,12 +65,12 @@ import java.util.Collection;
 public final class ForStResourceContainer implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(ForStResourceContainer.class);
 
+    public static final String DB_DIR_STRING = "db";
+
     private static final String FORST_RELOCATE_LOG_SUFFIX = "_LOG";
 
     // the filename length limit is 255 on most operating systems
     private static final int INSTANCE_PATH_LENGTH_LIMIT = 255 - FORST_RELOCATE_LOG_SUFFIX.length();
-
-    private static final String DB_DIR_STRING = "db";
 
     @Nullable private final Path remoteBasePath;
 
@@ -269,12 +269,24 @@ public final class ForStResourceContainer implements AutoCloseable {
         return remoteForStPath;
     }
 
+    public Path getBasePath() {
+        if (remoteBasePath != null) {
+            return remoteBasePath;
+        } else {
+            return Path.fromLocalFile(localBasePath);
+        }
+    }
+
     public Path getDbPath() {
         if (remoteForStPath != null) {
             return remoteForStPath;
         } else {
             return Path.fromLocalFile(localForStPath);
         }
+    }
+
+    public boolean isCoordinatorInline() {
+        return configuration.get(ForStOptions.EXECUTOR_COORDINATOR_INLINE);
     }
 
     public boolean isWriteInline() {

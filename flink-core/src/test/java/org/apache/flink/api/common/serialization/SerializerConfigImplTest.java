@@ -20,7 +20,6 @@ package org.apache.flink.api.common.serialization;
 
 import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -33,39 +32,16 @@ import java.io.Serializable;
 import java.lang.reflect.Type;
 import java.util.AbstractMap;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.configuration.PipelineOptions.KRYO_DEFAULT_SERIALIZERS;
-import static org.apache.flink.configuration.PipelineOptions.KRYO_REGISTERED_CLASSES;
-import static org.apache.flink.configuration.PipelineOptions.POJO_REGISTERED_CLASSES;
 import static org.apache.flink.configuration.PipelineOptions.SERIALIZATION_CONFIG;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SerializerConfigImplTest {
-    private static final Map<ConfigOption<List<String>>, String> configs = new HashMap<>();
-
-    static {
-        configs.put(
-                KRYO_DEFAULT_SERIALIZERS,
-                "class:org.apache.flink.api.common.serialization.SerializerConfigImplTest,"
-                        + "serializer:org.apache.flink.api.common.serialization.SerializerConfigImplTest$TestSerializer1;"
-                        + "class:org.apache.flink.api.common.serialization.SerializerConfigImplTest$TestSerializer1,"
-                        + "serializer:org.apache.flink.api.common.serialization.SerializerConfigImplTest$TestSerializer2");
-        configs.put(
-                KRYO_REGISTERED_CLASSES,
-                "org.apache.flink.api.common.serialization.SerializerConfigImplTest;"
-                        + "org.apache.flink.api.common.serialization.SerializerConfigImplTest$TestSerializer1");
-        configs.put(
-                POJO_REGISTERED_CLASSES,
-                "org.apache.flink.api.common.serialization.SerializerConfigImplTest;"
-                        + "org.apache.flink.api.common.serialization.SerializerConfigImplTest$TestSerializer1");
-    }
-
     @Test
     void testReadingDefaultConfig() {
         SerializerConfig config = new SerializerConfigImpl();
@@ -79,7 +55,7 @@ class SerializerConfigImplTest {
 
     @Test
     void testDoubleTypeRegistration() {
-        SerializerConfig config = new SerializerConfigImpl();
+        SerializerConfigImpl config = new SerializerConfigImpl();
         List<Class<?>> types = Arrays.asList(Double.class, Integer.class, Double.class);
         List<Class<?>> expectedTypes = Arrays.asList(Double.class, Integer.class);
 
@@ -97,71 +73,8 @@ class SerializerConfigImplTest {
     }
 
     @Test
-    void testLoadingRegisteredKryoTypesFromConfiguration() {
-        SerializerConfig configFromSetters = new SerializerConfigImpl();
-        configFromSetters.registerKryoType(SerializerConfigImplTest.class);
-        configFromSetters.registerKryoType(SerializerConfigImplTest.TestSerializer1.class);
-
-        SerializerConfig configFromConfiguration = new SerializerConfigImpl();
-
-        Configuration configuration = new Configuration();
-        configuration.setString(
-                KRYO_REGISTERED_CLASSES.key(), configs.get(KRYO_REGISTERED_CLASSES));
-
-        // mutate config according to configuration
-        configFromConfiguration.configure(
-                configuration, Thread.currentThread().getContextClassLoader());
-
-        assertThat(configFromConfiguration.getRegisteredKryoTypes())
-                .isEqualTo(configFromSetters.getRegisteredKryoTypes());
-    }
-
-    @Test
-    void testLoadingRegisteredPojoTypesFromConfiguration() {
-        SerializerConfig configFromSetters = new SerializerConfigImpl();
-        configFromSetters.registerPojoType(SerializerConfigImplTest.class);
-        configFromSetters.registerPojoType(SerializerConfigImplTest.TestSerializer1.class);
-
-        SerializerConfig configFromConfiguration = new SerializerConfigImpl();
-
-        Configuration configuration = new Configuration();
-        configuration.setString(
-                POJO_REGISTERED_CLASSES.key(), configs.get(POJO_REGISTERED_CLASSES));
-
-        // mutate config according to configuration
-        configFromConfiguration.configure(
-                configuration, Thread.currentThread().getContextClassLoader());
-
-        assertThat(configFromConfiguration.getRegisteredPojoTypes())
-                .isEqualTo(configFromSetters.getRegisteredPojoTypes());
-    }
-
-    @Test
-    void testLoadingDefaultKryoSerializersFromConfiguration() {
-        SerializerConfig configFromSetters = new SerializerConfigImpl();
-        configFromSetters.addDefaultKryoSerializer(
-                SerializerConfigImplTest.class, SerializerConfigImplTest.TestSerializer1.class);
-        configFromSetters.addDefaultKryoSerializer(
-                SerializerConfigImplTest.TestSerializer1.class,
-                SerializerConfigImplTest.TestSerializer2.class);
-
-        SerializerConfig configFromConfiguration = new SerializerConfigImpl();
-
-        Configuration configuration = new Configuration();
-        configuration.setString(
-                KRYO_DEFAULT_SERIALIZERS.key(), configs.get(KRYO_DEFAULT_SERIALIZERS));
-
-        // mutate config according to configuration
-        configFromConfiguration.configure(
-                configuration, Thread.currentThread().getContextClassLoader());
-
-        assertThat(configFromConfiguration.getDefaultKryoSerializers())
-                .isEqualTo(configFromSetters.getDefaultKryoSerializers());
-    }
-
-    @Test
     void testNotOverridingRegisteredKryoTypesWithDefaultsFromConfiguration() {
-        SerializerConfig config = new SerializerConfigImpl();
+        SerializerConfigImpl config = new SerializerConfigImpl();
         config.registerKryoType(SerializerConfigImplTest.class);
         config.registerKryoType(SerializerConfigImplTest.TestSerializer1.class);
 
@@ -178,7 +91,7 @@ class SerializerConfigImplTest {
 
     @Test
     void testNotOverridingRegisteredPojoTypesWithDefaultsFromConfiguration() {
-        SerializerConfig config = new SerializerConfigImpl();
+        SerializerConfigImpl config = new SerializerConfigImpl();
         config.registerPojoType(SerializerConfigImplTest.class);
         config.registerPojoType(SerializerConfigImplTest.TestSerializer1.class);
 
@@ -195,7 +108,7 @@ class SerializerConfigImplTest {
 
     @Test
     void testNotOverridingDefaultKryoSerializersFromConfiguration() {
-        SerializerConfig config = new SerializerConfigImpl();
+        SerializerConfigImpl config = new SerializerConfigImpl();
         config.addDefaultKryoSerializer(
                 SerializerConfigImplTest.class, SerializerConfigImplTest.TestSerializer1.class);
         config.addDefaultKryoSerializer(
@@ -311,9 +224,8 @@ class SerializerConfigImplTest {
 
     @Test
     void testCopySerializerConfig() {
-        SerializerConfig serializerConfig = new SerializerConfigImpl();
+        SerializerConfigImpl serializerConfig = new SerializerConfigImpl();
         Configuration configuration = new Configuration();
-        configs.forEach((k, v) -> configuration.setString(k.key(), v));
 
         serializerConfig.configure(configuration, SerializerConfigImplTest.class.getClassLoader());
         serializerConfig

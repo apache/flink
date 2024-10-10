@@ -48,11 +48,6 @@ public abstract class AbstractCsvInputFormat<T> extends FileInputFormat<T> {
     }
 
     @Override
-    public boolean supportsMultiPaths() {
-        return true;
-    }
-
-    @Override
     public void open(FileInputSplit split) throws IOException {
         super.open(split);
 

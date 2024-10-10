@@ -439,46 +439,6 @@ For more details about the different kinds of UDFs, please refer to [User Define
   </tbody>
 </table>
 
-<big><strong>Deprecated APIs</strong></big>
-
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 20%">APIs</th>
-      <th class="text-center">Description</th>
-      <th class="text-center" style="width: 10%">Docs</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>
-        <strong>register_function(name, function)</strong>
-      </td>
-      <td>
-        Registers a Python user-defined function under a unique name. 
-        Replaces already existing user-defined function under this name.
-        It can be replaced by <strong>create_temporary_system_function</strong>.
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_function" name="link">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <strong>register_java_function(name, function_class_name)</strong>
-      </td>
-      <td>
-        Registers a Java user defined function under a unique name. 
-        Replaces already existing user-defined functions under this name.
-        It can be replaced by <strong>create_java_temporary_system_function</strong>.
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_java_function" name="link">}}
-      </td>
-    </tr>
-  </tbody>
-</table>
-
 ### Dependency Management
 
 These APIs are used to manage the Python dependencies which are required by the Python UDFs.

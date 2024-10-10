@@ -27,10 +27,10 @@ import org.apache.flink.cep.nfa.compiler.NFACompiler;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.utils.CepOperatorTestUtilities;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
@@ -426,7 +426,8 @@ public class CEPRescalingTest {
                         maxParallelism,
                         taskParallelism,
                         subtaskIdx);
-        harness.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()));
+        harness.setStateBackend(new EmbeddedRocksDBStateBackend());
+        harness.setCheckpointStorage(new JobManagerCheckpointStorage());
         return harness;
     }
 

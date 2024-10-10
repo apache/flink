@@ -20,8 +20,6 @@ package org.apache.flink.test.execution;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.deployment.executors.RemoteExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -63,7 +61,7 @@ public class JobListenerITCase extends TestLogger {
         OneShotLatch submissionLatch = new OneShotLatch();
         OneShotLatch executionLatch = new OneShotLatch();
 
-        ExecutionEnvironment env = new ExecutionEnvironment(getClientConfiguration());
+        StreamExecutionEnvironment env = new StreamExecutionEnvironment(getClientConfiguration());
 
         env.registerJobListener(
                 new JobListener() {
@@ -80,7 +78,7 @@ public class JobListenerITCase extends TestLogger {
                     }
                 });
 
-        env.fromElements(1, 2, 3, 4, 5).output(new DiscardingOutputFormat<>());
+        env.fromData(1, 2, 3, 4, 5).sinkTo(new DiscardingSink<>());
         JobExecutionResult jobExecutionResult = env.execute();
 
         submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
@@ -94,7 +92,7 @@ public class JobListenerITCase extends TestLogger {
         AtomicReference<JobID> jobIdReference = new AtomicReference<>();
         OneShotLatch submissionLatch = new OneShotLatch();
 
-        ExecutionEnvironment env = new ExecutionEnvironment(getClientConfiguration());
+        StreamExecutionEnvironment env = new StreamExecutionEnvironment(getClientConfiguration());
 
         env.registerJobListener(
                 new JobListener() {
@@ -109,7 +107,7 @@ public class JobListenerITCase extends TestLogger {
                             JobExecutionResult jobExecutionResult, Throwable throwable) {}
                 });
 
-        env.fromElements(1, 2, 3, 4, 5).output(new DiscardingOutputFormat<>());
+        env.fromData(1, 2, 3, 4, 5).sinkTo(new DiscardingSink<>());
         JobClient jobClient = env.executeAsync();
 
         submissionLatch.await(2000L, TimeUnit.MILLISECONDS);
@@ -122,7 +120,7 @@ public class JobListenerITCase extends TestLogger {
     public void testExecuteCallsJobListenerOnMainThreadOnBatchEnvironment() throws Exception {
         AtomicReference<Thread> threadReference = new AtomicReference<>();
 
-        ExecutionEnvironment env = new ExecutionEnvironment(getClientConfiguration());
+        StreamExecutionEnvironment env = new StreamExecutionEnvironment(getClientConfiguration());
 
         env.registerJobListener(
                 new JobListener() {
@@ -136,7 +134,7 @@ public class JobListenerITCase extends TestLogger {
                             JobExecutionResult jobExecutionResult, Throwable throwable) {}
                 });
 
-        env.fromElements(1, 2, 3, 4, 5).output(new DiscardingOutputFormat<>());
+        env.fromData(1, 2, 3, 4, 5).sinkTo(new DiscardingSink<>());
         env.execute();
 
         assertThat(Thread.currentThread(), is(threadReference.get()));
@@ -146,7 +144,7 @@ public class JobListenerITCase extends TestLogger {
     public void testExecuteAsyncCallsJobListenerOnMainThreadOnBatchEnvironment() throws Exception {
         AtomicReference<Thread> threadReference = new AtomicReference<>();
 
-        ExecutionEnvironment env = new ExecutionEnvironment(getClientConfiguration());
+        StreamExecutionEnvironment env = new StreamExecutionEnvironment(getClientConfiguration());
 
         env.registerJobListener(
                 new JobListener() {
@@ -160,7 +158,7 @@ public class JobListenerITCase extends TestLogger {
                             JobExecutionResult jobExecutionResult, Throwable throwable) {}
                 });
 
-        env.fromElements(1, 2, 3, 4, 5).output(new DiscardingOutputFormat<>());
+        env.fromData(1, 2, 3, 4, 5).sinkTo(new DiscardingSink<>());
         env.executeAsync();
 
         assertThat(Thread.currentThread(), is(threadReference.get()));

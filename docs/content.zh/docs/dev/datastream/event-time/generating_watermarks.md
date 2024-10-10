@@ -125,7 +125,7 @@ DataStream<MyEvent> withTimestampsAndWatermarks = stream
 
 withTimestampsAndWatermarks
         .keyBy( (event) -> event.getGroup() )
-        .window(TumblingEventTimeWindows.of(Time.seconds(10)))
+        .window(TumblingEventTimeWindows.of(Duration.ofSeconds(10)))
         .reduce( (a, b) -> a.add(b) )
         .addSink(...);
 ```
@@ -144,7 +144,7 @@ val withTimestampsAndWatermarks: DataStream[MyEvent] = stream
 
 withTimestampsAndWatermarks
         .keyBy( _.getGroup )
-        .window(TumblingEventTimeWindows.of(Time.seconds(10)))
+        .window(TumblingEventTimeWindows.of(Duration.ofSeconds(10)))
         .reduce( (a, b) => a.add(b) )
         .addSink(...)
 ```
@@ -164,7 +164,7 @@ with_timestamp_and_watermarks = stream \
 
 with_timestamp_and_watermarks \
     .key_by(lambda e: e.get_group()) \
-    .window(TumblingEventTimeWindows.of(Time.seconds(10))) \
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(10))) \
     .reduce(lambda a, b: a.add(b)) \
     .add_sink(...)
 ```

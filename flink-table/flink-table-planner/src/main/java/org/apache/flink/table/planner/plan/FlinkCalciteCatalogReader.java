@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.legacy.table.sources.StreamTableSource;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -33,6 +34,8 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.TableFactoryUtil;
+import org.apache.flink.table.legacy.sources.LookupableTableSource;
+import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.planner.calcite.FlinkSqlNameMatcher;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
 import org.apache.flink.table.planner.catalog.QueryOperationCatalogViewTable;
@@ -42,9 +45,6 @@ import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
 import org.apache.flink.table.planner.plan.schema.LegacyCatalogSourceTable;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
-import org.apache.flink.table.sources.LookupableTableSource;
-import org.apache.flink.table.sources.StreamTableSource;
-import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.utils.TableSchemaUtils;
 
 import org.apache.calcite.config.CalciteConnectionConfig;

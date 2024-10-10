@@ -22,11 +22,11 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksDB;
-import org.rocksdb.RocksDBException;
-import org.rocksdb.WriteBatch;
-import org.rocksdb.WriteOptions;
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.RocksDB;
+import org.forstdb.RocksDBException;
+import org.forstdb.WriteBatch;
+import org.forstdb.WriteOptions;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;

@@ -21,11 +21,12 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
 import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -41,7 +42,7 @@ class SlidingProcessingTimeWindowsTest {
                 mock(WindowAssigner.WindowAssignerContext.class);
 
         SlidingProcessingTimeWindows assigner =
-                SlidingProcessingTimeWindows.of(Time.milliseconds(5000), Time.milliseconds(1000));
+                SlidingProcessingTimeWindows.of(Duration.ofMillis(5000), Duration.ofMillis(1000));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(0L);
         assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
@@ -78,7 +79,7 @@ class SlidingProcessingTimeWindowsTest {
 
         SlidingProcessingTimeWindows assigner =
                 SlidingProcessingTimeWindows.of(
-                        Time.milliseconds(5000), Time.milliseconds(1000), Time.milliseconds(100));
+                        Duration.ofMillis(5000), Duration.ofMillis(1000), Duration.ofMillis(100));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(100L);
         assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
@@ -115,7 +116,7 @@ class SlidingProcessingTimeWindowsTest {
 
         SlidingProcessingTimeWindows assigner =
                 SlidingProcessingTimeWindows.of(
-                        Time.milliseconds(5000), Time.milliseconds(1000), Time.milliseconds(-100));
+                        Duration.ofMillis(5000), Duration.ofMillis(1000), Duration.ofMillis(-100));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(0L);
         assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
@@ -154,7 +155,7 @@ class SlidingProcessingTimeWindowsTest {
 
         SlidingProcessingTimeWindows assigner =
                 SlidingProcessingTimeWindows.of(
-                        Time.seconds(5), Time.seconds(1), Time.milliseconds(500));
+                        Duration.ofSeconds(5), Duration.ofSeconds(1), Duration.ofMillis(500));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(100L);
         assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
@@ -187,32 +188,44 @@ class SlidingProcessingTimeWindowsTest {
     @Test
     void testInvalidParameters() {
 
-        assertThatThrownBy(() -> SlidingProcessingTimeWindows.of(Time.seconds(-2), Time.seconds(1)))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("abs(offset) < slide and size > 0");
-
-        assertThatThrownBy(() -> SlidingProcessingTimeWindows.of(Time.seconds(2), Time.seconds(-1)))
+        assertThatThrownBy(
+                        () ->
+                                SlidingProcessingTimeWindows.of(
+                                        Duration.ofSeconds(-2), Duration.ofSeconds(1)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("abs(offset) < slide and size > 0");
 
         assertThatThrownBy(
                         () ->
                                 SlidingProcessingTimeWindows.of(
-                                        Time.seconds(-20), Time.seconds(10), Time.seconds(-1)))
+                                        Duration.ofSeconds(2), Duration.ofSeconds(-1)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("abs(offset) < slide and size > 0");
 
         assertThatThrownBy(
                         () ->
                                 SlidingProcessingTimeWindows.of(
-                                        Time.seconds(20), Time.seconds(10), Time.seconds(-11)))
+                                        Duration.ofSeconds(-20),
+                                        Duration.ofSeconds(10),
+                                        Duration.ofSeconds(-1)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("abs(offset) < slide and size > 0");
 
         assertThatThrownBy(
                         () ->
                                 SlidingProcessingTimeWindows.of(
-                                        Time.seconds(20), Time.seconds(10), Time.seconds(11)))
+                                        Duration.ofSeconds(20),
+                                        Duration.ofSeconds(10),
+                                        Duration.ofSeconds(-11)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("abs(offset) < slide and size > 0");
+
+        assertThatThrownBy(
+                        () ->
+                                SlidingProcessingTimeWindows.of(
+                                        Duration.ofSeconds(20),
+                                        Duration.ofSeconds(10),
+                                        Duration.ofSeconds(11)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("abs(offset) < slide and size > 0");
     }
@@ -220,7 +233,7 @@ class SlidingProcessingTimeWindowsTest {
     @Test
     void testProperties() {
         SlidingProcessingTimeWindows assigner =
-                SlidingProcessingTimeWindows.of(Time.seconds(5), Time.milliseconds(100));
+                SlidingProcessingTimeWindows.of(Duration.ofSeconds(5), Duration.ofMillis(100));
 
         assertThat(assigner.isEventTime()).isFalse();
         assertThat(assigner.getWindowSerializer(new ExecutionConfig()))

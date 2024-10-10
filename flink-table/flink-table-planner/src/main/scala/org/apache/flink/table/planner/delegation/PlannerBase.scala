@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.delegation
 
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.legacy.table.sources.{InputFormatTableSource, StreamTableSource}
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.StreamGraph
@@ -30,6 +31,7 @@ import org.apache.flink.table.catalog.ManagedTableListener.isManagedTable
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.delegation._
 import org.apache.flink.table.factories.{DynamicTableSinkFactory, FactoryUtil, TableFactoryUtil}
+import org.apache.flink.table.legacy.sinks.TableSink
 import org.apache.flink.table.module.{Module, ModuleManager}
 import org.apache.flink.table.operations._
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
@@ -38,7 +40,7 @@ import org.apache.flink.table.planner.JMap
 import org.apache.flink.table.planner.calcite._
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.connectors.DynamicSinkUtils
-import org.apache.flink.table.planner.connectors.DynamicSinkUtils.{convertCreateTableAsToRel, validateSchemaAndApplyImplicitCast}
+import org.apache.flink.table.planner.connectors.DynamicSinkUtils.validateSchemaAndApplyImplicitCast
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
 import org.apache.flink.table.planner.plan.ExecNodeGraphInternalPlan
@@ -54,7 +56,6 @@ import org.apache.flink.table.planner.utils.InternalConfigOptions.{TABLE_QUERY_C
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.{toJava, toScala}
 import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.runtime.generated.CompileUtils
-import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
 
 import _root_.scala.collection.JavaConversions._
@@ -73,12 +74,12 @@ import scala.collection.mutable
 
 /**
  * Implementation of a [[Planner]]. It supports only streaming use cases. (The new
- * [[org.apache.flink.table.sources.InputFormatTableSource]] should work, but will be handled as
- * streaming sources, and no batch specific optimizations will be applied).
+ * [[InputFormatTableSource]] should work, but will be handled as streaming sources, and no batch
+ * specific optimizations will be applied).
  *
  * @param executor
  *   instance of [[Executor]], needed to extract [[StreamExecutionEnvironment]] for
- *   [[org.apache.flink.table.sources.StreamTableSource.getDataStream]]
+ *   [[StreamTableSource.getDataStream]]
  * @param tableConfig
  *   mutable configuration passed from corresponding [[TableEnvironment]]
  * @param moduleManager

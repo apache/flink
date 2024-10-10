@@ -21,6 +21,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.catalog.{Catalog, CatalogPartitionSpec, ObjectIdentifier}
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException
 import org.apache.flink.table.expressions.Expression
+import org.apache.flink.table.legacy.sources.PartitionableTableSource
 import org.apache.flink.table.plan.stats.TableStats
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
@@ -29,7 +30,6 @@ import org.apache.flink.table.planner.plan.utils.{PartitionPruner, RexNodeExtrac
 import org.apache.flink.table.planner.utils.CatalogTableStatisticsConverter
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext
-import org.apache.flink.table.sources.PartitionableTableSource
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.plan.RelOptRule.{none, operand}

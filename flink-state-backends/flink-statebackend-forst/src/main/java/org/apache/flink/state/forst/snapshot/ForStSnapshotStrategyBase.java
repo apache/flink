@@ -45,8 +45,8 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ResourceGuard;
 
-import org.rocksdb.RocksDB;
-import org.rocksdb.RocksDBException;
+import org.forstdb.RocksDB;
+import org.forstdb.RocksDBException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -326,6 +326,11 @@ public abstract class ForStSnapshotStrategyBase<K, R extends SnapshotResources>
 
         public void setPreviousSnapshot(@Nonnull PreviousSnapshot previousSnapshot) {
             this.previousSnapshot = previousSnapshot;
+        }
+
+        public String getCurrentFileContent() {
+            // RocksDB require CURRENT file end with a new line
+            return manifestFileName + "\n";
         }
 
         @Override

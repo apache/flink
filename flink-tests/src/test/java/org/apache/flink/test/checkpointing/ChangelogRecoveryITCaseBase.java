@@ -50,12 +50,11 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
@@ -208,7 +207,7 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
                         .keyBy(element -> element);
         keyedStream.process(new CountFunction()).addSink(new CollectionSink()).setParallelism(1);
         keyedStream
-                .window(TumblingProcessingTimeWindows.of(Time.milliseconds(10)))
+                .window(TumblingProcessingTimeWindows.of(Duration.ofMillis(10)))
                 .process(
                         new ProcessWindowFunction<Integer, Integer, Integer, TimeWindow>() {
                             @Override

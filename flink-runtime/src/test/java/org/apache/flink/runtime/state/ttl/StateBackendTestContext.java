@@ -37,6 +37,7 @@ import org.apache.flink.runtime.state.SharedStateRegistryImpl;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -75,14 +76,7 @@ public abstract class StateBackendTestContext {
     protected abstract StateBackend createStateBackend();
 
     protected CheckpointStorage createCheckpointStorage() {
-        if (stateBackend instanceof CheckpointStorage) {
-            return (CheckpointStorage) stateBackend;
-        }
-
-        throw new IllegalStateException(
-                "The state backend under test does not implement CheckpointStorage."
-                        + "Please override 'createCheckpointStorage' and provide an appropriate"
-                        + "checkpoint storage instance");
+        return new JobManagerCheckpointStorage();
     }
 
     private CheckpointStreamFactory createCheckpointStreamFactory() {

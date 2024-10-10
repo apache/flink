@@ -62,7 +62,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerRunnerResult;
@@ -93,6 +92,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -1101,14 +1101,19 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     @Override
     public CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
             JobID jobId,
-            OperatorID operatorId,
+            String operatorUid,
             SerializedValue<CoordinationRequest> serializedRequest,
             Duration timeout) {
+        // Convert operatorUid to OperatorID for querying.
+        // This approach is feasible because an operator's OperatorID is derived from its UID, when
+        // available.
         return performOperationOnJobMasterGateway(
                 jobId,
                 gateway ->
                         gateway.deliverCoordinationRequestToCoordinator(
-                                operatorId, serializedRequest, timeout));
+                                StreamingJobGraphGenerator.generateOperatorID(operatorUid),
+                                serializedRequest,
+                                timeout));
     }
 
     @Override

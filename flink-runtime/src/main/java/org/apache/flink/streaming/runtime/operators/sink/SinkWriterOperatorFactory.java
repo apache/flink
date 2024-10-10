@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
-import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
+import org.apache.flink.streaming.api.operators.legacy.YieldingOperatorFactory;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -54,11 +54,8 @@ public final class SinkWriterOperatorFactory<InputT, CommT>
             StreamOperatorParameters<CommittableMessage<CommT>> parameters) {
         try {
             final SinkWriterOperator<InputT, CommT> writerOperator =
-                    new SinkWriterOperator<>(sink, processingTimeService, getMailboxExecutor());
-            writerOperator.setup(
-                    parameters.getContainingTask(),
-                    parameters.getStreamConfig(),
-                    parameters.getOutput());
+                    new SinkWriterOperator<>(
+                            parameters, sink, processingTimeService, getMailboxExecutor());
             return (T) writerOperator;
         } catch (Exception e) {
             throw new IllegalStateException(

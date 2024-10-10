@@ -24,13 +24,13 @@ import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
 
@@ -66,25 +66,25 @@ public class AccumulatorErrorITCase extends TestLogger {
 
     @Test
     public void testFaultyAccumulator() throws Exception {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // Test Exception forwarding with faulty Accumulator implementation
-        env.generateSequence(0, 10000)
+        env.fromSequence(0, 10000)
                 .map(new FaultyAccumulatorUsingMapper())
-                .output(new DiscardingOutputFormat<>());
+                .sinkTo(new DiscardingSink<>());
 
         assertAccumulatorsShouldFail(env.execute());
     }
 
     @Test
     public void testInvalidTypeAccumulator() throws Exception {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // Test Exception forwarding with faulty Accumulator implementation
-        env.generateSequence(0, 10000)
+        env.fromSequence(0, 10000)
                 .map(new IncompatibleAccumulatorTypesMapper())
                 .map(new IncompatibleAccumulatorTypesMapper2())
-                .output(new DiscardingOutputFormat<>());
+                .sinkTo(new DiscardingSink<>());
 
         try {
             env.execute();
@@ -96,12 +96,12 @@ public class AccumulatorErrorITCase extends TestLogger {
 
     @Test
     public void testFaultyMergeAccumulator() throws Exception {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // Test Exception forwarding with faulty Accumulator implementation
-        env.generateSequence(0, 10000)
+        env.fromSequence(0, 10000)
                 .map(new FaultyMergeAccumulatorUsingMapper())
-                .output(new DiscardingOutputFormat<>());
+                .sinkTo(new DiscardingSink<>());
 
         assertAccumulatorsShouldFail(env.execute());
     }

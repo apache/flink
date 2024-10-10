@@ -35,9 +35,9 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalMergingState;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
@@ -70,7 +70,7 @@ public class TriggerTestHarness<T, W extends Window> {
         // we only ever use one key, other tests make sure that windows work across different
         // keys
         DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
-        MemoryStateBackend backend = new MemoryStateBackend();
+        HashMapStateBackend backend = new HashMapStateBackend();
 
         JobID jobID = new JobID();
         KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);

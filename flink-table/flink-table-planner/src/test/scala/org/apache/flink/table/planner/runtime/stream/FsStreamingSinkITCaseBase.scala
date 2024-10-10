@@ -23,7 +23,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.connector.file.table.FileSystemConnectorOptions._
 import org.apache.flink.core.execution.CheckpointingMode
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.functions.source.SourceFunction
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.data.TimestampData
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil}

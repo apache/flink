@@ -19,17 +19,21 @@
 package org.apache.flink.state.forst.restore;
 
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
+import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
+import org.apache.flink.state.forst.ForStKeyedStateBackend.ForStKvStateInfo;
 import org.apache.flink.state.forst.ForStNativeMetricMonitor;
 import org.apache.flink.state.forst.ForStNativeMetricOptions;
 import org.apache.flink.state.forst.ForStOperationUtils;
 import org.apache.flink.util.IOUtils;
 
-import org.rocksdb.ColumnFamilyDescriptor;
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
-import org.rocksdb.RocksDB;
+import org.forstdb.ColumnFamilyDescriptor;
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.ColumnFamilyOptions;
+import org.forstdb.DBOptions;
+import org.forstdb.RocksDB;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.File;
@@ -37,6 +41,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 /** Utility for creating a ForSt instance either from scratch or from restored local state. */
@@ -44,9 +49,10 @@ class ForStHandle implements AutoCloseable {
 
     private final Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory;
     private final DBOptions dbOptions;
+    private final Map<String, ForStKvStateInfo> kvStateInformation;
     private final String dbPath;
-    private final List<ColumnFamilyHandle> columnFamilyHandles;
-    private final List<ColumnFamilyDescriptor> columnFamilyDescriptors;
+    private List<ColumnFamilyHandle> columnFamilyHandles;
+    private List<ColumnFamilyDescriptor> columnFamilyDescriptors;
     private final ForStNativeMetricOptions nativeMetricOptions;
     private final MetricGroup metricGroup;
 
@@ -55,11 +61,13 @@ class ForStHandle implements AutoCloseable {
     @Nullable private ForStNativeMetricMonitor nativeMetricMonitor;
 
     protected ForStHandle(
+            Map<String, ForStKvStateInfo> kvStateInformation,
             File instanceRocksDBPath,
             DBOptions dbOptions,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             ForStNativeMetricOptions nativeMetricOptions,
             MetricGroup metricGroup) {
+        this.kvStateInformation = kvStateInformation;
         this.dbPath = instanceRocksDBPath.getAbsolutePath();
         this.dbOptions = dbOptions;
         this.columnFamilyOptionsFactory = columnFamilyOptionsFactory;
@@ -71,6 +79,20 @@ class ForStHandle implements AutoCloseable {
 
     void openDB() throws IOException {
         loadDb();
+    }
+
+    void openDB(
+            @Nonnull List<ColumnFamilyDescriptor> columnFamilyDescriptors,
+            @Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots)
+            throws IOException {
+        this.columnFamilyDescriptors = columnFamilyDescriptors;
+        this.columnFamilyHandles = new ArrayList<>(columnFamilyDescriptors.size() + 1);
+        loadDb();
+        // Register CF handlers
+        for (int i = 0; i < stateMetaInfoSnapshots.size(); i++) {
+            getOrRegisterStateColumnFamilyHandle(
+                    columnFamilyHandles.get(i), stateMetaInfoSnapshots.get(i));
+        }
     }
 
     private void loadDb() throws IOException {
@@ -92,6 +114,39 @@ class ForStHandle implements AutoCloseable {
                         : null;
     }
 
+    ForStKvStateInfo getOrRegisterStateColumnFamilyHandle(
+            ColumnFamilyHandle columnFamilyHandle, StateMetaInfoSnapshot stateMetaInfoSnapshot) {
+
+        ForStKvStateInfo registeredStateMetaInfoEntry =
+                kvStateInformation.get(stateMetaInfoSnapshot.getName());
+
+        if (null == registeredStateMetaInfoEntry) {
+            // create a meta info for the state on restore;
+            // this allows us to retain the state in future snapshots even if it wasn't accessed
+            RegisteredStateMetaInfoBase stateMetaInfo =
+                    RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(stateMetaInfoSnapshot);
+            if (columnFamilyHandle == null) {
+                registeredStateMetaInfoEntry =
+                        ForStOperationUtils.createStateInfo(
+                                stateMetaInfo, db, columnFamilyOptionsFactory);
+            } else {
+                registeredStateMetaInfoEntry =
+                        new ForStKvStateInfo(columnFamilyHandle, stateMetaInfo);
+            }
+
+            ForStOperationUtils.registerKvStateInformation(
+                    kvStateInformation,
+                    nativeMetricMonitor,
+                    stateMetaInfoSnapshot.getName(),
+                    registeredStateMetaInfoEntry);
+        } else {
+            // TODO: with eager state registration in place, check here for serializer migration
+            // strategies.
+        }
+
+        return registeredStateMetaInfoEntry;
+    }
+
     public RocksDB getDb() {
         return db;
     }
@@ -103,6 +158,10 @@ class ForStHandle implements AutoCloseable {
 
     public ColumnFamilyHandle getDefaultColumnFamilyHandle() {
         return defaultColumnFamilyHandle;
+    }
+
+    public Function<String, ColumnFamilyOptions> getColumnFamilyOptionsFactory() {
+        return columnFamilyOptionsFactory;
     }
 
     @Override

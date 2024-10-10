@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
-import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
+import org.apache.flink.streaming.api.operators.legacy.YieldingOperatorFactory;
 
 /** {@link ContinuousFileReaderOperator} factory. */
 public class ContinuousFileReaderOperatorFactory<OUT, T extends TimestampedInputSplit>
@@ -55,11 +55,7 @@ public class ContinuousFileReaderOperatorFactory<OUT, T extends TimestampedInput
             StreamOperatorParameters<OUT> parameters) {
         ContinuousFileReaderOperator<OUT, T> operator =
                 new ContinuousFileReaderOperator<>(
-                        inputFormat, processingTimeService, getMailboxExecutor());
-        operator.setup(
-                parameters.getContainingTask(),
-                parameters.getStreamConfig(),
-                parameters.getOutput());
+                        parameters, inputFormat, processingTimeService, getMailboxExecutor());
         operator.setOutputType(type, executionConfig);
         return (O) operator;
     }

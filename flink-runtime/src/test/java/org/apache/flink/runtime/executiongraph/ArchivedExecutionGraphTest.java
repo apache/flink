@@ -327,7 +327,6 @@ public class ArchivedExecutionGraphTest {
         ArchivedExecutionConfig runtimeConfig = runtimeGraph.getArchivedExecutionConfig();
         ArchivedExecutionConfig archivedConfig = archivedGraph.getArchivedExecutionConfig();
 
-        assertThat(runtimeConfig.getExecutionMode()).isEqualTo(archivedConfig.getExecutionMode());
         assertThat(runtimeConfig.getParallelism()).isEqualTo(archivedConfig.getParallelism());
         assertThat(runtimeConfig.getObjectReuseEnabled())
                 .isEqualTo(archivedConfig.getObjectReuseEnabled());

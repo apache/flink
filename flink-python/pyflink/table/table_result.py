@@ -219,7 +219,7 @@ class TableResult(object):
         self._j_table_result.print()
 
     def _get_java_table_schema(self):
-        TableSchema = get_gateway().jvm.org.apache.flink.table.api.TableSchema
+        TableSchema = get_gateway().jvm.org.apache.flink.table.legacy.api.TableSchema
         return TableSchema.fromResolvedSchema(self._j_table_result.getResolvedSchema())
 
 

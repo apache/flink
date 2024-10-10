@@ -20,21 +20,23 @@ package org.apache.flink.hdfstests;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.io.FileOutputFormat;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.ExecutionEnvironmentFactory;
-import org.apache.flink.api.java.LocalEnvironment;
-import org.apache.flink.api.java.io.TextOutputFormat;
+import org.apache.flink.api.common.io.FirstAttemptInitializationContext;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.examples.java.wordcount.WordCount;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.blob.TestingBlobHelpers;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
+import org.apache.flink.streaming.api.legacy.io.TextOutputFormat;
+import org.apache.flink.streaming.examples.wordcount.WordCount;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.OperatingSystem;
 
 import org.apache.commons.io.IOUtils;
@@ -55,12 +57,15 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.Assert.assertTrue;
 
 /**
  * This test should logically be located in the 'flink-runtime' tests. However, this project has
- * already all dependencies required (flink-java-examples). Also, the ParallelismOneExecEnv is here.
+ * already all dependencies required (flink-examples-streaming). Also, the ParallelismOneExecEnv is
+ * here.
  */
 public class HDFSTest {
 
@@ -134,7 +139,8 @@ public class HDFSTest {
                 WordCount.main(
                         new String[] {
                             "--input", file.toString(),
-                            "--output", result.toString()
+                            "--output", result.toString(),
+                            "--execution-mode", "BATCH"
                         });
             } catch (Throwable t) {
                 t.printStackTrace();
@@ -146,13 +152,18 @@ public class HDFSTest {
             assertTrue("No result file present", hdfs.exists(result));
 
             // validate output:
-            org.apache.hadoop.fs.FSDataInputStream inStream = hdfs.open(result);
             StringWriter writer = new StringWriter();
-            IOUtils.copy(inStream, writer);
+            List<FileStatus> fileStatusList = new ArrayList<>();
+            getAllFileInDirectory(result, fileStatusList);
+            for (FileStatus fileStatus : fileStatusList) {
+                org.apache.hadoop.fs.FSDataInputStream inStream = hdfs.open(fileStatus.getPath());
+                IOUtils.copy(inStream, writer);
+                inStream.close();
+            }
+
             String resultString = writer.toString();
 
-            Assert.assertEquals("hdfs 10\n" + "hello 10\n", resultString);
-            inStream.close();
+            Assert.assertEquals("(hdfs,10)\n" + "(hello,10)\n", resultString);
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -172,11 +183,11 @@ public class HDFSTest {
         outputFormat.setOutputDirectoryMode(FileOutputFormat.OutputDirectoryMode.ALWAYS);
 
         try {
-            outputFormat.open(0, 2);
+            outputFormat.open(FirstAttemptInitializationContext.of(0, 2));
             outputFormat.writeRecord(type);
             outputFormat.close();
 
-            outputFormat.open(1, 2);
+            outputFormat.open(FirstAttemptInitializationContext.of(1, 2));
             outputFormat.writeRecord(type);
             outputFormat.close();
 
@@ -292,17 +303,18 @@ public class HDFSTest {
         }
     }
 
-    abstract static class DopOneTestEnvironment extends ExecutionEnvironment {
+    abstract static class DopOneTestEnvironment extends StreamExecutionEnvironment {
 
         public static void setAsContext() {
-            final LocalEnvironment le = new LocalEnvironment();
+            final LocalStreamEnvironment le = new LocalStreamEnvironment();
             le.setParallelism(1);
 
             initializeContextEnvironment(
-                    new ExecutionEnvironmentFactory() {
+                    new StreamExecutionEnvironmentFactory() {
 
                         @Override
-                        public ExecutionEnvironment createExecutionEnvironment() {
+                        public StreamExecutionEnvironment createExecutionEnvironment(
+                                org.apache.flink.configuration.Configuration configuration) {
                             return le;
                         }
                     });
@@ -310,6 +322,22 @@ public class HDFSTest {
 
         public static void unsetAsContext() {
             resetContextEnvironment();
+        }
+    }
+
+    public void getAllFileInDirectory(
+            org.apache.hadoop.fs.Path hdfsDir, List<FileStatus> fileStatusList) {
+        try {
+            FileStatus[] fileStatuses = hdfs.listStatus(hdfsDir);
+            for (FileStatus fileStatus : fileStatuses) {
+                if (fileStatus.isDirectory()) {
+                    getAllFileInDirectory(fileStatus.getPath(), fileStatusList);
+                } else {
+                    fileStatusList.add(fileStatus);
+                }
+            }
+        } catch (Exception e) {
+            ExceptionUtils.rethrow(e);
         }
     }
 }

@@ -46,11 +46,6 @@ will create new attempts for the slow tasks and deploy them on nodes that are no
 This section describes how to use speculative execution, including how to enable it, how to tune it, and
 how to develop/improve custom sources to work with speculative execution.
 
-{{< hint warning >}}
-Note: Flink does not support speculative execution of DataSet jobs because DataSet will be deprecated 
-in near future. DataStream API is now the recommended low level API to develop Flink batch jobs.
-{{< /hint >}}
-
 ### Enable Speculative Execution
 You can enable speculative execution through the following configuration items：
 - `execution.batch.speculative.enabled: true`

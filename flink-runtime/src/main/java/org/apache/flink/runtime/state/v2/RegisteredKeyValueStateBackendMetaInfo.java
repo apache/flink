@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.v2;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.StateSerializerProvider;
@@ -31,6 +32,7 @@ import javax.annotation.Nonnull;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Compound meta information for a registered state in a keyed state backend. This combines all
@@ -129,6 +131,12 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
         return stateSerializerProvider.currentSchemaSerializer();
     }
 
+    @Nonnull
+    public TypeSerializerSchemaCompatibility<S> updateStateSerializer(
+            TypeSerializer<S> newStateSerializer) {
+        return stateSerializerProvider.registerNewSerializerForRestoredState(newStateSerializer);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -188,6 +196,28 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
     @Override
     public RegisteredKeyValueStateBackendMetaInfo<N, S> withSerializerUpgradesAllowed() {
         return new RegisteredKeyValueStateBackendMetaInfo<>(snapshot());
+    }
+
+    public void checkStateMetaInfo(StateDescriptor<?> stateDesc) {
+        Preconditions.checkState(
+                Objects.equals(stateDesc.getStateId(), getName()),
+                "Incompatible state names. "
+                        + "Was ["
+                        + getName()
+                        + "], "
+                        + "registered with ["
+                        + stateDesc.getStateId()
+                        + "].");
+
+        Preconditions.checkState(
+                stateDesc.getType() == getStateType(),
+                "Incompatible key/value state types. "
+                        + "Was ["
+                        + getStateType()
+                        + "], "
+                        + "registered with ["
+                        + stateDesc.getType()
+                        + "].");
     }
 
     @Nonnull

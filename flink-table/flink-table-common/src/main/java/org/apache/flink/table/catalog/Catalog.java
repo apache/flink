@@ -41,7 +41,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
-import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.legacy.factories.TableFactory;
 import org.apache.flink.table.procedures.Procedure;
 
 import javax.annotation.Nullable;

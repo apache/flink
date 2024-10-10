@@ -30,11 +30,12 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -104,7 +105,7 @@ class TypeFillTest {
                         () ->
                                 source.keyBy((in) -> in)
                                         .intervalJoin(source.keyBy((in) -> in))
-                                        .between(Time.milliseconds(10L), Time.milliseconds(10L))
+                                        .between(Duration.ofMillis(10L), Duration.ofMillis(10L))
                                         .process(new TestProcessJoinFunction<>())
                                         .print())
                 .isInstanceOf(InvalidTypesException.class);
@@ -130,12 +131,12 @@ class TypeFillTest {
                 .equalTo(new TestKeySelector<>(), Types.STRING);
         source.keyBy((in) -> in)
                 .intervalJoin(source.keyBy((in) -> in))
-                .between(Time.milliseconds(10L), Time.milliseconds(10L))
+                .between(Duration.ofMillis(10L), Duration.ofMillis(10L))
                 .process(new TestProcessJoinFunction<Long, Long, String>())
                 .returns(Types.STRING);
         source.keyBy((in) -> in)
                 .intervalJoin(source.keyBy((in) -> in))
-                .between(Time.milliseconds(10L), Time.milliseconds(10L))
+                .between(Duration.ofMillis(10L), Duration.ofMillis(10L))
                 .process(new TestProcessJoinFunction<>(), Types.STRING);
 
         assertThat(source.map(new TestMap<Long, Long>()).returns(Long.class).getType())

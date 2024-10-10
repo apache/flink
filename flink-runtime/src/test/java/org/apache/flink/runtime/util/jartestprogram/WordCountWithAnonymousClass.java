@@ -19,22 +19,24 @@
 package org.apache.flink.runtime.util.jartestprogram;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Collector;
 
 public class WordCountWithAnonymousClass {
 
     public static void main(String[] args) throws Exception {
         // set up the execution environment
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // get input data
-        DataSet<String> text = StaticData.getDefaultTextLineDataSet(env);
+        DataStreamSource<String> text = StaticData.getDefaultTextLineDataSet(env);
 
-        DataSet<Tuple2<String, Integer>> counts =
-                // split up the lines in pairs (2-tuples) containing: (word,1)
+        // split up the lines in pairs (2-tuples) containing: (word,1)
+        DataStream<Tuple2<String, Integer>> counts =
                 text.flatMap(
                                 new FlatMapFunction<String, Tuple2<String, Integer>>() {
                                     @Override
@@ -52,8 +54,8 @@ public class WordCountWithAnonymousClass {
                                         }
                                     }
                                 })
-                        // group by the tuple field "0" and sum up tuple field "1"
-                        .groupBy(0)
+                        // key by the tuple field "f0" and sum up tuple field "f1"
+                        .keyBy((KeySelector<Tuple2<String, Integer>, String>) value -> value.f0)
                         .sum(1);
 
         // emit result

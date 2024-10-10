@@ -35,8 +35,6 @@ import java.util.Properties;
 
 import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.CONFIG_DIR_OPTION;
 import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.DYNAMIC_PROPERTY_OPTION;
-import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.HOST_OPTION;
-import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.REST_PORT_OPTION;
 
 /**
  * Parser factory which generates a {@link StandaloneApplicationClusterConfiguration} from a given
@@ -78,11 +76,9 @@ public class StandaloneApplicationClusterConfigurationParserFactory
         final Options options = new Options();
         options.addOption(CONFIG_DIR_OPTION);
         options.addOption(JARS_OPTION);
-        options.addOption(REST_PORT_OPTION);
         options.addOption(JOB_CLASS_NAME_OPTION);
         options.addOption(JOB_ID_OPTION);
         options.addOption(DYNAMIC_PROPERTY_OPTION);
-        options.addOption(HOST_OPTION);
         options.addOption(CliFrontendParser.SAVEPOINT_PATH_OPTION);
         options.addOption(CliFrontendParser.SAVEPOINT_ALLOW_NON_RESTORED_OPTION);
 
@@ -95,8 +91,6 @@ public class StandaloneApplicationClusterConfigurationParserFactory
         final String configDir = commandLine.getOptionValue(CONFIG_DIR_OPTION.getOpt());
         final Properties dynamicProperties =
                 commandLine.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt());
-        final int restPort = getRestPort(commandLine);
-        final String hostname = commandLine.getOptionValue(HOST_OPTION.getOpt());
         final SavepointRestoreSettings savepointRestoreSettings =
                 CliFrontendParser.createSavepointRestoreSettings(commandLine);
         final JobID jobId = getJobId(commandLine);
@@ -107,21 +101,10 @@ public class StandaloneApplicationClusterConfigurationParserFactory
                 configDir,
                 dynamicProperties,
                 commandLine.getArgs(),
-                hostname,
-                restPort,
                 savepointRestoreSettings,
                 jobId,
                 jobClassName,
                 jarFiles);
-    }
-
-    private int getRestPort(CommandLine commandLine) throws FlinkParseException {
-        final String restPortString = commandLine.getOptionValue(REST_PORT_OPTION.getOpt(), "-1");
-        try {
-            return Integer.parseInt(restPortString);
-        } catch (NumberFormatException e) {
-            throw createFlinkParseException(REST_PORT_OPTION, e);
-        }
     }
 
     @Nullable

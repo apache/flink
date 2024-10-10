@@ -23,6 +23,7 @@ import shutil
 import tempfile
 import time
 import uuid
+import unittest
 
 from pyflink.common import Configuration, ExecutionConfig
 from pyflink.common.typeinfo import Types
@@ -75,38 +76,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         parallelism = self.env.get_default_local_parallelism()
 
         self.assertEqual(parallelism, 8)
-
-    def test_add_default_kryo_serializer(self):
-        self.env.add_default_kryo_serializer(
-            "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
-            "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
-
-        class_dict = self.env.get_config().get_default_kryo_serializer_classes()
-
-        self.assertEqual(class_dict,
-                         {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
-                          'org.apache.flink.runtime.state'
-                          '.StateBackendTestBase$CustomKryoTestSerializer'})
-
-    def test_register_type_with_kryo_serializer(self):
-        self.env.register_type_with_kryo_serializer(
-            "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
-            "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
-
-        class_dict = self.env.get_config().get_registered_types_with_kryo_serializer_classes()
-
-        self.assertEqual(class_dict,
-                         {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
-                          'org.apache.flink.runtime.state'
-                          '.StateBackendTestBase$CustomKryoTestSerializer'})
-
-    def test_register_type(self):
-        self.env.register_type("org.apache.flink.runtime.state.StateBackendTestBase$TestPojo")
-
-        type_list = self.env.get_config().get_registered_pojo_types()
-
-        self.assertEqual(type_list,
-                         ['org.apache.flink.runtime.state.StateBackendTestBase$TestPojo'])
 
     def test_get_set_max_parallelism(self):
         self.env.set_max_parallelism(12)
@@ -279,22 +248,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         results.sort()
         expected.sort()
         self.assertEqual(expected, results)
-
-    def test_read_text_file(self):
-        texts = ["Mike", "Marry", "Ted", "Jack", "Bob", "Henry"]
-        text_file_path = self.tempdir + '/text_file'
-        with open(text_file_path, 'a') as f:
-            for text in texts:
-                f.write(text)
-                f.write('\n')
-
-        ds = self.env.read_text_file(text_file_path)
-        ds.add_sink(self.test_sink)
-        self.env.execute("test read text file")
-        results = self.test_sink.get_results()
-        results.sort()
-        texts.sort()
-        self.assertEqual(texts, results)
 
     def test_execute_async(self):
         ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')],
@@ -516,6 +469,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         expected.sort()
         self.assertEqual(expected, result)
 
+    @unittest.skip("Disable due to Kafka connector need to release a new version 2.0")
     def test_add_jars(self):
         # find kafka connector jars
         flink_source_root = _find_flink_source_root()
@@ -537,6 +491,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.env.add_source(kafka_consumer).print()
         self.env.get_execution_plan()
 
+    @unittest.skip("Disable due to Kafka connector need to release a new version 2.0")
     def test_add_classpaths(self):
         # find kafka connector jars
         flink_source_root = _find_flink_source_root()

@@ -59,7 +59,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import static org.apache.flink.streaming.api.graph.StreamGraphGenerator.DEFAULT_TIME_CHARACTERISTIC;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -328,11 +327,7 @@ public class ExecutionEnvironmentImpl implements ExecutionEnvironment {
         // We copy the transformation so that newly added transformations cannot intervene with the
         // stream graph generation.
         return new StreamGraphGenerator(
-                        new ArrayList<>(transformations),
-                        executionConfig,
-                        checkpointCfg,
-                        configuration)
-                .setTimeCharacteristic(DEFAULT_TIME_CHARACTERISTIC);
+                new ArrayList<>(transformations), executionConfig, checkpointCfg, configuration);
     }
 
     private PipelineExecutor getPipelineExecutor() throws Exception {

@@ -26,6 +26,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -35,9 +37,9 @@ import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
+import org.apache.flink.streaming.runtime.operators.windowing.WindowOperatorFactory;
 import org.apache.flink.util.Collector;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -45,6 +47,7 @@ import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -54,13 +57,16 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>The tests use an arbitrary generic type to validate the behavior.
  */
-@SuppressWarnings("serial")
 class StateDescriptorPassingTest {
 
     @Test
     void testReduceWindowState() {
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
+        Configuration configuration = new Configuration();
+        String serializerConfigStr =
+                "{java.io.File: {type: kryo, kryo-type: registered, class: com.esotericsoftware.kryo.serializers.JavaSerializer}}";
+        configuration.setString(PipelineOptions.SERIALIZATION_CONFIG.key(), serializerConfigStr);
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
 
         DataStream<File> src =
                 env.fromData(new File("/"))
@@ -77,7 +83,7 @@ class StateDescriptorPassingTest {
                                         return null;
                                     }
                                 })
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
+                        .window(TumblingEventTimeWindows.of(Duration.ofMillis(1000)))
                         .reduce(
                                 new ReduceFunction<File>() {
 
@@ -92,8 +98,12 @@ class StateDescriptorPassingTest {
 
     @Test
     void testApplyWindowState() {
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
+        Configuration configuration = new Configuration();
+        String serializerConfigStr =
+                "{java.io.File: {type: kryo, kryo-type: registered, class: com.esotericsoftware.kryo.serializers.JavaSerializer}}";
+        configuration.setString(PipelineOptions.SERIALIZATION_CONFIG.key(), serializerConfigStr);
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
 
         DataStream<File> src =
                 env.fromData(new File("/"))
@@ -110,7 +120,7 @@ class StateDescriptorPassingTest {
                                         return null;
                                     }
                                 })
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
+                        .window(TumblingEventTimeWindows.of(Duration.ofMillis(1000)))
                         .apply(
                                 new WindowFunction<File, String, String, TimeWindow>() {
                                     @Override
@@ -126,8 +136,12 @@ class StateDescriptorPassingTest {
 
     @Test
     void testProcessWindowState() {
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
+        Configuration configuration = new Configuration();
+        String serializerConfigStr =
+                "{java.io.File: {type: kryo, kryo-type: registered, class: com.esotericsoftware.kryo.serializers.JavaSerializer}}";
+        configuration.setString(PipelineOptions.SERIALIZATION_CONFIG.key(), serializerConfigStr);
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
 
         DataStream<File> src =
                 env.fromData(new File("/"))
@@ -144,7 +158,7 @@ class StateDescriptorPassingTest {
                                         return null;
                                     }
                                 })
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
+                        .window(TumblingEventTimeWindows.of(Duration.ofMillis(1000)))
                         .process(
                                 new ProcessWindowFunction<File, String, String, TimeWindow>() {
                                     @Override
@@ -160,8 +174,12 @@ class StateDescriptorPassingTest {
 
     @Test
     void testProcessAllWindowState() {
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
+        Configuration configuration = new Configuration();
+        String serializerConfigStr =
+                "{java.io.File: {type: kryo, kryo-type: registered, class: com.esotericsoftware.kryo.serializers.JavaSerializer}}";
+        configuration.setString(PipelineOptions.SERIALIZATION_CONFIG.key(), serializerConfigStr);
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
 
         // simulate ingestion time
         DataStream<File> src =
@@ -172,7 +190,7 @@ class StateDescriptorPassingTest {
                                                 (file, ts) -> System.currentTimeMillis()));
 
         SingleOutputStreamOperator<?> result =
-                src.windowAll(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
+                src.windowAll(TumblingEventTimeWindows.of(Duration.ofMillis(1000)))
                         .process(
                                 new ProcessAllWindowFunction<File, String, TimeWindow>() {
                                     @Override
@@ -187,8 +205,12 @@ class StateDescriptorPassingTest {
 
     @Test
     void testReduceWindowAllState() {
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
+        Configuration configuration = new Configuration();
+        String serializerConfigStr =
+                "{java.io.File: {type: kryo, kryo-type: registered, class: com.esotericsoftware.kryo.serializers.JavaSerializer}}";
+        configuration.setString(PipelineOptions.SERIALIZATION_CONFIG.key(), serializerConfigStr);
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
 
         // simulate ingestion time
         DataStream<File> src =
@@ -199,7 +221,7 @@ class StateDescriptorPassingTest {
                                                 (file, ts) -> System.currentTimeMillis()));
 
         SingleOutputStreamOperator<?> result =
-                src.windowAll(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
+                src.windowAll(TumblingEventTimeWindows.of(Duration.ofMillis(1000)))
                         .reduce(
                                 new ReduceFunction<File>() {
 
@@ -214,8 +236,12 @@ class StateDescriptorPassingTest {
 
     @Test
     void testApplyWindowAllState() {
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
+        Configuration configuration = new Configuration();
+        String serializerConfigStr =
+                "{java.io.File: {type: kryo, kryo-type: registered, class: com.esotericsoftware.kryo.serializers.JavaSerializer}}";
+        configuration.setString(PipelineOptions.SERIALIZATION_CONFIG.key(), serializerConfigStr);
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
 
         // simulate ingestion time
         DataStream<File> src =
@@ -226,7 +252,7 @@ class StateDescriptorPassingTest {
                                                 (file, ts) -> System.currentTimeMillis()));
 
         SingleOutputStreamOperator<?> result =
-                src.windowAll(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
+                src.windowAll(TumblingEventTimeWindows.of(Duration.ofMillis(1000)))
                         .apply(
                                 new AllWindowFunction<File, String, TimeWindow>() {
                                     @Override
@@ -246,8 +272,15 @@ class StateDescriptorPassingTest {
     private void validateStateDescriptorConfigured(SingleOutputStreamOperator<?> result) {
         OneInputTransformation<?, ?> transform =
                 (OneInputTransformation<?, ?>) result.getTransformation();
-        WindowOperator<?, ?, ?, ?, ?> op = (WindowOperator<?, ?, ?, ?, ?>) transform.getOperator();
-        StateDescriptor<?, ?> descr = op.getStateDescriptor();
+        StreamOperatorFactory<?> factory = transform.getOperatorFactory();
+        StateDescriptor<?, ?> descr;
+        if (factory instanceof WindowOperatorFactory) {
+            descr = ((WindowOperatorFactory<?, ?, ?, ?, ?>) factory).getStateDescriptor();
+        } else {
+            WindowOperator<?, ?, ?, ?, ?> op =
+                    (WindowOperator<?, ?, ?, ?, ?>) transform.getOperator();
+            descr = op.getStateDescriptor();
+        }
 
         // this would be the first statement to fail if state descriptors were not properly
         // initialized
@@ -264,8 +297,15 @@ class StateDescriptorPassingTest {
     private void validateListStateDescriptorConfigured(SingleOutputStreamOperator<?> result) {
         OneInputTransformation<?, ?> transform =
                 (OneInputTransformation<?, ?>) result.getTransformation();
-        WindowOperator<?, ?, ?, ?, ?> op = (WindowOperator<?, ?, ?, ?, ?>) transform.getOperator();
-        StateDescriptor<?, ?> descr = op.getStateDescriptor();
+        StreamOperatorFactory<?> factory = transform.getOperatorFactory();
+        StateDescriptor<?, ?> descr;
+        if (factory instanceof WindowOperatorFactory) {
+            descr = ((WindowOperatorFactory<?, ?, ?, ?, ?>) factory).getStateDescriptor();
+        } else {
+            WindowOperator<?, ?, ?, ?, ?> op =
+                    (WindowOperator<?, ?, ?, ?, ?>) transform.getOperator();
+            descr = op.getStateDescriptor();
+        }
 
         assertThat(descr).isInstanceOf(ListStateDescriptor.class);
 

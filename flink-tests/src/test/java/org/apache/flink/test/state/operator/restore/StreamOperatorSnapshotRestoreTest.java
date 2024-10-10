@@ -26,7 +26,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
@@ -49,7 +49,8 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.TestTaskStateManager;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.KeyContext;
@@ -72,7 +73,6 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
@@ -156,16 +156,16 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
         // -------------------------------------------------------------------------- snapshot
 
         StateBackend stateBackend;
-        FsStateBackend fsstateBackend = createStateBackendInternal();
+        HashMapStateBackend hashMapStateBackend = createStateBackendInternal();
         switch (stateBackendEnum) {
             case FILE:
-                stateBackend = fsstateBackend;
+                stateBackend = hashMapStateBackend;
                 break;
             case ROCKSDB_FULLY_ASYNC:
-                stateBackend = new RocksDBStateBackend(fsstateBackend, TernaryBoolean.FALSE);
+                stateBackend = new EmbeddedRocksDBStateBackend(TernaryBoolean.FALSE);
                 break;
             case ROCKSDB_INCREMENTAL:
-                stateBackend = new RocksDBStateBackend(fsstateBackend, TernaryBoolean.TRUE);
+                stateBackend = new EmbeddedRocksDBStateBackend(TernaryBoolean.TRUE);
                 break;
             default:
                 throw new IllegalStateException(
@@ -211,6 +211,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
                         mockEnvironment);
 
         testHarness.setStateBackend(stateBackend);
+        testHarness.setCheckpointStorage(new JobManagerCheckpointStorage());
         testHarness.open();
 
         for (int i = 0; i < 10; ++i) {
@@ -276,9 +277,8 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
         testHarness.close();
     }
 
-    private FsStateBackend createStateBackendInternal() throws IOException {
-        File checkpointDir = temporaryFolder.newFolder();
-        return new FsStateBackend(checkpointDir.toURI());
+    private HashMapStateBackend createStateBackendInternal() throws IOException {
+        return new HashMapStateBackend();
     }
 
     static class TestOneInputStreamOperator extends AbstractStreamOperator<Integer>

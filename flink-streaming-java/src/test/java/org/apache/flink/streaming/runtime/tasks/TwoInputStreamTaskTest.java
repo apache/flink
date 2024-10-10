@@ -635,10 +635,6 @@ class TwoInputStreamTaskTest {
 
         Gauge<Long> taskInputWatermarkGauge =
                 (Gauge<Long>) taskMetricGroup.get(MetricNames.IO_CURRENT_INPUT_WATERMARK);
-        Gauge<Long> headInput1WatermarkGauge =
-                (Gauge<Long>) headOperatorMetricGroup.get(MetricNames.IO_CURRENT_INPUT_1_WATERMARK);
-        Gauge<Long> headInput2WatermarkGauge =
-                (Gauge<Long>) headOperatorMetricGroup.get(MetricNames.IO_CURRENT_INPUT_2_WATERMARK);
         Gauge<Long> headInputWatermarkGauge =
                 (Gauge<Long>) headOperatorMetricGroup.get(MetricNames.IO_CURRENT_INPUT_WATERMARK);
         Gauge<Long> headOutputWatermarkGauge =
@@ -654,19 +650,15 @@ class TwoInputStreamTaskTest {
                         new HashSet<>(
                                 Arrays.asList(
                                         taskInputWatermarkGauge,
-                                        headInput1WatermarkGauge,
-                                        headInput2WatermarkGauge,
                                         headInputWatermarkGauge,
                                         headOutputWatermarkGauge,
                                         chainedInputWatermarkGauge,
                                         chainedOutputWatermarkGauge)))
                 .as("A metric was registered multiple times.")
-                .hasSize(7);
+                .hasSize(5);
 
         assertThat(taskInputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
         assertThat(headInputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
-        assertThat(headInput1WatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
-        assertThat(headInput2WatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
         assertThat(headOutputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
         assertThat(chainedInputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
         assertThat(chainedOutputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
@@ -675,8 +667,6 @@ class TwoInputStreamTaskTest {
         testHarness.waitForInputProcessing();
         assertThat(taskInputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
         assertThat(headInputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
-        assertThat(headInput1WatermarkGauge.getValue()).isOne();
-        assertThat(headInput2WatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
         assertThat(headOutputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
         assertThat(chainedInputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
         assertThat(chainedOutputWatermarkGauge.getValue()).isEqualTo(Long.MIN_VALUE);
@@ -685,8 +675,6 @@ class TwoInputStreamTaskTest {
         testHarness.waitForInputProcessing();
         assertThat(taskInputWatermarkGauge.getValue()).isOne();
         assertThat(headInputWatermarkGauge.getValue()).isOne();
-        assertThat(headInput1WatermarkGauge.getValue()).isOne();
-        assertThat(headInput2WatermarkGauge.getValue()).isEqualTo(2L);
         assertThat(headOutputWatermarkGauge.getValue()).isOne();
         assertThat(chainedInputWatermarkGauge.getValue()).isOne();
         assertThat(chainedOutputWatermarkGauge.getValue()).isEqualTo(2L);
@@ -695,8 +683,6 @@ class TwoInputStreamTaskTest {
         testHarness.waitForInputProcessing();
         assertThat(taskInputWatermarkGauge.getValue()).isEqualTo(2L);
         assertThat(headInputWatermarkGauge.getValue()).isEqualTo(2L);
-        assertThat(headInput1WatermarkGauge.getValue()).isEqualTo(3L);
-        assertThat(headInput2WatermarkGauge.getValue()).isEqualTo(2L);
         assertThat(headOutputWatermarkGauge.getValue()).isEqualTo(2L);
         assertThat(chainedInputWatermarkGauge.getValue()).isEqualTo(2L);
         assertThat(chainedOutputWatermarkGauge.getValue()).isEqualTo(4L);

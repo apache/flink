@@ -35,7 +35,7 @@ class CommittableCollectorTest {
     @Test
     void testGetCheckpointCommittablesUpTo() {
         final CommittableCollector<Integer> committableCollector =
-                new CommittableCollector<>(1, 1, METRIC_GROUP);
+                new CommittableCollector<>(METRIC_GROUP);
         CommittableSummary<Integer> first = new CommittableSummary<>(1, 1, 1L, 1, 0, 0);
         committableCollector.addMessage(first);
         CommittableSummary<Integer> second = new CommittableSummary<>(1, 1, 2L, 1, 0, 0);
@@ -50,13 +50,13 @@ class CommittableCollectorTest {
     @Test
     void testGetEndOfInputCommittable() {
         final CommittableCollector<Integer> committableCollector =
-                new CommittableCollector<>(1, 1, METRIC_GROUP);
+                new CommittableCollector<>(METRIC_GROUP);
         CommittableSummary<Integer> first = new CommittableSummary<>(1, 1, EOI, 1, 0, 0);
         committableCollector.addMessage(first);
 
-        CommittableManager<Integer> endOfInputCommittable =
+        CheckpointCommittableManager<Integer> endOfInputCommittable =
                 committableCollector.getEndOfInputCommittable();
         assertThat(endOfInputCommittable).isNotNull();
-        SinkV2Assertions.assertThat(endOfInputCommittable.getSummary()).hasCheckpointId(EOI);
+        SinkV2Assertions.assertThat(endOfInputCommittable.getSummary(1, 1)).hasCheckpointId(EOI);
     }
 }

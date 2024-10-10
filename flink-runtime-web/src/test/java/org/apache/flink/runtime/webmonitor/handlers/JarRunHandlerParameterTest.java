@@ -247,7 +247,7 @@ class JarRunHandlerParameterTest
 
                             final String exceptionMsg = invocationException.get().getMessage();
                             assertThat(exceptionMsg)
-                                    .contains("Job was submitted in detached mode.");
+                                    .contains("Job client must be a CoordinationRequestGateway.");
 
                             return true;
                         });

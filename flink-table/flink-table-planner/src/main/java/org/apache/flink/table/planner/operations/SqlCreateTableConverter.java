@@ -140,7 +140,7 @@ class SqlCreateTableConverter {
     }
 
     private ResolvedCatalogTable createCatalogTable(
-            SqlCreateTableAs sqlCreateTableAs, ResolvedSchema mergeSchema) {
+            SqlCreateTableAs sqlCreateTableAs, ResolvedSchema querySchema) {
         Map<String, String> tableOptions =
                 sqlCreateTableAs.getPropertyList().getList().stream()
                         .collect(
@@ -151,12 +151,20 @@ class SqlCreateTableConverter {
         String tableComment =
                 OperationConverterUtils.getTableComment(sqlCreateTableAs.getComment());
 
-        Schema mergedSchema =
-                mergeTableAsUtil.mergeSchemas(
-                        sqlCreateTableAs.getColumnList(),
-                        sqlCreateTableAs.getWatermark().orElse(null),
-                        sqlCreateTableAs.getFullConstraints(),
-                        mergeSchema);
+        Schema mergedSchema;
+        if (sqlCreateTableAs.isSchemaWithColumnsIdentifiersOnly()) {
+            // If only column identifiers are provided, then these are used to
+            // order the columns in the schema.
+            mergedSchema =
+                    mergeTableAsUtil.reorderSchema(sqlCreateTableAs.getColumnList(), querySchema);
+        } else {
+            mergedSchema =
+                    mergeTableAsUtil.mergeSchemas(
+                            sqlCreateTableAs.getColumnList(),
+                            sqlCreateTableAs.getWatermark().orElse(null),
+                            sqlCreateTableAs.getFullConstraints(),
+                            querySchema);
+        }
 
         Optional<TableDistribution> tableDistribution =
                 Optional.ofNullable(sqlCreateTableAs.getDistribution())

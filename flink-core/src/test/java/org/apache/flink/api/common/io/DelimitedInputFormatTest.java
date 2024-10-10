@@ -610,11 +610,6 @@ class DelimitedInputFormatTest {
         public String readRecord(String reuse, byte[] bytes, int offset, int numBytes) {
             return new String(bytes, offset, numBytes, ConfigConstants.DEFAULT_CHARSET);
         }
-
-        @Override
-        public boolean supportsMultiPaths() {
-            return true;
-        }
     }
 
     private static Path createTempFilePath(String contents) throws IOException {

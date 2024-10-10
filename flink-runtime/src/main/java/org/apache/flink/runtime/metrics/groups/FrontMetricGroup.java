@@ -86,17 +86,13 @@ public class FrontMetricGroup<P extends AbstractMetricGroup<?>> extends ProxyMet
         return Collections.unmodifiableMap(allVariables);
     }
 
-    /** @deprecated work against the LogicalScopeProvider interface instead. */
     @Override
-    @Deprecated
     public String getLogicalScope(CharacterFilter filter) {
         return parentMetricGroup.getLogicalScope(
                 getDelimiterFilter(this.settings, filter), this.settings.getDelimiter());
     }
 
-    /** @deprecated work against the LogicalScopeProvider interface instead. */
     @Override
-    @Deprecated
     public String getLogicalScope(CharacterFilter filter, char delimiter) {
         return parentMetricGroup.getLogicalScope(
                 getDelimiterFilter(this.settings, filter),

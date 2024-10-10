@@ -158,7 +158,10 @@ public class SqlReplaceTableAs extends SqlCreate implements ExtendedSqlNode {
 
     @Override
     public void validate() throws SqlValidateException {
-        SqlConstraintValidator.validateAndChangeColumnNullability(tableConstraints, columnList);
+        if (!isSchemaWithColumnsIdentifiersOnly()) {
+            SqlConstraintValidator.validateAndChangeColumnNullability(tableConstraints, columnList);
+        }
+
         // The following features are not currently supported by RTAS, but may be supported in the
         // future
         String errorMsg =
@@ -219,6 +222,13 @@ public class SqlReplaceTableAs extends SqlCreate implements ExtendedSqlNode {
 
     public boolean isTemporary() {
         return isTemporary;
+    }
+
+    public boolean isSchemaWithColumnsIdentifiersOnly() {
+        // REPLACE table supports passing only column identifiers in the column list. If
+        // the first column in the list is an identifier, then we assume the rest of the
+        // columns are identifiers as well.
+        return !columnList.isEmpty() && columnList.get(0) instanceof SqlIdentifier;
     }
 
     /** Returns the column constraints plus the table constraints. */

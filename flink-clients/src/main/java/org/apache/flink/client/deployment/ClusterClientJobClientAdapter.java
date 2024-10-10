@@ -26,7 +26,6 @@ import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.SavepointFormatType;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequestGateway;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
@@ -136,10 +135,11 @@ public class ClusterClientJobClientAdapter<ClusterID>
 
     @Override
     public CompletableFuture<CoordinationResponse> sendCoordinationRequest(
-            OperatorID operatorId, CoordinationRequest request) {
+            String operatorUid, CoordinationRequest request) {
         return bridgeClientRequest(
                 clusterClientProvider,
-                clusterClient -> clusterClient.sendCoordinationRequest(jobID, operatorId, request));
+                clusterClient ->
+                        clusterClient.sendCoordinationRequest(jobID, operatorUid, request));
     }
 
     @Override

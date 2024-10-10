@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 import org.apache.flink.table.operations.QueryOperation;

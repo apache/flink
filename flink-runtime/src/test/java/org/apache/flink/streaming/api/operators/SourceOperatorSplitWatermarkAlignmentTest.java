@@ -35,7 +35,7 @@ import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.WatermarkAlignmentEvent;
 import org.apache.flink.runtime.state.TestTaskStateManager;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.operators.source.CollectingDataOutput;
 import org.apache.flink.streaming.api.operators.source.TestingSourceOperator;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
@@ -63,8 +63,16 @@ class SourceOperatorSplitWatermarkAlignmentTest {
 
         MockSourceReader sourceReader =
                 new MockSourceReader(WaitingForSplits.DO_NOT_WAIT_FOR_SPLITS, false, true);
+        Environment env = getTestingEnvironment();
         SourceOperator<Integer, MockSourceSplit> operator =
                 new TestingSourceOperator<>(
+                        new StreamOperatorParameters<>(
+                                new SourceOperatorStreamTask<Integer>(env),
+                                new MockStreamConfig(new Configuration(), 1),
+                                new MockOutput<>(new ArrayList<>()),
+                                TestProcessingTimeService::new,
+                                null,
+                                null),
                         sourceReader,
                         WatermarkStrategy.forGenerator(ctx -> new TestWatermarkGenerator())
                                 .withTimestampAssigner((r, l) -> r)
@@ -74,12 +82,8 @@ class SourceOperatorSplitWatermarkAlignmentTest {
                         1,
                         5,
                         true);
-        Environment env = getTestingEnvironment();
-        operator.setup(
-                new SourceOperatorStreamTask<Integer>(env),
-                new MockStreamConfig(new Configuration(), 1),
-                new MockOutput<>(new ArrayList<>()));
-        operator.initializeState(new StreamTaskStateInitializerImpl(env, new MemoryStateBackend()));
+        operator.initializeState(
+                new StreamTaskStateInitializerImpl(env, new HashMapStateBackend()));
 
         operator.open();
         MockSourceSplit split1 = new MockSourceSplit(0, 0, 10);
@@ -261,8 +265,16 @@ class SourceOperatorSplitWatermarkAlignmentTest {
             long idleTimeout)
             throws Exception {
 
+        Environment env = getTestingEnvironment();
         SourceOperator<Integer, MockSourceSplit> operator =
                 new TestingSourceOperator<>(
+                        new StreamOperatorParameters<>(
+                                new SourceOperatorStreamTask<Integer>(env),
+                                new MockStreamConfig(new Configuration(), 1),
+                                new MockOutput<>(new ArrayList<>()),
+                                () -> processingTimeService,
+                                null,
+                                null),
                         sourceReader,
                         WatermarkStrategy.forGenerator(ctx -> new TestWatermarkGenerator())
                                 .withTimestampAssigner((r, l) -> r)
@@ -273,12 +285,8 @@ class SourceOperatorSplitWatermarkAlignmentTest {
                         1,
                         5,
                         true);
-        Environment env = getTestingEnvironment();
-        operator.setup(
-                new SourceOperatorStreamTask<Integer>(env),
-                new MockStreamConfig(new Configuration(), 1),
-                new MockOutput<>(new ArrayList<>()));
-        operator.initializeState(new StreamTaskStateInitializerImpl(env, new MemoryStateBackend()));
+        operator.initializeState(
+                new StreamTaskStateInitializerImpl(env, new HashMapStateBackend()));
         operator.open();
         return operator;
     }

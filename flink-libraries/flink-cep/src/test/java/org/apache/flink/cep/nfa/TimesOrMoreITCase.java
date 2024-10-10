@@ -21,7 +21,6 @@ package org.apache.flink.cep.nfa;
 import org.apache.flink.cep.Event;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 
@@ -49,7 +48,7 @@ public class TimesOrMoreITCase extends TestLogger {
 
     @Parameterized.Parameters(name = "Times Range Time: {0}")
     public static Collection<Duration> parameters() {
-        return Arrays.asList(null, Time.milliseconds(3).toDuration());
+        return Arrays.asList(null, Duration.ofMillis(3));
     }
 
     @Test

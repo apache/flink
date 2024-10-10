@@ -24,10 +24,7 @@ import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.SqlDialect;
-import org.apache.flink.table.api.TableColumn;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogFunction;
@@ -46,6 +43,9 @@ import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.factories.TestManagedTableFactory;
+import org.apache.flink.table.legacy.api.TableColumn;
+import org.apache.flink.table.legacy.api.TableSchema;
+import org.apache.flink.table.legacy.api.constraints.UniqueConstraint;
 import org.apache.flink.table.operations.CreateTableASOperation;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
@@ -656,6 +656,80 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "Invalid bucket key 'f3'. A bucket key for a distribution must reference a physical column in the schema. Available columns are: [a]");
+    }
+
+    @Test
+    public void tesCreateTableAsWithOrderingColumns() {
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                        .build())
+                        .build();
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "src1"), false);
+
+        final String sql = "create table tbl1 (f1, f0) AS SELECT * FROM src1";
+
+        Operation ctas = parseAndConvert(sql);
+        Operation operation = ((CreateTableASOperation) ctas).getCreateTableOperation();
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withNoDistribution(),
+                                        withSchema(
+                                                Schema.newBuilder()
+                                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                                        .column("f0", DataTypes.INT().notNull())
+                                                        .build()))));
+    }
+
+    @Test
+    public void testCreateTableAsWithNotFoundColumnIdentifiers() {
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.INT())
+                                        .build())
+                        .build();
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "src1"), false);
+
+        final String sql = "create table tbl1 (f1, f2) AS SELECT * FROM src1";
+
+        assertThatThrownBy(() -> parseAndConvert(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Column 'f2' not found in the source schema.");
+    }
+
+    @Test
+    public void testCreateTableAsWithMismatchIdentifiersLength() {
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.INT())
+                                        .build())
+                        .build();
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "src1"), false);
+
+        final String sql = "create table tbl1 (f1) AS SELECT * FROM src1";
+
+        assertThatThrownBy(() -> parseAndConvert(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "The number of columns in the column list "
+                                + "must match the number of columns in the source schema.");
     }
 
     @Test

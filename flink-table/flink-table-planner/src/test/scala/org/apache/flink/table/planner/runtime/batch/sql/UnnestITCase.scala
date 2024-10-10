@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.api.java.typeutils.{ObjectArrayTypeInfo, RowTypeInfo}
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime

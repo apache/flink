@@ -456,9 +456,9 @@ There are no ways to specify the compatibility with the old serializer in the ne
 not supported in some scenarios.
 
 So from Flink 1.19, the direction of resolving schema compatibility has been reversed. The old method
-`TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer newSerializer)` has been marked as deprecated
-and will be removed in the future. it is highly recommended to migrate from the old one to
-`TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializerSnapshot oldSerializerSnapshot)`. The steps to do this are as follows:
+`TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer newSerializer)` is now removed and needs to be replaced with
+`TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializerSnapshot oldSerializerSnapshot)`.
+To make this transition, follow these steps:
 
 1. Implement the `TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializerSnapshot oldSerializerSnapshot)` whose logic
    should be same as the original `TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializer newSerializer)`.

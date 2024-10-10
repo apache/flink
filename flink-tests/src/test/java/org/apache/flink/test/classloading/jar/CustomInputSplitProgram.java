@@ -23,14 +23,14 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,9 +42,9 @@ public class CustomInputSplitProgram {
 
     public static void main(String[] args) throws Exception {
 
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataSet<Integer> data = env.createInput(new CustomInputFormat());
+        DataStream<Integer> data = env.createInput(new CustomInputFormat());
 
         data.map(
                         new MapFunction<Integer, Tuple2<Integer, Double>>() {
@@ -53,7 +53,7 @@ public class CustomInputSplitProgram {
                                 return new Tuple2<Integer, Double>(value, value * 0.5);
                             }
                         })
-                .output(new DiscardingOutputFormat<Tuple2<Integer, Double>>());
+                .sinkTo(new DiscardingSink<>());
 
         env.execute();
     }

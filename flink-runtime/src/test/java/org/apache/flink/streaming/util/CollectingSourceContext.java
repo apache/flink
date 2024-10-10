@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
 import java.io.IOException;

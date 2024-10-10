@@ -74,7 +74,7 @@ import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.UdfStreamOperatorFactory;
-import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
+import org.apache.flink.streaming.api.operators.legacy.YieldingOperatorFactory;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardForConsecutiveHashPartitioner;
@@ -334,6 +334,17 @@ public class StreamingJobGraphGenerator {
         }
 
         return jobGraph;
+    }
+
+    /**
+     * Creates an instance of {@link OperatorID} based on the provided operator unique identifier
+     * (UID).
+     *
+     * @param operatorUid the unique identifier of the operator, used to generate the hash
+     * @return a new {@link OperatorID} instance generated from the specified operator UID
+     */
+    public static OperatorID generateOperatorID(String operatorUid) {
+        return new OperatorID(StreamGraphHasherV2.generateUserSpecifiedHash(operatorUid));
     }
 
     private void waitForSerializationFuturesAndUpdateJobVertices()
@@ -1128,8 +1139,6 @@ public class StreamingJobGraphGenerator {
         config.setTypeSerializerOut(vertex.getTypeSerializerOut());
 
         config.setStreamOperatorFactory(vertex.getOperatorFactory());
-
-        config.setTimeCharacteristic(streamGraph.getTimeCharacteristic());
 
         final CheckpointConfig checkpointCfg = streamGraph.getCheckpointConfig();
 
