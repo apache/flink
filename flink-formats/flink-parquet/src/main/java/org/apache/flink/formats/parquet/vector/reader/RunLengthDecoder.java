@@ -20,7 +20,6 @@ package org.apache.flink.formats.parquet.vector.reader;
 import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector;
 import org.apache.flink.table.data.columnar.vector.writable.WritableIntVector;
 
-import org.apache.parquet.Preconditions;
 import org.apache.parquet.bytes.ByteBufferInputStream;
 import org.apache.parquet.bytes.BytesUtils;
 import org.apache.parquet.column.values.bitpacking.BytePacker;
@@ -30,6 +29,8 @@ import org.apache.parquet.io.ParquetDecodingException;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Run length decoder for data and dictionary ids. See
@@ -107,8 +108,7 @@ final class RunLengthDecoder {
 
     /** Initializes the internal state for decoding ints of `bitWidth`. */
     private void initWidthAndPacker(int bitWidth) {
-        Preconditions.checkArgument(
-                bitWidth >= 0 && bitWidth <= 32, "bitWidth must be >= 0 and <= 32");
+        checkArgument(bitWidth >= 0 && bitWidth <= 32, "bitWidth must be >= 0 and <= 32");
         this.bitWidth = bitWidth;
         this.bytesWidth = BytesUtils.paddedByteCountFromBits(bitWidth);
         this.packer = Packer.LITTLE_ENDIAN.newBytePacker(bitWidth);
