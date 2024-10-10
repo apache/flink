@@ -189,12 +189,12 @@ class AdaptiveBatchSchedulerITCase {
         } else {
             source1 =
                     env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
-                            .setParallelism(-1)
+                            .setParallelism(SOURCE_PARALLELISM_1)
                             .name("source1")
                             .slotSharingGroup(slotSharingGroups.get(0));
             source2 =
                     env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
-                            .setParallelism(-1)
+                            .setParallelism(SOURCE_PARALLELISM_2)
                             .name("source2")
                             .slotSharingGroup(slotSharingGroups.get(1));
         }
@@ -215,9 +215,6 @@ class AdaptiveBatchSchedulerITCase {
         configuration.set(
                 BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_MAX_PARALLELISM,
                 DEFAULT_MAX_PARALLELISM);
-        configuration.set(
-                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM,
-                2 * DEFAULT_MAX_PARALLELISM);
         configuration.set(
                 BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_AVG_DATA_VOLUME_PER_TASK,
                 MemorySize.parse("150kb"));

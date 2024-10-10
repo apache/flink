@@ -530,6 +530,18 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
                 continue;
             }
 
+            // Check if upper bound parallelism should be computed or not?
+            // maxParallelism should not be computed, if user already sets the maxParallelism
+            // for the source vertex
+            boolean canRescaleMaxParallelism = vertexParallelismStore
+                    .getParallelismInfo(jobVertex.getJobVertexId())
+                    .canRescaleMaxParallelism(jobVertex.getMaxParallelism());
+            int maxParallelism = canRescaleMaxParallelism ?
+                    vertexParallelismAndInputInfosDecider
+                            .computeSourceParallelismUpperBound(
+                                    jobVertex.getJobVertexId(), jobVertex.getMaxParallelism())
+                    : jobVertex.getMaxParallelism();
+
             // We need to wait for the upstream vertex to complete, otherwise, dynamic filtering
             // information will be inaccessible during source parallelism inference.
             Optional<List<BlockingResultInfo>> consumedResultsInfo =
@@ -540,11 +552,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
                                 .map(
                                         sourceCoordinator ->
                                                 sourceCoordinator.inferSourceParallelismAsync(
-                                                        vertexParallelismAndInputInfosDecider
-                                                                .computeSourceParallelismUpperBound(
-                                                                        jobVertex.getJobVertexId(),
-                                                                        jobVertex
-                                                                                .getMaxParallelism()),
+                                                        maxParallelism,
                                                         vertexParallelismAndInputInfosDecider
                                                                 .getDataVolumePerTask()))
                                 .collect(Collectors.toList());

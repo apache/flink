@@ -181,6 +181,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     private final VertexEndOfDataListener vertexEndOfDataListener;
 
+    protected final VertexParallelismStore vertexParallelismStore;
+
     public SchedulerBase(
             final Logger log,
             final JobGraph jobGraph,
@@ -263,6 +265,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                         jobMasterConfiguration.get(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
 
         this.vertexEndOfDataListener = new VertexEndOfDataListener(executionGraph);
+
+        this.vertexParallelismStore = vertexParallelismStore;
     }
 
     private void shutDownCheckpointServices(JobStatus jobStatus) {

@@ -61,9 +61,6 @@ public class TaskInfoImpl implements TaskInfo {
         checkArgument(indexOfSubtask >= 0, "Task index must be a non-negative number.");
         checkArgument(
                 maxNumberOfParallelSubtasks >= 1, "Max parallelism must be a positive number.");
-        checkArgument(
-                maxNumberOfParallelSubtasks >= numberOfParallelSubtasks,
-                "Max parallelism must be >= than parallelism.");
         checkArgument(numberOfParallelSubtasks >= 1, "Parallelism must be a positive number.");
         checkArgument(
                 indexOfSubtask < numberOfParallelSubtasks,
