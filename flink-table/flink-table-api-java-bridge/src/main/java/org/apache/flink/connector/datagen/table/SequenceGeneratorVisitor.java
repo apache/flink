@@ -207,7 +207,7 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
         return new SequenceGenerator<StringData>(start, end) {
             @Override
             public StringData next() {
-                return StringData.fromString(valuesToEmit.poll().toString());
+                return StringData.fromString(nextValue().toString());
             }
         };
     }
@@ -216,7 +216,7 @@ public class SequenceGeneratorVisitor extends DataGenVisitorBase {
         return new SequenceGenerator<byte[]>(start, end) {
             @Override
             public byte[] next() {
-                Long value = valuesToEmit.poll();
+                Long value = nextValue();
                 if (value != null) {
                     return Longs.toByteArray(value);
                 } else {
