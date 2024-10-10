@@ -405,6 +405,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
                         } catch (Exception ignored) {
                         }
 
+                        sync();
                         outStream.close();
 
                         return allowRelativePaths
