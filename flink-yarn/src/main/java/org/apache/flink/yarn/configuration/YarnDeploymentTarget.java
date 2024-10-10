@@ -31,7 +31,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public enum YarnDeploymentTarget {
     SESSION("yarn-session"),
-    APPLICATION("yarn-application");
+    APPLICATION("yarn-application"),
+
+    @Deprecated
+    PER_JOB("yarn-per-job");
 
     public static final String ERROR_MESSAGE =
             "No Executor found. Please make sure to export the HADOOP_CLASSPATH environment variable "
@@ -78,7 +81,9 @@ public enum YarnDeploymentTarget {
             return null;
         }
 
-        if (SESSION.name.equalsIgnoreCase(deploymentTarget)) {
+        if (PER_JOB.name.equalsIgnoreCase(deploymentTarget)) {
+            return PER_JOB;
+        } else if (SESSION.name.equalsIgnoreCase(deploymentTarget)) {
             return SESSION;
         } else if (APPLICATION.name.equalsIgnoreCase(deploymentTarget)) {
             return APPLICATION;

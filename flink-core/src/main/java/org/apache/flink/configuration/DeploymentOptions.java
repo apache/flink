@@ -46,6 +46,7 @@ public class DeploymentOptions {
                                             text("remote"),
                                             text("local"),
                                             text("yarn-application"),
+                                            text("yarn-per-job (deprecated)"),
                                             text("yarn-session"),
                                             text("kubernetes-application"),
                                             text("kubernetes-session"))

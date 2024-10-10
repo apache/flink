@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
+import org.apache.flink.runtime.entrypoint.component.JobGraphRetriever;
 import org.apache.flink.runtime.jobmanager.JobPersistenceComponentFactory;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -65,5 +66,11 @@ public class DefaultDispatcherRunnerFactory implements DispatcherRunnerFactory {
             DispatcherFactory dispatcherFactory) {
         return new DefaultDispatcherRunnerFactory(
                 SessionDispatcherLeaderProcessFactoryFactory.create(dispatcherFactory));
+    }
+
+    public static DefaultDispatcherRunnerFactory createJobRunner(
+            JobGraphRetriever jobGraphRetriever) {
+        return new DefaultDispatcherRunnerFactory(
+                JobDispatcherLeaderProcessFactoryFactory.create(jobGraphRetriever));
     }
 }
