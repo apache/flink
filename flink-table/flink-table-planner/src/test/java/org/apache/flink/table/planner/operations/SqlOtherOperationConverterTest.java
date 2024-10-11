@@ -214,7 +214,7 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
-    public void testShowModules() {
+    void testShowModules() {
         final String sql = "SHOW MODULES";
         Operation operation = parse(sql);
         assertThat(operation).isInstanceOf(ShowModulesOperation.class);
