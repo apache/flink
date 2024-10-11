@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,19 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager;
+package org.apache.flink.runtime.dispatcher;
 
-/** Singleton {@link JobGraphStoreWatcher} empty implementation. */
-public enum NoOpJobGraphStoreWatcher implements JobGraphStoreWatcher {
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanWriter;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
+
+/** Testing implementation of {@link ExecutionPlanWriter} which does nothing. */
+public enum NoOpExecutionPlanWriter implements ExecutionPlanWriter {
     INSTANCE;
 
     @Override
-    public void start(JobGraphStore.JobGraphListener jobGraphListener) {
-        // noop
+    public void putExecutionPlan(ExecutionPlan executionPlan) {
+        // No-op.
     }
 
     @Override
-    public void stop() {
-        // noop
+    public void putJobResourceRequirements(
+            JobID jobId, JobResourceRequirements jobResourceRequirements) {
+        // No-op.
     }
 }

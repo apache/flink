@@ -21,7 +21,7 @@ package org.apache.flink.runtime.dispatcher.runner;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmanager.ThrowingJobGraphWriter;
+import org.apache.flink.runtime.jobmanager.ThrowingExecutionPlanWriter;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.CollectionUtil;
@@ -62,7 +62,7 @@ public class JobDispatcherLeaderProcess extends AbstractDispatcherLeaderProcess 
                         DispatcherId.fromUuid(getLeaderSessionId()),
                         CollectionUtil.ofNullable(jobGraph),
                         CollectionUtil.ofNullable(recoveredDirtyJobResult),
-                        ThrowingJobGraphWriter.INSTANCE,
+                        ThrowingExecutionPlanWriter.INSTANCE,
                         jobResultStore);
 
         completeDispatcherSetup(dispatcherService);

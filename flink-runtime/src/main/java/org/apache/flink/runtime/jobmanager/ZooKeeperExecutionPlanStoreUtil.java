@@ -16,22 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.dispatcher;
+package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.util.ZooKeeperUtils;
 
-/** No operation {@link JobGraphStore.JobGraphListener} implemetation for testing purposes. */
-public enum NoOpJobGraphListener implements JobGraphStore.JobGraphListener {
+/** Singleton {@link ExecutionPlanStoreUtil} implementation for ZooKeeper. */
+public enum ZooKeeperExecutionPlanStoreUtil implements ExecutionPlanStoreUtil {
     INSTANCE;
 
     @Override
-    public void onAddedJobGraph(JobID jobId) {
-        // No op
+    public String jobIDToName(JobID jobId) {
+        return ZooKeeperUtils.getPathForJob(jobId);
     }
 
     @Override
-    public void onRemovedJobGraph(JobID jobId) {
-        // No op
+    public JobID nameToJobID(String name) {
+        return JobID.fromHexString(name);
     }
 }

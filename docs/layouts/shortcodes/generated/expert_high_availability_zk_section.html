@@ -51,10 +51,10 @@
             <td>Defines whether a suspended ZooKeeper connection will be treated as an error that causes the leader information to be invalidated or not. In case you set this option to <code class="highlighter-rouge">true</code>, Flink will wait until a ZooKeeper connection is marked as lost before it revokes the leadership of components. This has the effect that Flink is more resilient against temporary connection instabilities at the cost of running more likely into timing issues with ZooKeeper.</td>
         </tr>
         <tr>
-            <td><h5>high-availability.zookeeper.path.jobgraphs</h5></td>
-            <td style="word-wrap: break-word;">"/jobgraphs"</td>
+            <td><h5>high-availability.zookeeper.path.execution-plans</h5></td>
+            <td style="word-wrap: break-word;">"/execution-plans"</td>
             <td>String</td>
-            <td>ZooKeeper root path (ZNode) for job graphs</td>
+            <td>ZooKeeper root path (ZNode) for execution plans</td>
         </tr>
     </tbody>
 </table>
