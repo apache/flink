@@ -61,7 +61,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.JobGraphWriter;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanWriter;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerRunnerResult;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
@@ -91,6 +91,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
@@ -151,7 +152,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private final Configuration configuration;
 
-    private final JobGraphWriter jobGraphWriter;
+    private final ExecutionPlanWriter executionPlanWriter;
     private final JobResultStore jobResultStore;
 
     private final HighAvailabilityServices highAvailabilityServices;
@@ -165,7 +166,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private final OnMainThreadJobManagerRunnerRegistry jobManagerRunnerRegistry;
 
-    private final Collection<JobGraph> recoveredJobs;
+    private final Collection<ExecutionPlan> recoveredJobs;
 
     private final Collection<JobResult> recoveredDirtyJobs;
 
@@ -218,7 +219,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     public Dispatcher(
             RpcService rpcService,
             DispatcherId fencingToken,
-            Collection<JobGraph> recoveredJobs,
+            Collection<ExecutionPlan> recoveredJobs,
             Collection<JobResult> recoveredDirtyJobs,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
             DispatcherServices dispatcherServices)
@@ -236,7 +237,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     private Dispatcher(
             RpcService rpcService,
             DispatcherId fencingToken,
-            Collection<JobGraph> recoveredJobs,
+            Collection<ExecutionPlan> recoveredJobs,
             Collection<JobResult> recoveredDirtyJobs,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
             DispatcherServices dispatcherServices,
@@ -257,7 +258,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     protected Dispatcher(
             RpcService rpcService,
             DispatcherId fencingToken,
-            Collection<JobGraph> recoveredJobs,
+            Collection<ExecutionPlan> recoveredJobs,
             Collection<JobResult> recoveredDirtyJobs,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
             DispatcherServices dispatcherServices,
@@ -275,7 +276,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         this.blobServer = dispatcherServices.getBlobServer();
         this.fatalErrorHandler = dispatcherServices.getFatalErrorHandler();
         this.failureEnrichers = dispatcherServices.getFailureEnrichers();
-        this.jobGraphWriter = dispatcherServices.getJobGraphWriter();
+        this.executionPlanWriter = dispatcherServices.getExecutionPlanWriter();
         this.jobResultStore = dispatcherServices.getJobResultStore();
         this.jobManagerMetricGroup = dispatcherServices.getJobManagerMetricGroup();
         this.metricServiceQueryAddress = dispatcherServices.getMetricQueryServiceAddress();
@@ -310,7 +311,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         this.recoveredDirtyJobs = new HashSet<>(recoveredDirtyJobs);
 
         this.blobServer.retainJobs(
-                recoveredJobs.stream().map(JobGraph::getJobID).collect(Collectors.toSet()),
+                recoveredJobs.stream().map(ExecutionPlan::getJobID).collect(Collectors.toSet()),
                 dispatcherServices.getIoExecutor());
 
         this.dispatcherCachedOperationsHandler =
@@ -374,27 +375,28 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     private static void assertRecoveredJobsAndDirtyJobResults(
-            Collection<JobGraph> recoveredJobs, Collection<JobResult> recoveredDirtyJobResults) {
+            Collection<ExecutionPlan> recoveredJobs,
+            Collection<JobResult> recoveredDirtyJobResults) {
         final Set<JobID> jobIdsOfFinishedJobs =
                 recoveredDirtyJobResults.stream()
                         .map(JobResult::getJobId)
                         .collect(Collectors.toSet());
 
-        final boolean noRecoveredJobGraphHasDirtyJobResult =
+        final boolean noRecoveredExecutionPlanHasDirtyJobResult =
                 recoveredJobs.stream()
                         .noneMatch(
-                                recoveredJobGraph ->
+                                recoveredExecutionPlan ->
                                         jobIdsOfFinishedJobs.contains(
-                                                recoveredJobGraph.getJobID()));
+                                                recoveredExecutionPlan.getJobID()));
 
         Preconditions.checkArgument(
-                noRecoveredJobGraphHasDirtyJobResult,
-                "There should be no overlap between the recovered JobGraphs and the passed dirty JobResults based on their job ID.");
+                noRecoveredExecutionPlanHasDirtyJobResult,
+                "There should be no overlap between the recovered ExecutionPlans and the passed dirty JobResults based on their job ID.");
     }
 
     private void startRecoveredJobs() {
-        for (JobGraph recoveredJob : recoveredJobs) {
-            runRecoveredJob(recoveredJob);
+        for (ExecutionPlan recoveredJob : recoveredJobs) {
+            runRecoveredJob((JobGraph) recoveredJob);
         }
         recoveredJobs.clear();
     }
@@ -628,7 +630,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     private void persistAndRunJob(JobGraph jobGraph) throws Exception {
-        jobGraphWriter.putJobGraph(jobGraph);
+        executionPlanWriter.putExecutionPlan(jobGraph);
         initJobClientExpiredTime(jobGraph);
         runJob(createJobMasterRunner(jobGraph), ExecutionType.SUBMISSION);
     }
@@ -1169,7 +1171,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 .thenRunAsync(
                         () -> {
                             try {
-                                jobGraphWriter.putJobResourceRequirements(
+                                executionPlanWriter.putJobResourceRequirements(
                                         jobId, jobResourceRequirements);
                             } catch (Exception e) {
                                 throw new CompletionException(
@@ -1580,7 +1582,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 () -> (long) jobManagerRunnerRegistry.getWrappedDelegate().size());
     }
 
-    public CompletableFuture<Void> onRemovedJobGraph(JobID jobId) {
+    public CompletableFuture<Void> onRemovedExecutionPlan(JobID jobId) {
         return CompletableFuture.runAsync(() -> terminateJob(jobId), getMainThreadExecutor(jobId));
     }
 

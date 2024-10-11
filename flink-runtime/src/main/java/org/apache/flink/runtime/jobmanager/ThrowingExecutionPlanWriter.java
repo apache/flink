@@ -16,25 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.dispatcher;
+package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
-import org.apache.flink.runtime.jobmanager.JobGraphWriter;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 
-/** Testing implementation of {@link JobGraphWriter} which does nothing. */
-public enum NoOpJobGraphWriter implements JobGraphWriter {
+/**
+ * {@link ExecutionPlanWriter} implementation which does not allow to store {@link ExecutionPlan}.
+ */
+public enum ThrowingExecutionPlanWriter implements ExecutionPlanWriter {
     INSTANCE;
 
     @Override
-    public void putJobGraph(JobGraph jobGraph) {
-        // No-op.
+    public void putExecutionPlan(ExecutionPlan jobGraph) {
+        throw new UnsupportedOperationException("Cannot store job graphs.");
     }
 
     @Override
     public void putJobResourceRequirements(
             JobID jobId, JobResourceRequirements jobResourceRequirements) {
-        // No-op.
+        throw new UnsupportedOperationException("Cannot persist job resource requirements.");
     }
 }

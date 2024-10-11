@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,24 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager;
+package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.runtime.highavailability.JobResultStore;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 
-/** Factory for components that are responsible for persisting a job for recovery. */
-public interface JobPersistenceComponentFactory {
+/**
+ * No operation {@link ExecutionPlanStore.ExecutionPlanListener} implemetation for testing purposes.
+ */
+public enum NoOpExecutionPlanListener implements ExecutionPlanStore.ExecutionPlanListener {
+    INSTANCE;
 
-    /**
-     * Creates a {@link ExecutionPlanStore}.
-     *
-     * @return a {@code ExecutionPlanStore} instance
-     */
-    ExecutionPlanStore createExecutionPlanStore();
+    @Override
+    public void onAddedExecutionPlan(JobID jobId) {
+        // No op
+    }
 
-    /**
-     * Creates {@link JobResultStore} instances.
-     *
-     * @return a {@code JobResultStore} instance.
-     */
-    JobResultStore createJobResultStore();
+    @Override
+    public void onRemovedExecutionPlan(JobID jobId) {
+        // No op
+    }
 }

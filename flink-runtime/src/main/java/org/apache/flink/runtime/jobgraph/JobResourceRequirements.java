@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobgraph;
 
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
@@ -42,7 +43,7 @@ public class JobResourceRequirements implements Serializable {
     /**
      * A key for an internal config option (intentionally prefixed with $internal to make this
      * explicit), that we'll serialize the {@link JobResourceRequirements} into, when writing it to
-     * {@link JobGraph}.
+     * {@link ExecutionPlan}.
      */
     private static final String JOB_RESOURCE_REQUIREMENTS_KEY =
             "$internal.job-resource-requirements";
@@ -52,38 +53,39 @@ public class JobResourceRequirements implements Serializable {
 
     /**
      * Write {@link JobResourceRequirements resource requirements} into the configuration of a given
-     * {@link JobGraph}.
+     * {@link ExecutionPlan}.
      *
-     * @param jobGraph job graph to write requirements to
+     * @param executionPlan executionPlan to write requirements to
      * @param jobResourceRequirements resource requirements to write
      * @throws IOException in case we're not able to serialize requirements into the configuration
      */
-    public static void writeToJobGraph(
-            JobGraph jobGraph, JobResourceRequirements jobResourceRequirements) throws IOException {
+    public static void writeToExecutionPlan(
+            ExecutionPlan executionPlan, JobResourceRequirements jobResourceRequirements)
+            throws IOException {
         InstantiationUtil.writeObjectToConfig(
                 jobResourceRequirements,
-                jobGraph.getJobConfiguration(),
+                executionPlan.getJobConfiguration(),
                 JOB_RESOURCE_REQUIREMENTS_KEY);
     }
 
     /**
      * Read {@link JobResourceRequirements resource requirements} from the configuration of a given
-     * {@link JobGraph}.
+     * {@link ExecutionPlan}.
      *
-     * @param jobGraph job graph to read requirements from
+     * @param executionPlan execution plan to read requirements from
      * @throws IOException in case we're not able to deserialize requirements from the configuration
      */
-    public static Optional<JobResourceRequirements> readFromJobGraph(JobGraph jobGraph)
-            throws IOException {
+    public static Optional<JobResourceRequirements> readFromExecutionPlan(
+            ExecutionPlan executionPlan) throws IOException {
         try {
             return Optional.ofNullable(
                     InstantiationUtil.readObjectFromConfig(
-                            jobGraph.getJobConfiguration(),
+                            executionPlan.getJobConfiguration(),
                             JOB_RESOURCE_REQUIREMENTS_KEY,
                             JobResourceRequirements.class.getClassLoader()));
         } catch (ClassNotFoundException e) {
             throw new IOException(
-                    "Unable to deserialize JobResourceRequirements due to missing classes. This might happen when the JobGraph was written from a different Flink version.",
+                    "Unable to deserialize JobResourceRequirements due to missing classes. This might happen when the ExecutionPlan was written from a different Flink version.",
                     e);
         }
     }

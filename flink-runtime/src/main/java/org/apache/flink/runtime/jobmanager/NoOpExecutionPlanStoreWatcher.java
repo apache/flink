@@ -18,32 +18,17 @@
 
 package org.apache.flink.runtime.jobmanager;
 
-import org.apache.flink.api.common.JobID;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
-/** {@link JobGraphStoreWatcher} implementation for testing purposes. */
-public class TestingJobGraphStoreWatcher implements JobGraphStoreWatcher {
-
-    private JobGraphStore.JobGraphListener jobGraphListener;
+/** Singleton {@link ExecutionPlanStoreWatcher} empty implementation. */
+public enum NoOpExecutionPlanStoreWatcher implements ExecutionPlanStoreWatcher {
+    INSTANCE;
 
     @Override
-    public void start(JobGraphStore.JobGraphListener jobGraphListener) {
-        this.jobGraphListener = jobGraphListener;
+    public void start(ExecutionPlanStore.ExecutionPlanListener executionPlanListener) {
+        // noop
     }
 
     @Override
     public void stop() {
         // noop
-    }
-
-    public void addJobGraph(JobID jobID) {
-        checkNotNull(jobGraphListener, "TestingJobGraphStoreWatcher is not started.");
-        jobGraphListener.onAddedJobGraph(jobID);
-    }
-
-    public void removeJobGraph(JobID jobID) {
-        checkNotNull(jobGraphListener, "TestingJobGraphStoreWatcher is not started.");
-        jobGraphListener.onRemovedJobGraph(jobID);
     }
 }

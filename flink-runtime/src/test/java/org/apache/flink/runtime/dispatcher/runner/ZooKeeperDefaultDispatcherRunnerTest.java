@@ -42,7 +42,7 @@ import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithU
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.jobmanager.JobPersistenceComponentFactory;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
@@ -192,8 +192,8 @@ class ZooKeeperDefaultDispatcherRunnerTest {
                             dispatcherLeaderElection,
                             new JobPersistenceComponentFactory() {
                                 @Override
-                                public JobGraphStore createJobGraphStore() {
-                                    return createZooKeeperJobGraphStore(
+                                public ExecutionPlanStore createExecutionPlanStore() {
+                                    return createZooKeeperExecutionPlanStore(
                                             curatorFrameworkWrapper.asCuratorFramework());
                                 }
 
@@ -232,11 +232,12 @@ class ZooKeeperDefaultDispatcherRunnerTest {
                 dispatcherLeaderElection.notLeader();
 
                 // check that the job has been removed from ZooKeeper
-                final JobGraphStore submittedJobGraphStore =
-                        createZooKeeperJobGraphStore(curatorFrameworkWrapper.asCuratorFramework());
+                final ExecutionPlanStore submittedExecutionPlanStore =
+                        createZooKeeperExecutionPlanStore(
+                                curatorFrameworkWrapper.asCuratorFramework());
 
                 CommonTestUtils.waitUntilCondition(
-                        () -> submittedJobGraphStore.getJobIds().isEmpty(), 20L);
+                        () -> submittedExecutionPlanStore.getJobIds().isEmpty(), 20L);
             }
         }
 
@@ -260,9 +261,9 @@ class ZooKeeperDefaultDispatcherRunnerTest {
                 partialDispatcherServices);
     }
 
-    private JobGraphStore createZooKeeperJobGraphStore(CuratorFramework client) {
+    private ExecutionPlanStore createZooKeeperExecutionPlanStore(CuratorFramework client) {
         try {
-            return ZooKeeperUtils.createJobGraphs(client, configuration);
+            return ZooKeeperUtils.createExecutionPlans(client, configuration);
         } catch (Exception e) {
             ExceptionUtils.rethrow(e);
             return null;

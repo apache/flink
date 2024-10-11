@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * {@link JobGraphStoreWatcher} implementation for ZooKeeper.
+ * {@link ExecutionPlanStoreWatcher} implementation for ZooKeeper.
  *
  * <p>Each job graph creates ZNode:
  *
@@ -46,11 +46,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>The root path is watched to detect concurrent modifications in corner situations where
  * multiple instances operate concurrently. The job manager acts as a {@link
- * JobGraphStore.JobGraphListener} to react to such situations.
+ * ExecutionPlanStore.ExecutionPlanListener} to react to such situations.
  */
-public class ZooKeeperJobGraphStoreWatcher implements JobGraphStoreWatcher {
+public class ZooKeeperExecutionPlanStoreWatcher implements ExecutionPlanStoreWatcher {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperJobGraphStoreWatcher.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(ZooKeeperExecutionPlanStoreWatcher.class);
 
     /**
      * Cache to monitor all children. This is used to detect races with other instances working on
@@ -58,19 +59,20 @@ public class ZooKeeperJobGraphStoreWatcher implements JobGraphStoreWatcher {
      */
     private final PathChildrenCache pathCache;
 
-    private JobGraphStore.JobGraphListener jobGraphListener;
+    private ExecutionPlanStore.ExecutionPlanListener executionPlanListener;
 
     private volatile boolean running;
 
-    public ZooKeeperJobGraphStoreWatcher(PathChildrenCache pathCache) {
+    public ZooKeeperExecutionPlanStoreWatcher(PathChildrenCache pathCache) {
         this.pathCache = checkNotNull(pathCache);
-        this.pathCache.getListenable().addListener(new JobGraphsPathCacheListener());
+        this.pathCache.getListenable().addListener(new ExecutionPlansPathCacheListener());
         running = false;
     }
 
     @Override
-    public void start(JobGraphStore.JobGraphListener jobGraphListener) throws Exception {
-        this.jobGraphListener = checkNotNull(jobGraphListener);
+    public void start(ExecutionPlanStore.ExecutionPlanListener executionPlanListener)
+            throws Exception {
+        this.executionPlanListener = checkNotNull(executionPlanListener);
         running = true;
         pathCache.start();
     }
@@ -82,7 +84,7 @@ public class ZooKeeperJobGraphStoreWatcher implements JobGraphStoreWatcher {
         }
         running = false;
 
-        LOG.info("Stopping ZooKeeperJobGraphStoreWatcher ");
+        LOG.info("Stopping ZooKeeperExecutionPlanStoreWatcher ");
         pathCache.close();
     }
 
@@ -92,7 +94,7 @@ public class ZooKeeperJobGraphStoreWatcher implements JobGraphStoreWatcher {
      * <p>Detects modifications from other job managers in corner situations. The event
      * notifications fire for changes from this job manager as well.
      */
-    private final class JobGraphsPathCacheListener implements PathChildrenCacheListener {
+    private final class ExecutionPlansPathCacheListener implements PathChildrenCacheListener {
 
         @Override
         public void childEvent(CuratorFramework client, PathChildrenCacheEvent event) {
@@ -115,7 +117,7 @@ public class ZooKeeperJobGraphStoreWatcher implements JobGraphStoreWatcher {
 
                         LOG.debug("Received CHILD_ADDED event notification for job {}", jobId);
 
-                        jobGraphListener.onAddedJobGraph(jobId);
+                        executionPlanListener.onAddedExecutionPlan(jobId);
                     }
                     break;
 
@@ -131,7 +133,7 @@ public class ZooKeeperJobGraphStoreWatcher implements JobGraphStoreWatcher {
 
                         LOG.debug("Received CHILD_REMOVED event notification for job {}", jobId);
 
-                        jobGraphListener.onRemovedJobGraph(jobId);
+                        executionPlanListener.onRemovedExecutionPlan(jobId);
                     }
                     break;
 
@@ -161,7 +163,7 @@ public class ZooKeeperJobGraphStoreWatcher implements JobGraphStoreWatcher {
 
                 case INITIALIZED:
                     {
-                        LOG.info("JobGraphsPathCacheListener initialized");
+                        LOG.info("ExecutionPlansPathCacheListener initialized");
                     }
                     break;
             }
