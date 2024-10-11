@@ -127,7 +127,7 @@ under the License.
 		<flink.markBundledAsOptional>true</flink.markBundledAsOptional>
 		<target.java.version>11</target.java.version>
 		<slf4j.version>1.7.36</slf4j.version>
-		<log4j.version>2.17.1</log4j.version>
+		<log4j.version>2.24.1</log4j.version>
 		<!-- Overwrite default values from parent pom.
 			 IntelliJ IDEA is (sometimes?) using those values to choose target language level
 			 and thus is changing back to java 1.6 on each maven re-import -->
