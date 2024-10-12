@@ -36,7 +36,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -221,7 +220,6 @@ class AbstractAsyncStateStreamOperatorV2Test {
         }
     }
 
-    @Disabled("Support Timer for AsyncKeyedStateBackend")
     @Test
     void testTimerServiceIsAsync() throws Exception {
         try (KeyedOneInputStreamOperatorV2TestHarness<Integer, Tuple2<Integer, String>, String>

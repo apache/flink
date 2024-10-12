@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
@@ -111,6 +112,7 @@ public interface InternalTimeServiceManager<K> {
         <K> InternalTimeServiceManager<K> create(
                 TaskIOMetricGroup taskIOMetricGroup,
                 CheckpointableKeyedStateBackend<K> keyedStatedBackend,
+                AsyncKeyedStateBackend<K> asyncKeyedStateBackend,
                 ClassLoader userClassloader,
                 KeyContext keyContext,
                 ProcessingTimeService processingTimeService,

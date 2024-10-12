@@ -37,6 +37,7 @@ import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
@@ -240,6 +241,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
                     public <K> InternalTimeServiceManager<K> create(
                             TaskIOMetricGroup taskIOMetricGroup,
                             CheckpointableKeyedStateBackend<K> keyedStatedBackend,
+                            AsyncKeyedStateBackend<K> asyncKeyedStateBackend,
                             ClassLoader userClassloader,
                             KeyContext keyContext,
                             ProcessingTimeService processingTimeService,
