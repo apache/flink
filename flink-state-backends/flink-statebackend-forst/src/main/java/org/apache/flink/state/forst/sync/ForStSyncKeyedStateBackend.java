@@ -57,6 +57,7 @@ import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.ttl.TtlAwareSerializer;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.state.forst.ForStDBTtlCompactFiltersManager;
 import org.apache.flink.state.forst.ForStDBWriteBatchWrapper;
@@ -616,6 +617,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
      * requested we check here whether we already have a registered entry for that and return it
      * (after some necessary state compatibility checks) or create a new one if it does not exist.
      */
+    @SuppressWarnings("unchecked")
     private <N, S extends State, SV, SEV>
             Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
                     tryRegisterKvStateInformation(
@@ -627,12 +629,13 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
 
         ForStDbKvStateInfo oldStateInfo = kvStateInformation.get(stateDesc.getName());
 
-        TypeSerializer<SV> stateSerializer = stateDesc.getSerializer();
+        TypeSerializer<SV> stateSerializer =
+                (TypeSerializer<SV>)
+                        TtlAwareSerializer.wrapTtlAwareSerializer(stateDesc.getSerializer());
 
         ForStDbKvStateInfo newRocksStateInfo;
         RegisteredKeyValueStateBackendMetaInfo<N, SV> newMetaInfo;
         if (oldStateInfo != null) {
-            @SuppressWarnings("unchecked")
             RegisteredKeyValueStateBackendMetaInfo<N, SV> castedMetaInfo =
                     (RegisteredKeyValueStateBackendMetaInfo<N, SV>) oldStateInfo.metaInfo;
 

@@ -425,6 +425,10 @@ public abstract class CompositeTypeSerializerSnapshot<T, S extends TypeSerialize
             return TypeSerializerSchemaCompatibility.compatibleAfterMigration();
         }
 
+        if (nestedSerializersCompatibilityResult.isCompatibleAfterTtlMigration()) {
+            return TypeSerializerSchemaCompatibility.compatibleAfterTtlMigration();
+        }
+
         if (nestedSerializersCompatibilityResult.isCompatibleWithReconfiguredSerializer()) {
             TypeSerializer<T> reconfiguredCompositeSerializer =
                     createOuterSerializerWithNestedSerializers(

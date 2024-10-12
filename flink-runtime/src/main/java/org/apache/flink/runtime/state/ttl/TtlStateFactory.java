@@ -314,12 +314,12 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
         }
 
         @SuppressWarnings("unchecked")
-        TypeSerializer<Long> getTimestampSerializer() {
+        public TypeSerializer<Long> getTimestampSerializer() {
             return (TypeSerializer<Long>) (TypeSerializer<?>) fieldSerializers[0];
         }
 
         @SuppressWarnings("unchecked")
-        TypeSerializer<T> getValueSerializer() {
+        public TypeSerializer<T> getValueSerializer() {
             return (TypeSerializer<T>) fieldSerializers[1];
         }
 
@@ -328,6 +328,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
             return new TtlSerializerSnapshot<>(this);
         }
 
+        @SuppressWarnings("rawtypes")
         public static boolean isTtlStateSerializer(TypeSerializer<?> typeSerializer) {
             boolean ttlSerializer = typeSerializer instanceof TtlStateFactory.TtlSerializer;
             boolean ttlListSerializer =
@@ -375,6 +376,11 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
             TypeSerializer<T> valueSerializer = (TypeSerializer<T>) nestedSerializers[1];
 
             return new TtlSerializer<>(timestampSerializer, valueSerializer);
+        }
+
+        @SuppressWarnings("unchecked")
+        public TypeSerializerSnapshot<T> getValueSerializerSnapshot() {
+            return (TypeSerializerSnapshot<T>) getNestedSerializerSnapshots()[1];
         }
     }
 }

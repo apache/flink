@@ -62,6 +62,7 @@ import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.ttl.TtlAwareSerializer;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -88,6 +89,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -667,6 +669,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
      * requested we check here whether we already have a registered entry for that and return it
      * (after some necessary state compatibility checks) or create a new one if it does not exist.
      */
+    @SuppressWarnings("unchecked")
     private <N, S extends State, SV, SEV>
             Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
                     tryRegisterKvStateInformation(
@@ -678,29 +681,31 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
         RocksDbKvStateInfo oldStateInfo = kvStateInformation.get(stateDesc.getName());
 
-        TypeSerializer<SV> stateSerializer = stateDesc.getSerializer();
+        TypeSerializer<SV> stateSerializer =
+                (TypeSerializer<SV>)
+                        TtlAwareSerializer.wrapTtlAwareSerializer(stateDesc.getSerializer());
 
         RocksDbKvStateInfo newRocksStateInfo;
         RegisteredKeyValueStateBackendMetaInfo<N, SV> newMetaInfo;
+
         if (oldStateInfo != null) {
-            @SuppressWarnings("unchecked")
             RegisteredKeyValueStateBackendMetaInfo<N, SV> castedMetaInfo =
                     (RegisteredKeyValueStateBackendMetaInfo<N, SV>) oldStateInfo.metaInfo;
 
-            newMetaInfo =
-                    updateRestoredStateMetaInfo(
-                            Tuple2.of(oldStateInfo.columnFamilyHandle, castedMetaInfo),
-                            stateDesc,
-                            namespaceSerializer,
-                            stateSerializer);
-
+            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
+                    newRocksDBState =
+                            updateRestoredStateMetaInfo(
+                                    Tuple2.of(oldStateInfo.columnFamilyHandle, castedMetaInfo),
+                                    stateDesc,
+                                    namespaceSerializer,
+                                    stateSerializer);
+            newMetaInfo = newRocksDBState.f1;
             newMetaInfo =
                     allowFutureMetadataUpdates
                             ? newMetaInfo.withSerializerUpgradesAllowed()
                             : newMetaInfo;
 
-            newRocksStateInfo =
-                    new RocksDbKvStateInfo(oldStateInfo.columnFamilyHandle, newMetaInfo);
+            newRocksStateInfo = new RocksDbKvStateInfo(newRocksDBState.f0, newMetaInfo);
             kvStateInformation.put(stateDesc.getName(), newRocksStateInfo);
             sstMergeManager.register(newRocksStateInfo);
         } else {
@@ -744,13 +749,16 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     }
 
     private <N, S extends State, SV>
-            RegisteredKeyValueStateBackendMetaInfo<N, SV> updateRestoredStateMetaInfo(
-                    Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
-                            oldStateInfo,
-                    StateDescriptor<S, SV> stateDesc,
-                    TypeSerializer<N> namespaceSerializer,
-                    TypeSerializer<SV> stateSerializer)
-                    throws Exception {
+            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>>
+                    updateRestoredStateMetaInfo(
+                            Tuple2<
+                                            ColumnFamilyHandle,
+                                            RegisteredKeyValueStateBackendMetaInfo<N, SV>>
+                                    oldStateInfo,
+                            StateDescriptor<S, SV> stateDesc,
+                            TypeSerializer<N> namespaceSerializer,
+                            TypeSerializer<SV> stateSerializer)
+                            throws Exception {
 
         RegisteredKeyValueStateBackendMetaInfo<N, SV> restoredKvStateMetaInfo = oldStateInfo.f1;
 
@@ -779,7 +787,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         TypeSerializerSchemaCompatibility<SV> newStateSerializerCompatibility =
                 restoredKvStateMetaInfo.updateStateSerializer(stateSerializer);
         if (newStateSerializerCompatibility.isCompatibleAfterMigration()) {
-            migrateStateValues(stateDesc, oldStateInfo);
+            migrateStateValues(stateDesc, oldStateInfo, newStateSerializerCompatibility);
         } else if (newStateSerializerCompatibility.isIncompatible()) {
             throw new StateMigrationException(
                     "The new state serializer ("
@@ -789,18 +797,19 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                             + ").");
         }
 
-        return restoredKvStateMetaInfo;
+        return oldStateInfo;
     }
 
     /**
      * Migrate only the state value, that is the "value" that is stored in RocksDB. We don't migrate
      * the key here, which is made up of key group, key, namespace and map key (in case of
-     * MapState).
+     * MapState). Also support migrate state values between disabling and enabling ttl.
      */
     @SuppressWarnings("unchecked")
     private <N, S extends State, SV> void migrateStateValues(
             StateDescriptor<S, SV> stateDesc,
-            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> stateMetaInfo)
+            Tuple2<ColumnFamilyHandle, RegisteredKeyValueStateBackendMetaInfo<N, SV>> stateMetaInfo,
+            TypeSerializerSchemaCompatibility<SV> compatibility)
             throws Exception {
 
         if (stateDesc.getType() == StateDescriptor.Type.MAP) {
@@ -840,7 +849,6 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                     "State should be an AbstractRocksDBState but is " + state);
         }
 
-        @SuppressWarnings("unchecked")
         AbstractRocksDBState<?, ?, SV> rocksDBState = (AbstractRocksDBState<?, ?, SV>) state;
 
         Snapshot rocksDBSnapshot = db.getSnapshot();
@@ -855,14 +863,31 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
             DataInputDeserializer serializedValueInput = new DataInputDeserializer();
             DataOutputSerializer migratedSerializedValueOutput = new DataOutputSerializer(512);
+
+            if (compatibility.isCompatibleAfterTtlMigration()) {
+                // By performing ttl state migration, we need to recreate column family to
+                // enable/disable ttl compaction filter factory.
+                db.dropColumnFamily(stateMetaInfo.f0);
+                stateMetaInfo.f0 =
+                        RocksDBOperationUtils.createColumnFamily(
+                                RocksDBOperationUtils.createColumnFamilyDescriptor(
+                                        stateMetaInfo.f1,
+                                        columnFamilyOptionsFactory,
+                                        ttlCompactFiltersManager,
+                                        optionsContainer.getWriteBufferManagerCapacity()),
+                                db,
+                                Collections.emptyList(),
+                                ICloseableRegistry.NO_OP);
+            }
+
             while (iterator.isValid()) {
                 serializedValueInput.setBuffer(iterator.value());
-
                 rocksDBState.migrateSerializedValue(
                         serializedValueInput,
                         migratedSerializedValueOutput,
                         stateMetaInfo.f1.getPreviousStateSerializer(),
-                        stateMetaInfo.f1.getStateSerializer());
+                        stateMetaInfo.f1.getStateSerializer(),
+                        this.ttlTimeProvider);
 
                 batchWriter.put(
                         stateMetaInfo.f0,

@@ -21,6 +21,7 @@ package org.apache.flink.api.common.typeutils;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -53,6 +54,8 @@ public class TypeSerializerSchemaCompatibility<T> {
          * correspond to the new serializer.
          */
         COMPATIBLE_AFTER_MIGRATION,
+
+        COMPATIBLE_AFTER_TTL_MIGRATION,
 
         /**
          * This indicates that a reconfigured version of the new serializer is compatible, and
@@ -93,6 +96,23 @@ public class TypeSerializerSchemaCompatibility<T> {
      */
     public static <T> TypeSerializerSchemaCompatibility<T> compatibleAfterMigration() {
         return new TypeSerializerSchemaCompatibility<>(Type.COMPATIBLE_AFTER_MIGRATION, null);
+    }
+
+    public static <T> TypeSerializerSchemaCompatibility<T> compatibleAfterTtlMigration() {
+        return new TypeSerializerSchemaCompatibility<>(Type.COMPATIBLE_AFTER_TTL_MIGRATION, null);
+    }
+
+    public static <T> TypeSerializerSchemaCompatibility<T> resolveCompatibilityForTtlMigration(
+            @Nonnull TypeSerializerSchemaCompatibility<T> originalCompatibility) {
+        switch (originalCompatibility.resultType) {
+            case COMPATIBLE_AS_IS:
+            case COMPATIBLE_AFTER_MIGRATION:
+            case COMPATIBLE_WITH_RECONFIGURED_SERIALIZER:
+                return compatibleAfterTtlMigration();
+            case INCOMPATIBLE:
+            default:
+                return incompatible();
+        }
     }
 
     /**
@@ -147,7 +167,12 @@ public class TypeSerializerSchemaCompatibility<T> {
      *     Type#COMPATIBLE_AFTER_MIGRATION}.
      */
     public boolean isCompatibleAfterMigration() {
-        return resultType == Type.COMPATIBLE_AFTER_MIGRATION;
+        return resultType == Type.COMPATIBLE_AFTER_MIGRATION
+                || resultType == Type.COMPATIBLE_AFTER_TTL_MIGRATION;
+    }
+
+    public boolean isCompatibleAfterTtlMigration() {
+        return resultType == Type.COMPATIBLE_AFTER_TTL_MIGRATION;
     }
 
     /**
