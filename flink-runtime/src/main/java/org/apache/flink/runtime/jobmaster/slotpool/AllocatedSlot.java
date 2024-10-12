@@ -27,7 +27,6 @@ import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
 import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -87,7 +86,7 @@ class AllocatedSlot implements PhysicalSlot {
         this.physicalSlotNumber = physicalSlotNumber;
         this.resourceProfile = checkNotNull(resourceProfile);
         this.taskManagerGateway = checkNotNull(taskManagerGateway);
-        this.loadingWeight = Preconditions.checkNotNull(loadingWeight);
+        this.loadingWeight = checkNotNull(loadingWeight);
 
         payloadReference = new AtomicReference<>(null);
     }
@@ -172,7 +171,7 @@ class AllocatedSlot implements PhysicalSlot {
     @Override
     public void setLoading(LoadingWeight loadingWeight) {
         this.previousLoadingWeight = this.loadingWeight;
-        this.loadingWeight = Preconditions.checkNotNull(loadingWeight);
+        this.loadingWeight = checkNotNull(loadingWeight);
     }
 
     @Override

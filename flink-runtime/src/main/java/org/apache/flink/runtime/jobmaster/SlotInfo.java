@@ -22,13 +22,12 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
-import org.apache.flink.runtime.scheduler.loading.WeightLoadable;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.util.Optional;
 
 /** Interface that provides basic information in the context of a slot. */
-public interface SlotInfo extends WeightLoadable {
+public interface SlotInfo {
 
     /**
      * Gets the id under which the slot has been allocated on the TaskManager. This id uniquely
