@@ -1546,6 +1546,7 @@ Notes:
 4. Supported iff the `RAW` class and serializer are equals.
 5. Supported iff `INTERVAL` is a `MONTH TO YEAR` range.
 6. Supported iff `INTERVAL` is a `DAY TO TIME` range.
+7. If the value is Infinity, the conversion of `DOUBLE` to `DECIMAL` may fail.
 
 Also note that a cast of a `NULL` value will always return `NULL`, 
 regardless of whether the function used is `CAST` or `TRY_CAST`.
