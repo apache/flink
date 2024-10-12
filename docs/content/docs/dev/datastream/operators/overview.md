@@ -261,6 +261,7 @@ If you are using a windowAll transformation, you need to use an `AllWindowFuncti
 {{< tab "Java">}}
 ```java
 windowedStream.apply(new WindowFunction<Tuple2<String,Integer>, Integer, Tuple, Window>() {
+    @Override
     public void apply (Tuple tuple,
             Window window,
             Iterable<Tuple2<String, Integer>> values,
@@ -275,6 +276,7 @@ windowedStream.apply(new WindowFunction<Tuple2<String,Integer>, Integer, Tuple, 
 
 // applying an AllWindowFunction on non-keyed window stream
 allWindowedStream.apply (new AllWindowFunction<Tuple2<String,Integer>, Integer, Window>() {
+    @Override
     public void apply (Window window,
             Iterable<Tuple2<String, Integer>> values,
             Collector<Integer> out) throws Exception {
