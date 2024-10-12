@@ -30,8 +30,6 @@ under the License.
 
 使用 [savepoints]({{< ref "docs/ops/state/savepoints" >}}) 时，应该考虑设置最大并行度。当作业从一个 savepoint 恢复时，你可以改变特定算子或着整个程序的并行度，并且此设置会限定整个程序的并行度的上限。由于在 Flink 内部将状态划分为了 key-groups，且性能所限不能无限制地增加 key-groups，因此设定最大并行度是有必要的。
 
-* toc
-
 
 ## 设置并行度
 
