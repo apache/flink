@@ -24,6 +24,7 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelDistributionTraitDef;
+import org.apache.calcite.rel.RelInput;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Snapshot;
 import org.apache.calcite.rel.hint.RelHint;
@@ -40,12 +41,18 @@ import java.util.List;
  * Sub-class of {@link org.apache.calcite.rel.core.Snapshot} not targeted at any particular engine
  * or calling convention. The class was copied over because of * CALCITE-4554. *
  *
- * <p>Line 106 ~ 117: Calcite only supports timestamp type as period type, but Flink supports both
+ * <p>Line 114 ~ 124: Calcite only supports timestamp type as period type, but Flink supports both
  * Timestamp and TimestampLtz. Should be removed once calcite support TimestampLtz as period type.
  */
 public class LogicalSnapshot extends Snapshot {
 
     // ~ Constructors -----------------------------------------------------------
+
+    /** Creates a LogicalSnapshot by parsing serialized output. */
+    public LogicalSnapshot(RelInput input) {
+        super(input);
+    }
+
     /**
      * Creates a LogicalSnapshot.
      *

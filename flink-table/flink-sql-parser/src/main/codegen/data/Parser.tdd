@@ -286,6 +286,8 @@
     "CURSOR_NAME"
     "DATA"
     "DATABASE"
+    "DATE_DIFF"
+    "DATETIME_DIFF"
     "DATETIME_INTERVAL_CODE"
     "DATETIME_INTERVAL_PRECISION"
     "DAYS"
@@ -706,4 +708,5 @@
   includeCompoundIdentifier: true
   includeBraces: true
   includeAdditionalDeclarations: false
+  includeParsingStringLiteralAsArrayLiteral: false
 }
