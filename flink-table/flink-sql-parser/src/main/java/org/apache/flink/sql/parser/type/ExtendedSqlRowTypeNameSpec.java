@@ -128,7 +128,7 @@ public class ExtendedSqlRowTypeNameSpec extends SqlTypeNameSpec {
 
     @Override
     public boolean equalsDeep(SqlTypeNameSpec node, Litmus litmus) {
-        if (!(node instanceof SqlRowTypeNameSpec)) {
+        if (!(node instanceof ExtendedSqlRowTypeNameSpec)) {
             return litmus.fail("{} != {}", this, node);
         }
         ExtendedSqlRowTypeNameSpec that = (ExtendedSqlRowTypeNameSpec) node;
