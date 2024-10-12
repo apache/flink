@@ -702,7 +702,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
     private static Container createTestingContainerWithResource(
             Resource resource, Priority priority, int containerIdx) {
         final ContainerId containerId =
-                ContainerId.newInstance(
+                ContainerId.newContainerId(
                         ApplicationAttemptId.newInstance(
                                 ApplicationId.newInstance(System.currentTimeMillis(), 1), 1),
                         containerIdx);
@@ -729,8 +729,8 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
         final CompletableFuture<Void> nodeManagerClientStartFuture = new CompletableFuture<>();
         final CompletableFuture<Void> nodeManagerClientStopFuture = new CompletableFuture<>();
 
-        AMRMClientAsync.CallbackHandler resourceManagerClientCallbackHandler;
-        NMClientAsync.CallbackHandler nodeManagerClientCallbackHandler;
+        AMRMClientAsync.AbstractCallbackHandler resourceManagerClientCallbackHandler;
+        NMClientAsync.AbstractCallbackHandler nodeManagerClientCallbackHandler;
         TestingYarnNMClientAsync testingYarnNMClientAsync;
         TestingYarnAMRMClientAsync testingYarnAMRMClientAsync;
         final TestingYarnNMClientAsync.Builder testingYarnNMClientAsyncBuilder =

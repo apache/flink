@@ -138,14 +138,6 @@ paths:
         required: true
         schema:
           type: string
-      - name: program-args
-        in: query
-        description: "Deprecated, please use 'programArg' instead. String value that\
-          \ specifies the arguments for the program or plan"
-        required: false
-        style: form
-        schema:
-          type: string
       - name: programArg
         in: query
         description: Comma-separated list of program arguments.
@@ -210,14 +202,6 @@ paths:
         in: query
         description: String value that specifies the path of the savepoint to restore
           the job from.
-        required: false
-        style: form
-        schema:
-          type: string
-      - name: program-args
-        in: query
-        description: "Deprecated, please use 'programArg' instead. String value that\
-          \ specifies the arguments for the program or plan"
         required: false
         style: form
         schema:
@@ -2063,8 +2047,6 @@ components:
           type: object
           additionalProperties:
             type: string
-        location:
-          type: string
         stacktrace:
           type: string
         taskManagerId:
@@ -2088,22 +2070,6 @@ components:
           type: object
           additionalProperties:
             type: string
-    ExecutionExceptionInfo:
-      type: object
-      properties:
-        endpoint:
-          type: string
-        exception:
-          type: string
-        location:
-          type: string
-        task:
-          type: string
-        taskManagerId:
-          type: string
-        timestamp:
-          type: integer
-          format: int64
     ExecutionState:
       type: string
       enum:
@@ -2274,8 +2240,6 @@ components:
         parallelism:
           type: integer
           format: int32
-        programArgs:
-          type: string
         programArgsList:
           type: array
           items:
@@ -2298,8 +2262,6 @@ components:
         parallelism:
           type: integer
           format: int32
-        programArgs:
-          type: string
         programArgsList:
           type: array
           items:
@@ -2467,19 +2429,8 @@ components:
     JobExceptionsInfoWithHistory:
       type: object
       properties:
-        all-exceptions:
-          type: array
-          items:
-            $ref: '#/components/schemas/ExecutionExceptionInfo'
         exceptionHistory:
           $ref: '#/components/schemas/JobExceptionHistory'
-        root-exception:
-          type: string
-        timestamp:
-          type: integer
-          format: int64
-        truncated:
-          type: boolean
     JobExecutionResultResponseBody:
       required:
       - status
@@ -2640,8 +2591,6 @@ components:
           type: integer
           format: int64
         endpoint:
-          type: string
-        host:
           type: string
         metrics:
           $ref: '#/components/schemas/IOMetricsInfo'
@@ -2838,8 +2787,6 @@ components:
           type: object
           additionalProperties:
             type: string
-        location:
-          type: string
         stacktrace:
           type: string
         taskManagerId:
@@ -2958,8 +2905,6 @@ components:
           format: int32
         endpoint:
           type: string
-        host:
-          type: string
         subtask:
           type: integer
           format: int32
@@ -3037,8 +2982,6 @@ components:
           format: int64
         endpoint:
           type: string
-        host:
-          type: string
         metrics:
           $ref: '#/components/schemas/IOMetricsInfo'
         other-concurrent-attempts:
@@ -3067,8 +3010,6 @@ components:
           type: integer
           format: int64
         endpoint:
-          type: string
-        host:
           type: string
         subtask:
           type: integer

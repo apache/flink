@@ -97,7 +97,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.utils.DateTimeUtils.toInternal;
-import static org.apache.parquet.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.parquet.schema.Type.Repetition.REPEATED;
 import static org.apache.parquet.schema.Type.Repetition.REQUIRED;
 

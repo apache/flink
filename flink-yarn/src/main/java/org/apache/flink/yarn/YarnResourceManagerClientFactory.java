@@ -33,5 +33,6 @@ public interface YarnResourceManagerClientFactory {
      * @return an {@link AMRMClientAsync} instance.
      */
     AMRMClientAsync<AMRMClient.ContainerRequest> createResourceManagerClient(
-            int yarnHeartbeatIntervalMillis, AMRMClientAsync.CallbackHandler callbackHandler);
+            int yarnHeartbeatIntervalMillis,
+            AMRMClientAsync.AbstractCallbackHandler callbackHandler);
 }

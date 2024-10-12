@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.WrappingFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -64,21 +65,8 @@ public class KeyedPartitionWindowedStream<T, KEY> implements PartitionWindowedSt
         TypeInformation<R> resultType =
                 TypeExtractor.getMapPartitionReturnTypes(
                         mapPartitionFunction, input.getType(), opName, true);
-        MapPartitionFunction<T, R> function = mapPartitionFunction;
         return input.window(GlobalWindows.createWithEndOfStreamTrigger())
-                .apply(
-                        new WindowFunction<T, R, KEY, GlobalWindow>() {
-                            @Override
-                            public void apply(
-                                    KEY key,
-                                    GlobalWindow window,
-                                    Iterable<T> input,
-                                    Collector<R> out)
-                                    throws Exception {
-                                function.mapPartition(input, out);
-                            }
-                        },
-                        resultType);
+                .apply(new KeyedMapPartitionWindowFunction<>(mapPartitionFunction), resultType);
     }
 
     @Override
@@ -171,5 +159,20 @@ public class KeyedPartitionWindowedStream<T, KEY> implements PartitionWindowedSt
                 .declareManagedMemoryUseCaseAtOperatorScope(
                         ManagedMemoryUseCase.OPERATOR, managedMemoryWeight);
         return result;
+    }
+
+    private static class KeyedMapPartitionWindowFunction<T, R, KEY>
+            extends WrappingFunction<MapPartitionFunction<T, R>>
+            implements WindowFunction<T, R, KEY, GlobalWindow> {
+
+        public KeyedMapPartitionWindowFunction(MapPartitionFunction<T, R> function) {
+            super(function);
+        }
+
+        @Override
+        public void apply(KEY key, GlobalWindow window, Iterable<T> input, Collector<R> out)
+                throws Exception {
+            wrappedFunction.mapPartition(input, out);
+        }
     }
 }

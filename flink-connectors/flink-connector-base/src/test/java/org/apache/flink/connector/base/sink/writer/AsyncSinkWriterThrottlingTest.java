@@ -24,7 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfiguration;
 
 import org.assertj.core.api.Assertions;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -33,10 +33,10 @@ import java.util.List;
 import java.util.Queue;
 
 /** Test class for rate limiting functionalities of {@link AsyncSinkWriter}. */
-public class AsyncSinkWriterThrottlingTest {
+class AsyncSinkWriterThrottlingTest {
 
     @Test
-    public void testSinkThroughputShouldThrottleToHalfBatchSize() throws Exception {
+    void testSinkThroughputShouldThrottleToHalfBatchSize() throws Exception {
         int maxBatchSize = 32;
         int maxInFlightRequest = 10;
         int numberOfBatchesToSend = 1000;

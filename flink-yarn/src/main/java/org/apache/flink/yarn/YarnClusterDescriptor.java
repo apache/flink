@@ -19,6 +19,8 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterRetrieveException;
@@ -69,6 +71,7 @@ import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
 import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 import org.apache.flink.yarn.entrypoint.YarnApplicationClusterEntryPoint;
+import org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint;
 import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 
 import org.apache.hadoop.fs.FileStatus;
@@ -310,6 +313,14 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         return YarnSessionClusterEntrypoint.class.getName();
     }
 
+    /**
+     * The class to start the application master with. This class runs the main method in case of
+     * the job cluster.
+     */
+    protected String getYarnJobClusterEntrypoint() {
+        return YarnJobClusterEntrypoint.class.getName();
+    }
+
     public Configuration getFlinkConfiguration() {
         return flinkConfiguration;
     }
@@ -535,6 +546,25 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                     false);
         } catch (Exception e) {
             throw new ClusterDeploymentException("Couldn't deploy Yarn Application Cluster", e);
+        }
+    }
+
+    @Override
+    public ClusterClientProvider<ApplicationId> deployJobCluster(
+            ClusterSpecification clusterSpecification, JobGraph jobGraph, boolean detached)
+            throws ClusterDeploymentException {
+
+        LOG.warn(
+                "Job Clusters are deprecated since Flink 1.15. Please use an Application Cluster/Application Mode instead.");
+        try {
+            return deployInternal(
+                    clusterSpecification,
+                    "Flink per-job cluster",
+                    getYarnJobClusterEntrypoint(),
+                    jobGraph,
+                    detached);
+        } catch (Exception e) {
+            throw new ClusterDeploymentException("Could not deploy Yarn job cluster.", e);
         }
     }
 
@@ -912,6 +942,23 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             userJarFiles.addAll(jarUrls.stream().map(Path::new).collect(Collectors.toSet()));
         }
 
+        // only for per job mode
+        if (jobGraph != null) {
+            for (Map.Entry<String, DistributedCache.DistributedCacheEntry> entry :
+                    jobGraph.getUserArtifacts().entrySet()) {
+                // only upload local files
+                if (!Utils.isRemotePath(entry.getValue().filePath)) {
+                    Path localPath = new Path(entry.getValue().filePath);
+                    Tuple2<Path, Long> remoteFileInfo =
+                            fileUploader.uploadLocalFileToRemote(localPath, entry.getKey());
+                    jobGraph.setUserArtifactRemotePath(
+                            entry.getKey(), remoteFileInfo.f0.toString());
+                }
+            }
+
+            jobGraph.writeUserArtifactEntriesToConfiguration();
+        }
+
         if (providedLibDirs == null || providedLibDirs.isEmpty()) {
             addLibFoldersToShipFiles(systemShipFiles);
         }
@@ -1056,7 +1103,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
             fileUploader.registerSingleLocalResource(
                     flinkConfigFileName,
-                    new Path(tmpConfigurationFile.getAbsolutePath()),
+                    new Path(tmpConfigurationFile.toURI()),
                     "",
                     LocalResourceType.FILE,
                     true,

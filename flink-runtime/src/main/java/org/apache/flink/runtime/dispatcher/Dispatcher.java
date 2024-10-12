@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -541,7 +540,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                 // job with the given jobID is not terminated, yet
                                 return FutureUtils.completedExceptionally(
                                         DuplicateJobSubmissionException.of(jobID));
-                            } else if (isPartialResourceConfigured(jobGraph)) {
+                            } else if (jobGraph.isPartialResourceConfigured()) {
                                 return FutureUtils.completedExceptionally(
                                         new JobSubmissionException(
                                                 jobID,
@@ -581,25 +580,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
      */
     private CompletableFuture<Boolean> isInGloballyTerminalState(JobID jobId) {
         return jobResultStore.hasJobResultEntryAsync(jobId);
-    }
-
-    private boolean isPartialResourceConfigured(JobGraph jobGraph) {
-        boolean hasVerticesWithUnknownResource = false;
-        boolean hasVerticesWithConfiguredResource = false;
-
-        for (JobVertex jobVertex : jobGraph.getVertices()) {
-            if (jobVertex.getMinResources() == ResourceSpec.UNKNOWN) {
-                hasVerticesWithUnknownResource = true;
-            } else {
-                hasVerticesWithConfiguredResource = true;
-            }
-
-            if (hasVerticesWithUnknownResource && hasVerticesWithConfiguredResource) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private CompletableFuture<Acknowledge> internalSubmitJob(JobGraph jobGraph) {

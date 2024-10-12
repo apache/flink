@@ -43,6 +43,7 @@ import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
+import org.apache.flink.runtime.dispatcher.MiniDispatcher;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
@@ -741,7 +742,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         System.exit(returnCode);
     }
 
-    /** Execution mode of the dispatcher. */
+    /** Execution mode of the {@link MiniDispatcher}. */
     public enum ExecutionMode {
         /** Waits until the job result has been served. */
         NORMAL,

@@ -144,6 +144,8 @@ function run_group_1 {
         # Hadoop YARN doesn't support aarch64 at this moment. See: https://issues.apache.org/jira/browse/HADOOP-16723
         # These tests are known to fail on JDK11. See FLINK-13719
         # if [[ ${PROFILE} != *"jdk11"* ]]; then
+        #     run_test "Running Kerberized YARN per-job on Docker test (default input)" "$END_TO_END_DIR/test-scripts/test_yarn_job_kerberos_docker.sh"
+        #     run_test "Running Kerberized YARN per-job on Docker test (custom fs plugin)" "$END_TO_END_DIR/test-scripts/test_yarn_job_kerberos_docker.sh dummy-fs"
         #     run_test "Running Kerberized YARN application on Docker test (default input)" "$END_TO_END_DIR/test-scripts/test_yarn_application_kerberos_docker.sh"
         #     run_test "Running Kerberized YARN application on Docker test (custom fs plugin)" "$END_TO_END_DIR/test-scripts/test_yarn_application_kerberos_docker.sh dummy-fs"
         # fi
@@ -218,7 +220,7 @@ function run_group_2 {
     # Disable the test as we use JDK11 by default. We should enable it once we use the yarn docker image with JDK 11.
     # These tests are known to fail on JDK11. See FLINK-13719
     # if [[ ${PROFILE} != *"jdk11"* ]] && [[ `uname -i` != 'aarch64' ]]; then
-    #     run_test "PyFlink YARN application on Docker test" "$END_TO_END_DIR/test-scripts/test_pyflink_yarn.sh" "skip_check_exceptions"
+    #     run_test "PyFlink YARN per-job on Docker test" "$END_TO_END_DIR/test-scripts/test_pyflink_yarn.sh" "skip_check_exceptions"
     # fi
 
     ################################################################################
@@ -245,7 +247,7 @@ function run_group_2 {
 
     MVN_LOGGING_OPTIONS="-Dlog.dir=${DEBUG_FILES_OUTPUT_DIR} -DlogBackupDir=${DEBUG_FILES_OUTPUT_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES"
     MVN_COMMON_OPTIONS="-Dfast -Pskip-webui-build"
-    e2e_modules=$(find flink-end-to-end-tests -mindepth 2 -maxdepth 5 -name 'pom.xml' -not -path "flink-end-to-end-tests/flink-end-to-end-tests-hive/*" -printf '%h\n' | sort -u | tr '\n' ',')
+    e2e_modules=$(find flink-end-to-end-tests -mindepth 2 -maxdepth 5 -name 'pom.xml' -not -path "flink-end-to-end-tests/flink-end-to-end-tests-hive/*" -not -path "flink-end-to-end-tests/flink-sql-gateway-test/*" -printf '%h\n' | sort -u | tr '\n' ',')
     e2e_modules="${e2e_modules},$(find flink-walkthroughs -mindepth 2 -maxdepth 2 -name 'pom.xml' -printf '%h\n' | sort -u | tr '\n' ',')"
 
     PROFILE="$PROFILE -Prun-end-to-end-tests"
