@@ -368,7 +368,7 @@ class Trigger(ABC, Generic[T, W]):
             """
             Returns the metric group for this :class:`Trigger`. This is the same metric group that
             would be returned from
-            :func:`~pyflink.datasteam.functions.RuntimeContext.get_metric_group` in a user function.
+            :func:`~pyflink.datastream.functions.RuntimeContext.get_metric_group` in a user function.
 
             :return: The metric group.
             """
