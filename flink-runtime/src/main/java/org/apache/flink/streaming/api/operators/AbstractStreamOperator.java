@@ -113,7 +113,7 @@ public abstract class AbstractStreamOperator<OUT>
 
     protected transient Output<StreamRecord<OUT>> output;
 
-    private transient IndexedCombinedWatermarkStatus combinedWatermark;
+    protected transient IndexedCombinedWatermarkStatus combinedWatermark;
 
     /** The runtime context for UDFs. */
     private transient StreamingRuntimeContext runtimeContext;
@@ -689,7 +689,7 @@ public abstract class AbstractStreamOperator<OUT>
         output.emitWatermarkStatus(watermarkStatus);
     }
 
-    private void processWatermarkStatus(WatermarkStatus watermarkStatus, int index)
+    protected void processWatermarkStatus(WatermarkStatus watermarkStatus, int index)
             throws Exception {
         boolean wasIdle = combinedWatermark.isIdle();
         if (combinedWatermark.updateStatus(index, watermarkStatus.isIdle())) {

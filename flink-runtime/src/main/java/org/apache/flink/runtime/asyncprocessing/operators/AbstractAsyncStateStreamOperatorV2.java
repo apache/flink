@@ -44,6 +44,8 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessing;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessingOperator;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.ElementOrder;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -253,6 +255,21 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
                 (AsyncExecutionController<K>) asyncExecutionController);
     }
 
+    // ------------------------------------------------------------------------
+    //  Metrics
+    // ------------------------------------------------------------------------
+    protected void reportOrForwardLatencyMarker(LatencyMarker marker) {
+        if (!isAsyncStateProcessingEnabled()) {
+            // If async state processing is disabled, fallback to the super class.
+            super.reportOrForwardLatencyMarker(marker);
+            return;
+        }
+        asyncExecutionController.processNonRecord(() -> super.reportOrForwardLatencyMarker(marker));
+    }
+
+    // ------------------------------------------------------------------------
+    //  Watermark handling
+    // ------------------------------------------------------------------------
     @Override
     public void processWatermark(Watermark mark) throws Exception {
         if (!isAsyncStateProcessingEnabled()) {
@@ -280,6 +297,17 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
                         output.emitWatermarkStatus(watermarkStatus);
                     }
                 });
+    }
+
+    @Override
+    public void processRecordAttributes(RecordAttributes recordAttributes, int inputId)
+            throws Exception {
+        if (!isAsyncStateProcessingEnabled()) {
+            super.processRecordAttributes(recordAttributes, inputId);
+            return;
+        }
+        asyncExecutionController.processNonRecord(
+                () -> super.processRecordAttributes(recordAttributes, inputId));
     }
 
     @VisibleForTesting
