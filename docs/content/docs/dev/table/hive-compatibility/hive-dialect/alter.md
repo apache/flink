@@ -40,7 +40,7 @@ With Hive dialect, the following ALTER statements are supported for now:
 -- alter database's properties
 ALTER (DATABASE|SCHEMA) database_name SET DBPROPERTIES (property_name=property_value, ...);
 
--- alter database's localtion
+-- alter database's location
 ALTER (DATABASE|SCHEMA) database_name SET LOCATION hdfs_path;
 ```
 
@@ -222,7 +222,7 @@ ALTER TABLE table_name [PARTITION partition_spec] SET FILEFORMAT file_format;
 ##### Examples
 
 ```sql
--- alter file localtion
+-- alter file location
 ALTER TABLE t1 PARTITION (dt='2022-08-08', country='china') SET LOCATION "/user/warehouse/t2/dt=2022-08-08/country=china";
 
 -- alter file format
@@ -250,7 +250,7 @@ ALTER TABLE table_name [PARTITION partition_spec] CHANGE [COLUMN] col_old_name c
 
 ```sql
 ALTER TABLE t1 CHANGE COLUMN c1 new_c1 STRING FIRST;
-ALTER TABLE t1 CHANGE COLUMN c1 new_c1 STRING AFRER c2;
+ALTER TABLE t1 CHANGE COLUMN c1 new_c1 STRING AFTER c2;
 ```
 
 #### Add/Replace Columns
