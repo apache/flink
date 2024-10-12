@@ -80,7 +80,9 @@ public class TestingUtils {
 
         final Collection<Path> jarPaths =
                 org.apache.flink.util.FileUtils.listFilesInDirectory(mvnTargetDir, fileFilter);
-        assertThat(jarPaths).isNotEmpty();
+        assertThat(jarPaths)
+                .describedAs("Could not find any matching files in %s", mvnTargetDir)
+                .isNotEmpty();
 
         return jarPaths.iterator().next().toFile();
     }
