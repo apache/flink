@@ -37,6 +37,7 @@ import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -197,6 +198,7 @@ class StateInitializationContextImplTest {
                             public <K> InternalTimeServiceManager<K> create(
                                     TaskIOMetricGroup taskIOMetricGroup,
                                     CheckpointableKeyedStateBackend<K> keyedStatedBackend,
+                                    AsyncKeyedStateBackend<K> asyncKeyedStateBackend,
                                     ClassLoader userClassloader,
                                     KeyContext keyContext,
                                     ProcessingTimeService processingTimeService,

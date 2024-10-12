@@ -41,6 +41,7 @@ import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
@@ -153,6 +154,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
                 public <K> InternalTimeServiceManager<K> create(
                         TaskIOMetricGroup taskIOMetricGroup,
                         CheckpointableKeyedStateBackend<K> keyedStatedBackend,
+                        AsyncKeyedStateBackend<K> asyncKeyedStatedBackend,
                         ClassLoader userClassloader,
                         KeyContext keyContext,
                         ProcessingTimeService processingTimeService,
@@ -163,6 +165,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
                             InternalTimeServiceManagerImpl.create(
                                     taskIOMetricGroup,
                                     keyedStatedBackend,
+                                    asyncKeyedStatedBackend,
                                     userClassloader,
                                     keyContext,
                                     processingTimeService,

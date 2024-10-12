@@ -362,6 +362,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                                 parameters.getKeySerializer(),
                                 parameters.getNumberOfKeyGroups(),
                                 parameters.getKeyGroupRange(),
+                                priorityQueueConfig,
                                 parameters.getMetricGroup(),
                                 parameters.getCustomInitializationMetrics(),
                                 parameters.getStateHandles(),

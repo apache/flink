@@ -241,33 +241,41 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
             streamTaskCloseableRegistry.registerCloseable(rawOperatorStateInputs);
 
             // -------------- Internal Timer Service Manager --------------
-            if (keyedStatedBackend != null) {
-
-                // if the operator indicates that it is using custom raw keyed state,
-                // then whatever was written in the raw keyed state snapshot was NOT written
-                // by the internal timer services (because there is only ever one user of raw keyed
-                // state);
-                // in this case, timers should not attempt to restore timers from the raw keyed
-                // state.
-                final Iterable<KeyGroupStatePartitionStreamProvider> restoredRawKeyedStateTimers =
-                        (prioritizedOperatorSubtaskStates.isRestored()
-                                        && !isUsingCustomRawKeyedState)
-                                ? rawKeyedStateInputs
-                                : Collections.emptyList();
-
+            // if the operator indicates that it is using custom raw keyed state,
+            // then whatever was written in the raw keyed state snapshot was NOT written
+            // by the internal timer services (because there is only ever one user of raw keyed
+            // state);
+            // in this case, timers should not attempt to restore timers from the raw keyed
+            // state.
+            final Iterable<KeyGroupStatePartitionStreamProvider> restoredRawKeyedStateTimers =
+                    (prioritizedOperatorSubtaskStates.isRestored() && !isUsingCustomRawKeyedState)
+                            ? rawKeyedStateInputs
+                            : Collections.emptyList();
+            if (keyedStatedBackend == null && asyncKeyedStateBackend == null) {
+                timeServiceManager = null;
+            } else if (stateBackend.supportsAsyncKeyedStateBackend()) {
                 timeServiceManager =
                         timeServiceManagerProvider.create(
                                 environment.getMetricGroup().getIOMetricGroup(),
-                                keyedStatedBackend,
+                                null,
+                                asyncKeyedStateBackend,
                                 environment.getUserCodeClassLoader().asClassLoader(),
                                 keyContext,
                                 processingTimeService,
                                 restoredRawKeyedStateTimers,
                                 cancellationContext);
             } else {
-                timeServiceManager = null;
+                timeServiceManager =
+                        timeServiceManagerProvider.create(
+                                environment.getMetricGroup().getIOMetricGroup(),
+                                keyedStatedBackend,
+                                null,
+                                environment.getUserCodeClassLoader().asClassLoader(),
+                                keyContext,
+                                processingTimeService,
+                                restoredRawKeyedStateTimers,
+                                cancellationContext);
             }
-            // TODO: Support Timer for AsyncKeyedStateBackend
 
             // Add stats for input channel and result partition state
             Stream.concat(

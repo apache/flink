@@ -244,6 +244,11 @@ public class StreamOperatorStateHandler {
                                 && ((AbstractKeyedStateBackend<?>) keyedStateBackend)
                                         .requiresLegacySynchronousTimerSnapshots(
                                                 checkpointOptions.getCheckpointType());
+                requiresLegacyRawKeyedStateSnapshots |=
+                        keyedStateBackend instanceof AsyncKeyedStateBackend
+                                && ((AsyncKeyedStateBackend<?>) keyedStateBackend)
+                                        .requiresLegacySynchronousTimerSnapshots(
+                                                checkpointOptions.getCheckpointType());
 
                 if (requiresLegacyRawKeyedStateSnapshots) {
                     checkState(
