@@ -30,8 +30,12 @@ import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.execution.JobStatusChangedListener;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.util.Hardware;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamGraphDescriptor;
 import org.apache.flink.streaming.runtime.execution.DefaultJobCreatedEvent;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,8 +44,11 @@ import javax.annotation.Nonnull;
 
 import java.net.MalformedURLException;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** Utility class with method related to job execution. */
 public class PipelineExecutorUtils {
@@ -95,22 +102,22 @@ public class PipelineExecutorUtils {
      * Notify the {@link DefaultJobCreatedEvent} to job status changed listeners.
      *
      * @param pipeline the pipeline that contains lineage graph information.
-     * @param jobGraph jobGraph that contains job basic info
+     * @param executionPlan executionPlan that contains job basic info
      * @param listeners the list of job status changed listeners
      */
     public static void notifyJobStatusListeners(
             @Nonnull final Pipeline pipeline,
-            @Nonnull final JobGraph jobGraph,
+            @Nonnull final ExecutionPlan executionPlan,
             List<JobStatusChangedListener> listeners) {
         RuntimeExecutionMode executionMode =
-                jobGraph.getJobConfiguration().get(ExecutionOptions.RUNTIME_MODE);
+                executionPlan.getJobConfiguration().get(ExecutionOptions.RUNTIME_MODE);
         listeners.forEach(
                 listener -> {
                     try {
                         listener.onEvent(
                                 new DefaultJobCreatedEvent(
-                                        jobGraph.getJobID(),
-                                        jobGraph.getName(),
+                                        executionPlan.getJobID(),
+                                        executionPlan.getName(),
                                         ((StreamGraph) pipeline).getLineageGraph(),
                                         executionMode));
                     } catch (Throwable e) {
@@ -120,5 +127,51 @@ public class PipelineExecutorUtils {
                                 e);
                     }
                 });
+    }
+
+    public static StreamGraphDescriptor getStreamGraphWrapper(
+            @Nonnull final Pipeline pipeline, @Nonnull final Configuration configuration)
+            throws Exception {
+        checkNotNull(pipeline);
+        checkNotNull(configuration);
+        checkState(pipeline instanceof StreamGraph);
+
+        StreamGraph streamGraph = (StreamGraph) pipeline;
+
+        final ExecutionConfigAccessor executionConfigAccessor =
+                ExecutionConfigAccessor.fromConfiguration(configuration);
+
+        configuration
+                .getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID)
+                .ifPresent(strJobID -> streamGraph.setJobId(JobID.fromHexString(strJobID)));
+
+        if (configuration.get(DeploymentOptions.ATTACHED)
+                && configuration.get(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
+            streamGraph.setInitialClientHeartbeatTimeout(
+                    configuration.get(ClientOptions.CLIENT_HEARTBEAT_TIMEOUT).toMillis());
+        }
+
+        streamGraph.addJars(executionConfigAccessor.getJars());
+        streamGraph.setClasspath(executionConfigAccessor.getClasspaths());
+        streamGraph.setSavepointRestoreSettings(
+                executionConfigAccessor.getSavepointRestoreSettings());
+
+        final ExecutorService serializationExecutor =
+                Executors.newFixedThreadPool(
+                        Math.max(
+                                1,
+                                Math.min(
+                                        Hardware.getNumberCPUCores(),
+                                        streamGraph.getExecutionConfig().getParallelism())),
+                        new ExecutorThreadFactory("flink-operator-serialization-io"));
+
+        StreamGraphDescriptor streamGraphDescriptor;
+        try {
+            streamGraphDescriptor = new StreamGraphDescriptor(streamGraph, serializationExecutor);
+        } finally {
+            serializationExecutor.shutdown();
+        }
+
+        return streamGraphDescriptor;
     }
 }

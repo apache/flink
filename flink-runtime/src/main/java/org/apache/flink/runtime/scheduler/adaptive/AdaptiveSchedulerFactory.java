@@ -44,6 +44,8 @@ import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
+import org.apache.flink.streaming.api.graph.StreamGraphDescriptor;
 
 import org.slf4j.Logger;
 
@@ -60,7 +62,7 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
     @Override
     public SchedulerNG createInstance(
             Logger log,
-            JobGraph jobGraph,
+            ExecutionPlan executionPlan,
             Executor ioExecutor,
             Configuration jobMasterConfiguration,
             SlotPoolService slotPoolService,
@@ -81,6 +83,17 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
             Collection<FailureEnricher> failureEnrichers,
             BlocklistOperations blocklistOperations)
             throws Exception {
+        JobGraph jobGraph;
+
+        if (executionPlan instanceof JobGraph) {
+            jobGraph = (JobGraph) executionPlan;
+        } else {
+            jobGraph =
+                    ((StreamGraphDescriptor) executionPlan)
+                            .deserializeStreamGraph(userCodeLoader, futureExecutor)
+                            .getJobGraph(userCodeLoader);
+        }
+
         final DeclarativeSlotPool declarativeSlotPool =
                 slotPoolService
                         .castInto(DeclarativeSlotPool.class)
