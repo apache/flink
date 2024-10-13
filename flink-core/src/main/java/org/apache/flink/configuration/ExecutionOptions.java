@@ -41,7 +41,7 @@ public class ExecutionOptions {
     public static final ConfigOption<RuntimeExecutionMode> RUNTIME_MODE =
             ConfigOptions.key("execution.runtime-mode")
                     .enumType(RuntimeExecutionMode.class)
-                    .defaultValue(RuntimeExecutionMode.STREAMING)
+                    .defaultValue(RuntimeExecutionMode.AUTOMATIC)
                     .withDescription(
                             "Runtime execution mode of DataStream programs. Among other things, "
                                     + "this controls task scheduling, network shuffle behavior, and time semantics.");

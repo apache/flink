@@ -397,25 +397,36 @@ public class StreamGraphGenerator {
         }
     }
 
-    private boolean shouldExecuteInBatchMode() {
+    boolean shouldExecuteInBatchMode() {
         final RuntimeExecutionMode configuredMode =
                 configuration.get(ExecutionOptions.RUNTIME_MODE);
 
         final boolean existsUnboundedSource = existsUnboundedSource();
 
-        checkState(
-                configuredMode != RuntimeExecutionMode.BATCH || !existsUnboundedSource,
-                "Detected an UNBOUNDED source with the '"
-                        + ExecutionOptions.RUNTIME_MODE.key()
-                        + "' set to 'BATCH'. "
-                        + "This combination is not allowed, please set the '"
-                        + ExecutionOptions.RUNTIME_MODE.key()
-                        + "' to STREAMING or AUTOMATIC");
-
-        if (checkNotNull(configuredMode) != RuntimeExecutionMode.AUTOMATIC) {
-            return configuredMode == RuntimeExecutionMode.BATCH;
+        if (configuredMode == RuntimeExecutionMode.AUTOMATIC) {
+            return !existsUnboundedSource;
         }
-        return !existsUnboundedSource;
+
+        if (configuredMode == RuntimeExecutionMode.BATCH && existsUnboundedSource) {
+            throw new IllegalStateException(
+                    "Detected an UNBOUNDED source with the '"
+                            + ExecutionOptions.RUNTIME_MODE.key()
+                            + "' set to 'BATCH'. "
+                            + "This combination is not allowed, please set the '"
+                            + ExecutionOptions.RUNTIME_MODE.key()
+                            + "' to STREAMING or AUTOMATIC");
+        }
+        if (configuredMode == RuntimeExecutionMode.STREAMING && !existsUnboundedSource) {
+            throw new IllegalStateException(
+                    "Detected no UNBOUNDED source with the '"
+                            + ExecutionOptions.RUNTIME_MODE.key()
+                            + "' set to 'STREAMING'. "
+                            + "This combination is not allowed, please set the '"
+                            + ExecutionOptions.RUNTIME_MODE.key()
+                            + "' to BATCH or AUTOMATIC");
+        }
+
+        return configuredMode == RuntimeExecutionMode.BATCH;
     }
 
     private boolean existsUnboundedSource() {
