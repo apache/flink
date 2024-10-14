@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
@@ -62,6 +63,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     private final @Nullable String executionTarget;
     private final boolean minimalTaskManagerPreferred;
     private final SlotSharingResolver slotSharingResolver = DefaultSlotSharingResolver.INSTANCE;
+    private final SlotMatchingResolver slotMatchingResolver;
 
     private SlotSharingSlotAllocator(
             ReserveSlotFunction reserveSlot,
@@ -69,13 +71,15 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
             IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction,
             boolean localRecoveryEnabled,
             @Nullable String executionTarget,
-            boolean minimalTaskManagerPreferred) {
+            boolean minimalTaskManagerPreferred,
+            TaskManagerOptions.TaskManagerLoadBalanceMode taskManagerLoadBalanceMode) {
         this.reserveSlotFunction = reserveSlot;
         this.freeSlotFunction = freeSlotFunction;
         this.isSlotAvailableAndFreeFunction = isSlotAvailableAndFreeFunction;
         this.localRecoveryEnabled = localRecoveryEnabled;
         this.executionTarget = executionTarget;
         this.minimalTaskManagerPreferred = minimalTaskManagerPreferred;
+        this.slotMatchingResolver = getSlotMatchingResolver(taskManagerLoadBalanceMode);
     }
 
     public static SlotSharingSlotAllocator createSlotSharingSlotAllocator(
@@ -84,14 +88,16 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
             IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction,
             boolean localRecoveryEnabled,
             @Nullable String executionTarget,
-            boolean minimalTaskManagerPreferred) {
+            boolean minimalTaskManagerPreferred,
+            TaskManagerOptions.TaskManagerLoadBalanceMode taskManagerLoadBalanceMode) {
         return new SlotSharingSlotAllocator(
                 reserveSlot,
                 freeSlotFunction,
                 isSlotAvailableAndFreeFunction,
                 localRecoveryEnabled,
                 executionTarget,
-                minimalTaskManagerPreferred);
+                minimalTaskManagerPreferred,
+                taskManagerLoadBalanceMode);
     }
 
     @Override
@@ -146,7 +152,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     @Override
     public Optional<JobSchedulingPlan> determineParallelismAndCalculateAssignment(
             JobInformation jobInformation,
-            Collection<? extends SlotInfo> slots,
+            Collection<PhysicalSlot> slots,
             JobAllocationsInformation jobAllocationsInformation) {
         return determineParallelism(jobInformation, slots)
                 .map(
@@ -157,7 +163,8 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                                             : new DefaultSlotAssigner(
                                                     executionTarget,
                                                     minimalTaskManagerPreferred,
-                                                    slotSharingResolver);
+                                                    slotSharingResolver,
+                                                    slotMatchingResolver);
                             return new JobSchedulingPlan(
                                     parallelism,
                                     slotAssigner.assignSlots(
@@ -166,6 +173,22 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                                             parallelism,
                                             jobAllocationsInformation));
                         });
+    }
+
+    private SlotMatchingResolver getSlotMatchingResolver(
+            TaskManagerOptions.TaskManagerLoadBalanceMode taskManagerLoadBalanceMode) {
+        switch (taskManagerLoadBalanceMode) {
+            case NONE:
+            case MIN_RESOURCES:
+                return SimpleSlotMatchingResolver.INSTANCE;
+            case SLOTS:
+                return SlotsBalancedSlotMatchingResolver.INSTANCE;
+            default:
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "Unsupported task manager load mode: %s",
+                                taskManagerLoadBalanceMode));
+        }
     }
 
     /**

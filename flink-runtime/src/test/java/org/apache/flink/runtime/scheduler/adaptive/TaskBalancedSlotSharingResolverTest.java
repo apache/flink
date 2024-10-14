@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
@@ -65,7 +66,8 @@ class TaskBalancedSlotSharingResolverTest {
                     is_slot_free_function,
                     disable_local_recovery,
                     NULL_EXECUTION_TARGET,
-                    false);
+                    false,
+                    TaskManagerOptions.TaskManagerLoadBalanceMode.NONE);
 
     private SlotSharingGroup slotSharingGroup1;
     private SlotSharingGroup slotSharingGroup2;
