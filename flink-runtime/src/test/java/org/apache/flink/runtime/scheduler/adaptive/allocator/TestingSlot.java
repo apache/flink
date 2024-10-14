@@ -21,8 +21,12 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+
+import javax.annotation.Nonnull;
 
 /** An implementation of {@link PhysicalSlot}for testing. */
 public class TestingSlot implements PhysicalSlot {
@@ -30,6 +34,7 @@ public class TestingSlot implements PhysicalSlot {
     private final AllocationID allocationId;
     private final ResourceProfile resourceProfile;
     private final TaskManagerLocation taskManagerLocation;
+    private final LoadingWeight loadingWeight;
 
     public TestingSlot() {
         this(new AllocationID());
@@ -49,8 +54,17 @@ public class TestingSlot implements PhysicalSlot {
 
     public TestingSlot(
             AllocationID allocationID, ResourceProfile resourceProfile, TaskManagerLocation tml) {
+        this(allocationID, resourceProfile, DefaultLoadingWeight.EMPTY, tml);
+    }
+
+    public TestingSlot(
+            AllocationID allocationID,
+            ResourceProfile resourceProfile,
+            LoadingWeight loadingWeight,
+            TaskManagerLocation tml) {
         this.allocationId = allocationID;
         this.resourceProfile = resourceProfile;
+        this.loadingWeight = loadingWeight;
         this.taskManagerLocation = tml;
     }
 
@@ -87,5 +101,11 @@ public class TestingSlot implements PhysicalSlot {
     @Override
     public boolean tryAssignPayload(Payload payload) {
         throw new UnsupportedOperationException();
+    }
+
+    @Nonnull
+    @Override
+    public LoadingWeight getLoading() {
+        return loadingWeight;
     }
 }

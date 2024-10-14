@@ -17,14 +17,20 @@
 
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.TaskExecutorsLoadInformation;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator.ExecutionSlotSharingGroup;
 import org.apache.flink.util.FlinkRuntimeException;
 
+import javax.annotation.Nonnull;
+
 import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /** The interface to define the methods for request slot matching strategy. */
 public interface RequestSlotMatchingStrategy {
@@ -44,4 +50,31 @@ public interface RequestSlotMatchingStrategy {
             Collection<ExecutionSlotSharingGroup> requestGroups,
             Collection<PhysicalSlot> freeSlots,
             TaskExecutorsLoadInformation taskExecutorsLoadInformation);
+
+    /**
+     * Helper class to represent the slot and the loading or slots utilization weight info of the
+     * task executor where the slot is located at.
+     */
+    class SlotTaskExecutorWeight<T> {
+        final @Nonnull T taskExecutorWeight;
+        final @Nonnull PhysicalSlot physicalSlot;
+
+        SlotTaskExecutorWeight(@Nonnull T taskExecutorWeight, @Nonnull PhysicalSlot physicalSlot) {
+            this.taskExecutorWeight = taskExecutorWeight;
+            this.physicalSlot = physicalSlot;
+        }
+
+        ResourceID getResourceID() {
+            return physicalSlot.getTaskManagerLocation().getResourceID();
+        }
+    }
+
+    static Map<ResourceID, Set<PhysicalSlot>> getSlotsPerTaskExecutor(
+            Collection<PhysicalSlot> freeSlots) {
+        return freeSlots.stream()
+                .collect(
+                        Collectors.groupingBy(
+                                slot -> slot.getTaskManagerLocation().getResourceID(),
+                                Collectors.toSet()));
+    }
 }

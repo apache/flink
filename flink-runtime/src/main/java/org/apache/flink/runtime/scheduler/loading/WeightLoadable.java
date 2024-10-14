@@ -22,6 +22,10 @@ import org.apache.flink.annotation.Internal;
 
 import javax.annotation.Nonnull;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
+
 /**
  * The interface that holds the {@link LoadingWeight} getter is required for corresponding
  * abstractions.
@@ -36,4 +40,12 @@ public interface WeightLoadable {
      */
     @Nonnull
     LoadingWeight getLoading();
+
+    static <T extends WeightLoadable> List<T> sortByLoadingDescend(Collection<T> weightLoadables) {
+        return weightLoadables.stream()
+                .sorted(
+                        (leftReq, rightReq) ->
+                                rightReq.getLoading().compareTo(leftReq.getLoading()))
+                .collect(Collectors.toList());
+    }
 }

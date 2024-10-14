@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -74,7 +75,8 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
 
     private final BiFunction<AllocationID, Exception, ResourceCounter> releaseSlotFunction;
 
-    private final BiFunction<AllocationID, ResourceProfile, PhysicalSlot> reserveFreeSlotFunction;
+    private final TriFunction<AllocationID, ResourceProfile, LoadingWeight, PhysicalSlot>
+            reserveFreeSlotFunction;
 
     private final TriFunction<AllocationID, Throwable, Long, ResourceCounter>
             freeReservedSlotFunction;
@@ -112,7 +114,8 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
             Supplier<Collection<? extends SlotInfo>> getAllSlotsInformationSupplier,
             BiFunction<ResourceID, Exception, ResourceCounter> releaseSlotsFunction,
             BiFunction<AllocationID, Exception, ResourceCounter> releaseSlotFunction,
-            BiFunction<AllocationID, ResourceProfile, PhysicalSlot> reserveFreeSlotFunction,
+            TriFunction<AllocationID, ResourceProfile, LoadingWeight, PhysicalSlot>
+                    reserveFreeSlotFunction,
             TriFunction<AllocationID, Throwable, Long, ResourceCounter> freeReservedSlotFunction,
             Function<ResourceID, Boolean> containsSlotsFunction,
             Function<AllocationID, Boolean> containsFreeSlotFunction,
@@ -210,8 +213,10 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
 
     @Override
     public PhysicalSlot reserveFreeSlot(
-            AllocationID allocationId, ResourceProfile requiredSlotProfile) {
-        return reserveFreeSlotFunction.apply(allocationId, requiredSlotProfile);
+            AllocationID allocationId,
+            ResourceProfile requiredSlotProfile,
+            LoadingWeight loadingWeight) {
+        return reserveFreeSlotFunction.apply(allocationId, requiredSlotProfile, loadingWeight);
     }
 
     @Override

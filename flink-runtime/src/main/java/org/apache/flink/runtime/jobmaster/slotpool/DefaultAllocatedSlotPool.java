@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -160,7 +161,7 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
     }
 
     @Override
-    public AllocatedSlot reserveFreeSlot(AllocationID allocationId) {
+    public AllocatedSlot reserveFreeSlot(AllocationID allocationId, LoadingWeight loadingWeight) {
         LOG.debug("Reserve free slot with allocation id {}.", allocationId);
         AllocatedSlot slot = registeredSlots.get(allocationId);
         Preconditions.checkNotNull(slot, "The slot with id %s was not exists.", allocationId);
@@ -168,6 +169,9 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
                 freeSlots.removeFreeSlot(allocationId, slot.getTaskManagerId()) != null,
                 "The slot with id %s was not free.",
                 allocationId);
+        // We must set the loading weight info to keep the latest loading view instead of setting it
+        // when fulfilling slot requests.
+        slot.setLoading(loadingWeight);
         return registeredSlots.get(allocationId);
     }
 
@@ -177,6 +181,8 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
 
         if (allocatedSlot != null && !freeSlots.contains(allocationId)) {
             freeSlots.addFreeSlot(allocationId, allocatedSlot.getTaskManagerId(), currentTime);
+            // Clear the loading weight.
+            allocatedSlot.resetLoading();
             return Optional.of(allocatedSlot);
         } else {
             return Optional.empty();
@@ -204,7 +210,32 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
 
     @Override
     public TaskExecutorsLoadInformation getTaskExecutorsLoadInformation() {
-        return () -> DefaultAllocatedSlotPool.this.getTaskExecutorsSlotsUtilization();
+        return new TaskExecutorsLoadInformation() {
+            @Override
+            public Map<ResourceID, LoadingWeight> getTaskExecutorsLoadingWeight() {
+                return DefaultAllocatedSlotPool.this.getTaskExecutorsLoadingWeight();
+            }
+
+            @Override
+            public Map<ResourceID, SlotsUtilization> getTaskExecutorsSlotsUtilization() {
+                return DefaultAllocatedSlotPool.this.getTaskExecutorsSlotsUtilization();
+            }
+        };
+    }
+
+    private Map<ResourceID, LoadingWeight> getTaskExecutorsLoadingWeight() {
+        final Map<ResourceID, LoadingWeight> result = new HashMap<>(slotsPerTaskExecutor.size());
+        Collection<AllocatedSlot> allocatedSlots = registeredSlots.values();
+        for (AllocatedSlot allocatedSlot : allocatedSlots) {
+            final ResourceID tmID = allocatedSlot.getTaskManagerLocation().getResourceID();
+            result.compute(
+                    tmID,
+                    (ignoredID, oldLoading) ->
+                            Objects.isNull(oldLoading)
+                                    ? allocatedSlot.getLoading()
+                                    : oldLoading.merge(allocatedSlot.getLoading()));
+        }
+        return result;
     }
 
     private Map<ResourceID, TaskExecutorsLoadInformation.SlotsUtilization>
