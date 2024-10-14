@@ -25,6 +25,7 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.SpecializedFunction.ExpressionEvaluator;
 import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
+import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -44,14 +45,16 @@ public class ArrayContainsFunction extends BuiltInScalarFunction {
 
     public ArrayContainsFunction(SpecializedContext context) {
         super(BuiltInFunctionDefinitions.ARRAY_CONTAINS, context);
-        final DataType needleDataType = context.getCallContext().getArgumentDataTypes().get(1);
-        elementGetter = ArrayData.createElementGetter(needleDataType.getLogicalType());
+        final DataType elementDataType =
+                ((CollectionDataType) context.getCallContext().getArgumentDataTypes().get(0))
+                        .getElementDataType();
+        elementGetter = ArrayData.createElementGetter(elementDataType.getLogicalType());
         equalityEvaluator =
                 context.createEvaluator(
                         $("element").isEqual($("needle")),
                         DataTypes.BOOLEAN(),
-                        DataTypes.FIELD("element", needleDataType.notNull().toInternal()),
-                        DataTypes.FIELD("needle", needleDataType.notNull().toInternal()));
+                        DataTypes.FIELD("element", elementDataType.notNull().toInternal()),
+                        DataTypes.FIELD("needle", elementDataType.notNull().toInternal()));
     }
 
     @Override
