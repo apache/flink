@@ -35,6 +35,8 @@ class FsArtifactFetcher extends ArtifactFetcher {
 
     @Override
     File fetch(String uri, Configuration flinkConf, File targetDir) throws Exception {
+        ArtifactUtils.createMissingParents(targetDir);
+
         Path source = new Path(uri);
         long start = System.currentTimeMillis();
         FileSystem fileSystem = source.getFileSystem();
