@@ -35,6 +35,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexFieldVariable;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.expressions.converter.CallExpressionConvertRule.ConvertContext;
+import org.apache.flink.table.planner.typeutils.LogicalRelDataTypeConverter;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimeType;
 
@@ -108,8 +109,7 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
         RexBuilder rexBuilder = relBuilder.getRexBuilder();
         FlinkTypeFactory typeFactory = (FlinkTypeFactory) relBuilder.getTypeFactory();
 
-        RelDataType relDataType = typeFactory.createFieldTypeFromLogicalType(type);
-
+        RelDataType relDataType = LogicalRelDataTypeConverter.toRelDataType(type, typeFactory);
         if (valueLiteral.isNull()) {
             return rexBuilder.makeNullLiteral(relDataType);
         }
