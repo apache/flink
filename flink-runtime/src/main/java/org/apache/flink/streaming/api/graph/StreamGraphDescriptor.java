@@ -156,20 +156,6 @@ public class StreamGraphDescriptor implements ExecutionPlan {
         return false;
     }
 
-    private SerializedValue<StreamGraph> serializeStreamGraph(
-            StreamGraph streamGraph, Executor serializationExecutor) throws Exception {
-        // 1. Serialize operator factories in parallel to accelerate serialization.
-        CompletableFuture<?> future =
-                serializeOperatorFactories(streamGraph.getStreamNodes(), serializationExecutor);
-
-        // 2. Serialize the StreamGraph.
-        SerializedValue<StreamGraph> serializedStreamGraph = new SerializedValue<>(streamGraph);
-
-        future.get();
-
-        return serializedStreamGraph;
-    }
-
     @Override
     public JobID getJobID() {
         return jobId;
@@ -221,8 +207,6 @@ public class StreamGraphDescriptor implements ExecutionPlan {
 
     public StreamGraph deserializeStreamGraph(
             ClassLoader userClassLoader, Executor deserializationExecutor) throws Exception {
-        CompletableFuture<Collection<Tuple2<Integer, StreamOperatorFactory<?>>>> future =
-                deserializeOperators(userClassLoader, deserializationExecutor);
 
         StreamGraph streamGraph = serializedStreamGraph.deserializeValue(userClassLoader);
 
@@ -232,10 +216,12 @@ public class StreamGraphDescriptor implements ExecutionPlan {
         streamGraph.setSavepointRestoreSettings(savepointRestoreSettings);
         streamGraph.setExecutionConfig(serializedExecutionConfig.deserializeValue(userClassLoader));
 
-        Collection<Tuple2<Integer, StreamOperatorFactory<?>>> streamNodeToOperatorFactories =
-                future.get();
-        streamNodeToOperatorFactories.forEach(
-                tuple2 -> streamGraph.getStreamNode(tuple2.f0).setOperatorFactory(tuple2.f1));
+        for (Tuple2<Integer, SerializedValue<StreamOperatorFactory<?>>> tuple2 :
+                streamNodeToSerializedOperatorFactories) {
+            streamGraph
+                    .getStreamNode(tuple2.f0)
+                    .setOperatorFactory(tuple2.f1.deserializeValue(userClassLoader));
+        }
 
         return streamGraph;
     }
