@@ -28,6 +28,9 @@ jobs:
       matrix:
         branch:
           - master
+          # Since release-2.0-preview doesn't have specific branch, use rc branch as workaround.
+          # This should be replaced to release-2.0 once it was released.
+          - release-2.0-preview1-rc1
           - release-1.20
           - release-1.19
           - release-1.18
