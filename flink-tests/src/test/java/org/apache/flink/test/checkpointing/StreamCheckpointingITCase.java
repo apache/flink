@@ -26,9 +26,9 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -72,7 +72,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
                 .map(new StatefulCounterFunction())
 
                 // -------------- third vertex - counter and the sink ----------------
-                .keyBy("prefix")
+                .keyBy(x -> x.prefix)
                 .map(new OnceFailingPrefixCounter(NUM_STRINGS))
                 .addSink(
                         new SinkFunction<PrefixCount>() {

@@ -123,8 +123,7 @@ public class SubtasksTimesHandler
             }
 
             subtasks.add(
-                    new SubtasksTimesInfo.SubtaskTimeInfo(
-                            num++, host, endpoint, duration, timestampMap));
+                    new SubtasksTimesInfo.SubtaskTimeInfo(num++, endpoint, duration, timestampMap));
         }
         return new SubtasksTimesInfo(id, name, now, subtasks);
     }

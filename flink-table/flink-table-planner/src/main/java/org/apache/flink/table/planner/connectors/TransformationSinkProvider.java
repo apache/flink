@@ -24,9 +24,8 @@ import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.OutputFormatProvider;
-import org.apache.flink.table.connector.sink.SinkFunctionProvider;
+import org.apache.flink.table.connector.sink.legacy.SinkFunctionProvider;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.legacy.connector.sink.SinkProvider;
 
 /**
  * Provider that produces a {@link Transformation} as a runtime implementation for {@link
@@ -34,7 +33,7 @@ import org.apache.flink.table.legacy.connector.sink.SinkProvider;
  *
  * <p>Note: This provider is only meant for advanced connector developers. Usually, a sink should
  * consist of a single entity expressed via {@link OutputFormatProvider}, {@link
- * SinkFunctionProvider}, or {@link SinkProvider}.
+ * SinkFunctionProvider}.
  */
 @Internal
 public interface TransformationSinkProvider extends DynamicTableSink.SinkRuntimeProvider {

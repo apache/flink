@@ -25,8 +25,8 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.rocksdb.RocksDB;
-import org.rocksdb.WriteOptions;
+import org.forstdb.RocksDB;
+import org.forstdb.WriteOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,7 +85,7 @@ public class ForStStateExecutor implements StateExecutor {
             this.coordinatorThread =
                     coordinatorInline
                             ? org.apache.flink.util.concurrent.Executors.newDirectExecutorService()
-                            : Executors.newSingleThreadScheduledExecutor(
+                            : Executors.newSingleThreadExecutor(
                                     new ExecutorThreadFactory(
                                             "ForSt-StateExecutor-Coordinator-And-Write"));
             this.readThreadCount = readIoParallelism;
@@ -101,7 +101,7 @@ public class ForStStateExecutor implements StateExecutor {
             this.coordinatorThread =
                     coordinatorInline
                             ? org.apache.flink.util.concurrent.Executors.newDirectExecutorService()
-                            : Executors.newSingleThreadScheduledExecutor(
+                            : Executors.newSingleThreadExecutor(
                                     new ExecutorThreadFactory("ForSt-StateExecutor-Coordinator"));
             if (readIoParallelism <= 0 || writeIoParallelism <= 0) {
                 this.readThreadCount = Math.max(readIoParallelism, writeIoParallelism);
@@ -236,11 +236,12 @@ public class ForStStateExecutor implements StateExecutor {
 
     @Override
     public void shutdown() {
+        // Coordinator should be shutdown before others, since it submit jobs to others.
+        coordinatorThread.shutdown();
         readThreads.shutdown();
         if (!sharedWriteThread) {
             writeThreads.shutdown();
         }
-        coordinatorThread.shutdown();
         LOG.info("Shutting down the ForStStateExecutor.");
     }
 }

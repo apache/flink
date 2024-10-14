@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;

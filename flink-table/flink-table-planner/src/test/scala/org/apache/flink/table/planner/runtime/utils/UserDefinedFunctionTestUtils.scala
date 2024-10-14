@@ -18,7 +18,6 @@
 package org.apache.flink.table.planner.runtime.utils
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.ExecutionEnvironment
 import org.apache.flink.api.java.tuple.{Tuple1, Tuple2}
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.configuration.Configuration
@@ -487,12 +486,6 @@ object UserDefinedFunctionTestUtils {
   // ------------------------------------------------------------------------------------
   // Utils
   // ------------------------------------------------------------------------------------
-
-  def setJobParameters(env: ExecutionEnvironment, parameters: Map[String, String]): Unit = {
-    val conf = new Configuration()
-    parameters.foreach { case (k, v) => conf.setString(k, v) }
-    env.getConfig.setGlobalJobParameters(conf)
-  }
 
   def setJobParameters(env: StreamExecutionEnvironment, parameters: Map[String, String]): Unit = {
     val conf = new Configuration()

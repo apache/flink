@@ -41,12 +41,6 @@
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java</artifactId>
-			<version>${project.version}</version>
-			<!-- compile scope since it is used by the client jar -->
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-queryable-state-client-java</artifactId>
 			<version>${project.version}</version>
 			<!-- compile scope since it is used by the client jar -->

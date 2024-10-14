@@ -47,8 +47,6 @@ public class ProcessOperator<IN, OUT>
 
     public ProcessOperator(ProcessFunction<IN, OUT> function) {
         super(function);
-
-        chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
     @Override

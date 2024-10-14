@@ -33,8 +33,8 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.streaming.util.StateBackendUtils;
@@ -167,7 +167,7 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
         stream1.union(stream2)
                 .keyBy(new IdentityKeySelector<Integer>())
                 .map(new OnceFailingPartitionedSum(failurePos))
-                .keyBy(0)
+                .keyBy(x -> x.f0)
                 .addSink(new CounterSink());
 
         env.execute();

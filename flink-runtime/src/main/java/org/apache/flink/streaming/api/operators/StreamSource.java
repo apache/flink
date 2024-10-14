@@ -21,8 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
-import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 
@@ -31,9 +30,8 @@ import org.apache.flink.streaming.runtime.tasks.OperatorChain;
  *
  * @param <OUT> Type of the output elements
  * @param <SRC> Type of the source function of this stream source operator
- * @deprecated This class is based on the {@link
- *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
- *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+ * @deprecated This class is based on the {@link SourceFunction} API, which is due to be removed.
+ *     Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
 @Deprecated
 @Internal
@@ -52,7 +50,6 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
     public StreamSource(SRC sourceFunction, boolean emitProgressiveWatermarks) {
         super(sourceFunction);
 
-        this.chainingStrategy = ChainingStrategy.HEAD;
         this.emitProgressiveWatermarks = emitProgressiveWatermarks;
     }
 
@@ -77,8 +74,6 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
             final OperatorChain<?, ?> operatorChain)
             throws Exception {
 
-        final TimeCharacteristic timeCharacteristic = getOperatorConfig().getTimeCharacteristic();
-
         final Configuration configuration =
                 this.getContainingTask().getEnvironment().getTaskManagerInfo().getConfiguration();
         final long latencyTrackingInterval =
@@ -101,7 +96,6 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
         this.ctx =
                 StreamSourceContexts.getSourceContext(
-                        timeCharacteristic,
                         getProcessingTimeService(),
                         lockingObject,
                         collector,

@@ -79,7 +79,6 @@ import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
 import org.apache.flink.runtime.taskmanager.AsynchronousException;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.NonChainedOutput;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
@@ -1206,8 +1205,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     }
 
     boolean isSerializingTimestamps() {
-        TimeCharacteristic tc = configuration.getTimeCharacteristic();
-        return tc == TimeCharacteristic.EventTime | tc == TimeCharacteristic.IngestionTime;
+        // Only used in StreamIterationHead and will soon be removed
+        return true;
     }
 
     // ------------------------------------------------------------------------

@@ -19,11 +19,14 @@
 package org.apache.flink.test.distributedcache;
 
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.connector.file.src.FileSource;
+import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.Collector;
@@ -81,16 +84,12 @@ public class DistributedCacheTest extends AbstractTestBaseJUnit4 {
         String textPath = createTempFile("count.txt", DATA);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.registerCachedFile(textPath, "cache_test");
-        env.readTextFile(textPath).flatMap(new WordChecker());
+        FileSource<String> source =
+                FileSource.forRecordStreamFormat(new TextLineInputFormat(), new Path(textPath))
+                        .build();
+        env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source")
+                .flatMap(new WordChecker());
         env.execute();
-    }
-
-    @Test
-    public void testBatchDistributedCache() throws Exception {
-        String textPath = createTempFile("count.txt", DATA);
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        env.registerCachedFile(textPath, "cache_test");
-        env.readTextFile(textPath).flatMap(new WordChecker()).count();
     }
 
     private static class WordChecker extends RichFlatMapFunction<String, Tuple1<String>> {

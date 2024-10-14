@@ -70,7 +70,6 @@ import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.memory.NonPersistentMetadataCheckpointStorageLocation;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
@@ -2447,7 +2446,7 @@ class CheckpointCoordinatorTest {
     @Test
     void testPeriodicSchedulingWithInactiveTasks() throws Exception {
         CheckpointCoordinator checkpointCoordinator =
-                setupCheckpointCoordinatorWithInactiveTasks(new MemoryStateBackend());
+                setupCheckpointCoordinatorWithInactiveTasks(new JobManagerCheckpointStorage());
 
         // the coordinator should start checkpointing now
         manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(

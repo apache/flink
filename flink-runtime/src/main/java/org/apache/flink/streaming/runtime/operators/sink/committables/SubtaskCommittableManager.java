@@ -22,6 +22,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 
+import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -29,6 +31,7 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -36,7 +39,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
-/** Manages the committables coming from one subtask. */
+/** Manages the committables coming from one upstream subtask. */
 class SubtaskCommittableManager<CommT> {
     private final Deque<CommitRequestImpl<CommT>> requests;
     private final int numExpectedCommittables;
@@ -211,6 +214,29 @@ class SubtaskCommittableManager<CommT> {
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        SubtaskCommittableManager<?> that = (SubtaskCommittableManager<?>) o;
+        return numExpectedCommittables == that.numExpectedCommittables
+                && checkpointId == that.checkpointId
+                && subtaskId == that.subtaskId
+                && numDrained == that.numDrained
+                && numFailed == that.numFailed
+                && Iterables.elementsEqual(requests, that.requests);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                requests, numExpectedCommittables, checkpointId, subtaskId, numDrained, numFailed);
+    }
+
+    @Override
     public String toString() {
         return "SubtaskCommittableManager{"
                 + "requests="
@@ -225,8 +251,6 @@ class SubtaskCommittableManager<CommT> {
                 + numDrained
                 + ", numFailed="
                 + numFailed
-                + ", metricGroup="
-                + metricGroup
                 + '}';
     }
 }

@@ -19,12 +19,12 @@ package org.apache.flink.table.planner.utils
 
 import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.legacy.table.factories.StreamTableSourceFactory
 import org.apache.flink.legacy.table.sources.StreamTableSource
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.legacy.io.CollectionInputFormat
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE

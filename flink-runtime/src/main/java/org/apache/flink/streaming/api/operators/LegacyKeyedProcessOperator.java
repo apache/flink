@@ -51,8 +51,6 @@ public class LegacyKeyedProcessOperator<K, IN, OUT>
 
     public LegacyKeyedProcessOperator(ProcessFunction<IN, OUT> function) {
         super(function);
-
-        chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
     @Override

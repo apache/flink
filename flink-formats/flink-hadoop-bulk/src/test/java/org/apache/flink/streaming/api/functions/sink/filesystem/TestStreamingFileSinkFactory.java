@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
+import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
+
 /** Factory to create the streaming file sink. */
 public class TestStreamingFileSinkFactory<IN> {
 

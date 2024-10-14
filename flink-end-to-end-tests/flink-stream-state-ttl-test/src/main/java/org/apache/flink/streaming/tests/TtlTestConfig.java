@@ -18,9 +18,9 @@
 
 package org.apache.flink.streaming.tests;
 
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.util.ParameterTool;
 
 import java.time.Duration;
 

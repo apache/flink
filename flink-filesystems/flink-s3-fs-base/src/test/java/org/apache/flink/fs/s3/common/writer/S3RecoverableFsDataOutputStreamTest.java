@@ -261,18 +261,12 @@ class S3RecoverableFsDataOutputStreamTest {
     @Test
     void testSync() throws IOException {
         streamUnderTest.write(bytesOf("hello"));
+        streamUnderTest.sync();
+        assertThat(multipartUploadUnderTest.getPublishedContents()).isEqualTo(bytesOf("hello"));
         streamUnderTest.write(bytesOf(" world"));
         streamUnderTest.sync();
-
         assertThat(multipartUploadUnderTest.getPublishedContents())
                 .isEqualTo(bytesOf("hello world"));
-
-        assertThatThrownBy(
-                        () ->
-                                streamUnderTest.write(
-                                        randomBuffer(
-                                                RefCountedBufferingFileStream.BUFFER_SIZE + 1)))
-                .isInstanceOf(IOException.class);
     }
 
     // ------------------------------------------------------------------------------------------------------------

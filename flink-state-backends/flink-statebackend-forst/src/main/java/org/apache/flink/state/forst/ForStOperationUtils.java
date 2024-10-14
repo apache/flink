@@ -22,6 +22,7 @@ import org.apache.flink.core.fs.ICloseableRegistry;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
+import org.apache.flink.state.forst.ForStKeyedStateBackend.ForStKvStateInfo;
 import org.apache.flink.state.forst.sync.ForStIteratorWrapper;
 import org.apache.flink.state.forst.sync.ForStSyncKeyedStateBackend;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -29,14 +30,14 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
 
-import org.rocksdb.ColumnFamilyDescriptor;
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
-import org.rocksdb.ExportImportFilesMetaData;
-import org.rocksdb.ReadOptions;
-import org.rocksdb.RocksDB;
-import org.rocksdb.RocksDBException;
+import org.forstdb.ColumnFamilyDescriptor;
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.ColumnFamilyOptions;
+import org.forstdb.DBOptions;
+import org.forstdb.ExportImportFilesMetaData;
+import org.forstdb.ReadOptions;
+import org.forstdb.RocksDB;
+import org.forstdb.RocksDBException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -343,6 +344,38 @@ public class ForStOperationUtils {
             nativeMetricMonitor.registerColumnFamily(
                     columnFamilyName, registeredColumn.columnFamilyHandle);
         }
+    }
+
+    public static void registerKvStateInformation(
+            Map<String, ForStKvStateInfo> kvStateInformation,
+            ForStNativeMetricMonitor nativeMetricMonitor,
+            String columnFamilyName,
+            ForStKvStateInfo registeredColumn) {
+
+        kvStateInformation.put(columnFamilyName, registeredColumn);
+        if (nativeMetricMonitor != null) {
+            nativeMetricMonitor.registerColumnFamily(
+                    columnFamilyName, registeredColumn.columnFamilyHandle);
+        }
+    }
+
+    public static ForStKvStateInfo createStateInfo(
+            RegisteredStateMetaInfoBase metaInfoBase,
+            RocksDB db,
+            Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory) {
+
+        ColumnFamilyDescriptor columnFamilyDescriptor =
+                createColumnFamilyDescriptor(metaInfoBase.getName(), columnFamilyOptionsFactory);
+
+        final ColumnFamilyHandle columnFamilyHandle;
+        try {
+            columnFamilyHandle = createColumnFamily(columnFamilyDescriptor, db);
+        } catch (Exception ex) {
+            IOUtils.closeQuietly(columnFamilyDescriptor.getOptions());
+            throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", ex);
+        }
+
+        return new ForStKvStateInfo(columnFamilyHandle, metaInfoBase);
     }
 
     private static void throwExceptionIfPathLengthExceededOnWindows(String path, Exception cause)

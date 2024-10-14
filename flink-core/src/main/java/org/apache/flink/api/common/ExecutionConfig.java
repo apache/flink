@@ -24,7 +24,6 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
-import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DescribedEnum;
@@ -48,7 +47,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.text;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -61,8 +59,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *       functions that do not define a specific value directly.
  *   <li>The number of retries in the case of failed executions.
  *   <li>The delay between execution retries.
- *   <li>The {@link ExecutionMode} of the program: Batch or Pipelined. The default execution mode is
- *       {@link ExecutionMode#PIPELINED}
  *   <li>Enabling or disabling the "closure cleaner". The closure cleaner pre-processes the
  *       implementations of functions. In case they are (anonymous) inner classes, it removes unused
  *       references to the enclosing class to fix certain serialization-related problems and to
@@ -87,12 +83,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     private static final long serialVersionUID = 1L;
 
     /**
-     * The constant to use for the parallelism, if the system should use the number of currently
-     * available slots.
-     */
-    @Deprecated public static final int PARALLELISM_AUTO_MAX = Integer.MAX_VALUE;
-
-    /**
      * The flag value indicating use of the default parallelism. This value can be used to reset the
      * parallelism back to the default state.
      */
@@ -103,22 +93,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * parallelism and indicates that the parallelism should remain unchanged.
      */
     public static final int PARALLELISM_UNKNOWN = -2;
-
-    /**
-     * Internal {@link ConfigOption}s, that are not exposed and it's not possible to configure them
-     * via config files. We are defining them here, so that we can store them in the {@link
-     * #configuration}.
-     *
-     * <p>If you decide to expose any of those {@link ConfigOption}s, please double-check if the
-     * key, type and descriptions are sensible, as the initial values are arbitrary.
-     */
-    // --------------------------------------------------------------------------------------------
-
-    private static final ConfigOption<ExecutionMode> EXECUTION_MODE =
-            key("hidden.execution.mode")
-                    .enumType(ExecutionMode.class)
-                    .defaultValue(ExecutionMode.PIPELINED)
-                    .withDescription("Defines how data exchange happens - batch or pipelined");
 
     // --------------------------------------------------------------------------------------------
 
@@ -409,46 +383,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     }
 
     /**
-     * Sets the execution mode to execute the program. The execution mode defines whether data
-     * exchanges are performed in a batch or on a pipelined manner.
-     *
-     * <p>The default execution mode is {@link ExecutionMode#PIPELINED}.
-     *
-     * @param executionMode The execution mode to use.
-     * @deprecated The {@link ExecutionMode} is deprecated because it's only used in DataSet APIs.
-     *     All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future
-     *     Flink major version. You can still build your application in DataSet, but you should move
-     *     to either the DataStream and/or Table API.
-     * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
-     *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet
-     *     API</a>
-     */
-    @Deprecated
-    public void setExecutionMode(ExecutionMode executionMode) {
-        configuration.set(EXECUTION_MODE, executionMode);
-    }
-
-    /**
-     * Gets the execution mode used to execute the program. The execution mode defines whether data
-     * exchanges are performed in a batch or on a pipelined manner.
-     *
-     * <p>The default execution mode is {@link ExecutionMode#PIPELINED}.
-     *
-     * @return The execution mode for the program.
-     * @deprecated The {@link ExecutionMode} is deprecated because it's only used in DataSet APIs.
-     *     All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future
-     *     Flink major version. You can still build your application in DataSet, but you should move
-     *     to either the DataStream and/or Table API.
-     * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
-     *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet
-     *     API</a>
-     */
-    @Deprecated
-    public ExecutionMode getExecutionMode() {
-        return configuration.get(EXECUTION_MODE);
-    }
-
-    /**
      * Enables the Flink runtime to auto-generate UID's for operators.
      *
      * @see #disableAutoGeneratedUIDs()
@@ -532,31 +466,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
     private void setGlobalJobParameters(Map<String, String> parameters) {
         configuration.set(PipelineOptions.GLOBAL_JOB_PARAMETERS, parameters);
-    }
-
-    // --------------------------------------------------------------------------------------------
-    //  Registry for types and serializers
-    // --------------------------------------------------------------------------------------------
-
-    /**
-     * Get if the auto type registration is disabled.
-     *
-     * @return if the auto type registration is disabled.
-     * @deprecated The method is deprecated because it's only used in DataSet API. All Flink DataSet
-     *     APIs are deprecated since Flink 1.18 and will be removed in a future Flink major version.
-     *     You can still build your application in DataSet, but you should move to either the
-     *     DataStream and/or Table API.
-     * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
-     *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet
-     *     API</a>
-     */
-    @Deprecated
-    public boolean isAutoTypeRegistrationDisabled() {
-        return !configuration.get(PipelineOptions.AUTO_TYPE_REGISTRATION);
-    }
-
-    private void setAutoTypeRegistration(Boolean autoTypeRegistration) {
-        configuration.set(PipelineOptions.AUTO_TYPE_REGISTRATION, autoTypeRegistration);
     }
 
     public boolean isUseSnapshotCompression() {
@@ -704,9 +613,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * @param classLoader a class loader to use when loading classes
      */
     public void configure(ReadableConfig configuration, ClassLoader classLoader) {
-        configuration
-                .getOptional(PipelineOptions.AUTO_TYPE_REGISTRATION)
-                .ifPresent(this::setAutoTypeRegistration);
         configuration
                 .getOptional(PipelineOptions.AUTO_GENERATE_UIDS)
                 .ifPresent(this::setAutoGeneratedUids);

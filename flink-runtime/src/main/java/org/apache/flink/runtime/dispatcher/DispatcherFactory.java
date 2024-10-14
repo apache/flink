@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.dispatcher;
 
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 
 import java.util.Collection;
 
@@ -31,7 +31,7 @@ public interface DispatcherFactory {
     Dispatcher createDispatcher(
             RpcService rpcService,
             DispatcherId fencingToken,
-            Collection<JobGraph> recoveredJobs,
+            Collection<ExecutionPlan> recoveredJobs,
             Collection<JobResult> recoveredDirtyJobResults,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
             PartialDispatcherServicesWithJobPersistenceComponents

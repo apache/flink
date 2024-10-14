@@ -1270,11 +1270,6 @@ Whether these metrics are reported depends on the [metrics.job.status.enable]({{
       <td>Gauge</td>
     </tr>
     <tr>
-      <td>fullRestarts</td>
-      <td><span class="label label-danger">Attention:</span> deprecated, use <b>numRestarts</b>.</td>
-      <td>Gauge</td>
-    </tr>
-    <tr>
       <td>numRestarts</td>
       <td>The total number of restarts since this job was submitted, including full restarts and fine-grained restarts.</td>
       <td>Gauge</td>
@@ -1310,6 +1305,11 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
     <tr>
       <td>lastCompletedCheckpointId</td>
       <td>The identifier of the last completed checkpoint.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastCheckpointCompletedTimestamp</td>
+      <td>The timestamp of the last completed checkpoint (in milliseconds).</td>
       <td>Gauge</td>
     </tr>
     <tr>

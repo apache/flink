@@ -32,9 +32,12 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.state.JavaSerializer;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.streaming.api.functions.source.legacy.ContinuousFileMonitoringFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamSourceContexts;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -245,10 +248,11 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
             };
 
     ContinuousFileReaderOperator(
+            StreamOperatorParameters<OUT> parameters,
             InputFormat<OUT, ? super T> format,
             ProcessingTimeService processingTimeService,
             MailboxExecutor mailboxExecutor) {
-
+        super(parameters);
         this.format = checkNotNull(format);
         this.processingTimeService = checkNotNull(processingTimeService);
         this.executor = (MailboxExecutorImpl) checkNotNull(mailboxExecutor);
@@ -308,7 +312,6 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
 
         this.sourceContext =
                 StreamSourceContexts.getSourceContext(
-                        getOperatorConfig().getTimeCharacteristic(),
                         getProcessingTimeService(),
                         new Object(), // no actual locking needed
                         output,

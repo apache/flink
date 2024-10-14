@@ -56,8 +56,8 @@ final class StatefulSinkWriterStateHandler<InputT, WriterStateT>
     /**
      * The previous sink operator's state name. We allow restoring state from a different
      * (compatible) sink implementation such as {@link
-     * org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink}. This allows
-     * migration to newer Sink implementations.
+     * org.apache.flink.streaming.api.functions.sink.filesystem.LegacyStreamingFileSink}. This
+     * allows migration to newer Sink implementations.
      */
     private final Collection<String> previousSinkStateNames;
 
@@ -68,8 +68,8 @@ final class StatefulSinkWriterStateHandler<InputT, WriterStateT>
     /**
      * The previous sink operator's state. We allow restoring state from a different (compatible)
      * sink implementation such as {@link
-     * org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink}. This allows
-     * migration to newer Sink implementations.
+     * org.apache.flink.streaming.api.functions.sink.filesystem.LegacyStreamingFileSink}. This
+     * allows migration to newer Sink implementations.
      */
     private List<ListState<WriterStateT>> previousSinkStates = new ArrayList<>();
 

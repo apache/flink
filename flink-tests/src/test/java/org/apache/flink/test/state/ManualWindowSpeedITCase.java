@@ -28,9 +28,8 @@ import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
@@ -40,6 +39,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.time.Duration;
 import java.util.Random;
 
 /**
@@ -70,8 +70,8 @@ public class ManualWindowSpeedITCase extends AbstractTestBaseJUnit4 {
 
         env.addSource(new InfiniteTupleSource(1_000))
                 .assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create())
-                .keyBy(0)
-                .window(TumblingEventTimeWindows.of(Time.seconds(3)))
+                .keyBy(x -> x.f0)
+                .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
                 .reduce(
                         new ReduceFunction<Tuple2<String, Integer>>() {
                             private static final long serialVersionUID = 1L;
@@ -110,9 +110,9 @@ public class ManualWindowSpeedITCase extends AbstractTestBaseJUnit4 {
 
         env.addSource(new InfiniteTupleSource(10_000))
                 .assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create())
-                .keyBy(0)
-                .window(TumblingEventTimeWindows.of(Time.seconds(3)))
-                .allowedLateness(Time.seconds(1))
+                .keyBy(x -> x.f0)
+                .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
+                .allowedLateness(Duration.ofSeconds(1))
                 .reduce(
                         new ReduceFunction<Tuple2<String, Integer>>() {
                             private static final long serialVersionUID = 1L;
@@ -148,8 +148,8 @@ public class ManualWindowSpeedITCase extends AbstractTestBaseJUnit4 {
 
         env.addSource(new InfiniteTupleSource(10_000))
                 .assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create())
-                .keyBy(0)
-                .window(TumblingEventTimeWindows.of(Time.seconds(3)))
+                .keyBy(x -> x.f0)
+                .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
                 .reduce(
                         new ReduceFunction<Tuple2<String, Integer>>() {
                             private static final long serialVersionUID = 1L;
@@ -185,9 +185,9 @@ public class ManualWindowSpeedITCase extends AbstractTestBaseJUnit4 {
 
         env.addSource(new InfiniteTupleSource(10_000))
                 .assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create())
-                .keyBy(0)
-                .window(TumblingEventTimeWindows.of(Time.seconds(3)))
-                .allowedLateness(Time.seconds(1))
+                .keyBy(x -> x.f0)
+                .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
+                .allowedLateness(Duration.ofSeconds(1))
                 .reduce(
                         new ReduceFunction<Tuple2<String, Integer>>() {
                             private static final long serialVersionUID = 1L;

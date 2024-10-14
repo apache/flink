@@ -123,10 +123,16 @@ under the License.
 
 	<build>
 		<plugins>
-			<!-- Fail compilation on deprecation warnings to prevent from showing users outdated examples. -->
+			<!-- [FLINK-36245] Skip compile TestAvroConsumerConfluent as Kafka connector is not support 2.0 for now -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<!-- [FLINK-36245] Skip compile TestAvroConsumerConfluent as Kafka connector is not support 2.0 for now -->
+					<excludes>
+						<exclude>org/apache/flink/streaming/examples/statemachine/KafkaEventsGeneratorJob.java</exclude>
+					</excludes>
+				</configuration>
 				<executions>
 					<execution>
 						<id>compile</id>
@@ -137,12 +143,6 @@ under the License.
 						<configuration>
 							<compilerArgument>-Xlint:deprecation</compilerArgument>
 							<failOnWarning>true</failOnWarning>
-							<!-- This example is temporarily preserved only for testing purpose. -->
-							<excludes>
-								<exclude>
-									org/apache/flink/streaming/examples/iteration/IterateExample.java
-								</exclude>
-							</excludes>
 						</configuration>
 					</execution>
 				</executions>
@@ -317,42 +317,6 @@ under the License.
 							<transformers>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
 									<mainClass>org.apache.flink.streaming.examples.gpu.MatrixVectorMul</mainClass>
-								</transformer>
-							</transformers>
-						</configuration>
-					</execution>
-
-					<!-- Iteration -->
-					<execution>
-						<id>Iteration</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<shadeTestJar>false</shadeTestJar>
-							<finalName>Iteration</finalName>
-							<shadedArtifactAttached>true</shadedArtifactAttached>
-							<shadedClassifierName>Iteration</shadedClassifierName>
-							<artifactSet>
-								<includes>
-									<include>org.apache.flink:flink-connector-datagen</include>
-								</includes>
-							</artifactSet>
-							<filters>
-								<filter>
-									<artifact>org.apache.flink:*</artifact>
-									<includes>
-										<include>org/apache/flink/connector/datagen/**</include>
-										<include>org/apache/flink/streaming/examples/iteration/*.class</include>
-										<include>META-INF/LICENSE</include>
-										<include>META-INF/NOTICE</include>
-									</includes>
-								</filter>
-							</filters>
-							<transformers>
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-									<mainClass>org.apache.flink.streaming.examples.iteration.IterateExample</mainClass>
 								</transformer>
 							</transformers>
 						</configuration>

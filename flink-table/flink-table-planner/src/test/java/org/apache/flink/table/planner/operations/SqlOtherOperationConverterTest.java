@@ -23,6 +23,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.operations.DescribeCatalogOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ShowCatalogsOperation;
 import org.apache.flink.table.operations.ShowCreateCatalogOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
@@ -181,6 +182,35 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
 
         assertThat(useModulesOperation.getModuleNames()).isEqualTo(expectedModuleNames);
         assertThat(useModulesOperation.asSummaryString()).isEqualTo("USE MODULES: [x, y, z]");
+    }
+
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("inputForShowCatalogsTest")
+    void testShowCatalogs(String sql, ShowCatalogsOperation expected, String expectedSummary) {
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(ShowCatalogsOperation.class).isEqualTo(expected);
+        assertThat(operation.asSummaryString()).isEqualTo(expectedSummary);
+    }
+
+    private static Stream<Arguments> inputForShowCatalogsTest() {
+        return Stream.of(
+                Arguments.of("show catalogs", new ShowCatalogsOperation(null), "SHOW CATALOGS"),
+                Arguments.of(
+                        "show catalogs like 'c%'",
+                        new ShowCatalogsOperation(ShowLikeOperator.of(LikeType.LIKE, "c%")),
+                        "SHOW CATALOGS LIKE 'c%'"),
+                Arguments.of(
+                        "show catalogs not like 'c%'",
+                        new ShowCatalogsOperation(ShowLikeOperator.of(LikeType.NOT_LIKE, "c%")),
+                        "SHOW CATALOGS NOT LIKE 'c%'"),
+                Arguments.of(
+                        "show catalogs ilike 'c%'",
+                        new ShowCatalogsOperation(ShowLikeOperator.of(LikeType.ILIKE, "c%")),
+                        "SHOW CATALOGS ILIKE 'c%'"),
+                Arguments.of(
+                        "show catalogs not ilike 'c%'",
+                        new ShowCatalogsOperation(ShowLikeOperator.of(LikeType.NOT_ILIKE, "c%")),
+                        "SHOW CATALOGS NOT ILIKE 'c%'"));
     }
 
     @Test

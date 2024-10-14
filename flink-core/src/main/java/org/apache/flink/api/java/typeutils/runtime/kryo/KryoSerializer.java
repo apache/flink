@@ -72,8 +72,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * basic types, tuples, and POJOs.
  *
  * <p>The set of serializers registered with Kryo via {@link Kryo#register}, with their respective
- * IDs, depends on whether flink-java are on the classpath. This is for backwards-compatibility
- * reasons.
+ * IDs, depends on whether flink-streaming-java are on the classpath. This is for
+ * backwards-compatibility reasons.
  *
  * <p>If neither are available (which should only apply to tests in flink-core), then:
  *
@@ -82,7 +82,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   <li>10+ are used for user-defined registration
  * </ul>
  *
- * <p>If *only* flink-java is available, then:
+ * <p>If *only* flink-streaming-java is available, then:
  *
  * <ul>
  *   <li>0-9 are used for Java primitives
@@ -119,7 +119,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
         try {
             return (ChillSerializerRegistrar)
                     Class.forName(
-                                    "org.apache.flink.api.java.typeutils.runtime.kryo.FlinkChillPackageRegistrar")
+                                    "org.apache.flink.streaming.util.serialize.FlinkChillPackageRegistrar")
                             .getDeclaredConstructor()
                             .newInstance();
         } catch (Exception e) {

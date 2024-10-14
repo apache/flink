@@ -31,6 +31,7 @@ import org.apache.flink.state.api.functions.StateBootstrapFunction;
 import org.apache.flink.state.api.output.operators.BroadcastStateBootstrapOperator;
 import org.apache.flink.state.api.output.operators.StateBootstrapOperator;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 
 import java.util.OptionalInt;
@@ -81,7 +82,9 @@ public class OneInputStateTransformation<T> {
      */
     public StateBootstrapTransformation<T> transform(StateBootstrapFunction<T> processFunction) {
         SavepointWriterOperatorFactory factory =
-                (timestamp, path) -> new StateBootstrapOperator<>(timestamp, path, processFunction);
+                (timestamp, path) ->
+                        SimpleOperatorFactory.of(
+                                new StateBootstrapOperator<>(timestamp, path, processFunction));
 
         return transform(factory);
     }
@@ -100,7 +103,9 @@ public class OneInputStateTransformation<T> {
             BroadcastStateBootstrapFunction<T> processFunction) {
         SavepointWriterOperatorFactory factory =
                 (timestamp, path) ->
-                        new BroadcastStateBootstrapOperator<>(timestamp, path, processFunction);
+                        SimpleOperatorFactory.of(
+                                new BroadcastStateBootstrapOperator<>(
+                                        timestamp, path, processFunction));
 
         return transform(factory);
     }

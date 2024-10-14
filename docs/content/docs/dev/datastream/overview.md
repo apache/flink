@@ -72,12 +72,6 @@ program consists of the same basic parts:
 4. Specify where to put the results of your computations,
 5. Trigger the program execution
 
-{{< hint warning >}}
-All Flink Scala APIs are deprecated and will be removed in a future Flink version. You can still build your application in Scala, but you should move to the Java version of either the DataStream and/or Table API.
-
-See <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-265+Deprecate+and+remove+Scala+API+support">FLIP-265 Deprecate and remove Scala API support</a>
-{{< /hint >}}
-
 {{< tabs "fa68701c-59e8-4509-858e-3e8a123eeacf" >}}
 {{< tab "Java" >}}
 
@@ -148,70 +142,6 @@ print();
 ```
 
 {{< /tab >}}
-{{< tab "Scala" >}}
-
-We will now give an overview of each of those steps, please refer to the
-respective sections for more details. Note that all core classes of the Scala
-DataStream API can be found in {{< gh_link
-file="/flink-streaming-scala/src/main/scala/org/apache/flink/streaming/api/scala"
-name="org.apache.flink.streaming.api.scala" >}}.
-
-The `StreamExecutionEnvironment` is the basis for all Flink programs. You can
-obtain one using these static methods on `StreamExecutionEnvironment`:
-
-```scala
-getExecutionEnvironment()
-
-createLocalEnvironment()
-
-createRemoteEnvironment(host: String, port: Int, jarFiles: String*)
-```
-
-Typically, you only need to use `getExecutionEnvironment()`, since this will do
-the right thing depending on the context: if you are executing your program
-inside an IDE or as a regular Java program it will create a local environment
-that will execute your program on your local machine. If you created a JAR file
-from your program, and invoke it through the [command line]({{< ref "docs/deployment/cli" >}}), the Flink cluster manager will execute your main method and
-`getExecutionEnvironment()` will return an execution environment for executing
-your program on a cluster.
-
-For specifying data sources the execution environment has several methods to
-read from files using various methods: you can just read them line by line, as
-CSV files, or using any of the other provided sources. To just read a text file
-as a sequence of lines, you can use:
-
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-
-val text: DataStream[String] = env.readTextFile("file:///path/to/file")
-```
-
-This will give you a DataStream on which you can then apply transformations to
-create new derived DataStreams.
-
-You apply transformations by calling methods on DataStream with a
-transformation functions. For example, a map transformation looks like this:
-
-```scala
-val input: DataSet[String] = ...
-
-val mapped = input.map { x => x.toInt }
-```
-
-This will create a new DataStream by converting every String in the original
-collection to an Integer.
-
-Once you have a DataStream containing your final results, you can write it to
-an outside system by creating a sink. These are just some example methods for
-creating a sink:
-
-```scala
-writeAsText(path: String)
-
-print()
-```
-
-{{< /tab >}}
 {{< /tabs >}}
 
 Once you specified the complete program you need to **trigger the program
@@ -263,7 +193,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import java.time.Duration;
 import org.apache.flink.util.Collector;
 
 public class WindowWordCount {
@@ -276,7 +206,7 @@ public class WindowWordCount {
                 .socketTextStream("localhost", 9999)
                 .flatMap(new Splitter())
                 .keyBy(value -> value.f0)
-                .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+                .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5)))
                 .sum(1);
 
         dataStream.print();
@@ -296,31 +226,6 @@ public class WindowWordCount {
 }
 ```
 
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-import org.apache.flink.streaming.api.scala._
-import org.apache.flink.streaming.api.windowing.time.Time
-
-object WindowWordCount {
-  def main(args: Array[String]) {
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val text = env.socketTextStream("localhost", 9999)
-
-    val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
-      .map { (_, 1) }
-      .keyBy(_._1)
-      .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
-      .sum(1)
-
-    counts.print()
-
-    env.execute("Window Stream WordCount")
-  }
-}
-```
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -395,61 +300,6 @@ Custom:
     `addSource(new FlinkKafkaConsumer<>(...))`. See [connectors]({{< ref "docs/connectors/datastream/overview" >}}) for more details.
 
 {{< /tab >}}
-{{< tab "Scala" >}}
-
-Sources are where your program reads its input from. You can attach a source to your program by
-using `StreamExecutionEnvironment.addSource(sourceFunction)`. Flink comes with a number of pre-implemented
-source functions, but you can always write your own custom sources by implementing the `SourceFunction`
-for non-parallel sources, or by implementing the `ParallelSourceFunction` interface or extending the
-`RichParallelSourceFunction` for parallel sources.
-
-There are several predefined stream sources accessible from the `StreamExecutionEnvironment`:
-
-File-based:
-
-- `readTextFile(path)` - Reads text files, i.e. files that respect the `TextInputFormat` specification, line-by-line and returns them as Strings.
-
-- `readFile(fileInputFormat, path)` - Reads (once) files as dictated by the specified file input format.
-
-- `readFile(fileInputFormat, path, watchType, interval, pathFilter)` -  This is the method called internally by the two previous ones. It reads files in the `path` based on the given `fileInputFormat`. Depending on the provided `watchType`, this source may periodically monitor (every `interval` ms) the path for new data (`FileProcessingMode.PROCESS_CONTINUOUSLY`), or process once the data currently in the path and exit (`FileProcessingMode.PROCESS_ONCE`). Using the `pathFilter`, the user can further exclude files from being processed.
-
-    *IMPLEMENTATION:*
-
-    Under the hood, Flink splits the file reading process into two sub-tasks, namely *directory monitoring* and *data reading*. Each of these sub-tasks is implemented by a separate entity. Monitoring is implemented by a single, **non-parallel** (parallelism = 1) task, while reading is performed by multiple tasks running in parallel. The parallelism of the latter is equal to the job parallelism. The role of the single monitoring task is to scan the directory (periodically or only once depending on the `watchType`), find the files to be processed, divide them in *splits*, and assign these splits to the downstream readers. The readers are the ones who will read the actual data. Each split is read by only one reader, while a reader can read multiple splits, one-by-one.
-
-    *IMPORTANT NOTES:*
-
-    1. If the `watchType` is set to `FileProcessingMode.PROCESS_CONTINUOUSLY`, when a file is modified, its contents are re-processed entirely. This can break the "exactly-once" semantics, as appending data at the end of a file will lead to **all** its contents being re-processed.
-
-    2. If the `watchType` is set to `FileProcessingMode.PROCESS_ONCE`, the source scans the path **once** and exits, without waiting for the readers to finish reading the file contents. Of course the readers will continue reading until all file contents are read. Closing the source leads to no more checkpoints after that point. This may lead to slower recovery after a node failure, as the job will resume reading from the last checkpoint.
-
-Socket-based:
-
-- `socketTextStream` - Reads from a socket. Elements can be separated by a delimiter.
-
-Collection-based:
-
-- `fromCollection(Seq)` - Creates a data stream from the Java Java.util.Collection. All elements
-  in the collection must be of the same type.
-
-- `fromCollection(Iterator)` - Creates a data stream from an iterator. The class specifies the
-  data type of the elements returned by the iterator.
-
-- `fromElements(elements: _*)` - Creates a data stream from the given sequence of objects. All objects must be
-  of the same type.
-
-- `fromParallelCollection(SplittableIterator)` - Creates a data stream from an iterator, in
-  parallel. The class specifies the data type of the elements returned by the iterator.
-
-- `fromSequence(from, to)` - Generates the sequence of numbers in the given interval, in
-  parallel.
-
-Custom:
-
-- `addSource` - Attach a new source function. For example, to read from Apache Kafka you can use
-    `addSource(new FlinkKafkaConsumer<>(...))`. See [connectors]({{< ref "docs/connectors/datastream/overview" >}}) for more details.
-
-{{< /tab >}}
 {{< /tabs >}}
 
 {{< top >}}
@@ -466,32 +316,6 @@ Data Sinks
 
 {{< tabs "355a7803-ea54-44b2-9970-e0cdd58a959b" >}}
 {{< tab "Java" >}}
-
-Data sinks consume DataStreams and forward them to files, sockets, external systems, or print them.
-Flink comes with a variety of built-in output formats that are encapsulated behind operations on the
-DataStreams:
-
-- `writeAsText()` / `TextOutputFormat` - Writes elements line-wise as Strings. The Strings are
-  obtained by calling the *toString()* method of each element.
-
-- `writeAsCsv(...)` / `CsvOutputFormat` - Writes tuples as comma-separated value files. Row and field
-  delimiters are configurable. The value for each field comes from the *toString()* method of the objects.
-
-- `print()` / `printToErr()`  - Prints the *toString()* value
-of each element on the standard out / standard error stream. Optionally, a prefix (msg) can be provided which is
-prepended to the output. This can help to distinguish between different calls to *print*. If the parallelism is
-greater than 1, the output will also be prepended with the identifier of the task which produced the output.
-
-- `writeUsingOutputFormat()` / `FileOutputFormat` - Method and base class for custom file outputs. Supports
-  custom object-to-bytes conversion.
-
-- `writeToSocket` - Writes elements to a socket according to a `SerializationSchema`
-
-- `addSink` - Invokes a custom sink function. Flink comes bundled with connectors to other systems (such as
-    Apache Kafka) that are implemented as sink functions.
-
-{{< /tab >}}
-{{< tab "Scala" >}}
 
 Data sinks consume DataStreams and forward them to files, sockets, external systems, or print them.
 Flink comes with a variety of built-in output formats that are encapsulated behind operations on the
@@ -568,14 +392,6 @@ env.setBufferTimeout(timeoutMillis);
 env.generateSequence(1,10).map(new MyMapper()).setBufferTimeout(timeoutMillis);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env: LocalStreamEnvironment = StreamExecutionEnvironment.createLocalEnvironment
-env.setBufferTimeout(timeoutMillis)
-
-env.generateSequence(1,10).map(myMap).setBufferTimeout(timeoutMillis)
-```
-{{< /tab >}}
 {{< /tabs >}}
 
 To maximize throughput, set `setBufferTimeout(-1)` which will remove the timeout and buffers will only be
@@ -614,17 +430,6 @@ DataStream<String> lines = env.addSource(/* some source */);
 env.execute();
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-
-```scala
-val env = StreamExecutionEnvironment.createLocalEnvironment()
-
-val lines = env.addSource(/* some source */)
-// build your program
-
-env.execute()
-```
-{{< /tab >}}
 {{< /tabs >}}
 
 ### Collection Data Sources
@@ -652,22 +457,6 @@ Iterator<Long> longIt = ...;
 DataStream<Long> myLongs = env.fromCollection(longIt, Long.class);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.createLocalEnvironment()
-
-// Create a DataStream from a list of elements
-val myInts = env.fromElements(1, 2, 3, 4, 5)
-
-// Create a DataStream from any Collection
-val data: Seq[(String, Int)] = ...
-val myTuples = env.fromCollection(data)
-
-// Create a DataStream from an Iterator
-val longIt: Iterator[Long] = ...
-val myLongs = env.fromCollection(longIt)
-```
-{{< /tab >}}
 {{< /tabs >}}
 
 **Note:** Currently, the collection data source requires that data types and iterators implement
@@ -685,13 +474,6 @@ DataStream<Tuple2<String, Integer>> myResult = ...;
 Iterator<Tuple2<String, Integer>> myOutput = myResult.collectAsync();
 ```
 
-{{< /tab >}}
-{{< tab "Scala" >}}
-
-```scala
-val myResult: DataStream[(String, Int)] = ...
-val myOutput: Iterator[(String, Int)] = myResult.collectAsync()
-```
 {{< /tab >}}
 {{< /tabs >}}
 

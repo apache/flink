@@ -26,7 +26,7 @@ import org.apache.flink.connector.file.table.FileSystemConnectorOptions
 import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.legacy.table.sinks.StreamTableSink
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction
 import org.apache.flink.table.api.{Schema, TableEnvironment, TableException, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog.{CatalogTable, ObjectPath, ResolvedSchema}

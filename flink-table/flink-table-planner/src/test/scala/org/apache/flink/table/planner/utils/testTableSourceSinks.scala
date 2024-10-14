@@ -21,7 +21,6 @@ import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.java.io.{CollectionInputFormat, RowCsvInputFormat}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.core.io.InputSplit
 import org.apache.flink.legacy.table.factories.StreamTableSourceFactory
@@ -29,6 +28,7 @@ import org.apache.flink.legacy.table.sinks.StreamTableSink
 import org.apache.flink.legacy.table.sources.{InputFormatTableSource, StreamTableSource}
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.legacy.io.CollectionInputFormat
 import org.apache.flink.table.api.{DataTypes, TableEnvironment}
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.catalog._
@@ -707,60 +707,6 @@ class TestStreamTableSourceFactory extends StreamTableSourceFactory[Row] {
   override def requiredContext(): JMap[String, String] = {
     val context = new util.HashMap[String, String]()
     context.put(CONNECTOR_TYPE, "TestStreamTableSource")
-    context
-  }
-
-  override def supportedProperties(): JList[String] = {
-    val supported = new util.ArrayList[String]()
-    supported.add("*")
-    supported
-  }
-}
-
-class TestFileInputFormatTableSource(paths: Array[String], tableSchema: TableSchema)
-  extends InputFormatTableSource[Row] {
-
-  override def getInputFormat: InputFormat[Row, _ <: InputSplit] = {
-    val format = new RowCsvInputFormat(null, tableSchema.getFieldTypes)
-    format.setFilePaths(paths: _*)
-    format
-  }
-
-  override def getProducedDataType: DataType = tableSchema.toRowDataType
-
-  override def getTableSchema: TableSchema = tableSchema
-}
-
-object TestFileInputFormatTableSource {
-  def createTemporaryTable(
-      tEnv: TableEnvironment,
-      schema: TableSchema,
-      tableName: String,
-      path: Array[String]): Unit = {
-    val source = new TestFileInputFormatTableSource(path, schema)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, source)
-  }
-}
-
-class TestFileInputFormatTableSourceFactory extends StreamTableSourceFactory[Row] {
-
-  override def createStreamTableSource(properties: JMap[String, String]): StreamTableSource[Row] = {
-    val descriptorProperties = new DescriptorProperties
-    descriptorProperties.putProperties(properties)
-    val tableSchema = descriptorProperties.getTableSchema(Schema.SCHEMA)
-
-    val serializedPaths = descriptorProperties.getOptionalString("path").orElse(null)
-    val paths = if (serializedPaths != null) {
-      EncodingUtils.decodeStringToObject(serializedPaths, classOf[Array[String]])
-    } else {
-      Array.empty[String]
-    }
-    new TestFileInputFormatTableSource(paths, tableSchema)
-  }
-
-  override def requiredContext(): JMap[String, String] = {
-    val context = new util.HashMap[String, String]()
-    context.put(CONNECTOR_TYPE, "TestFileInputFormatTableSource")
     context
   }
 

@@ -31,7 +31,8 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.core.testutils.OneShotLatch;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -39,6 +40,7 @@ import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Queue;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.test.util.TestUtils.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -46,22 +48,22 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Unit tests for the {@link SplitFetcherManager}. */
-public class SplitFetcherManagerTest {
+class SplitFetcherManagerTest {
 
     @Test
-    public void testExceptionPropagationFirstFetch() throws Exception {
+    void testExceptionPropagationFirstFetch() throws Exception {
         testExceptionPropagation();
     }
 
     @Test
-    public void testExceptionPropagationSuccessiveFetch() throws Exception {
+    void testExceptionPropagationSuccessiveFetch() throws Exception {
         testExceptionPropagation(
                 new TestingRecordsWithSplitIds<>("testSplit", 1, 2, 3, 4),
                 new TestingRecordsWithSplitIds<>("testSplit", 5, 6, 7, 8));
     }
 
     @Test
-    public void testCloseFetcherWithException() throws Exception {
+    void testCloseFetcherWithException() throws Exception {
         TestingSplitReader<Object, TestingSourceSplit> reader = new TestingSplitReader<>();
         reader.setCloseWithException();
         SplitFetcherManager<Object, TestingSourceSplit> fetcherManager =
@@ -72,7 +74,8 @@ public class SplitFetcherManagerTest {
     }
 
     @Test
-    public void testCloseCleansUpPreviouslyClosedFetcher() throws Exception {
+    @Timeout(value = 30000, unit = TimeUnit.MILLISECONDS)
+    void testCloseCleansUpPreviouslyClosedFetcher() throws Exception {
         final String splitId = "testSplit";
         // Set the queue capacity to 1 to make sure in this case the
         // fetcher shutdown won't block on putting the batches into the queue.
@@ -98,7 +101,7 @@ public class SplitFetcherManagerTest {
     }
 
     @Test
-    public void testIdleShutdownSplitFetcherWaitsUntilRecordProcessed() throws Exception {
+    void testIdleShutdownSplitFetcherWaitsUntilRecordProcessed() throws Exception {
         final String splitId = "testSplit";
         final AwaitingReader<Integer, TestingSourceSplit> reader =
                 new AwaitingReader<>(

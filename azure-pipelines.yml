@@ -79,7 +79,7 @@ stages:
           environment: PROFILE="-Dflink.hadoop.version=2.10.2"
           run_end_to_end: false
           container: flink-build-container
-          jdk: 8
+          jdk: 11
       - job: docs_404_check # run on a MSFT provided machine
         pool:
           vmImage: 'ubuntu-20.04'

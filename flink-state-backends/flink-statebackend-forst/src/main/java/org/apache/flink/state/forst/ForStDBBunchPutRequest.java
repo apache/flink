@@ -24,9 +24,9 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.state.InternalStateFuture;
 
-import org.rocksdb.RocksDB;
-import org.rocksdb.RocksDBException;
-import org.rocksdb.RocksIterator;
+import org.forstdb.RocksDB;
+import org.forstdb.RocksDBException;
+import org.forstdb.RocksIterator;
 
 import java.io.IOException;
 import java.util.Map;

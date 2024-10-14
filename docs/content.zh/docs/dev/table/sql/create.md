@@ -643,6 +643,37 @@ CREATE TABLE my_ctas_table (
 INSERT INTO my_ctas_table SELECT id, name FROM source_table;
 ```
 
+`CTAS` also allows you to reorder the columns defined in the `SELECT` part by specifying all column names without data types in the `CREATE` part. This feature is equivalent to the `INSERT INTO` statement.
+The columns specified must match the names and number of columns in the `SELECT` part. This definition cannot be combined with new columns, which requires defining data types.
+
+Consider the example statement below:
+
+```sql
+CREATE TABLE my_ctas_table (
+    order_time, price, quantity, id
+) WITH (
+    'connector' = 'kafka',
+    ...
+) AS SELECT id, price, quantity, order_time FROM source_table;
+```
+
+The resulting table `my_ctas_table` will be equivalent to create the following table and insert the data with the following statement:
+
+```
+CREATE TABLE my_ctas_table (
+    order_time TIMESTAMP(3),
+    price DOUBLE,
+    quantity DOUBLE,
+    id BIGINT
+) WITH (
+    'connector' = 'kafka',
+    ...
+);
+
+INSERT INTO my_ctas_table (order_time, price, quantity, id)
+    SELECT id, price, quantity, order_time FROM source_table;
+```
+
 **Note:** CTAS has these restrictions:
 * Does not support creating a temporary table yet.
 * Does not support creating partitioned table yet.

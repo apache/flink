@@ -27,8 +27,8 @@ import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.test.util.TestUtils;
@@ -95,7 +95,7 @@ public class CoStreamCheckpointingITCase extends AbstractTestBaseJUnit4 {
                 .map(new StatefulCounterFunction())
 
                 // -------------- fourth vertex - reducer (failing) and the sink ----------------
-                .keyBy("prefix")
+                .keyBy(x -> x.prefix)
                 .reduce(new OnceFailingReducer(NUM_STRINGS))
                 .addSink(
                         new SinkFunction<PrefixCount>() {

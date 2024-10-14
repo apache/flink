@@ -30,7 +30,6 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JMXServerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.failure.FailureEnricher;
@@ -44,6 +43,7 @@ import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
+import org.apache.flink.runtime.dispatcher.MiniDispatcher;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
@@ -705,24 +705,6 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                 GlobalConfiguration.loadConfiguration(
                         entrypointClusterConfiguration.getConfigDir(), dynamicProperties);
 
-        final int restPort = entrypointClusterConfiguration.getRestPort();
-
-        if (restPort >= 0) {
-            LOG.warn(
-                    "The 'webui-port' parameter of 'jobmanager.sh' has been deprecated. Please use '-D {}=<port> instead.",
-                    RestOptions.PORT);
-            configuration.set(RestOptions.PORT, restPort);
-        }
-
-        final String hostname = entrypointClusterConfiguration.getHostname();
-
-        if (hostname != null) {
-            LOG.warn(
-                    "The 'host' parameter of 'jobmanager.sh' has been deprecated. Please use '-D {}=<host> instead.",
-                    JobManagerOptions.ADDRESS);
-            configuration.set(JobManagerOptions.ADDRESS, hostname);
-        }
-
         return configuration;
     }
 
@@ -760,7 +742,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         System.exit(returnCode);
     }
 
-    /** Execution mode of the dispatcher. */
+    /** Execution mode of the {@link MiniDispatcher}. */
     public enum ExecutionMode {
         /** Waits until the job result has been served. */
         NORMAL,

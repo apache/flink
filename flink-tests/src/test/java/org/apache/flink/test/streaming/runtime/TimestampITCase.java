@@ -42,18 +42,15 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.ExceptionUtils;
@@ -65,6 +62,7 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -667,44 +665,17 @@ public class TimestampITCase extends TestLogger {
                 CustomOperator.finalWatermarks[0].get(0).getTimestamp() == Long.MAX_VALUE);
     }
 
-    /**
-     * This verifies that an event time source works when setting stream time characteristic to
-     * processing time. In this case, the watermarks should just be swallowed apart from the last
-     * final watermark marking the end of time.
-     */
-    @Test
-    public void testEventTimeSourceWithProcessingTime() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-        env.setParallelism(2);
-        env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-
-        DataStream<Integer> source1 = env.addSource(new MyTimestampSource(0, 10));
-
-        source1.map(new IdentityMap())
-                .transform(
-                        "Watermark Check", BasicTypeInfo.INT_TYPE_INFO, new CustomOperator(false));
-
-        env.execute();
-
-        // verify that we don't get any watermarks, the source is used as watermark source in
-        // other tests, so it normally emits watermarks
-        Assert.assertTrue(CustomOperator.finalWatermarks[0].size() == 1);
-        Assert.assertEquals(Watermark.MAX_WATERMARK, CustomOperator.finalWatermarks[0].get(0));
-    }
-
     @Test
     public void testErrorOnEventTimeOverProcessingTime() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         env.setParallelism(2);
-        env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         DataStream<Tuple2<String, Integer>> source1 =
                 env.fromData(new Tuple2<>("a", 1), new Tuple2<>("b", 2));
 
-        source1.keyBy(0)
-                .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+        source1.keyBy(x -> x.f0)
+                .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
                 .reduce(
                         new ReduceFunction<Tuple2<String, Integer>>() {
                             @Override
@@ -733,8 +704,8 @@ public class TimestampITCase extends TestLogger {
         DataStream<Tuple2<String, Integer>> source1 =
                 env.fromData(new Tuple2<>("a", 1), new Tuple2<>("b", 2));
 
-        source1.keyBy(0)
-                .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+        source1.keyBy(x -> x.f0)
+                .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
                 .reduce(
                         new ReduceFunction<Tuple2<String, Integer>>() {
                             @Override
@@ -767,7 +738,6 @@ public class TimestampITCase extends TestLogger {
         private final boolean timestampsEnabled;
 
         public CustomOperator(boolean timestampsEnabled) {
-            setChainingStrategy(ChainingStrategy.ALWAYS);
             this.timestampsEnabled = timestampsEnabled;
         }
 
@@ -809,9 +779,7 @@ public class TimestampITCase extends TestLogger {
     private static class TimestampCheckingOperator extends AbstractStreamOperator<Integer>
             implements OneInputStreamOperator<Integer, Integer> {
 
-        public TimestampCheckingOperator() {
-            setChainingStrategy(ChainingStrategy.ALWAYS);
-        }
+        public TimestampCheckingOperator() {}
 
         @Override
         public void processElement(StreamRecord<Integer> element) throws Exception {

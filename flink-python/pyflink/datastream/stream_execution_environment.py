@@ -35,7 +35,6 @@ from pyflink.datastream.connectors import Source
 from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.functions import SourceFunction
-from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.datastream.utils import ResultTypeQueryable
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import PickleSerializer
@@ -374,40 +373,6 @@ class StreamExecutionEnvironment(object):
             return None
         else:
             return j_path.toString()
-
-    def set_stream_time_characteristic(self, characteristic: TimeCharacteristic):
-        """
-        Sets the time characteristic for all streams create from this environment, e.g., processing
-        time, event time, or ingestion time.
-
-        If you set the characteristic to IngestionTime of EventTime this will set a default
-        watermark update interval of 200 ms. If this is not applicable for your application
-        you should change it using
-        :func:`pyflink.common.ExecutionConfig.set_auto_watermark_interval`.
-
-        Example:
-        ::
-
-            >>> env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
-
-        :param characteristic: The time characteristic, which could be
-                               :data:`TimeCharacteristic.ProcessingTime`,
-                               :data:`TimeCharacteristic.IngestionTime`,
-                               :data:`TimeCharacteristic.EventTime`.
-        """
-        j_characteristic = TimeCharacteristic._to_j_time_characteristic(characteristic)
-        self._j_stream_execution_environment.setStreamTimeCharacteristic(j_characteristic)
-
-    def get_stream_time_characteristic(self) -> 'TimeCharacteristic':
-        """
-        Gets the time characteristic.
-
-        .. seealso:: :func:`set_stream_time_characteristic`
-
-        :return: The :class:`TimeCharacteristic`.
-        """
-        j_characteristic = self._j_stream_execution_environment.getStreamTimeCharacteristic()
-        return TimeCharacteristic._from_j_time_characteristic(j_characteristic)
 
     def configure(self, configuration: Configuration):
         """
@@ -809,21 +774,6 @@ class StreamExecutionEnvironment(object):
             j_type_info)
         return DataStream(j_data_stream=j_data_stream)
 
-    def read_text_file(self, file_path: str, charset_name: str = "UTF-8") -> DataStream:
-        """
-        Reads the given file line-by-line and creates a DataStream that contains a string with the
-        contents of each such line. The charset with the given name will be used to read the files.
-
-        Note that this interface is not fault tolerant that is supposed to be used for test purpose.
-
-        :param file_path: The path of the file, as a URI (e.g., "file:///some/local/file" or
-                          "hdfs://host:port/file/path")
-        :param charset_name: The name of the character set used to read the file.
-        :return: The DataStream that represents the data read from the given file as text lines.
-        """
-        return DataStream(self._j_stream_execution_environment
-                          .readTextFile(file_path, charset_name))
-
     def from_collection(self, collection: List[Any],
                         type_info: TypeInformation = None) -> DataStream:
         """
@@ -869,7 +819,7 @@ class StreamExecutionEnvironment(object):
             )
 
             JInputFormatSourceFunction = gateway.jvm.org.apache.flink.streaming.api.functions.\
-                source.InputFormatSourceFunction
+                source.legacy.InputFormatSourceFunction
             JBoundedness = gateway.jvm.org.apache.flink.api.connector.source.Boundedness
 
             j_data_stream_source = invoke_method(
@@ -880,7 +830,7 @@ class StreamExecutionEnvironment(object):
                  "Collection Source",
                  out_put_type_info.get_java_type_info(),
                  JBoundedness.BOUNDED],
-                ["org.apache.flink.streaming.api.functions.source.SourceFunction",
+                ["org.apache.flink.streaming.api.functions.source.legacy.SourceFunction",
                  "java.lang.String",
                  "org.apache.flink.api.common.typeinfo.TypeInformation",
                  "org.apache.flink.api.connector.source.Boundedness"])

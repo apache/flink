@@ -28,10 +28,11 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.lineage.LineageDataset;
 import org.apache.flink.streaming.api.lineage.LineageVertex;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
@@ -320,9 +321,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
      * Adopted from {@link StreamExecutionEnvironment#addSource(SourceFunction, String,
      * TypeInformation)} but with custom {@link Boundedness}.
      *
-     * @deprecated This method relies on the {@link
-     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
-     *     removed.
+     * @deprecated This method relies on the {@link SourceFunction} API, which is due to be removed.
      */
     @Deprecated
     protected Transformation<RowData> createSourceFunctionTransformation(
@@ -356,13 +355,16 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         }
 
         final StreamSource<RowData, ?> sourceOperator = new StreamSource<>(function, !isBounded);
-        return new LegacySourceTransformation<>(
-                operatorName,
-                sourceOperator,
-                outputTypeInfo,
-                parallelism,
-                boundedness,
-                sourceParallelismConfigured);
+        LegacySourceTransformation<RowData> transformation =
+                new LegacySourceTransformation<>(
+                        operatorName,
+                        sourceOperator,
+                        outputTypeInfo,
+                        parallelism,
+                        boundedness,
+                        sourceParallelismConfigured);
+        transformation.setChainingStrategy(ChainingStrategy.HEAD);
+        return transformation;
     }
 
     /**

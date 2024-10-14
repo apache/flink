@@ -79,7 +79,7 @@ abstract class CommitterOperatorTestBase {
                     .hasOverallCommittables(committableSummary.getNumberOfCommittables())
                     .hasPendingCommittables(0);
             SinkV2Assertions.assertThat(toCommittableWithLinage(output.get(1)))
-                    .isEqualTo(copyCommittableWithDifferentOrigin(committableWithLineage, 0));
+                    .isEqualTo(committableWithLineage.withSubtaskId(0));
         } else {
             assertThat(testHarness.getOutput()).isEmpty();
         }
@@ -120,9 +120,9 @@ abstract class CommitterOperatorTestBase {
                 .hasOverallCommittables(committableSummary.getNumberOfCommittables())
                 .hasPendingCommittables(0);
         SinkV2Assertions.assertThat(toCommittableWithLinage(output.get(1)))
-                .isEqualTo(copyCommittableWithDifferentOrigin(first, 0));
+                .isEqualTo(first.withSubtaskId(0));
         SinkV2Assertions.assertThat(toCommittableWithLinage(output.get(2)))
-                .isEqualTo(copyCommittableWithDifferentOrigin(second, 0));
+                .isEqualTo(second.withSubtaskId(0));
         testHarness.close();
     }
 
@@ -161,9 +161,9 @@ abstract class CommitterOperatorTestBase {
                 .hasOverallCommittables(2)
                 .hasPendingCommittables(0);
         SinkV2Assertions.assertThat(toCommittableWithLinage(output.get(1)))
-                .isEqualTo(copyCommittableWithDifferentOrigin(first, 0));
+                .isEqualTo(first.withSubtaskId(0));
         SinkV2Assertions.assertThat(toCommittableWithLinage(output.get(2)))
-                .isEqualTo(copyCommittableWithDifferentOrigin(second, 0));
+                .isEqualTo(second.withSubtaskId(0));
         testHarness.close();
     }
 
@@ -283,19 +283,13 @@ abstract class CommitterOperatorTestBase {
                 .hasOverallCommittables(1)
                 .hasFailedCommittables(0);
         SinkV2Assertions.assertThat(toCommittableWithLinage(output.get(1)))
-                .isEqualTo(copyCommittableWithDifferentOrigin(committableWithLineage, 0));
+                .isEqualTo(committableWithLineage.withSubtaskId(0));
 
         // Future emission calls should change the output
         testHarness.notifyOfCompletedCheckpoint(2);
         testHarness.endInput();
 
         assertThat(testHarness.getOutput()).hasSize(2);
-    }
-
-    CommittableWithLineage<?> copyCommittableWithDifferentOrigin(
-            CommittableWithLineage<?> committable, int subtaskId) {
-        return new CommittableWithLineage<>(
-                committable.getCommittable(), committable.getCheckpointIdOrEOI(), subtaskId);
     }
 
     private OneInputStreamOperatorTestHarness<

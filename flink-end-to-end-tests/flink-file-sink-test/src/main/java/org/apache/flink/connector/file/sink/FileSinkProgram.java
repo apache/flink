@@ -23,7 +23,6 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.fs.Path;
@@ -34,10 +33,11 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
+import org.apache.flink.util.ParameterTool;
 
 import java.io.PrintStream;
 import java.time.Duration;
@@ -91,7 +91,7 @@ public enum FileSinkProgram {
                             .withRollingPolicy(OnCheckpointRollingPolicy.build())
                             .build();
 
-            source.keyBy(0).addSink(sink);
+            source.keyBy(x -> x.f0).addSink(sink);
         } else if (sinkToTest.equalsIgnoreCase("FileSink")) {
             FileSink<Tuple2<Integer, Integer>> sink =
                     FileSink.forRowFormat(
@@ -104,7 +104,7 @@ public enum FileSinkProgram {
                             .withBucketAssigner(new KeyBucketAssigner())
                             .withRollingPolicy(OnCheckpointRollingPolicy.build())
                             .build();
-            source.keyBy(0).sinkTo(sink);
+            source.keyBy(x -> x.f0).sinkTo(sink);
         } else {
             throw new UnsupportedOperationException("Unsupported sink type: " + sinkToTest);
         }
@@ -129,15 +129,8 @@ public enum FileSinkProgram {
         }
     }
 
-    /**
-     * Data-generating source function.
-     *
-     * @deprecated This class is based on the {@link
-     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
-     *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
-     */
-    @Deprecated
-    public static final class Generator
+    /** Data-generating source function. */
+    static final class Generator
             implements SourceFunction<Tuple2<Integer, Integer>>, CheckpointedFunction {
 
         private static final long serialVersionUID = -2819385275681175792L;

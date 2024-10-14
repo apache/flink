@@ -34,7 +34,6 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.operators.util.SlotSharingGroupUtils;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
@@ -42,8 +41,6 @@ import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.ClosureCleaner;
-import org.apache.flink.api.java.Utils;
-import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
@@ -75,30 +72,29 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.scheduler.ClusterDatasetCorruptedException;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
-import org.apache.flink.streaming.api.functions.source.FileMonitoringFunction;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
-import org.apache.flink.streaming.api.functions.source.FileReadFunction;
-import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
-import org.apache.flink.streaming.api.functions.source.FromIteratorFunction;
-import org.apache.flink.streaming.api.functions.source.FromSplittableIteratorFunction;
-import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
+import org.apache.flink.streaming.api.functions.source.legacy.ContinuousFileMonitoringFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.FileMonitoringFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.FileReadFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.FromElementsFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.FromIteratorFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.FromSplittableIteratorFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.InputFormatSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SocketTextStreamFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
 import org.apache.flink.streaming.api.transformations.CacheTransformation;
-import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -107,6 +103,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TernaryBoolean;
+import org.apache.flink.util.Utils;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import javax.annotation.Nullable;
@@ -152,18 +149,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     }
 
     /**
-     * The default name to use for a streaming job if no other name has been specified.
-     *
-     * @deprecated This constant does not fit well to batch runtime mode.
-     */
-    @Deprecated
-    public static final String DEFAULT_JOB_NAME = StreamGraphGenerator.DEFAULT_STREAMING_JOB_NAME;
-
-    /** The time characteristic that is used if none other is set. */
-    private static final TimeCharacteristic DEFAULT_TIME_CHARACTERISTIC =
-            TimeCharacteristic.EventTime;
-
-    /**
      * The environment of the context (local by default, cluster if invoked through command line).
      */
     private static StreamExecutionEnvironmentFactory contextEnvironmentFactory = null;
@@ -186,9 +171,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     protected final List<Transformation<?>> transformations = new ArrayList<>();
 
     private final Map<AbstractID, CacheTransformation<?>> cachedTransformations = new HashMap<>();
-
-    /** The time characteristic used by the data streams. */
-    private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
     /**
      * Now we could not migrate this field to configuration. Because this object field remains
@@ -713,50 +695,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     // --------------------------------------------------------------------------------------------
 
     /**
-     * Sets the time characteristic for all streams create from this environment, e.g., processing
-     * time, event time, or ingestion time.
-     *
-     * <p>If you set the characteristic to IngestionTime of EventTime this will set a default
-     * watermark update interval of 200 ms. If this is not applicable for your application you
-     * should change it using {@link ExecutionConfig#setAutoWatermarkInterval(long)}.
-     *
-     * @param characteristic The time characteristic.
-     * @deprecated In Flink 1.12 the default stream time characteristic has been changed to {@link
-     *     TimeCharacteristic#EventTime}, thus you don't need to call this method for enabling
-     *     event-time support anymore. Explicitly using processing-time windows and timers works in
-     *     event-time mode. If you need to disable watermarks, please use {@link
-     *     ExecutionConfig#setAutoWatermarkInterval(long)}. If you are using {@link
-     *     TimeCharacteristic#IngestionTime}, please manually set an appropriate {@link
-     *     WatermarkStrategy}. If you are using generic "time window" operations (for example
-     *     through {@link
-     *     org.apache.flink.streaming.api.datastream.KeyedStream#window(WindowAssigner)} that change
-     *     behaviour based on the time characteristic, please use equivalent operations that
-     *     explicitly specify processing time or event time.
-     */
-    @PublicEvolving
-    @Deprecated
-    public void setStreamTimeCharacteristic(TimeCharacteristic characteristic) {
-        this.timeCharacteristic = Preconditions.checkNotNull(characteristic);
-        if (characteristic == TimeCharacteristic.ProcessingTime) {
-            getConfig().setAutoWatermarkInterval(0);
-        } else {
-            getConfig().setAutoWatermarkInterval(200);
-        }
-    }
-
-    /**
-     * Gets the time characteristic.
-     *
-     * @deprecated See {@link #setStreamTimeCharacteristic(TimeCharacteristic)} for deprecation
-     *     notice.
-     */
-    @PublicEvolving
-    @Deprecated
-    public TimeCharacteristic getStreamTimeCharacteristic() {
-        return timeCharacteristic;
-    }
-
-    /**
      * Sets all relevant options contained in the {@link ReadableConfig}. It will reconfigure {@link
      * StreamExecutionEnvironment}, {@link ExecutionConfig} and {@link CheckpointConfig}.
      *
@@ -1265,73 +1203,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     }
 
     /**
-     * Reads the given file line-by-line and creates a data stream that contains a string with the
-     * contents of each such line. The file will be read with the UTF-8 character set.
-     *
-     * <p><b>NOTES ON CHECKPOINTING: </b> The source monitors the path, creates the {@link
-     * org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed, forwards them to
-     * the downstream readers to read the actual data, and exits, without waiting for the readers to
-     * finish reading. This implies that no more checkpoint barriers are going to be forwarded after
-     * the source exits, thus having no checkpoints after that point.
-     *
-     * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or
-     *     "hdfs://host:port/file/path").
-     * @return The data stream that represents the data read from the given file as text lines
-     * @deprecated Use {@code
-     *     FileSource#forRecordStreamFormat()/forBulkFileFormat()/forRecordFileFormat() instead}. An
-     *     example of reading a file using a simple {@code TextLineInputFormat}:
-     *     <pre>{@code
-     * FileSource<String> source =
-     *        FileSource.forRecordStreamFormat(
-     *           new TextLineInputFormat(), new Path("/foo/bar"))
-     *        .build();
-     * }</pre>
-     */
-    @Deprecated
-    public DataStreamSource<String> readTextFile(String filePath) {
-        return readTextFile(filePath, "UTF-8");
-    }
-
-    /**
-     * Reads the given file line-by-line and creates a data stream that contains a string with the
-     * contents of each such line. The {@link java.nio.charset.Charset} with the given name will be
-     * used to read the files.
-     *
-     * <p><b>NOTES ON CHECKPOINTING: </b> The source monitors the path, creates the {@link
-     * org.apache.flink.core.fs.FileInputSplit FileInputSplits} to be processed, forwards them to
-     * the downstream readers to read the actual data, and exits, without waiting for the readers to
-     * finish reading. This implies that no more checkpoint barriers are going to be forwarded after
-     * the source exits, thus having no checkpoints after that point.
-     *
-     * @param filePath The path of the file, as a URI (e.g., "file:///some/local/file" or
-     *     "hdfs://host:port/file/path")
-     * @param charsetName The name of the character set used to read the file
-     * @return The data stream that represents the data read from the given file as text lines
-     * @deprecated Use {@code
-     *     FileSource#forRecordStreamFormat()/forBulkFileFormat()/forRecordFileFormat() instead}. An
-     *     example of reading a file using a simple {@code TextLineInputFormat}:
-     *     <pre>{@code
-     * FileSource<String> source =
-     *        FileSource.forRecordStreamFormat(
-     *         new TextLineInputFormat("UTF-8"), new Path("/foo/bar"))
-     *        .build();
-     * }</pre>
-     */
-    @Deprecated
-    public DataStreamSource<String> readTextFile(String filePath, String charsetName) {
-        Preconditions.checkArgument(
-                !StringUtils.isNullOrWhitespaceOnly(filePath),
-                "The file path must not be null or blank.");
-
-        TextInputFormat format = new TextInputFormat(new Path(filePath));
-        format.setFilesFilter(FilePathFilter.createDefaultFilter());
-        TypeInformation<String> typeInfo = BasicTypeInfo.STRING_TYPE_INFO;
-        format.setCharsetName(charsetName);
-
-        return readFile(format, filePath, FileProcessingMode.PROCESS_ONCE, -1, typeInfo);
-    }
-
-    /**
      * Reads the contents of the user-specified {@code filePath} based on the given {@link
      * FileInputFormat}.
      *
@@ -1483,12 +1354,11 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      *     "hdfs://host:port/file/path/")
      * @param intervalMillis The interval of file watching in milliseconds
      * @param watchType The watch type of file stream. When watchType is {@link
-     *     org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType#ONLY_NEW_FILES},
-     *     the system processes only new files. {@link
-     *     org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType#REPROCESS_WITH_APPENDED}
-     *     means that the system re-processes all contents of appended file. {@link
-     *     org.apache.flink.streaming.api.functions.source.FileMonitoringFunction.WatchType#PROCESS_ONLY_APPENDED}
-     *     means that the system processes only appended contents of files.
+     *     FileMonitoringFunction.WatchType#ONLY_NEW_FILES}, the system processes only new files.
+     *     {@link FileMonitoringFunction.WatchType#REPROCESS_WITH_APPENDED} means that the system
+     *     re-processes all contents of appended file. {@link
+     *     FileMonitoringFunction.WatchType#PROCESS_ONLY_APPENDED} means that the system processes
+     *     only appended contents of files.
      * @return The DataStream containing the given directory.
      * @deprecated Use {@link #readFile(FileInputFormat, String, FileProcessingMode, long)} instead.
      */
@@ -1783,19 +1653,17 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * Adds a Data Source to the streaming topology.
      *
      * <p>By default sources have a parallelism of 1. To enable parallel execution, the user defined
-     * source should implement {@link
-     * org.apache.flink.streaming.api.functions.source.ParallelSourceFunction} or extend {@link
-     * org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction}. In these cases
-     * the resulting source will have the parallelism of the environment. To change this afterwards
-     * call {@link org.apache.flink.streaming.api.datastream.DataStreamSource#setParallelism(int)}
+     * source should implement {@link ParallelSourceFunction} or extend {@link
+     * RichParallelSourceFunction}. In these cases the resulting source will have the parallelism of
+     * the environment. To change this afterwards call {@link
+     * org.apache.flink.streaming.api.datastream.DataStreamSource#setParallelism(int)}
      *
      * @param function the user defined function
      * @param <OUT> type of the returned stream
      * @return the data stream constructed
-     * @deprecated This method relies on the {@link
-     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
-     *     removed. Use the {@link #fromSource(Source, WatermarkStrategy, String)} method based on
-     *     the new {@link org.apache.flink.api.connector.source.Source} API instead.
+     * @deprecated This method relies on the {@link SourceFunction} API, which is due to be removed.
+     *     Use the {@link #fromSource(Source, WatermarkStrategy, String)} method based on the new
+     *     {@link org.apache.flink.api.connector.source.Source} API instead.
      */
     @Deprecated
     public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function) {
@@ -1805,18 +1673,17 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     /**
      * Adds a data source with a custom type information thus opening a {@link DataStream}. Only in
      * very special cases does the user need to support type information. Otherwise use {@link
-     * #addSource(org.apache.flink.streaming.api.functions.source.SourceFunction)}
+     * #addSource(SourceFunction)}
      *
      * @param function the user defined function
      * @param sourceName Name of the data source
      * @param <OUT> type of the returned stream
      * @return the data stream constructed
-     * @deprecated This method relies on the {@link
-     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
-     *     removed. Use the {@link #fromSource(Source, WatermarkStrategy, String)} method based on
-     *     the new {@link org.apache.flink.api.connector.source.Source} API instead.
+     * @deprecated This method relies on the {@link SourceFunction} API, which is due to be removed.
+     *     Use the {@link #fromSource(Source, WatermarkStrategy, String)} method based on the new
+     *     {@link org.apache.flink.api.connector.source.Source} API instead.
      */
-    @Deprecated
+    @Internal
     public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, String sourceName) {
         return addSource(function, sourceName, null);
     }
@@ -1824,18 +1691,17 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     /**
      * Ads a data source with a custom type information thus opening a {@link DataStream}. Only in
      * very special cases does the user need to support type information. Otherwise use {@link
-     * #addSource(org.apache.flink.streaming.api.functions.source.SourceFunction)}
+     * #addSource(SourceFunction)}
      *
      * @param function the user defined function
      * @param <OUT> type of the returned stream
      * @param typeInfo the user defined type information for the stream
      * @return the data stream constructed
-     * @deprecated This method relies on the {@link
-     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
-     *     removed. Use the {@link #fromSource(Source, WatermarkStrategy, String, TypeInformation)}
-     *     method based on the new {@link org.apache.flink.api.connector.source.Source} API instead.
+     * @deprecated This method relies on the {@link SourceFunction} API, which is due to be removed.
+     *     Use the {@link #fromSource(Source, WatermarkStrategy, String, TypeInformation)} method
+     *     based on the new {@link org.apache.flink.api.connector.source.Source} API instead.
      */
-    @Deprecated
+    @Internal
     public <OUT> DataStreamSource<OUT> addSource(
             SourceFunction<OUT> function, TypeInformation<OUT> typeInfo) {
         return addSource(function, "Custom Source", typeInfo);
@@ -1844,19 +1710,18 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     /**
      * Ads a data source with a custom type information thus opening a {@link DataStream}. Only in
      * very special cases does the user need to support type information. Otherwise use {@link
-     * #addSource(org.apache.flink.streaming.api.functions.source.SourceFunction)}
+     * #addSource(SourceFunction)}
      *
      * @param function the user defined function
      * @param sourceName Name of the data source
      * @param <OUT> type of the returned stream
      * @param typeInfo the user defined type information for the stream
      * @return the data stream constructed
-     * @deprecated This method relies on the {@link
-     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
-     *     removed. Use the {@link #fromSource(Source, WatermarkStrategy, String, TypeInformation)}
-     *     method based on the new {@link org.apache.flink.api.connector.source.Source} API instead.
+     * @deprecated This method relies on the {@link SourceFunction} API, which is due to be removed.
+     *     Use the {@link #fromSource(Source, WatermarkStrategy, String, TypeInformation)} method
+     *     based on the new {@link org.apache.flink.api.connector.source.Source} API instead.
      */
-    @Deprecated
+    @Internal
     public <OUT> DataStreamSource<OUT> addSource(
             SourceFunction<OUT> function, String sourceName, TypeInformation<OUT> typeInfo) {
         return addSource(function, sourceName, typeInfo, Boundedness.CONTINUOUS_UNBOUNDED);
@@ -2225,7 +2090,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         // stream graph generation.
         return new StreamGraphGenerator(
                         new ArrayList<>(transformations), config, checkpointCfg, configuration)
-                .setTimeCharacteristic(getStreamTimeCharacteristic())
                 .setSlotSharingGroupResource(slotSharingGroupResources);
     }
 

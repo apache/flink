@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class BatchCallbackRunner {
 
-    private static final int DEFAULT_BATCH_SIZE = 3000;
+    static final int DEFAULT_BATCH_SIZE = 3000;
 
     private final MailboxExecutor mailboxExecutor;
 
@@ -80,18 +80,34 @@ public class BatchCallbackRunner {
                 activeBuffer = new ArrayList<>(batchSize);
             }
         }
-        currentCallbacks.incrementAndGet();
-        insertMail(false);
+        if (currentCallbacks.getAndIncrement() == 0) {
+            // Only when the single first callback is inserted, the mail should be inserted if not
+            // exist. Otherwise, the #runBatch() from task threads will keep the mail exist.
+            insertMail(false, true);
+        }
     }
 
-    private void insertMail(boolean force) {
-        if (force || !hasMail) {
-            if (currentCallbacks.get() > 0) {
-                hasMail = true;
-                mailboxExecutor.execute(this::runBatch, "Batch running callback of state requests");
-                notifyNewMail();
-            } else {
-                hasMail = false;
+    /**
+     * Insert a mail for a batch of mails.
+     *
+     * @param force force check if there should insert a callback regardless of the #hasMail flag.
+     * @param notify should notify the AEC (typically on the task thread) if new mail inserted.
+     */
+    private void insertMail(boolean force, boolean notify) {
+        // This method will be invoked via all ForSt I/O threads(from #submit) or task thread (from
+        // #runBatch()). The #hasMail flag should be protected by synchronized.
+        synchronized (this) {
+            if (force || !hasMail) {
+                if (currentCallbacks.get() > 0) {
+                    hasMail = true;
+                    mailboxExecutor.execute(
+                            this::runBatch, "Batch running callback of state requests");
+                    if (notify) {
+                        notifyNewMail();
+                    }
+                } else {
+                    hasMail = false;
+                }
             }
         }
     }
@@ -116,7 +132,8 @@ public class BatchCallbackRunner {
             }
             currentCallbacks.addAndGet(-batch.size());
         }
-        insertMail(true);
+        // If we are on the task thread, there is no need to notify.
+        insertMail(true, false);
     }
 
     private void notifyNewMail() {

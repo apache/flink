@@ -42,10 +42,10 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.validate.SqlValidator;
 
@@ -136,18 +136,16 @@ public class MergeTableAsUtil {
             }
         }
 
-        // if there are no new sink fields to include, then return the original query
-        if (assignedFields.isEmpty()) {
-            return origQueryOperation;
-        }
-
         // rewrite query
         SqlCall newSelect =
-                rewriterUtils.rewriteSelect(
-                        (SqlSelect) origQueryNode,
+                rewriterUtils.rewriteCall(
+                        rewriterUtils,
+                        sqlValidator,
+                        (SqlCall) origQueryNode,
                         typeFactory.buildRelNodeRowType(sinkRowType),
                         assignedFields,
-                        targetPositions);
+                        targetPositions,
+                        () -> "Unsupported node type " + origQueryNode.getKind());
 
         return (PlannerQueryOperation)
                 SqlNodeToOperationConversion.convert(flinkPlanner, catalogManager, newSelect)
@@ -208,6 +206,22 @@ public class MergeTableAsUtil {
         if (primaryKey.isPresent()) {
             schemaBuilder.setPrimaryKey(primaryKey.get());
         }
+
+        return schemaBuilder.build();
+    }
+
+    /** Reorders the columns from the source schema based on the columns identifiers list. */
+    public Schema reorderSchema(SqlNodeList sqlColumnList, ResolvedSchema sourceSchema) {
+        SchemaBuilder schemaBuilder =
+                new SchemaBuilder(
+                        (FlinkTypeFactory) validator.getTypeFactory(),
+                        dataTypeFactory,
+                        validator,
+                        escapeExpression);
+
+        schemaBuilder.reorderColumns(
+                sqlColumnList,
+                Schema.newBuilder().fromResolvedSchema(sourceSchema).build().getColumns());
 
         return schemaBuilder.build();
     }
@@ -309,6 +323,33 @@ public class MergeTableAsUtil {
             columns.clear();
             columns.putAll(sinkSchemaCols);
             columns.putAll(sourceSchemaCols);
+        }
+
+        /** Reorders the columns from the source schema based on the columns identifiers list. */
+        private void reorderColumns(List<SqlNode> identifiers, List<UnresolvedColumn> sourceCols) {
+            Map<String, UnresolvedColumn> sinkSchemaCols = new LinkedHashMap<>();
+            Map<String, UnresolvedColumn> sourceSchemaCols = new LinkedHashMap<>();
+
+            populateColumnsFromSource(sourceCols, sourceSchemaCols);
+
+            if (identifiers.size() != sourceCols.size()) {
+                throw new ValidationException(
+                        "The number of columns in the column list must match the number "
+                                + "of columns in the source schema.");
+            }
+
+            for (SqlNode identifier : identifiers) {
+                String name = ((SqlIdentifier) identifier).getSimple();
+                if (!sourceSchemaCols.containsKey(name)) {
+                    throw new ValidationException(
+                            String.format("Column '%s' not found in the source schema. ", name));
+                }
+
+                sinkSchemaCols.put(name, sourceSchemaCols.get(name));
+            }
+
+            columns.clear();
+            columns.putAll(sinkSchemaCols);
         }
 
         /**

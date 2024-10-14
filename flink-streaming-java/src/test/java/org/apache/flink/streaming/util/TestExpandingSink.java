@@ -64,11 +64,6 @@ public class TestExpandingSink
     }
 
     @Override
-    public SinkWriter<Integer> createWriter(InitContext context) throws IOException {
-        return null;
-    }
-
-    @Override
     public Committer<Integer> createCommitter(CommitterInitContext context) {
         return null;
     }

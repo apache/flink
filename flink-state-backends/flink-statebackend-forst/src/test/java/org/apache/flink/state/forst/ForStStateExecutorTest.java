@@ -29,8 +29,8 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.v2.AbstractKeyedState;
 
+import org.forstdb.WriteOptions;
 import org.junit.jupiter.api.Test;
-import org.rocksdb.WriteOptions;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -228,6 +228,114 @@ class ForStStateExecutorTest extends ForStDBOperationTestBase {
         }
 
         forStStateExecutor.shutdown();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testExecuteAggregatingStateRequest() throws Exception {
+        ForStStateExecutor forStStateExecutor =
+                new ForStStateExecutor(false, false, 4, 1, db, new WriteOptions());
+        ForStAggregatingState<String, ?, Integer, Integer, Integer> state =
+                buildForStSumAggregateState("agg-state-1");
+
+        StateRequestContainer stateRequestContainer =
+                forStStateExecutor.createStateRequestContainer();
+        assertTrue(stateRequestContainer.isEmpty());
+
+        // 1. init aggregateValue for every 1000 key
+        int keyNum = 1000;
+        for (int i = 0; i < keyNum; i++) {
+            stateRequestContainer.offer(
+                    buildStateRequest(
+                            state, StateRequestType.AGGREGATING_ADD, "" + i, i, "record" + i));
+        }
+
+        forStStateExecutor.executeBatchRequests(stateRequestContainer).get();
+
+        // 2. get all value and verify
+        List<StateRequest<String, ?, Integer, Integer>> requests = new ArrayList<>();
+        stateRequestContainer = forStStateExecutor.createStateRequestContainer();
+        for (int i = 0; i < keyNum; i++) {
+            StateRequest<String, ?, Integer, Integer> r =
+                    (StateRequest<String, ?, Integer, Integer>)
+                            buildStateRequest(
+                                    state,
+                                    StateRequestType.AGGREGATING_GET,
+                                    "" + i,
+                                    null,
+                                    "record" + i);
+            requests.add(r);
+            stateRequestContainer.offer(r);
+        }
+
+        forStStateExecutor.executeBatchRequests(stateRequestContainer).get();
+
+        for (StateRequest<String, ?, Integer, Integer> request : requests) {
+            assertThat(request.getRequestType()).isEqualTo(StateRequestType.AGGREGATING_GET);
+            String key = request.getRecordContext().getKey();
+            assertThat(request.getRecordContext().getRecord()).isEqualTo("record" + key);
+            assertThat(((TestStateFuture<Integer>) request.getFuture()).getCompletedResult())
+                    .isEqualTo(Integer.parseInt(key));
+        }
+
+        // 3. add more value for the aggregate state
+        stateRequestContainer = forStStateExecutor.createStateRequestContainer();
+        int addCnt = 10;
+        for (int i = 0; i < keyNum; i++) {
+            for (int j = 0; j < addCnt; j++) {
+                StateRequest<String, ?, Integer, Integer> r =
+                        (StateRequest<String, ?, Integer, Integer>)
+                                buildStateRequest(
+                                        state, StateRequestType.AGGREGATING_ADD, "" + i, 1, i * 2);
+                requests.add(r);
+                stateRequestContainer.offer(r);
+            }
+        }
+
+        // clear first 100 state
+        for (int i = 0; i < 100; i++) {
+            StateRequest<String, ?, Integer, Integer> r =
+                    (StateRequest<String, ?, Integer, Integer>)
+                            buildStateRequest(
+                                    state, StateRequestType.CLEAR, "" + i, null, "record" + i);
+            requests.add(r);
+            stateRequestContainer.offer(r);
+        }
+
+        forStStateExecutor.executeBatchRequests(stateRequestContainer).get();
+
+        // 4. read and verify the updated aggregate state
+        requests = new ArrayList<>();
+        stateRequestContainer = forStStateExecutor.createStateRequestContainer();
+        for (int i = 0; i < keyNum; i++) {
+            StateRequest<String, ?, Integer, Integer> r =
+                    (StateRequest<String, ?, Integer, Integer>)
+                            buildStateRequest(
+                                    state,
+                                    StateRequestType.AGGREGATING_GET,
+                                    "" + i,
+                                    null,
+                                    "record" + i);
+            requests.add(r);
+            stateRequestContainer.offer(r);
+        }
+
+        forStStateExecutor.executeBatchRequests(stateRequestContainer).get();
+
+        for (int i = 0; i < 100; i++) {
+            StateRequest<String, ?, Integer, Integer> request = requests.get(i);
+            assertThat(request.getRequestType()).isEqualTo(StateRequestType.AGGREGATING_GET);
+            assertThat(((TestStateFuture<Integer>) request.getFuture()).getCompletedResult())
+                    .isEqualTo(null);
+        }
+        for (int i = 100; i < keyNum; i++) {
+            StateRequest<String, ?, Integer, Integer> request = requests.get(i);
+            assertThat(request.getRequestType()).isEqualTo(StateRequestType.AGGREGATING_GET);
+            String key = request.getRecordContext().getKey();
+            assertThat(request.getRecordContext().getRecord()).isEqualTo("record" + key);
+            assertThat(((TestStateFuture<Integer>) request.getFuture()).getCompletedResult())
+                    .isEqualTo(1);
+        }
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})

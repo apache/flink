@@ -22,11 +22,11 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 
 import java.time.Duration;
 import java.util.Collection;
@@ -38,11 +38,12 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
     /**
      * Submit a job to the dispatcher.
      *
-     * @param jobGraph JobGraph to submit
+     * @param executionPlan ExecutionPlan to submit
      * @param timeout RPC timeout
      * @return A future acknowledge if the submission succeeded
      */
-    CompletableFuture<Acknowledge> submitJob(JobGraph jobGraph, @RpcTimeout Duration timeout);
+    CompletableFuture<Acknowledge> submitJob(
+            ExecutionPlan executionPlan, @RpcTimeout Duration timeout);
 
     CompletableFuture<Acknowledge> submitFailedJob(
             JobID jobId, String jobName, Throwable exception);

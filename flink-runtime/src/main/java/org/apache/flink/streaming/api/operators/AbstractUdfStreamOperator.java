@@ -30,7 +30,7 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -57,6 +57,11 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
     protected final F userFunction;
 
     public AbstractUdfStreamOperator(F userFunction) {
+        this(null, userFunction);
+    }
+
+    protected AbstractUdfStreamOperator(StreamOperatorParameters<OUT> parameters, F userFunction) {
+        super(parameters);
         this.userFunction = requireNonNull(userFunction);
         checkUdfCheckpointingPreconditions();
     }
@@ -75,7 +80,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
     // ------------------------------------------------------------------------
 
     @Override
-    public void setup(
+    protected void setup(
             StreamTask<?, ?> containingTask,
             StreamConfig config,
             Output<StreamRecord<OUT>> output) {

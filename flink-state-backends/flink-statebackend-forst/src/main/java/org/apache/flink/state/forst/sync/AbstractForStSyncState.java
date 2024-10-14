@@ -30,16 +30,16 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.RocksDBException;
-import org.rocksdb.WriteOptions;
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.RocksDBException;
+import org.forstdb.WriteOptions;
 
 import java.io.IOException;
 
 /**
  * Base class for {@link State} implementations that store state in a RocksDB database.
  *
- * <p>State is not stored in this class but in the {@link org.rocksdb.RocksDB} instance that the
+ * <p>State is not stored in this class but in the {@link org.forstdb.RocksDB} instance that the
  * {@link org.apache.flink.state.forst.ForStStateBackend} manages and checkpoints.
  *
  * @param <K> The type of the key.

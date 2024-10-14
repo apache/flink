@@ -29,8 +29,7 @@ import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.util.CheckpointStorageUtils;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.checkpointing.utils.MigrationTestUtils;
@@ -87,11 +86,6 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
                 };
 
         Collection<SnapshotSpec> parameters = new LinkedList<>();
-        parameters.addAll(
-                SnapshotSpec.withVersions(
-                        StateBackendLoader.MEMORY_STATE_BACKEND_NAME,
-                        SnapshotType.SAVEPOINT_CANONICAL,
-                        getFlinkVersions.apply(FlinkVersion.v1_8, FlinkVersion.v1_14)));
         parameters.addAll(
                 SnapshotSpec.withVersions(
                         StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
@@ -169,10 +163,6 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
                     // generation (see FLINK-31766)
                     env.enableChangelogStateBackend(false);
                 }
-                break;
-            case StateBackendLoader.MEMORY_STATE_BACKEND_NAME:
-                StateBackendUtils.configureHashMapStateBackend(env);
-                CheckpointStorageUtils.configureJobManagerCheckpointStorage(env);
                 break;
             case StateBackendLoader.HASHMAP_STATE_BACKEND_NAME:
                 StateBackendUtils.configureHashMapStateBackend(env);

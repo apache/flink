@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.tests;
 
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.tests.verify.TtlStateVerifier;
 
 import java.util.Map;
@@ -31,12 +31,7 @@ import java.util.stream.Collectors;
  * <p>Internal loop generates {@code sleepAfterElements} state updates for each verifier from {@link
  * TtlStateVerifier#VERIFIERS} using {@link TtlStateVerifier#generateRandomUpdate} and waits for
  * {@code sleepTime} to continue generation.
- *
- * @deprecated This class is based on the {@link
- *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
- *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
-@Deprecated
 class TtlStateUpdateSource extends RichParallelSourceFunction<TtlStateUpdate> {
 
     private static final long serialVersionUID = 1L;

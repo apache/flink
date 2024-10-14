@@ -41,11 +41,10 @@ import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
@@ -100,7 +99,7 @@ class UnalignedCheckpointStressITCase {
     private static final int CHECKPOINT_INTERVAL = 20;
     private static final int MINIMUM_COMPLETED_CHECKPOINTS_BETWEEN_FAILURES = 2;
     private static final int MAXIMUM_COMPLETED_CHECKPOINTS_BETWEEN_FAILURES = 10;
-    private static final long TEST_DURATION = Time.seconds(20).toMilliseconds();
+    private static final long TEST_DURATION = Duration.ofSeconds(20).toMillis();
     private static final int NUM_TASK_MANAGERS = 3;
     private static final int NUM_TASK_SLOTS = 2;
     private static final int PARALLELISM = NUM_TASK_MANAGERS * NUM_TASK_SLOTS;
@@ -223,7 +222,7 @@ class UnalignedCheckpointStressITCase {
         DataStreamUtils.reinterpretAsKeyedStream(stream, Record::getSourceId)
                 .window(
                         TumblingProcessingTimeWindows.of(
-                                Time.milliseconds(NORMAL_RECORD_SLEEP * 5)))
+                                Duration.ofMillis(NORMAL_RECORD_SLEEP * 5)))
                 .process(new ReEmitAll())
                 // main throttling
                 .map(new ThrottlingMap(Math.max(1, totalNumberOfSources - 2)))

@@ -63,19 +63,6 @@ public class Constants {
     public static final String LABEL_COMPONENT_JOB_MANAGER = "jobmanager";
     public static final String LABEL_COMPONENT_TASK_MANAGER = "taskmanager";
 
-    /**
-     * This constant is deprecated since we do not use it for deletion currently. We still keep the
-     * constants here for backward compatibility.
-     */
-    @Deprecated public static final String LABEL_CONFIGMAP_TYPE_KEY = "configmap-type";
-
-    /**
-     * This constant is deprecated since we do not use it for deletion currently. We still keep the
-     * constants here for backward compatibility.
-     */
-    @Deprecated
-    public static final String LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY = "high-availability";
-
     // Use fixed port in kubernetes, it needs to be exposed.
     public static final int REST_PORT = 8081;
     public static final int BLOB_SERVER_PORT = 6124;
@@ -107,8 +94,8 @@ public class Constants {
     // Constants for Kubernetes high availability
     public static final String LEADER_ADDRESS_KEY = "address";
     public static final String LEADER_SESSION_ID_KEY = "sessionId";
-    public static final String JOB_GRAPH_STORE_KEY_PREFIX = "jobGraph-";
-    public static final String SUBMITTED_JOBGRAPH_FILE_PREFIX = "submittedJobGraph";
+    public static final String EXECUTION_PLAN_STORE_KEY_PREFIX = "executionPlan-";
+    public static final String SUBMITTED_EXECUTION_PLAN_FILE_PREFIX = "submittedExecutionPlan";
     public static final String CHECKPOINT_COUNTER_KEY = "counter";
     public static final String CHECKPOINT_ID_KEY_PREFIX = "checkpointID-";
     public static final String COMPLETED_CHECKPOINT_FILE_SUFFIX = "completedCheckpoint";

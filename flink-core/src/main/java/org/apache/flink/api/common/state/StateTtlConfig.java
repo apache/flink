@@ -84,10 +84,7 @@ public class StateTtlConfig implements Serializable {
     /** This option configures time scale to use for ttl. */
     @PublicEvolving
     public enum TtlTimeCharacteristic {
-        /**
-         * Processing time, see also <code>
-         * org.apache.flink.streaming.api.TimeCharacteristic.ProcessingTime</code>.
-         */
+        /** Processing time. */
         ProcessingTime
     }
 

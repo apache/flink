@@ -28,7 +28,6 @@ import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.legacy.connector.sink.SinkProvider;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.Row;
@@ -104,9 +103,9 @@ public interface DynamicTableSink {
      * <p>The given {@link Context} offers utilities by the planner for creating runtime
      * implementation with minimal dependencies to internal data structures.
      *
-     * <p>{@link SinkV2Provider} is the recommended core interface. {@link SinkProvider}, {@code
-     * SinkFunctionProvider} in {@code flink-table-api-java-bridge} and {@link OutputFormatProvider}
-     * are available for backwards compatibility.
+     * <p>{@link SinkV2Provider} is the recommended core interface. {@code SinkFunctionProvider} in
+     * {@code flink-table-api-java-bridge} and {@link OutputFormatProvider} are available for
+     * backwards compatibility.
      *
      * @see SinkV2Provider
      */
@@ -218,9 +217,9 @@ public interface DynamicTableSink {
      * SinkRuntimeProvider} serves as the base interface. Concrete {@link SinkRuntimeProvider}
      * interfaces might be located in other Flink modules.
      *
-     * <p>{@link SinkV2Provider} is the recommended core interface. {@link SinkProvider}, {@code
-     * SinkFunctionProvider} in {@code flink-table-api-java-bridge} and {@link OutputFormatProvider}
-     * are available for backwards compatibility.
+     * <p>{@link SinkV2Provider} is the recommended core interface.{@code SinkFunctionProvider} in
+     * {@code flink-table-api-java-bridge} and {@link OutputFormatProvider} are available for
+     * backwards compatibility.
      *
      * @see SinkV2Provider
      */

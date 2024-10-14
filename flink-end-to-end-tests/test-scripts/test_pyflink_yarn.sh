@@ -59,9 +59,7 @@ zip -q -r /tmp/venv.zip .conda
 
 docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
     export PYFLINK_CLIENT_EXECUTABLE=/tmp/.conda/bin/python && \
-    /home/hadoop-user/$FLINK_DIRNAME/bin/flink run -t yarn-application \
-    -Djobmanager.memory.process.size=1500m \
-    -Dtaskmanager.memory.process.size=1000m \
+    /home/hadoop-user/$FLINK_DIRNAME/bin/flink run -m yarn-cluster -ytm 1500 -yjm 1000 \
     -pyfs /tmp/add_one.py \
     -pyreq /tmp/requirements.txt \
     -pyarch /tmp/venv.zip \
@@ -70,9 +68,7 @@ docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
 
 docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
     export PYFLINK_CLIENT_EXECUTABLE=/tmp/.conda/bin/python && \
-    /home/hadoop-user/$FLINK_DIRNAME/bin/flink run -t yarn-application \
-    -Djobmanager.memory.process.size=1500m \
-    -Dtaskmanager.memory.process.size=1000m \
+    /home/hadoop-user/$FLINK_DIRNAME/bin/flink run -m yarn-cluster -ytm 1500 -yjm 1000 \
     -pyfs /tmp/add_one.py \
     -pyreq /tmp/requirements.txt \
     -pyarch /tmp/venv.zip \

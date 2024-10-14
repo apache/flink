@@ -58,6 +58,11 @@ public class CommittableWithLineage<CommT> implements CommittableMessage<CommT> 
         return new CommittableWithLineage<>(mapper.apply(committable), checkpointId, subtaskId);
     }
 
+    /** Creates a shallow copy with the given subtaskId. */
+    public CommittableWithLineage<CommT> withSubtaskId(int subtaskId) {
+        return new CommittableWithLineage<>(committable, checkpointId, subtaskId);
+    }
+
     @Override
     public String toString() {
         return "CommittableWithLineage{"

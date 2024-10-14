@@ -26,7 +26,6 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TernaryBoolean;
@@ -48,7 +47,7 @@ public class RocksDBKeyedStateBackendTestFactory implements AutoCloseable {
     public <K> RocksDBKeyedStateBackend<K> create(
             TemporaryFolder tmp, TypeSerializer<K> keySerializer, int maxKeyGroupNumber)
             throws Exception {
-        RocksDBStateBackend backend = getRocksDBStateBackend(tmp);
+        EmbeddedRocksDBStateBackend backend = getRocksDBStateBackend(tmp);
         env = MockEnvironment.builder().build();
         JobID jobID = new JobID();
         KeyGroupRange keyGroupRange = new KeyGroupRange(0, maxKeyGroupNumber - 1);
@@ -82,11 +81,11 @@ public class RocksDBKeyedStateBackendTestFactory implements AutoCloseable {
         IOUtils.closeQuietly(env);
     }
 
-    private RocksDBStateBackend getRocksDBStateBackend(TemporaryFolder tmp) throws IOException {
+    private EmbeddedRocksDBStateBackend getRocksDBStateBackend(TemporaryFolder tmp)
+            throws IOException {
         String dbPath = tmp.newFolder().getAbsolutePath();
         String checkpointPath = tmp.newFolder().toURI().toString();
-        RocksDBStateBackend backend =
-                new RocksDBStateBackend(new FsStateBackend(checkpointPath), TernaryBoolean.TRUE);
+        EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend(TernaryBoolean.TRUE);
         backend.setDbStoragePath(dbPath);
         return backend;
     }

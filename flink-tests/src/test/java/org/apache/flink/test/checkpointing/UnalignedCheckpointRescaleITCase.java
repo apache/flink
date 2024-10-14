@@ -46,7 +46,7 @@ import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.util.Collector;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -685,7 +685,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
             super.close();
         }
 
-        static class State extends VerifyingSinkStateBase {
+        public static class State extends VerifyingSinkStateBase {
             private final BitSet encounteredNumbers = new BitSet();
         }
     }

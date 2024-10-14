@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.functions;
 
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
 import java.util.List;

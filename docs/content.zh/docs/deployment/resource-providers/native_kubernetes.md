@@ -100,7 +100,7 @@ COPY /path/of/my-flink-job.jar $FLINK_HOME/usrlib/my-flink-job.jar
 After creating and publishing the Docker image under `custom-image-name`, you can start an Application cluster with the following command:
 
 ```bash
-$ ./bin/flink run-application \
+$ ./bin/flink run \
     --target kubernetes-application \
     -Dkubernetes.cluster-id=my-first-application-cluster \
     -Dkubernetes.container.image.ref=custom-image-name \
@@ -112,7 +112,7 @@ $ ./bin/flink run-application \
 In case you have a locally available Flink job JAR, artifact upload can be used so Flink will upload the local artifact to DFS during deployment and fetch it on the deployed JobManager pod:
 
 ```bash
-$ ./bin/flink run-application \
+$ ./bin/flink run \
     --target kubernetes-application \
     -Dkubernetes.cluster-id=my-first-application-cluster \
     -Dkubernetes.container.image=custom-image-name \
@@ -125,7 +125,7 @@ The `kubernetes.artifacts.local-upload-enabled` enables this feature, and `kuber
 You can add additional artifacts via the `user.artifacts.artifact-list` config option, which can contain a mix of local and remote artifacts:
 
 ```bash
-$ ./bin/flink run-application \
+$ ./bin/flink run \
     --target kubernetes-application \
     -Dkubernetes.cluster-id=my-first-application-cluster \
     -Dkubernetes.container.image=custom-image-name \
@@ -139,14 +139,14 @@ In case the job JAR or any additional artifact is already available remotely via
 
 ```bash
 # FileSystem
-$ ./bin/flink run-application \
+$ ./bin/flink run \
     --target kubernetes-application \
     -Dkubernetes.cluster-id=my-first-application-cluster \
     -Dkubernetes.container.image=custom-image-name \
     s3://my-bucket/my-flink-job.jar
 
 # HTTP(S)
-$ ./bin/flink run-application \
+$ ./bin/flink run \
     --target kubernetes-application \
     -Dkubernetes.cluster-id=my-first-application-cluster \
     -Dkubernetes.container.image=custom-image-name \

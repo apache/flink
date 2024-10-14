@@ -62,14 +62,11 @@ public class CollectSinkOperatorFactory<IN> extends SimpleUdfStreamOperatorFacto
     @SuppressWarnings("unchecked")
     public <T extends StreamOperator<Object>> T createStreamOperator(
             StreamOperatorParameters<Object> parameters) {
+        CollectSinkOperator<IN> operator = super.createStreamOperator(parameters);
         final OperatorID operatorId = parameters.getStreamConfig().getOperatorID();
         final OperatorEventDispatcher eventDispatcher = parameters.getOperatorEventDispatcher();
 
         operator.setOperatorEventGateway(eventDispatcher.getOperatorEventGateway(operatorId));
-        operator.setup(
-                parameters.getContainingTask(),
-                parameters.getStreamConfig(),
-                parameters.getOutput());
         eventDispatcher.registerEventHandler(operatorId, operator);
 
         return (T) operator;
@@ -78,7 +75,6 @@ public class CollectSinkOperatorFactory<IN> extends SimpleUdfStreamOperatorFacto
     @Override
     public OperatorCoordinator.Provider getCoordinatorProvider(
             String operatorName, OperatorID operatorID) {
-        operator.getOperatorIdFuture().complete(operatorID);
         return new CollectSinkOperatorCoordinator.Provider(operatorID, socketTimeoutMillis);
     }
 

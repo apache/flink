@@ -18,17 +18,16 @@
 
 package org.apache.flink.client.testjar;
 
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.cli.CliFrontendTestUtils;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.util.FlinkException;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.net.MalformedURLException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -73,8 +72,8 @@ public class BlockingJob {
 
     public static void main(String[] args) throws Exception {
         final String blockId = args[0];
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        env.fromCollection(Arrays.asList(1, 2, 3))
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.fromData(1, 2, 3)
                 .map(element -> element + 1)
                 .map(
                         element -> {
@@ -84,7 +83,7 @@ public class BlockingJob {
                                     .await();
                             return element;
                         })
-                .output(new DiscardingOutputFormat<>());
+                .sinkTo(new DiscardingSink<>());
         env.execute();
     }
 }

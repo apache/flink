@@ -22,7 +22,6 @@ import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
@@ -39,12 +38,11 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.checkpointing.utils.FailingSource;
@@ -294,13 +292,13 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                     new KeyedEventTimeGenerator(numKeys, windowSize),
                                     numElementsPerKey))
                     .rebalance()
-                    .keyBy(0)
-                    .window(TumblingEventTimeWindows.of(Time.milliseconds(windowSize)))
+                    .keyBy(x -> x.f0)
+                    .window(TumblingEventTimeWindows.of(Duration.ofMillis(windowSize)))
                     .apply(
                             new RichWindowFunction<
                                     Tuple2<Long, IntType>,
                                     Tuple4<Long, Long, Long, IntType>,
-                                    Tuple,
+                                    Long,
                                     TimeWindow>() {
 
                                 private boolean open = false;
@@ -317,7 +315,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
                                 @Override
                                 public void apply(
-                                        Tuple tuple,
+                                        Long l,
                                         TimeWindow window,
                                         Iterable<Tuple2<Long, IntType>> values,
                                         Collector<Tuple4<Long, Long, Long, IntType>> out) {
@@ -385,13 +383,13 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                     new KeyedEventTimeGenerator(numKeys, windowSize),
                                     numElementsPerKey))
                     .rebalance()
-                    .keyBy(0)
-                    .window(TumblingEventTimeWindows.of(Time.milliseconds(windowSize)))
+                    .keyBy(x -> x.f0)
+                    .window(TumblingEventTimeWindows.of(Duration.ofMillis(windowSize)))
                     .apply(
                             new RichWindowFunction<
                                     Tuple2<Long, IntType>,
                                     Tuple4<Long, Long, Long, IntType>,
-                                    Tuple,
+                                    Long,
                                     TimeWindow>() {
 
                                 private boolean open = false;
@@ -415,7 +413,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
                                 @Override
                                 public void apply(
-                                        Tuple tuple,
+                                        Long l,
                                         TimeWindow window,
                                         Iterable<Tuple2<Long, IntType>> values,
                                         Collector<Tuple4<Long, Long, Long, IntType>> out)
@@ -424,7 +422,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                     // the window count state starts with the key, so that we get
                                     // different count results for each key
                                     if (count.value() == 0) {
-                                        count.update(tuple.<Long>getField(0).intValue());
+                                        count.update(l.intValue());
                                     }
 
                                     // validate that the function has been opened properly
@@ -433,7 +431,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                     count.update(count.value() + 1);
                                     out.collect(
                                             new Tuple4<>(
-                                                    tuple.<Long>getField(0),
+                                                    l,
                                                     window.getStart(),
                                                     window.getEnd(),
                                                     new IntType(count.value())));
@@ -474,15 +472,15 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                     new KeyedEventTimeGenerator(numKeys, windowSlide),
                                     numElementsPerKey))
                     .rebalance()
-                    .keyBy(0)
+                    .keyBy(x -> x.f0)
                     .window(
                             SlidingEventTimeWindows.of(
-                                    Time.milliseconds(windowSize), Time.milliseconds(windowSlide)))
+                                    Duration.ofMillis(windowSize), Duration.ofMillis(windowSlide)))
                     .apply(
                             new RichWindowFunction<
                                     Tuple2<Long, IntType>,
                                     Tuple4<Long, Long, Long, IntType>,
-                                    Tuple,
+                                    Long,
                                     TimeWindow>() {
 
                                 private boolean open = false;
@@ -499,7 +497,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
                                 @Override
                                 public void apply(
-                                        Tuple tuple,
+                                        Long l,
                                         TimeWindow window,
                                         Iterable<Tuple2<Long, IntType>> values,
                                         Collector<Tuple4<Long, Long, Long, IntType>> out) {
@@ -556,8 +554,8 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                     new KeyedEventTimeGenerator(numKeys, windowSize),
                                     numElementsPerKey))
                     .rebalance()
-                    .keyBy(0)
-                    .window(TumblingEventTimeWindows.of(Time.milliseconds(windowSize)))
+                    .keyBy(x -> x.f0)
+                    .window(TumblingEventTimeWindows.of(Duration.ofMillis(windowSize)))
                     .reduce(
                             new ReduceFunction<Tuple2<Long, IntType>>() {
 
@@ -570,7 +568,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                             new RichWindowFunction<
                                     Tuple2<Long, IntType>,
                                     Tuple4<Long, Long, Long, IntType>,
-                                    Tuple,
+                                    Long,
                                     TimeWindow>() {
 
                                 private boolean open = false;
@@ -587,7 +585,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
                                 @Override
                                 public void apply(
-                                        Tuple tuple,
+                                        Long l,
                                         TimeWindow window,
                                         Iterable<Tuple2<Long, IntType>> input,
                                         Collector<Tuple4<Long, Long, Long, IntType>> out) {
@@ -640,10 +638,10 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                     new KeyedEventTimeGenerator(numKeys, windowSlide),
                                     numElementsPerKey))
                     .rebalance()
-                    .keyBy(0)
+                    .keyBy(x -> x.f0)
                     .window(
                             SlidingEventTimeWindows.of(
-                                    Time.milliseconds(windowSize), Time.milliseconds(windowSlide)))
+                                    Duration.ofMillis(windowSize), Duration.ofMillis(windowSlide)))
                     .reduce(
                             new ReduceFunction<Tuple2<Long, IntType>>() {
 
@@ -658,7 +656,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                             new RichWindowFunction<
                                     Tuple2<Long, IntType>,
                                     Tuple4<Long, Long, Long, IntType>,
-                                    Tuple,
+                                    Long,
                                     TimeWindow>() {
 
                                 private boolean open = false;
@@ -675,7 +673,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
                                 @Override
                                 public void apply(
-                                        Tuple tuple,
+                                        Long l,
                                         TimeWindow window,
                                         Iterable<Tuple2<Long, IntType>> input,
                                         Collector<Tuple4<Long, Long, Long, IntType>> out) {

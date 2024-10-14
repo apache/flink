@@ -41,8 +41,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.operators.util.WatermarkStrategyWithPunctuatedWatermarks;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
@@ -219,7 +219,8 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
                                 // last element for high final watermark
                                 Tuple2.of(new Event(5, "middle", 5.0), 100L))
                         .assignTimestampsAndWatermarks(
-                                new AssignerWithPunctuatedWatermarks<Tuple2<Event, Long>>() {
+                                new WatermarkStrategyWithPunctuatedWatermarks<
+                                        Tuple2<Event, Long>>() {
 
                                     @Override
                                     public long extractTimestamp(
@@ -300,7 +301,8 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
                                 Tuple2.of(new Event(3, "middle", 6.0), 9L),
                                 Tuple2.of(new Event(3, "end", 7.0), 7L))
                         .assignTimestampsAndWatermarks(
-                                new AssignerWithPunctuatedWatermarks<Tuple2<Event, Long>>() {
+                                new WatermarkStrategyWithPunctuatedWatermarks<
+                                        Tuple2<Event, Long>>() {
 
                                     @Override
                                     public long extractTimestamp(
@@ -458,7 +460,8 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
                                 Tuple2.of(new Event(1, "start", 2.0), 4L),
                                 Tuple2.of(new Event(1, "end", 2.0), 6L))
                         .assignTimestampsAndWatermarks(
-                                new AssignerWithPunctuatedWatermarks<Tuple2<Event, Long>>() {
+                                new WatermarkStrategyWithPunctuatedWatermarks<
+                                        Tuple2<Event, Long>>() {
 
                                     @Override
                                     public long extractTimestamp(
@@ -551,7 +554,8 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
                                 Tuple2.of(new Event(1, "start", 2.0), 4L),
                                 Tuple2.of(new Event(1, "end", 2.0), 6L))
                         .assignTimestampsAndWatermarks(
-                                new AssignerWithPunctuatedWatermarks<Tuple2<Event, Long>>() {
+                                new WatermarkStrategyWithPunctuatedWatermarks<
+                                        Tuple2<Event, Long>>() {
 
                                     @Override
                                     public long extractTimestamp(
@@ -714,7 +718,8 @@ public class CEPITCase extends AbstractTestBaseJUnit4 {
                                 // last element for high final watermark
                                 Tuple2.of(new Event(7, "middle", 5.0), 100L))
                         .assignTimestampsAndWatermarks(
-                                new AssignerWithPunctuatedWatermarks<Tuple2<Event, Long>>() {
+                                new WatermarkStrategyWithPunctuatedWatermarks<
+                                        Tuple2<Event, Long>>() {
 
                                     @Override
                                     public long extractTimestamp(

@@ -21,13 +21,12 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduceOperator;
 
@@ -61,15 +60,15 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
     public void testProgram(StreamExecutionEnvironment env) {
 
         // base stream
-        KeyedStream<Tuple2<Integer, Long>, Tuple> stream =
-                env.addSource(new StatefulMultipleSequence()).keyBy(0);
+        KeyedStream<Tuple2<Integer, Long>, Integer> stream =
+                env.addSource(new StatefulMultipleSequence()).keyBy(x -> x.f0);
 
         stream
                 // testing built-in aggregate
                 .min(1)
                 // failure generation
                 .map(new OnceFailingIdentityMapFunction(NUM_INPUT))
-                .keyBy(0)
+                .keyBy(x -> x.f0)
                 .addSink(new MinEvictingQueueSink());
 
         stream
@@ -83,7 +82,7 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
                                 return Tuple2.of(value1.f0, value1.f1 + value2.f1);
                             }
                         })
-                .keyBy(0)
+                .keyBy(x -> x.f0)
                 .addSink(new SumEvictingQueueSink());
     }
 

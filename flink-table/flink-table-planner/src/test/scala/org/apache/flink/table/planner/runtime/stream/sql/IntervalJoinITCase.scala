@@ -17,8 +17,8 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.streaming.runtime.operators.util.WatermarkStrategyWithPunctuatedWatermarks
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils._
@@ -1151,7 +1151,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
 }
 
 private class Row4WatermarkExtractor
-  extends AssignerWithPunctuatedWatermarks[(Int, Long, String, Long)] {
+  extends WatermarkStrategyWithPunctuatedWatermarks[(Int, Long, String, Long)] {
 
   override def checkAndGetNextWatermark(
       lastElement: (Int, Long, String, Long),
@@ -1167,7 +1167,7 @@ private class Row4WatermarkExtractor
 }
 
 private class Row3WatermarkExtractor2
-  extends AssignerWithPunctuatedWatermarks[(String, String, Long)] {
+  extends WatermarkStrategyWithPunctuatedWatermarks[(String, String, Long)] {
 
   override def checkAndGetNextWatermark(
       lastElement: (String, String, Long),

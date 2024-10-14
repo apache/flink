@@ -56,13 +56,6 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java</artifactId>
-			<version>${project.version}</version>
-			<optional>${flink.markBundledAsOptional}</optional>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-runtime</artifactId>
 			<version>${project.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
@@ -71,13 +64,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-runtime-web</artifactId>
-			<version>${project.version}</version>
-			<optional>${flink.markBundledAsOptional}</optional>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-optimizer</artifactId>
 			<version>${project.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
@@ -113,6 +99,13 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-statebackend-rocksdb</artifactId>
+			<version>${project.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-statebackend-forst</artifactId>
 			<version>${project.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
@@ -241,13 +234,6 @@ under the License.
 			The scope of these dependencies needs to be 'provided' so that
 			they are not included into the 'flink-dist' uber jar.
 		-->
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-examples-batch</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>

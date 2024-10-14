@@ -145,13 +145,13 @@ public class MetricsAvailabilityITCase extends TestLogger {
                 headers.getUnresolvedMessageParameters();
         parameters.taskManagerIdParameter.resolve(taskManagerId);
         parameters.metricsFilterParameter.resolve(
-                Collections.singletonList("Status.Network.TotalMemorySegments"));
+                Collections.singletonList("Status.Shuffle.Netty.TotalMemorySegments"));
 
         fetchMetric(
                 () ->
                         restClient.sendRequest(
                                 HOST, PORT, headers, parameters, EmptyRequestBody.getInstance()),
-                getMetricNamePredicate("Status.Network.TotalMemorySegments"),
+                getMetricNamePredicate("Status.Shuffle.Netty.TotalMemorySegments"),
                 deadline);
     }
 

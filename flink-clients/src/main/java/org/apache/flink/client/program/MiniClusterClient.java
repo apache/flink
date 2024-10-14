@@ -28,13 +28,12 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
@@ -74,8 +73,8 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
     }
 
     @Override
-    public CompletableFuture<JobID> submitJob(@Nonnull JobGraph jobGraph) {
-        return miniCluster.submitJob(jobGraph).thenApply(JobSubmissionResult::getJobID);
+    public CompletableFuture<JobID> submitJob(ExecutionPlan executionPlan) {
+        return miniCluster.submitJob(executionPlan).thenApply(JobSubmissionResult::getJobID);
     }
 
     @Override
@@ -196,11 +195,11 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
 
     @Override
     public CompletableFuture<CoordinationResponse> sendCoordinationRequest(
-            JobID jobId, OperatorID operatorId, CoordinationRequest request) {
+            JobID jobId, String operatorUid, CoordinationRequest request) {
         try {
             SerializedValue<CoordinationRequest> serializedRequest = new SerializedValue<>(request);
             return miniCluster.deliverCoordinationRequestToCoordinator(
-                    jobId, operatorId, serializedRequest);
+                    jobId, operatorUid, serializedRequest);
         } catch (IOException e) {
             LOG.error("Error while sending coordination request", e);
             return FutureUtils.completedExceptionally(e);

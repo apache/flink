@@ -31,10 +31,10 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.flink.shaded.guava32.com.google.common.primitives.UnsignedBytes;
 
-import org.rocksdb.ColumnFamilyHandle;
-import org.rocksdb.ReadOptions;
-import org.rocksdb.RocksDB;
-import org.rocksdb.RocksDBException;
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.ReadOptions;
+import org.forstdb.RocksDB;
+import org.forstdb.RocksDBException;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;

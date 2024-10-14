@@ -19,9 +19,7 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.dag.Pipeline;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -63,9 +61,6 @@ public class PackagedProgramUtilsPipelineTest {
     public static Collection<TestParameter> parameters() {
         return Arrays.asList(
                 TestParameter.of(
-                        DataSetTestProgram.class,
-                        pipeline -> ((Plan) pipeline).getExecutionConfig()),
-                TestParameter.of(
                         DataStreamTestProgram.class,
                         pipeline -> ((StreamGraph) pipeline).getExecutionConfig()));
     }
@@ -78,9 +73,9 @@ public class PackagedProgramUtilsPipelineTest {
     void testConfigurationForwarding() throws Exception {
         // we want to test forwarding with this config, ensure that the default is what we expect.
         assertThat(
-                        ExecutionEnvironment.getExecutionEnvironment()
+                        StreamExecutionEnvironment.getExecutionEnvironment()
                                 .getConfig()
-                                .isAutoTypeRegistrationDisabled())
+                                .isObjectReuseEnabled())
                 .isFalse();
 
         PackagedProgram packagedProgram =
@@ -89,7 +84,7 @@ public class PackagedProgramUtilsPipelineTest {
                         .build();
 
         Configuration config = new Configuration();
-        config.set(PipelineOptions.AUTO_TYPE_REGISTRATION, false);
+        config.set(PipelineOptions.OBJECT_REUSE, true);
 
         Pipeline pipeline =
                 PackagedProgramUtils.getPipelineFromProgram(
@@ -98,7 +93,7 @@ public class PackagedProgramUtilsPipelineTest {
         ExecutionConfig executionConfig = testParameter.extractExecutionConfig(pipeline);
 
         // we want to test forwarding with this config, ensure that the default is what we expect.
-        assertThat(executionConfig.isAutoTypeRegistrationDisabled()).isTrue();
+        assertThat(executionConfig.isObjectReuseEnabled()).isTrue();
     }
 
     @TestTemplate
@@ -186,15 +181,6 @@ public class PackagedProgramUtilsPipelineTest {
                     return entryClass.getSimpleName();
                 }
             };
-        }
-    }
-
-    /** Test Program for the DataSet API. */
-    public static class DataSetTestProgram {
-        public static void main(String[] args) throws Exception {
-            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-            env.fromElements("hello").print();
-            env.execute();
         }
     }
 

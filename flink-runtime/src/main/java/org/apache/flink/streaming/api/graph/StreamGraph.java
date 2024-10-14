@@ -45,7 +45,6 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.lineage.LineageGraph;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
@@ -102,8 +101,6 @@ public class StreamGraph implements Pipeline {
     private final ExecutionConfig executionConfig;
     private final CheckpointConfig checkpointConfig;
     private SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.none();
-
-    private TimeCharacteristic timeCharacteristic;
 
     private GlobalStreamExchangeMode globalExchangeMode;
 
@@ -240,14 +237,6 @@ public class StreamGraph implements Pipeline {
         return Optional.ofNullable(jobConfiguration.get(PipelineOptions.CACHED_FILES))
                 .map(DistributedCache::parseCachedFilesFromString)
                 .orElse(new ArrayList<>());
-    }
-
-    public TimeCharacteristic getTimeCharacteristic() {
-        return timeCharacteristic;
-    }
-
-    public void setTimeCharacteristic(TimeCharacteristic timeCharacteristic) {
-        this.timeCharacteristic = timeCharacteristic;
     }
 
     public GlobalStreamExchangeMode getGlobalStreamExchangeMode() {

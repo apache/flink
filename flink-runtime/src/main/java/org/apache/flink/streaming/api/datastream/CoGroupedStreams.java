@@ -23,20 +23,19 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.WrappingFunction;
 import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
@@ -205,7 +204,7 @@ public class CoGroupedStreams<T1, T2> {
                         assigner,
                         null,
                         null,
-                        (Duration) null);
+                        null);
             }
         }
     }
@@ -240,33 +239,6 @@ public class CoGroupedStreams<T1, T2> {
         @Nullable private final Duration allowedLateness;
 
         private WindowedStream<TaggedUnion<T1, T2>, KEY, W> windowedStream;
-
-        /**
-         * @deprecated Use {@link WithWindow#WithWindow(DataStream, DataStream, KeySelector,
-         *     KeySelector, TypeInformation, WindowAssigner, Trigger, Evictor, Duration)}
-         */
-        @Deprecated
-        protected WithWindow(
-                DataStream<T1> input1,
-                DataStream<T2> input2,
-                KeySelector<T1, KEY> keySelector1,
-                KeySelector<T2, KEY> keySelector2,
-                TypeInformation<KEY> keyType,
-                WindowAssigner<? super TaggedUnion<T1, T2>, W> windowAssigner,
-                Trigger<? super TaggedUnion<T1, T2>, ? super W> trigger,
-                Evictor<? super TaggedUnion<T1, T2>, ? super W> evictor,
-                @Nullable Time allowedLateness) {
-            this(
-                    input1,
-                    input2,
-                    keySelector1,
-                    keySelector2,
-                    keyType,
-                    windowAssigner,
-                    trigger,
-                    evictor,
-                    Time.toDuration(allowedLateness));
-        }
 
         protected WithWindow(
                 DataStream<T1> input1,
@@ -328,18 +300,6 @@ public class CoGroupedStreams<T1, T2> {
                     trigger,
                     newEvictor,
                     allowedLateness);
-        }
-
-        /**
-         * Sets the time by which elements are allowed to be late.
-         *
-         * @see WindowedStream#allowedLateness(Time)
-         * @deprecated Use {@link #allowedLateness(Duration)}
-         */
-        @Deprecated
-        @PublicEvolving
-        public WithWindow<T1, T2, KEY, W> allowedLateness(@Nullable Time newLateness) {
-            return allowedLateness(Time.toDuration(newLateness));
         }
 
         /**
@@ -418,14 +378,6 @@ public class CoGroupedStreams<T1, T2> {
 
             return windowedStream.apply(
                     new CoGroupWindowFunction<T1, T2, T, KEY, W>(function), resultType);
-        }
-
-        /** @deprecated Use {@link #getAllowedLatenessDuration()} */
-        @Deprecated
-        @VisibleForTesting
-        @Nullable
-        Time getAllowedLateness() {
-            return getAllowedLatenessDuration().map(Time::of).orElse(null);
         }
 
         @VisibleForTesting

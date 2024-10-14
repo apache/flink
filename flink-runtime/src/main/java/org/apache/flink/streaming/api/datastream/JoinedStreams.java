@@ -23,14 +23,13 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.WrappingFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.datastream.CoGroupedStreams.TaggedUnion;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
@@ -192,7 +191,7 @@ public class JoinedStreams<T1, T2> {
                         assigner,
                         null,
                         null,
-                        (Duration) null);
+                        null);
             }
         }
     }
@@ -227,34 +226,6 @@ public class JoinedStreams<T1, T2> {
         @Nullable private final Duration allowedLateness;
 
         private CoGroupedStreams.WithWindow<T1, T2, KEY, W> coGroupedWindowedStream;
-
-        /**
-         * @deprecated Use {@link WithWindow#WithWindow(DataStream, DataStream, KeySelector,
-         *     KeySelector, TypeInformation, WindowAssigner, Trigger, Evictor, Duration)}.
-         */
-        @Deprecated
-        @PublicEvolving
-        protected WithWindow(
-                DataStream<T1> input1,
-                DataStream<T2> input2,
-                KeySelector<T1, KEY> keySelector1,
-                KeySelector<T2, KEY> keySelector2,
-                TypeInformation<KEY> keyType,
-                WindowAssigner<? super TaggedUnion<T1, T2>, W> windowAssigner,
-                Trigger<? super TaggedUnion<T1, T2>, ? super W> trigger,
-                Evictor<? super TaggedUnion<T1, T2>, ? super W> evictor,
-                @Nullable Time allowedLateness) {
-            this(
-                    input1,
-                    input2,
-                    keySelector1,
-                    keySelector2,
-                    keyType,
-                    windowAssigner,
-                    trigger,
-                    evictor,
-                    Time.toDuration(allowedLateness));
-        }
 
         @PublicEvolving
         protected WithWindow(
@@ -319,18 +290,6 @@ public class JoinedStreams<T1, T2> {
                     trigger,
                     newEvictor,
                     allowedLateness);
-        }
-
-        /**
-         * Sets the time by which elements are allowed to be late.
-         *
-         * @see WindowedStream#allowedLateness(Duration)
-         * @deprecated Use {@link #allowedLateness(Duration)}.
-         */
-        @Deprecated
-        @PublicEvolving
-        public WithWindow<T1, T2, KEY, W> allowedLateness(@Nullable Time newLateness) {
-            return allowedLateness(Time.toDuration(newLateness));
         }
 
         /**
@@ -435,13 +394,6 @@ public class JoinedStreams<T1, T2> {
                             .allowedLateness(allowedLateness);
 
             return coGroupedWindowedStream.apply(new JoinCoGroupFunction<>(function), resultType);
-        }
-
-        /** @deprecated Use {@link #getAllowedLatenessDuration()}} */
-        @VisibleForTesting
-        @Nullable
-        Time getAllowedLateness() {
-            return getAllowedLatenessDuration().map(Time::of).orElse(null);
         }
 
         @VisibleForTesting

@@ -32,8 +32,8 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
@@ -193,25 +193,6 @@ public class ReactiveModeITCase extends TestLogger {
                 miniClusterResource.getRestClusterClient(),
                 jobClient.getJobID(),
                 NUMBER_SLOTS_PER_TASK_MANAGER * NUMBER_SLOTS_PER_TASK_MANAGER);
-    }
-
-    /** Test for FLINK-28274. */
-    @Test
-    public void testContinuousFileMonitoringFunctionWithReactiveMode() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        final DataStream<String> input = env.readTextFile(tempFolder.getRoot().getPath());
-        input.sinkTo(new DiscardingSink<>());
-
-        final JobClient jobClient = env.executeAsync();
-
-        waitUntilParallelismForVertexReached(
-                miniClusterResource.getRestClusterClient(), jobClient.getJobID(), 1);
-
-        // scale up to 2 TaskManagers:
-        miniClusterResource.getMiniCluster().startTaskManager();
-
-        waitUntilParallelismForVertexReached(
-                miniClusterResource.getRestClusterClient(), jobClient.getJobID(), 1);
     }
 
     private int getNumberOfConnectedTaskManagers() throws ExecutionException, InterruptedException {

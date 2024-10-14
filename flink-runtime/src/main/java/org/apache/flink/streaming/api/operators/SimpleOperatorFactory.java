@@ -22,8 +22,8 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
-import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
-import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.OutputFormatSinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.InputFormatSourceFunction;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -63,9 +63,6 @@ public class SimpleOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
 
     protected SimpleOperatorFactory(StreamOperator<OUT> operator) {
         this.operator = checkNotNull(operator);
-        if (operator instanceof SetupableStreamOperator) {
-            this.chainingStrategy = ((SetupableStreamOperator) operator).getChainingStrategy();
-        }
     }
 
     public StreamOperator<OUT> getOperator() {
@@ -77,24 +74,15 @@ public class SimpleOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
     public <T extends StreamOperator<OUT>> T createStreamOperator(
             StreamOperatorParameters<OUT> parameters) {
         if (operator instanceof AbstractStreamOperator) {
-            ((AbstractStreamOperator) operator).setProcessingTimeService(processingTimeService);
-        }
-        if (operator instanceof SetupableStreamOperator) {
-            ((SetupableStreamOperator) operator)
+            ((AbstractStreamOperator) operator)
+                    .setProcessingTimeService(parameters.getProcessingTimeService());
+            ((AbstractStreamOperator) operator)
                     .setup(
                             parameters.getContainingTask(),
                             parameters.getStreamConfig(),
                             parameters.getOutput());
         }
         return (T) operator;
-    }
-
-    @Override
-    public void setChainingStrategy(ChainingStrategy strategy) {
-        this.chainingStrategy = strategy;
-        if (operator instanceof SetupableStreamOperator) {
-            ((SetupableStreamOperator) operator).setChainingStrategy(strategy);
-        }
     }
 
     @Override

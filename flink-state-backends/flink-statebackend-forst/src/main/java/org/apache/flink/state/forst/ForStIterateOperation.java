@@ -18,7 +18,7 @@
 
 package org.apache.flink.state.forst;
 
-import org.rocksdb.RocksDB;
+import org.forstdb.RocksDB;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;

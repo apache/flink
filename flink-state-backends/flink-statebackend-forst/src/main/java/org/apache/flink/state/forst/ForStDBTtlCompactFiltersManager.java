@@ -35,11 +35,11 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
-import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
-import org.rocksdb.FlinkCompactionFilter;
-import org.rocksdb.FlinkCompactionFilter.FlinkCompactionFilterFactory;
-import org.rocksdb.InfoLogLevel;
+import org.forstdb.ColumnFamilyOptions;
+import org.forstdb.DBOptions;
+import org.forstdb.FlinkCompactionFilter;
+import org.forstdb.FlinkCompactionFilter.FlinkCompactionFilterFactory;
+import org.forstdb.InfoLogLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -111,12 +111,12 @@ public class ForStDBTtlCompactFiltersManager {
         columnFamilyOptionsMap.put(stateName, options);
     }
 
-    private static org.rocksdb.Logger createRocksDbNativeLogger() {
+    private static org.forstdb.Logger createRocksDbNativeLogger() {
         if (LOG.isDebugEnabled()) {
-            // options are always needed for org.rocksdb.Logger construction (no other constructor)
+            // options are always needed for org.forstdb.Logger construction (no other constructor)
             // the logger level gets configured from the options in native code
             try (DBOptions opts = new DBOptions().setInfoLogLevel(InfoLogLevel.DEBUG_LEVEL)) {
-                return new org.rocksdb.Logger(opts) {
+                return new org.forstdb.Logger(opts) {
                     @Override
                     protected void log(InfoLogLevel infoLogLevel, String logMsg) {
                         LOG.debug("RocksDB filter native code log: " + logMsg);

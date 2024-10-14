@@ -74,9 +74,8 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.util.SerializedValue;
@@ -139,7 +138,6 @@ class InterruptSensitiveRestoreTest {
         IN_RESTORE_LATCH.reset();
         Configuration taskConfig = new Configuration();
         StreamConfig cfg = new StreamConfig(taskConfig);
-        cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
         switch (mode) {
             case OPERATOR_MANAGED:
             case OPERATOR_RAW:

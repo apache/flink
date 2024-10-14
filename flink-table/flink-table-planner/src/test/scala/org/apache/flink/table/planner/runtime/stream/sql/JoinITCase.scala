@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
@@ -1378,10 +1377,6 @@ class JoinITCase(miniBatch: MiniBatchMode, state: StateBackendMode, enableAsyncS
 
   @TestTemplate
   def testJoinWithoutWatermark(): Unit = {
-    // NOTE: Different from AggregateITCase, we do not set stream time characteristic
-    // of environment to event time, so that emitWatermark() actually does nothing.
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
-
     val data1 = new mutable.MutableList[(Int, Long)]
     data1.+=((1, 1L))
     data1.+=((2, 2L))

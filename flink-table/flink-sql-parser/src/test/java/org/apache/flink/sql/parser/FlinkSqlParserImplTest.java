@@ -52,6 +52,20 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     void testShowCatalogs() {
         sql("show catalogs").ok("SHOW CATALOGS");
+
+        sql("show catalogs like '%'").ok("SHOW CATALOGS LIKE '%'");
+        sql("show catalogs not like '%'").ok("SHOW CATALOGS NOT LIKE '%'");
+
+        sql("show catalogs ilike '%'").ok("SHOW CATALOGS ILIKE '%'");
+        sql("show catalogs not ilike '%'").ok("SHOW CATALOGS NOT ILIKE '%'");
+
+        sql("show catalogs ^likes^").fails("(?s).*Encountered \"likes\" at line 1, column 15.\n.*");
+        sql("show catalogs not ^likes^")
+                .fails("(?s).*Encountered \"likes\" at line 1, column 19" + ".\n" + ".*");
+        sql("show catalogs ^ilikes^")
+                .fails("(?s).*Encountered \"ilikes\" at line 1, column 15.\n.*");
+        sql("show catalogs not ^ilikes^")
+                .fails("(?s).*Encountered \"ilikes\" at line 1, column 19" + ".\n" + ".*");
     }
 
     @Test
@@ -2949,6 +2963,43 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     void testCreateTableAsSelectWithPartitionKey() {
         sql("CREATE TABLE t PARTITIONED BY(col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
                 .node(new ValidationMatcher().ok());
+    }
+
+    @Test
+    void testCreateTableAsSelectWithColumnIdentifiers() {
+        // test with only column identifiers
+        sql("CREATE TABLE t (col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().ok());
+
+        // test mix of column identifiers and column with types is not allowed
+        sql("CREATE TABLE t (col1, col2 ^int^) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .fails("(?s).*Encountered \"int\" at line 1, column 28.*");
+    }
+
+    @Test
+    void testUnsupportedCreateTableStatementsWithColumnIdentifiers() {
+        String expectedErrorMsg =
+                "Columns identifiers without types in the schema are "
+                        + "supported on CTAS/RTAS statements only.";
+
+        sql("CREATE TABLE t ^(a, h^) WITH " + "('connector' = 'kafka', 'kafka.topic' = 'log.test')")
+                .fails(expectedErrorMsg);
+
+        sql("CREATE TABLE t ^(a, h^) WITH "
+                        + "('connector' = 'kafka', 'kafka.topic' = 'log.test') "
+                        + "LIKE parent_table")
+                .fails(expectedErrorMsg);
+    }
+
+    @Test
+    void testReplaceTableAsSelectWithColumnIdentifiers() {
+        // test with only column identifiers
+        sql("REPLACE TABLE t (col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().ok());
+
+        // test mix of column identifiers and column with types is not allowed
+        sql("REPLACE TABLE t (col1, col2 ^int^) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .fails("(?s).*Encountered \"int\" at line 1, column 29.*");
     }
 
     @Test

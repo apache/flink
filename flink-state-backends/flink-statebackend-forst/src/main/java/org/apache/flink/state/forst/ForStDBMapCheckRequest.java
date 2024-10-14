@@ -20,9 +20,9 @@ package org.apache.flink.state.forst;
 
 import org.apache.flink.core.state.InternalStateFuture;
 
-import org.rocksdb.RocksDB;
-import org.rocksdb.RocksDBException;
-import org.rocksdb.RocksIterator;
+import org.forstdb.RocksDB;
+import org.forstdb.RocksDBException;
+import org.forstdb.RocksIterator;
 
 import java.io.IOException;
 

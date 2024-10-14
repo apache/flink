@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
@@ -51,12 +50,6 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
     public Collection<GlobalWindow> assignWindows(
             Object element, long timestamp, WindowAssignerContext context) {
         return Collections.singletonList(GlobalWindow.get());
-    }
-
-    @Override
-    public Trigger<Object, GlobalWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
-        throw new UnsupportedOperationException(
-                "This method is deprecated and shouldn't be invoked. Please use getDefaultTrigger() instead.");
     }
 
     @Override

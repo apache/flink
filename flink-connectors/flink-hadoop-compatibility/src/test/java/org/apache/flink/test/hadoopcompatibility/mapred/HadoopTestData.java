@@ -18,9 +18,9 @@
 
 package org.apache.flink.test.hadoopcompatibility.mapred;
 
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
@@ -32,7 +32,8 @@ import java.util.List;
 /** Test data. */
 public class HadoopTestData {
 
-    public static DataSet<Tuple2<IntWritable, Text>> getKVPairDataSet(ExecutionEnvironment env) {
+    public static DataStream<Tuple2<IntWritable, Text>> getKVPairDataStream(
+            StreamExecutionEnvironment env) {
 
         List<Tuple2<IntWritable, Text>> data = new ArrayList<Tuple2<IntWritable, Text>>();
         data.add(new Tuple2<IntWritable, Text>(new IntWritable(1), new Text("Hi")));
@@ -61,6 +62,6 @@ public class HadoopTestData {
 
         Collections.shuffle(data);
 
-        return env.fromCollection(data);
+        return env.fromData(data);
     }
 }

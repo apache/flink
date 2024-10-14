@@ -92,7 +92,6 @@ public class SubtasksAllAccumulatorsHandler
                         new SubtasksAllAccumulatorsInfo.SubtaskAccumulatorsInfo(
                                 execution.getParallelSubtaskIndex(),
                                 execution.getAttemptNumber(),
-                                host,
                                 endpoint,
                                 userAccumulators));
             }

@@ -20,7 +20,7 @@ package org.apache.flink.table.utils.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.InputFormat;
-import org.apache.flink.api.java.io.CollectionInputFormat;
+import org.apache.flink.streaming.api.legacy.io.CollectionInputFormat;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;

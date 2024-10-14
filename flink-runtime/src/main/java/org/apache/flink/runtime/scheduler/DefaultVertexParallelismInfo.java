@@ -34,6 +34,12 @@ public class DefaultVertexParallelismInfo implements VertexParallelismInformatio
     private final Function<Integer, Optional<String>> rescaleMaxValidator;
 
     /**
+     * The constant to use for the parallelism, if the system should use the number of currently
+     * available slots.
+     */
+    public static final int PARALLELISM_AUTO_MAX = Integer.MAX_VALUE;
+
+    /**
      * Create {@link VertexParallelismInformation} with max parallelism rescaling validation for a
      * vertex.
      *
@@ -61,7 +67,7 @@ public class DefaultVertexParallelismInfo implements VertexParallelismInformatio
     }
 
     private static int normalizeAndCheckMaxParallelism(int maxParallelism) {
-        if (maxParallelism == ExecutionConfig.PARALLELISM_AUTO_MAX) {
+        if (maxParallelism == PARALLELISM_AUTO_MAX) {
             maxParallelism = KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM;
         }
 

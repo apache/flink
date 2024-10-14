@@ -18,14 +18,14 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.function.Supplier;
 
 /**
- * Adapter between {@link Sink.InitContext} and {@link SerializationSchema.InitializationContext}.
+ * Adapter between {@link WriterInitContext} and {@link SerializationSchema.InitializationContext}.
  */
 class InitContextInitializationContextAdapter implements SerializationSchema.InitializationContext {
 

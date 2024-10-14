@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.functions.source;
 
+import org.apache.flink.streaming.api.functions.source.legacy.SocketTextStreamFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.util.NetUtils;
 
@@ -31,9 +33,7 @@ import java.net.Socket;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Tests for the {@link org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction}.
- */
+/** Tests for the {@link SocketTextStreamFunction}. */
 class SocketTextStreamFunctionTest {
 
     private static final String LOCALHOST = "127.0.0.1";
