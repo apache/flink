@@ -20,6 +20,7 @@ package org.apache.flink.state.forst.fs;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.memory.MemoryUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -33,6 +34,16 @@ import java.nio.ByteBuffer;
  */
 @Experimental
 public class ByteBufferWritableFSDataOutputStream extends FSDataOutputStream {
+
+    /** The unsafe handle for transparent memory copied (heap / off-heap). */
+    @SuppressWarnings("restriction")
+    private static final sun.misc.Unsafe UNSAFE = MemoryUtils.UNSAFE;
+
+    /** The beginning of the byte array contents, relative to the byte array object. */
+    @SuppressWarnings("restriction")
+    private static final long BYTE_ARRAY_BASE_OFFSET = UNSAFE.arrayBaseOffset(byte[].class);
+
+    private static final int SEGMENT_BUFFER_SIZE = 16 * 1024;
 
     private final FSDataOutputStream originalOutputStream;
 
@@ -58,6 +69,22 @@ public class ByteBufferWritableFSDataOutputStream extends FSDataOutputStream {
         }
         if (bb.hasArray()) {
             write(bb.array(), bb.arrayOffset() + bb.position(), bb.remaining());
+        } else if (bb.isDirect()) {
+            int len = bb.remaining();
+            int segment = Math.min(len, SEGMENT_BUFFER_SIZE);
+            byte[] bytes = new byte[segment];
+            for (int i = 0; i < len; ) {
+                int copy = Math.min(segment, bb.remaining());
+                UNSAFE.copyMemory(
+                        null,
+                        MemoryUtils.getByteBufferAddress(bb) + bb.position(),
+                        bytes,
+                        BYTE_ARRAY_BASE_OFFSET,
+                        copy);
+                originalOutputStream.write(bytes, 0, copy);
+                bb.position(bb.position() + copy);
+                i += copy;
+            }
         } else {
             int len = bb.remaining();
             for (int i = 0; i < len; i++) {
