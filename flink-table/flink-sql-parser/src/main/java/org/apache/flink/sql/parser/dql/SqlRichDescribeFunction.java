@@ -31,22 +31,22 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * DESCRIBE MODEL [EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier sql call. Here we add Rich
- * in className to follow the convention of {@link org.apache.calcite.sql.SqlDescribeTable}, which
- * only had it to distinguish from calcite's original SqlDescribeTable, even though calcite does not
- * have SqlDescribeModel.
+ * DESCRIBE FUNCTION [EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier sql call. Here we add
+ * Rich in className to follow the convention of {@link org.apache.calcite.sql.SqlDescribeTable},
+ * which only had it to distinguish from calcite's original SqlDescribeTable, even though calcite
+ * does not have SqlDescribeFunction.
  */
-public class SqlRichDescribeModel extends SqlCall {
+public class SqlRichDescribeFunction extends SqlCall {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("DESCRIBE MODEL", SqlKind.OTHER);
-    protected final SqlIdentifier modelNameIdentifier;
+            new SqlSpecialOperator("DESCRIBE FUNCTION", SqlKind.OTHER);
+    protected final SqlIdentifier functionNameIdentifier;
     private final boolean isExtended;
 
-    public SqlRichDescribeModel(
-            SqlParserPos pos, SqlIdentifier modelNameIdentifier, boolean isExtended) {
+    public SqlRichDescribeFunction(
+            SqlParserPos pos, SqlIdentifier functionNameIdentifier, boolean isExtended) {
         super(pos);
-        this.modelNameIdentifier = modelNameIdentifier;
+        this.functionNameIdentifier = functionNameIdentifier;
         this.isExtended = isExtended;
     }
 
@@ -57,23 +57,23 @@ public class SqlRichDescribeModel extends SqlCall {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return Collections.singletonList(modelNameIdentifier);
+        return Collections.singletonList(functionNameIdentifier);
     }
 
     public boolean isExtended() {
         return isExtended;
     }
 
-    public String[] fullModelName() {
-        return modelNameIdentifier.names.toArray(new String[0]);
+    public String[] fullFunctionName() {
+        return functionNameIdentifier.names.toArray(new String[0]);
     }
 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("DESCRIBE MODEL");
+        writer.keyword("DESCRIBE FUNCTION");
         if (isExtended) {
             writer.keyword("EXTENDED");
         }
-        modelNameIdentifier.unparse(writer, leftPrec, rightPrec);
+        functionNameIdentifier.unparse(writer, leftPrec, rightPrec);
     }
 }

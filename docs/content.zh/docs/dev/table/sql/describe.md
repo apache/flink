@@ -90,6 +90,12 @@ tableEnv.executeSql("DESCRIBE CATALOG cat2").print();
 
 // 打印完整的元数据
 tableEnv.executeSql("DESC CATALOG EXTENDED cat2").print();
+
+tableEnv.executeSql("CREATE FUNCTION MySum as 'org.example.SumScalarFunction' USING JAR 'file://home/users/mysum-udf.jar';").print();
+
+tableEnv.executeSql("DESCRIBE FUNCTION MySum").print();
+
+tableEnv.executeSql("DESC FUNCTION EXTENDED MySum").print();
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -122,6 +128,14 @@ tableEnv.executeSql("DESCRIBE CATALOG cat2").print()
 
 // 打印完整的元数据
 tableEnv.executeSql("DESC CATALOG EXTENDED cat2").print()
+
+tableEnv.executeSql("CREATE FUNCTION MySum as 'org.example.SumScalarFunction' USING JAR 'file://home/users/mysum-udf.jar';").print()
+
+// print the metadata
+tableEnv.executeSql("DESCRIBE FUNCTION MySum").print()
+
+// print the complete metadata
+tableEnv.executeSql("DESC FUNCTION EXTENDED MySum").print()
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -154,6 +168,12 @@ table_env.execute_sql("DESCRIBE CATALOG cat2").print()
 
 # 打印完整的元数据
 table_env.execute_sql("DESC CATALOG EXTENDED cat2").print()
+
+table_env.execute_sql("CREATE FUNCTION MySum as 'org.example.SumScalarFunction' USING JAR 'file://home/users/mysum-udf.jar';").print()
+
+table_env.execute_sql("DESCRIBE FUNCTION MySum").print()
+
+table_env.execute_sql("DESC FUNCTION EXTENDED MySum").print()
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
@@ -181,6 +201,12 @@ Flink SQL> CREATE CATALOG cat2 WITH ('type'='generic_in_memory', 'default-databa
 Flink SQL> DESCRIBE CATALOG cat2;
 
 Flink SQL> DESC CATALOG EXTENDED cat2;
+
+Flink SQL> CREATE FUNCTION MySum as 'org.example.SumScalarFunction' USING JAR 'file://home/users/mysum-udf.jar';
+
+Flink SQL> DESCRIBE FUNCTION MySum;
+
+Flink SQL> DESC FUNCTION EXTENDED MySum;
       
 Flink SQL> DESCRIBE JOB '228d70913eab60dda85c5e7f78b5782c';
       
@@ -261,6 +287,34 @@ Flink SQL> DESC JOB '228d70913eab60dda85c5e7f78b5782c';
 | option:default-database |                db |
 +-------------------------+-------------------+
 4 rows in set
+
+# DESCRIBE FUNCTION MySum
++-------------------+---------------------------------------------------------------------+
+|         info name |                                                          info value |
++-------------------+---------------------------------------------------------------------+
+|   system function |                                                               false |
+|         temporary |                                                               false |
+|        class name |                                       org.example.SumScalarFunction |
+| function language |                                                                JAVA |
+|     resource uris | ResourceUri{resourceType=JAR, uri='file:/home/users/mysum-udf.jar'} |
++-------------------+---------------------------------------------------------------------+
+5 rows in set
+# DESCRIBE FUNCTION EXTENDED MySum
++-------------------+---------------------------------------------------------------------+
+|         info name |                                                          info value |
++-------------------+---------------------------------------------------------------------+
+|   system function |                                                               false |
+|         temporary |                                                               false |
+|        class name |                                       org.example.SumScalarFunction |
+| function language |                                                                JAVA |
+|     resource uris | ResourceUri{resourceType=JAR, uri='file:/home/users/mysum-udf.jar'} |
+|              kind |                                                              SCALAR |
+|      requirements |                                                                  [] |
+|     deterministic |                                                                true |
+|  constant folding |                                                                true |
+|         signature |                       MySum(<INTEGER NOT NULL>, <INTEGER NOT NULL>) |
++-------------------+---------------------------------------------------------------------+
+10 rows in set
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -297,6 +351,34 @@ Flink SQL> DESC JOB '228d70913eab60dda85c5e7f78b5782c';
 | option:default-database |                db |
 +-------------------------+-------------------+
 4 rows in set
+
+# DESCRIBE FUNCTION MySum
++-------------------+---------------------------------------------------------------------+
+|         info name |                                                          info value |
++-------------------+---------------------------------------------------------------------+
+|   system function |                                                               false |
+|         temporary |                                                               false |
+|        class name |                                       org.example.SumScalarFunction |
+| function language |                                                                JAVA |
+|     resource uris | ResourceUri{resourceType=JAR, uri='file:/home/users/mysum-udf.jar'} |
++-------------------+---------------------------------------------------------------------+
+5 rows in set
+# DESCRIBE FUNCTION EXTENDED MySum
++-------------------+---------------------------------------------------------------------+
+|         info name |                                                          info value |
++-------------------+---------------------------------------------------------------------+
+|   system function |                                                               false |
+|         temporary |                                                               false |
+|        class name |                                       org.example.SumScalarFunction |
+| function language |                                                                JAVA |
+|     resource uris | ResourceUri{resourceType=JAR, uri='file:/home/users/mysum-udf.jar'} |
+|              kind |                                                              SCALAR |
+|      requirements |                                                                  [] |
+|     deterministic |                                                                true |
+|  constant folding |                                                                true |
+|         signature |                       MySum(<INTEGER NOT NULL>, <INTEGER NOT NULL>) |
++-------------------+---------------------------------------------------------------------+
+10 rows in set
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
@@ -334,6 +416,34 @@ Flink SQL> DESC JOB '228d70913eab60dda85c5e7f78b5782c';
 +-------------------------+-------------------+
 4 rows in set
 
+# DESCRIBE FUNCTION MySum
++-------------------+---------------------------------------------------------------------+
+|         info name |                                                          info value |
++-------------------+---------------------------------------------------------------------+
+|   system function |                                                               false |
+|         temporary |                                                               false |
+|        class name |                                       org.example.SumScalarFunction |
+| function language |                                                                JAVA |
+|     resource uris | ResourceUri{resourceType=JAR, uri='file:/home/users/mysum-udf.jar'} |
++-------------------+---------------------------------------------------------------------+
+5 rows in set
+# DESCRIBE FUNCTION EXTENDED MySum
++-------------------+---------------------------------------------------------------------+
+|         info name |                                                          info value |
++-------------------+---------------------------------------------------------------------+
+|   system function |                                                               false |
+|         temporary |                                                               false |
+|        class name |                                       org.example.SumScalarFunction |
+| function language |                                                                JAVA |
+|     resource uris | ResourceUri{resourceType=JAR, uri='file:/home/users/mysum-udf.jar'} |
+|              kind |                                                              SCALAR |
+|      requirements |                                                                  [] |
+|     deterministic |                                                                true |
+|  constant folding |                                                                true |
+|         signature |                       MySum(<INTEGER NOT NULL>, <INTEGER NOT NULL>) |
++-------------------+---------------------------------------------------------------------+
+10 rows in set
+
 # DESCRIBE JOB '228d70913eab60dda85c5e7f78b5782c'
 +----------------------------------+----------+---------+-------------------------+
 |                           job id | job name |  status |              start time |
@@ -361,6 +471,12 @@ Flink SQL> DESC JOB '228d70913eab60dda85c5e7f78b5782c';
 
 ```sql
 { DESCRIBE | DESC } CATALOG [EXTENDED] catalog_name
+```
+
+### DESCRIBE FUNCTION
+
+```sql
+{ DESCRIBE | DESC } FUNCTION [EXTENDED] [catalog_name.][db_name.]function_name
 ```
 
 ### DESCRIBE JOB

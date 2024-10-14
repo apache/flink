@@ -67,6 +67,7 @@ public class SqlNodeConverters {
         register(new SqlShowTablesConverter());
         register(new SqlShowViewsConverter());
         register(new SqlShowCatalogsConverter());
+        register(new SqlDescribeFunctionConverter());
     }
 
     /**
