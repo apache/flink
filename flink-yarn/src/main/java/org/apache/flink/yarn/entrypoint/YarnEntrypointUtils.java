@@ -62,7 +62,9 @@ public class YarnEntrypointUtils {
 
         configuration.set(JobManagerOptions.ADDRESS, hostname);
         configuration.set(RestOptions.ADDRESS, hostname);
-        configuration.set(RestOptions.BIND_ADDRESS, hostname);
+        if (!configuration.contains(RestOptions.BIND_ADDRESS)) {
+            configuration.set(RestOptions.BIND_ADDRESS, hostname);
+        }
 
         if (!configuration.contains(RestOptions.BIND_PORT)) {
             // set the REST port to 0 to select it randomly
