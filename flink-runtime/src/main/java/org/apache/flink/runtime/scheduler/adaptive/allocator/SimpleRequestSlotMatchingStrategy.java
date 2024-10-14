@@ -17,21 +17,30 @@
 
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.TaskExecutorsLoadInformation;
-import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment;
+import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator.ExecutionSlotSharingGroup;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 
-/** Interface for assigning slots to slot sharing groups. */
-@Internal
-public interface SlotAssigner {
+/** The simple slot matching strategy implementation. */
+public enum SimpleRequestSlotMatchingStrategy implements RequestSlotMatchingStrategy {
+    INSTANCE;
 
-    Collection<SlotAssignment> assignSlots(
-            JobInformation jobInformation,
+    @Override
+    public Collection<JobSchedulingPlan.SlotAssignment> matchRequestsWithSlots(
+            Collection<ExecutionSlotSharingGroup> requestGroups,
             Collection<PhysicalSlot> freeSlots,
-            VertexParallelism vertexParallelism,
-            TaskExecutorsLoadInformation taskExecutorsLoadInformation,
-            JobAllocationsInformation previousAllocations);
+            TaskExecutorsLoadInformation taskExecutorsLoadInformation) {
+        Iterator<? extends SlotInfo> iterator = freeSlots.iterator();
+        Collection<JobSchedulingPlan.SlotAssignment> assignments = new ArrayList<>();
+        for (SlotSharingSlotAllocator.ExecutionSlotSharingGroup group : requestGroups) {
+            assignments.add(new JobSchedulingPlan.SlotAssignment(iterator.next(), group));
+        }
+        return assignments;
+    }
 }
