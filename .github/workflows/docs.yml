@@ -42,7 +42,10 @@ jobs:
         run: |
           currentBranch=$(git branch --show-current)
 
-          echo "flink_branch=${currentBranch}" >> ${GITHUB_ENV}
+          if  [ "${currentBranch}" = "release-2.0-preview1-rc1" ]; then
+            echo "flink_branch=release-2.0-preview1" >> ${GITHUB_ENV}
+          else
+            echo "flink_branch=${currentBranch}" >> ${GITHUB_ENV}
 
           if [ "${currentBranch}" = "master" ]; then
             echo "flink_alias=release-2.0" >> ${GITHUB_ENV}
