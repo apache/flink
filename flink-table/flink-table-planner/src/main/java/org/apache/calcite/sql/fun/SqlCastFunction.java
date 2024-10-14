@@ -16,11 +16,16 @@
  */
 package org.apache.calcite.sql.fun;
 
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 
 import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.SetMultimap;
+import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFamily;
 import org.apache.calcite.sql.SqlCall;
@@ -98,7 +103,21 @@ public class SqlCastFunction extends SqlFunction {
         assert opBinding.getOperandCount() == 2;
         RelDataType ret = opBinding.getOperandType(1);
         RelDataType firstType = opBinding.getOperandType(0);
-        ret = opBinding.getTypeFactory().createTypeWithNullability(ret, firstType.isNullable());
+
+        RelOptCluster relOptCluster =
+                ((FlinkCalciteSqlValidator) ((SqlCallBinding) opBinding).getValidator())
+                        .getRelOptCluster();
+        TableConfig tableConfig = ShortcutUtils.unwrapContext(relOptCluster).getTableConfig();
+        boolean legacyCastEnabled =
+                tableConfig
+                        .get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR)
+                        .isEnabled();
+        ret =
+                opBinding
+                        .getTypeFactory()
+                        .createTypeWithNullability(
+                                ret, firstType.isNullable() || legacyCastEnabled);
+
         if (opBinding instanceof SqlCallBinding) {
             SqlCallBinding callBinding = (SqlCallBinding) opBinding;
             SqlNode operand0 = callBinding.operand(0);

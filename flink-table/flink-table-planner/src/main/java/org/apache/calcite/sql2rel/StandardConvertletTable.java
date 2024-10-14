@@ -16,10 +16,16 @@
  */
 package org.apache.calcite.sql2rel;
 
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import org.apache.calcite.avatica.util.DateTimeUtils;
 import org.apache.calcite.avatica.util.TimeUnit;
+import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -108,6 +114,10 @@ import static org.apache.calcite.util.Util.first;
  * <ol>
  *   <li>Added in Flink-35216: Lines 731 ~ 776
  * </ol>
+ *
+ * <p>Lines 593-602 fix incorrect cast behavior (FLINK-36399).
+ *
+ * <p>Lines 691-736 implement supporting RETURNING clause in JSON_QUERY (CALCITE-6365).
  */
 public class StandardConvertletTable extends ReflectiveConvertletTable {
 
@@ -580,7 +590,16 @@ public class StandardConvertletTable extends ReflectiveConvertletTable {
             type = cx.getValidator().getValidatedNodeType(dataType.getTypeName());
         }
         RexNode arg = cx.convertExpression(left);
-        if (arg.getType().isNullable()) {
+
+        RelOptCluster relOptCluster =
+                ((FlinkCalciteSqlValidator) cx.getValidator()).getRelOptCluster();
+        TableConfig tableConfig = ShortcutUtils.unwrapContext(relOptCluster).getTableConfig();
+        boolean legacyCastEnabled =
+                tableConfig
+                        .get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR)
+                        .isEnabled();
+
+        if (arg.getType().isNullable() || legacyCastEnabled) {
             type = typeFactory.createTypeWithNullability(type, true);
         }
         if (SqlUtil.isNullLiteral(left, false)) {
