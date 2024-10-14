@@ -1126,6 +1126,7 @@ public class AdaptiveScheduler
                 .determineParallelismAndCalculateAssignment(
                         jobInformation,
                         declarativeSlotPool.getFreeSlotTracker().getFreeSlotsInformation(),
+                        declarativeSlotPool.getTaskExecutorsLoadInformation(),
                         JobAllocationsInformation.fromGraph(previousExecutionGraph))
                 .orElseThrow(
                         () ->
