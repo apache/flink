@@ -46,6 +46,7 @@ jobs:
             echo "flink_branch=release-2.0-preview1" >> ${GITHUB_ENV}
           else
             echo "flink_branch=${currentBranch}" >> ${GITHUB_ENV}
+          fi
 
           if [ "${currentBranch}" = "master" ]; then
             echo "flink_alias=release-2.0" >> ${GITHUB_ENV}
