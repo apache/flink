@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.StateRecoveryOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blocklist.BlocklistOperations;
@@ -123,7 +124,9 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                         jobMasterConfiguration.get(StateRecoveryOptions.LOCAL_RECOVERY),
                         jobMasterConfiguration.get(DeploymentOptions.TARGET),
                         jobMasterConfiguration.get(
-                                JobManagerOptions.SCHEDULER_PREFER_MINIMAL_TASKMANAGERS_ENABLED));
+                                JobManagerOptions.SCHEDULER_PREFER_MINIMAL_TASKMANAGERS_ENABLED),
+                        jobMasterConfiguration.get(
+                                TaskManagerOptions.TASK_MANAGER_LOAD_BALANCE_MODE));
 
         final ExecutionGraphFactory executionGraphFactory =
                 new DefaultExecutionGraphFactory(
@@ -169,13 +172,15 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
             DeclarativeSlotPool declarativeSlotPool,
             boolean localRecoveryEnabled,
             @Nullable String executionTarget,
-            boolean minimalTaskManagerPreferred) {
+            boolean minimalTaskManagerPreferred,
+            TaskManagerOptions.TaskManagerLoadBalanceMode taskManagerLoadBalanceMode) {
         return SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                 declarativeSlotPool::reserveFreeSlot,
                 declarativeSlotPool::freeReservedSlot,
                 declarativeSlotPool::containsFreeSlot,
                 localRecoveryEnabled,
                 executionTarget,
-                minimalTaskManagerPreferred);
+                minimalTaskManagerPreferred,
+                taskManagerLoadBalanceMode);
     }
 }

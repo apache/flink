@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
@@ -77,7 +78,8 @@ public class LocalRecoveryTest extends AdaptiveSchedulerTestBase {
                                 slotPool,
                                 localRecoveryEnabled,
                                 executionTarget,
-                                minimalTaskManagerPreferred),
+                                minimalTaskManagerPreferred,
+                                TaskManagerOptions.TaskManagerLoadBalanceMode.NONE),
                         capturedAllocations);
 
         scheduler =
