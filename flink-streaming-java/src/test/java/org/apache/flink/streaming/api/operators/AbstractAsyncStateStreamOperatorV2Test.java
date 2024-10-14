@@ -32,7 +32,9 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.runtime.io.RecordProcessorUtils;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.ElementOrder;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -245,6 +247,74 @@ class AbstractAsyncStateStreamOperatorV2Test {
         }
     }
 
+    @Test
+    void testNonRecordProcess() throws Exception {
+        try (KeyedOneInputStreamOperatorV2TestHarness<Integer, Tuple2<Integer, String>, String>
+                testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
+            testHarness.open();
+            SingleInputTestOperator testOperator =
+                    (SingleInputTestOperator) testHarness.getBaseOperator();
+            ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> processor =
+                    RecordProcessorUtils.getRecordProcessor(testOperator.getInputs().get(0));
+            ExecutorService anotherThread = Executors.newSingleThreadExecutor();
+            // Trigger the processor
+            anotherThread.execute(
+                    () -> {
+                        try {
+                            processor.accept(new StreamRecord<>(Tuple2.of(5, "5")));
+                            testOperator.processRecordAttributes(new RecordAttributes(false), 1);
+                        } catch (Exception e) {
+                        }
+                    });
+
+            Thread.sleep(1000);
+            assertThat(testOperator.getProcessed()).isEqualTo(1);
+            assertThat(testOperator.getAttributeProcessed()).isEqualTo(0);
+
+            // Proceed processing
+            testOperator.proceed();
+            Thread.sleep(3000);
+            anotherThread.shutdown();
+            assertThat(testOperator.getCurrentProcessingContext().getReferenceCount()).isEqualTo(0);
+            assertThat(testOperator.getAttributeProcessed()).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void testWatermarkStatus() throws Exception {
+        try (KeyedOneInputStreamOperatorV2TestHarness<Integer, Tuple2<Integer, String>, String>
+                testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
+            testHarness.open();
+            SingleInputTestOperator testOperator =
+                    (SingleInputTestOperator) testHarness.getBaseOperator();
+            ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> processor =
+                    RecordProcessorUtils.getRecordProcessor(testOperator.getInputs().get(0));
+            ExecutorService anotherThread = Executors.newSingleThreadExecutor();
+            // Trigger the processor
+            anotherThread.execute(
+                    () -> {
+                        try {
+                            processor.accept(new StreamRecord<>(Tuple2.of(5, "5")));
+                            testOperator.processWatermarkStatus(new WatermarkStatus(0), 1);
+                        } catch (Exception e) {
+                        }
+                    });
+
+            Thread.sleep(1000);
+            assertThat(testOperator.getProcessed()).isEqualTo(1);
+            assertThat(testOperator.watermarkIndex).isEqualTo(-1);
+            assertThat(testOperator.watermarkStatus.isIdle()).isTrue();
+
+            // Proceed processing
+            testOperator.proceed();
+            Thread.sleep(3000);
+            anotherThread.shutdown();
+            assertThat(testOperator.getCurrentProcessingContext().getReferenceCount()).isEqualTo(0);
+            assertThat(testOperator.watermarkStatus.isActive()).isTrue();
+            assertThat(testOperator.watermarkIndex).isEqualTo(1);
+        }
+    }
+
     private static class KeyedOneInputStreamOperatorV2TestHarness<K, IN, OUT>
             extends KeyedOneInputStreamOperatorTestHarness<K, IN, OUT> {
         public KeyedOneInputStreamOperatorV2TestHarness(
@@ -293,12 +363,16 @@ class AbstractAsyncStateStreamOperatorV2Test {
         private static final long serialVersionUID = 1L;
 
         final AtomicInteger processed = new AtomicInteger(0);
+        final AtomicInteger attributeProcessed = new AtomicInteger(0);
 
         private final ElementOrder elementOrder;
 
         final Object objectToWait = new Object();
 
         Input input;
+
+        private WatermarkStatus watermarkStatus = new WatermarkStatus(-1);
+        private int watermarkIndex = -1;
 
         public SingleInputTestOperator(
                 StreamOperatorParameters<String> parameters, ElementOrder elementOrder) {
@@ -339,8 +413,27 @@ class AbstractAsyncStateStreamOperatorV2Test {
         public void onProcessingTime(InternalTimer<Integer, VoidNamespace> timer)
                 throws Exception {}
 
+        @Override
+        public void processRecordAttributes(RecordAttributes recordAttributes, int inputId)
+                throws Exception {
+            super.processRecordAttributes(recordAttributes, inputId);
+            this.attributeProcessed.incrementAndGet();
+        }
+
+        @Override
+        public void processWatermarkStatus(WatermarkStatus watermarkStatus, int index)
+                throws Exception {
+            super.processWatermarkStatus(watermarkStatus, index);
+            this.watermarkStatus = watermarkStatus;
+            this.watermarkIndex = index;
+        }
+
         public int getProcessed() {
             return processed.get();
+        }
+
+        public int getAttributeProcessed() {
+            return attributeProcessed.get();
         }
 
         public void proceed() {

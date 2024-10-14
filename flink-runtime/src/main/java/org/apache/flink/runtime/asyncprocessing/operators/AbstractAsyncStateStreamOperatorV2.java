@@ -258,6 +258,7 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     // ------------------------------------------------------------------------
     //  Metrics
     // ------------------------------------------------------------------------
+    @Override
     protected void reportOrForwardLatencyMarker(LatencyMarker marker) {
         if (!isAsyncStateProcessingEnabled()) {
             // If async state processing is disabled, fallback to the super class.

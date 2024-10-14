@@ -331,6 +331,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     //  Metrics
     // ------------------------------------------------------------------------
 
+    @Override
     protected void reportOrForwardLatencyMarker(LatencyMarker marker) {
         if (!isAsyncStateProcessingEnabled()) {
             // If async state processing is disabled, fallback to the super class.
@@ -375,7 +376,8 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
         asyncExecutionController.processNonRecord(
                 () -> {
                     boolean wasIdle = combinedWatermark.isIdle();
-                    if (combinedWatermark.updateStatus(index - 1, watermarkStatus.isIdle())) {
+                    // index is 0-based
+                    if (combinedWatermark.updateStatus(index, watermarkStatus.isIdle())) {
                         super.processWatermark(
                                 new Watermark(combinedWatermark.getCombinedWatermark()));
                     }
@@ -386,6 +388,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     }
 
     @Experimental
+    @Override
     public void processRecordAttributes(RecordAttributes recordAttributes) throws Exception {
         if (!isAsyncStateProcessingEnabled()) {
             super.processRecordAttributes(recordAttributes);
@@ -396,6 +399,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     }
 
     @Experimental
+    @Override
     public void processRecordAttributes1(RecordAttributes recordAttributes) {
         if (!isAsyncStateProcessingEnabled()) {
             super.processRecordAttributes1(recordAttributes);
@@ -406,6 +410,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     }
 
     @Experimental
+    @Override
     public void processRecordAttributes2(RecordAttributes recordAttributes) {
         if (!isAsyncStateProcessingEnabled()) {
             super.processRecordAttributes2(recordAttributes);
