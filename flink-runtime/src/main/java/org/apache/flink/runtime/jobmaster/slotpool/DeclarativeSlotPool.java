@@ -32,7 +32,6 @@ import org.apache.flink.runtime.util.ResourceCounter;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
-import java.util.Map;
 
 /**
  * Slot pool interface which uses Flink's declarative resource management protocol to acquire
@@ -117,6 +116,13 @@ public interface DeclarativeSlotPool {
             long currentTime);
 
     /**
+     * Returns the task executors loading information.
+     *
+     * @return the task executors loading information.
+     */
+    TaskExecutorsLoadInformation getTaskExecutorsLoadInformation();
+
+    /**
      * Returns the free slot tracker.
      *
      * @return free slot tracker
@@ -129,13 +135,6 @@ public interface DeclarativeSlotPool {
      * @return collection of slot information
      */
     Collection<? extends SlotInfo> getAllSlotsInformation();
-
-    /**
-     * Return the loading weight for per task executor.
-     *
-     * @return map of loading weight for per task executor.
-     */
-    Map<ResourceID, LoadingWeight> getTaskExecutorsLoadingWeight();
 
     /**
      * Checks whether the slot pool contains a slot with the given {@link AllocationID} and if it is

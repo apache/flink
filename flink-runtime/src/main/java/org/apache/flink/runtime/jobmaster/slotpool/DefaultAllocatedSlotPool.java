@@ -204,8 +204,7 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
                 this::getTaskExecutorUtilization);
     }
 
-    @Override
-    public Map<ResourceID, LoadingWeight> getTaskExecutorsLoadingWeight() {
+    private Map<ResourceID, LoadingWeight> getTaskExecutorsLoadingWeight() {
         final Map<ResourceID, LoadingWeight> result = new HashMap<>(slotsPerTaskExecutor.size());
         Collection<AllocatedSlot> allocatedSlots = registeredSlots.values();
         for (AllocatedSlot allocatedSlot : allocatedSlots) {
@@ -223,6 +222,39 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
     @Override
     public Collection<? extends SlotInfo> getAllSlotsInformation() {
         return registeredSlots.values();
+    }
+
+    @Override
+    public TaskExecutorsLoadInformation getTaskExecutorsLoadInformation() {
+        return new TaskExecutorsLoadInformation() {
+            @Override
+            public Map<ResourceID, LoadingWeight> getTaskExecutorsLoadingWeight() {
+                return DefaultAllocatedSlotPool.this.getTaskExecutorsLoadingWeight();
+            }
+
+            @Override
+            public Map<ResourceID, SlotsUtilization> getTaskExecutorsSlotsUtilization() {
+                return DefaultAllocatedSlotPool.this.getTaskExecutorsSlotsUtilization();
+            }
+        };
+    }
+
+    private Map<ResourceID, TaskExecutorsLoadInformation.SlotsUtilization>
+            getTaskExecutorsSlotsUtilization() {
+        final Map<ResourceID, TaskExecutorsLoadInformation.SlotsUtilization> result =
+                new HashMap<>();
+        for (ResourceID resourceId : slotsPerTaskExecutor.keySet()) {
+            Set<AllocationID> slots = slotsPerTaskExecutor.get(resourceId);
+            if (Objects.isNull(slots) || slots.isEmpty()) {
+                continue;
+            }
+            result.put(
+                    resourceId,
+                    new TaskExecutorsLoadInformation.SlotsUtilization(
+                            slots.size(),
+                            slots.size() - freeSlots.getFreeSlotsNumberOfTaskExecutor(resourceId)));
+        }
+        return result;
     }
 
     private double getTaskExecutorUtilization(ResourceID resourceId) {

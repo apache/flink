@@ -312,6 +312,11 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         return new ArrayList<>(slots);
     }
 
+    @Override
+    public TaskExecutorsLoadInformation getTaskExecutorsLoadInformation() {
+        return slotPool.getTaskExecutorsLoadInformation();
+    }
+
     private Optional<ResourceProfile> matchWithOutstandingRequirementOrWildcard(
             ResourceProfile resourceProfile) {
         final Optional<ResourceProfile> match = matchWithOutstandingRequirement(resourceProfile);
@@ -642,11 +647,6 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     @Override
     public Collection<? extends SlotInfo> getAllSlotsInformation() {
         return slotPool.getAllSlotsInformation();
-    }
-
-    @Override
-    public Map<ResourceID, LoadingWeight> getTaskExecutorsLoadingWeight() {
-        return slotPool.getTaskExecutorsLoadingWeight();
     }
 
     @Override

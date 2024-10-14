@@ -251,7 +251,9 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
                 requestSlotMatchingStrategy.matchRequestsAndSlots(
                         freeSlots,
                         pendingRequests.values(),
-                        getDeclarativeSlotPool().getTaskExecutorsLoadingWeight());
+                        getDeclarativeSlotPool()
+                                .getTaskExecutorsLoadInformation()
+                                .getTaskExecutorsLoadingWeight());
         if (requestSlotMatches.size() == pendingRequests.size()) {
             reserveAndFulfillMatchedFreeSlots(requestSlotMatches);
         } else if (requestSlotMatches.size() < pendingRequests.size()) {
@@ -273,7 +275,9 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
                 requestSlotMatchingStrategy.matchRequestsAndSlots(
                         newSlots,
                         pendingRequests.values(),
-                        getDeclarativeSlotPool().getTaskExecutorsLoadingWeight());
+                        getDeclarativeSlotPool()
+                                .getTaskExecutorsLoadInformation()
+                                .getTaskExecutorsLoadingWeight());
         reserveAndFulfillMatchedFreeSlots(requestSlotMatches);
     }
 
