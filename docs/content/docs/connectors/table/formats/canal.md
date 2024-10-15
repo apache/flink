@@ -99,7 +99,7 @@ Canal provides a unified format for changelog, here is a simple example for an u
 
 *Note: please refer to [Canal documentation](https://github.com/alibaba/canal/wiki) about the meaning of each fields.*
 
-The MySQL `products` table has 4 columns (`id`, `name`, `description` and `weight`). The above JSON message is an update change event on the `products` table where the `weight` value of the row with `id = 111` is changed from `5.18` to `5.15`.
+The MySQL `products` table has 4 columns (`id`, `name`, `description` and `weight`). The above JSON message is an update change event on the `products` table where the `weight` value of the row with `id = 111` is changed from `5.15` to `5.18`.
 Assuming the messages have been synchronized to Kafka topic `products_binlog`, then we can use the following DDL to consume this topic and interpret the change events.
 
 ```sql
