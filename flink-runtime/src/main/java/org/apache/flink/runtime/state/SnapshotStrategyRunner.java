@@ -99,6 +99,22 @@ public final class SnapshotStrategyRunner<T extends StateObject, SR extends Snap
                     }
 
                     @Override
+                    protected void cleanupCompletedResource(SnapshotResult<T> completedResource) {
+                        try {
+                            completedResource.discardState();
+                            LOG.debug(
+                                    "Cleanup completed resource ({}, {}) success.",
+                                    completedResource.getJobManagerOwnedSnapshot(),
+                                    completedResource.getTaskLocalSnapshot());
+                        } catch (Exception e) {
+                            LOG.warn(
+                                    "Cleanup completed resource ({}, {}) failed.",
+                                    completedResource.getJobManagerOwnedSnapshot(),
+                                    completedResource.getTaskLocalSnapshot());
+                        }
+                    }
+
+                    @Override
                     protected void logAsyncSnapshotComplete(long startTime) {
                         logCompletedInternal(
                                 LOG_ASYNC_COMPLETED_TEMPLATE, streamFactory, startTime);
