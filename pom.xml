@@ -2166,6 +2166,9 @@ under the License.
 
 							<removeUnusedImports />
 						</java>
+						<upToDateChecking>
+                            <enabled>true</enabled>
+                        </upToDateChecking>
 					</configuration>
 					<executions>
 						<execution>
