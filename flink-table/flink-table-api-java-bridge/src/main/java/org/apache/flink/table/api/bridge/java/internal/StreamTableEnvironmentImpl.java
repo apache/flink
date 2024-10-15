@@ -348,11 +348,6 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
     }
 
     @Override
-    public <T> void registerDataStream(String name, DataStream<T> dataStream) {
-        createTemporaryView(name, dataStream);
-    }
-
-    @Override
     public <T> void createTemporaryView(
             String path, DataStream<T> dataStream, Expression... fields) {
         createTemporaryView(path, fromDataStream(dataStream, fields));
