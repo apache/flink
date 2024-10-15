@@ -804,6 +804,25 @@ SqlShowCreate SqlShowCreate() :
 }
 
 /**
+ * DESCRIBE | DESC FUNCTION [ EXTENDED] [[catalogName.] dataBasesName].functionName sql call.
+ * Here we add Rich in className to match the naming of SqlRichDescribeTable.
+ */
+SqlRichDescribeFunction SqlRichDescribeFunction() :
+{
+    SqlIdentifier functionName;
+    SqlParserPos pos;
+    boolean isExtended = false;
+}
+{
+    ( <DESCRIBE> | <DESC> ) <FUNCTION> { pos = getPos();}
+    [ <EXTENDED> { isExtended = true;} ]
+    functionName = CompoundIdentifier()
+    {
+        return new SqlRichDescribeFunction(pos, functionName, isExtended);
+    }
+}
+
+/**
  * DESCRIBE | DESC MODEL [ EXTENDED] [[catalogName.] dataBasesName].modelName sql call.
  * Here we add Rich in className to match the naming of SqlRichDescribeTable.
  */

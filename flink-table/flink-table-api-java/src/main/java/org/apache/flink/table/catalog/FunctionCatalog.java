@@ -629,7 +629,8 @@ public final class FunctionCatalog {
             return Optional.of(
                     ContextResolvedFunction.temporary(
                             FunctionIdentifier.of(oi),
-                            getFunctionDefinition(oi.getObjectName(), potentialResult)));
+                            getFunctionDefinition(oi.getObjectName(), potentialResult),
+                            potentialResult));
         }
 
         Optional<Catalog> catalogOptional = catalogManager.getCatalog(oi.getCatalogName());
@@ -658,7 +659,8 @@ public final class FunctionCatalog {
                 }
 
                 return Optional.of(
-                        ContextResolvedFunction.permanent(FunctionIdentifier.of(oi), fd));
+                        ContextResolvedFunction.permanent(
+                                FunctionIdentifier.of(oi), fd, catalogFunction));
             } catch (FunctionNotExistException e) {
                 // Ignore
             }
