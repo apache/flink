@@ -75,7 +75,7 @@ The method here is similar to the steps recorded in [local installation]({{< ref
 tar -xzf flink-*.tgz
 ```
 
-[Download](https://https://repo.maven.apache.org/maven2/org/apache/flink/flink-table-filesystem-test-utils/) the test-filesystem connector and place it in the lib directory:
+[Download](https://repo1.maven.org/maven2/org/apache/flink/flink-table-filesystem-test-utils/1.20.0/flink-table-filesystem-test-utils-1.20.0.jar) the test-filesystem connector and place it in the lib directory:
 
 ```
 cp flink-table-filesystem-test-utils-{VERSION}.jar flink-*/lib/
