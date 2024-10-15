@@ -643,61 +643,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
      */
     StreamStatementSet createStatementSet();
 
-    /**
-     * Converts the given {@link DataStream} into a {@link Table} with specified field names.
-     *
-     * <p>There are two modes for mapping original fields to the fields of the {@link Table}:
-     *
-     * <p>1. Reference input fields by name: All fields in the schema definition are referenced by
-     * name (and possibly renamed using an alias (as). Moreover, we can define proctime and rowtime
-     * attributes at arbitrary positions using arbitrary names (except those that exist in the
-     * result schema). In this mode, fields can be reordered and projected out. This mode can be
-     * used for any input type, including POJOs.
-     *
-     * <p>Example:
-     *
-     * <pre>{@code
-     * DataStream<Tuple2<String, Long>> stream = ...
-     * Table table = tableEnv.fromDataStream(
-     *    stream,
-     *    $("f1"), // reorder and use the original field
-     *    $("rowtime").rowtime(), // extract the internally attached timestamp into an event-time
-     *                            // attribute named 'rowtime'
-     *    $("f0").as("name") // reorder and give the original field a better name
-     * );
-     * }</pre>
-     *
-     * <p>2. Reference input fields by position: In this mode, fields are simply renamed. Event-time
-     * attributes can replace the field on their position in the input data (if it is of correct
-     * type) or be appended at the end. Proctime attributes must be appended at the end. This mode
-     * can only be used if the input type has a defined field order (tuple, case class, Row) and
-     * none of the {@code fields} references a field of the input type.
-     *
-     * <p>Example:
-     *
-     * <pre>{@code
-     * DataStream<Tuple2<String, Long>> stream = ...
-     * Table table = tableEnv.fromDataStream(
-     *    stream,
-     *    $("a"), // rename the first field to 'a'
-     *    $("b"), // rename the second field to 'b'
-     *    $("rowtime").rowtime() // extract the internally attached timestamp into an event-time
-     *                           // attribute named 'rowtime'
-     * );
-     * }</pre>
-     *
-     * @param dataStream The {@link DataStream} to be converted.
-     * @param fields The fields expressions to map original fields of the DataStream to the fields
-     *     of the {@code Table}.
-     * @param <T> The type of the {@link DataStream}.
-     * @return The converted {@link Table}.
-     * @deprecated Use {@link #fromDataStream(DataStream, Schema)} instead. In most cases, {@link
-     *     #fromDataStream(DataStream)} should already be sufficient. It integrates with the new
-     *     type system and supports all kinds of {@link DataTypes} that the table runtime can
-     *     consume. The semantics might be slightly different for raw and structured types.
-     */
-    @Deprecated
-    <T> Table fromDataStream(DataStream<T> dataStream, Expression... fields);
 
     /**
      * Creates a view from the given {@link DataStream} in a given path with specified field names.
