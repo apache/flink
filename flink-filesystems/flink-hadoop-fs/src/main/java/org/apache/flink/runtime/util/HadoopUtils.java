@@ -218,4 +218,22 @@ public class HadoopUtils {
         }
         return foundHadoopConfiguration;
     }
+
+    public static void setCallerContext(String context) {
+        try {
+            Class<?> callerContextClass = Class.forName("org.apache.hadoop.ipc.CallerContext");
+            Class<?> builderClass = Class.forName("org.apache.hadoop.ipc.CallerContext$Builder");
+            Object builderInst = builderClass.getConstructor(String.class).newInstance(context);
+            Object hdfsContext = builderClass.getMethod("build").invoke(builderInst);
+            callerContextClass
+                    .getMethod("setCurrent", callerContextClass)
+                    .invoke(null, hdfsContext);
+        } catch (ClassNotFoundException
+                | java.lang.reflect.InvocationTargetException
+                | IllegalAccessException
+                | NoSuchMethodException
+                | InstantiationException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

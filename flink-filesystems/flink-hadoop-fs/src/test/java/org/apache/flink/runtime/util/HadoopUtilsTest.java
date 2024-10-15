@@ -29,9 +29,12 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import sun.security.krb5.KrbException;
 
+import java.lang.reflect.Method;
+
 import static org.apache.flink.runtime.util.HadoopUtils.HDFS_DELEGATION_TOKEN_KIND;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Unit tests for Hadoop utils. */
 class HadoopUtilsTest {
@@ -136,6 +139,30 @@ class HadoopUtilsTest {
         boolean result = HadoopUtils.hasHDFSDelegationToken(userWithoutToken);
 
         assertThat(result).isFalse();
+    }
+
+    @Test
+    public void testSetCallerContext() {
+        try {
+            // 调用 setCallerContext 方法，验证不会抛出异常
+            String testContext = "testContext";
+            HadoopUtils.setCallerContext(testContext);
+            System.out.println("setCallerContext called successfully.");
+
+            // 反射获取 CallerContext 当前的值，验证是否正确设置
+            Class<?> callerContextClass = Class.forName("org.apache.hadoop.ipc.CallerContext");
+            Method getCurrentMethod = callerContextClass.getMethod("getCurrent");
+            Object currentContext = getCurrentMethod.invoke(null);
+
+            Method getContextMethod = callerContextClass.getMethod("getContext");
+            String contextValue = (String) getContextMethod.invoke(currentContext);
+
+            assertEquals("The CallerContext should be set correctly.", testContext, contextValue);
+        } catch (Exception e) {
+            // 如果有异常，测试应当失败
+            e.printStackTrace();
+            assert false : "setCallerContext threw an unexpected exception.";
+        }
     }
 
     private static Configuration getHadoopConfigWithAuthMethod(
