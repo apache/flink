@@ -115,7 +115,7 @@ public class JsonParserRowDataDeSerSchemaTest {
 
         DeserializationSchema<RowData> deserializationSchema =
                 new JsonParserRowDataDeserializationSchema(
-                        schema, resultTypeInfo, false, false, TimestampFormat.ISO_8601);
+                        schema, resultTypeInfo, false, false, false, TimestampFormat.ISO_8601);
         open(deserializationSchema);
 
         Row expected = new Row(5);
@@ -166,6 +166,7 @@ public class JsonParserRowDataDeSerSchemaTest {
                 new JsonParserRowDataDeserializationSchema(
                         schema,
                         resultTypeInfo,
+                        false,
                         false,
                         false,
                         TimestampFormat.ISO_8601,
@@ -261,6 +262,7 @@ public class JsonParserRowDataDeSerSchemaTest {
                         resultTypeInfo,
                         false,
                         false,
+                        false,
                         TimestampFormat.ISO_8601,
                         new String[][] {
                             new String[] {"f1"},
@@ -328,6 +330,7 @@ public class JsonParserRowDataDeSerSchemaTest {
                         resultTypeInfo,
                         false,
                         false,
+                        false,
                         TimestampFormat.ISO_8601,
                         new String[][] {
                             new String[] {"f1"},
@@ -342,5 +345,36 @@ public class JsonParserRowDataDeSerSchemaTest {
 
         RowData rowData = deserializationSchema.deserialize(serializedJson);
         assertThat(rowData).isEqualTo(expected);
+    }
+
+    @Test
+    public void testIgnoreKeyCase() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        ObjectNode objectNode = objectMapper.createObjectNode();
+        objectNode.put("A", "a1");
+        objectNode.putObject("B").put("X", "x123").put("y", "y123");
+        byte[] serializedJson = objectMapper.writeValueAsBytes(objectNode);
+
+        DataType dataType =
+                ROW(
+                        FIELD("a", STRING()),
+                        FIELD("b", ROW(FIELD("x", STRING()), FIELD("Y", STRING()))));
+        RowType schema = (RowType) dataType.getLogicalType();
+        TypeInformation<RowData> resultTypeInfo = InternalTypeInfo.of(schema);
+
+        DeserializationSchema<RowData> deserializationSchema =
+                new JsonParserRowDataDeserializationSchema(
+                        schema, resultTypeInfo, false, false, true, TimestampFormat.ISO_8601);
+        open(deserializationSchema);
+        Row excepted = new Row(2);
+        excepted.setField(0, "a1");
+        Row internalRow = new Row(2);
+        internalRow.setField(0, "x123");
+        internalRow.setField(1, "y123");
+        excepted.setField(1, internalRow);
+
+        RowData rowData = deserializationSchema.deserialize(serializedJson);
+        Row actual = convertToExternal(rowData, dataType);
+        assertThat(actual).isEqualTo(excepted);
     }
 }
