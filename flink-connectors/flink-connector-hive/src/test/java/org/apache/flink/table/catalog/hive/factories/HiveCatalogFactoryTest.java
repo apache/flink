@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog.hive.factories;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
@@ -74,15 +75,28 @@ public class HiveCatalogFactoryTest extends TestLogger {
         options.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
         options.put(HiveCatalogFactoryOptions.HIVE_CONF_DIR.key(), CONF_DIR.getPath());
 
+        final Configuration configuration = new Configuration();
+        configuration.setString("flink.hive.hadoop.dfs.client.socket-timeout", "5000");
+        configuration.setString("flink.hive.hive.metastore.client.socket.timeout", "10s");
+
         final Catalog actualCatalog =
                 FactoryUtil.createCatalog(
-                        catalogName, options, null, Thread.currentThread().getContextClassLoader());
-
+                        catalogName,
+                        options,
+                        configuration,
+                        Thread.currentThread().getContextClassLoader());
         assertThat(
                         ((HiveCatalog) actualCatalog)
                                 .getHiveConf()
                                 .getVar(HiveConf.ConfVars.METASTOREURIS))
                 .isEqualTo("dummy-hms");
+        assertThat(
+                        ((HiveCatalog) actualCatalog)
+                                .getHiveConf()
+                                .getVar(HiveConf.ConfVars.METASTORE_CLIENT_SOCKET_TIMEOUT))
+                .isEqualTo("10s");
+        assertThat(((HiveCatalog) actualCatalog).getHiveConf().get("dfs.client.socket-timeout"))
+                .isEqualTo("5000");
         checkEquals(expectedCatalog, (HiveCatalog) actualCatalog);
     }
 
