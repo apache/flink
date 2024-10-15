@@ -17,8 +17,8 @@
   -->
 
 <div class="metric-selector">
-  <span *ngIf="listOfMetricName.length === 0; else elseTemplate">No Available Metric</span>
-  <ng-template #elseTemplate>
+  <span *ngIf="listOfMetricName.length === 0">No Available Metric</span>
+  <ng-template [ngIf]="listOfMetricName.length <= countMetricBarrier" [ngIfElse]="hugeMetrics">
     Add Metric:
     <nz-select
       nzSize="small"
@@ -28,7 +28,30 @@
       (ngModelChange)="updateMetric($event)"
     >
       <nz-option
-        *ngFor="let name of listOfUnselectedMetric"
+        *ngFor="let name of listOfUnselectedMetric; trackBy: trackByName"
+        [nzLabel]="name"
+        [nzValue]="name"
+        nzCustomContent
+      >
+        <span [title]="name">{{ name }}</span>
+      </nz-option>
+    </nz-select>
+  </ng-template>
+  <ng-template #hugeMetrics>
+    Add Metric [displayed only {{ countDisplayMetric }} metrics, use search to find specific
+    metric]:
+    <br />
+    <nz-select
+      nzSize="small"
+      [ngModel]="null"
+      nzShowSearch
+      [nzPlaceHolder]="'Select Metric Name'"
+      (ngModelChange)="updateMetric($event)"
+      [nzServerSearch]="true"
+      (nzOnSearch)="onSearch($event)"
+    >
+      <nz-option
+        *ngFor="let name of listOfDisplayedMetric; trackBy: trackByName"
         [nzLabel]="name"
         [nzValue]="name"
         nzCustomContent
