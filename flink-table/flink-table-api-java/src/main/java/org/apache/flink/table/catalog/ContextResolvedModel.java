@@ -72,7 +72,7 @@ public final class ContextResolvedModel {
         this.resolvedModel = Preconditions.checkNotNull(resolvedModel);
     }
 
-    /** @return true if the table is temporary. An anonymous table is always temporary. */
+    /** @return true if the model is temporary. */
     public boolean isTemporary() {
         return catalog == null;
     }

@@ -1628,20 +1628,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         if (model instanceof ResolvedCatalogModel) {
             return (ResolvedCatalogModel) model;
         }
-        // If input schema / output schema does not exist, get the schema from select as statement.
-        final ResolvedSchema resolvedInputSchema;
-        if (model.getInputSchema() == null) {
-            resolvedInputSchema = null;
-        } else {
-            resolvedInputSchema = model.getInputSchema().resolve(schemaResolver);
-        }
-
-        final ResolvedSchema resolvedOutputSchema;
-        if (model.getOutputSchema() == null) {
-            resolvedOutputSchema = null;
-        } else {
-            resolvedOutputSchema = model.getOutputSchema().resolve(schemaResolver);
-        }
+        final ResolvedSchema resolvedInputSchema = model.getInputSchema().resolve(schemaResolver);
+        final ResolvedSchema resolvedOutputSchema = model.getOutputSchema().resolve(schemaResolver);
         return ResolvedCatalogModel.of(model, resolvedInputSchema, resolvedOutputSchema);
     }
 

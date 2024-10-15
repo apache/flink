@@ -16,11 +16,11 @@
 # limitations under the License.
 ################################################################################
 from py4j.java_gateway import java_import
-from typing import Dict, List, Optional
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table.schema import Schema
 from pyflink.table.table_schema import TableSchema
+from typing import Dict, List, Optional
 
 __all__ = ['Catalog', 'CatalogDatabase', 'CatalogBaseTable', 'CatalogPartition', 'CatalogFunction',
            'Procedure', 'ObjectPath', 'CatalogPartitionSpec', 'CatalogTableStatistics',
@@ -1122,7 +1122,7 @@ class CatalogModel(object):
     def create_model(
         input_schema: Schema,
         output_schema: Schema,
-        properties: Dict[str, str] = {},
+        options: Dict[str, str] = {},
         comment: str = None
     ) -> "CatalogModel":
         """
@@ -1130,17 +1130,17 @@ class CatalogModel(object):
 
         :param input_schema: the model input schema
         :param output_schema: the model output schema
-        :param properties: the properties of the catalog model
+        :param options: the properties of the catalog model
         :param comment: the comment of the catalog model
         """
         assert input_schema is not None
         assert output_schema is not None
-        assert properties is not None
+        assert options is not None
 
         gateway = get_gateway()
         return CatalogModel(
             gateway.jvm.org.apache.flink.table.catalog.CatalogModel.of(
-                input_schema._j_schema, output_schema._j_schema, properties, comment))
+                input_schema._j_schema, output_schema._j_schema, options, comment))
 
     @staticmethod
     def _get(j_catalog_model):

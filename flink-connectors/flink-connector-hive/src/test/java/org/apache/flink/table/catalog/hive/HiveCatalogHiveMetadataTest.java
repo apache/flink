@@ -671,4 +671,9 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
     protected CatalogFunction createAnotherFunction() {
         return new CatalogFunctionImpl(UDFRand.class.getName());
     }
+
+    @Override
+    protected boolean supportsModels() {
+        return false;
+    }
 }

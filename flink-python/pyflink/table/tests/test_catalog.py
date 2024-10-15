@@ -119,7 +119,7 @@ class CatalogTestBase(PyFlinkTestCase):
         return CatalogModel.create_model(
             CatalogTestBase.create_model_schema(),
             CatalogTestBase.create_model_schema(),
-            properties={},
+            options={},
             comment="some comment")
 
     @staticmethod
@@ -127,7 +127,7 @@ class CatalogTestBase(PyFlinkTestCase):
         return CatalogModel.create_model(
             CatalogTestBase.create_model_schema(),
             CatalogTestBase.create_model_schema(),
-            properties={"key": "value"},
+            options={"key": "value"},
             comment="some comment")
 
     @staticmethod

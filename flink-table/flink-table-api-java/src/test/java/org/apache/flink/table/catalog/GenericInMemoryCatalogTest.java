@@ -18,12 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
-import org.apache.flink.table.catalog.exceptions.ModelAlreadyExistException;
-import org.apache.flink.table.catalog.exceptions.ModelNotExistException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
@@ -38,18 +33,15 @@ import org.apache.flink.table.functions.TestGenericUDF;
 import org.apache.flink.table.functions.TestSimpleUDF;
 import org.apache.flink.table.utils.TableEnvironmentMock;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for GenericInMemoryCatalog. */
 class GenericInMemoryCatalogTest extends CatalogTestBase {
@@ -58,197 +50,6 @@ class GenericInMemoryCatalogTest extends CatalogTestBase {
     static void init() {
         catalog = new GenericInMemoryCatalog(TEST_CATALOG_NAME);
         catalog.open();
-    }
-
-    // TODO (FLINK-35020) : remove after implementing dropModel in catalog
-    @AfterEach
-    void cleanup() throws Exception {
-        if (catalog.modelExists(modelPath1)) {
-            ((GenericInMemoryCatalog) catalog).dropModel(modelPath1, true);
-        }
-        if (catalog.modelExists(modelPath2)) {
-            ((GenericInMemoryCatalog) catalog).dropModel(modelPath2, true);
-        }
-        super.cleanup();
-    }
-
-    // These are put here instead of CatalogTest class since model operations are not implemented
-    // in Hive catalogs
-    // TODO (FLINK-35020): move to CatalogTest after implementing model interfaces in Hive catalogs
-    // ------ models ------
-    @Test
-    public void testCreateModel() throws Exception {
-        catalog.createDatabase(db1, createDb(), false);
-        CatalogModel model = createModel();
-        catalog.createModel(modelPath1, model, false);
-
-        List<String> models = catalog.listModels(db1);
-        // TODO (FLINK-35020): replace below with catalog.getModel
-        assertThat(models).isEqualTo(Collections.singletonList(m1));
-    }
-
-    @Test
-    public void testCreateModel_DatabaseNotExistException() {
-        assertThat(catalog.databaseExists(db1)).isFalse();
-
-        assertThatThrownBy(() -> catalog.createModel(nonExistObjectPath, createModel(), false))
-                .isInstanceOf(DatabaseNotExistException.class)
-                .hasMessage("Database db1 does not exist in Catalog " + TEST_CATALOG_NAME + ".");
-    }
-
-    @Test
-    public void testCreateModel_ModelAlreadyExistException() throws Exception {
-        catalog.createDatabase(db1, createDb(), false);
-        catalog.createModel(modelPath1, createModel(), false);
-
-        assertThatThrownBy(() -> catalog.createModel(modelPath1, createModel(), false))
-                .isInstanceOf(ModelAlreadyExistException.class)
-                .hasMessage("Model db1.m1 already exists in Catalog " + TEST_CATALOG_NAME + ".");
-    }
-
-    @Test
-    public void testCreateModel_ModelAlreadyExist_ignored() throws Exception {
-        catalog.createDatabase(db1, createDb(), false);
-
-        CatalogModel model = createModel();
-        catalog.createModel(modelPath1, model, false);
-        catalog.createModel(modelPath1, model, true);
-
-        List<String> models = catalog.listModels(db1);
-        // TODO (FLINK-35020): replace below with catalog.getModel
-        assertThat(models).isEqualTo(Collections.singletonList(m1));
-    }
-
-    @Test
-    public void testListModels() throws Exception {
-        catalog.createDatabase(db1, createDb(), false);
-
-        catalog.createModel(modelPath1, createModel(), false);
-        catalog.createModel(modelPath2, createModel(), false);
-
-        assertThat(catalog.listModels(db1)).isEqualTo(Arrays.asList(m1, m2));
-    }
-
-    @Test
-    public void testGetModel() throws Exception {
-        catalog.createDatabase(db1, createDb(), false);
-        catalog.createModel(modelPath1, createModel(), false);
-        assertThat(catalog.getModel(modelPath1)).isNotNull();
-    }
-
-    @Test
-    public void testGetModel_ModelNotExistException() throws Exception {
-        catalog.createDatabase(db1, createDb(), false);
-        assertThatThrownBy(() -> assertThat(catalog.getModel(modelPath1)).isNotNull())
-                .isInstanceOf(ModelNotExistException.class)
-                .hasMessage("Model '`test-catalog`.`db1`.`m1`' does not exist.");
-    }
-
-    @Test
-    public void testDropModel() throws Exception {
-        catalog.createDatabase(db1, createDb(), false);
-        catalog.createModel(modelPath1, createModel(), false);
-        assertThat(catalog.getModel(modelPath1)).isNotNull();
-        catalog.dropModel(modelPath1, false);
-        assertThatThrownBy(() -> catalog.getModel(modelPath1))
-                .isInstanceOf(ModelNotExistException.class)
-                .hasMessage("Model '`test-catalog`.`db1`.`m1`' does not exist.");
-    }
-
-    @Test
-    public void testAlterModel() throws Exception {
-        catalog.createDatabase(db1, createDb(), false);
-        catalog.createModel(modelPath1, createModel(), false);
-        assertThat(catalog.getModel(modelPath1)).isNotNull();
-        Schema inputSchema =
-                Schema.newBuilder()
-                        .column("a", DataTypes.INT())
-                        .column("b", DataTypes.STRING())
-                        .build();
-        Schema outputSchema = Schema.newBuilder().column("label", DataTypes.STRING()).build();
-        CatalogModel newModel =
-                CatalogModel.of(
-                        inputSchema,
-                        outputSchema,
-                        new HashMap<String, String>() {
-                            {
-                                put("provider", "openai");
-                                put("task", "regression"); // Changed option
-                                put("endpoint", "some-endpoint"); // New option
-                            }
-                        },
-                        null);
-        catalog.alterModel(modelPath1, newModel, false);
-        assertThat(catalog.getModel(modelPath1).getComment()).isNull();
-        Map<String, String> expectedOptions = new HashMap<>();
-        expectedOptions.put("task", "regression");
-        expectedOptions.put("provider", "openai");
-        expectedOptions.put("endpoint", "some-endpoint");
-        assertThat(catalog.getModel(modelPath1).getOptions()).isEqualTo(expectedOptions);
-    }
-
-    @Test
-    public void testAlterModel_ModelNotExistException() throws Exception {
-        catalog.createDatabase(db1, createDb(), false);
-        Schema inputSchema =
-                Schema.newBuilder()
-                        .column("a", DataTypes.INT())
-                        .column("b", DataTypes.STRING())
-                        .build();
-        Schema outputSchema = Schema.newBuilder().column("label", DataTypes.STRING()).build();
-        CatalogModel newModel =
-                CatalogModel.of(
-                        inputSchema,
-                        outputSchema,
-                        new HashMap<String, String>() {
-                            {
-                                put("task", "clustering");
-                                put("provider", "openai");
-                            }
-                        },
-                        "new model");
-        assertThatThrownBy(() -> catalog.alterModel(modelPath1, newModel, false))
-                .isInstanceOf(ModelNotExistException.class)
-                .hasMessage("Model '`test-catalog`.`db1`.`m1`' does not exist.");
-    }
-
-    @Test
-    public void testAlterMissingModelIgnoreIfNotExist() throws Exception {
-        catalog.createDatabase(db1, createDb(), false);
-        Schema inputSchema =
-                Schema.newBuilder()
-                        .column("a", DataTypes.INT())
-                        .column("b", DataTypes.STRING())
-                        .build();
-        Schema outputSchema = Schema.newBuilder().column("label", DataTypes.STRING()).build();
-        CatalogModel newModel =
-                CatalogModel.of(
-                        inputSchema,
-                        outputSchema,
-                        new HashMap<String, String>() {
-                            {
-                                put("task", "clustering");
-                                put("provider", "openai");
-                            }
-                        },
-                        "new model");
-        // Nothing happens since ignoreIfNotExists is true
-        catalog.alterModel(modelPath1, newModel, true);
-    }
-
-    @Test
-    public void testDropMissingModelNotExistException() throws Exception {
-        catalog.createDatabase(db1, createDb(), false);
-        assertThatThrownBy(() -> catalog.dropModel(modelPath1, false))
-                .isInstanceOf(ModelNotExistException.class)
-                .hasMessage("Model '`test-catalog`.`db1`.`m1`' does not exist.");
-    }
-
-    @Test
-    public void testDropMissingModelIgnoreIfNotExist() throws Exception {
-        catalog.createDatabase(db1, createDb(), false);
-        // Nothing happens since ignoreIfNotExists is true
-        catalog.dropModel(modelPath1, true);
     }
 
     // ------ tables ------
@@ -447,6 +248,11 @@ class GenericInMemoryCatalogTest extends CatalogTestBase {
     protected CatalogFunction createAnotherFunction() {
         return new CatalogFunctionImpl(
                 TestSimpleUDF.class.getCanonicalName(), FunctionLanguage.SCALA);
+    }
+
+    @Override
+    protected boolean supportsModels() {
+        return true;
     }
 
     @Override

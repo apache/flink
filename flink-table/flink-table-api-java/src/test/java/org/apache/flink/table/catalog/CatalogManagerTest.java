@@ -36,8 +36,6 @@ import org.apache.flink.table.catalog.listener.DropTableEvent;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.table.utils.ExpressionResolverMocks;
 
-import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableMap;
-
 import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
@@ -270,7 +268,7 @@ class CatalogManagerTest {
         CompletableFuture<DropModelEvent> dropFuture = new CompletableFuture<>();
         CompletableFuture<DropModelEvent> dropTemporaryFuture = new CompletableFuture<>();
         CatalogManager catalogManager =
-                CatalogManager.newBuilder()
+                CatalogManagerMocks.preparedCatalogManager()
                         .defaultCatalog("default", new GenericInMemoryCatalog("default"))
                         .classLoader(CatalogManagerTest.class.getClassLoader())
                         .config(new Configuration())
@@ -292,13 +290,17 @@ class CatalogManagerTest {
 
         catalogManager.initSchemaResolver(true, ExpressionResolverMocks.dummyResolver());
 
+        HashMap<String, String> options =
+                new HashMap<String, String>() {
+                    {
+                        put("provider", "openai");
+                        put("task", "TEXT_GENERATION");
+                    }
+                };
+
         // Create a model
         catalogManager.createModel(
-                CatalogModel.of(
-                        Schema.derived(),
-                        Schema.derived(),
-                        ImmutableMap.of("provider", "openai", "task", "TEXT_GENERATION"),
-                        null),
+                CatalogModel.of(Schema.derived(), Schema.derived(), options, null),
                 ObjectIdentifier.of(
                         catalogManager.getCurrentCatalog(),
                         catalogManager.getCurrentDatabase(),
@@ -311,10 +313,7 @@ class CatalogManagerTest {
         // Create a temporary table
         catalogManager.createTemporaryModel(
                 CatalogModel.of(
-                        Schema.newBuilder().build(),
-                        Schema.newBuilder().build(),
-                        ImmutableMap.of("provider", "openai", "task", "TEXT_GENERATION"),
-                        null),
+                        Schema.newBuilder().build(), Schema.newBuilder().build(), options, null),
                 ObjectIdentifier.of(
                         catalogManager.getCurrentCatalog(),
                         catalogManager.getCurrentDatabase(),
@@ -325,13 +324,16 @@ class CatalogManagerTest {
         assertThat(createTemporaryEvent.identifier().getObjectName()).isEqualTo("model2");
         assertThat(createTemporaryEvent.ignoreIfExists()).isFalse();
 
+        HashMap<String, String> azureOptions =
+                new HashMap<String, String>() {
+                    {
+                        put("provider", "azure");
+                        put("endpoint", "some-endpoint");
+                    }
+                };
         // Alter a model
         catalogManager.alterModel(
-                CatalogModel.of(
-                        Schema.derived(),
-                        Schema.derived(),
-                        ImmutableMap.of("provider", "azure", "endpoint", "some-endpoint"),
-                        "model1 comment"),
+                CatalogModel.of(Schema.derived(), Schema.derived(), azureOptions, "model1 comment"),
                 ObjectIdentifier.of(
                         catalogManager.getCurrentCatalog(),
                         catalogManager.getCurrentDatabase(),

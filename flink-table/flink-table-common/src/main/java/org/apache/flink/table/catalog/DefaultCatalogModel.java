@@ -26,6 +26,8 @@ import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.Objects;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /** A catalog model implementation. */
 @Internal
 public class DefaultCatalogModel implements CatalogModel {
@@ -39,8 +41,8 @@ public class DefaultCatalogModel implements CatalogModel {
             Schema outputSchema,
             Map<String, String> modelOptions,
             @Nullable String comment) {
-        this.inputSchema = inputSchema;
-        this.outputSchema = outputSchema;
+        this.inputSchema = checkNotNull(inputSchema, "Input schema must not be null.");
+        this.outputSchema = checkNotNull(outputSchema, "Output schema must not be null.");
         this.modelOptions = modelOptions;
         this.comment = comment;
     }
