@@ -51,6 +51,7 @@ public class RocksDBWriteBatchWrapperTest {
     @Test(expected = CancelTaskException.class)
     public void testAsyncCancellation() throws Exception {
         final CompletableFuture<Void> writeStartedFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> closeCompleteFuture = new CompletableFuture<>();
         final CompletableFuture<Void> cancellationRequestedFuture = new CompletableFuture<>();
         final CloseableRegistry registry = new CloseableRegistry();
         new Thread(
@@ -58,6 +59,7 @@ public class RocksDBWriteBatchWrapperTest {
                             writeStartedFuture.join();
                             try {
                                 registry.close();
+                                closeCompleteFuture.complete(null);
                                 cancellationRequestedFuture.complete(null);
                             } catch (IOException e) {
                                 cancellationRequestedFuture.completeExceptionally(e);
@@ -96,6 +98,7 @@ public class RocksDBWriteBatchWrapperTest {
                 // make sure that cancellation is triggered earlier than periodic flush
                 // but allow some delay of cancellation propagation
                 assertThat(i).isLessThan(cancellationCheckInterval * 2);
+                cancellationRequestedFuture.join();
             }
         }
     }
