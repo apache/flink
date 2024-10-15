@@ -32,13 +32,13 @@ import org.apache.flink.util.function.ThrowingRunnable;
  * @param <ACC> The type of the accumulator (intermediate aggregate state).
  * @param <OUT> The type of the aggregated result
  */
-class TtlAggregateFunction<IN, ACC, OUT>
+public class TtlAggregateFunction<IN, ACC, OUT>
         extends AbstractTtlDecorator<AggregateFunction<IN, ACC, OUT>>
         implements AggregateFunction<IN, TtlValue<ACC>, OUT> {
     ThrowingRunnable<Exception> stateClear;
     ThrowingConsumer<TtlValue<ACC>, Exception> updater;
 
-    TtlAggregateFunction(
+    public TtlAggregateFunction(
             AggregateFunction<IN, ACC, OUT> aggFunction,
             StateTtlConfig config,
             TtlTimeProvider timeProvider) {

@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.ttl.TtlUtils;
 import org.apache.flink.runtime.state.ttl.TtlValue;
+import org.apache.flink.runtime.state.v2.ttl.TtlStateFactoryV2;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -94,6 +95,24 @@ public class ForStDBTtlCompactFiltersManager {
                     (RegisteredKeyValueStateBackendMetaInfo) metaInfoBase;
             if (TtlStateFactory.TtlSerializer.isTtlStateSerializer(
                     kvMetaInfoBase.getStateSerializer())) {
+                createAndSetCompactFilterFactory(metaInfoBase.getName(), options);
+            }
+        }
+    }
+
+    public void setAndRegisterCompactFilterIfStateTtlV2(
+            @Nonnull RegisteredStateMetaInfoBase metaInfoBase,
+            @Nonnull ColumnFamilyOptions options) {
+
+        if (metaInfoBase
+                instanceof
+                org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo) {
+            org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo
+                    kvMetaInfoBase =
+                            (org.apache.flink.runtime.state.v2
+                                            .RegisteredKeyValueStateBackendMetaInfo)
+                                    metaInfoBase;
+            if (TtlStateFactoryV2.isTtlStateSerializer(kvMetaInfoBase.getStateSerializer())) {
                 createAndSetCompactFilterFactory(metaInfoBase.getName(), options);
             }
         }
