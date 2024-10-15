@@ -164,6 +164,23 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
     }
 
     @Override
+    public CatalogMaterializedTable copy(IntervalFreshness freshness, RefreshMode refreshMode) {
+        return new DefaultCatalogMaterializedTable(
+                schema,
+                comment,
+                partitionKeys,
+                options,
+                snapshot,
+                definitionQuery,
+                freshness,
+                logicalRefreshMode,
+                refreshMode,
+                refreshStatus,
+                refreshHandlerDescription,
+                serializedRefreshHandler);
+    }
+
+    @Override
     public Optional<String> getDescription() {
         return Optional.of(getComment());
     }

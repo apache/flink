@@ -57,6 +57,7 @@ import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.JobKey;
 import org.quartz.Scheduler;
+import org.quartz.Trigger;
 import org.quartz.TriggerKey;
 import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
@@ -275,6 +276,43 @@ public class EmbeddedQuartzScheduler {
             LOG.error("Failed to delete quartz schedule job: {}.", jobKey, e);
             throw new SchedulerException(
                     String.format("Failed to delete quartz schedule job: %s.", jobKey), e);
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    public void modifyScheduleWorkflowCronExpression(
+            String workflowName, String workflowGroup, String cronExpression)
+            throws SchedulerException {
+        JobKey jobKey = JobKey.jobKey(workflowName, workflowGroup);
+        lock.writeLock().lock();
+        try {
+            String errorMsg =
+                    String.format(
+                            "Failed to modify a non-existent quartz schedule job: %s.", jobKey);
+            checkJobExists(jobKey, errorMsg);
+
+            JobDetail jobDetail = quartzScheduler.getJobDetail(jobKey);
+            List<? extends Trigger> triggers = quartzScheduler.getTriggersOfJob(jobKey);
+            TriggerKey triggerKey = triggers.get(0).getKey();
+            boolean isPaused =
+                    quartzScheduler.getTriggerState(triggerKey) == Trigger.TriggerState.PAUSED;
+            CronTrigger cronTrigger =
+                    newTrigger()
+                            .withIdentity(triggerKey)
+                            .withSchedule(
+                                    cronSchedule(cronExpression)
+                                            .withMisfireHandlingInstructionIgnoreMisfires())
+                            .forJob(jobDetail)
+                            .build();
+            quartzScheduler.rescheduleJob(triggerKey, cronTrigger);
+            if (isPaused) {
+                quartzScheduler.pauseJob(jobKey);
+            }
+        } catch (org.quartz.SchedulerException e) {
+            LOG.error("Failed to modify quartz schedule job: {}.", jobKey, e);
+            throw new SchedulerException(
+                    String.format("Failed to modify quartz schedule job: %s.", jobKey), e);
         } finally {
             lock.writeLock().unlock();
         }
