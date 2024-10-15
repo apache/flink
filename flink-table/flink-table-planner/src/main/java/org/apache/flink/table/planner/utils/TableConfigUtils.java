@@ -106,9 +106,9 @@ public class TableConfigUtils {
     }
 
     /**
-     * Similar to {@link TableConfig#getMaxIdleStateRetentionTime()}.
+     * Similar to {@link TableConfig#getIdleStateRetention()}.
      *
-     * @see TableConfig#getMaxIdleStateRetentionTime()
+     * @see TableConfig#getIdleStateRetention()
      */
     @Deprecated
     public static long getMaxIdleStateRetentionTime(ReadableConfig tableConfig) {
