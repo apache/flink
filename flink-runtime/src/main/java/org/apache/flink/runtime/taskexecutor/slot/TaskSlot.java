@@ -267,7 +267,7 @@ public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseableAsync {
     /**
      * Generate the slot offer from this TaskSlot.
      *
-     * @return The sot offer which this task slot can provide
+     * @return The slot offer which this task slot can provide
      */
     public SlotOffer generateSlotOffer() {
         Preconditions.checkState(
