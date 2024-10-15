@@ -19,10 +19,13 @@
 package org.apache.flink.runtime.state.v2;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.state.StateFutureImpl;
 import org.apache.flink.metrics.MetricGroup;
@@ -59,6 +62,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -399,6 +403,64 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
             assertThat(priorityQueue.remove(elementB1)).isFalse();
             assertThat(priorityQueue.remove(elementB3)).isTrue();
             assertThat(priorityQueue.peek()).isEqualTo(elementA42);
+        } finally {
+            IOUtils.closeQuietly(backend);
+            backend.dispose();
+        }
+    }
+
+    void testValueStateWorkWithTtl() throws Exception {
+        TestAsyncFrameworkExceptionHandler testExceptionHandler =
+                new TestAsyncFrameworkExceptionHandler();
+        AsyncKeyedStateBackend<Long> backend =
+                createAsyncKeyedBackend(LongSerializer.INSTANCE, 128, env);
+        AsyncExecutionController<Long> aec =
+                new AsyncExecutionController<>(
+                        new SyncMailboxExecutor(),
+                        testExceptionHandler,
+                        backend.createStateExecutor(),
+                        128,
+                        1,
+                        -1,
+                        1,
+                        null);
+        backend.setup(aec);
+        try {
+            ValueStateDescriptor<Long> kvId =
+                    new ValueStateDescriptor<>("id", TypeInformation.of(Long.class));
+            kvId.enableTimeToLive(StateTtlConfig.newBuilder(Duration.ofSeconds(1)).build());
+
+            ValueState<Long> state =
+                    backend.createState(
+                            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+            RecordContext recordContext = aec.buildContext("record-1", 1L);
+            recordContext.retain();
+            aec.setCurrentContext(recordContext);
+            state.update(1L);
+            assertThat(state.value()).isEqualTo(1L);
+            Thread.sleep(1000);
+            assertThat(state.value()).isNull();
+            recordContext.release();
+
+            RecordContext recordContext1 = aec.buildContext("record-2", 2L);
+            aec.setCurrentContext(recordContext1);
+            state.asyncUpdate(2L)
+                    .thenAccept(
+                            (val) -> {
+                                state.asyncValue()
+                                        .thenAccept(
+                                                (val1) -> {
+                                                    assertThat(val1).isEqualTo(2);
+                                                    Thread.sleep(1000);
+                                                    state.asyncValue()
+                                                            .thenAccept(
+                                                                    (val2) -> {
+                                                                        assertThat(val2).isNull();
+                                                                    });
+                                                });
+                            });
+            Thread.sleep(3000);
+            recordContext1.release();
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();

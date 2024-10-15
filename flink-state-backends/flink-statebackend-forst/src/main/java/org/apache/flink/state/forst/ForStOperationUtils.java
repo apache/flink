@@ -21,6 +21,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.ICloseableRegistry;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
+import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.state.forst.ForStKeyedStateBackend.ForStKvStateInfo;
 import org.apache.flink.state.forst.sync.ForStIteratorWrapper;
@@ -277,7 +278,13 @@ public class ForStOperationUtils {
                 createColumnFamilyOptions(columnFamilyOptionsFactory, metaInfoBase.getName());
 
         if (ttlCompactFiltersManager != null) {
-            ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(metaInfoBase, options);
+            if (metaInfoBase instanceof RegisteredKeyValueStateBackendMetaInfo) {
+                ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtlV2(
+                        metaInfoBase, options);
+            } else {
+                ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtlV2(
+                        metaInfoBase, options);
+            }
         }
 
         if (writeBufferManagerCapacity != null) {
@@ -376,6 +383,28 @@ public class ForStOperationUtils {
         }
 
         return new ForStKvStateInfo(columnFamilyHandle, metaInfoBase);
+    }
+
+    public static ForStKvStateInfo createAsyncStateInfo(
+            RegisteredStateMetaInfoBase metaInfoBase,
+            RocksDB db,
+            Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
+            @Nullable ForStDBTtlCompactFiltersManager ttlCompactFiltersManager,
+            @Nullable Long writeBufferManagerCapacity) {
+
+        ColumnFamilyDescriptor columnFamilyDescriptor =
+                createColumnFamilyDescriptor(
+                        metaInfoBase,
+                        columnFamilyOptionsFactory,
+                        ttlCompactFiltersManager,
+                        writeBufferManagerCapacity);
+        try {
+            ColumnFamilyHandle columnFamilyHandle = createColumnFamily(columnFamilyDescriptor, db);
+            return new ForStKvStateInfo(columnFamilyHandle, metaInfoBase);
+        } catch (Exception ex) {
+            IOUtils.closeQuietly(columnFamilyDescriptor.getOptions());
+            throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", ex);
+        }
     }
 
     private static void throwExceptionIfPathLengthExceededOnWindows(String path, Exception cause)

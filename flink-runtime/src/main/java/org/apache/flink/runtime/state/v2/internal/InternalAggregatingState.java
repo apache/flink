@@ -29,4 +29,6 @@ import org.apache.flink.api.common.state.v2.AggregatingState;
  * @param <OUT> The type of the values that are returned from the state.
  */
 public interface InternalAggregatingState<K, N, IN, ACC, OUT>
-        extends InternalMergingState<K, N, IN, ACC, OUT, OUT>, AggregatingState<IN, OUT> {}
+        extends InternalMergingState<K, N, IN, ACC, OUT, OUT>,
+                AggregatingState<IN, OUT>,
+                InternalKeyedState<K, N, ACC> {}

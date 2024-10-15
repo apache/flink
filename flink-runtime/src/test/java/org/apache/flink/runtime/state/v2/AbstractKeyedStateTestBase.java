@@ -40,6 +40,7 @@ import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
+import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -175,6 +176,16 @@ public class AbstractKeyedStateTestBase {
                 @Nonnull
                 @Override
                 public <N, S extends State, SV> S createState(
+                        @Nonnull N defaultNamespace,
+                        @Nonnull TypeSerializer<N> namespaceSerializer,
+                        @Nonnull StateDescriptor<SV> stateDesc)
+                        throws Exception {
+                    return null;
+                }
+
+                @Nonnull
+                @Override
+                public <N, S extends InternalKeyedState, SV> S createStateInternal(
                         @Nonnull N defaultNamespace,
                         @Nonnull TypeSerializer<N> namespaceSerializer,
                         @Nonnull StateDescriptor<SV> stateDesc)

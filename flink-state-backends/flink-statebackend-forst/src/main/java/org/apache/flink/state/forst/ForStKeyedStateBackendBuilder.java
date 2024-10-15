@@ -38,6 +38,7 @@ import org.apache.flink.runtime.state.StateBackendBuilder;
 import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
 import org.apache.flink.state.forst.restore.ForStHeapTimersFullRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStIncrementalRestoreOperation;
@@ -101,6 +102,7 @@ public class ForStKeyedStateBackendBuilder<K>
 
     private final int numberOfKeyGroups;
     private final KeyGroupRange keyGroupRange;
+    private final TtlTimeProvider ttlTimeProvider;
 
     private final Collection<KeyedStateHandle> restoreStateHandles;
 
@@ -128,6 +130,7 @@ public class ForStKeyedStateBackendBuilder<K>
             int numberOfKeyGroups,
             KeyGroupRange keyGroupRange,
             ForStPriorityQueueConfig priorityQueueConfig,
+            TtlTimeProvider ttlTimeProvider,
             MetricGroup metricGroup,
             StateBackend.CustomInitializationMetrics customInitializationMetrics,
             @Nonnull Collection<KeyedStateHandle> stateHandles,
@@ -141,6 +144,7 @@ public class ForStKeyedStateBackendBuilder<K>
         this.numberOfKeyGroups = numberOfKeyGroups;
         this.keyGroupRange = keyGroupRange;
         this.priorityQueueConfig = priorityQueueConfig;
+        this.ttlTimeProvider = ttlTimeProvider;
         this.metricGroup = metricGroup;
         this.customInitializationMetrics = customInitializationMetrics;
         this.restoreStateHandles = stateHandles;
@@ -171,6 +175,12 @@ public class ForStKeyedStateBackendBuilder<K>
                 new LinkedHashMap<>();
         LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates =
                 new LinkedHashMap<>();
+
+        ForStDBTtlCompactFiltersManager ttlCompactFiltersManager =
+                new ForStDBTtlCompactFiltersManager(
+                        ttlTimeProvider,
+                        optionsContainer.getQueryTimeAfterNumEntries(),
+                        optionsContainer.getPeriodicCompactionTime());
 
         RocksDB db = null;
         ForStRestoreOperation restoreOperation = null;
@@ -277,7 +287,9 @@ public class ForStKeyedStateBackendBuilder<K>
                 priorityQueueFactory,
                 cancelStreamRegistryForBackend,
                 nativeMetricMonitor,
-                keyContext);
+                keyContext,
+                ttlTimeProvider,
+                ttlCompactFiltersManager);
     }
 
     private ForStRestoreOperation getForStRestoreOperation(
