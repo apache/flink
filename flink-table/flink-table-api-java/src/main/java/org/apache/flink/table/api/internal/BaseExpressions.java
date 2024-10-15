@@ -83,6 +83,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CEIL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CHAR_LENGTH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CHR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COLLECT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CONCAT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COSH;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.COT;
@@ -369,6 +370,11 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Returns left multiplied by right. */
     public OutType times(InType other) {
         return toApiSpecificExpression(unresolvedCall(TIMES, toExpr(), objectToExpression(other)));
+    }
+
+    /** Concatenates two strings. */
+    public OutType concat(InType other) {
+        return toApiSpecificExpression(unresolvedCall(CONCAT, toExpr(), objectToExpression(other)));
     }
 
     /**
