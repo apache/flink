@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -108,6 +109,13 @@ public interface DeclarativeSlotPool {
             long currentTime);
 
     /**
+     * Returns the task executors loading information.
+     *
+     * @return the task executors loading information.
+     */
+    TaskExecutorsLoadInformation getTaskExecutorsLoadInformation();
+
+    /**
      * Returns the free slot tracker.
      *
      * @return free slot tracker
@@ -137,11 +145,15 @@ public interface DeclarativeSlotPool {
      *
      * @param allocationId allocationId identifies the free slot to allocate
      * @param requiredSlotProfile requiredSlotProfile specifying the resource requirement
+     * @param loadingWeight loading weight.
      * @return a PhysicalSlot representing the allocated slot
      * @throws IllegalStateException if no free slot with the given allocationId exists or if the
      *     specified slot cannot fulfill the requiredSlotProfile
      */
-    PhysicalSlot reserveFreeSlot(AllocationID allocationId, ResourceProfile requiredSlotProfile);
+    PhysicalSlot reserveFreeSlot(
+            AllocationID allocationId,
+            ResourceProfile requiredSlotProfile,
+            LoadingWeight loadingWeight);
 
     /**
      * Frees the reserved slot identified by the given allocationId. If no slot with allocationId
