@@ -1152,7 +1152,7 @@ public class TaskTest extends TestLogger {
         assertFalse(task.isBackPressured());
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     public void testGetIsCallerContextEnabled() throws Exception {
         final Task task = createTaskBuilder().build(Executors.directExecutor());
 
