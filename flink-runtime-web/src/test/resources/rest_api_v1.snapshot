@@ -1884,7 +1884,7 @@
       "type" : "any"
     }
   }, {
-    "url" : "/jobs/:jobid/coordinators/:operatorid",
+    "url" : "/jobs/:jobid/coordinators/:operatorUid",
     "method" : "POST",
     "status-code" : "200 OK",
     "file-upload" : false,
