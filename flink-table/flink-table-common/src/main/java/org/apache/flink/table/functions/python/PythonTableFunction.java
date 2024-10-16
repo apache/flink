@@ -137,24 +137,6 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
     }
 
     @Override
-    public TypeInformation[] getParameterTypes(Class[] signature) {
-        if (inputTypes != null) {
-            return TypeConversions.fromDataTypeToLegacyInfo(inputTypes);
-        } else {
-            return super.getParameterTypes(signature);
-        }
-    }
-
-    @Override
-    public TypeInformation<Row> getResultType() {
-        if (resultType == null && resultTypeString != null) {
-            throw new RuntimeException(
-                    "String format result type is not supported in old type system. The `register_function` is deprecated, please Use `create_temporary_system_function` instead.");
-        }
-        return (TypeInformation<Row>) TypeConversions.fromDataTypeToLegacyInfo(resultType);
-    }
-
-    @Override
     public TypeInference getTypeInference(DataTypeFactory typeFactory) {
         TypeInference.Builder builder = TypeInference.newBuilder();
 

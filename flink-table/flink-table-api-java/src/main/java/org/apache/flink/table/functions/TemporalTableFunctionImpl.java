@@ -85,11 +85,6 @@ public final class TemporalTableFunctionImpl extends TemporalTableFunction {
                 .build();
     }
 
-    @Override
-    public RowTypeInfo getResultType() {
-        return resultType;
-    }
-
     public QueryOperation getUnderlyingHistoryTable() {
         if (underlyingHistoryTable == null) {
             throw new IllegalStateException("Accessing table field after planing/serialization");
