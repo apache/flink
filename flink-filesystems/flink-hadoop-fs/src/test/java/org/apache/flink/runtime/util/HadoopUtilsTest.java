@@ -144,12 +144,8 @@ class HadoopUtilsTest {
     @Test
     public void testSetCallerContext() {
         try {
-            // 调用 setCallerContext 方法，验证不会抛出异常
             String testContext = "testContext";
             HadoopUtils.setCallerContext(testContext);
-            System.out.println("setCallerContext called successfully.");
-
-            // 反射获取 CallerContext 当前的值，验证是否正确设置
             Class<?> callerContextClass = Class.forName("org.apache.hadoop.ipc.CallerContext");
             Method getCurrentMethod = callerContextClass.getMethod("getCurrent");
             Object currentContext = getCurrentMethod.invoke(null);
@@ -157,9 +153,8 @@ class HadoopUtilsTest {
             Method getContextMethod = callerContextClass.getMethod("getContext");
             String contextValue = (String) getContextMethod.invoke(currentContext);
 
-            assertEquals("The CallerContext should be set correctly.", testContext, contextValue);
+            assertEquals(testContext, contextValue,"The CallerContext should be set correctly.");
         } catch (Exception e) {
-            // 如果有异常，测试应当失败
             e.printStackTrace();
             assert false : "setCallerContext threw an unexpected exception.";
         }
