@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.ClusterOptions;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.management.jmx.JMXService;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.JobPermanentBlobService;
@@ -188,14 +187,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.apache.flink.configuration.HadoopOptions.CALLER_CONTEXT_ENABLED;
 import static org.apache.flink.runtime.shuffle.ShuffleServiceOptions.NETTY_SHUFFLE_SERVICE_FACTORY_CLASS;
 import static org.apache.flink.runtime.shuffle.ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS;
-import static org.apache.flink.runtime.util.HadoopUtils.setCallerContext;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -861,30 +857,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             channelStateExecutorFactoryManager.getOrCreateExecutorFactory(jobId));
 
             taskMetricGroup.gauge(MetricNames.IS_BACK_PRESSURED, task::isBackPressured);
-
-            boolean isCallerContextEnabled =
-                    getIsCallerContextEnabled(taskManagerConfiguration.getConfiguration());
-            if (isCallerContextEnabled) {
-
-                String context =
-                        "FLINK_"
-                                + task.getJobVertexId()
-                                + "_("
-                                + task.getTaskInfo().getIndexOfThisSubtask()
-                                + ")_"
-                                + task.getTaskInfo().getAttemptNumber()
-                                + "_JobID_"
-                                + task.getJobID().toString();
-                if (System.getenv().get("CONTAINER_ID") != null) {
-                    String[] application = System.getenv().get("CONTAINER_ID").split("_");
-
-                    context = context + "_application_" + application[2] + "_" + application[3];
-                }
-                setCallerContext(context);
-                log.info(
-                        "set callerContest for task {}",
-                        task.getTaskInfo().getTaskNameWithSubtasks());
-            }
 
             log.info(
                     "Received task {} ({}), deploy into slot with allocation id {}.",
@@ -2488,23 +2460,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     @VisibleForTesting
     HeartbeatManager<Void, TaskExecutorHeartbeatPayload> getResourceManagerHeartbeatManager() {
         return resourceManagerHeartbeatManager;
-    }
-
-    @VisibleForTesting
-    boolean getIsCallerContextEnabled(Configuration configuration) {
-        return (configuration.get(CALLER_CONTEXT_ENABLED)
-                && ((Supplier<Boolean>)
-                                () -> {
-                                    try {
-                                        Class.forName("org.apache.hadoop.ipc.CallerContext");
-                                        Class.forName(
-                                                "org.apache.hadoop.ipc.CallerContext$Builder");
-                                        return true;
-                                    } catch (ClassNotFoundException e) {
-                                        return false;
-                                    }
-                                })
-                        .get());
     }
 
     // ------------------------------------------------------------------------

@@ -122,7 +122,6 @@ import org.apache.flink.shaded.curator5.com.google.common.collect.Iterators;
 import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
 
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -164,7 +163,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.stream.IntStream.range;
-import static org.apache.flink.configuration.HadoopOptions.CALLER_CONTEXT_ENABLED;
 import static org.apache.flink.configuration.TaskManagerOptions.TASK_MANAGER_LOG_PATH;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup;
@@ -2735,20 +2733,6 @@ class TaskExecutorTest {
         } finally {
             RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
-    }
-
-    @Test
-    public void testGetIsCallerContextEnabled() throws Exception {
-        // default configs does not support CallerContext
-        TaskExecutor taskExecutor = createTaskExecutor(1);
-
-        boolean isCallerContextEnabled = taskExecutor.getIsCallerContextEnabled(configuration);
-        Assertions.assertFalse(isCallerContextEnabled, "Caller context should not be enabled.");
-
-        // modify configuration to support CallerContext
-        configuration.set(CALLER_CONTEXT_ENABLED, true);
-        isCallerContextEnabled = taskExecutor.getIsCallerContextEnabled(configuration);
-        Assertions.assertTrue(isCallerContextEnabled, "Caller context should be disabled.");
     }
 
     private TaskExecutorLocalStateStoresManager createTaskExecutorLocalStateStoresManager()

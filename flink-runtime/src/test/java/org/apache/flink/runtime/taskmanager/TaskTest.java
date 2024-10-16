@@ -60,6 +60,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
@@ -78,6 +79,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.configuration.HadoopOptions.CALLER_CONTEXT_ENABLED;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondition;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -1148,6 +1150,20 @@ public class TaskTest extends TestLogger {
     public void testNoBackPressureIfTaskNotStarted() throws Exception {
         final Task task = createTaskBuilder().build(Executors.directExecutor());
         assertFalse(task.isBackPressured());
+    }
+
+    @org.junit.jupiter.api.Test
+    public void testGetIsCallerContextEnabled() throws Exception {
+        final Task task = createTaskBuilder().build(Executors.directExecutor());
+
+        boolean isCallerContextEnabled =
+                task.getIsCallerContextEnabled(task.getTaskConfiguration());
+        Assertions.assertFalse(isCallerContextEnabled, "Caller context should not be enabled.");
+
+        // modify configuration to support CallerContext
+        task.getTaskConfiguration().set(CALLER_CONTEXT_ENABLED, true);
+        isCallerContextEnabled = task.getIsCallerContextEnabled(task.getTaskConfiguration());
+        Assertions.assertTrue(isCallerContextEnabled, "Caller context should be disabled.");
     }
 
     @Test

@@ -119,7 +119,10 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
+import static org.apache.flink.configuration.HadoopOptions.CALLER_CONTEXT_ENABLED;
+import static org.apache.flink.runtime.util.HadoopUtils.setCallerContext;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -557,6 +560,27 @@ public class Task
 
     /** Starts the task's thread. */
     public void startTaskThread() {
+        boolean isCallerContextEnabled =
+                getIsCallerContextEnabled(taskManagerConfig.getConfiguration());
+        if (isCallerContextEnabled) {
+
+            String context =
+                    "FLINK_"
+                            + this.vertexId.toString()
+                            + "_("
+                            + taskInfo.getIndexOfThisSubtask()
+                            + ")_"
+                            + taskInfo.getAttemptNumber()
+                            + "_JobID_"
+                            + this.jobId.toString();
+            if (System.getenv().get("CONTAINER_ID") != null) {
+                String[] application = System.getenv().get("CONTAINER_ID").split("_");
+
+                context = context + "_application_" + application[2] + "_" + application[3];
+            }
+            setCallerContext(context);
+            LOG.info("set callerContest for task {}", taskInfo.getTaskNameWithSubtasks());
+        }
         executingThread.start();
     }
 
@@ -1851,5 +1875,22 @@ public class Task
         ABORT,
         COMPLETE,
         SUBSUME
+    }
+
+    @VisibleForTesting
+    boolean getIsCallerContextEnabled(Configuration configuration) {
+        return (configuration.get(CALLER_CONTEXT_ENABLED)
+                && ((Supplier<Boolean>)
+                                () -> {
+                                    try {
+                                        Class.forName("org.apache.hadoop.ipc.CallerContext");
+                                        Class.forName(
+                                                "org.apache.hadoop.ipc.CallerContext$Builder");
+                                        return true;
+                                    } catch (ClassNotFoundException e) {
+                                        return false;
+                                    }
+                                })
+                        .get());
     }
 }
