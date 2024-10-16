@@ -53,7 +53,7 @@
           [nzPercent]="
             +(
               (metrics['Status.JVM.Memory.Heap.Used'] / metrics['Status.JVM.Memory.Heap.Max']) * 100
-              | number: '1.0-2'
+              | number : '1.0-2'
             )
           "
           nzStatus="normal"
@@ -91,7 +91,7 @@
             +(
               (metrics['Status.JVM.Memory.Metaspace.Used'] /
                 metrics['Status.JVM.Memory.Metaspace.Max']) *
-                100 | number: '1.0-2'
+                100 | number : '1.0-2'
             )
           "
           nzStatus="normal"

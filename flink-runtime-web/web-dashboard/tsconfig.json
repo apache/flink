@@ -4,8 +4,13 @@
     "baseUrl": "./",
     "downlevelIteration": true,
     "paths": {
-      "*": ["./src/@types/*"],
-      "@flink-runtime-web/*": ["./src/app/*", "./src/environments/*"]
+      "*": [
+        "./src/@types/*"
+      ],
+      "@flink-runtime-web/*": [
+        "./src/app/*",
+        "./src/environments/*"
+      ]
     },
     "outDir": "./dist/out-tsc",
     "sourceMap": true,
@@ -14,15 +19,21 @@
     "moduleResolution": "node",
     "experimentalDecorators": true,
     "importHelpers": true,
-    "target": "es2020",
-    "typeRoots": ["node_modules/@types"],
-    "lib": ["es2018", "dom"],
+    "target": "ES2022",
+    "typeRoots": [
+      "node_modules/@types"
+    ],
+    "lib": [
+      "es2018",
+      "dom"
+    ],
     "noUnusedParameters": true,
     "noUnusedLocals": true,
     "noImplicitAny": true,
     "noImplicitThis": true,
     "skipLibCheck": true,
     "strictFunctionTypes": true,
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    "useDefineForClassFields": false
   }
 }

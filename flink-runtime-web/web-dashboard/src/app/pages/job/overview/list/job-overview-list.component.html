@@ -73,7 +73,7 @@
             else loadingTemplate
           "
         >
-          {{ node.detail.metrics['read-records'] | number: '1.0-0' }}
+          {{ node.detail.metrics['read-records'] | number : '1.0-0' }}
         </span>
       </td>
       <td>
@@ -93,7 +93,7 @@
             else loadingTemplate
           "
         >
-          {{ node.detail.metrics['write-records'] | number: '1.0-0' }}
+          {{ node.detail.metrics['write-records'] | number : '1.0-0' }}
         </span>
       </td>
       <td>
@@ -107,9 +107,9 @@
           </b>
         </span>
       </td>
-      <td>{{ node.detail['start-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
+      <td>{{ node.detail['start-time'] | humanizeDate : 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
       <td>{{ node.detail?.duration | humanizeDuration }}</td>
-      <td>{{ node.detail['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
+      <td>{{ node.detail['end-time'] | humanizeDate : 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
       <td nzRight [class.selected]="selectedNode?.id === node.id">
         <flink-task-badge [tasks]="node.detail?.tasks"></flink-task-badge>
       </td>

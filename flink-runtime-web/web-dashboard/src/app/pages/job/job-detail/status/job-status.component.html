@@ -72,10 +72,10 @@
       {{ jobDetail['job-type'] }}
     </nz-descriptions-item>
     <nz-descriptions-item nzTitle="Start Time">
-      {{ jobDetail['start-time'] | date: 'yyyy-MM-dd HH:mm:ss.SSS' }}
+      {{ jobDetail['start-time'] | date : 'yyyy-MM-dd HH:mm:ss.SSS' }}
     </nz-descriptions-item>
     <nz-descriptions-item nzTitle="End Time" *ngIf="jobDetail['end-time'] > -1">
-      {{ jobDetail['end-time'] | date: 'yyyy-MM-dd HH:mm:ss.SSS' }}
+      {{ jobDetail['end-time'] | date : 'yyyy-MM-dd HH:mm:ss.SSS' }}
     </nz-descriptions-item>
     <nz-descriptions-item nzTitle="Duration">
       {{ jobDetail.duration | humanizeDuration }}

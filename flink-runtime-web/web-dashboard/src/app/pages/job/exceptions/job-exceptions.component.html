@@ -49,7 +49,7 @@
           <ng-container *ngFor="let item of exceptionHistory; trackBy: trackByTimestamp">
             <tr>
               <td nzShowExpand [(nzExpand)]="item.expand"></td>
-              <td>{{ item.selected.timestamp | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
+              <td>{{ item.selected.timestamp | date : 'yyyy-MM-dd HH:mm:ss' }}</td>
               <td>
                 <div class="name">{{ item.selected.exceptionName }}</div>
                 <nz-tag
