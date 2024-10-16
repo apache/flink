@@ -23,6 +23,7 @@ import org.apache.flink.configuration.SinkOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
+import org.apache.flink.streaming.api.connector.sink2.CommittableSummaryAssert;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -62,7 +63,7 @@ abstract class CommitterOperatorTestBase {
         testHarness.open();
 
         final CommittableSummary<String> committableSummary =
-                new CommittableSummary<>(1, 1, 1L, 1, 1, 0);
+                new CommittableSummary<>(1, 1, 1L, 1, 0);
         testHarness.processElement(new StreamRecord<>(committableSummary));
         final CommittableWithLineage<String> committableWithLineage =
                 new CommittableWithLineage<>("1", 1L, 1);
@@ -77,8 +78,7 @@ abstract class CommitterOperatorTestBase {
                     assertThat(testHarness.extractOutputValues()).hasSize(2);
             records.element(0, as(committableSummary()))
                     .hasFailedCommittables(committableSummary.getNumberOfFailedCommittables())
-                    .hasOverallCommittables(committableSummary.getNumberOfCommittables())
-                    .hasPendingCommittables(0);
+                    .hasOverallCommittables(committableSummary.getNumberOfCommittables());
             records.element(1, as(committableWithLineage()))
                     .isEqualTo(committableWithLineage.withSubtaskId(0));
         } else {
@@ -98,7 +98,7 @@ abstract class CommitterOperatorTestBase {
 
         // Only send first committable
         final CommittableSummary<String> committableSummary =
-                new CommittableSummary<>(1, 1, 1L, 2, 2, 0);
+                new CommittableSummary<>(1, 1, 1L, 2, 0);
         testHarness.processElement(new StreamRecord<>(committableSummary));
         final CommittableWithLineage<String> first = new CommittableWithLineage<>("1", 1L, 1);
         testHarness.processElement(new StreamRecord<>(first));
@@ -119,8 +119,7 @@ abstract class CommitterOperatorTestBase {
                 assertThat(testHarness.extractOutputValues()).hasSize(3);
         records.element(0, as(committableSummary()))
                 .hasFailedCommittables(committableSummary.getNumberOfFailedCommittables())
-                .hasOverallCommittables(committableSummary.getNumberOfCommittables())
-                .hasPendingCommittables(0);
+                .hasOverallCommittables(committableSummary.getNumberOfCommittables());
         records.element(1, as(committableWithLineage())).isEqualTo(first.withSubtaskId(0));
         records.element(2, as(committableWithLineage())).isEqualTo(second.withSubtaskId(0));
         testHarness.close();
@@ -136,10 +135,10 @@ abstract class CommitterOperatorTestBase {
         testHarness.open();
 
         final CommittableSummary<String> committableSummary =
-                new CommittableSummary<>(1, 2, EOI, 1, 1, 0);
+                new CommittableSummary<>(1, 2, EOI, 1, 0);
         testHarness.processElement(new StreamRecord<>(committableSummary));
         final CommittableSummary<String> committableSummary2 =
-                new CommittableSummary<>(2, 2, EOI, 1, 1, 0);
+                new CommittableSummary<>(2, 2, EOI, 1, 0);
         testHarness.processElement(new StreamRecord<>(committableSummary2));
 
         final CommittableWithLineage<String> first = new CommittableWithLineage<>("1", EOI, 1);
@@ -158,8 +157,7 @@ abstract class CommitterOperatorTestBase {
                 assertThat(testHarness.extractOutputValues()).hasSize(3);
         records.element(0, as(committableSummary()))
                 .hasFailedCommittables(0)
-                .hasOverallCommittables(2)
-                .hasPendingCommittables(0);
+                .hasOverallCommittables(2);
         records.element(1, as(committableWithLineage())).isEqualTo(first.withSubtaskId(0));
         records.element(2, as(committableWithLineage())).isEqualTo(second.withSubtaskId(0));
         testHarness.close();
@@ -188,7 +186,7 @@ abstract class CommitterOperatorTestBase {
         long checkpointId = 0L;
 
         final CommittableSummary<String> committableSummary =
-                new CommittableSummary<>(originalSubtaskId, 1, checkpointId, 1, 1, 0);
+                new CommittableSummary<>(originalSubtaskId, 1, checkpointId, 1, 0);
         testHarness.processElement(new StreamRecord<>(committableSummary));
         final CommittableWithLineage<String> first =
                 new CommittableWithLineage<>("1", checkpointId, originalSubtaskId);
@@ -196,7 +194,7 @@ abstract class CommitterOperatorTestBase {
 
         // another committable for the same checkpointId but from different subtask.
         final CommittableSummary<String> committableSummary2 =
-                new CommittableSummary<>(originalSubtaskId + 1, 1, checkpointId, 1, 1, 0);
+                new CommittableSummary<>(originalSubtaskId + 1, 1, checkpointId, 1, 0);
         testHarness.processElement(new StreamRecord<>(committableSummary2));
         final CommittableWithLineage<String> second =
                 new CommittableWithLineage<>("2", checkpointId, originalSubtaskId + 1);
@@ -223,12 +221,12 @@ abstract class CommitterOperatorTestBase {
         assertThat(sinkAndCounters.commitCounter.getAsInt()).isEqualTo(2);
         ListAssert<CommittableMessage<String>> records =
                 assertThat(restored.extractOutputValues()).hasSize(3);
-        records.element(0, as(committableSummary()))
-                .hasCheckpointId(checkpointId)
-                .hasSubtaskId(subtaskIdAfterRecovery)
-                .hasFailedCommittables(0)
-                .hasOverallCommittables(2)
-                .hasPendingCommittables(0);
+        CommittableSummaryAssert<Object> objectCommittableSummaryAssert =
+                records.element(0, as(committableSummary()))
+                        .hasCheckpointId(checkpointId)
+                        .hasFailedCommittables(0)
+                        .hasSubtaskId(subtaskIdAfterRecovery);
+        objectCommittableSummaryAssert.hasOverallCommittables(2);
 
         // Expect the same checkpointId that the original snapshot was made with.
         records.element(1, as(committableWithLineage()))
@@ -258,7 +256,7 @@ abstract class CommitterOperatorTestBase {
 
             long ckdId = 1L;
             testHarness.processElement(
-                    new StreamRecord<>(new CommittableSummary<>(0, 1, ckdId, 1, 0, 0)));
+                    new StreamRecord<>(new CommittableSummary<>(0, 1, ckdId, 1, 0)));
             testHarness.processElement(
                     new StreamRecord<>(new CommittableWithLineage<>("1", ckdId, 0)));
             AbstractThrowableAssert<?, ? extends Throwable> throwableAssert =
@@ -276,44 +274,43 @@ abstract class CommitterOperatorTestBase {
     void testHandleEndInputInStreamingMode(boolean isCheckpointingEnabled) throws Exception {
         final SinkAndCounters sinkAndCounters = sinkWithPostCommit();
 
-        final OneInputStreamOperatorTestHarness<
+        try (OneInputStreamOperatorTestHarness<
                         CommittableMessage<String>, CommittableMessage<String>>
                 testHarness =
                         new OneInputStreamOperatorTestHarness<>(
                                 new CommitterOperatorFactory<>(
-                                        sinkAndCounters.sink, false, isCheckpointingEnabled));
-        testHarness.open();
+                                        sinkAndCounters.sink, false, isCheckpointingEnabled))) {
+            testHarness.open();
 
-        final CommittableSummary<String> committableSummary =
-                new CommittableSummary<>(1, 1, 1L, 1, 1, 0);
-        testHarness.processElement(new StreamRecord<>(committableSummary));
-        final CommittableWithLineage<String> committableWithLineage =
-                new CommittableWithLineage<>("1", 1L, 1);
-        testHarness.processElement(new StreamRecord<>(committableWithLineage));
+            final CommittableSummary<String> committableSummary =
+                    new CommittableSummary<>(1, 1, 1L, 1, 0);
+            testHarness.processElement(new StreamRecord<>(committableSummary));
+            final CommittableWithLineage<String> committableWithLineage =
+                    new CommittableWithLineage<>("1", 1L, 1);
+            testHarness.processElement(new StreamRecord<>(committableWithLineage));
 
-        testHarness.endInput();
+            testHarness.endInput();
 
-        // If checkpointing enabled endInput does not emit anything because a final checkpoint
-        // follows
-        if (isCheckpointingEnabled) {
-            testHarness.notifyOfCompletedCheckpoint(1);
+            // If checkpointing enabled endInput does not emit anything because a final checkpoint
+            // follows
+            if (isCheckpointingEnabled) {
+                testHarness.notifyOfCompletedCheckpoint(1);
+            }
+
+            ListAssert<CommittableMessage<String>> records =
+                    assertThat(testHarness.extractOutputValues()).hasSize(2);
+            CommittableSummaryAssert<Object> objectCommittableSummaryAssert =
+                    records.element(0, as(committableSummary())).hasCheckpointId(1L);
+            objectCommittableSummaryAssert.hasOverallCommittables(1);
+            records.element(1, as(committableWithLineage()))
+                    .isEqualTo(committableWithLineage.withSubtaskId(0));
+
+            // Future emission calls should change the output
+            testHarness.notifyOfCompletedCheckpoint(2);
+            testHarness.endInput();
+
+            assertThat(testHarness.getOutput()).hasSize(2);
         }
-
-        ListAssert<CommittableMessage<String>> records =
-                assertThat(testHarness.extractOutputValues()).hasSize(2);
-        records.element(0, as(committableSummary()))
-                .hasCheckpointId(1L)
-                .hasPendingCommittables(0)
-                .hasOverallCommittables(1)
-                .hasFailedCommittables(0);
-        records.element(1, as(committableWithLineage()))
-                .isEqualTo(committableWithLineage.withSubtaskId(0));
-
-        // Future emission calls should change the output
-        testHarness.notifyOfCompletedCheckpoint(2);
-        testHarness.endInput();
-
-        assertThat(testHarness.getOutput()).hasSize(2);
     }
 
     private OneInputStreamOperatorTestHarness<

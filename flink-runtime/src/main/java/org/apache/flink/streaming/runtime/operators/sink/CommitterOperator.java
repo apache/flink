@@ -196,8 +196,7 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
                                 numberOfSubtasks,
                                 checkpointId,
                                 committables.size(),
-                                0,
-                                0)));
+                                committableManager.getNumFailed())));
         for (CommT committable : committables) {
             output.collect(
                     new StreamRecord<>(

@@ -66,5 +66,24 @@ public interface CheckpointCommittableManager<CommT> {
     void commit(Committer<CommT> committer, int maxRetries)
             throws IOException, InterruptedException;
 
+    /**
+     * Returns the number of committables that have been successfully committed; that is, the
+     * corresponding {@link org.apache.flink.api.connector.sink2.Committer.CommitRequest} was not
+     * used to signal an error of any kind (retryable or not).
+     *
+     * @return number of successful committables
+     */
     Collection<CommT> getSuccessfulCommittables();
+
+    /**
+     * Returns the number of committables that have failed with a known error. By the current
+     * semantics of {@link
+     * org.apache.flink.api.connector.sink2.Committer.CommitRequest#signalFailedWithKnownReason(Throwable)}
+     * discards the committable but proceeds processing. The returned number should be emitted
+     * downstream in a {@link org.apache.flink.streaming.api.connector.sink2.CommittableSummary},
+     * such that downstream can assess if all committables have been processed.
+     *
+     * @return number of failed committables
+     */
+    int getNumFailed();
 }

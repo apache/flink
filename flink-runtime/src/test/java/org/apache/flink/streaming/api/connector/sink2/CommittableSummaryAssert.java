@@ -40,10 +40,6 @@ public class CommittableSummaryAssert<CommT>
         return returns(committableNumber, CommittableSummary::getNumberOfCommittables);
     }
 
-    public CommittableSummaryAssert<CommT> hasPendingCommittables(int committableNumber) {
-        return returns(committableNumber, CommittableSummary::getNumberOfPendingCommittables);
-    }
-
     public CommittableSummaryAssert<CommT> hasFailedCommittables(int committableNumber) {
         return returns(committableNumber, CommittableSummary::getNumberOfFailedCommittables);
     }

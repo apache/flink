@@ -48,17 +48,15 @@ class CheckpointCommittableManagerImplTest {
                 new CheckpointCommittableManagerImpl<>(new HashMap<>(), 1, 1L, METRIC_GROUP);
         assertThat(checkpointCommittables.getSubtaskCommittableManagers()).isEmpty();
 
-        final CommittableSummary<Integer> first = new CommittableSummary<>(1, 1, 1L, 1, 0, 0);
+        final CommittableSummary<Integer> first = new CommittableSummary<>(1, 1, 1L, 1, 0);
         checkpointCommittables.addSummary(first);
         assertThat(checkpointCommittables.getSubtaskCommittableManagers())
                 .singleElement()
                 .returns(1, SubtaskCommittableManager::getSubtaskId)
-                .returns(1L, SubtaskCommittableManager::getCheckpointId)
-                .returns(1, SubtaskCommittableManager::getNumPending)
-                .returns(0, SubtaskCommittableManager::getNumFailed);
+                .returns(1L, SubtaskCommittableManager::getCheckpointId);
 
         // Add different subtask id
-        final CommittableSummary<Integer> third = new CommittableSummary<>(2, 1, 2L, 2, 1, 1);
+        final CommittableSummary<Integer> third = new CommittableSummary<>(2, 1, 2L, 2, 1);
         checkpointCommittables.addSummary(third);
         assertThat(checkpointCommittables.getSubtaskCommittableManagers()).hasSize(2);
     }
@@ -67,8 +65,8 @@ class CheckpointCommittableManagerImplTest {
     void testCommit() throws IOException, InterruptedException {
         final CheckpointCommittableManagerImpl<Integer> checkpointCommittables =
                 new CheckpointCommittableManagerImpl<>(new HashMap<>(), 1, 1L, METRIC_GROUP);
-        checkpointCommittables.addSummary(new CommittableSummary<>(1, 1, 1L, 1, 0, 0));
-        checkpointCommittables.addSummary(new CommittableSummary<>(2, 1, 1L, 2, 0, 0));
+        checkpointCommittables.addSummary(new CommittableSummary<>(1, 1, 1L, 1, 0));
+        checkpointCommittables.addSummary(new CommittableSummary<>(2, 1, 1L, 2, 0));
         checkpointCommittables.addCommittable(new CommittableWithLineage<>(3, 1L, 1));
         checkpointCommittables.addCommittable(new CommittableWithLineage<>(4, 1L, 2));
 
@@ -95,11 +93,11 @@ class CheckpointCommittableManagerImplTest {
     void testUpdateCommittableSummary() {
         final CheckpointCommittableManagerImpl<Integer> checkpointCommittables =
                 new CheckpointCommittableManagerImpl<>(new HashMap<>(), 1, 1L, METRIC_GROUP);
-        checkpointCommittables.addSummary(new CommittableSummary<>(1, 1, 1L, 1, 0, 0));
+        checkpointCommittables.addSummary(new CommittableSummary<>(1, 1, 1L, 1, 0));
         assertThatThrownBy(
                         () ->
                                 checkpointCommittables.addSummary(
-                                        new CommittableSummary<>(1, 1, 1L, 2, 0, 0)))
+                                        new CommittableSummary<>(1, 1, 1L, 2, 0)))
                 .isInstanceOf(UnsupportedOperationException.class)
                 .hasMessageContaining("FLINK-25920");
     }
@@ -114,7 +112,7 @@ class CheckpointCommittableManagerImplTest {
                 new CheckpointCommittableManagerImpl<>(
                         new HashMap<>(), numberOfSubtasks, checkpointId, METRIC_GROUP);
         original.addSummary(
-                new CommittableSummary<>(subtaskId, numberOfSubtasks, checkpointId, 1, 0, 0));
+                new CommittableSummary<>(subtaskId, numberOfSubtasks, checkpointId, 1, 0));
 
         CheckpointCommittableManagerImpl<Integer> copy = original.copy();
 

@@ -35,6 +35,7 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
+import org.apache.flink.streaming.api.connector.sink2.CommittableSummaryAssert;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineageAssert;
 import org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions;
@@ -295,10 +296,8 @@ abstract class SinkWriterOperatorTestBase {
                 assertThat(testHarness.extractOutputValues()).hasSize(4);
 
         records.element(0, as(committableSummary()))
-                .hasPendingCommittables(committables.size())
                 .hasCheckpointId(INITIAL_CHECKPOINT_ID)
-                .hasOverallCommittables(committables.size())
-                .hasFailedCommittables(0);
+                .hasOverallCommittables(committables.size());
         records.<CommittableWithLineageAssert<String>>element(1, as(committableWithLineage()))
                 .hasCommittable(committables.get(0))
                 .hasCheckpointId(INITIAL_CHECKPOINT_ID)
@@ -307,11 +306,7 @@ abstract class SinkWriterOperatorTestBase {
                 .hasCommittable(committables.get(1))
                 .hasCheckpointId(INITIAL_CHECKPOINT_ID)
                 .hasSubtaskId(0);
-        records.element(3, as(committableSummary()))
-                .hasPendingCommittables(0)
-                .hasCheckpointId(2L)
-                .hasOverallCommittables(0)
-                .hasFailedCommittables(0);
+        records.element(3, as(committableSummary())).hasCheckpointId(2L).hasOverallCommittables(0);
     }
 
     @ParameterizedTest
@@ -338,10 +333,7 @@ abstract class SinkWriterOperatorTestBase {
 
         ListAssert<CommittableMessage<String>> records =
                 assertThat(testHarness.extractOutputValues()).hasSize(committables.size() + 1);
-        records.element(0, as(committableSummary()))
-                .hasPendingCommittables(committables.size())
-                .hasOverallCommittables(committables.size())
-                .hasFailedCommittables(0);
+        records.element(0, as(committableSummary())).hasOverallCommittables(committables.size());
 
         records.filteredOn(message -> message instanceof CommittableWithLineage)
                 .map(message -> ((CommittableWithLineage<String>) message).getCommittable())
@@ -422,10 +414,9 @@ abstract class SinkWriterOperatorTestBase {
             List<CommittableMessage<Integer>> output, int numberOfCommittables, long checkpointId) {
         ListAssert<CommittableMessage<Integer>> records =
                 assertThat(output).hasSize(numberOfCommittables + 1);
-        records.element(0, as(committableSummary()))
-                .hasOverallCommittables(numberOfCommittables)
-                .hasPendingCommittables(numberOfCommittables)
-                .hasFailedCommittables(0);
+        CommittableSummaryAssert<Object> objectCommittableSummaryAssert =
+                records.element(0, as(committableSummary()))
+                        .hasOverallCommittables(numberOfCommittables);
         records.filteredOn(r -> r instanceof CommittableWithLineage)
                 .allSatisfy(
                         cl ->
