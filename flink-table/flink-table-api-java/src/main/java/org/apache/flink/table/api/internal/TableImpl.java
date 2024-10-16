@@ -167,11 +167,6 @@ public class TableImpl implements Table {
     }
 
     @Override
-    public Table as(Expression... fields) {
-        return createTable(operationTreeBuilder.alias(Arrays.asList(fields), operationTree));
-    }
-
-    @Override
     public Table filter(Expression predicate) {
         Expression resolvedCallPredicate = predicate.accept(lookupResolver);
         return createTable(operationTreeBuilder.filter(resolvedCallPredicate, operationTree));

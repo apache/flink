@@ -25,7 +25,6 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TemporalTableFunction;
-import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.types.DataType;
 
@@ -89,19 +88,6 @@ import org.apache.flink.table.types.DataType;
 @PublicEvolving
 public interface Table extends Explainable<Table>, Executable {
 
-    /**
-     * Returns the schema of this table.
-     *
-     * @deprecated This method has been deprecated as part of FLIP-164. {@link TableSchema} has been
-     *     replaced by two more dedicated classes {@link Schema} and {@link ResolvedSchema}. Use
-     *     {@link Schema} for declaration in APIs. {@link ResolvedSchema} is offered by the
-     *     framework after resolution and validation.
-     */
-    @Deprecated
-    default TableSchema getSchema() {
-        return TableSchema.fromResolvedSchema(getResolvedSchema());
-    }
-
     /** Returns the resolved schema of this table. */
     ResolvedSchema getResolvedSchema();
 
@@ -160,27 +146,6 @@ public interface Table extends Explainable<Table>, Executable {
      * }</pre>
      */
     Table as(String field, String... fields);
-
-    /**
-     * Renames the fields of the expression result. Use this to disambiguate fields before joining
-     * to operations.
-     *
-     * <p>Java Example:
-     *
-     * <pre>{@code
-     * tab.as($("a"), $("b"))
-     * }</pre>
-     *
-     * <p>Scala Example:
-     *
-     * <pre>{@code
-     * tab.as($"a", $"b")
-     * }</pre>
-     *
-     * @deprecated use {@link #as(String, String...)}
-     */
-    @Deprecated
-    Table as(Expression... fields);
 
     /**
      * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE clause.
