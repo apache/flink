@@ -274,4 +274,23 @@ public interface SqlCallSyntax {
                                     .collect(Collectors.joining(", ")));
 
     SqlCallSyntax WINDOW_START_END = (sqlName, operands) -> String.format("%s", sqlName);
+
+    SqlCallSyntax OVER =
+            ((sqlName, operands) -> {
+                String projection = operands.get(0).asSerializableString();
+                String order = operands.get(1).asSerializableString();
+                String rangeBounds =
+                        CallSyntaxUtils.overRangeToSerializableString(
+                                operands.get(2), operands.get(3));
+                if (operands.size() == 4) {
+                    return String.format("%s OVER(ORDER BY %s %s)", projection, order, rangeBounds);
+                } else {
+                    return String.format(
+                            "%s OVER(PARTITION BY %s ORDER BY %s %s)",
+                            projection,
+                            CallSyntaxUtils.asSerializableOperand(operands.get(4)),
+                            order,
+                            rangeBounds);
+                }
+            });
 }

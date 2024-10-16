@@ -71,7 +71,9 @@ public class QueryOperationSqlExecutionTest implements TableTestProgramRunner {
                 QueryOperationTestPrograms.SORT_LIMIT_DESC,
                 QueryOperationTestPrograms.GROUP_BY_UDF_WITH_MERGE,
                 QueryOperationTestPrograms.NON_WINDOW_INNER_JOIN,
-                QueryOperationTestPrograms.SQL_QUERY_OPERATION);
+                QueryOperationTestPrograms.SQL_QUERY_OPERATION,
+                QueryOperationTestPrograms.OVER_WINDOW_RANGE,
+                QueryOperationTestPrograms.OVER_WINDOW_ROWS);
     }
 
     @ParameterizedTest
