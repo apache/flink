@@ -32,16 +32,20 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.ModelNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.listener.AlterDatabaseEvent;
+import org.apache.flink.table.catalog.listener.AlterModelEvent;
 import org.apache.flink.table.catalog.listener.AlterTableEvent;
 import org.apache.flink.table.catalog.listener.CatalogContext;
 import org.apache.flink.table.catalog.listener.CatalogModificationListener;
 import org.apache.flink.table.catalog.listener.CreateDatabaseEvent;
+import org.apache.flink.table.catalog.listener.CreateModelEvent;
 import org.apache.flink.table.catalog.listener.CreateTableEvent;
 import org.apache.flink.table.catalog.listener.DropDatabaseEvent;
+import org.apache.flink.table.catalog.listener.DropModelEvent;
 import org.apache.flink.table.catalog.listener.DropTableEvent;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver.ExpressionResolverBuilder;
@@ -57,6 +61,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -86,6 +91,10 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     // Those tables take precedence over corresponding permanent tables, thus they shadow
     // tables coming from catalogs.
     private final Map<ObjectIdentifier, CatalogBaseTable> temporaryTables;
+
+    // Those models take precedence over corresponding permanent models, thus they shadow
+    // models coming from catalogs.
+    private final Map<ObjectIdentifier, CatalogModel> temporaryModels;
 
     // The name of the current catalog and database
     private @Nullable String currentCatalogName;
@@ -123,6 +132,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         currentDatabaseName = defaultCatalog.getDefaultDatabase();
 
         temporaryTables = new HashMap<>();
+        temporaryModels = new HashMap<>();
+
         // right now the default catalog is always the built-in one
         builtInCatalogName = defaultCatalogName;
 
@@ -871,7 +882,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      *
      * <p><b>NOTE:</b>It is primarily used for interacting with Calcite's schema.
      *
-     * @return list of schemas in the root of catalog manager
+     * @return set of schemas in the root of catalog manager
      */
     public Set<String> listSchemas() {
         return Stream.concat(
@@ -888,7 +899,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * <p><b>NOTE:</b>It is primarily used for interacting with Calcite's schema.
      *
      * @param catalogName filter for the catalog part of the schema
-     * @return list of schemas with the given prefix
+     * @return set of schemas with the given prefix
      */
     public Set<String> listSchemas(String catalogName) {
         return Stream.concat(
@@ -1345,6 +1356,281 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                             "%s with identifier '%s' does not exist.",
                             tableOrView, objectIdentifier.asSummaryString()));
         }
+    }
+
+    /**
+     * Retrieves a fully qualified model. If the path is not yet fully qualified use {@link
+     * #qualifyIdentifier(UnresolvedIdentifier)} first.
+     *
+     * @param objectIdentifier full path of the model to retrieve
+     * @return model that the path points to.
+     */
+    public Optional<ContextResolvedModel> getModel(ObjectIdentifier objectIdentifier) {
+        CatalogModel temporaryModel = temporaryModels.get(objectIdentifier);
+        if (temporaryModel != null) {
+            final ResolvedCatalogModel resolvedModel = resolveCatalogModel(temporaryModel);
+            return Optional.of(ContextResolvedModel.temporary(objectIdentifier, resolvedModel));
+        }
+        Optional<Catalog> catalogOptional = getCatalog(objectIdentifier.getCatalogName());
+        ObjectPath objectPath = objectIdentifier.toObjectPath();
+        if (catalogOptional.isPresent()) {
+            Catalog currentCatalog = catalogOptional.get();
+            try {
+                final CatalogModel model = currentCatalog.getModel(objectPath);
+                if (model != null) {
+                    final ResolvedCatalogModel resolvedModel = resolveCatalogModel(model);
+                    return Optional.of(
+                            ContextResolvedModel.permanent(
+                                    objectIdentifier, currentCatalog, resolvedModel));
+                }
+            } catch (ModelNotExistException e) {
+                // Ignore.
+            } catch (UnsupportedOperationException e) {
+                // Ignore for catalogs that don't support models.
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Like {@link #getModel(ObjectIdentifier)}, but throws an error when the model is not available
+     * in any of the catalogs.
+     */
+    public ContextResolvedModel getModelOrError(ObjectIdentifier objectIdentifier) {
+        return getModel(objectIdentifier)
+                .orElseThrow(
+                        () ->
+                                new TableException(
+                                        String.format(
+                                                "Cannot find model '%s' in any of the catalogs %s.",
+                                                objectIdentifier, listCatalogs())));
+    }
+
+    /**
+     * Return whether the model with a fully qualified table path is temporary or not.
+     *
+     * @param objectIdentifier full path of the table
+     * @return the model is temporary or not.
+     */
+    public boolean isTemporaryModel(ObjectIdentifier objectIdentifier) {
+        return temporaryModels.containsKey(objectIdentifier);
+    }
+
+    /**
+     * Returns an array of names of all models registered in the namespace of the current catalog
+     * and database.
+     *
+     * @return names of all registered models
+     */
+    public Set<String> listModels() {
+        return listModels(getCurrentCatalog(), getCurrentDatabase());
+    }
+
+    /**
+     * Returns an array of names of all models registered in the namespace of the given catalog and
+     * database.
+     *
+     * @return names of all registered models
+     */
+    public Set<String> listModels(String catalogName, String databaseName) {
+        Catalog catalog = getCatalogOrThrowException(catalogName);
+        if (catalog == null) {
+            throw new ValidationException(String.format("Catalog %s does not exist", catalogName));
+        }
+        try {
+            return new HashSet<>(catalog.listModels(databaseName));
+        } catch (DatabaseNotExistException e) {
+            throw new ValidationException(
+                    String.format("Database %s does not exist", databaseName), e);
+        }
+    }
+
+    /**
+     * Creates a model in a given fully qualified path.
+     *
+     * @param model The resolved model to put in the given path.
+     * @param objectIdentifier The fully qualified path where to put the model.
+     * @param ignoreIfExists If false exception will be thrown if a model exists in the given path.
+     */
+    public void createModel(
+            CatalogModel model, ObjectIdentifier objectIdentifier, boolean ignoreIfExists) {
+        execute(
+                (catalog, path) -> {
+                    final ResolvedCatalogModel resolvedModel = resolveCatalogModel(model);
+                    catalog.createModel(path, resolvedModel, ignoreIfExists);
+                    catalogModificationListeners.forEach(
+                            listener ->
+                                    listener.onEvent(
+                                            CreateModelEvent.createEvent(
+                                                    CatalogContext.createContext(
+                                                            objectIdentifier.getCatalogName(),
+                                                            catalog),
+                                                    objectIdentifier,
+                                                    resolvedModel,
+                                                    ignoreIfExists,
+                                                    false)));
+                },
+                objectIdentifier,
+                false,
+                "CreateModel");
+    }
+
+    /**
+     * Creates a temporary model in a given fully qualified path.
+     *
+     * @param model The resolved model to put in the given path.
+     * @param objectIdentifier The fully qualified path where to put the model.
+     * @param ignoreIfExists if false exception will be thrown if a model exists in the given path.
+     */
+    public void createTemporaryModel(
+            CatalogModel model, ObjectIdentifier objectIdentifier, boolean ignoreIfExists) {
+        Optional<TemporaryOperationListener> listener =
+                getTemporaryOperationListener(objectIdentifier);
+        temporaryModels.compute(
+                objectIdentifier,
+                (k, v) -> {
+                    if (v != null) {
+                        if (!ignoreIfExists) {
+                            throw new ValidationException(
+                                    String.format(
+                                            "Temporary model '%s' already exists",
+                                            objectIdentifier));
+                        }
+                        return v;
+                    } else {
+                        ResolvedCatalogModel resolvedModel = resolveCatalogModel(model);
+                        Catalog catalog =
+                                getCatalog(objectIdentifier.getCatalogName()).orElse(null);
+                        if (listener.isPresent()) {
+                            return listener.get()
+                                    .onCreateTemporaryModel(
+                                            objectIdentifier.toObjectPath(), resolvedModel);
+                        }
+                        catalogModificationListeners.forEach(
+                                l ->
+                                        l.onEvent(
+                                                CreateModelEvent.createEvent(
+                                                        CatalogContext.createContext(
+                                                                objectIdentifier.getCatalogName(),
+                                                                catalog),
+                                                        objectIdentifier,
+                                                        resolvedModel,
+                                                        ignoreIfExists,
+                                                        true)));
+                        return resolvedModel;
+                    }
+                });
+    }
+
+    /**
+     * Alters a model in a given fully qualified path.
+     *
+     * @param modelChange The model containing only changes
+     * @param objectIdentifier The fully qualified path where to alter the model.
+     * @param ignoreIfNotExists If false exception will be thrown if the model to be altered does
+     *     not exist.
+     */
+    public void alterModel(
+            CatalogModel modelChange,
+            ObjectIdentifier objectIdentifier,
+            boolean ignoreIfNotExists) {
+        execute(
+                (catalog, path) -> {
+                    ResolvedCatalogModel resolvedModel = resolveCatalogModel(modelChange);
+                    catalog.alterModel(path, resolvedModel, ignoreIfNotExists);
+                    catalogModificationListeners.forEach(
+                            listener ->
+                                    listener.onEvent(
+                                            AlterModelEvent.createEvent(
+                                                    CatalogContext.createContext(
+                                                            objectIdentifier.getCatalogName(),
+                                                            catalog),
+                                                    objectIdentifier,
+                                                    resolvedModel,
+                                                    ignoreIfNotExists)));
+                },
+                objectIdentifier,
+                ignoreIfNotExists,
+                "AlterModel");
+    }
+
+    /**
+     * Drops a model in a given fully qualified path.
+     *
+     * @param objectIdentifier The fully qualified path of the model to drop.
+     * @param ignoreIfNotExists If false exception will be thrown if the model to drop does not
+     *     exist.
+     */
+    public void dropModel(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+        execute(
+                (catalog, path) -> {
+                    Optional<ContextResolvedModel> resultOpt = getModel(objectIdentifier);
+                    if (resultOpt.isPresent()) {
+                        ResolvedCatalogModel resolvedModel = resultOpt.get().getResolvedModel();
+                        catalog.dropModel(path, ignoreIfNotExists);
+                        catalogModificationListeners.forEach(
+                                listener ->
+                                        listener.onEvent(
+                                                DropModelEvent.createEvent(
+                                                        CatalogContext.createContext(
+                                                                objectIdentifier.getCatalogName(),
+                                                                catalog),
+                                                        objectIdentifier,
+                                                        resolvedModel,
+                                                        ignoreIfNotExists,
+                                                        false)));
+                    } else if (!ignoreIfNotExists) {
+                        throw new ModelNotExistException(
+                                objectIdentifier.getCatalogName(), objectIdentifier.toObjectPath());
+                    }
+                },
+                objectIdentifier,
+                ignoreIfNotExists,
+                "DropModel");
+    }
+
+    /**
+     * Drop a temporary model in a given fully qualified path.
+     *
+     * @param objectIdentifier The fully qualified path of the model to drop.
+     * @param ignoreIfNotExists If false exception will be thrown if the model to be dropped does
+     *     not exist.
+     */
+    public void dropTemporaryModel(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+        CatalogModel model = temporaryModels.get(objectIdentifier);
+        if (model != null) {
+            getTemporaryOperationListener(objectIdentifier)
+                    .ifPresent(l -> l.onDropTemporaryModel(objectIdentifier.toObjectPath()));
+
+            Catalog catalog = getCatalog(objectIdentifier.getCatalogName()).orElse(null);
+            ResolvedCatalogModel resolvedModel = resolveCatalogModel(model);
+            temporaryModels.remove(objectIdentifier);
+            catalogModificationListeners.forEach(
+                    listener ->
+                            listener.onEvent(
+                                    DropModelEvent.createEvent(
+                                            CatalogContext.createContext(
+                                                    objectIdentifier.getCatalogName(), catalog),
+                                            objectIdentifier,
+                                            resolvedModel,
+                                            ignoreIfNotExists,
+                                            true)));
+        } else if (!ignoreIfNotExists) {
+            throw new ValidationException(
+                    String.format(
+                            "Temporary model with identifier '%s' does not exist.",
+                            objectIdentifier.asSummaryString()));
+        }
+    }
+
+    public ResolvedCatalogModel resolveCatalogModel(CatalogModel model) {
+        Preconditions.checkNotNull(schemaResolver, "Schema resolver is not initialized.");
+        if (model instanceof ResolvedCatalogModel) {
+            return (ResolvedCatalogModel) model;
+        }
+        final ResolvedSchema resolvedInputSchema = model.getInputSchema().resolve(schemaResolver);
+        final ResolvedSchema resolvedOutputSchema = model.getOutputSchema().resolve(schemaResolver);
+        return ResolvedCatalogModel.of(model, resolvedInputSchema, resolvedOutputSchema);
     }
 
     /**

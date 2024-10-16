@@ -25,6 +25,8 @@ import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
+import org.apache.flink.table.catalog.exceptions.ModelAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.ModelNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
@@ -47,6 +49,7 @@ import org.apache.flink.table.procedures.Procedure;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -790,4 +793,122 @@ public interface Catalog {
             CatalogColumnStatistics columnStatistics,
             boolean ignoreIfNotExists)
             throws PartitionNotExistException, CatalogException;
+
+    // ------ models  ------
+
+    /**
+     * Get names of all models under this database. An empty list is returned if none exists.
+     *
+     * @return a list of the names of all models in this database
+     * @throws DatabaseNotExistException if the database does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default List<String> listModels(String databaseName)
+            throws DatabaseNotExistException, CatalogException {
+        return Collections.emptyList();
+    }
+
+    /**
+     * Returns a {@link CatalogModel} identified by the given {@link ObjectPath}.
+     *
+     * @param modelPath Path of the model
+     * @return The requested model
+     * @throws ModelNotExistException if the target does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default CatalogModel getModel(ObjectPath modelPath)
+            throws ModelNotExistException, CatalogException {
+        throw new ModelNotExistException(null, modelPath);
+    }
+
+    /**
+     * Check if a model exists in this catalog.
+     *
+     * @param modelPath Path of the model
+     * @return true if the given model exists in the catalog false otherwise
+     * @throws CatalogException in case of any runtime exception
+     */
+    default boolean modelExists(ObjectPath modelPath) throws CatalogException {
+        return false;
+    }
+
+    /**
+     * Drop a model.
+     *
+     * @param modelPath Path of the model to be dropped
+     * @param ignoreIfNotExists Flag to specify behavior when the model does not exist: if set to
+     *     false, throw an exception, if set to true, do nothing.
+     * @throws ModelNotExistException if the model does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default void dropModel(ObjectPath modelPath, boolean ignoreIfNotExists)
+            throws ModelNotExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "dropModel(ObjectPath, boolean) is not implemented for %s.",
+                        this.getClass()));
+    }
+
+    /**
+     * Rename an existing model.
+     *
+     * @param modelPath Path of the model to be renamed
+     * @param newModelName the new name of the model
+     * @param ignoreIfNotExists Flag to specify behavior when the model does not exist: if set to
+     *     false, throw an exception, if set to true, do nothing.
+     * @throws ModelNotExistException if the model does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default void renameModel(ObjectPath modelPath, String newModelName, boolean ignoreIfNotExists)
+            throws ModelNotExistException, ModelAlreadyExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "renameModel(ObjectPath, String, boolean) is not implemented for %s.",
+                        this.getClass()));
+    }
+
+    /**
+     * Creates a new model.
+     *
+     * <p>The framework will make sure to call this method with fully validated {@link
+     * ResolvedCatalogModel}. Those instances are easy to serialize for a durable catalog
+     * implementation.
+     *
+     * @param modelPath path of the model to be created
+     * @param model the CatalogModel definition
+     * @param ignoreIfExists flag to specify behavior when a model already exists at the given path:
+     *     if set to false, it throws a ModelAlreadyExistException, if set to true, do nothing.
+     * @throws ModelAlreadyExistException if model already exists and ignoreIfExists is false
+     * @throws DatabaseNotExistException if the database in tablePath doesn't exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default void createModel(ObjectPath modelPath, CatalogModel model, boolean ignoreIfExists)
+            throws ModelAlreadyExistException, DatabaseNotExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "createModel(ObjectPath, CatalogModel, boolean) is not implemented for %s.",
+                        this.getClass()));
+    }
+
+    /**
+     * Modifies an existing model.
+     *
+     * <p>The framework will make sure to call this method with fully validated {@link
+     * ResolvedCatalogModel}. Those instances are easy to serialize for a durable catalog
+     * implementation.
+     *
+     * @param modelPath path of the model to be modified
+     * @param newModel the new model definition
+     * @param ignoreIfNotExists flag to specify behavior when the model does not exist: if set to
+     *     false, throw an exception, if set to true, do nothing.
+     * @throws ModelNotExistException if the model does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default void alterModel(ObjectPath modelPath, CatalogModel newModel, boolean ignoreIfNotExists)
+            throws ModelNotExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "alterModel(ObjectPath, CatalogModel, boolean) is not implemented for %s.",
+                        this.getClass()));
+    }
 }

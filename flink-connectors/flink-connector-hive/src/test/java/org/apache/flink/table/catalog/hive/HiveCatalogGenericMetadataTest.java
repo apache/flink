@@ -527,6 +527,11 @@ class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase {
     }
 
     @Override
+    protected boolean supportsModels() {
+        return false;
+    }
+
+    @Override
     protected CatalogFunction createFunction() {
         return new CatalogFunctionImpl(TestGenericUDF.class.getCanonicalName());
     }

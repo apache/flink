@@ -51,6 +51,27 @@ public interface TemporaryOperationListener {
     void onDropTemporaryTable(ObjectPath tablePath) throws CatalogException;
 
     /**
+     * This method is called when a temporary model is to be created in this catalog. The catalog
+     * can modify the model according to its needs and return the modified CatalogModel instance,
+     * which will be stored for the user session.
+     *
+     * @param modelPath path of the model to be created
+     * @param model the model definition
+     * @return the modified model definition to be stored
+     * @throws CatalogException in case of any runtime exception
+     */
+    CatalogModel onCreateTemporaryModel(ObjectPath modelPath, CatalogModel model)
+            throws CatalogException;
+
+    /**
+     * This method is called when a temporary model in this catalog is to be dropped.
+     *
+     * @param modelPath path of the model to be dropped
+     * @throws CatalogException in case of any runtime exception
+     */
+    void onDropTemporaryModel(ObjectPath modelPath) throws CatalogException;
+
+    /**
      * This method is called when a temporary function is to be created in this catalog. The catalog
      * can modify the function according to its needs and return the modified CatalogFunction
      * instance, which will be stored for the user session.

@@ -17,15 +17,16 @@
 ################################################################################
 
 from pyflink.java_gateway import get_gateway
-from pyflink.table import TableSchema, DataTypes
+from pyflink.table import Schema, TableSchema, DataTypes
 
 from pyflink.table.catalog import ObjectPath, Catalog, CatalogDatabase, CatalogBaseTable, \
-    CatalogFunction, CatalogPartition, CatalogPartitionSpec
+    CatalogFunction, CatalogPartition, CatalogPartitionSpec, CatalogModel
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 from pyflink.util.exceptions import DatabaseNotExistException, FunctionNotExistException, \
     PartitionNotExistException, TableNotExistException, DatabaseAlreadyExistException, \
     FunctionAlreadyExistException, PartitionAlreadyExistsException, PartitionSpecInvalidException, \
-    TableNotPartitionedException, TableAlreadyExistException, DatabaseNotEmptyException
+    TableNotPartitionedException, TableAlreadyExistException, DatabaseNotEmptyException, \
+    ModelNotExistException, ModelAlreadyExistException
 
 
 class CatalogTestBase(PyFlinkTestCase):
@@ -36,6 +37,8 @@ class CatalogTestBase(PyFlinkTestCase):
     t1 = "t1"
     t2 = "t2"
     t3 = "t3"
+    m1 = "m1"
+    m2 = "m2"
     test_catalog_name = "test-catalog"
     test_comment = "test comment"
 
@@ -48,6 +51,8 @@ class CatalogTestBase(PyFlinkTestCase):
         self.path2 = ObjectPath(self.db2, self.t2)
         self.path3 = ObjectPath(self.db1, self.t2)
         self.path4 = ObjectPath(self.db1, self.t3)
+        self.modelPath1 = ObjectPath(self.db1, self.m1)
+        self.modelPath2 = ObjectPath(self.db1, self.m2)
         self.non_exist_db_path = ObjectPath.from_string("non.exist")
         self.non_exist_object_path = ObjectPath.from_string("db1.nonexist")
 
@@ -58,6 +63,10 @@ class CatalogTestBase(PyFlinkTestCase):
     def check_catalog_table_equals(self, t1, t2):
         self.assertEqual(t1.get_options(), t2.get_options())
         self.assertEqual(t1.get_comment(), t2.get_comment())
+
+    def check_catalog_model_equals(self, m1, m2):
+        self.assertEqual(m1.get_options(), m2.get_options())
+        self.assertEqual(m1.get_comment(), m2.get_comment())
 
     def check_catalog_view_equals(self, v1, v2):
         self.assertEqual(v1.get_options(), v2.get_options())
@@ -85,6 +94,10 @@ class CatalogTestBase(PyFlinkTestCase):
                            [DataTypes.STRING(), DataTypes.INT(), DataTypes.STRING()])
 
     @staticmethod
+    def create_model_schema():
+        return Schema.new_builder().column("id", DataTypes.STRING()).build()
+
+    @staticmethod
     def create_another_table_schema():
         return TableSchema(["first2", "second", "third"],
                            [DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING()])
@@ -100,6 +113,22 @@ class CatalogTestBase(PyFlinkTestCase):
     @staticmethod
     def create_partition_keys():
         return ["second", "third"]
+
+    @staticmethod
+    def create_model():
+        return CatalogModel.create_model(
+            CatalogTestBase.create_model_schema(),
+            CatalogTestBase.create_model_schema(),
+            options={},
+            comment="some comment")
+
+    @staticmethod
+    def create_another_model():
+        return CatalogModel.create_model(
+            CatalogTestBase.create_model_schema(),
+            CatalogTestBase.create_model_schema(),
+            options={"key": "value"},
+            comment="some comment")
 
     @staticmethod
     def create_table():
@@ -462,6 +491,122 @@ class CatalogTestBase(PyFlinkTestCase):
         self.catalog.create_table(self.path1, self.create_table(), False)
 
         self.assertTrue(self.catalog.table_exists(self.path1))
+
+    def test_create_model_database_not_exist_exception(self):
+        self.assertFalse(self.catalog.database_exists(self.db1))
+
+        with self.assertRaises(DatabaseNotExistException):
+            self.catalog.create_model(self.non_exist_object_path, self.create_model(), False)
+
+    def test_create_model_model_already_exist_exception(self):
+        self.catalog.create_database(self.db1, self.create_db(), False)
+        self.catalog.create_model(self.modelPath1, self.create_model(), False)
+
+        with self.assertRaises(ModelAlreadyExistException):
+            self.catalog.create_model(self.modelPath1, self.create_model(), False)
+
+    def test_create_model_model_already_exist_ignored(self):
+        self.catalog.create_database(self.db1, self.create_db(), False)
+
+        model = self.create_model()
+        self.catalog.create_model(self.modelPath1, model, False)
+
+        self.check_catalog_model_equals(model, self.catalog.get_model(self.modelPath1))
+
+        self.catalog.create_model(self.modelPath1, self.create_another_model(), True)
+
+        self.check_catalog_model_equals(model, self.catalog.get_model(self.modelPath1))
+
+    def test_get_model_model_not_exist_exception(self):
+        self.catalog.create_database(self.db1, self.create_db(), False)
+
+        with self.assertRaises(ModelNotExistException):
+            self.catalog.get_model(self.non_exist_object_path)
+
+    def test_get_model_model_not_exist_exception_no_db(self):
+        with self.assertRaises(ModelNotExistException):
+            self.catalog.get_model(self.non_exist_object_path)
+
+    def test_drop_model_model_not_exist_exception(self):
+        with self.assertRaises(ModelNotExistException):
+            self.catalog.drop_model(self.non_exist_db_path, False)
+
+    def test_drop_model_model_not_exist_ignored(self):
+        self.catalog.create_database(self.db1, self.create_db(), False)
+        self.catalog.drop_model(self.non_exist_object_path, True)
+
+    def test_alter_model(self):
+        self.catalog.create_database(self.db1, self.create_db(), False)
+
+        model = self.create_model()
+        self.catalog.create_model(self.modelPath1, model, False)
+
+        self.check_catalog_model_equals(model, self.catalog.get_model(self.modelPath1))
+
+        new_model = self.create_another_model()
+        self.catalog.alter_model(self.modelPath1, new_model, False)
+
+        self.assertNotEqual(model, self.catalog.get_model(self.modelPath1))
+        self.check_catalog_model_equals(new_model, self.catalog.get_model(self.modelPath1))
+        self.catalog.drop_model(self.modelPath1, False)
+
+    def test_alter_model_model_not_exist_exception(self):
+        with self.assertRaises(ModelNotExistException):
+            self.catalog.alter_model(self.non_exist_db_path, self.create_model(), False)
+
+    def test_alter_model_model_not_exist_ignored(self):
+        self.catalog.create_database(self.db1, self.create_db(), False)
+        self.catalog.alter_model(self.non_exist_object_path, self.create_model(), True)
+
+        self.assertFalse(self.catalog.table_exists(self.non_exist_object_path))
+
+    def test_rename_model(self):
+        self.catalog.create_database(self.db1, self.create_db(), False)
+        model = self.create_model()
+        self.catalog.create_model(self.modelPath1, model, False)
+
+        self.check_catalog_model_equals(model, self.catalog.get_model(self.modelPath1))
+
+        self.catalog.rename_model(self.modelPath1, self.m2, False)
+
+        self.check_catalog_model_equals(model, self.catalog.get_model(self.modelPath2))
+        self.assertFalse(self.catalog.model_exists(self.modelPath1))
+
+    def test_rename_model_model_not_exist_exception(self):
+        self.catalog.create_database(self.db1, self.create_db(), False)
+
+        with self.assertRaises(ModelNotExistException):
+            self.catalog.rename_model(self.modelPath1, self.m2, False)
+
+    def test_rename_model_model_not_exist_exception_ignored(self):
+        self.catalog.create_database(self.db1, self.create_db(), False)
+        self.catalog.rename_model(self.modelPath1, self.m2, True)
+
+    def test_rename_model_model_already_exist_exception(self):
+        self.catalog.create_database(self.db1, self.create_db(), False)
+        model = self.create_model()
+        self.catalog.create_model(self.modelPath1, model, False)
+        self.catalog.create_model(self.modelPath2, self.create_another_model(), False)
+
+        with self.assertRaises(ModelAlreadyExistException):
+            self.catalog.rename_model(self.modelPath1, self.m2, False)
+
+    def test_list_models(self):
+        self.catalog.create_database(self.db1, self.create_db(), False)
+
+        self.catalog.create_model(self.modelPath1, self.create_model(), False)
+        self.catalog.create_model(self.modelPath2, self.create_model(), False)
+
+        self.assertEqual(2, len(self.catalog.list_models(self.db1)))
+
+    def test_model_exists(self):
+        self.catalog.create_database(self.db1, self.create_db(), False)
+
+        self.assertFalse(self.catalog.model_exists(self.modelPath1))
+
+        self.catalog.create_model(self.modelPath1, self.create_model(), False)
+
+        self.assertTrue(self.catalog.model_exists(self.modelPath1))
 
     def test_create_view(self):
         self.catalog.create_database(self.db1, self.create_db(), False)

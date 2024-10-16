@@ -79,7 +79,7 @@ public final class CatalogPropertiesUtil {
             serializeResolvedSchema(properties, resolvedTable.getResolvedSchema());
 
             final String comment = resolvedTable.getComment();
-            if (comment != null && comment.length() > 0) {
+            if (comment != null && !comment.isEmpty()) {
                 properties.put(COMMENT, comment);
             }
 
@@ -106,7 +106,7 @@ public final class CatalogPropertiesUtil {
             serializeResolvedSchema(properties, resolvedView.getResolvedSchema());
 
             final String comment = resolvedView.getComment();
-            if (comment != null && comment.length() > 0) {
+            if (comment != null && !comment.isEmpty()) {
                 properties.put(COMMENT, comment);
             }
 
@@ -170,6 +170,30 @@ public final class CatalogPropertiesUtil {
             return properties;
         } catch (Exception e) {
             throw new CatalogException("Error in serializing catalog materialized table.", e);
+        }
+    }
+
+    /** Serializes the given {@link ResolvedCatalogModel} into a map of string properties. */
+    public static Map<String, String> serializeResolvedCatalogModel(
+            ResolvedCatalogModel resolvedModel) {
+        try {
+            final Map<String, String> properties = new HashMap<>();
+
+            serializeResolvedModelSchema(
+                    properties,
+                    resolvedModel.getResolvedInputSchema(),
+                    resolvedModel.getResolvedOutputSchema());
+
+            final String comment = resolvedModel.getComment();
+            if (comment != null && !comment.isEmpty()) {
+                properties.put(COMMENT, comment);
+            }
+
+            properties.putAll(resolvedModel.getOptions());
+
+            return properties;
+        } catch (Exception e) {
+            throw new CatalogException("Error in serializing catalog model.", e);
         }
     }
 
@@ -276,6 +300,34 @@ public final class CatalogPropertiesUtil {
         }
     }
 
+    /*
+     * Deserializes the given map of string properties into an unresolved {@link CatalogModel}.
+     *
+     * @param properties The properties to deserialize from
+     * @return {@link CatalogModel}
+     */
+    public static CatalogModel deserializeCatalogModel(Map<String, String> properties) {
+        try {
+            final Builder inputSchemaBuilder = Schema.newBuilder();
+            deserializeColumns(properties, MODEL_INPUT_SCHEMA, inputSchemaBuilder);
+            final Schema inputSchema = inputSchemaBuilder.build();
+
+            final Builder outputSchemaBuilder = Schema.newBuilder();
+            deserializeColumns(properties, MODEL_OUTPUT_SCHEMA, outputSchemaBuilder);
+            final Schema outputSchema = outputSchemaBuilder.build();
+
+            final Map<String, String> modelOptions =
+                    deserializeOptions(
+                            properties, Arrays.asList(MODEL_INPUT_SCHEMA, MODEL_OUTPUT_SCHEMA));
+
+            final @Nullable String comment = properties.get(COMMENT);
+
+            return CatalogModel.of(inputSchema, outputSchema, modelOptions, comment);
+        } catch (Exception e) {
+            throw new CatalogException("Error in deserializing catalog model.", e);
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
     // Helper methods and constants
     // --------------------------------------------------------------------------------------------
@@ -339,13 +391,25 @@ public final class CatalogPropertiesUtil {
 
     private static final String REFRESH_HANDLER_BYTES = "refresh-handler-bytes";
 
+    private static final String MODEL_INPUT_SCHEMA = "input-schema";
+
+    private static final String MODEL_OUTPUT_SCHEMA = "output-schema";
+
     private static Map<String, String> deserializeOptions(
             Map<String, String> map, String schemaKey) {
+        return deserializeOptions(map, Collections.singletonList(schemaKey));
+    }
+
+    private static Map<String, String> deserializeOptions(
+            Map<String, String> map, List<String> schemaKeys) {
         return map.entrySet().stream()
                 .filter(
                         e -> {
                             final String key = e.getKey();
-                            return !key.startsWith(schemaKey + SEPARATOR)
+                            return schemaKeys.stream()
+                                            .noneMatch(
+                                                    schemaKey ->
+                                                            key.startsWith(schemaKey + SEPARATOR))
                                     && !key.startsWith(PARTITION_KEYS + SEPARATOR)
                                     && !key.equals(COMMENT)
                                     && !key.equals(SNAPSHOT)
@@ -467,6 +531,14 @@ public final class CatalogPropertiesUtil {
                 keys.stream().map(Collections::singletonList).collect(Collectors.toList()));
     }
 
+    private static void serializeResolvedModelSchema(
+            Map<String, String> map, ResolvedSchema inputSchema, ResolvedSchema outputSchema) {
+        checkNotNull(inputSchema);
+        checkNotNull(outputSchema);
+        serializeColumnsWithKey(map, inputSchema.getColumns(), MODEL_INPUT_SCHEMA);
+        serializeColumnsWithKey(map, outputSchema.getColumns(), MODEL_OUTPUT_SCHEMA);
+    }
+
     private static void serializeResolvedSchema(Map<String, String> map, ResolvedSchema schema) {
         checkNotNull(schema);
 
@@ -508,6 +580,11 @@ public final class CatalogPropertiesUtil {
     }
 
     private static void serializeColumns(Map<String, String> map, List<Column> columns) {
+        serializeColumnsWithKey(map, columns, SCHEMA);
+    }
+
+    private static void serializeColumnsWithKey(
+            Map<String, String> map, List<Column> columns, String schemaKey) {
         final String[] names = serializeColumnNames(columns);
         final String[] dataTypes = serializeColumnDataTypes(columns);
         final String[] expressions = serializeColumnComputations(columns);
@@ -529,7 +606,7 @@ public final class CatalogPropertiesUtil {
 
         putIndexedProperties(
                 map,
-                SCHEMA,
+                schemaKey,
                 Arrays.asList(NAME, DATA_TYPE, EXPR, METADATA, VIRTUAL, COMMENT),
                 values);
     }
