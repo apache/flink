@@ -95,7 +95,7 @@ public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
                                 RunnerApi.FunctionSpec.newBuilder()
                                         .setUrn(functionUrn)
                                         .setPayload(
-                                                org.apache.beam.vendor.grpc.v1p48p1.com.google
+                                                org.apache.beam.vendor.grpc.v1p60p1.com.google
                                                         .protobuf.ByteString.copyFrom(
                                                         userDefinedFunctionProto.toByteArray()))
                                         .build())

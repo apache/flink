@@ -31,7 +31,7 @@ class PandasConversionTestBase(object):
 
     @classmethod
     def setUpClass(cls):
-        super(PandasConversionTestBase, cls).setUpClass()
+        super().setUpClass()
         cls.data = [(1, 1, 1, 1, True, 1.1, 1.2, 'hello', bytearray(b"aaa"),
                      decimal.Decimal('1000000000000000000.01'), datetime.date(2014, 9, 13),
                      datetime.time(hour=1, minute=0, second=1),
@@ -236,12 +236,5 @@ class StreamPandasConversionTests(PandasConversionITTests,
         result_pdf = t.to_pandas()
         import pandas as pd
         os.remove(source_path)
-        assert_frame_equal(result_pdf, pd.DataFrame(
-            data={"rowtime": [
-                datetime.datetime(2018, 3, 11, 3, 10),
-                datetime.datetime(2018, 3, 11, 3, 10),
-                datetime.datetime(2018, 3, 11, 3, 10),
-                datetime.datetime(2018, 3, 11, 3, 40),
-                datetime.datetime(2018, 3, 11, 4, 20),
-                datetime.datetime(2018, 3, 11, 3, 30),
-            ]}))
+        expected_df = pd.DataFrame(data={"rowtime": pd.Series(data, dtype="datetime64[ms]")})
+        assert_frame_equal(result_pdf, expected_df)
