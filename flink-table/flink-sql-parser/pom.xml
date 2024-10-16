@@ -307,6 +307,17 @@ under the License.
 						<artifactId>freemarker</artifactId>
 						<version>2.3.28</version>
 					</dependency>
+					<dependency>
+						<groupId>org.apache.xbean</groupId>
+						<artifactId>xbean-reflect</artifactId>
+						<version>3.4</version>
+						<exclusions>
+							<exclusion>
+								<groupId>log4j</groupId>
+								<artifactId>log4j</artifactId>
+							</exclusion>
+						</exclusions>
+					</dependency>
 				</dependencies>
 				<executions>
 					<execution>
