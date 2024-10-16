@@ -58,7 +58,6 @@ import org.apache.flink.table.operations.OutputConversionModifyOperation;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.MutableURLClassLoader;
@@ -356,22 +355,6 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
     public <T> void createTemporaryView(
             String path, DataStream<T> dataStream, Expression... fields) {
         createTemporaryView(path, fromDataStream(dataStream, fields));
-    }
-
-    @Override
-    public <T> DataStream<T> toAppendStream(Table table, Class<T> clazz) {
-        TypeInformation<T> typeInfo = extractTypeInformation(table, clazz);
-        return toAppendStream(table, typeInfo);
-    }
-
-    @Override
-    public <T> DataStream<T> toAppendStream(Table table, TypeInformation<T> typeInfo) {
-        OutputConversionModifyOperation modifyOperation =
-                new OutputConversionModifyOperation(
-                        table.getQueryOperation(),
-                        TypeConversions.fromLegacyInfoToDataType(typeInfo),
-                        OutputConversionModifyOperation.UpdateMode.APPEND);
-        return toStreamInternal(table, modifyOperation);
     }
 
     @Override

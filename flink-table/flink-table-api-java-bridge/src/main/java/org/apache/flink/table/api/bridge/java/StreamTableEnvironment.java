@@ -864,61 +864,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
      *     be used as source of truth.
      */
     @Deprecated
-    <T> DataStream<T> toAppendStream(Table table, Class<T> clazz);
-
-    /**
-     * Converts the given {@link Table} into an append {@link DataStream} of a specified type.
-     *
-     * <p>The {@link Table} must only have insert (append) changes. If the {@link Table} is also
-     * modified by update or delete changes, the conversion will fail.
-     *
-     * <p>The fields of the {@link Table} are mapped to {@link DataStream} fields as follows:
-     *
-     * <ul>
-     *   <li>{@link Row} and {@link org.apache.flink.api.java.tuple.Tuple} types: Fields are mapped
-     *       by position, field types must match.
-     *   <li>POJO {@link DataStream} types: Fields are mapped by field name, field types must match.
-     * </ul>
-     *
-     * @param table The {@link Table} to convert.
-     * @param typeInfo The {@link TypeInformation} that specifies the type of the {@link
-     *     DataStream}.
-     * @param <T> The type of the resulting {@link DataStream}.
-     * @return The converted {@link DataStream}.
-     * @deprecated Use {@link #toDataStream(Table, Class)} instead. It integrates with the new type
-     *     system and supports all kinds of {@link DataTypes} that the table runtime can produce.
-     *     The semantics might be slightly different for raw and structured types. Use {@code
-     *     toDataStream(DataTypes.of(TypeInformation.of(Class)))} if {@link TypeInformation} should
-     *     be used as source of truth.
-     */
-    @Deprecated
-    <T> DataStream<T> toAppendStream(Table table, TypeInformation<T> typeInfo);
-
-    /**
-     * Converts the given {@link Table} into a {@link DataStream} of add and retract messages. The
-     * message will be encoded as {@link Tuple2}. The first field is a {@link Boolean} flag, the
-     * second field holds the record of the specified type {@link T}.
-     *
-     * <p>A true {@link Boolean} flag indicates an add message, a false flag indicates a retract
-     * message.
-     *
-     * <p>The fields of the {@link Table} are mapped to {@link DataStream} fields as follows:
-     *
-     * <ul>
-     *   <li>{@link Row} and {@link org.apache.flink.api.java.tuple.Tuple} types: Fields are mapped
-     *       by position, field types must match.
-     *   <li>POJO {@link DataStream} types: Fields are mapped by field name, field types must match.
-     * </ul>
-     *
-     * @param table The {@link Table} to convert.
-     * @param clazz The class of the requested record type.
-     * @param <T> The type of the requested record type.
-     * @return The converted {@link DataStream}.
-     * @deprecated Use {@link #toChangelogStream(Table, Schema)} instead. It integrates with the new
-     *     type system and supports all kinds of {@link DataTypes} and every {@link ChangelogMode}
-     *     that the table runtime can produce.
-     */
-    @Deprecated
     <T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, Class<T> clazz);
 
     /**
