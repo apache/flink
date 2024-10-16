@@ -25,6 +25,8 @@ import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -471,6 +473,29 @@ public class ResourceProfile implements Serializable {
                 managedMemory.multiply(multiplier),
                 networkMemory.multiply(multiplier),
                 resultExtendedResource);
+    }
+
+    /**
+     * Convert it to a {@link LoadableResourceProfile}, a {@link ResourceProfile} with the specified
+     * {@link LoadingWeight}.
+     *
+     * @param weight loading weight.
+     * @return a converted {@link LoadableResourceProfile}.
+     */
+    @Nonnull
+    public LoadableResourceProfile toLoadable(@Nonnull LoadingWeight weight) {
+        return LoadableResourceProfile.of(this, Preconditions.checkNotNull(weight));
+    }
+
+    /**
+     * Convert it to a {@link LoadableResourceProfile}, a {@link ResourceProfile} with the empty
+     * {@link LoadingWeight}.
+     *
+     * @return a converted {@link LoadableResourceProfile}.
+     */
+    @Nonnull
+    public LoadableResourceProfile toEmptyLoadable() {
+        return toLoadable(DefaultLoadingWeight.EMPTY);
     }
 
     @Override
