@@ -18,7 +18,10 @@
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+
+import javax.annotation.Nullable;
 
 class TestVertexInformation implements JobInformation.VertexInformation {
 
@@ -26,6 +29,7 @@ class TestVertexInformation implements JobInformation.VertexInformation {
     private final int minParallelism;
     private final int parallelism;
     private final SlotSharingGroup slotSharingGroup;
+    @Nullable private final CoLocationGroup coLocationGroup;
 
     TestVertexInformation(
             JobVertexID jobVertexId, int parallelism, SlotSharingGroup slotSharingGroup) {
@@ -37,11 +41,21 @@ class TestVertexInformation implements JobInformation.VertexInformation {
             int minParallelism,
             int parallelism,
             SlotSharingGroup slotSharingGroup) {
+        this(jobVertexId, minParallelism, parallelism, slotSharingGroup, null);
+    }
+
+    TestVertexInformation(
+            JobVertexID jobVertexId,
+            int minParallelism,
+            int parallelism,
+            SlotSharingGroup slotSharingGroup,
+            @Nullable CoLocationGroup coLocationGroup) {
         this.jobVertexId = jobVertexId;
         this.minParallelism = minParallelism;
         this.parallelism = parallelism;
         this.slotSharingGroup = slotSharingGroup;
-        slotSharingGroup.addVertexToGroup(jobVertexId);
+        this.slotSharingGroup.addVertexToGroup(jobVertexId);
+        this.coLocationGroup = coLocationGroup;
     }
 
     @Override
@@ -67,5 +81,11 @@ class TestVertexInformation implements JobInformation.VertexInformation {
     @Override
     public SlotSharingGroup getSlotSharingGroup() {
         return slotSharingGroup;
+    }
+
+    @Nullable
+    @Override
+    public CoLocationGroup getCoLocationGroup() {
+        return coLocationGroup;
     }
 }
