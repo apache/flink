@@ -43,19 +43,9 @@ class TtlValueStateV2<K, N, T>
     public StateFuture<T> asyncValue() {
         return original.asyncValue()
                 .thenApply(
-                        (ttlValue) -> {
-                            if (ttlValue == null) {
-                                return null;
-                            } else if (expired(ttlValue)) {
-                                // todo: need stateClear.run()?
-                                if (!returnExpired) {
-                                    return null;
-                                }
-                            } else if (updateTsOnRead) {
-                                original.asyncUpdate(rewrapWithNewTs(ttlValue));
-                            }
-                            return ttlValue.getUserValue();
-                        });
+                        (ttlValue) ->
+                                getElementWithTtlCheck(
+                                        ttlValue, (newTtl) -> original.asyncUpdate(newTtl)));
     }
 
     @Override
@@ -66,17 +56,7 @@ class TtlValueStateV2<K, N, T>
     @Override
     public T value() {
         TtlValue<T> ttlValue = original.value();
-        if (ttlValue == null) {
-            return null;
-        } else if (expired(ttlValue)) {
-            // todo: need stateClear.run()?
-            if (!returnExpired) {
-                return null;
-            }
-        } else if (updateTsOnRead) {
-            original.update(rewrapWithNewTs(ttlValue));
-        }
-        return ttlValue.getUserValue();
+        return getElementWithTtlCheck(ttlValue, (newTtl) -> original.update(newTtl));
     }
 
     @Override

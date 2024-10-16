@@ -108,14 +108,8 @@ public enum StateRequestType {
     /** Add element into reducing state, {@link ReducingState#asyncAdd(Object)}. */
     REDUCING_ADD,
 
-    /** Remove element from reducing state. */
-    REDUCING_REMOVE,
-
     /** Get value from aggregating state by {@link AggregatingState#asyncGet()}. */
     AGGREGATING_GET,
-
-    /** Remove element from aggregate state. */
-    AGGREGATING_REMOVE,
 
     /** Add element to aggregating state by {@link AggregatingState#asyncAdd(Object)}. */
     AGGREGATING_ADD

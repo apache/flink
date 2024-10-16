@@ -29,7 +29,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
-import org.apache.flink.runtime.state.ttl.TtlAggregateFunction;
 import org.apache.flink.runtime.state.ttl.TtlReduceFunction;
 import org.apache.flink.runtime.state.ttl.TtlStateContext;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -211,8 +210,8 @@ public class TtlStateFactoryV2<K, N, SV, TTLSV, S extends State, IS> {
     private <IN, OUT> IS createAggregatingState() throws Exception {
         AggregatingStateDescriptor<IN, SV, OUT> aggregatingStateDescriptor =
                 (AggregatingStateDescriptor<IN, SV, OUT>) stateDesc;
-        TtlAggregateFunction<IN, SV, OUT> ttlAggregateFunction =
-                new TtlAggregateFunction<>(
+        TtlAggregateFunctionV2<IN, SV, OUT> ttlAggregateFunction =
+                new TtlAggregateFunctionV2<>(
                         aggregatingStateDescriptor.getAggregateFunction(), ttlConfig, timeProvider);
         AggregatingStateDescriptor<IN, TtlValue<SV>, OUT> ttlDescriptor =
                 stateDesc.getSerializer() instanceof TtlSerializer
@@ -224,7 +223,9 @@ public class TtlStateFactoryV2<K, N, SV, TTLSV, S extends State, IS> {
                                         new TtlSerializer<>(
                                                 LongSerializer.INSTANCE,
                                                 stateDesc.getSerializer())));
-        return (IS) new TtlAggregatingStateV2<>(createTtlStateContext(ttlDescriptor));
+        return (IS)
+                new TtlAggregatingStateV2<>(
+                        createTtlStateContext(ttlDescriptor), ttlAggregateFunction);
     }
 
     @SuppressWarnings("unchecked")

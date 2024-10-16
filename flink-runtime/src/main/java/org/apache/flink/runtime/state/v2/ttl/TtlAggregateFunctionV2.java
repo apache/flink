@@ -16,14 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.ttl;
+package org.apache.flink.runtime.state.v2.ttl;
 
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.runtime.state.ttl.AbstractTtlDecorator;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.runtime.state.ttl.TtlValue;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.function.ThrowingConsumer;
-import org.apache.flink.util.function.ThrowingRunnable;
+
+import java.util.function.Consumer;
 
 /**
  * This class wraps aggregating function with TTL logic.
@@ -32,13 +35,12 @@ import org.apache.flink.util.function.ThrowingRunnable;
  * @param <ACC> The type of the accumulator (intermediate aggregate state).
  * @param <OUT> The type of the aggregated result
  */
-class TtlAggregateFunction<IN, ACC, OUT>
+public class TtlAggregateFunctionV2<IN, ACC, OUT>
         extends AbstractTtlDecorator<AggregateFunction<IN, ACC, OUT>>
         implements AggregateFunction<IN, TtlValue<ACC>, OUT> {
-    ThrowingRunnable<Exception> stateClear;
-    ThrowingConsumer<TtlValue<ACC>, Exception> updater;
+    Consumer<TtlValue<ACC>> updater;
 
-    TtlAggregateFunction(
+    public TtlAggregateFunctionV2(
             AggregateFunction<IN, ACC, OUT> aggFunction,
             StateTtlConfig config,
             TtlTimeProvider timeProvider) {
@@ -60,11 +62,9 @@ class TtlAggregateFunction<IN, ACC, OUT>
     @Override
     public OUT getResult(TtlValue<ACC> accumulator) {
         Preconditions.checkNotNull(updater, "State updater should be set in TtlAggregatingState");
-        Preconditions.checkNotNull(
-                stateClear, "State clearing should be set in TtlAggregatingState");
         ACC userAcc;
         try {
-            userAcc = getWithTtlCheckAndUpdate(() -> accumulator, updater, stateClear);
+            userAcc = getElementWithTtlCheck(accumulator, updater);
         } catch (Exception e) {
             throw new FlinkRuntimeException(
                     "Failed to retrieve original internal aggregating state", e);
