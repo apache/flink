@@ -26,7 +26,7 @@ import org.apache.flink.runtime.state.v2.internal.InternalReducingState;
 import java.util.Collection;
 
 /**
- * This class wraps reducing state with TTL logic. TODO: implement
+ * This class wraps reducing state with TTL logic.
  *
  * @param <K> The type of key the state is associated to
  * @param <N> The type of the namespace
@@ -43,27 +43,53 @@ class TtlReducingStateV2<K, N, T>
 
     @Override
     public StateFuture<Void> asyncMergeNamespaces(N target, Collection<N> sources) {
-        return null;
+        return original.asyncMergeNamespaces(target, sources);
     }
 
     @Override
-    public void mergeNamespaces(N target, Collection<N> sources) {}
+    public void mergeNamespaces(N target, Collection<N> sources) {
+        original.mergeNamespaces(target, sources);
+    }
 
     @Override
     public StateFuture<T> asyncGet() {
-        return null;
+        return asyncGetInternal();
     }
 
     @Override
     public StateFuture<Void> asyncAdd(T value) {
-        return null;
+        return asyncUpdateInternal(value);
     }
 
     @Override
     public T get() {
-        return null;
+        return getInternal();
     }
 
     @Override
-    public void add(T value) {}
+    public void add(T value) {
+        original.add(wrapWithTs(value));
+    }
+
+    @Override
+    public StateFuture<T> asyncGetInternal() {
+        return original.asyncGetInternal()
+                .thenApply(ttlValue -> getElementWithTtlCheck(ttlValue, original::updateInternal));
+    }
+
+    @Override
+    public StateFuture<Void> asyncUpdateInternal(T valueToStore) {
+        return original.asyncUpdateInternal(wrapWithTs(valueToStore));
+    }
+
+    @Override
+    public T getInternal() {
+        TtlValue<T> ttlValue = original.getInternal();
+        return getElementWithTtlCheck(ttlValue, original::updateInternal);
+    }
+
+    @Override
+    public void updateInternal(T valueToStore) {
+        original.updateInternal(wrapWithTs(valueToStore));
+    }
 }

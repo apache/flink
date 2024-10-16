@@ -233,14 +233,16 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
                 String key = (String) stateRequest.getRecordContext().getKey();
                 String namespace = (String) stateRequest.getNamespace();
                 if (stateRequest.getRequestType() == StateRequestType.AGGREGATING_ADD) {
-                    hashMap.put(Tuple2.of(key, namespace), (Integer) stateRequest.getPayload());
-                    stateRequest.getFuture().complete(null);
+                    if (stateRequest.getPayload() == null) {
+                        hashMap.remove(Tuple2.of(key, namespace));
+                        stateRequest.getFuture().complete(null);
+                    } else {
+                        hashMap.put(Tuple2.of(key, namespace), (Integer) stateRequest.getPayload());
+                        stateRequest.getFuture().complete(null);
+                    }
                 } else if (stateRequest.getRequestType() == StateRequestType.AGGREGATING_GET) {
                     Integer val = hashMap.get(Tuple2.of(key, namespace));
                     stateRequest.getFuture().complete(val);
-                } else if (stateRequest.getRequestType() == StateRequestType.AGGREGATING_REMOVE) {
-                    hashMap.remove(Tuple2.of(key, namespace));
-                    stateRequest.getFuture().complete(null);
                 } else {
                     throw new UnsupportedOperationException("Unsupported type");
                 }
