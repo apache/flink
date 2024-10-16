@@ -868,13 +868,13 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
                 String context =
                         "FLINK_"
-                                + task.getTaskInfo().getTaskName()
-                                + "+("
+                                + task.getJobVertexId()
+                                + "_("
                                 + task.getTaskInfo().getIndexOfThisSubtask()
-                                + ")"
+                                + ")_"
                                 + task.getTaskInfo().getAttemptNumber()
-                                + "JobID"
-                                + task.getJobID();
+                                + "_JobID_"
+                                + task.getJobID().toString();
                 if (System.getenv().get("CONTAINER_ID") != null) {
                     String[] application = System.getenv().get("CONTAINER_ID").split("_");
 
