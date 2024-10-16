@@ -2569,6 +2569,7 @@ public final class BuiltInFunctionDefinitions {
                     .kind(OTHER)
                     .inputTypeStrategy(SpecificInputTypeStrategies.OVER)
                     .outputTypeStrategy(TypeStrategies.argument(0))
+                    .callSyntax(SqlCallSyntax.OVER)
                     .build();
 
     // --------------------------------------------------------------------------------------------
