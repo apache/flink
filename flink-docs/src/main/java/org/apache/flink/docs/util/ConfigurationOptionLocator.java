@@ -64,6 +64,8 @@ public class ConfigurationOptionLocator {
                         "flink-metrics/flink-metrics-influxdb",
                         "org.apache.flink.metrics.influxdb"),
                 new OptionsClassLocation(
+                        "flink-metrics/flink-metrics-otel", "org.apache.flink.metrics.otel"),
+                new OptionsClassLocation(
                         "flink-state-backends/flink-statebackend-rocksdb",
                         "org.apache.flink.contrib.streaming.state"),
                 new OptionsClassLocation(
