@@ -166,6 +166,13 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public int getNumFailed() {
+        return subtasksCommittableManagers.values().stream()
+                .mapToInt(SubtaskCommittableManager::getNumFailed)
+                .sum();
+    }
+
     Stream<CommitRequestImpl<CommT>> getPendingRequests() {
         return subtasksCommittableManagers.values().stream()
                 .peek(this::assertReceivedAll)

@@ -63,8 +63,6 @@ class CommittableCollectorSerializerTest {
         final CommittableCollector<Integer> committableCollector =
                 SERIALIZER.deserialize(1, serialized);
 
-        assertThat(committableCollector.isFinished()).isFalse();
-
         assertThat(committableCollector.getCheckpointCommittables())
                 .singleElement()
                 .extracting(
@@ -89,17 +87,14 @@ class CommittableCollectorSerializerTest {
         final CommittableCollector<Integer> committableCollector =
                 new CommittableCollector<>(METRIC_GROUP);
         committableCollector.addMessage(
-                new CommittableSummary<>(subtaskId, numberOfSubtasks, 1L, 1, 1, 0));
+                new CommittableSummary<>(subtaskId, numberOfSubtasks, 1L, 1, 0));
         committableCollector.addMessage(
-                new CommittableSummary<>(subtaskId, numberOfSubtasks, 2L, 1, 1, 0));
+                new CommittableSummary<>(subtaskId, numberOfSubtasks, 2L, 1, 0));
         committableCollector.addMessage(new CommittableWithLineage<>(1, 1L, subtaskId));
         committableCollector.addMessage(new CommittableWithLineage<>(2, 2L, subtaskId));
 
         final CommittableCollector<Integer> copy =
                 ccSerializer.deserialize(2, SERIALIZER.serialize(committableCollector));
-
-        // Expect the subtask Id equal to the origin of the collector
-        assertThat(copy.isFinished()).isFalse();
 
         // assert original CommittableCollector
         assertCommittableCollector(
@@ -139,9 +134,6 @@ class CommittableCollectorSerializerTest {
 
         final CommittableCollector<Integer> copy =
                 ccSerializer.deserialize(2, SERIALIZER.serialize(committableCollector));
-
-        // Expect the subtask Id equal to the origin of the collector
-        assertThat(copy.isFinished()).isFalse();
 
         // assert original CommittableCollector
         assertCommittableCollector(
