@@ -78,6 +78,7 @@ public class DataStreamStateTTLTestProgram {
         StreamGraph streamGraph = env.getStreamGraph();
         setBackendWithCustomTTLTimeProvider(streamGraph, pt);
         streamGraph.setJobName("State TTL test job");
+        streamGraph.createJobCheckpointingSettings();
 
         env.execute(streamGraph);
     }
