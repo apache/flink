@@ -225,6 +225,7 @@ temporal functions
     Expression.extract
     Expression.floor
     Expression.ceil
+    Expression.date_add
 
 
 advanced type helper functions
