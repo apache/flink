@@ -24,6 +24,7 @@ import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -143,9 +144,17 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
                         .sum());
     }
 
-    boolean isFinished() {
+    @Override
+    public boolean isFinished() {
         return subtasksCommittableManagers.values().stream()
                 .allMatch(SubtaskCommittableManager::isFinished);
+    }
+
+    @Override
+    public boolean hasGloballyReceivedAll() {
+        return subtasksCommittableManagers.size() == numberOfSubtasks
+                && subtasksCommittableManagers.values().stream()
+                        .allMatch(SubtaskCommittableManager::hasReceivedAll);
     }
 
     @Override
@@ -160,11 +169,31 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
         return committed;
     }
 
-    Collection<CommitRequestImpl<CommT>> getPendingRequests(boolean onlyIfFullyReceived) {
+    Collection<CommitRequestImpl<CommT>> getPendingRequests(boolean assertFull) {
         return subtasksCommittableManagers.values().stream()
-                .filter(subtask -> !onlyIfFullyReceived || subtask.hasReceivedAll())
+                .peek(subtask -> assertReceivedAll(assertFull, subtask))
                 .flatMap(SubtaskCommittableManager::getPendingRequests)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Sinks don't use unaligned checkpoints, so we receive all committables of a given upstream
+     * task before the respective barrier. Thus, when the barrier reaches the committer, all
+     * committables of a specific checkpoint must have been received. Committing happens even later
+     * on notifyCheckpointComplete.
+     *
+     * <p>Note that by transitivity, the assertion also holds for committables of subsumed
+     * checkpoints.
+     *
+     * <p>This assertion will fail in case of bugs in the writer or in the pre-commit topology if
+     * present.
+     */
+    private void assertReceivedAll(boolean assertFull, SubtaskCommittableManager<CommT> subtask) {
+        Preconditions.checkArgument(
+                !assertFull || subtask.hasReceivedAll(),
+                "Trying to commit incomplete batch of committables subtask=%s, manager=%s",
+                subtask.getSubtaskId(),
+                this);
     }
 
     Collection<CommittableWithLineage<CommT>> drainFinished() {
