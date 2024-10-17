@@ -25,6 +25,7 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER;
@@ -51,11 +52,12 @@ class CastFunctionMiscLegacyITCase extends BuiltInFunctionTestBase {
                                 BuiltInFunctionDefinitions.CAST, "legacy cast failure returns null")
                         .onFieldsWithData("invalid")
                         .andDataTypes(STRING().notNull())
-                        .testSqlRuntimeError(
-                                "CAST(f0 AS BIGINT)",
-                                "Column 'EXPR$0' is NOT NULL, however, a null value is "
-                                        + "being written into it. You can set job configuration "
-                                        + "'table.exec.sink.not-null-enforcer'='DROP' to suppress "
-                                        + "this exception and drop such records silently."));
+                        .testSqlResult("CAST(f0 AS BIGINT)", null, BIGINT()),
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST, "legacy cast failure returns null")
+                        .onFieldsWithData("100")
+                        .andDataTypes(STRING().notNull())
+                        .testSqlResult(
+                                "CAST(CAST(f0 AS DECIMAL(2, 0)) AS STRING)", null, STRING()));
     }
 }
