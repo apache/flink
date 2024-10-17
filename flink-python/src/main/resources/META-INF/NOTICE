@@ -11,8 +11,6 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.fasterxml.jackson.core:jackson-databind:2.18.2
 - com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.18.2
 - com.google.flatbuffers:flatbuffers-java:1.12.0
-- io.netty:netty-buffer:4.1.100.Final
-- io.netty:netty-common:4.1.100.Final
 - joda-time:joda-time:2.5
 - org.apache.arrow:arrow-format:13.0.0
 - org.apache.arrow:arrow-memory-core:13.0.0
@@ -26,10 +24,11 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.beam:beam-runners-java-fn-execution:2.54.0
 - org.apache.beam:beam-sdks-java-core:2.54.0
 - org.apache.beam:beam-sdks-java-fn-execution:2.54.0
+- org.apache.beam:beam-sdks-java-extensions-avro:2.54.0
+- org.apache.beam:beam-sdks-java-transform-service-launcher:2.54.0
 - org.apache.beam:beam-vendor-guava-32_1_2-jre:0.1
 - org.apache.beam:beam-vendor-grpc-1_60_1:0.1
 - com.alibaba:pemja:0.4.1
-- com.google.code.findbugs:jsr305:1.3.9
 
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details
