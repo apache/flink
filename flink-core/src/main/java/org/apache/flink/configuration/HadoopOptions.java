@@ -19,11 +19,12 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 
 /** The set of configuration options relating to hadoop settings. */
 @PublicEvolving
 public class HadoopOptions {
-
+    @Documentation.Section({Documentation.Sections.ALL_TASK_MANAGER})
     public static final ConfigOption<Boolean> CALLER_CONTEXT_ENABLED =
             ConfigOptions.key("hdfs.caller-context.enabled")
                     .booleanType()
