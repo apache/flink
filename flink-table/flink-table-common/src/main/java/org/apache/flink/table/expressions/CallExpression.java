@@ -149,28 +149,6 @@ public final class CallExpression implements ResolvedExpression {
         return new CallExpression(true, null, functionDefinition, args, dataType);
     }
 
-    /**
-     * @deprecated Use {@link #permanent(FunctionIdentifier, FunctionDefinition, List, DataType)} or
-     *     {@link #temporary(FunctionIdentifier, FunctionDefinition, List, DataType)} instead.
-     */
-    @Deprecated
-    public CallExpression(
-            FunctionIdentifier functionIdentifier,
-            FunctionDefinition functionDefinition,
-            List<ResolvedExpression> args,
-            DataType dataType) {
-        this(false, functionIdentifier, functionDefinition, args, dataType);
-    }
-
-    /** @deprecated Use {@link #anonymous(FunctionDefinition, List, DataType)} instead. */
-    @Deprecated
-    public CallExpression(
-            FunctionDefinition functionDefinition,
-            List<ResolvedExpression> args,
-            DataType dataType) {
-        this(false, null, functionDefinition, args, dataType);
-    }
-
     public boolean isTemporary() {
         return isTemporary;
     }
