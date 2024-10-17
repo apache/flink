@@ -42,7 +42,7 @@ class OtelTestContainer extends GenericContainer<OtelTestContainer> {
     private final File outputDataDir;
 
     public OtelTestContainer(File outputDataDir) {
-        super("otel/opentelemetry-collector-contrib:0.111.0");
+        super("otel/opentelemetry-collector:0.111.0");
         this.outputDataDir = outputDataDir;
 
         withNetworkAliases(randomString("otel-collector", 6));
