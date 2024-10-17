@@ -21,20 +21,20 @@ package org.apache.flink.runtime.state.ttl;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-class TtlStateContext<T, SV> {
+public class TtlStateContext<T, SV> {
     /** Wrapped original state handler. */
-    final T original;
+    public final T original;
 
-    final StateTtlConfig config;
-    final TtlTimeProvider timeProvider;
+    public final StateTtlConfig config;
+    public final TtlTimeProvider timeProvider;
 
     /** Serializer of original user stored value without timestamp. */
-    final TypeSerializer<SV> valueSerializer;
+    public final TypeSerializer<SV> valueSerializer;
 
     /** This registered callback is to be called whenever state is accessed for read or write. */
-    final Runnable accessCallback;
+    public final Runnable accessCallback;
 
-    TtlStateContext(
+    public TtlStateContext(
             T original,
             StateTtlConfig config,
             TtlTimeProvider timeProvider,

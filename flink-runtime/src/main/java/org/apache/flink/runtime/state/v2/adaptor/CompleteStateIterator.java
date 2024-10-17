@@ -35,7 +35,7 @@ public class CompleteStateIterator<T> implements StateIterator<T> {
     final Iterator<T> iterator;
     final boolean empty;
 
-    CompleteStateIterator(Iterable<T> iterable) {
+    public CompleteStateIterator(Iterable<T> iterable) {
         this.iterator = iterable.iterator();
         this.empty = !iterator.hasNext();
     }

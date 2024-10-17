@@ -139,15 +139,13 @@ public class ForStReducingState<K, N, V> extends AbstractReducingState<K, N, V>
     public ForStDBPutRequest<K, N, V> buildDBPutRequest(StateRequest<?, ?, ?, ?> stateRequest) {
         Preconditions.checkArgument(
                 stateRequest.getRequestType() == StateRequestType.REDUCING_ADD
-                        || stateRequest.getRequestType() == StateRequestType.REDUCING_REMOVE
                         || stateRequest.getRequestType() == StateRequestType.CLEAR);
         ContextKey<K, N> contextKey =
                 new ContextKey<>(
                         (RecordContext<K>) stateRequest.getRecordContext(),
                         (N) stateRequest.getNamespace());
         V value =
-                (stateRequest.getRequestType() == StateRequestType.REDUCING_REMOVE
-                                || stateRequest.getRequestType() == StateRequestType.CLEAR)
+                stateRequest.getRequestType() == StateRequestType.CLEAR
                         ? null // "Delete(key)" is equivalent to "Put(key, null)"
                         : (V) stateRequest.getPayload();
         return ForStDBPutRequest.of(

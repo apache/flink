@@ -37,12 +37,15 @@ import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.v2.AggregatingStateDescriptor;
 import org.apache.flink.runtime.state.v2.ListStateDescriptor;
 import org.apache.flink.runtime.state.v2.ReducingStateDescriptor;
 import org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
+import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
+import org.apache.flink.runtime.state.v2.ttl.TtlStateFactoryV2;
 import org.apache.flink.state.forst.snapshot.ForStSnapshotStrategyBase;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
@@ -80,6 +83,8 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
 
     /** Number of bytes required to prefix the key groups. */
     private final int keyGroupPrefixBytes;
+
+    protected final TtlTimeProvider ttlTimeProvider;
 
     /** The key serializer. */
     protected final TypeSerializer<K> keySerializer;
@@ -147,6 +152,8 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
     @GuardedBy("lock")
     private boolean disposed = false;
 
+    private final ForStDBTtlCompactFiltersManager ttlCompactFiltersManager;
+
     public ForStKeyedStateBackend(
             UUID backendUID,
             ForStResourceContainer optionsContainer,
@@ -161,7 +168,9 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
             ColumnFamilyHandle defaultColumnFamilyHandle,
             ForStSnapshotStrategyBase<K, ?> snapshotStrategy,
             CloseableRegistry cancelStreamRegistry,
-            ForStNativeMetricMonitor nativeMetricMonitor) {
+            ForStNativeMetricMonitor nativeMetricMonitor,
+            TtlTimeProvider ttlTimeProvider,
+            ForStDBTtlCompactFiltersManager ttlCompactFiltersManager) {
         this.backendUID = backendUID;
         this.optionsContainer = Preconditions.checkNotNull(optionsContainer);
         this.keyGroupPrefixBytes = keyGroupPrefixBytes;
@@ -176,6 +185,8 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
         this.snapshotStrategy = snapshotStrategy;
         this.cancelStreamRegistry = cancelStreamRegistry;
         this.nativeMetricMonitor = nativeMetricMonitor;
+        this.ttlTimeProvider = ttlTimeProvider;
+        this.ttlCompactFiltersManager = ttlCompactFiltersManager;
         this.managedStateExecutors = new HashSet<>(1);
     }
 
@@ -188,6 +199,18 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
     @Override
     @SuppressWarnings("unchecked")
     public <N, S extends State, SV> S createState(
+            @Nonnull N defaultNamespace,
+            @Nonnull TypeSerializer<N> namespaceSerializer,
+            @Nonnull StateDescriptor<SV> stateDesc)
+            throws Exception {
+        return TtlStateFactoryV2.createStateAndWrapWithTtlIfEnabled(
+                defaultNamespace, namespaceSerializer, stateDesc, this, ttlTimeProvider);
+    }
+
+    @Nonnull
+    @Override
+    @SuppressWarnings("unchecked")
+    public <N, S extends InternalKeyedState, SV> S createStateInternal(
             @Nonnull N defaultNamespace,
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull StateDescriptor<SV> stateDesc)
@@ -213,6 +236,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                                 namespaceSerializer::duplicate,
                                 valueSerializerView,
                                 valueDeserializerView);
+
             case LIST:
                 return (S)
                         new ForStListState<>(
@@ -301,8 +325,12 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                             StateSnapshotTransformer.StateSnapshotTransformFactory.noTransform());
 
             newStateInfo =
-                    ForStOperationUtils.createStateInfo(
-                            newMetaInfo, db, columnFamilyOptionsFactory);
+                    ForStOperationUtils.createAsyncStateInfo(
+                            newMetaInfo,
+                            db,
+                            columnFamilyOptionsFactory,
+                            ttlCompactFiltersManager,
+                            optionsContainer.getWriteBufferManagerCapacity());
             ForStOperationUtils.registerKvStateInformation(
                     this.kvStateInformation,
                     this.nativeMetricMonitor,

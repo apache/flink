@@ -26,10 +26,10 @@ import org.apache.flink.api.common.state.StateTtlConfig;
  *
  * @param <T> Type of the user value of state with TTL
  */
-class TtlReduceFunction<T> extends AbstractTtlDecorator<ReduceFunction<T>>
+public class TtlReduceFunction<T> extends AbstractTtlDecorator<ReduceFunction<T>>
         implements ReduceFunction<TtlValue<T>> {
 
-    TtlReduceFunction(
+    public TtlReduceFunction(
             ReduceFunction<T> originalReduceFunction,
             StateTtlConfig config,
             TtlTimeProvider timeProvider) {
