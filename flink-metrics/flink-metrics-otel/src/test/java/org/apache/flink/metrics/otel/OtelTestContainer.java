@@ -20,14 +20,12 @@ package org.apache.flink.metrics.otel;
 
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 import org.testcontainers.utility.Base58;
 import org.testcontainers.utility.MountableFile;
 
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Duration;
 import java.util.Locale;
 
 /** {@link OtelTestContainer} provides an {@code Otel} test instance. */
@@ -53,10 +51,6 @@ class OtelTestContainer extends GenericContainer<OtelTestContainer> {
                 MountableFile.forHostPath(CONFIG_PATH.toString()), "otel-config.yaml");
         withFileSystemBind(outputDataDir.getPath(), "/data");
         withCommand("--config", "otel-config.yaml");
-        setWaitStrategy(
-                new HostPortWaitStrategy()
-                        .forPorts(DEFAULT_GRPC_PORT)
-                        .withStartupTimeout(Duration.ofMinutes(1)));
     }
 
     public Path getOutputDataPath() {
