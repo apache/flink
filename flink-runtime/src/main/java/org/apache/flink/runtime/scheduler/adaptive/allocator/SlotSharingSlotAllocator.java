@@ -46,6 +46,9 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.scheduler.adaptive.allocator.AllocatorUtil.getMinimalRequiredSlots;
+import static org.apache.flink.runtime.scheduler.adaptive.allocator.AllocatorUtil.getSlotSharingGroupMetaInfos;
+
 /** {@link SlotAllocator} implementation that supports slot sharing. */
 public class SlotSharingSlotAllocator implements SlotAllocator {
 
@@ -93,14 +96,11 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
             JobInformation jobInformation, Collection<? extends SlotInfo> freeSlots) {
 
         final Map<SlotSharingGroupId, SlotSharingGroupMetaInfo> slotSharingGroupMetaInfo =
-                SlotSharingGroupMetaInfo.from(jobInformation.getVertices());
+                getSlotSharingGroupMetaInfos(jobInformation);
 
-        final int minimumRequiredSlots =
-                slotSharingGroupMetaInfo.values().stream()
-                        .map(SlotSharingGroupMetaInfo::getMaxLowerBound)
-                        .reduce(0, Integer::sum);
+        final int minimumRequiredSlots = getMinimalRequiredSlots(slotSharingGroupMetaInfo);
 
-        if (minimumRequiredSlots > freeSlots.size()) {
+        if (getMinimalRequiredSlots(slotSharingGroupMetaInfo) > freeSlots.size()) {
             return Optional.empty();
         }
 
@@ -306,7 +306,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
         }
     }
 
-    private static class SlotSharingGroupMetaInfo {
+    static class SlotSharingGroupMetaInfo {
 
         private final int minLowerBound;
         private final int maxLowerBound;
