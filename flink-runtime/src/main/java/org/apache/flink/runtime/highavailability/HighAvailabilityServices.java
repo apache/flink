@@ -29,6 +29,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.io.IOException;
+import java.net.UnknownHostException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -185,7 +186,8 @@ public interface HighAvailabilityServices
     }
 
     @Override
-    default LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
+    default LeaderRetrievalService getClusterRestEndpointLeaderRetriever()
+            throws UnknownHostException {
         // for backwards compatibility we delegate to getWebMonitorLeaderRetriever
         // all implementations of this interface should override
         // getClusterRestEndpointLeaderRetriever, though
