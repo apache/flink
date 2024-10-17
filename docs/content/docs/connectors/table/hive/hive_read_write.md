@@ -399,7 +399,7 @@ new data from the old.
 
 ## Writing
 
-Flink supports writing data from Hive in both `BATCH` and `STREAMING` modes. When run as a `BATCH`
+Flink supports writing data into Hive in both `BATCH` and `STREAMING` modes. When run as a `BATCH`
 application, Flink will write to a Hive table only making those records visible when the Job finishes.
 `BATCH` writes support both appending to and overwriting existing tables.
 
