@@ -1,0 +1,36 @@
+flink-metrics-otel
+Copyright 2014-2024 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- io.opentelemetry:opentelemetry-sdk:1.30.1
+- io.opentelemetry:opentelemetry-api:1.30.1
+- io.opentelemetry:opentelemetry-context:1.30.1
+- io.opentelemetry:opentelemetry-sdk-common:1.30.1
+- io.opentelemetry:opentelemetry-sdk-trace:1.30.1
+- io.opentelemetry:opentelemetry-sdk-metrics:1.30.1
+- io.opentelemetry:opentelemetry-extension-incubator:1.30.1-alpha
+- io.opentelemetry:opentelemetry-sdk-logs:1.30.1
+- io.opentelemetry:opentelemetry-api-events:1.30.1-alpha
+- io.opentelemetry:opentelemetry-semconv:1.30.1-alpha
+- io.opentelemetry:opentelemetry-exporter-logging:1.30.1
+- io.opentelemetry:opentelemetry-sdk-extension-autoconfigure-spi:1.30.1
+- io.opentelemetry:opentelemetry-exporter-otlp:1.30.1
+- io.opentelemetry:opentelemetry-exporter-otlp-common:1.30.1
+- io.opentelemetry:opentelemetry-exporter-common:1.30.1
+- io.opentelemetry:opentelemetry-exporter-sender-okhttp:1.30.1
+- io.opentelemetry:opentelemetry-sdk-testing:1.30.1
+- io.opentelemetry:opentelemetry-extension-incubator:1.36.0-alpha
+- io.opentelemetry.proto:opentelemetry-proto:1.0.0-alpha
+- io.opentelemetry:opentelemetry-api-common:0.13.1
+- io.opentelemetry:opentelemetry-api-incubator:1.38.0-alpha
+- io.opentelemetry:opentelemetry-sdk-extension-autoconfigure:1.30.1
+- io.opentelemetry:opentelemetry-bom:1.38.0
+- com.squareup.okhttp3:okhttp:4.10.0
+- com.squareup.okio:okio-jvm:3.0.0
+- org.jetbrains.kotlin:kotlin-stdlib:1.6.20
+- org.jetbrains:annotations:17.0.0
+- org.json:json:20240303
