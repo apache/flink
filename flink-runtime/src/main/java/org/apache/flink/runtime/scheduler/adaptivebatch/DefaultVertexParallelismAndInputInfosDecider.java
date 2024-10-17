@@ -176,18 +176,7 @@ public class DefaultVertexParallelismAndInputInfosDecider
 
     @Override
     public int computeSourceParallelismUpperBound(JobVertexID jobVertexId, int maxParallelism) {
-        if (globalDefaultSourceParallelism > maxParallelism) {
-            LOG.info(
-                    "The global default source parallelism {} is larger than the maximum parallelism {}. "
-                            + "Use {} as the upper bound parallelism of source job vertex {}.",
-                    globalDefaultSourceParallelism,
-                    maxParallelism,
-                    maxParallelism,
-                    jobVertexId);
-            return maxParallelism;
-        } else {
-            return globalDefaultSourceParallelism;
-        }
+        return globalDefaultSourceParallelism;
     }
 
     @Override
