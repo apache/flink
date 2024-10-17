@@ -703,6 +703,7 @@ under the License.
 									<excludes>
 										<exclude>LICENSE-junit.txt</exclude>
 										<exclude>LICENSE.txt</exclude>
+										<exclude>LICENSE</exclude>
 										<exclude>META-INF/LICENSE.txt</exclude>
 										<exclude>*.proto</exclude>
 									</excludes>
