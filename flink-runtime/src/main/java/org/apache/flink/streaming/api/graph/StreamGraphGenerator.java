@@ -26,7 +26,6 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.SlotSharingGroupUtils;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
@@ -48,8 +47,6 @@ import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInter
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionStateBackend;
 import org.apache.flink.streaming.api.transformations.BroadcastStateTransformation;
 import org.apache.flink.streaming.api.transformations.CacheTransformation;
-import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
-import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.GlobalCommitterTransform;
 import org.apache.flink.streaming.api.transformations.KeyedBroadcastStateTransformation;
 import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
@@ -512,11 +509,7 @@ public class StreamGraphGenerator {
 
     private Collection<Integer> legacyTransform(Transformation<?> transform) {
         Collection<Integer> transformedIds;
-        if (transform instanceof FeedbackTransformation<?>) {
-            transformedIds = transformFeedback((FeedbackTransformation<?>) transform);
-        } else if (transform instanceof CoFeedbackTransformation<?>) {
-            transformedIds = transformCoFeedback((CoFeedbackTransformation<?>) transform);
-        } else if (transform instanceof SourceTransformationWrapper<?>) {
+        if (transform instanceof SourceTransformationWrapper<?>) {
             transformedIds = transform(((SourceTransformationWrapper<?>) transform).getInput());
         } else {
             throw new IllegalStateException("Unknown transformation: " + transform);
@@ -566,185 +559,6 @@ public class StreamGraphGenerator {
         return configuration.get(ExecutionOptions.BUFFER_TIMEOUT_ENABLED)
                 ? configuration.get(ExecutionOptions.BUFFER_TIMEOUT).toMillis()
                 : ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT;
-    }
-
-    /**
-     * Transforms a {@code FeedbackTransformation}.
-     *
-     * <p>This will recursively transform the input and the feedback edges. We return the
-     * concatenation of the input IDs and the feedback IDs so that downstream operations can be
-     * wired to both.
-     *
-     * <p>This is responsible for creating the IterationSource and IterationSink which are used to
-     * feed back the elements.
-     */
-    private <T> Collection<Integer> transformFeedback(FeedbackTransformation<T> iterate) {
-
-        if (shouldExecuteInBatchMode) {
-            throw new UnsupportedOperationException(
-                    "Iterations are not supported in BATCH"
-                            + " execution mode. If you want to execute such a pipeline, please set the "
-                            + "'"
-                            + ExecutionOptions.RUNTIME_MODE.key()
-                            + "'="
-                            + RuntimeExecutionMode.STREAMING.name());
-        }
-
-        if (iterate.getFeedbackEdges().size() <= 0) {
-            throw new IllegalStateException(
-                    "Iteration " + iterate + " does not have any feedback edges.");
-        }
-
-        List<Transformation<?>> inputs = iterate.getInputs();
-        checkState(inputs.size() == 1);
-        Transformation<?> input = inputs.get(0);
-
-        List<Integer> resultIds = new ArrayList<>();
-
-        // first transform the input stream(s) and store the result IDs
-        Collection<Integer> inputIds = transform(input);
-        resultIds.addAll(inputIds);
-
-        // the recursive transform might have already transformed this
-        if (alreadyTransformed.containsKey(iterate)) {
-            return alreadyTransformed.get(iterate);
-        }
-
-        // create the fake iteration source/sink pair
-        Tuple2<StreamNode, StreamNode> itSourceAndSink =
-                streamGraph.createIterationSourceAndSink(
-                        iterate.getId(),
-                        getNewIterationNodeId(),
-                        getNewIterationNodeId(),
-                        iterate.getWaitTime(),
-                        iterate.getParallelism(),
-                        iterate.getMaxParallelism(),
-                        iterate.getMinResources(),
-                        iterate.getPreferredResources());
-
-        StreamNode itSource = itSourceAndSink.f0;
-        StreamNode itSink = itSourceAndSink.f1;
-
-        // We set the proper serializers for the sink/source
-        streamGraph.setSerializers(
-                itSource.getId(),
-                null,
-                null,
-                iterate.getOutputType().createSerializer(executionConfig.getSerializerConfig()));
-        streamGraph.setSerializers(
-                itSink.getId(),
-                iterate.getOutputType().createSerializer(executionConfig.getSerializerConfig()),
-                null,
-                null);
-
-        // also add the feedback source ID to the result IDs, so that downstream operators will
-        // add both as input
-        resultIds.add(itSource.getId());
-
-        // at the iterate to the already-seen-set with the result IDs, so that we can transform
-        // the feedback edges and let them stop when encountering the iterate node
-        alreadyTransformed.put(iterate, resultIds);
-
-        // so that we can determine the slot sharing group from all feedback edges
-        List<Integer> allFeedbackIds = new ArrayList<>();
-
-        for (Transformation<T> feedbackEdge : iterate.getFeedbackEdges()) {
-            Collection<Integer> feedbackIds = transform(feedbackEdge);
-            allFeedbackIds.addAll(feedbackIds);
-            for (Integer feedbackId : feedbackIds) {
-                streamGraph.addEdge(feedbackId, itSink.getId(), 0);
-            }
-        }
-
-        String slotSharingGroup = determineSlotSharingGroup(null, allFeedbackIds);
-        // slot sharing group of iteration node must exist
-        if (slotSharingGroup == null) {
-            slotSharingGroup = "SlotSharingGroup-" + iterate.getId();
-        }
-
-        itSink.setSlotSharingGroup(slotSharingGroup);
-        itSource.setSlotSharingGroup(slotSharingGroup);
-
-        return resultIds;
-    }
-
-    /**
-     * Transforms a {@code CoFeedbackTransformation}.
-     *
-     * <p>This will only transform feedback edges, the result of this transform will be wired to the
-     * second input of a Co-Transform. The original input is wired directly to the first input of
-     * the downstream Co-Transform.
-     *
-     * <p>This is responsible for creating the IterationSource and IterationSink which are used to
-     * feed back the elements.
-     */
-    private <F> Collection<Integer> transformCoFeedback(CoFeedbackTransformation<F> coIterate) {
-
-        if (shouldExecuteInBatchMode) {
-            throw new UnsupportedOperationException(
-                    "Iterations are not supported in BATCH"
-                            + " execution mode. If you want to execute such a pipeline, please set the "
-                            + "'"
-                            + ExecutionOptions.RUNTIME_MODE.key()
-                            + "'="
-                            + RuntimeExecutionMode.STREAMING.name());
-        }
-
-        // For Co-Iteration we don't need to transform the input and wire the input to the
-        // head operator by returning the input IDs, the input is directly wired to the left
-        // input of the co-operation. This transform only needs to return the ids of the feedback
-        // edges, since they need to be wired to the second input of the co-operation.
-
-        // create the fake iteration source/sink pair
-        Tuple2<StreamNode, StreamNode> itSourceAndSink =
-                streamGraph.createIterationSourceAndSink(
-                        coIterate.getId(),
-                        getNewIterationNodeId(),
-                        getNewIterationNodeId(),
-                        coIterate.getWaitTime(),
-                        coIterate.getParallelism(),
-                        coIterate.getMaxParallelism(),
-                        coIterate.getMinResources(),
-                        coIterate.getPreferredResources());
-
-        StreamNode itSource = itSourceAndSink.f0;
-        StreamNode itSink = itSourceAndSink.f1;
-
-        // We set the proper serializers for the sink/source
-        streamGraph.setSerializers(
-                itSource.getId(),
-                null,
-                null,
-                coIterate.getOutputType().createSerializer(executionConfig.getSerializerConfig()));
-        streamGraph.setSerializers(
-                itSink.getId(),
-                coIterate.getOutputType().createSerializer(executionConfig.getSerializerConfig()),
-                null,
-                null);
-
-        Collection<Integer> resultIds = Collections.singleton(itSource.getId());
-
-        // at the iterate to the already-seen-set with the result IDs, so that we can transform
-        // the feedback edges and let them stop when encountering the iterate node
-        alreadyTransformed.put(coIterate, resultIds);
-
-        // so that we can determine the slot sharing group from all feedback edges
-        List<Integer> allFeedbackIds = new ArrayList<>();
-
-        for (Transformation<F> feedbackEdge : coIterate.getFeedbackEdges()) {
-            Collection<Integer> feedbackIds = transform(feedbackEdge);
-            allFeedbackIds.addAll(feedbackIds);
-            for (Integer feedbackId : feedbackIds) {
-                streamGraph.addEdge(feedbackId, itSink.getId(), 0);
-            }
-        }
-
-        String slotSharingGroup = determineSlotSharingGroup(null, allFeedbackIds);
-
-        itSink.setSlotSharingGroup(slotSharingGroup);
-        itSource.setSlotSharingGroup(slotSharingGroup);
-
-        return Collections.singleton(itSource.getId());
     }
 
     private Collection<Integer> translate(

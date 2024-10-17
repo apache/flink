@@ -21,12 +21,7 @@ package org.apache.flink.streaming.api.graph;
 import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.IntegerTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.connector.source.Boundedness;
-import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
@@ -54,10 +49,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionStateBackend;
-import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
-import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
-import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 
@@ -439,29 +431,6 @@ class StreamGraphGeneratorBatchExecutionTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining(
                         "Batch state backend and sorting inputs are not supported in graphs with an InputSelectable operator.");
-    }
-
-    @Test
-    void testFeedbackThrowsExceptionInBatch() {
-        final SourceTransformation<Integer, ?, ?> bounded =
-                new SourceTransformation<>(
-                        "Bounded Source",
-                        new MockSource(Boundedness.BOUNDED, 100),
-                        WatermarkStrategy.noWatermarks(),
-                        IntegerTypeInfo.of(Integer.class),
-                        1);
-
-        final FeedbackTransformation<Integer> feedbackTransformation =
-                new FeedbackTransformation<>(bounded, 5L);
-
-        testNoSupportForIterationsInBatchHelper(bounded, feedbackTransformation);
-    }
-
-    @Test
-    void testCoFeedbackThrowsExceptionInBatch() {
-        final CoFeedbackTransformation<Integer> coFeedbackTransformation =
-                new CoFeedbackTransformation<>(2, TypeInformation.of(Integer.TYPE), 5L);
-        testNoSupportForIterationsInBatchHelper(coFeedbackTransformation);
     }
 
     private void testNoSupportForIterationsInBatchHelper(
