@@ -30,8 +30,23 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for initializing Netty server from a port range. */
-class NettyServerFromPortRangeTest {
+/** Unit tests for {@link NettyServer}. */
+class NettyServerTest {
+
+    @Test
+    void testBindFailureDetection() {
+        Throwable ex = new java.net.BindException();
+        assertThat(NettyServer.isBindFailure(ex)).isTrue();
+
+        ex = new Exception(new java.net.BindException());
+        assertThat(NettyServer.isBindFailure(ex)).isTrue();
+
+        ex = new Exception();
+        assertThat(NettyServer.isBindFailure(ex)).isFalse();
+
+        ex = new RuntimeException();
+        assertThat(NettyServer.isBindFailure(ex)).isFalse();
+    }
 
     @Test
     void testStartMultipleNettyServerSameConfig() throws Exception {
