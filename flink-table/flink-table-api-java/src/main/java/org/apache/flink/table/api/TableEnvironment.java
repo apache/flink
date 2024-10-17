@@ -384,19 +384,6 @@ public interface TableEnvironment {
     Table fromValues(AbstractDataType<?> rowType, Iterable<?> values);
 
     /**
-     * Registers a {@link Catalog} under a unique name. All tables registered in the {@link Catalog}
-     * can be accessed.
-     *
-     * @param catalogName The name under which the catalog will be registered.
-     * @param catalog The catalog to register.
-     * @deprecated Use {@link #createCatalog(String, CatalogDescriptor)} instead. The new method
-     *     uses a {@link CatalogDescriptor} to initialize the catalog instance and store the {@link
-     *     CatalogDescriptor} to the {@link CatalogStore}.
-     */
-    @Deprecated
-    void registerCatalog(String catalogName, Catalog catalog);
-
-    /**
      * Creates a {@link Catalog} using the provided {@link CatalogDescriptor}. All table registered
      * in the {@link Catalog} can be accessed. The {@link CatalogDescriptor} will be persisted into
      * the {@link CatalogStore}.
@@ -438,18 +425,6 @@ public interface TableEnvironment {
      * @param moduleName name of the {@link Module}
      */
     void unloadModule(String moduleName);
-
-    /**
-     * Registers a {@link ScalarFunction} under a unique name. Replaces already existing
-     * user-defined functions under this name.
-     *
-     * @deprecated Use {@link #createTemporarySystemFunction(String, UserDefinedFunction)} instead.
-     *     Please note that the new method also uses the new type system and reflective extraction
-     *     logic. It might be necessary to update the function implementation as well. See the
-     *     documentation of {@link ScalarFunction} for more information on the new function design.
-     */
-    @Deprecated
-    void registerFunction(String name, ScalarFunction function);
 
     /**
      * Registers a {@link UserDefinedFunction} class as a temporary system function.
@@ -746,21 +721,6 @@ public interface TableEnvironment {
     void createTable(String path, TableDescriptor descriptor);
 
     /**
-     * Registers a {@link Table} under a unique name in the TableEnvironment's catalog. Registered
-     * tables can be referenced in SQL queries.
-     *
-     * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
-     * it will be inaccessible in the current session. To make the permanent object available again
-     * one can drop the corresponding temporary object.
-     *
-     * @param name The name under which the table will be registered.
-     * @param table The table to register.
-     * @deprecated use {@link #createTemporaryView(String, Table)}
-     */
-    @Deprecated
-    void registerTable(String name, Table table);
-
-    /**
      * Registers a {@link Table} API object as a temporary view similar to SQL temporary views.
      *
      * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
@@ -772,38 +732,6 @@ public interface TableEnvironment {
      * @param view The view to register.
      */
     void createTemporaryView(String path, Table view);
-
-    /**
-     * Scans a registered table and returns the resulting {@link Table}.
-     *
-     * <p>A table to scan must be registered in the {@link TableEnvironment}. It can be either
-     * directly registered or be an external member of a {@link Catalog}.
-     *
-     * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or {@link
-     * TableEnvironment#useCatalog(String)} for the rules on the path resolution.
-     *
-     * <p>Examples:
-     *
-     * <p>Scanning a directly registered table.
-     *
-     * <pre>{@code
-     * Table tab = tableEnv.scan("tableName");
-     * }</pre>
-     *
-     * <p>Scanning a table from a registered catalog.
-     *
-     * <pre>{@code
-     * Table tab = tableEnv.scan("catalogName", "dbName", "tableName");
-     * }</pre>
-     *
-     * @param tablePath The path of the table to scan.
-     * @return The resulting {@link Table}.
-     * @see TableEnvironment#useCatalog(String)
-     * @see TableEnvironment#useDatabase(String)
-     * @deprecated use {@link #from(String)}
-     */
-    @Deprecated
-    Table scan(String... tablePath);
 
     /**
      * Reads a registered table and returns the resulting {@link Table}.
@@ -1003,18 +931,6 @@ public interface TableEnvironment {
      * @return AST and the execution plan.
      */
     String explainSql(String statement, ExplainFormat format, ExplainDetail... extraDetails);
-
-    /**
-     * Returns completion hints for the given statement at the given cursor position. The completion
-     * happens case insensitively.
-     *
-     * @param statement Partial or slightly incorrect SQL statement
-     * @param position cursor position
-     * @return completion hints that fit at the current cursor position
-     * @deprecated Will be removed in the next release
-     */
-    @Deprecated
-    String[] getCompletionHints(String statement, int position);
 
     /**
      * Evaluates a SQL query on registered tables and returns a {@link Table} object describing the
