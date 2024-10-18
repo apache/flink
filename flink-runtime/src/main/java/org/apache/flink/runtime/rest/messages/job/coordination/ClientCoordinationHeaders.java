@@ -21,6 +21,8 @@ package org.apache.flink.runtime.rest.messages.job.coordination;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.handler.job.coordination.ClientCoordinationHandler;
+import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
+import org.apache.flink.runtime.rest.messages.OperatorUidPathParameter;
 import org.apache.flink.runtime.rest.messages.RuntimeMessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -34,7 +36,8 @@ public class ClientCoordinationHeaders
                 ClientCoordinationResponseBody,
                 ClientCoordinationMessageParameters> {
 
-    public static final String URL = "/jobs/:jobid/coordinators/:operatorid";
+    public static final String URL =
+            "/jobs/:" + JobIDPathParameter.KEY + "/coordinators/:" + OperatorUidPathParameter.KEY;
 
     private static final ClientCoordinationHeaders INSTANCE = new ClientCoordinationHeaders();
 
