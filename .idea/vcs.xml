@@ -19,7 +19,11 @@
     </option>
   </component>
   <component name="VcsDirectoryMappings">
+    <mapping directory="$PROJECT_DIR$/../connect/kafka-connect-jdbc" vcs="Git" />
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../flink-connector-jdbc" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../flink-connector-kafka" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../flink-connector-kafka/tools/releasing/shared" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/docs/themes/book" vcs="Git" />
   </component>
 </project>

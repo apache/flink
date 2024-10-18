@@ -25,16 +25,14 @@ import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.streaming.runtime.operators.sink.committables.CommitRequestState.COMMITTED;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -45,8 +43,8 @@ class SubtaskCommittableManager<CommT> {
     private final int numExpectedCommittables;
     private final long checkpointId;
     private final int subtaskId;
-    private int numDrained;
-    private int numFailed;
+    @Deprecated private int numDrained;
+    @Deprecated private int numFailed;
     private final SinkCommitterMetricGroup metricGroup;
 
     SubtaskCommittableManager(
@@ -64,6 +62,20 @@ class SubtaskCommittableManager<CommT> {
                 metricGroup);
     }
 
+    SubtaskCommittableManager(
+            Collection<CommitRequestImpl<CommT>> requests,
+            int numExpectedCommittables,
+            int subtaskId,
+            long checkpointId,
+            SinkCommitterMetricGroup metricGroup) {
+        this.checkpointId = checkpointId;
+        this.subtaskId = subtaskId;
+        this.numExpectedCommittables = numExpectedCommittables;
+        this.requests = new ArrayDeque<>(checkNotNull(requests));
+        this.metricGroup = metricGroup;
+    }
+
+    @Deprecated
     SubtaskCommittableManager(
             Collection<CommitRequestImpl<CommT>> requests,
             int numExpectedCommittables,
@@ -106,26 +118,11 @@ class SubtaskCommittableManager<CommT> {
      * @return number of so far received committables
      */
     int getNumCommittables() {
-        return requests.size() + numDrained + numFailed;
-    }
-
-    /**
-     * Returns the number of still expected commits.
-     *
-     * <p>Either the committables are not yet received or the commit is still pending.
-     *
-     * @return number of still expected committables
-     */
-    int getNumPending() {
-        return numExpectedCommittables - (numDrained + numFailed);
-    }
-
-    int getNumFailed() {
-        return numFailed;
+        return requests.size();
     }
 
     boolean isFinished() {
-        return getNumPending() == 0;
+        return getPendingRequests().findAny().isEmpty();
     }
 
     /**
@@ -138,41 +135,10 @@ class SubtaskCommittableManager<CommT> {
         return requests.stream().filter(c -> !c.isFinished());
     }
 
-    /**
-     * Iterates through all currently registered {@link #requests} and returns all {@link
-     * CommittableWithLineage} that could be successfully committed.
-     *
-     * <p>Invoking this method does not yield the same {@link CommittableWithLineage} again. Once
-     * retrieved they are not part of {@link #requests} anymore.
-     *
-     * @return list of {@link CommittableWithLineage}
-     */
-    List<CommittableWithLineage<CommT>> drainCommitted() {
-        List<CommittableWithLineage<CommT>> committed = new ArrayList<>(requests.size());
-        for (Iterator<CommitRequestImpl<CommT>> iterator = requests.iterator();
-                iterator.hasNext(); ) {
-            CommitRequestImpl<CommT> request = iterator.next();
-            if (!request.isFinished()) {
-                continue;
-            }
-            if (request.getState() == CommitRequestState.FAILED) {
-                numFailed += 1;
-                iterator.remove();
-                continue;
-            } else {
-                committed.add(
-                        new CommittableWithLineage<>(
-                                request.getCommittable(), checkpointId, subtaskId));
-            }
-            iterator.remove();
-        }
-
-        numDrained += committed.size();
-        return committed;
-    }
-
-    int getNumDrained() {
-        return numDrained;
+    Stream<CommT> getSuccessfulCommittables() {
+        return getRequests().stream()
+                .filter(c -> c.getState() == COMMITTED)
+                .map(CommitRequestImpl::getCommittable);
     }
 
     int getSubtaskId() {
@@ -184,7 +150,7 @@ class SubtaskCommittableManager<CommT> {
         return checkpointId;
     }
 
-    Deque<CommitRequestImpl<CommT>> getRequests() {
+    Collection<CommitRequestImpl<CommT>> getRequests() {
         return requests;
     }
 
@@ -195,8 +161,6 @@ class SubtaskCommittableManager<CommT> {
                 Stream.concat(requests.stream(), other.requests.stream())
                         .collect(Collectors.toList()),
                 numExpectedCommittables + other.numExpectedCommittables,
-                numDrained + other.numDrained,
-                numFailed + other.numFailed,
                 subtaskId,
                 checkpointId,
                 metricGroup);
@@ -206,8 +170,6 @@ class SubtaskCommittableManager<CommT> {
         return new SubtaskCommittableManager<>(
                 requests.stream().map(CommitRequestImpl::copy).collect(Collectors.toList()),
                 numExpectedCommittables,
-                numDrained,
-                numFailed,
                 subtaskId,
                 checkpointId,
                 metricGroup);
@@ -225,15 +187,12 @@ class SubtaskCommittableManager<CommT> {
         return numExpectedCommittables == that.numExpectedCommittables
                 && checkpointId == that.checkpointId
                 && subtaskId == that.subtaskId
-                && numDrained == that.numDrained
-                && numFailed == that.numFailed
                 && Iterables.elementsEqual(requests, that.requests);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(
-                requests, numExpectedCommittables, checkpointId, subtaskId, numDrained, numFailed);
+        return Objects.hash(requests, numExpectedCommittables, checkpointId, subtaskId);
     }
 
     @Override
@@ -247,10 +206,6 @@ class SubtaskCommittableManager<CommT> {
                 + checkpointId
                 + ", subtaskId="
                 + subtaskId
-                + ", numDrained="
-                + numDrained
-                + ", numFailed="
-                + numFailed
                 + '}';
     }
 }

@@ -39,11 +39,21 @@ public class CommittableSummary<CommT> implements CommittableMessage<CommT> {
     private final long checkpointId;
     /** The number of committables coming from the given subtask in the particular checkpoint. */
     private final int numberOfCommittables;
+
+    @Deprecated
     /** The number of committables that have not been successfully committed. */
     private final int numberOfPendingCommittables;
+
+    @Deprecated
     /** The number of committables that are not retried and have been failed. */
     private final int numberOfFailedCommittables;
 
+    public CommittableSummary(
+            int subtaskId, int numberOfSubtasks, long checkpointId, int numberOfCommittables) {
+        this(subtaskId, numberOfSubtasks, checkpointId, numberOfCommittables, 0, 0);
+    }
+
+    @Deprecated
     public CommittableSummary(
             int subtaskId,
             int numberOfSubtasks,
@@ -75,22 +85,19 @@ public class CommittableSummary<CommT> implements CommittableMessage<CommT> {
         return numberOfCommittables;
     }
 
+    @Deprecated
     public int getNumberOfPendingCommittables() {
-        return numberOfPendingCommittables;
+        return 0;
     }
 
+    @Deprecated
     public int getNumberOfFailedCommittables() {
-        return numberOfFailedCommittables;
+        return 0;
     }
 
     public <NewCommT> CommittableSummary<NewCommT> map() {
         return new CommittableSummary<>(
-                subtaskId,
-                numberOfSubtasks,
-                checkpointId,
-                numberOfCommittables,
-                numberOfPendingCommittables,
-                numberOfFailedCommittables);
+                subtaskId, numberOfSubtasks, checkpointId, numberOfCommittables);
     }
 
     @Override
