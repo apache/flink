@@ -50,6 +50,7 @@ import org.apache.flink.streaming.api.transformations.BroadcastStateTransformati
 import org.apache.flink.streaming.api.transformations.CacheTransformation;
 import org.apache.flink.streaming.api.transformations.CoFeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
+import org.apache.flink.streaming.api.transformations.GlobalCommitterTransform;
 import org.apache.flink.streaming.api.transformations.KeyedBroadcastStateTransformation;
 import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
@@ -69,6 +70,7 @@ import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
 import org.apache.flink.streaming.runtime.translators.BroadcastStateTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.CacheTransformationTranslator;
+import org.apache.flink.streaming.runtime.translators.GlobalCommitterTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.KeyedBroadcastStateTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.LegacySinkTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.LegacySourceTransformationTranslator;
@@ -172,6 +174,7 @@ public class StreamGraphGenerator {
         tmp.put(KeyedMultipleInputTransformation.class, new MultiInputTransformationTranslator<>());
         tmp.put(SourceTransformation.class, new SourceTransformationTranslator<>());
         tmp.put(SinkTransformation.class, new SinkTransformationTranslator<>());
+        tmp.put(GlobalCommitterTransform.class, new GlobalCommitterTransformationTranslator<>());
         tmp.put(LegacySinkTransformation.class, new LegacySinkTransformationTranslator<>());
         tmp.put(LegacySourceTransformation.class, new LegacySourceTransformationTranslator<>());
         tmp.put(UnionTransformation.class, new UnionTransformationTranslator<>());

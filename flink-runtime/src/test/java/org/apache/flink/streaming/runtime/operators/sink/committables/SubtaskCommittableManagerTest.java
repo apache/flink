@@ -22,15 +22,16 @@ import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 
+import org.assertj.core.api.ListAssert;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions.assertThat;
+import static org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions.committableWithLineage;
+import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SubtaskCommittableManagerTest {
@@ -65,11 +66,18 @@ class SubtaskCommittableManagerTest {
         assertThat(subtaskCommittableManager.getNumDrained()).isEqualTo(0);
 
         // Drain committed committables
-        final List<CommittableWithLineage<Integer>> committables =
-                subtaskCommittableManager.drainCommitted();
-        assertThat(committables).hasSize(2);
-        assertThat(committables.get(0)).hasSubtaskId(1).hasCommittable(1).hasCheckpointId(1);
-        assertThat(committables.get(1)).hasSubtaskId(1).hasCommittable(2).hasCheckpointId(1);
+        ListAssert<CommittableWithLineage<Integer>> committables =
+                assertThat(subtaskCommittableManager.drainCommitted()).hasSize(2);
+        committables
+                .element(0, as(committableWithLineage()))
+                .hasSubtaskId(1)
+                .hasCommittable(1)
+                .hasCheckpointId(1);
+        committables
+                .element(1, as(committableWithLineage()))
+                .hasSubtaskId(1)
+                .hasCommittable(2)
+                .hasCheckpointId(1);
         assertThat(subtaskCommittableManager.getNumFailed()).isEqualTo(0);
 
         // Drain again should not yield anything

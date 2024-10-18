@@ -56,14 +56,20 @@ public interface CheckpointCommittableManager<CommT> {
      */
     CommittableSummary<CommT> getSummary(int emittingSubtaskId, int emittingNumberOfSubtasks);
 
+    boolean isFinished();
+
+    /**
+     * Returns true if all committables of all upstream subtasks arrived, which is only guaranteed
+     * to happen if the DOP of the caller is 1.
+     */
+    boolean hasGloballyReceivedAll();
+
     /**
      * Commits all due committables if all respective committables of the specific subtask and
      * checkpoint have been received.
      *
      * @param committer used to commit to the external system
      * @return successfully committed committables with meta information
-     * @throws IOException
-     * @throws InterruptedException
      */
     Collection<CommittableWithLineage<CommT>> commit(Committer<CommT> committer)
             throws IOException, InterruptedException;
