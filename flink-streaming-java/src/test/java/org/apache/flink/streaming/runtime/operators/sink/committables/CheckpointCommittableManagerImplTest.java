@@ -23,7 +23,6 @@ import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
-import org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -41,6 +40,7 @@ class CheckpointCommittableManagerImplTest {
 
     private static final SinkCommitterMetricGroup METRIC_GROUP =
             MetricsGroupTestUtils.mockCommitterMetricGroup();
+    private static final int MAX_RETRIES = 1;
 
     @Test
     void testAddSummary() {
@@ -74,19 +74,20 @@ class CheckpointCommittableManagerImplTest {
 
         final Committer<Integer> committer = new NoOpCommitter();
         // Only commit fully received committables
-        assertThatCode(() -> checkpointCommittables.commit(committer))
+        assertThatCode(() -> checkpointCommittables.commit(committer, MAX_RETRIES))
                 .hasMessageContaining("Trying to commit incomplete batch of committables");
 
         // Even on retry
-        assertThatCode(() -> checkpointCommittables.commit(committer))
+        assertThatCode(() -> checkpointCommittables.commit(committer, MAX_RETRIES))
                 .hasMessageContaining("Trying to commit incomplete batch of committables");
 
         // Add missing committable
         checkpointCommittables.addCommittable(new CommittableWithLineage<>(5, 1L, 2));
         // Commit all committables
-        assertThat(checkpointCommittables.commit(committer))
+        assertThatCode(() -> checkpointCommittables.commit(committer, MAX_RETRIES))
+                .doesNotThrowAnyException();
+        assertThat(checkpointCommittables.getSuccessfulCommittables())
                 .hasSize(3)
-                .extracting(CommittableWithLineage::getCommittable)
                 .containsExactlyInAnyOrder(3, 4, 5);
     }
 
@@ -118,10 +119,9 @@ class CheckpointCommittableManagerImplTest {
         CheckpointCommittableManagerImpl<Integer> copy = original.copy();
 
         assertThat(copy.getCheckpointId()).isEqualTo(checkpointId);
-        SinkV2Assertions.assertThat(copy.getSummary(subtaskId, numberOfSubtasks))
-                .hasNumberOfSubtasks(numberOfSubtasks)
-                .hasSubtaskId(subtaskId)
-                .hasCheckpointId(checkpointId);
+        assertThat(copy)
+                .returns(numberOfSubtasks, CheckpointCommittableManagerImpl::getNumberOfSubtasks)
+                .returns(checkpointId, CheckpointCommittableManagerImpl::getCheckpointId);
     }
 
     private static class NoOpCommitter implements Committer<Integer> {

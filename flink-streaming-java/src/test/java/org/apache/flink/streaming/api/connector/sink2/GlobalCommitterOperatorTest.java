@@ -63,6 +63,7 @@ class GlobalCommitterOperatorTest {
             if (commitOnInput) {
                 assertThat(committer.committed).containsExactly(1, 2);
             } else {
+                // 3PC behavior
                 assertThat(committer.committed).isEmpty();
                 testHarness.notifyOfCompletedCheckpoint(cid + 1);
                 assertThat(committer.committed).containsExactly(1, 2);
