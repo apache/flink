@@ -23,7 +23,9 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -33,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -99,8 +102,15 @@ class CompressibleFSDataInputStreamTest {
         assertThat(readBuffer).asString(StandardCharsets.UTF_8).isEqualTo(prefix);
     }
 
-    @Test
-    void testSeek() throws IOException {
+    private static Stream<Arguments> testSeekParameters() {
+        return Stream.of(
+                Arguments.of(new UncompressedStreamCompressionDecorator()),
+                Arguments.of(new SnappyStreamCompressionDecorator()));
+    }
+
+    @ParameterizedTest
+    @MethodSource("testSeekParameters")
+    void testSeek(StreamCompressionDecorator streamCompressionDecorator) throws IOException {
         final List<String> records = Arrays.asList("first", "second", "third", "fourth", "fifth");
         final Map<String, Long> positions = new HashMap<>();
 
@@ -108,7 +118,7 @@ class CompressibleFSDataInputStreamTest {
         try (final TestingOutputStream outputStream = new TestingOutputStream();
                 final CompressibleFSDataOutputStream compressibleOutputStream =
                         new CompressibleFSDataOutputStream(
-                                outputStream, new SnappyStreamCompressionDecorator())) {
+                                outputStream, streamCompressionDecorator)) {
             for (String record : records) {
                 positions.put(record, compressibleOutputStream.getPos());
                 compressibleOutputStream.write(record.getBytes(StandardCharsets.UTF_8));
@@ -121,7 +131,7 @@ class CompressibleFSDataInputStreamTest {
                         new InputStreamFSInputWrapper(new ByteArrayInputStream(compressedBytes));
                 final FSDataInputStream compressibleInputStream =
                         new CompressibleFSDataInputStream(
-                                inputStream, new SnappyStreamCompressionDecorator())) {
+                                inputStream, streamCompressionDecorator)) {
             verifyRecord(compressibleInputStream, positions, "first");
             verifyRecord(compressibleInputStream, positions, "third");
             verifyRecord(compressibleInputStream, positions, "fifth");
@@ -133,7 +143,7 @@ class CompressibleFSDataInputStreamTest {
                         new InputStreamFSInputWrapper(new ByteArrayInputStream(compressedBytes));
                 final FSDataInputStream compressibleInputStream =
                         new CompressibleFSDataInputStream(
-                                inputStream, new SnappyStreamCompressionDecorator())) {
+                                inputStream, streamCompressionDecorator)) {
             verifyRecordPrefix(compressibleInputStream, positions, "first", "fir");
             verifyRecordPrefix(compressibleInputStream, positions, "third", "thi");
             verifyRecord(compressibleInputStream, positions, "fifth");
