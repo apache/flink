@@ -58,7 +58,7 @@ public class TableSchemaUtils {
     /**
      * This method is copied from OperationConverterUtils#buildModifyColumnChange located in
      * flink-table-planner, and should be synchronized if
-     * OperationConverterUtils#buildModifyColumnChange changes in the the future.
+     * OperationConverterUtils#buildModifyColumnChange changes in the future.
      */
     public static List<TableChange> buildModifyColumnChange(
             Column oldColumn,
