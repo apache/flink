@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -132,7 +133,7 @@ public class CommittableCollector<CommT> {
      */
     public Collection<? extends CheckpointCommittableManager<CommT>> getCheckpointCommittablesUpTo(
             long checkpointId) {
-        return checkpointCommittables.headMap(checkpointId, true).values();
+        return new ArrayList<>(checkpointCommittables.headMap(checkpointId, true).values());
     }
 
     /**
@@ -208,9 +209,9 @@ public class CommittableCollector<CommT> {
         return checkNotNull(committables, "Unknown checkpoint for %s", committable);
     }
 
-    /** Removes all metadata about checkpoints of which all committables are fully committed. */
-    public void compact() {
-        checkpointCommittables.values().removeIf(CheckpointCommittableManagerImpl::isFinished);
+    /** Removes the manager for a specific checkpoint and all it's metadata. */
+    public void remove(CheckpointCommittableManager<CommT> manager) {
+        checkpointCommittables.remove(manager.getCheckpointId());
     }
 
     @Override

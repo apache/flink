@@ -35,6 +35,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.streaming.runtime.operators.sink.committables.CommitRequestState.COMMITTED;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -138,6 +139,12 @@ class SubtaskCommittableManager<CommT> {
         return requests.stream().filter(c -> !c.isFinished());
     }
 
+    Stream<CommT> getSuccessfulCommittables() {
+        return getRequests().stream()
+                .filter(c -> c.getState() == COMMITTED)
+                .map(CommitRequestImpl::getCommittable);
+    }
+
     /**
      * Iterates through all currently registered {@link #requests} and returns all {@link
      * CommittableWithLineage} that could be successfully committed.
@@ -184,7 +191,7 @@ class SubtaskCommittableManager<CommT> {
         return checkpointId;
     }
 
-    Deque<CommitRequestImpl<CommT>> getRequests() {
+    Collection<CommitRequestImpl<CommT>> getRequests() {
         return requests;
     }
 

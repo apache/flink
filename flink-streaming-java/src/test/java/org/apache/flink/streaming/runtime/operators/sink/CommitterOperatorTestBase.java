@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.connector.sink2.SupportsCommitter;
+import org.apache.flink.configuration.SinkOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
@@ -26,6 +27,7 @@ import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
+import org.assertj.core.api.AbstractThrowableAssert;
 import org.assertj.core.api.ListAssert;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -201,10 +203,6 @@ abstract class CommitterOperatorTestBase {
         testHarness.processElement(new StreamRecord<>(second));
 
         final OperatorSubtaskState snapshot = testHarness.snapshot(checkpointId, 2L);
-
-        // Trigger first checkpoint but committer needs retry
-        testHarness.notifyOfCompletedCheckpoint(0);
-
         assertThat(testHarness.getOutput()).isEmpty();
         testHarness.close();
 
@@ -242,6 +240,35 @@ abstract class CommitterOperatorTestBase {
                 .hasSubtaskId(subtaskIdAfterRecovery)
                 .hasCommittable(second.getCommittable());
         restored.close();
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1})
+    void testNumberOfRetries(int numRetries) throws Exception {
+        try (OneInputStreamOperatorTestHarness<
+                        CommittableMessage<String>, CommittableMessage<String>>
+                testHarness =
+                        createTestHarness(
+                                sinkWithPostCommitWithRetry().sink, false, true, 1, 1, 0)) {
+            testHarness
+                    .getStreamConfig()
+                    .getConfiguration()
+                    .set(SinkOptions.COMMITTER_RETRIES, numRetries);
+            testHarness.open();
+
+            long ckdId = 1L;
+            testHarness.processElement(
+                    new StreamRecord<>(new CommittableSummary<>(0, 1, ckdId, 1, 0, 0)));
+            testHarness.processElement(
+                    new StreamRecord<>(new CommittableWithLineage<>("1", ckdId, 0)));
+            AbstractThrowableAssert<?, ? extends Throwable> throwableAssert =
+                    assertThatCode(() -> testHarness.notifyOfCompletedCheckpoint(ckdId));
+            if (numRetries == 0) {
+                throwableAssert.hasMessageContaining("Failed to commit 1 committables");
+            } else {
+                throwableAssert.doesNotThrowAnyException();
+            }
+        }
     }
 
     @ParameterizedTest

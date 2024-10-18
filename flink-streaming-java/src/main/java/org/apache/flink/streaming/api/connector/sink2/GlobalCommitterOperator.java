@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.configuration.SinkOptions;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.InternalSinkCommitterMetricGroup;
@@ -49,7 +50,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.streaming.api.connector.sink2.CommittableMessage.EOI;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -118,6 +118,7 @@ public class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamO
     private long lastCompletedCheckpointId = -1;
     private SimpleVersionedSerializer<CommT> committableSerializer;
     private SinkCommitterMetricGroup metricGroup;
+    private int maxRetries;
 
     @Nullable private GlobalCommitter<CommT, GlobalCommT> globalCommitter;
     @Nullable private SimpleVersionedSerializer<GlobalCommT> globalCommittableSerializer;
@@ -148,6 +149,7 @@ public class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamO
             globalCommitter = gc.getGlobalCommitter();
             globalCommittableSerializer = gc.getGlobalCommittableSerializer();
         }
+        maxRetries = config.getConfiguration().get(SinkOptions.COMMITTER_RETRIES);
     }
 
     @Override
@@ -215,23 +217,14 @@ public class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamO
         }
 
         lastCompletedCheckpointId = Math.max(lastCompletedCheckpointId, checkpointIdOrEOI);
-        // this is true for the last commit and we need to make sure that all committables are
-        // indeed committed as this function will never be invoked again
-        boolean waitForAllCommitted =
-                lastCompletedCheckpointId == EOI
-                        && committableCollector
-                                .getEndOfInputCommittable()
-                                .map(CheckpointCommittableManager::hasGloballyReceivedAll)
-                                .orElse(false);
-        do {
-            for (CheckpointCommittableManager<CommT> committable :
-                    committableCollector.getCheckpointCommittablesUpTo(lastCompletedCheckpointId)) {
-                if (committable.hasGloballyReceivedAll()) {
-                    committable.commit(committer);
-                }
+        for (CheckpointCommittableManager<CommT> checkpointManager :
+                committableCollector.getCheckpointCommittablesUpTo(lastCompletedCheckpointId)) {
+            if (!checkpointManager.hasGloballyReceivedAll()) {
+                return;
             }
-            committableCollector.compact();
-        } while (waitForAllCommitted && !committableCollector.isFinished());
+            checkpointManager.commit(committer, maxRetries);
+            committableCollector.remove(checkpointManager);
+        }
     }
 
     @Override
