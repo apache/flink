@@ -38,6 +38,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -53,7 +54,9 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /** Class representing the operators in the streaming programs, with all their properties. */
 @Internal
-public class StreamNode {
+public class StreamNode implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final int id;
     private int parallelism;
@@ -76,7 +79,9 @@ public class StreamNode {
     private KeySelector<?, ?>[] statePartitioners = new KeySelector[0];
     private TypeSerializer<?> stateKeySerializer;
 
-    private @Nullable StreamOperatorFactory<?> operatorFactory;
+    // Mark the operator factory as transient because we will manually parallelize its serialization
+    // when serializing StreamGraph.
+    private @Nullable transient StreamOperatorFactory<?> operatorFactory;
     private TypeSerializer<?>[] typeSerializersIn = new TypeSerializer[0];
     private TypeSerializer<?> typeSerializerOut;
 
@@ -460,5 +465,9 @@ public class StreamNode {
             return false;
         }
         return operatorFactory.getOperatorAttributes().isOutputOnlyAfterEndOfStream();
+    }
+
+    public void setOperatorFactory(StreamOperatorFactory<?> streamOperatorFactory) {
+        this.operatorFactory = streamOperatorFactory;
     }
 }
