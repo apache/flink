@@ -21,7 +21,6 @@ package org.apache.flink.streaming.runtime.operators.sink.committables;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
-import org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions;
 
 import org.junit.jupiter.api.Test;
 
@@ -59,7 +58,8 @@ class CommittableCollectorTest {
         Optional<CheckpointCommittableManager<Integer>> endOfInputCommittable =
                 committableCollector.getEndOfInputCommittable();
         assertThat(endOfInputCommittable).isPresent();
-        SinkV2Assertions.assertThat(endOfInputCommittable.get().getSummary(1, 1))
-                .hasCheckpointId(EOI);
+        assertThat(endOfInputCommittable)
+                .get()
+                .returns(EOI, CheckpointCommittableManager::getCheckpointId);
     }
 }
