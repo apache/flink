@@ -71,7 +71,9 @@ export class NodeComponent {
     if (this.isValid(value.busyPercentage)) {
       this.busyPercentage = value.busyPercentage;
     }
-    this.dataSkewPercentage = value.dataSkewPercentage;
+    if (this.isValid(value.dataSkewPercentage)) {
+      this.dataSkewPercentage = value.dataSkewPercentage;
+    }
     this.height = value.height || 0;
     this.id = value.id;
     if (description && description.length > 300) {
@@ -82,7 +84,7 @@ export class NodeComponent {
   }
 
   isValid = (value?: number): boolean => {
-    return value === undefined || value === 0 || isNaN(value);
+    return !!value || value === undefined || value === 0 || isNaN(value);
   };
 
   toRGBA = (d: string): number[] => {
