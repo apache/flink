@@ -163,13 +163,13 @@ public class AbstractReducingStateTest extends AbstractKeyedStateTestBase {
                 } else if (request.getRequestType() == StateRequestType.REDUCING_ADD) {
                     String key = (String) request.getRecordContext().getKey();
                     String namespace = (String) request.getNamespace();
-                    hashMap.put(Tuple2.of(key, namespace), (Integer) request.getPayload());
-                    request.getFuture().complete(null);
-                } else if (request.getRequestType() == StateRequestType.REDUCING_REMOVE) {
-                    String key = (String) request.getRecordContext().getKey();
-                    String namespace = (String) request.getNamespace();
-                    hashMap.remove(Tuple2.of(key, namespace));
-                    request.getFuture().complete(null);
+                    if (request.getPayload() == null) {
+                        hashMap.remove(Tuple2.of(key, namespace));
+                        request.getFuture().complete(null);
+                    } else {
+                        hashMap.put(Tuple2.of(key, namespace), (Integer) request.getPayload());
+                        request.getFuture().complete(null);
+                    }
                 } else {
                     throw new UnsupportedOperationException("Unsupported request type");
                 }

@@ -28,6 +28,7 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
+import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
 import org.apache.flink.util.function.FunctionWithException;
 
 import javax.annotation.Nonnull;
@@ -134,6 +135,16 @@ public class StateBackendTestUtils {
                 @Nonnull N defaultNamespace,
                 @Nonnull TypeSerializer<N> namespaceSerializer,
                 @Nonnull org.apache.flink.runtime.state.v2.StateDescriptor<SV> stateDesc) {
+            return (S) innerStateSupplier.get();
+        }
+
+        @Nonnull
+        @Override
+        public <N, S extends InternalKeyedState, SV> S createStateInternal(
+                @Nonnull N defaultNamespace,
+                @Nonnull TypeSerializer<N> namespaceSerializer,
+                @Nonnull org.apache.flink.runtime.state.v2.StateDescriptor<SV> stateDesc)
+                throws Exception {
             return (S) innerStateSupplier.get();
         }
 
