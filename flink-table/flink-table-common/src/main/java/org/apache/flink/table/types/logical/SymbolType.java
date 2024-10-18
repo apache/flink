@@ -43,18 +43,6 @@ public final class SymbolType<T extends TableSymbol> extends LogicalType {
 
     private static final String FORMAT = "SYMBOL";
 
-    /** @deprecated Symbol types have been simplified to not require a class. */
-    @Deprecated
-    public SymbolType(boolean isNullable, @SuppressWarnings("unused") Class<T> clazz) {
-        this(isNullable);
-    }
-
-    /** @deprecated Symbol types have been simplified to not require a class. */
-    @Deprecated
-    public SymbolType(@SuppressWarnings("unused") Class<T> clazz) {
-        this();
-    }
-
     public SymbolType(boolean isNullable) {
         super(isNullable, LogicalTypeRoot.SYMBOL);
     }
