@@ -22,9 +22,10 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
-import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
+import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
@@ -110,7 +111,8 @@ public interface InternalTimeServiceManager<K> {
     interface Provider extends Serializable {
         <K> InternalTimeServiceManager<K> create(
                 TaskIOMetricGroup taskIOMetricGroup,
-                CheckpointableKeyedStateBackend<K> keyedStatedBackend,
+                PriorityQueueSetFactory factory,
+                KeyGroupRange keyGroupRange,
                 ClassLoader userClassloader,
                 KeyContext keyContext,
                 ProcessingTimeService processingTimeService,

@@ -89,6 +89,7 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     public final void initializeState(StreamTaskStateInitializer streamTaskStateManager)
             throws Exception {
         super.initializeState(streamTaskStateManager);
+        this.timeServiceManager = stateHandler.getAsyncInternalTimerServiceManager();
         getRuntimeContext().setKeyedStateStoreV2(stateHandler.getKeyedStateStoreV2().orElse(null));
 
         final int inFlightRecordsLimit = getExecutionConfig().getAsyncInflightRecordsLimit();

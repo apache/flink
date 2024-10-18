@@ -25,7 +25,6 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
-import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
@@ -101,21 +100,21 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
      */
     public static <K> InternalTimeServiceManagerImpl<K> create(
             TaskIOMetricGroup taskIOMetricGroup,
-            CheckpointableKeyedStateBackend<K> keyedStateBackend,
+            PriorityQueueSetFactory factory,
+            KeyGroupRange keyGroupRange,
             ClassLoader userClassloader,
             KeyContext keyContext,
             ProcessingTimeService processingTimeService,
             Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates,
             StreamTaskCancellationContext cancellationContext)
             throws Exception {
-        final KeyGroupRange keyGroupRange = keyedStateBackend.getKeyGroupRange();
 
         final InternalTimeServiceManagerImpl<K> timeServiceManager =
                 new InternalTimeServiceManagerImpl<>(
                         taskIOMetricGroup,
                         keyGroupRange,
                         keyContext,
-                        keyedStateBackend,
+                        factory,
                         processingTimeService,
                         cancellationContext);
 

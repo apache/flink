@@ -91,6 +91,7 @@ class BatchExecutionInternalTimeServiceTest {
                                         UnregisteredMetricGroups.createUnregisteredTaskMetricGroup()
                                                 .getIOMetricGroup(),
                                         stateBackend,
+                                        null,
                                         this.getClass().getClassLoader(),
                                         new DummyKeyContext(),
                                         new TestProcessingTimeService(),
@@ -147,6 +148,7 @@ class BatchExecutionInternalTimeServiceTest {
                         UnregisteredMetricGroups.createUnregisteredTaskMetricGroup()
                                 .getIOMetricGroup(),
                         keyedStatedBackend,
+                        null,
                         this.getClass().getClassLoader(),
                         new DummyKeyContext(),
                         new TestProcessingTimeService(),
@@ -185,6 +187,7 @@ class BatchExecutionInternalTimeServiceTest {
                         UnregisteredMetricGroups.createUnregisteredTaskMetricGroup()
                                 .getIOMetricGroup(),
                         keyedStatedBackend,
+                        null,
                         this.getClass().getClassLoader(),
                         new DummyKeyContext(),
                         new TestProcessingTimeService(),
@@ -216,6 +219,7 @@ class BatchExecutionInternalTimeServiceTest {
                         UnregisteredMetricGroups.createUnregisteredTaskMetricGroup()
                                 .getIOMetricGroup(),
                         keyedStatedBackend,
+                        null,
                         this.getClass().getClassLoader(),
                         new DummyKeyContext(),
                         new TestProcessingTimeService(),
@@ -265,6 +269,7 @@ class BatchExecutionInternalTimeServiceTest {
                         UnregisteredMetricGroups.createUnregisteredTaskMetricGroup()
                                 .getIOMetricGroup(),
                         keyedStatedBackend,
+                        null,
                         this.getClass().getClassLoader(),
                         new DummyKeyContext(),
                         processingTimeService,
@@ -302,6 +307,7 @@ class BatchExecutionInternalTimeServiceTest {
                         UnregisteredMetricGroups.createUnregisteredTaskMetricGroup()
                                 .getIOMetricGroup(),
                         keyedStatedBackend,
+                        null,
                         this.getClass().getClassLoader(),
                         new DummyKeyContext(),
                         processingTimeService,
@@ -344,6 +350,7 @@ class BatchExecutionInternalTimeServiceTest {
                         UnregisteredMetricGroups.createUnregisteredTaskMetricGroup()
                                 .getIOMetricGroup(),
                         keyedStatedBackend,
+                        null,
                         this.getClass().getClassLoader(),
                         new DummyKeyContext(),
                         processingTimeService,
