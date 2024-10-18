@@ -41,6 +41,8 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.slf4j.Logger;
@@ -52,6 +54,7 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.scheduler.DefaultSchedulerComponents.createSchedulerComponents;
 import static org.apache.flink.runtime.scheduler.SchedulerBase.computeVertexParallelismStore;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** Factory for {@link DefaultScheduler}. */
 public class DefaultSchedulerFactory implements SchedulerNGFactory {
@@ -59,7 +62,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
     @Override
     public SchedulerNG createInstance(
             final Logger log,
-            final JobGraph jobGraph,
+            final ExecutionPlan executionPlan,
             final Executor ioExecutor,
             final Configuration jobMasterConfiguration,
             final SlotPoolService slotPoolService,
@@ -80,6 +83,14 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
             final Collection<FailureEnricher> failureEnrichers,
             final BlocklistOperations blocklistOperations)
             throws Exception {
+        JobGraph jobGraph;
+
+        if (executionPlan instanceof JobGraph) {
+            jobGraph = (JobGraph) executionPlan;
+        } else {
+            checkState(executionPlan instanceof StreamGraph, "Unsupported execution plan.");
+            jobGraph = ((StreamGraph) executionPlan).getJobGraph(userCodeLoader);
+        }
 
         final SlotPool slotPool =
                 slotPoolService
