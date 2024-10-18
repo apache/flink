@@ -37,14 +37,14 @@ import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
-import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.LocalSnapshotDirectoryProvider;
 import org.apache.flink.runtime.state.LocalSnapshotDirectoryProviderImpl;
 import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
+import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
@@ -240,8 +240,8 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
                     @Override
                     public <K> InternalTimeServiceManager<K> create(
                             TaskIOMetricGroup taskIOMetricGroup,
-                            CheckpointableKeyedStateBackend<K> keyedStatedBackend,
-                            AsyncKeyedStateBackend<K> asyncKeyedStateBackend,
+                            PriorityQueueSetFactory factory,
+                            KeyGroupRange keyGroupRange,
                             ClassLoader userClassloader,
                             KeyContext keyContext,
                             ProcessingTimeService processingTimeService,

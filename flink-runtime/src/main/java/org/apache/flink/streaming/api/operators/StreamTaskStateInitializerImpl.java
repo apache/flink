@@ -179,7 +179,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
         OperatorStateBackend operatorStateBackend = null;
         CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs = null;
         CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs = null;
-        InternalTimeServiceManager<?> timeServiceManager;
+        InternalTimeServiceManager<?> timeServiceManager = null;
+        InternalTimeServiceManager<?> asyncTimeServiceManager = null;
 
         final StateObject.StateObjectSizeStatsCollector statsCollector =
                 StateObject.StateObjectSizeStatsCollector.create();
@@ -251,32 +252,32 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                     (prioritizedOperatorSubtaskStates.isRestored() && !isUsingCustomRawKeyedState)
                             ? rawKeyedStateInputs
                             : Collections.emptyList();
-            if (keyedStatedBackend == null && asyncKeyedStateBackend == null) {
-                timeServiceManager = null;
-            } else if (stateBackend.supportsAsyncKeyedStateBackend()) {
-                timeServiceManager =
-                        timeServiceManagerProvider.create(
-                                environment.getMetricGroup().getIOMetricGroup(),
-                                null,
-                                asyncKeyedStateBackend,
-                                environment.getUserCodeClassLoader().asClassLoader(),
-                                keyContext,
-                                processingTimeService,
-                                restoredRawKeyedStateTimers,
-                                cancellationContext);
-            } else {
+            if (keyedStatedBackend != null) {
                 timeServiceManager =
                         timeServiceManagerProvider.create(
                                 environment.getMetricGroup().getIOMetricGroup(),
                                 keyedStatedBackend,
-                                null,
+                                keyedStatedBackend.getKeyGroupRange(),
                                 environment.getUserCodeClassLoader().asClassLoader(),
                                 keyContext,
                                 processingTimeService,
                                 restoredRawKeyedStateTimers,
                                 cancellationContext);
             }
-
+            if (stateBackend.supportsAsyncKeyedStateBackend()) {
+                asyncTimeServiceManager =
+                        timeServiceManagerProvider.create(
+                                environment.getMetricGroup().getIOMetricGroup(),
+                                asyncKeyedStateBackend,
+                                asyncKeyedStateBackend.getKeyGroupRange(),
+                                environment.getUserCodeClassLoader().asClassLoader(),
+                                keyContext,
+                                processingTimeService,
+                                restoredRawKeyedStateTimers,
+                                cancellationContext);
+            } else {
+                asyncTimeServiceManager = timeServiceManager;
+            }
             // Add stats for input channel and result partition state
             Stream.concat(
                             prioritizedOperatorSubtaskStates.getPrioritizedInputChannelState()
@@ -303,6 +304,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                     keyedStatedBackend,
                     asyncKeyedStateBackend,
                     timeServiceManager,
+                    asyncTimeServiceManager,
                     rawOperatorStateInputs,
                     rawKeyedStateInputs);
         } catch (Exception ex) {
@@ -786,6 +788,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
         private final CheckpointableKeyedStateBackend<?> keyedStateBackend;
         private final AsyncKeyedStateBackend asyncKeyedStateBackend;
         private final InternalTimeServiceManager<?> internalTimeServiceManager;
+        private final InternalTimeServiceManager<?> asyncInternalTimeServiceManager;
 
         private final CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs;
         private final CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs;
@@ -796,6 +799,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                 CheckpointableKeyedStateBackend<?> keyedStateBackend,
                 AsyncKeyedStateBackend asyncKeyedStateBackend,
                 InternalTimeServiceManager<?> internalTimeServiceManager,
+                InternalTimeServiceManager<?> asyncInternalTimeServiceManager,
                 CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs,
                 CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs) {
 
@@ -804,6 +808,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
             this.keyedStateBackend = keyedStateBackend;
             this.asyncKeyedStateBackend = asyncKeyedStateBackend;
             this.internalTimeServiceManager = internalTimeServiceManager;
+            this.asyncInternalTimeServiceManager = asyncInternalTimeServiceManager;
             this.rawOperatorStateInputs = rawOperatorStateInputs;
             this.rawKeyedStateInputs = rawKeyedStateInputs;
         }
@@ -833,6 +838,11 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
         @Override
         public InternalTimeServiceManager<?> internalTimerServiceManager() {
             return internalTimeServiceManager;
+        }
+
+        @Override
+        public InternalTimeServiceManager<?> asyncInternalTimerServiceManager() {
+            return asyncInternalTimeServiceManager;
         }
 
         @Override
