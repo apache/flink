@@ -21,7 +21,7 @@ package org.apache.flink.state.api;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateBackendOptions;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
+import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
 
 /** IT Case for reading keyed state from a memory state backend. */
 public class EmbeddedRocksDBStateBackendReaderKeyedStateITCase

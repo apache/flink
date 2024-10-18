@@ -169,7 +169,7 @@ env = StreamExecutionEnvironment.get_execution_environment(config)
 
 可选值包括 *jobmanager* (HashMapStateBackend), *rocksdb* (EmbeddedRocksDBStateBackend)，
 或使用实现了 state backend 工厂 {{< gh_link file="flink-runtime/src/main/java/org/apache/flink/runtime/state/StateBackendFactory.java" name="StateBackendFactory" >}} 的类的全限定类名，
-例如： EmbeddedRocksDBStateBackend 对应为 `org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory`。
+例如： EmbeddedRocksDBStateBackend 对应为 `org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackendFactory`。
 
 `execution.checkpointing.dir` 选项指定了所有 State Backend 写 CheckPoint 数据和写元数据文件的目录。
 你能在 [这里]({{< ref "docs/ops/state/checkpoints" >}}#directory-structure) 找到关于 CheckPoint 目录结构的详细信息。
