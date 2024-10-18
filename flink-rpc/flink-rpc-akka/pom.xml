@@ -37,7 +37,7 @@ under the License.
 	</description>
 
 	<properties>
-		<pekko.version>1.0.1</pekko.version>
+		<pekko.version>1.1.2</pekko.version>
 		<scala.binary.version>2.12</scala.binary.version>
 		<scala.version>2.12.16</scala.version>
 	</properties>
@@ -94,8 +94,8 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>io.netty</groupId>
-			<artifactId>netty</artifactId>
-			<version>3.10.6.Final</version>
+			<artifactId>netty-all</artifactId>
+			<scope>test</scope>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
@@ -172,9 +172,15 @@ under the License.
 									<include>*</include>
 								</includes>
 							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>io.netty</pattern>
+									<shadedPattern>org.apache.flink.shaded.netty4.io.netty</shadedPattern>
+								</relocation>
+							</relocations>
 							<filters>
 								<filter>
-									<artifact>io.netty:netty</artifact>
+									<artifact>io.netty:*</artifact>
 									<excludes>
 										<!-- Only some of these licenses actually apply to the JAR and have been manually
 											 placed in this module's resources directory. -->
