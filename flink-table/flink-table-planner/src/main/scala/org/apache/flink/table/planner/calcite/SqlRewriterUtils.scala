@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.sql.parser.`type`.SqlMapTypeNameSpec
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator.ExplicitTableSqlSelect
 import org.apache.flink.table.planner.calcite.PreValidateReWriter.{newValidationError, notSupported}
 import org.apache.flink.table.planner.calcite.SqlRewriterUtils.{rewriteSqlCall, rewriteSqlSelect, rewriteSqlValues}
 import org.apache.flink.util.Preconditions.checkArgument
@@ -26,7 +27,7 @@ import org.apache.flink.util.Preconditions.checkArgument
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.runtime.{CalciteContextException, Resources}
 import org.apache.calcite.sql.`type`.SqlTypeUtil
-import org.apache.calcite.sql.{SqlCall, SqlDataTypeSpec, SqlKind, SqlNode, SqlNodeList, SqlOrderBy, SqlSelect, SqlUtil}
+import org.apache.calcite.sql.{SqlCall, SqlDataTypeSpec, SqlIdentifier, SqlKind, SqlNode, SqlNodeList, SqlOrderBy, SqlSelect, SqlUtil}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.validate.SqlValidatorException
@@ -130,8 +131,11 @@ object SqlRewriterUtils {
     call.getKind match {
       case SqlKind.SELECT =>
         val sqlSelect = call.asInstanceOf[SqlSelect]
-
-        if (targetPosition.nonEmpty && sqlSelect.getSelectList.size() != targetPosition.size()) {
+        val identifiersSize = sqlSelect.getSelectList.count(s => s.isInstanceOf[SqlIdentifier])
+        if (
+          identifiersSize == 0
+          && targetPosition.nonEmpty && sqlSelect.getSelectList.size() != targetPosition.size()
+        ) {
           throw newValidationError(call, RESOURCE.columnCountMismatch())
         }
         rewriterUtils.rewriteSelect(sqlSelect, targetRowType, assignedFields, targetPosition)
@@ -157,9 +161,14 @@ object SqlRewriterUtils {
           operands.get(1).asInstanceOf[SqlNodeList],
           operands.get(2),
           operands.get(3))
+      case SqlKind.EXPLICIT_TABLE =>
+        val operands = call.getOperandList
+        val expTable = new ExplicitTableSqlSelect(
+          operands.get(0).asInstanceOf[SqlIdentifier],
+          Collections.emptyList())
+        rewriterUtils.rewriteSelect(expTable, targetRowType, assignedFields, targetPosition)
       // Not support:
       // case SqlKind.WITH =>
-      // case SqlKind.EXPLICIT_TABLE =>
       case _ => throw new ValidationException(unsupportedErrorMessage())
     }
   }
@@ -175,6 +184,9 @@ object SqlRewriterUtils {
     validator.validate(select)
     val sourceList = validator.expandStar(select.getSelectList, select, false).getList
 
+    if (targetPosition.nonEmpty && sourceList.size() != targetPosition.size()) {
+      throw newValidationError(select, RESOURCE.columnCountMismatch())
+    }
     val fixedNodes = new util.ArrayList[SqlNode]
     val currentNodes =
       if (targetPosition.isEmpty) {
