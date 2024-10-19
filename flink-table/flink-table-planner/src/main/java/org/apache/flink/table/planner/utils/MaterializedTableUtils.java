@@ -27,8 +27,6 @@ import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.calcite.sql.SqlIntervalLiteral;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 
-import java.time.Duration;
-
 /** The utils for materialized table. */
 @Internal
 public class MaterializedTableUtils {
@@ -76,25 +74,6 @@ public class MaterializedTableUtils {
             default:
                 throw new ValidationException(
                         String.format("Unsupported logical refresh mode: %s.", sqlRefreshMode));
-        }
-    }
-
-    public static CatalogMaterializedTable.RefreshMode deriveRefreshMode(
-            Duration threshold,
-            Duration definedFreshness,
-            CatalogMaterializedTable.LogicalRefreshMode definedRefreshMode) {
-        // If the refresh mode is specified manually, use it directly.
-        if (definedRefreshMode == CatalogMaterializedTable.LogicalRefreshMode.FULL) {
-            return CatalogMaterializedTable.RefreshMode.FULL;
-        } else if (definedRefreshMode == CatalogMaterializedTable.LogicalRefreshMode.CONTINUOUS) {
-            return CatalogMaterializedTable.RefreshMode.CONTINUOUS;
-        }
-
-        // derive the actual refresh mode via defined freshness
-        if (definedFreshness.compareTo(threshold) < 0) {
-            return CatalogMaterializedTable.RefreshMode.CONTINUOUS;
-        } else {
-            return CatalogMaterializedTable.RefreshMode.FULL;
         }
     }
 }
