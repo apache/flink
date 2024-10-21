@@ -63,6 +63,8 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.MathUtils;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
@@ -87,6 +89,11 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
 
     public static final String MATCH_TRANSFORMATION = "match";
 
+    public static final String FIELD_NAME_MATCH_SPEC = "matchSpec";
+
+    public static final String TIMESTAMP_INSERTER_TRANSFORMATION = "timestamp-inserter";
+
+    @JsonProperty(FIELD_NAME_MATCH_SPEC)
     protected final MatchSpec matchSpec;
 
     public CommonExecMatch(

@@ -16,20 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.planner.plan.nodes.exec.common.MatchRecognizeTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchRestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
 
-/** Restore tests for {@link StreamExecMatch}. */
-public class MatchRecognizeRestoreTest extends RestoreTestBase {
+/** Batch Compiled Plan tests for {@link BatchExecMatch}. */
+public class MatchRecognizeBatchRestoreTest extends BatchRestoreTestBase {
 
-    public MatchRecognizeRestoreTest() {
-        super(StreamExecMatch.class);
+    public MatchRecognizeBatchRestoreTest() {
+        super(BatchExecMatch.class);
     }
 
     @Override
@@ -37,8 +37,8 @@ public class MatchRecognizeRestoreTest extends RestoreTestBase {
         return Arrays.asList(
                 MatchRecognizeTestPrograms.MATCH_SIMPLE,
                 MatchRecognizeTestPrograms.MATCH_COMPLEX,
-                MatchRecognizeTestPrograms.MATCH_ORDER_BY_EVENT_TIME_WITH_OUT_OF_ORDER_DATA,
-                MatchRecognizeTestPrograms.MATCH_ORDER_BY_INT_COLUMN_WITH_OUT_OF_ORDER_DATA,
+                MatchRecognizeTestPrograms.MATCH_ORDER_BY_EVENT_TIME,
+                MatchRecognizeTestPrograms.MATCH_ORDER_BY_INT_COLUMN,
                 MatchRecognizeTestPrograms.MATCH_SKIP_TO_FIRST,
                 MatchRecognizeTestPrograms.MATCH_SKIP_TO_LAST,
                 MatchRecognizeTestPrograms.MATCH_SKIP_TO_NEXT_ROW,

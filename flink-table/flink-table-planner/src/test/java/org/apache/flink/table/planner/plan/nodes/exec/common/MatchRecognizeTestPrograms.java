@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMatch;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -25,7 +26,7 @@ import org.apache.flink.types.Row;
 
 /** {@link TableTestProgram} definitions for testing {@link StreamExecMatch}. */
 public class MatchRecognizeTestPrograms {
-    static final Row[] SIMPLE_DATA = {
+    private static final Row[] SIMPLE_DATA = {
         Row.of(1L, "a"),
         Row.of(2L, "z"),
         Row.of(3L, "b"),
@@ -38,9 +39,9 @@ public class MatchRecognizeTestPrograms {
         Row.of(10L, "b")
     };
 
-    static final Row[] SIMPLE_DATA2 = {Row.of(11L, "c")};
+    private static final Row[] SIMPLE_DATA2 = {Row.of(11L, "c")};
 
-    static final Row[] COMPLEX_DATA = {
+    private static final Row[] COMPLEX_DATA = {
         Row.of("ACME", 1L, 19, 1),
         Row.of("BETA", 2L, 18, 1),
         Row.of("ACME", 3L, 17, 2),
@@ -49,7 +50,7 @@ public class MatchRecognizeTestPrograms {
         Row.of("ACME", 6L, 20, 4)
     };
 
-    static final Row[] COMPLEX_DATA2 = {Row.of("BETA", 7L, 22, 4)};
+    private static final Row[] COMPLEX_DATA2 = {Row.of("BETA", 7L, 22, 4)};
 
     public static final TableTestProgram MATCH_SIMPLE =
             TableTestProgram.of("match-simple", "simple match recognize test")
@@ -120,7 +121,28 @@ public class MatchRecognizeTestPrograms {
                                     + ") AS T")
                     .build();
 
-    static final Row[] BEFORE_DATA = {
+    private static final Row[] BEFORE_DATA = {
+        Row.of("2020-10-10 00:00:01", 9, 1),
+        Row.of("2020-10-10 00:00:01", 8, 2),
+        Row.of("2020-10-10 00:00:01", 10, 3),
+        Row.of("2020-10-10 00:00:04", 7, 4),
+        Row.of("2020-10-10 00:00:06", 5, 6),
+        Row.of("2020-10-10 00:00:07", 8, 5),
+        Row.of("2020-10-10 00:00:12", 3, 7),
+        Row.of("2020-10-10 00:00:16", 4, 9),
+        Row.of("2020-10-10 00:00:32", 7, 10),
+        Row.of("2020-10-10 00:00:33", 9, 12),
+        Row.of("2020-10-10 00:00:34", 5, 11)
+    };
+
+    private static final Row[] AFTER_DATA = {
+        Row.of("2020-10-10 00:00:41", 3, 13),
+        Row.of("2020-10-10 00:00:42", 11, 16),
+        Row.of("2020-10-10 00:00:43", 12, 15),
+        Row.of("2020-10-10 00:00:44", 13, 14)
+    };
+
+    private static final Row[] BEFORE_DATA_WITH_OUT_OF_ORDER_DATA = {
         Row.of("2020-10-10 00:00:01", 10, 3),
         Row.of("2020-10-10 00:00:01", 8, 2),
         Row.of("2020-10-10 00:00:01", 9, 1),
@@ -136,7 +158,7 @@ public class MatchRecognizeTestPrograms {
         Row.of("2020-10-10 00:00:34", 5, 11)
     };
 
-    static final Row[] AFTER_DATA = {
+    private static final Row[] AFTER_DATA_WITH_OUT_OF_ORDER_DATA = {
         Row.of("2020-10-10 00:00:33", 9, 12),
         Row.of("2020-10-10 00:00:41", 3, 13),
         Row.of("2020-10-10 00:00:42", 11, 16),
@@ -144,7 +166,7 @@ public class MatchRecognizeTestPrograms {
         Row.of("2020-10-10 00:00:44", 13, 14)
     };
 
-    static final SourceTestStep SOURCE =
+    private static final SourceTestStep SOURCE =
             SourceTestStep.newBuilder("MyEventTimeTable")
                     .addSchema(
                             "ts STRING",
@@ -163,7 +185,7 @@ public class MatchRecognizeTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("MySink")
                                     .addSchema("first bigint", "last bigint", "up bigint")
-                                    .consumedBeforeRestore(Row.of(10L, 8L, 9L), Row.of(7L, 5L, 8L))
+                                    .consumedBeforeRestore(Row.of(9L, 8L, 10L), Row.of(7L, 5L, 8L))
                                     .consumedAfterRestore(Row.of(9L, 3L, 11L))
                                     .build())
                     .runSql(getEventTimeSql("ORDER BY rowtime"))
@@ -181,7 +203,7 @@ public class MatchRecognizeTestPrograms {
                     .runSql(getEventTimeSql("ORDER BY rowtime, sequence_num"))
                     .build();
 
-    static final SourceTestStep SOURCE_WITH_OUT_OF_ORDER_DATA =
+    private static final SourceTestStep SOURCE_WITH_OUT_OF_ORDER_DATA =
             SourceTestStep.newBuilder("MyEventTimeTable")
                     .addSchema(
                             "ts STRING",

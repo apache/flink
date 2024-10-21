@@ -53,20 +53,13 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPr
         name = "stream-exec-match",
         version = 1,
         producedTransformations = {
-            StreamExecMatch.TIMESTAMP_INSERTER_TRANSFORMATION,
-            StreamExecMatch.MATCH_TRANSFORMATION
+            CommonExecMatch.TIMESTAMP_INSERTER_TRANSFORMATION,
+            CommonExecMatch.MATCH_TRANSFORMATION
         },
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecMatch extends CommonExecMatch
         implements StreamExecNode<RowData>, MultipleTransformationTranslator<RowData> {
-
-    public static final String TIMESTAMP_INSERTER_TRANSFORMATION = "timestamp-inserter";
-
-    public static final String FIELD_NAME_MATCH_SPEC = "matchSpec";
-
-    @JsonProperty(FIELD_NAME_MATCH_SPEC)
-    private final MatchSpec matchSpec;
 
     public StreamExecMatch(
             ReadableConfig tableConfig,
@@ -94,7 +87,6 @@ public class StreamExecMatch extends CommonExecMatch
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(id, context, persistedConfig, matchSpec, inputProperties, outputType, description);
-        this.matchSpec = matchSpec;
     }
 
     @Override
