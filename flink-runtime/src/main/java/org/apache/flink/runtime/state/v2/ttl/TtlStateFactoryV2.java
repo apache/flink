@@ -153,7 +153,7 @@ public class TtlStateFactoryV2<K, N, SV, TTLSV, S extends State, IS> {
                                         new TtlSerializer<>(
                                                 LongSerializer.INSTANCE,
                                                 stateDesc.getSerializer())));
-        return (IS) new TtlValueStateV2<>(createTtlStateContext(ttlDescriptor));
+        return (IS) new TtlValueState<>(createTtlStateContext(ttlDescriptor));
     }
 
     @SuppressWarnings("unchecked")
@@ -168,7 +168,7 @@ public class TtlStateFactoryV2<K, N, SV, TTLSV, S extends State, IS> {
                                         new TtlSerializer<>(
                                                 LongSerializer.INSTANCE,
                                                 listStateDesc.getSerializer())));
-        return (IS) new TtlListStateV2<>(createTtlStateContext(ttlDescriptor));
+        return (IS) new TtlListState<>(createTtlStateContext(ttlDescriptor));
     }
 
     @SuppressWarnings("unchecked")
@@ -184,7 +184,7 @@ public class TtlStateFactoryV2<K, N, SV, TTLSV, S extends State, IS> {
                                         new TtlSerializer<>(
                                                 LongSerializer.INSTANCE,
                                                 mapStateDesc.getSerializer())));
-        return (IS) new TtlMapStateV2<>(createTtlStateContext(ttlDescriptor));
+        return (IS) new TtlMapState<>(createTtlStateContext(ttlDescriptor));
     }
 
     @SuppressWarnings("unchecked")
@@ -203,15 +203,15 @@ public class TtlStateFactoryV2<K, N, SV, TTLSV, S extends State, IS> {
                                         new TtlSerializer<>(
                                                 LongSerializer.INSTANCE,
                                                 stateDesc.getSerializer())));
-        return (IS) new TtlReducingStateV2<>(createTtlStateContext(ttlDescriptor));
+        return (IS) new TtlReducingState<>(createTtlStateContext(ttlDescriptor));
     }
 
     @SuppressWarnings("unchecked")
     private <IN, OUT> IS createAggregatingState() throws Exception {
         AggregatingStateDescriptor<IN, SV, OUT> aggregatingStateDescriptor =
                 (AggregatingStateDescriptor<IN, SV, OUT>) stateDesc;
-        TtlAggregateFunctionV2<IN, SV, OUT> ttlAggregateFunction =
-                new TtlAggregateFunctionV2<>(
+        TtlAggregateFunction<IN, SV, OUT> ttlAggregateFunction =
+                new TtlAggregateFunction<>(
                         aggregatingStateDescriptor.getAggregateFunction(), ttlConfig, timeProvider);
         AggregatingStateDescriptor<IN, TtlValue<SV>, OUT> ttlDescriptor =
                 stateDesc.getSerializer() instanceof TtlSerializer
@@ -224,7 +224,7 @@ public class TtlStateFactoryV2<K, N, SV, TTLSV, S extends State, IS> {
                                                 LongSerializer.INSTANCE,
                                                 stateDesc.getSerializer())));
         return (IS)
-                new TtlAggregatingStateV2<>(
+                new TtlAggregatingState<>(
                         createTtlStateContext(ttlDescriptor), ttlAggregateFunction);
     }
 

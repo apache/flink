@@ -32,10 +32,10 @@ import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
  * @param <TTLSV> The type of values kept internally in state with TTL
  * @param <S> Type of originally wrapped state object
  */
-abstract class AbstractTtlStateV2<K, N, SV, TTLSV, S extends InternalKeyedState<K, N, TTLSV>>
+abstract class AbstractTtlState<K, N, SV, TTLSV, S extends InternalKeyedState<K, N, TTLSV>>
         extends AbstractTtlDecorator<S> implements InternalKeyedState<K, N, SV> {
     /** This registered callback is to be called whenever state is accessed for read or write. */
-    protected AbstractTtlStateV2(TtlStateContext<S, SV> ttlStateContext) {
+    protected AbstractTtlState(TtlStateContext<S, SV> ttlStateContext) {
         super(ttlStateContext.original, ttlStateContext.config, ttlStateContext.timeProvider);
     }
 

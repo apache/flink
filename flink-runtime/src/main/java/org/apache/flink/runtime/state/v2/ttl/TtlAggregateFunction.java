@@ -35,12 +35,12 @@ import java.util.function.Consumer;
  * @param <ACC> The type of the accumulator (intermediate aggregate state).
  * @param <OUT> The type of the aggregated result
  */
-public class TtlAggregateFunctionV2<IN, ACC, OUT>
+public class TtlAggregateFunction<IN, ACC, OUT>
         extends AbstractTtlDecorator<AggregateFunction<IN, ACC, OUT>>
         implements AggregateFunction<IN, TtlValue<ACC>, OUT> {
     Consumer<TtlValue<ACC>> updater;
 
-    public TtlAggregateFunctionV2(
+    public TtlAggregateFunction(
             AggregateFunction<IN, ACC, OUT> aggFunction,
             StateTtlConfig config,
             TtlTimeProvider timeProvider) {

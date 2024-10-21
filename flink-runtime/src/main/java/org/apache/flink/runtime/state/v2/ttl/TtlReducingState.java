@@ -21,30 +21,24 @@ package org.apache.flink.runtime.state.v2.ttl;
 import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.runtime.state.ttl.TtlStateContext;
 import org.apache.flink.runtime.state.ttl.TtlValue;
-import org.apache.flink.runtime.state.v2.internal.InternalAggregatingState;
+import org.apache.flink.runtime.state.v2.internal.InternalReducingState;
 
 import java.util.Collection;
 
 /**
- * This class wraps aggregating state with TTL logic.
+ * This class wraps reducing state with TTL logic.
  *
  * @param <K> The type of key the state is associated to
  * @param <N> The type of the namespace
- * @param <IN> Type of the value added to the state
- * @param <ACC> The type of the accumulator (intermediate aggregate state).
- * @param <OUT> Type of the value extracted from the state
+ * @param <T> Type of the user value of state with TTL
  */
-class TtlAggregatingStateV2<K, N, IN, ACC, OUT>
-        extends AbstractTtlStateV2<
-                K, N, ACC, TtlValue<ACC>, InternalAggregatingState<K, N, IN, TtlValue<ACC>, OUT>>
-        implements InternalAggregatingState<K, N, IN, ACC, OUT> {
+class TtlReducingState<K, N, T>
+        extends AbstractTtlState<K, N, T, TtlValue<T>, InternalReducingState<K, N, TtlValue<T>>>
+        implements InternalReducingState<K, N, T> {
 
-    TtlAggregatingStateV2(
-            TtlStateContext<InternalAggregatingState<K, N, IN, TtlValue<ACC>, OUT>, ACC>
-                    ttlStateContext,
-            TtlAggregateFunctionV2<IN, ACC, OUT> aggregateFunction) {
+    protected TtlReducingState(
+            TtlStateContext<InternalReducingState<K, N, TtlValue<T>>, T> ttlStateContext) {
         super(ttlStateContext);
-        aggregateFunction.updater = (ttlValue) -> original.updateInternal(ttlValue);
     }
 
     @Override
@@ -58,49 +52,44 @@ class TtlAggregatingStateV2<K, N, IN, ACC, OUT>
     }
 
     @Override
-    public StateFuture<OUT> asyncGet() {
-        return original.asyncGet();
+    public StateFuture<T> asyncGet() {
+        return asyncGetInternal();
     }
 
     @Override
-    public StateFuture<Void> asyncAdd(IN value) {
-        return original.asyncAdd(value);
+    public StateFuture<Void> asyncAdd(T value) {
+        return asyncUpdateInternal(value);
     }
 
     @Override
-    public OUT get() {
-        return original.get();
+    public T get() {
+        return getInternal();
     }
 
     @Override
-    public void add(IN value) {
-        original.add(value);
+    public void add(T value) {
+        original.add(wrapWithTs(value));
     }
 
     @Override
-    public void clear() {
-        original.clear();
-    }
-
-    @Override
-    public StateFuture<ACC> asyncGetInternal() {
+    public StateFuture<T> asyncGetInternal() {
         return original.asyncGetInternal()
                 .thenApply(ttlValue -> getElementWithTtlCheck(ttlValue, original::updateInternal));
     }
 
     @Override
-    public StateFuture<Void> asyncUpdateInternal(ACC valueToStore) {
+    public StateFuture<Void> asyncUpdateInternal(T valueToStore) {
         return original.asyncUpdateInternal(wrapWithTs(valueToStore));
     }
 
     @Override
-    public ACC getInternal() {
-        TtlValue<ACC> ttlValue = original.getInternal();
+    public T getInternal() {
+        TtlValue<T> ttlValue = original.getInternal();
         return getElementWithTtlCheck(ttlValue, original::updateInternal);
     }
 
     @Override
-    public void updateInternal(ACC valueToStore) {
+    public void updateInternal(T valueToStore) {
         original.updateInternal(wrapWithTs(valueToStore));
     }
 }

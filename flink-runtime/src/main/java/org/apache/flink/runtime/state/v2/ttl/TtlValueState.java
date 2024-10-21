@@ -30,11 +30,11 @@ import org.apache.flink.runtime.state.v2.internal.InternalValueState;
  * @param <N> The type of the namespace
  * @param <T> Type of the user value of state with TTL
  */
-class TtlValueStateV2<K, N, T>
-        extends AbstractTtlStateV2<K, N, T, TtlValue<T>, InternalValueState<K, N, TtlValue<T>>>
+class TtlValueState<K, N, T>
+        extends AbstractTtlState<K, N, T, TtlValue<T>, InternalValueState<K, N, TtlValue<T>>>
         implements InternalValueState<K, N, T> {
 
-    protected TtlValueStateV2(
+    protected TtlValueState(
             TtlStateContext<InternalValueState<K, N, TtlValue<T>>, T> ttlStateContext) {
         super(ttlStateContext);
     }

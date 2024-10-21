@@ -23,19 +23,18 @@ import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.runtime.state.ttl.TtlStateContext;
 import org.apache.flink.runtime.state.ttl.TtlUtils;
 import org.apache.flink.runtime.state.ttl.TtlValue;
-import org.apache.flink.runtime.state.v2.adaptor.CompleteStateIterator;
 import org.apache.flink.runtime.state.v2.internal.InternalMapState;
 
 import javax.annotation.Nonnull;
 
 import java.util.AbstractMap;
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -46,11 +45,11 @@ import java.util.function.Function;
  * @param <UK> Type of the user entry key of state with TTL
  * @param <UV> Type of the user entry value of state with TTL
  */
-class TtlMapStateV2<K, N, UK, UV>
-        extends AbstractTtlStateV2<K, N, UV, TtlValue<UV>, InternalMapState<K, N, UK, TtlValue<UV>>>
+class TtlMapState<K, N, UK, UV>
+        extends AbstractTtlState<K, N, UV, TtlValue<UV>, InternalMapState<K, N, UK, TtlValue<UV>>>
         implements InternalMapState<K, N, UK, UV> {
 
-    protected TtlMapStateV2(
+    protected TtlMapState(
             TtlStateContext<InternalMapState<K, N, UK, TtlValue<UV>>, UV> ttlStateContext) {
         super(ttlStateContext);
     }
@@ -110,68 +109,19 @@ class TtlMapStateV2<K, N, UK, UV>
 
     @Override
     public StateFuture<StateIterator<Map.Entry<UK, UV>>> asyncEntries() {
-        final Map<UK, UV> result = new HashMap<>();
-        return original.asyncEntries()
-                .thenAccept(
-                        iter -> {
-                            iter.onNext(
-                                    entry -> {
-                                        UV value =
-                                                getElementWithTtlCheck(
-                                                        entry.getValue(),
-                                                        (newTtl) ->
-                                                                original.asyncPut(
-                                                                        entry.getKey(), newTtl));
-                                        if (value != null) {
-                                            result.put(entry.getKey(), value);
-                                        }
-                                    });
-                        })
-                .thenApply(v -> new CompleteStateIterator<>(result.entrySet()));
+        return original.asyncEntries().thenApply(iter -> new AsyncEntriesIterator<>(iter, e -> e));
     }
 
     @Override
     public StateFuture<StateIterator<UK>> asyncKeys() {
-        final List<UK> result = new ArrayList<>();
         return original.asyncEntries()
-                .thenAccept(
-                        iter -> {
-                            iter.onNext(
-                                    entry -> {
-                                        UV value =
-                                                getElementWithTtlCheck(
-                                                        entry.getValue(),
-                                                        (newTtl) ->
-                                                                original.asyncPut(
-                                                                        entry.getKey(), newTtl));
-                                        if (value != null) {
-                                            result.add(entry.getKey());
-                                        }
-                                    });
-                        })
-                .thenApply(v -> new CompleteStateIterator<>(result));
+                .thenApply(iter -> new AsyncEntriesIterator<>(iter, e -> e.getKey()));
     }
 
     @Override
     public StateFuture<StateIterator<UV>> asyncValues() {
-        final List<UV> result = new ArrayList<>();
         return original.asyncEntries()
-                .thenAccept(
-                        iter -> {
-                            iter.onNext(
-                                    entry -> {
-                                        UV value =
-                                                getElementWithTtlCheck(
-                                                        entry.getValue(),
-                                                        (newTtl) ->
-                                                                original.put(
-                                                                        entry.getKey(), newTtl));
-                                        if (value != null) {
-                                            result.add(value);
-                                        }
-                                    });
-                        })
-                .thenApply(v -> new CompleteStateIterator<>(result));
+                .thenApply(iter -> new AsyncEntriesIterator<>(iter, e -> e.getValue()));
     }
 
     @Override
@@ -318,6 +268,62 @@ class TtlMapStateV2<K, N, UK, UV>
                         "next() has not been called or hasNext() has been called afterwards,"
                                 + " remove() is supported only right after calling next()");
             }
+        }
+    }
+
+    private class AsyncEntriesIterator<R> implements StateIterator<R> {
+        private final StateIterator<Map.Entry<UK, TtlValue<UV>>> originalIterator;
+        private final Function<Map.Entry<UK, UV>, R> resultMapper;
+
+        public AsyncEntriesIterator(
+                @Nonnull StateIterator<Map.Entry<UK, TtlValue<UV>>> originalIterator,
+                @Nonnull Function<Map.Entry<UK, UV>, R> resultMapper) {
+            this.originalIterator = originalIterator;
+            this.resultMapper = resultMapper;
+        }
+
+        @Override
+        public <U> StateFuture<Collection<U>> onNext(
+                Function<R, StateFuture<? extends U>> iterating) {
+            Function<Map.Entry<UK, TtlValue<UV>>, StateFuture<? extends U>> ttlIterating =
+                    (item) -> {
+                        UV value =
+                                getElementWithTtlCheck(
+                                        item.getValue(),
+                                        (newTtl) -> original.asyncPut(item.getKey(), newTtl));
+                        if (value == null) {
+                            return iterating.apply(null);
+                        }
+                        R result =
+                                resultMapper.apply(
+                                        new AbstractMap.SimpleEntry<>(item.getKey(), value));
+                        return iterating.apply(value == null ? null : result);
+                    };
+            return originalIterator.onNext(ttlIterating);
+        }
+
+        @Override
+        public StateFuture<Void> onNext(Consumer<R> iterating) {
+            Consumer<Map.Entry<UK, TtlValue<UV>>> ttlIterating =
+                    (item) -> {
+                        UV value =
+                                getElementWithTtlCheck(
+                                        item.getValue(),
+                                        (newTtl) -> original.asyncPut(item.getKey(), newTtl));
+                        if (value == null) {
+                            iterating.accept(null);
+                            return;
+                        }
+                        iterating.accept(
+                                resultMapper.apply(
+                                        new AbstractMap.SimpleEntry<>(item.getKey(), value)));
+                    };
+            return originalIterator.onNext(ttlIterating);
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return false;
         }
     }
 }

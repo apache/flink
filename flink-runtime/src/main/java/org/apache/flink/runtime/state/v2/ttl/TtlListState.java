@@ -23,16 +23,17 @@ import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.runtime.state.ttl.TtlStateContext;
 import org.apache.flink.runtime.state.ttl.TtlUtils;
 import org.apache.flink.runtime.state.ttl.TtlValue;
-import org.apache.flink.runtime.state.v2.adaptor.CompleteStateIterator;
 import org.apache.flink.runtime.state.v2.internal.InternalListState;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * This class wraps list state with TTL logic.
@@ -41,11 +42,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @param <N> The type of the namespace
  * @param <T> Type of the user entry value of state with TTL
  */
-class TtlListStateV2<K, N, T>
-        extends AbstractTtlStateV2<K, N, T, TtlValue<T>, InternalListState<K, N, TtlValue<T>>>
+class TtlListState<K, N, T>
+        extends AbstractTtlState<K, N, T, TtlValue<T>, InternalListState<K, N, TtlValue<T>>>
         implements InternalListState<K, N, T> {
 
-    protected TtlListStateV2(
+    protected TtlListState(
             TtlStateContext<InternalListState<K, N, TtlValue<T>>, T> ttlStateContext) {
         super(ttlStateContext);
     }
@@ -64,34 +65,10 @@ class TtlListStateV2<K, N, T>
 
     @Override
     public StateFuture<StateIterator<T>> asyncGet() {
-        final List<T> result = new ArrayList<>();
-        AtomicBoolean encounteredNull = new AtomicBoolean(false);
-        AtomicBoolean anyUnexpired = new AtomicBoolean(false);
-        return original.asyncGet()
-                .thenAccept(
-                        stateIter -> {
-                            stateIter.onNext(
-                                    item -> {
-                                        if (item == null) {
-                                            encounteredNull.set(true);
-                                        } else if (!encounteredNull.get()) {
-                                            boolean unexpired = !expired(item);
-                                            if (unexpired) {
-                                                anyUnexpired.set(true);
-                                            }
-                                            if (unexpired || returnExpired) {
-                                                result.add(item.getUserValue());
-                                            }
-                                        }
-                                    });
-                        })
-                .thenAccept(
-                        v -> {
-                            if (!anyUnexpired.get()) {
-                                original.asyncClear();
-                            }
-                        })
-                .thenApply(v -> new CompleteStateIterator<T>(result));
+        // 1. The timestamp of elements in list state isn't updated when get even if updateTsOnRead
+        // is true.
+        // 2. we don't clear state here cause forst is LSM-tree based.
+        return original.asyncGet().thenApply(stateIter -> new AsyncIteratorWrapper(stateIter));
     }
 
     @Override
@@ -218,6 +195,56 @@ class TtlListStateV2<K, N, T>
                     nextUnexpired = ttlValue.getUserValue();
                 }
             }
+        }
+    }
+
+    private class AsyncIteratorWrapper implements StateIterator<T> {
+
+        private final StateIterator<TtlValue<T>> originalIterator;
+
+        public AsyncIteratorWrapper(StateIterator<TtlValue<T>> originalIterator) {
+            this.originalIterator = originalIterator;
+        }
+
+        @Override
+        public <U> StateFuture<Collection<U>> onNext(
+                Function<T, StateFuture<? extends U>> iterating) {
+            Function<TtlValue<T>, StateFuture<? extends U>> ttlIterating =
+                    (item) -> {
+                        if (item == null) {
+                            return iterating.apply(null);
+                        }
+                        boolean unexpired = !expired(item);
+                        if (unexpired || returnExpired) {
+                            return iterating.apply(item.getUserValue());
+                        } else {
+                            return iterating.apply(null);
+                        }
+                    };
+            return originalIterator.onNext(ttlIterating);
+        }
+
+        @Override
+        public StateFuture<Void> onNext(Consumer<T> iterating) {
+            Consumer<TtlValue<T>> ttlIterating =
+                    (item) -> {
+                        if (item == null) {
+                            iterating.accept(null);
+                            return;
+                        }
+                        boolean unexpired = !expired(item);
+                        if (unexpired || returnExpired) {
+                            iterating.accept(item.getUserValue());
+                        } else {
+                            iterating.accept(null);
+                        }
+                    };
+            return originalIterator.onNext(ttlIterating);
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return originalIterator.isEmpty();
         }
     }
 }
