@@ -68,10 +68,12 @@ import org.apache.flink.runtime.operators.coordination.CoordinatorStore;
 import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
+import org.apache.flink.runtime.scheduler.MutableVertexParallelismStore;
 import org.apache.flink.runtime.scheduler.SsgNetworkMemoryCalculationUtils;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adapter.DefaultExecutionTopology;
+import org.apache.flink.runtime.scheduler.adaptivebatch.StreamGraphTopologyContext;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -107,11 +109,13 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -251,7 +255,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     private final VertexAttemptNumberStore initialAttemptCounts;
 
-    private final VertexParallelismStore parallelismStore;
+    private final MutableVertexParallelismStore parallelismStore;
 
     // ------ Fields that are relevant to the execution and need to be cleared before archiving
     // -------
@@ -306,6 +310,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     private final List<JobStatusChangedListener> jobStatusChangedListeners;
 
+    private final StreamGraphTopologyContext streamGraphTopologyContext;
+
     // --------------------------------------------------------------------------------------------
     //   Constructors
     // --------------------------------------------------------------------------------------------
@@ -326,13 +332,14 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             ExecutionStateUpdateListener executionStateUpdateListener,
             long initializationTimestamp,
             VertexAttemptNumberStore initialAttemptCounts,
-            VertexParallelismStore vertexParallelismStore,
+            MutableVertexParallelismStore vertexParallelismStore,
             boolean isDynamic,
             ExecutionJobVertex.Factory executionJobVertexFactory,
             List<JobStatusHook> jobStatusHooks,
             MarkPartitionFinishedStrategy markPartitionFinishedStrategy,
             TaskDeploymentDescriptorFactory taskDeploymentDescriptorFactory,
-            List<JobStatusChangedListener> jobStatusChangedListeners) {
+            List<JobStatusChangedListener> jobStatusChangedListeners,
+            StreamGraphTopologyContext streamGraphTopologyContext) {
 
         this.jobType = jobType;
         this.executionGraphId = new ExecutionGraphID();
@@ -404,6 +411,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         this.taskDeploymentDescriptorFactory = checkNotNull(taskDeploymentDescriptorFactory);
 
         this.jobStatusChangedListeners = checkNotNull(jobStatusChangedListeners);
+
+        this.streamGraphTopologyContext = checkNotNull(streamGraphTopologyContext);
 
         LOG.info(
                 "Created execution graph {} for job {}.",
@@ -835,7 +844,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     @Override
     public void notifyNewlyInitializedJobVertices(List<ExecutionJobVertex> vertices) {
-        executionTopology.notifyExecutionGraphUpdated(this, vertices);
+        executionTopology.notifyExecutionGraphUpdatedWithInitializedJobVertices(this, vertices);
     }
 
     @Override
@@ -862,6 +871,36 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
         partitionGroupReleaseStrategy =
                 partitionGroupReleaseStrategyFactory.createInstance(getSchedulingTopology());
+    }
+
+    @Override
+    public void addNewJobVertices(
+            List<JobVertex> topologicallySortedNewlyJobVertices,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup,
+            VertexParallelismStore newVerticesParallelismStore)
+            throws JobException {
+        // sanity check
+        Set<JobVertexID> existingKeys = new HashSet<>(this.tasks.keySet());
+        Set<JobVertexID> newKeys =
+                topologicallySortedNewlyJobVertices.stream()
+                        .map(JobVertex::getID)
+                        .collect(Collectors.toSet());
+        newKeys.retainAll(existingKeys);
+        if (!newKeys.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Unexpected JobVertices that have already been added: " + newKeys);
+        }
+
+        parallelismStore.mergeParallelismStore(newVerticesParallelismStore);
+
+        attachJobVertices(topologicallySortedNewlyJobVertices, jobManagerJobMetricGroup);
+
+        List<JobVertex> topologicallySortedJobVertices =
+                IterableUtils.toStream(getVerticesTopologically())
+                        .map(ExecutionJobVertex::getJobVertex)
+                        .collect(Collectors.toList());
+        executionTopology.notifyExecutionGraphUpdatedWithNewlyJobVertices(
+                topologicallySortedJobVertices);
     }
 
     /** Attach job vertices without initializing them. */
@@ -926,7 +965,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 executionHistorySizeLimit,
                 rpcTimeout,
                 createTimestamp,
-                this.initialAttemptCounts.getAttemptCounts(ejv.getJobVertexId()));
+                this.initialAttemptCounts.getAttemptCounts(ejv.getJobVertexId()),
+                streamGraphTopologyContext::getParallelism,
+                streamGraphTopologyContext::getMaxParallelismOrDefault);
 
         ejv.connectToPredecessors(this.intermediateResults);
 
@@ -1196,7 +1237,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     public void jobVertexFinished() {
         assertRunningInJobMasterMainThread();
         final int numFinished = ++numFinishedJobVertices;
-        if (numFinished == numJobVerticesTotal) {
+        if (numFinished == numJobVerticesTotal
+                && streamGraphTopologyContext.getPendingOperatorCount() == 0) {
             FutureUtils.assertNoException(
                     waitForAllExecutionsTermination().thenAccept(ignored -> jobFinished()));
         }

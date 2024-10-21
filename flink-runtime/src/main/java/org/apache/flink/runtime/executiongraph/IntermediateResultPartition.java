@@ -88,9 +88,14 @@ public class IntermediateResultPartition {
                 != edgeManager.getNumberOfConsumedPartitionGroupsById(partitionId)) {
             return false;
         }
+
+        // for dynamic graph, if any consumer vertex is still not initialized or not transfer to
+        // job vertex, this result partition can not be released
+        if (!totalResult.isAllConsumerVerticesCreated()) {
+            return false;
+        }
+
         for (JobVertexID jobVertexId : totalResult.getConsumerVertices()) {
-            // for dynamic graph, if any consumer vertex is still not initialized, this result
-            // partition can not be released
             if (!producer.getExecutionGraphAccessor().getJobVertex(jobVertexId).isInitialized()) {
                 return false;
             }

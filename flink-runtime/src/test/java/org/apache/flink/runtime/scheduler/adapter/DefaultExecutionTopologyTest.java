@@ -178,11 +178,13 @@ class DefaultExecutionTopologyTest {
         final ExecutionJobVertex ejv2 = executionGraph.getJobVertex(jobVertices[1].getID());
 
         executionGraph.initializeJobVertex(ejv1, 0L);
-        adapter.notifyExecutionGraphUpdated(executionGraph, Collections.singletonList(ejv1));
+        adapter.notifyExecutionGraphUpdatedWithInitializedJobVertices(
+                executionGraph, Collections.singletonList(ejv1));
         assertThat(adapter.getVertices()).hasSize(3);
 
         executionGraph.initializeJobVertex(ejv2, 0L);
-        adapter.notifyExecutionGraphUpdated(executionGraph, Collections.singletonList(ejv2));
+        adapter.notifyExecutionGraphUpdatedWithInitializedJobVertices(
+                executionGraph, Collections.singletonList(ejv2));
         assertThat(adapter.getVertices()).hasSize(6);
 
         assertGraphEquals(executionGraph, adapter);
@@ -198,12 +200,13 @@ class DefaultExecutionTopologyTest {
         final ExecutionJobVertex ejv2 = executionGraph.getJobVertex(jobVertices[1].getID());
 
         executionGraph.initializeJobVertex(ejv1, 0L);
-        adapter.notifyExecutionGraphUpdated(executionGraph, Collections.singletonList(ejv1));
+        adapter.notifyExecutionGraphUpdatedWithInitializedJobVertices(
+                executionGraph, Collections.singletonList(ejv1));
 
         executionGraph.initializeJobVertex(ejv2, 0L);
         assertThatThrownBy(
                         () ->
-                                adapter.notifyExecutionGraphUpdated(
+                                adapter.notifyExecutionGraphUpdatedWithInitializedJobVertices(
                                         executionGraph, Collections.singletonList(ejv2)))
                 .isInstanceOf(IllegalStateException.class);
     }
@@ -218,12 +221,14 @@ class DefaultExecutionTopologyTest {
         final ExecutionJobVertex ejv2 = executionGraph.getJobVertex(jobVertices[1].getID());
 
         executionGraph.initializeJobVertex(ejv1, 0L);
-        adapter.notifyExecutionGraphUpdated(executionGraph, Collections.singletonList(ejv1));
+        adapter.notifyExecutionGraphUpdatedWithInitializedJobVertices(
+                executionGraph, Collections.singletonList(ejv1));
         SchedulingPipelinedRegion regionOld =
                 adapter.getPipelinedRegionOfVertex(new ExecutionVertexID(ejv1.getJobVertexId(), 0));
 
         executionGraph.initializeJobVertex(ejv2, 0L);
-        adapter.notifyExecutionGraphUpdated(executionGraph, Collections.singletonList(ejv2));
+        adapter.notifyExecutionGraphUpdatedWithInitializedJobVertices(
+                executionGraph, Collections.singletonList(ejv2));
         SchedulingPipelinedRegion regionNew =
                 adapter.getPipelinedRegionOfVertex(new ExecutionVertexID(ejv1.getJobVertexId(), 0));
 

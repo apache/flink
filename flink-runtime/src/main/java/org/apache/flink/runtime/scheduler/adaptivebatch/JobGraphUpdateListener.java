@@ -16,24 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.scheduler;
+package org.apache.flink.runtime.scheduler.adaptivebatch;
 
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 
-/** Mutability extension to the {@link VertexParallelismStore}. */
-public interface MutableVertexParallelismStore extends VertexParallelismStore {
+import java.util.List;
+
+/**
+ * This interface defines operations for components that are interested in being notified when new
+ * job vertices are added to the job graph.
+ */
+@FunctionalInterface
+public interface JobGraphUpdateListener {
     /**
-     * Sets the parallelism properties for the given vertex.
+     * Invoked when new {@link JobVertex} instances are added to the JobGraph of a specific job.
+     * This allows interested components to react to the addition of new vertices to the job
+     * topology.
      *
-     * @param vertexId vertex to set parallelism for
-     * @param info parallelism information for the given vertex
+     * @param newVertices A list of newly added JobVertex instances.
+     * @param pendingOperatorsCount The number of pending operators.
      */
-    void setParallelismInfo(JobVertexID vertexId, VertexParallelismInformation info);
-
-    /**
-     * Merges the given parallelism store into the current store.
-     *
-     * @param parallelismStore The parallelism store to be merged.
-     */
-    void mergeParallelismStore(VertexParallelismStore parallelismStore);
+    void onNewJobVerticesAdded(List<JobVertex> newVertices, int pendingOperatorsCount)
+            throws Exception;
 }

@@ -45,6 +45,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
+import org.apache.flink.runtime.scheduler.adaptivebatch.StreamGraphTopologyContext;
 import org.apache.flink.runtime.scheduler.exceptionhistory.FailureHandlingResultSnapshot;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
@@ -136,7 +137,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
             final ShuffleMaster<?> shuffleMaster,
             final Duration rpcTimeout,
             final VertexParallelismStore vertexParallelismStore,
-            final ExecutionDeployer.Factory executionDeployerFactory)
+            final ExecutionDeployer.Factory executionDeployerFactory,
+            StreamGraphTopologyContext streamGraphTopologyContext)
             throws Exception {
 
         super(
@@ -152,7 +154,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 mainThreadExecutor,
                 jobStatusListener,
                 executionGraphFactory,
-                vertexParallelismStore);
+                vertexParallelismStore,
+                streamGraphTopologyContext);
 
         this.log = log;
 
@@ -253,6 +256,10 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         stopReserveAllocation(executionVertexId);
 
         schedulingStrategy.onExecutionStateChange(executionVertexId, ExecutionState.FINISHED);
+    }
+
+    protected ClassLoader getUserCodeLoader() {
+        return userCodeLoader;
     }
 
     @Override

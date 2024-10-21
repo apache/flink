@@ -76,6 +76,10 @@ public class IntermediateDataSet implements java.io.Serializable {
         return this.consumers;
     }
 
+    public boolean isAllConsumerVerticesCreated() {
+        return outputStreamEdges.isEmpty() || outputStreamEdges.size() == consumers.size();
+    }
+
     public boolean isBroadcast() {
         return isBroadcast;
     }

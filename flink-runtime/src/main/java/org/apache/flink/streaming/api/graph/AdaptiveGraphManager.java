@@ -23,6 +23,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.attribute.Attribute;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.OperatorIDPair;
@@ -250,7 +251,7 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
         return intermediateDataSetIdToProducerMap.get(intermediateDataSetID);
     }
 
-    private Optional<JobVertexID> findVertexByStreamNodeId(int streamNodeId) {
+    public Optional<JobVertexID> findVertexByStreamNodeId(int streamNodeId) {
         if (frozenNodeToStartNodeMap.containsKey(streamNodeId)) {
             Integer startNodeId = frozenNodeToStartNodeMap.get(streamNodeId);
             return Optional.of(jobVertices.get(startNodeId).getID());
@@ -272,6 +273,14 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
         this.jobGraph.setJobType(streamGraph.getJobType());
         this.jobGraph.setDynamic(streamGraph.isDynamic());
         this.jobGraph.setJobConfiguration(streamGraph.getJobConfiguration());
+
+        for (Map.Entry<String, DistributedCache.DistributedCacheEntry> entry :
+                streamGraph.getUserArtifacts().entrySet()) {
+            jobGraph.addUserArtifact(entry.getKey(), entry.getValue());
+        }
+
+        streamGraph.getUserJarBlobKeys().forEach(jobGraph::addUserJarBlobKey);
+        jobGraph.setClasspaths(streamGraph.getClasspath());
 
         // set the ExecutionConfig last when it has been finalized.
         try {
@@ -1049,5 +1058,9 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
                 Preconditions.checkNotNull(target.getOperatorFactory()).getChainingStrategy();
         return targetChainingStrategy == ChainingStrategy.HEAD_WITH_SOURCES
                 && isChainableInput(sourceOutEdge, streamGraph);
+    }
+
+    public void updateStreamNodeParallelism(int streamNodeId, int newParallelism) {
+        streamGraph.getStreamNode(streamNodeId).setParallelism(newParallelism);
     }
 }

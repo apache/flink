@@ -16,27 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmaster.event;
+package org.apache.flink.runtime.scheduler.adaptivebatch;
 
-import java.util.HashMap;
-import java.util.Map;
+/** A dummy implementation of {@link AdaptiveExecutionHandler}. */
+public final class DummyStreamGraphTopologyContext implements StreamGraphTopologyContext {
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
-/** A class hosts all the type ids of events. */
-public class JobEvents {
-
-    private static final Map<Class<? extends JobEvent>, Integer> jobEventTypeIdMapping =
-            new HashMap<>();
-
-    static {
-        jobEventTypeIdMapping.put(ExecutionVertexFinishedEvent.class, 1);
-        jobEventTypeIdMapping.put(ExecutionVertexResetEvent.class, 2);
-        jobEventTypeIdMapping.put(ExecutionJobVertexInitializedEvent.class, 3);
-        jobEventTypeIdMapping.put(ExecutionJobVertexFinishedEvent.class, 4);
+    @Override
+    public int getParallelism(int streamNodeId) {
+        throw new UnsupportedOperationException();
     }
 
-    public static int getTypeID(Class<? extends JobEvent> clazz) {
-        return checkNotNull(jobEventTypeIdMapping.get(clazz));
+    @Override
+    public int getMaxParallelismOrDefault(int streamNodeId) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int getPendingOperatorCount() {
+        return 0;
     }
 }

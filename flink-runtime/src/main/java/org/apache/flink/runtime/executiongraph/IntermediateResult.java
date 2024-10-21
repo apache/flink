@@ -32,12 +32,15 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
+import org.apache.flink.streaming.api.graph.StreamEdge;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -71,14 +74,16 @@ public class IntermediateResult {
 
     private final Map<ConsumedPartitionGroup, CachedShuffleDescriptors> shuffleDescriptorCache;
 
-    /** All consumer job vertex ids of this dataset. */
-    private final List<JobVertexID> consumerVertices = new ArrayList<>();
+    private final Function<Integer, Integer> consumerStreamNodeParallelismRetriever;
+    private final Function<Integer, Integer> consumerStreamNodeMaxParallelismRetriever;
 
     public IntermediateResult(
             IntermediateDataSet intermediateDataSet,
             ExecutionJobVertex producer,
             int numParallelProducers,
-            ResultPartitionType resultType) {
+            ResultPartitionType resultType,
+            Function<Integer, Integer> consumerStreamNodeParallelismRetriever,
+            Function<Integer, Integer> consumerStreamNodeMaxParallelismRetriever) {
 
         this.intermediateDataSet = checkNotNull(intermediateDataSet);
         this.id = checkNotNull(intermediateDataSet.getId());
@@ -102,9 +107,15 @@ public class IntermediateResult {
 
         this.shuffleDescriptorCache = new HashMap<>();
 
-        intermediateDataSet
-                .getConsumers()
-                .forEach(jobEdge -> consumerVertices.add(jobEdge.getTarget().getID()));
+        this.consumerStreamNodeParallelismRetriever =
+                checkNotNull(consumerStreamNodeParallelismRetriever);
+
+        this.consumerStreamNodeMaxParallelismRetriever =
+                checkNotNull(consumerStreamNodeMaxParallelismRetriever);
+    }
+
+    public boolean isAllConsumerVerticesCreated() {
+        return intermediateDataSet.isAllConsumerVerticesCreated();
     }
 
     public void setPartition(int partitionNumber, IntermediateResultPartition partition) {
@@ -135,7 +146,9 @@ public class IntermediateResult {
     }
 
     public List<JobVertexID> getConsumerVertices() {
-        return consumerVertices;
+        return intermediateDataSet.getConsumers().stream()
+                .map(jobEdge -> jobEdge.getTarget().getID())
+                .collect(Collectors.toList());
     }
 
     /**
@@ -182,13 +195,23 @@ public class IntermediateResult {
      */
     int getConsumersParallelism() {
         List<JobEdge> consumers = intermediateDataSet.getConsumers();
-        checkState(!consumers.isEmpty());
 
-        InternalExecutionGraphAccessor graph = getProducer().getGraph();
-        int consumersParallelism =
-                graph.getJobVertex(consumers.get(0).getTarget().getID()).getParallelism();
-        if (consumers.size() == 1) {
-            return consumersParallelism;
+        Set<Integer> consumerParallelisms;
+        if (consumers.isEmpty()) {
+            List<StreamEdge> consumerStreamEdges = intermediateDataSet.getOutputStreamEdges();
+            checkState(!consumerStreamEdges.isEmpty());
+            consumerParallelisms =
+                    consumerStreamEdges.stream()
+                            .map(StreamEdge::getTargetId)
+                            .map(consumerStreamNodeParallelismRetriever)
+                            .collect(Collectors.toSet());
+        } else {
+            InternalExecutionGraphAccessor graph = getProducer().getGraph();
+            consumerParallelisms =
+                    getConsumerVertices().stream()
+                            .map(graph::getJobVertex)
+                            .map(ExecutionJobVertex::getParallelism)
+                            .collect(Collectors.toSet());
         }
 
         // sanity check, all consumer vertices must have the same parallelism:
@@ -196,32 +219,35 @@ public class IntermediateResult {
         // graph), the parallelisms will all be -1 (parallelism not decided yet)
         // 2. for vertices that are initially assigned a parallelism, the parallelisms must be the
         // same, which is guaranteed at compilation phase
-        for (JobVertexID jobVertexID : consumerVertices) {
-            checkState(
-                    consumersParallelism == graph.getJobVertex(jobVertexID).getParallelism(),
-                    "Consumers must have the same parallelism.");
-        }
-        return consumersParallelism;
+        checkState(consumerParallelisms.size() == 1);
+        return consumerParallelisms.iterator().next();
     }
 
     int getConsumersMaxParallelism() {
         List<JobEdge> consumers = intermediateDataSet.getConsumers();
-        checkState(!consumers.isEmpty());
 
-        InternalExecutionGraphAccessor graph = getProducer().getGraph();
-        int consumersMaxParallelism =
-                graph.getJobVertex(consumers.get(0).getTarget().getID()).getMaxParallelism();
-        if (consumers.size() == 1) {
-            return consumersMaxParallelism;
+        Set<Integer> consumerMaxParallelisms;
+        if (consumers.isEmpty()) {
+            List<StreamEdge> consumerStreamEdges = intermediateDataSet.getOutputStreamEdges();
+            checkState(!consumerStreamEdges.isEmpty());
+            consumerMaxParallelisms =
+                    consumerStreamEdges.stream()
+                            .map(StreamEdge::getTargetId)
+                            .map(consumerStreamNodeMaxParallelismRetriever)
+                            .collect(Collectors.toSet());
+        } else {
+            InternalExecutionGraphAccessor graph = getProducer().getGraph();
+            consumerMaxParallelisms =
+                    getConsumerVertices().stream()
+                            .map(graph::getJobVertex)
+                            .map(ExecutionJobVertex::getMaxParallelism)
+                            .collect(Collectors.toSet());
         }
-
         // sanity check, all consumer vertices must have the same max parallelism
-        for (JobVertexID jobVertexID : consumerVertices) {
-            checkState(
-                    consumersMaxParallelism == graph.getJobVertex(jobVertexID).getMaxParallelism(),
-                    "Consumers must have the same max parallelism.");
-        }
-        return consumersMaxParallelism;
+        checkState(
+                consumerMaxParallelisms.size() == 1,
+                "Consumers must have the same max parallelism.");
+        return consumerMaxParallelisms.iterator().next();
     }
 
     public DistributionPattern getConsumingDistributionPattern() {
