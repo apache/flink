@@ -245,7 +245,7 @@ public class StreamOperatorStateHandler {
                                         .requiresLegacySynchronousTimerSnapshots(
                                                 checkpointOptions.getCheckpointType());
                 requiresLegacyRawKeyedStateSnapshots |=
-                        useAsyncState
+                        keyedStateBackend instanceof AsyncKeyedStateBackend
                                 && ((AsyncKeyedStateBackend<?>) keyedStateBackend)
                                         .requiresLegacySynchronousTimerSnapshots(
                                                 checkpointOptions.getCheckpointType());
