@@ -55,7 +55,7 @@ import org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
-import org.apache.flink.runtime.state.v2.ttl.TtlStateFactoryV2;
+import org.apache.flink.runtime.state.v2.ttl.TtlStateFactory;
 import org.apache.flink.state.forst.snapshot.ForStSnapshotStrategyBase;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
@@ -237,7 +237,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull StateDescriptor<SV> stateDesc)
             throws Exception {
-        return TtlStateFactoryV2.createStateAndWrapWithTtlIfEnabled(
+        return TtlStateFactory.createStateAndWrapWithTtlIfEnabled(
                 defaultNamespace, namespaceSerializer, stateDesc, this, ttlTimeProvider);
     }
 

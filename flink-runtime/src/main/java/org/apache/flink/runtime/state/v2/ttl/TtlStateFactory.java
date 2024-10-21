@@ -51,7 +51,7 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-public class TtlStateFactoryV2<K, N, SV, TTLSV, S extends State, IS> {
+public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS> {
     public static <K, N, SV, TTLSV, S extends State, IS extends S>
             IS createStateAndWrapWithTtlIfEnabled(
                     N defaultNamespace,
@@ -65,7 +65,7 @@ public class TtlStateFactoryV2<K, N, SV, TTLSV, S extends State, IS> {
         Preconditions.checkNotNull(stateBackend);
         Preconditions.checkNotNull(timeProvider);
         return stateDesc.getTtlConfig().isEnabled()
-                ? new TtlStateFactoryV2<K, N, SV, TTLSV, S, IS>(
+                ? new TtlStateFactory<K, N, SV, TTLSV, S, IS>(
                                 defaultNamespace,
                                 namespaceSerializer,
                                 stateDesc,
@@ -92,7 +92,7 @@ public class TtlStateFactoryV2<K, N, SV, TTLSV, S extends State, IS> {
     @Nonnull private final StateTtlConfig ttlConfig;
     private final long ttl;
 
-    private TtlStateFactoryV2(
+    private TtlStateFactory(
             N defaultNamespace,
             TypeSerializer<N> namespaceSerializer,
             StateDescriptor<SV> stateDesc,
@@ -136,7 +136,7 @@ public class TtlStateFactoryV2<K, N, SV, TTLSV, S extends State, IS> {
             String message =
                     String.format(
                             "State type: %s is not supported by %s",
-                            stateDesc.getType(), TtlStateFactoryV2.class);
+                            stateDesc.getType(), TtlStateFactory.class);
             throw new FlinkRuntimeException(message);
         }
         return stateFactory.get();

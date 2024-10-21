@@ -61,7 +61,6 @@ import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.heap.TestDuplicateSerializer;
 import org.apache.flink.runtime.state.ttl.TtlAwareSerializer;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
-import org.apache.flink.runtime.state.v2.ttl.TtlStateFactoryV2;
 import org.apache.flink.streaming.api.datastream.CoGroupedStreams;
 import org.apache.flink.streaming.api.functions.sink.legacy.TwoPhaseCommitSinkFunction;
 import org.apache.flink.streaming.api.operators.InternalTimersSnapshotReaderWriters;
@@ -146,7 +145,8 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         CoGroupedStreams.UnionSerializer.class.getName(),
                         TtlStateFactory.TtlSerializer.class.getName(),
                         TtlAwareSerializer.class.getName(),
-                        TtlStateFactoryV2.TtlSerializer.class.getName(),
+                        org.apache.flink.runtime.state.v2.ttl.TtlStateFactory.TtlSerializer.class
+                                .getName(),
                         TimeWindow.Serializer.class.getName(),
                         InternalTimersSnapshotReaderWriters.LegacyTimerSerializer.class.getName(),
                         TwoPhaseCommitSinkFunction.StateSerializer.class.getName(),
