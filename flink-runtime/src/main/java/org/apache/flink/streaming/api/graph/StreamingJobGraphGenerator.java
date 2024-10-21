@@ -1549,7 +1549,10 @@ public class StreamingJobGraphGenerator {
                             DistributionPattern.POINTWISE,
                             resultPartitionType,
                             output.getDataSetId(),
-                            partitioner.isBroadcast());
+                            partitioner.isBroadcast(),
+                            edge.getTypeNumber(),
+                            edge.existInterInputsKeyCorrelation(),
+                            edge.existIntraInputKeyCorrelation());
         } else {
             jobEdge =
                     downStreamVertex.connectNewDataSetAsInput(
@@ -1557,7 +1560,10 @@ public class StreamingJobGraphGenerator {
                             DistributionPattern.ALL_TO_ALL,
                             resultPartitionType,
                             output.getDataSetId(),
-                            partitioner.isBroadcast());
+                            partitioner.isBroadcast(),
+                            edge.getTypeNumber(),
+                            edge.existInterInputsKeyCorrelation(),
+                            edge.existIntraInputKeyCorrelation());
         }
 
         // set strategy name so that web interface can show it.
