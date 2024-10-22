@@ -1582,7 +1582,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition PLUS =
             BuiltInFunctionDefinition.newBuilder()
                     .name("plus")
-                    .callSyntax("+", SqlCallSyntax.BINARY_OP)
+                    .callSyntax("+", SqlCallSyntax.PLUS_OP)
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             or(
@@ -2569,6 +2569,7 @@ public final class BuiltInFunctionDefinitions {
                     .kind(OTHER)
                     .inputTypeStrategy(SpecificInputTypeStrategies.OVER)
                     .outputTypeStrategy(TypeStrategies.argument(0))
+                    .callSyntax(SqlCallSyntax.OVER)
                     .build();
 
     // --------------------------------------------------------------------------------------------

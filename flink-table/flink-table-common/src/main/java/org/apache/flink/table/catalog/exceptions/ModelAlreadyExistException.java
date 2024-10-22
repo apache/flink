@@ -16,22 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.dispatcher;
+package org.apache.flink.table.catalog.exceptions;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.ObjectPath;
 
-/** No operation {@link JobGraphStore.JobGraphListener} implemetation for testing purposes. */
-public enum NoOpJobGraphListener implements JobGraphStore.JobGraphListener {
-    INSTANCE;
+/** Exception for trying to create a model that already exists. */
+@PublicEvolving
+public class ModelAlreadyExistException extends Exception {
 
-    @Override
-    public void onAddedJobGraph(JobID jobId) {
-        // No op
+    private static final String MSG = "Model %s already exists in Catalog %s.";
+
+    public ModelAlreadyExistException(String catalogName, ObjectPath modelPath) {
+        this(catalogName, modelPath, null);
     }
 
-    @Override
-    public void onRemovedJobGraph(JobID jobId) {
-        // No op
+    public ModelAlreadyExistException(String catalogName, ObjectPath modelPath, Throwable cause) {
+        super(String.format(MSG, modelPath.getFullName(), catalogName), cause);
     }
 }

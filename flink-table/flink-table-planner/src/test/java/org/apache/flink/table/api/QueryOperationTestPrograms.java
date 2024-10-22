@@ -33,6 +33,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.UNBOUNDED_ROW;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.ifThenElse;
 import static org.apache.flink.table.api.Expressions.lit;
@@ -739,5 +740,132 @@ public class QueryOperationTestPrograms {
                                         .select($("a2"), $("c2"), $("c1"));
                             },
                             "MySink")
+                    .build();
+
+    static final TableTestProgram OVER_WINDOW_RANGE =
+            TableTestProgram.of("over-window-range", "test over window with time range")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("data")
+                                    .addSchema(
+                                            "k string",
+                                            "v bigint",
+                                            "ts TIMESTAMP_LTZ(3)",
+                                            "WATERMARK for `ts` AS `ts`")
+                                    .producedBeforeRestore(
+                                            Row.of("Apple", 5L, dayOfSeconds(0)),
+                                            Row.of("Apple", 4L, dayOfSeconds(1)))
+                                    .producedAfterRestore(Row.of("Apple", 3L, dayOfSeconds(2)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("k string", "v bigint", "ts TIMESTAMP_LTZ(3)")
+                                    .consumedBeforeRestore(
+                                            Row.of("Apple", 5L, dayOfSeconds(0)),
+                                            Row.of("Apple", 4L, dayOfSeconds(1)))
+                                    .consumedAfterRestore(Row.of("Apple", 3L, dayOfSeconds(2)))
+                                    .build())
+                    .runSql(
+                            "SELECT `k`, (LAST_VALUE(`v`) OVER(PARTITION BY `k` ORDER BY `ts` RANGE BETWEEN INTERVAL '0 00:00:02.0' DAY TO SECOND(3) PRECEDING AND CURRENT ROW)) AS `_c1`, `ts` FROM (\n"
+                                    + "    SELECT `k`, `v`, `ts` FROM `default_catalog`.`default_database`.`data`\n"
+                                    + ")")
+                    .runTableApi(
+                            tableEnvAccessor ->
+                                    tableEnvAccessor
+                                            .from("data")
+                                            .window(
+                                                    Over.partitionBy($("k"))
+                                                            .orderBy($("ts"))
+                                                            .preceding(lit(2).second())
+                                                            .as("w"))
+                                            .select(
+                                                    $("k"),
+                                                    $("v").lastValue().over($("w")),
+                                                    $("ts")),
+                            "sink")
+                    .build();
+
+    static final TableTestProgram OVER_WINDOW_ROWS =
+            TableTestProgram.of("over-window-rows", "test over window with rows range")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("data")
+                                    .addSchema(
+                                            "k string",
+                                            "v bigint",
+                                            "ts TIMESTAMP_LTZ(3)",
+                                            "WATERMARK for `ts` AS `ts`")
+                                    .producedBeforeRestore(
+                                            Row.of("Apple", 5L, dayOfSeconds(0)),
+                                            Row.of("Apple", 4L, dayOfSeconds(1)))
+                                    .producedAfterRestore(Row.of("Apple", 3L, dayOfSeconds(2)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("k string", "v bigint", "ts TIMESTAMP_LTZ(3)")
+                                    .consumedBeforeRestore(
+                                            Row.of("Apple", 5L, dayOfSeconds(0)),
+                                            Row.of("Apple", 4L, dayOfSeconds(1)))
+                                    .consumedAfterRestore(Row.of("Apple", 3L, dayOfSeconds(2)))
+                                    .build())
+                    .runSql(
+                            "SELECT `k`, (LAST_VALUE(`v`) OVER(PARTITION BY `k` ORDER BY `ts` "
+                                    + "ROWS BETWEEN CAST(2 AS BIGINT) PRECEDING AND CURRENT ROW)) AS `_c1`, `ts` FROM (\n"
+                                    + "    SELECT `k`, `v`, `ts` FROM `default_catalog`.`default_database`.`data`\n"
+                                    + ")")
+                    .runTableApi(
+                            tableEnvAccessor ->
+                                    tableEnvAccessor
+                                            .from("data")
+                                            .window(
+                                                    Over.partitionBy($("k"))
+                                                            .orderBy($("ts"))
+                                                            .preceding(lit(2L))
+                                                            .as("w"))
+                                            .select(
+                                                    $("k"),
+                                                    $("v").lastValue().over($("w")),
+                                                    $("ts")),
+                            "sink")
+                    .build();
+
+    static final TableTestProgram OVER_WINDOW_ROWS_UNBOUNDED_NO_PARTITION =
+            TableTestProgram.of(
+                            "over-window-rows-unbounded-no-partition",
+                            "test over window with " + "rows range")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("data")
+                                    .addSchema(
+                                            "k string",
+                                            "v bigint",
+                                            "ts TIMESTAMP_LTZ(3)",
+                                            "WATERMARK for `ts` AS `ts`")
+                                    .producedBeforeRestore(
+                                            Row.of("Apple", 5L, dayOfSeconds(0)),
+                                            Row.of("Apple", 4L, dayOfSeconds(1)))
+                                    .producedAfterRestore(Row.of("Apple", 3L, dayOfSeconds(2)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("v bigint", "ts TIMESTAMP_LTZ(3)")
+                                    .consumedBeforeRestore(
+                                            Row.of(5L, dayOfSeconds(0)),
+                                            Row.of(4L, dayOfSeconds(1)))
+                                    .consumedAfterRestore(Row.of(3L, dayOfSeconds(2)))
+                                    .build())
+                    .runSql(
+                            "SELECT (LAST_VALUE(`v`) OVER(ORDER BY `ts` "
+                                    + "ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)) AS "
+                                    + "`_c0`, `ts` FROM (\n"
+                                    + "    SELECT `k`, `v`, `ts` FROM `default_catalog`.`default_database`.`data`\n"
+                                    + ")")
+                    .runTableApi(
+                            tableEnvAccessor ->
+                                    tableEnvAccessor
+                                            .from("data")
+                                            .window(
+                                                    Over.orderBy($("ts"))
+                                                            .preceding(UNBOUNDED_ROW)
+                                                            .as("w"))
+                                            .select($("v").lastValue().over($("w")), $("ts")),
+                            "sink")
                     .build();
 }

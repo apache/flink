@@ -540,6 +540,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
     public void processWatermarkStatus(WatermarkStatus watermarkStatus, int inputId)
             throws Exception {
         boolean wasIdle = combinedWatermark.isIdle();
+        // inputId is 1-based
         if (combinedWatermark.updateStatus(inputId - 1, watermarkStatus.isIdle())) {
             processWatermark(new Watermark(combinedWatermark.getCombinedWatermark()));
         }

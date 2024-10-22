@@ -20,25 +20,31 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
 
-/**
- * JobGraphStore utility interfaces. For example, convert a name(e.g. ZooKeeper path, key name in
- * Kubernetes ConfigMap) to {@link JobID}, or vice versa.
- */
-public interface JobGraphStoreUtil {
+import java.util.ArrayList;
+import java.util.List;
 
-    /**
-     * Get the name in external storage from job id.
-     *
-     * @param jobId job id
-     * @return Key name in ConfigMap or child path name in ZooKeeper
-     */
-    String jobIDToName(JobID jobId);
+/** {@link ExecutionPlanStore.ExecutionPlanListener} implementation for testing purposes. */
+public class TestingExecutionPlanListener implements ExecutionPlanStore.ExecutionPlanListener {
 
-    /**
-     * Get the job id from name.
-     *
-     * @param name Key name in ConfigMap or child path name in ZooKeeper
-     * @return parsed job id.
-     */
-    JobID nameToJobID(String name);
+    private final List<JobID> addedExecutionPlans = new ArrayList<>();
+
+    private final List<JobID> removedExecutionPlans = new ArrayList<>();
+
+    @Override
+    public void onAddedExecutionPlan(JobID jobId) {
+        addedExecutionPlans.add(jobId);
+    }
+
+    @Override
+    public void onRemovedExecutionPlan(JobID jobId) {
+        removedExecutionPlans.add(jobId);
+    }
+
+    public List<JobID> getAddedExecutionPlans() {
+        return addedExecutionPlans;
+    }
+
+    public List<JobID> getRemovedExecutionPlans() {
+        return removedExecutionPlans;
+    }
 }

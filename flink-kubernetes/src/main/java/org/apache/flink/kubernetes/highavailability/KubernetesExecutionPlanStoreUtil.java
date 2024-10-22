@@ -20,33 +20,35 @@ package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.kubernetes.utils.Constants;
-import org.apache.flink.runtime.jobmanager.JobGraphStoreUtil;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanStoreUtil;
 
-import static org.apache.flink.kubernetes.utils.Constants.JOB_GRAPH_STORE_KEY_PREFIX;
+import static org.apache.flink.kubernetes.utils.Constants.EXECUTION_PLAN_STORE_KEY_PREFIX;
 
-/** Singleton {@link JobGraphStoreUtil} implementation for Kubernetes. */
-public enum KubernetesJobGraphStoreUtil implements JobGraphStoreUtil {
+/** Singleton {@link ExecutionPlanStoreUtil} implementation for Kubernetes. */
+public enum KubernetesExecutionPlanStoreUtil implements ExecutionPlanStoreUtil {
     INSTANCE;
 
     /**
      * Convert a key in ConfigMap to {@link JobID}. The key is stored with prefix {@link
-     * Constants#JOB_GRAPH_STORE_KEY_PREFIX}.
+     * Constants#EXECUTION_PLAN_STORE_KEY_PREFIX}.
      *
-     * @param key job graph key in ConfigMap.
+     * @param key execution plan key in ConfigMap.
      * @return the parsed {@link JobID}.
      */
+    @Override
     public JobID nameToJobID(String key) {
-        return JobID.fromHexString(key.substring(JOB_GRAPH_STORE_KEY_PREFIX.length()));
+        return JobID.fromHexString(key.substring(EXECUTION_PLAN_STORE_KEY_PREFIX.length()));
     }
 
     /**
      * Convert a {@link JobID} to config map key. We will add prefix {@link
-     * Constants#JOB_GRAPH_STORE_KEY_PREFIX}.
+     * Constants#EXECUTION_PLAN_STORE_KEY_PREFIX}.
      *
      * @param jobID job id
-     * @return a key to store job graph in the ConfigMap
+     * @return a key to store execution plan in the ConfigMap
      */
+    @Override
     public String jobIDToName(JobID jobID) {
-        return JOB_GRAPH_STORE_KEY_PREFIX + jobID;
+        return EXECUTION_PLAN_STORE_KEY_PREFIX + jobID;
     }
 }

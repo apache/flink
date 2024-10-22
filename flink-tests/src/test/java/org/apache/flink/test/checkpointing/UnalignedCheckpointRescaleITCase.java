@@ -685,7 +685,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
             super.close();
         }
 
-        static class State extends VerifyingSinkStateBase {
+        public static class State extends VerifyingSinkStateBase {
             private final BitSet encounteredNumbers = new BitSet();
         }
     }

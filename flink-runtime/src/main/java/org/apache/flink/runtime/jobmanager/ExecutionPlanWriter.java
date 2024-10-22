@@ -21,21 +21,21 @@ package org.apache.flink.runtime.jobmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.dispatcher.cleanup.GloballyCleanableResource;
 import org.apache.flink.runtime.dispatcher.cleanup.LocallyCleanableResource;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
-/** Allows to store and remove job graphs. */
-public interface JobGraphWriter extends LocallyCleanableResource, GloballyCleanableResource {
+/** Allows to store and remove execution plans. */
+public interface ExecutionPlanWriter extends LocallyCleanableResource, GloballyCleanableResource {
     /**
-     * Adds the {@link JobGraph} instance.
+     * Adds the {@link ExecutionPlan} instance.
      *
-     * <p>If a job graph with the same {@link JobID} exists, it is replaced.
+     * <p>If a execution plan with the same {@link JobID} exists, it is replaced.
      */
-    void putJobGraph(JobGraph jobGraph) throws Exception;
+    void putExecutionPlan(ExecutionPlan executionPlan) throws Exception;
 
     /**
      * Persist {@link JobResourceRequirements job resource requirements} for the given job.

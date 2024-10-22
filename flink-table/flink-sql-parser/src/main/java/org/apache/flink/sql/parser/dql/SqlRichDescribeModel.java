@@ -41,7 +41,7 @@ public class SqlRichDescribeModel extends SqlCall {
     public static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("DESCRIBE MODEL", SqlKind.OTHER);
     protected final SqlIdentifier modelNameIdentifier;
-    private boolean isExtended;
+    private final boolean isExtended;
 
     public SqlRichDescribeModel(
             SqlParserPos pos, SqlIdentifier modelNameIdentifier, boolean isExtended) {

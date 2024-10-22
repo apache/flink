@@ -697,7 +697,7 @@
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobSubmitRequestBody",
       "properties" : {
-        "jobGraphFileName" : {
+        "executionPlanFileName" : {
           "type" : "string"
         },
         "jobJarFileNames" : {
@@ -1884,7 +1884,7 @@
       "type" : "any"
     }
   }, {
-    "url" : "/jobs/:jobid/coordinators/:operatorid",
+    "url" : "/jobs/:jobid/coordinators/:operatorUid",
     "method" : "POST",
     "status-code" : "200 OK",
     "file-upload" : false,

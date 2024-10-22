@@ -127,14 +127,16 @@ public class HighAvailabilityOptions {
                     .withDescription(
                             "The root path under which Flink stores its entries in ZooKeeper.");
 
-    /** ZooKeeper root path (ZNode) for job graphs. */
+    /** ZooKeeper root path (ZNode) for execution plans. */
     @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
-    public static final ConfigOption<String> HA_ZOOKEEPER_JOBGRAPHS_PATH =
-            key("high-availability.zookeeper.path.jobgraphs")
+    public static final ConfigOption<String> HA_ZOOKEEPER_EXECUTION_PLANS_PATH =
+            key("high-availability.zookeeper.path.execution-plans")
                     .stringType()
-                    .defaultValue("/jobgraphs")
-                    .withDeprecatedKeys("recovery.zookeeper.path.jobgraphs")
-                    .withDescription("ZooKeeper root path (ZNode) for job graphs");
+                    .defaultValue("/execution-plans")
+                    .withDeprecatedKeys(
+                            "recovery.zookeeper.path.jobgraphs",
+                            "high-availability.zookeeper.path.jobgraphs")
+                    .withDescription("ZooKeeper root path (ZNode) for execution plans");
 
     // ------------------------------------------------------------------------
     //  ZooKeeper Client Settings

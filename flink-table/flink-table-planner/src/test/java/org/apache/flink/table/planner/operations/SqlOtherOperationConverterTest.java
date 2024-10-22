@@ -20,9 +20,12 @@ package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.DescribeCatalogOperation;
+import org.apache.flink.table.operations.DescribeFunctionOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ShowCatalogsOperation;
 import org.apache.flink.table.operations.ShowCreateCatalogOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
@@ -105,6 +108,31 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
                                 catalogName, extended));
     }
 
+    @ParameterizedTest
+    @CsvSource({"true,true", "true,false", "false,true", "false,false"})
+    void testDescribeFunction(boolean abbr, boolean extended) {
+        final String functionName = "f1";
+        final UnresolvedIdentifier functionIdentifier = UnresolvedIdentifier.of(functionName);
+        final String sql =
+                String.format(
+                        "%s FUNCTION %s %s",
+                        abbr ? "DESC" : "DESCRIBE", extended ? "EXTENDED" : "", functionName);
+        Operation operation = parse(sql);
+        assertThat(operation)
+                .isInstanceOf(DescribeFunctionOperation.class)
+                .asInstanceOf(InstanceOfAssertFactories.type(DescribeFunctionOperation.class))
+                .extracting(
+                        DescribeFunctionOperation::getSqlIdentifier,
+                        DescribeFunctionOperation::isExtended,
+                        DescribeFunctionOperation::asSummaryString)
+                .containsExactly(
+                        functionIdentifier,
+                        extended,
+                        String.format(
+                                "DESCRIBE FUNCTION: (identifier: [%s], isExtended: [%b])",
+                                functionIdentifier, extended));
+    }
+
     @Test
     void testUseDatabase() {
         final String sql1 = "USE db1";
@@ -181,6 +209,35 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
 
         assertThat(useModulesOperation.getModuleNames()).isEqualTo(expectedModuleNames);
         assertThat(useModulesOperation.asSummaryString()).isEqualTo("USE MODULES: [x, y, z]");
+    }
+
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("inputForShowCatalogsTest")
+    void testShowCatalogs(String sql, ShowCatalogsOperation expected, String expectedSummary) {
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(ShowCatalogsOperation.class).isEqualTo(expected);
+        assertThat(operation.asSummaryString()).isEqualTo(expectedSummary);
+    }
+
+    private static Stream<Arguments> inputForShowCatalogsTest() {
+        return Stream.of(
+                Arguments.of("show catalogs", new ShowCatalogsOperation(null), "SHOW CATALOGS"),
+                Arguments.of(
+                        "show catalogs like 'c%'",
+                        new ShowCatalogsOperation(ShowLikeOperator.of(LikeType.LIKE, "c%")),
+                        "SHOW CATALOGS LIKE 'c%'"),
+                Arguments.of(
+                        "show catalogs not like 'c%'",
+                        new ShowCatalogsOperation(ShowLikeOperator.of(LikeType.NOT_LIKE, "c%")),
+                        "SHOW CATALOGS NOT LIKE 'c%'"),
+                Arguments.of(
+                        "show catalogs ilike 'c%'",
+                        new ShowCatalogsOperation(ShowLikeOperator.of(LikeType.ILIKE, "c%")),
+                        "SHOW CATALOGS ILIKE 'c%'"),
+                Arguments.of(
+                        "show catalogs not ilike 'c%'",
+                        new ShowCatalogsOperation(ShowLikeOperator.of(LikeType.NOT_ILIKE, "c%")),
+                        "SHOW CATALOGS NOT ILIKE 'c%'"));
     }
 
     @Test

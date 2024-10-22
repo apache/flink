@@ -90,7 +90,6 @@ public class ArtifactFetchManager {
     public Result fetchArtifacts(String[] uris) {
         checkArgument(uris != null && uris.length > 0, "At least one URI is required.");
 
-        ArtifactUtils.createMissingParents(baseDir);
         List<File> artifacts =
                 Arrays.stream(uris)
                         .map(FunctionUtils.uncheckedFunction(this::fetchArtifact))
@@ -120,9 +119,7 @@ public class ArtifactFetchManager {
             throws Exception {
         checkArgument(jobUri != null && !jobUri.trim().isEmpty(), "The jobUri is required.");
 
-        ArtifactUtils.createMissingParents(baseDir);
         File jobJar = fetchArtifact(jobUri);
-
         List<File> additionalArtifacts =
                 additionalUris == null
                         ? Collections.emptyList()

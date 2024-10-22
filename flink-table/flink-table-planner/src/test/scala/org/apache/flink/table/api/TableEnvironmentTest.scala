@@ -3019,9 +3019,11 @@ class TableEnvironmentTest {
     with TemporaryOperationListener {
 
     val tableComment: String = "listener_comment"
+    val modelComment: String = "listener_comment"
     val funcClzName: String = classOf[TestGenericUDF].getName
 
     var numTempTable = 0
+    var numTempModel = 0
     var numTempFunc = 0
 
     override def onCreateTemporaryTable(
@@ -3045,7 +3047,16 @@ class TableEnvironmentTest {
       }
     }
 
+    override def onCreateTemporaryModel(
+        modelPath: ObjectPath,
+        model: CatalogModel): CatalogModel = {
+      numTempModel += 1
+      CatalogModel.of(model.getInputSchema, model.getOutputSchema, model.getOptions, modelComment)
+    }
+
     override def onDropTemporaryTable(tablePath: ObjectPath): Unit = numTempTable -= 1
+
+    override def onDropTemporaryModel(modelPath: ObjectPath): Unit = numTempModel -= 1
 
     override def onCreateTemporaryFunction(
         functionPath: ObjectPath,

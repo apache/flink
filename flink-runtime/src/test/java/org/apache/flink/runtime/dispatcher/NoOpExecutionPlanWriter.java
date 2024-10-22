@@ -19,16 +19,16 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
-import org.apache.flink.runtime.jobmanager.JobGraphWriter;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanWriter;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 
-/** Testing implementation of {@link JobGraphWriter} which does nothing. */
-public enum NoOpJobGraphWriter implements JobGraphWriter {
+/** Testing implementation of {@link ExecutionPlanWriter} which does nothing. */
+public enum NoOpExecutionPlanWriter implements ExecutionPlanWriter {
     INSTANCE;
 
     @Override
-    public void putJobGraph(JobGraph jobGraph) {
+    public void putExecutionPlan(ExecutionPlan executionPlan) {
         // No-op.
     }
 

@@ -355,7 +355,7 @@ public class MiniDispatcherTest extends TestLogger {
                         null,
                         new DispatcherOperationCaches(),
                         UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
-                        highAvailabilityServices.getJobGraphStore(),
+                        highAvailabilityServices.getExecutionPlanStore(),
                         highAvailabilityServices.getJobResultStore(),
                         testingJobManagerRunnerFactory,
                         testingCleanupRunnerFactory,

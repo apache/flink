@@ -24,11 +24,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -88,12 +88,12 @@ public interface ClusterClient<T> extends AutoCloseable {
     CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath) throws FlinkException;
 
     /**
-     * Submit the given {@link JobGraph} to the cluster.
+     * Submit the given {@link ExecutionPlan} to the cluster.
      *
-     * @param jobGraph to submit
+     * @param executionPlan to submit
      * @return {@link JobID} of the submitted job
      */
-    CompletableFuture<JobID> submitJob(JobGraph jobGraph);
+    CompletableFuture<JobID> submitJob(ExecutionPlan executionPlan);
 
     /** Requests the {@link JobStatus} of the job with the given {@link JobID}. */
     CompletableFuture<JobStatus> getJobStatus(JobID jobId);

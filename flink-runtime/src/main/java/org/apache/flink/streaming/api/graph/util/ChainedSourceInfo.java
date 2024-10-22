@@ -16,19 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager;
+package org.apache.flink.streaming.api.graph.util;
 
-/** Singleton {@link JobGraphStoreWatcher} empty implementation. */
-public enum NoOpJobGraphStoreWatcher implements JobGraphStoreWatcher {
-    INSTANCE;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 
-    @Override
-    public void start(JobGraphStore.JobGraphListener jobGraphListener) {
-        // noop
+/** Helper class to help maintain the chained source info of an operator chain. */
+@Internal
+public final class ChainedSourceInfo {
+    private final StreamConfig operatorConfig;
+    private final StreamConfig.SourceInputConfig inputConfig;
+
+    public ChainedSourceInfo(
+            StreamConfig operatorConfig, StreamConfig.SourceInputConfig inputConfig) {
+        this.operatorConfig = operatorConfig;
+        this.inputConfig = inputConfig;
     }
 
-    @Override
-    public void stop() {
-        // noop
+    public StreamConfig getOperatorConfig() {
+        return operatorConfig;
+    }
+
+    public StreamConfig.SourceInputConfig getInputConfig() {
+        return inputConfig;
     }
 }

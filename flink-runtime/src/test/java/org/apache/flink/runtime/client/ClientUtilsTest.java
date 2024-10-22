@@ -83,7 +83,7 @@ public class ClientUtilsTest {
         assertThat(jobGraph.getUserJars()).hasSameSizeAs(jars);
         assertThat(jobGraph.getUserJarBlobKeys()).isEmpty();
 
-        ClientUtils.extractAndUploadJobGraphFiles(
+        ClientUtils.extractAndUploadExecutionPlanFiles(
                 jobGraph,
                 () ->
                         new BlobClient(
@@ -135,7 +135,7 @@ public class ClientUtilsTest {
                                 .filter(entry -> entry.blobKey != null))
                 .isEmpty();
 
-        ClientUtils.extractAndUploadJobGraphFiles(
+        ClientUtils.extractAndUploadExecutionPlanFiles(
                 jobGraph,
                 () ->
                         new BlobClient(

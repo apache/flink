@@ -37,16 +37,26 @@ public class LineageGraphUtils {
     /** Convert transforms to LineageGraph. */
     public static LineageGraph convertToLineageGraph(List<Transformation<?>> transformations) {
         DefaultLineageGraph.LineageGraphBuilder builder = DefaultLineageGraph.builder();
+
+        // find complete edges
         for (Transformation<?> transformation : transformations) {
-            List<LineageEdge> edges = processSink(transformation);
+            List<LineageEdge> edges = processSink(transformation, builder);
             for (LineageEdge lineageEdge : edges) {
                 builder.addLineageEdge(lineageEdge);
             }
         }
+
+        // find standalone sources
+        for (Transformation<?> transformation : transformations) {
+            Optional<SourceLineageVertex> sourceOpt = processSource(transformation);
+            sourceOpt.ifPresent(builder::addSourceVertex);
+        }
+
         return builder.build();
     }
 
-    private static List<LineageEdge> processSink(Transformation<?> transformation) {
+    private static List<LineageEdge> processSink(
+            Transformation<?> transformation, DefaultLineageGraph.LineageGraphBuilder builder) {
         List<LineageEdge> lineageEdges = new ArrayList<>();
         LineageVertex sinkLineageVertex = null;
         if (transformation instanceof SinkTransformation) {
@@ -57,11 +67,24 @@ public class LineageGraphUtils {
 
         if (sinkLineageVertex != null) {
             List<Transformation<?>> predecessors = transformation.getTransitivePredecessors();
+            boolean hasEdge = false;
             for (Transformation<?> predecessor : predecessors) {
                 Optional<SourceLineageVertex> sourceOpt = processSource(predecessor);
                 if (sourceOpt.isPresent()) {
                     lineageEdges.add(new DefaultLineageEdge(sourceOpt.get(), sinkLineageVertex));
+                    hasEdge = true;
                 }
+            }
+
+            if (!hasEdge) {
+                // In case all of the source connectors haven't integrated with lineage provider
+                builder.addSinkVertex(sinkLineageVertex);
+            }
+        } else {
+            List<Transformation<?>> predecessors = transformation.getTransitivePredecessors();
+            for (Transformation<?> predecessor : predecessors) {
+                Optional<SourceLineageVertex> sourceOpt = processSource(predecessor);
+                sourceOpt.ifPresent(builder::addSourceVertex);
             }
         }
         return lineageEdges;
