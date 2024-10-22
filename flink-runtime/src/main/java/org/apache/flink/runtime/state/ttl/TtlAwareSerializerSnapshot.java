@@ -28,15 +28,15 @@ import java.io.IOException;
 
 /**
  * A {@link TypeSerializerSnapshot} for TtlAwareSerializer. This class wraps a {@link
- * TypeSerializerSnapshot} with ttl awareness. It will return true for the method isTtlEnabled()
- * when the wrapped {@link TypeSerializerSnapshot} is instance of {@link
- * TtlStateFactory.TtlSerializerSnapshot}. Also, it wraps the compatibility check logic between
- * TtlSerializerSnapshot and non-ttl TypeSerializerSnapshot.
+ * TypeSerializerSnapshot} with ttl awareness. It will return true when the wrapped {@link
+ * TypeSerializerSnapshot} is the instance of {@link TtlStateFactory.TtlSerializerSnapshot}. Also,
+ * it overrides the compatibility type check between TtlSerializerSnapshot and non-ttl
+ * TypeSerializerSnapshot.
  *
- * <p>If two TtlAwareSerializerSnapshots has the same ttl config, it will return the compatibility
+ * <p>If two TtlAwareSerializerSnapshots have the same ttl config, it will return the compatibility
  * check result of the original TypeSerializerSnapshot.
  *
- * <p>If two TtlAwareSerializerSnapshots has the different ttl config, it will return a wrapped
+ * <p>If two TtlAwareSerializerSnapshots have different ttl config, it will return a wrapped
  * compatibility check result.
  */
 public class TtlAwareSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {

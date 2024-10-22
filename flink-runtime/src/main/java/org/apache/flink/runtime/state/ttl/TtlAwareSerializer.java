@@ -30,10 +30,9 @@ import java.io.IOException;
 import java.util.Objects;
 
 /**
- * This class wraps a {@link TypeSerializer} with ttl awareness. It will return true for the method
- * isTtlEnabled() when the wrapped {@link TypeSerializer} is instance of {@link
- * TtlStateFactory.TtlSerializer}. Also, it wraps the value migration logic between TtlSerializer
- * and non-ttl TypeSerializer.
+ * This class wraps a {@link TypeSerializer} with ttl awareness. It will return true when the
+ * wrapped {@link TypeSerializer} is instance of {@link TtlStateFactory.TtlSerializer}. Also, it
+ * wraps the value migration process between TtlSerializer and non-ttl typeSerializer.
  */
 public class TtlAwareSerializer<T> extends TypeSerializer<T> {
 
