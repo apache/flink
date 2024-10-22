@@ -153,9 +153,11 @@ public class StreamEdge implements Serializable {
                         + outputPartitioner
                         + "_"
                         + uniqueId;
-        this.existIntraInputKeyCorrelation = !outputPartitioner.isPointwise();
-        this.existInterInputsKeyCorrelation =
-                !outputPartitioner.isPointwise() && !outputPartitioner.isBroadcast();
+        if (outputPartitioner != null) {
+            this.existIntraInputKeyCorrelation = !outputPartitioner.isPointwise();
+            this.existInterInputsKeyCorrelation =
+                    !outputPartitioner.isPointwise() && !outputPartitioner.isBroadcast();
+        }
     }
 
     public int getSourceId() {

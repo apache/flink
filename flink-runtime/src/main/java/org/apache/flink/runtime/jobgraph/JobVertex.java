@@ -542,8 +542,8 @@ public class JobVertex implements java.io.Serializable {
                 intermediateDataSetId,
                 isBroadcast,
                 -1,
-                distPattern == DistributionPattern.POINTWISE,
-                distPattern == DistributionPattern.POINTWISE);
+                distPattern != DistributionPattern.POINTWISE,
+                distPattern != DistributionPattern.POINTWISE && !isBroadcast);
     }
 
     public JobEdge connectNewDataSetAsInput(

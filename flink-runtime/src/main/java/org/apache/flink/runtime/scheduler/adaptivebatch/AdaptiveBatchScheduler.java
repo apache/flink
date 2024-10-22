@@ -90,6 +90,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -790,12 +791,13 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
         List<BlockingInputInfo> consumableInputInfo = new ArrayList<>();
 
         DefaultLogicalVertex logicalVertex = logicalTopology.getVertex(jobVertex.getJobVertexId());
-        Iterable<DefaultLogicalResult> consumedResults = logicalVertex.getConsumedResults();
-        Iterable<JobEdge> jobEdges = jobVertex.getJobVertex().getInputs();
+        Iterator<DefaultLogicalResult> consumedResults =
+                logicalVertex.getConsumedResults().iterator();
+        Iterator<JobEdge> jobEdges = jobVertex.getJobVertex().getInputs().iterator();
 
-        while (consumedResults.iterator().hasNext() && jobEdges.iterator().hasNext()) {
-            DefaultLogicalResult consumedResult = consumedResults.iterator().next();
-            JobEdge jobEdge = jobEdges.iterator().next();
+        while (consumedResults.hasNext() && jobEdges.hasNext()) {
+            DefaultLogicalResult consumedResult = consumedResults.next();
+            JobEdge jobEdge = jobEdges.next();
             final ExecutionJobVertex producerVertex =
                     getExecutionJobVertex(consumedResult.getProducer().getId());
             if (producerVertex.isFinished()) {
