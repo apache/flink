@@ -376,5 +376,10 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
 
             return new TtlSerializer<>(timestampSerializer, valueSerializer);
         }
+
+        @SuppressWarnings("unchecked")
+        public TypeSerializerSnapshot<T> getValueSerializerSnapshot() {
+            return (TypeSerializerSnapshot<T>) getNestedSerializerSnapshots()[1];
+        }
     }
 }
