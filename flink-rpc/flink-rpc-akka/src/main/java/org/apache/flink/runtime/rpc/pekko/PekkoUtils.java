@@ -27,14 +27,15 @@ import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
+import org.apache.flink.shaded.netty4.io.netty.util.internal.logging.InternalLoggerFactory;
+import org.apache.flink.shaded.netty4.io.netty.util.internal.logging.Slf4JLoggerFactory;
+
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import org.apache.pekko.actor.ActorRef;
 import org.apache.pekko.actor.ActorSystem;
 import org.apache.pekko.actor.Address;
 import org.apache.pekko.actor.AddressFromURIString;
-import org.jboss.netty.logging.InternalLoggerFactory;
-import org.jboss.netty.logging.Slf4JLoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
