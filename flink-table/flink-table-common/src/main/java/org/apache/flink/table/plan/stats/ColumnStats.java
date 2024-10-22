@@ -44,41 +44,11 @@ public final class ColumnStats {
     /** max length of column values. */
     private final Integer maxLen;
 
-    /**
-     * Deprecated because not well supported comparable type, e.g. {@link java.util.Date}, {@link
-     * java.sql.Timestamp}.
-     */
-    @Deprecated private final Number maxValue;
-
     /** max value of column values, null if the value is unknown or not comparable. */
     private final Comparable<?> max;
 
-    /**
-     * Deprecated because not well supported comparable type, e.g. {@link java.util.Date}, {@link
-     * java.sql.Timestamp}.
-     */
-    @Deprecated private final Number minValue;
-
     /** min value of column values, null if the value is unknown or not comparable. */
     private final Comparable<?> min;
-
-    /**
-     * Deprecated because Number type max/min is not well supported comparable type, e.g. {@link
-     * java.util.Date}, {@link java.sql.Timestamp}. please use {@link ColumnStats.Builder} to
-     * construct ColumnStats instance.
-     */
-    @Deprecated
-    public ColumnStats(
-            Long ndv, Long nullCount, Double avgLen, Integer maxLen, Number max, Number min) {
-        this.ndv = ndv;
-        this.nullCount = nullCount;
-        this.avgLen = avgLen;
-        this.maxLen = maxLen;
-        this.maxValue = max;
-        this.minValue = min;
-        this.max = null;
-        this.min = null;
-    }
 
     /**
      * Private because to avoid "cannot resolve constructor" error. please use {@link
@@ -119,17 +89,6 @@ public final class ColumnStats {
     }
 
     /**
-     * Deprecated because Number type max/min is not well supported comparable type, e.g. {@link
-     * java.util.Date}, {@link java.sql.Timestamp}.
-     *
-     * <p>Returns null if this instance is constructed by {@link ColumnStats.Builder}.
-     */
-    @Deprecated
-    public Number getMaxValue() {
-        return maxValue;
-    }
-
-    /**
      * Returns null if this instance is constructed by {@link ColumnStats#ColumnStats(Long, Long,
      * Double, Integer, Number, Number)}.
      */
@@ -137,16 +96,6 @@ public final class ColumnStats {
         return max;
     }
 
-    /**
-     * Deprecated because Number type max/min is not well supported comparable type, e.g. {@link
-     * java.util.Date}, {@link java.sql.Timestamp}.
-     *
-     * <p>Returns null if this instance is constructed by {@link ColumnStats.Builder}.
-     */
-    @Deprecated
-    public Number getMinValue() {
-        return minValue;
-    }
 
     /**
      * Returns null if this instance is constructed by {@link ColumnStats#ColumnStats(Long, Long,
