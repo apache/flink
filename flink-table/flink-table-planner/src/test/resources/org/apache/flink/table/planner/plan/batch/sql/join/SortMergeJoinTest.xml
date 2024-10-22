@@ -795,4 +795,23 @@ SortMergeJoin(joinType=[LeftOuterJoin], where=[(k = k0)], select=[k, v, k0, v0])
 ]]>
     </Resource>
   </TestCase>
+	<TestCase name="testRightOuterJoinOnFalse">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM MyTable2 RIGHT OUTER JOIN MyTable1 ON false]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
++- LogicalJoin(condition=[false], joinType=[right])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[null:INTEGER AS d, null:BIGINT AS e, null:INTEGER AS f, null:VARCHAR(2147483647) AS g, null:BIGINT AS h, a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+		</Resource>
+	</TestCase>
 </Root>

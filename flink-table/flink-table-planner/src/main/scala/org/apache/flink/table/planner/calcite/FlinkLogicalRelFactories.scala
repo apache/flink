@@ -79,11 +79,12 @@ object FlinkLogicalRelFactories {
 
   /** Implementation of [[ProjectFactory]] that returns a [[FlinkLogicalCalc]]. */
   class ProjectFactoryImpl extends ProjectFactory {
-    def createProject(
+    override def createProject(
         input: RelNode,
         hints: util.List[RelHint],
         childExprs: util.List[_ <: RexNode],
-        fieldNames: util.List[_ <: String]): RelNode = {
+        fieldNames: util.List[_ <: String],
+        variablesSet: util.Set[CorrelationId]): RelNode = {
       val rexBuilder = input.getCluster.getRexBuilder
       val inputRowType = input.getRowType
       val programBuilder = new RexProgramBuilder(inputRowType, rexBuilder)
