@@ -55,7 +55,7 @@ public final class ColumnStats {
      * ColumnStats.Builder} to construct ColumnStats instance. could change to public if the
      * deprecated constructor is removed in the future.
      */
-    private ColumnStats(
+    public ColumnStats(
             Long ndv,
             Long nullCount,
             Double avgLen,
@@ -68,8 +68,6 @@ public final class ColumnStats {
         this.maxLen = maxLen;
         this.max = max;
         this.min = min;
-        this.maxValue = null;
-        this.minValue = null;
     }
 
     public Long getNdv() {
@@ -89,8 +87,8 @@ public final class ColumnStats {
     }
 
     /**
-     * Returns null if this instance is constructed by {@link ColumnStats#ColumnStats(Long, Long,
-     * Double, Integer, Number, Number)}.
+     * Returns max if this instance is constructed by {@link ColumnStats#ColumnStats(Long, Long,
+     * Double, Integer, Comparable, Comparable)}.
      */
     public Comparable<?> getMax() {
         return max;
@@ -98,8 +96,8 @@ public final class ColumnStats {
 
 
     /**
-     * Returns null if this instance is constructed by {@link ColumnStats#ColumnStats(Long, Long,
-     * Double, Integer, Number, Number)}.
+     * Returns min if this instance is constructed by {@link ColumnStats#ColumnStats(Long, Long,
+     * Double, Integer, Comparable, Comparable)}.
      */
     public Comparable<?> getMin() {
         return min;
@@ -122,14 +120,8 @@ public final class ColumnStats {
         if (max != null) {
             columnStats.add("max=" + max);
         }
-        if (maxValue != null) {
-            columnStats.add("max=" + maxValue);
-        }
         if (min != null) {
             columnStats.add("min=" + min);
-        }
-        if (minValue != null) {
-            columnStats.add("min=" + minValue);
         }
         String columnStatsStr = String.join(", ", columnStats);
         return "ColumnStats(" + columnStatsStr + ")";
@@ -141,18 +133,8 @@ public final class ColumnStats {
      * @return a deep copy
      */
     public ColumnStats copy() {
-        if (maxValue != null || minValue != null) {
-            return new ColumnStats(
-                    this.ndv,
-                    this.nullCount,
-                    this.avgLen,
-                    this.maxLen,
-                    this.maxValue,
-                    this.minValue);
-        } else {
-            return new ColumnStats(
-                    this.ndv, this.nullCount, this.avgLen, this.maxLen, this.max, this.min);
-        }
+        return new ColumnStats(
+            this.ndv, this.nullCount, this.avgLen, this.maxLen, this.max, this.min);
     }
 
     /**
@@ -177,17 +159,6 @@ public final class ColumnStats {
         Double avgLen = combineIfNonNull((a1, a2) -> (a1 + a2) / 2, this.avgLen, other.avgLen);
         Integer maxLen = combineIfNonNull(Math::max, this.maxLen, other.maxLen);
 
-        Number maxValue =
-                combineIfNonNull(
-                        (n1, n2) -> n1.doubleValue() > n2.doubleValue() ? n1 : n2,
-                        this.maxValue,
-                        other.maxValue);
-        Number minValue =
-                combineIfNonNull(
-                        (n1, n2) -> n1.doubleValue() < n2.doubleValue() ? n1 : n2,
-                        this.minValue,
-                        other.minValue);
-
         @SuppressWarnings("unchecked")
         Comparable max =
                 combineIfNonNull(
@@ -201,11 +172,7 @@ public final class ColumnStats {
                         this.min,
                         other.min);
 
-        if (max != null || min != null) {
-            return new ColumnStats(ndv, nullCount, avgLen, maxLen, max, min);
-        } else {
-            return new ColumnStats(ndv, nullCount, avgLen, maxLen, maxValue, minValue);
-        }
+        return new ColumnStats(ndv, nullCount, avgLen, maxLen, max, min);
     }
 
     @Override
@@ -221,15 +188,13 @@ public final class ColumnStats {
                 && Objects.equals(nullCount, that.nullCount)
                 && Objects.equals(avgLen, that.avgLen)
                 && Objects.equals(maxLen, that.maxLen)
-                && Objects.equals(maxValue, that.maxValue)
                 && Objects.equals(max, that.max)
-                && Objects.equals(minValue, that.minValue)
                 && Objects.equals(min, that.min);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(ndv, nullCount, avgLen, maxLen, maxValue, max, minValue, min);
+        return Objects.hash(ndv, nullCount, avgLen, maxLen, max, min);
     }
 
     private static <T> T combineIfNonNull(BinaryOperator<T> op, T t1, T t2) {
