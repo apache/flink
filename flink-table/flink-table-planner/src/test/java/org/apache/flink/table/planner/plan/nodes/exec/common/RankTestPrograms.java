@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
@@ -28,7 +28,7 @@ import static org.apache.flink.table.factories.TestFormatFactory.CHANGELOG_MODE;
 /** {@link TableTestProgram} definitions for testing {@link StreamExecRank}. */
 public class RankTestPrograms {
 
-    static final TableTestProgram RANK_TEST_APPEND_FAST_STRATEGY =
+    public static final TableTestProgram RANK_TEST_APPEND_FAST_STRATEGY =
             getTableTestProgram(
                     "rank-test-append-fast-strategy",
                     "I",
@@ -43,9 +43,12 @@ public class RankTestPrograms {
                         "-U[6, c, 1]",
                         "+U[5, c, 1]"
                     },
-                    new String[] {"+I[4, d, 1]", "+I[3, e, 1]"});
+                    new String[] {"+I[4, d, 1]", "+I[3, e, 1]"},
+                    new String[] {
+                        "+I[1, a, 1]", "+I[3, b, 1]", "+I[5, c, 1]", "+I[4, d, 1]", "+I[3, e, 1]"
+                    });
 
-    static final TableTestProgram RANK_TEST_RETRACT_STRATEGY =
+    public static final TableTestProgram RANK_TEST_RETRACT_STRATEGY =
             getTableTestProgram(
                     "rank-test-retract-strategy",
                     "I,UA,UB",
@@ -60,9 +63,10 @@ public class RankTestPrograms {
                         "-D[6, c, 1]",
                         "+I[5, c, 1]"
                     },
-                    new String[] {"+I[4, d, 1]", "+I[3, e, 1]"});
+                    new String[] {"+I[4, d, 1]", "+I[3, e, 1]"},
+                    new String[] {});
 
-    static final TableTestProgram RANK_TEST_UPDATE_FAST_STRATEGY =
+    public static final TableTestProgram RANK_TEST_UPDATE_FAST_STRATEGY =
             TableTestProgram.of("rank-test-update-fast-strategy", "validates rank exec node")
                     .setupTableSource(
                             SourceTestStep.newBuilder("MyTable")
@@ -107,6 +111,16 @@ public class RankTestPrograms {
                                                 "+U[1, a, 1, 2]",
                                                 "+I[2, a, 1, 3]"
                                             })
+                                    .expectedMaterializedStrings(
+                                            new String[] {
+                                                "+I[0, a, 1, 1]",
+                                                "+I[1, a, 1, 2]",
+                                                "+I[2, a, 1, 3]",
+                                                "+I[4, b, 2, 1]",
+                                                "+I[3, b, 1, 2]",
+                                                "+I[5, c, 1, 1]",
+                                                "+I[6, c, 1, 2]"
+                                            })
                                     .build())
                     .runSql(
                             "INSERT INTO sink_t SELECT * FROM ("
@@ -124,7 +138,16 @@ public class RankTestPrograms {
             final String name,
             final String changelogMode,
             final String[] resultsBeforeRestore,
-            final String[] resultsAfterRestore) {
+            final String[] resultsAfterRestore,
+            final String[] materializedResults) {
+        SinkTestStep.Builder sinkBuilder =
+                SinkTestStep.newBuilder("sink_t")
+                        .addSchema("a INT", "b VARCHAR", "c BIGINT")
+                        .consumedBeforeRestore(resultsBeforeRestore)
+                        .consumedAfterRestore(resultsAfterRestore);
+        if (materializedResults.length > 0) {
+            sinkBuilder.expectedMaterializedStrings(materializedResults);
+        }
         return TableTestProgram.of(name, "validates rank exec node")
                 .setupTableSource(
                         SourceTestStep.newBuilder("MyTable")
@@ -139,12 +162,7 @@ public class RankTestPrograms {
                                         Row.of(5, "c", 9))
                                 .producedAfterRestore(Row.of(4, "d", 7), Row.of(3, "e", 8))
                                 .build())
-                .setupTableSink(
-                        SinkTestStep.newBuilder("sink_t")
-                                .addSchema("a INT", "b VARCHAR", "c BIGINT")
-                                .consumedBeforeRestore(resultsBeforeRestore)
-                                .consumedAfterRestore(resultsAfterRestore)
-                                .build())
+                .setupTableSink(sinkBuilder.build())
                 .runSql(
                         "insert into `sink_t` select * from "
                                 + "(select a, b, row_number() over(partition by b order by c) as c from MyTable)"
@@ -152,7 +170,7 @@ public class RankTestPrograms {
                 .build();
     }
 
-    static final TableTestProgram RANK_N_TEST =
+    public static final TableTestProgram RANK_N_TEST =
             TableTestProgram.of("rank-n-test", "validates rank node can handle multiple outputs")
                     .setupTableSource(
                             SourceTestStep.newBuilder("MyTable1")
