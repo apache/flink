@@ -23,6 +23,8 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
@@ -121,7 +123,11 @@ public class StreamExecMatch extends CommonExecMatch
 
     @Override
     public Transformation<RowData> translateOrder(
-            Transformation<RowData> inputTransform, RowType inputRowType, ExecNodeConfig config) {
+            PlannerBase planner,
+            Transformation<RowData> inputTransform,
+            RowType inputRowType,
+            ExecEdge inputEdge,
+            ExecNodeConfig config) {
         SortSpec.SortFieldSpec timeOrderField = matchSpec.getOrderKeys().getFieldSpec(0);
         int timeOrderFieldIdx = timeOrderField.getFieldIndex();
         LogicalType timeOrderFieldType = inputRowType.getTypeAt(timeOrderFieldIdx);
@@ -151,13 +157,5 @@ public class StreamExecMatch extends CommonExecMatch
         } else {
             return inputTransform;
         }
-    }
-
-    @Override
-    public boolean isProcTime(RowType inputRowType) {
-        final SortSpec.SortFieldSpec timeOrderField = matchSpec.getOrderKeys().getFieldSpec(0);
-        final LogicalType timeOrderFieldType =
-                inputRowType.getTypeAt(timeOrderField.getFieldIndex());
-        return TypeCheckUtils.isProcTime(timeOrderFieldType);
     }
 }
