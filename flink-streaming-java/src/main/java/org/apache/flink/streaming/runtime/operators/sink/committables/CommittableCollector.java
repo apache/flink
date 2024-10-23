@@ -66,6 +66,13 @@ public class CommittableCollector<CommT> {
             SinkCommitterMetricGroup metricGroup) {
         this.checkpointCommittables = new TreeMap<>(checkNotNull(checkpointCommittables));
         this.metricGroup = metricGroup;
+        this.metricGroup.setCurrentPendingCommittablesGauge(this::getNumPending);
+    }
+
+    private int getNumPending() {
+        return checkpointCommittables.values().stream()
+                .mapToInt(m -> (int) m.getPendingRequests().count())
+                .sum();
     }
 
     /**

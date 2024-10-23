@@ -30,12 +30,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -142,13 +143,13 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
     @Override
     public void commit(Committer<CommT> committer, int maxRetries)
             throws IOException, InterruptedException {
-        Collection<CommitRequestImpl<CommT>> requests = getPendingRequests();
+        Collection<CommitRequestImpl<CommT>> requests =
+                getPendingRequests().collect(Collectors.toList());
         for (int retry = 0; !requests.isEmpty() && retry <= maxRetries; retry++) {
             requests.forEach(CommitRequestImpl::setSelected);
-            committer.commit(new ArrayList<>(requests));
+            committer.commit(Collections.unmodifiableCollection(requests));
             requests.forEach(CommitRequestImpl::setCommittedIfNoError);
             requests = requests.stream().filter(r -> !r.isFinished()).collect(Collectors.toList());
-            metricGroup.setCurrentPendingCommittablesGauge(requests::size);
         }
         if (!requests.isEmpty()) {
             throw new IOException(
@@ -165,11 +166,10 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
                 .collect(Collectors.toList());
     }
 
-    Collection<CommitRequestImpl<CommT>> getPendingRequests() {
+    Stream<CommitRequestImpl<CommT>> getPendingRequests() {
         return subtasksCommittableManagers.values().stream()
                 .peek(this::assertReceivedAll)
-                .flatMap(SubtaskCommittableManager::getPendingRequests)
-                .collect(Collectors.toList());
+                .flatMap(SubtaskCommittableManager::getPendingRequests);
     }
 
     /**
