@@ -2362,6 +2362,13 @@ public class StreamTaskTest {
                     }
 
                     @Override
+                    public InternalTimeServiceManager<?> asyncInternalTimerServiceManager() {
+                        InternalTimeServiceManager<?> timeServiceManager =
+                                controller.internalTimerServiceManager();
+                        return timeServiceManager != null ? spy(timeServiceManager) : null;
+                    }
+
+                    @Override
                     public CloseableIterable<StatePartitionStreamProvider>
                             rawOperatorStateInputs() {
                         return replaceWithSpy(controller.rawOperatorStateInputs());

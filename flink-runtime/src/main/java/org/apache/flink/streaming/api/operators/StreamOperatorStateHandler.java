@@ -244,6 +244,11 @@ public class StreamOperatorStateHandler {
                                 && ((AbstractKeyedStateBackend<?>) keyedStateBackend)
                                         .requiresLegacySynchronousTimerSnapshots(
                                                 checkpointOptions.getCheckpointType());
+                requiresLegacyRawKeyedStateSnapshots |=
+                        keyedStateBackend instanceof AsyncKeyedStateBackend
+                                && ((AsyncKeyedStateBackend<?>) keyedStateBackend)
+                                        .requiresLegacySynchronousTimerSnapshots(
+                                                checkpointOptions.getCheckpointType());
 
                 if (requiresLegacyRawKeyedStateSnapshots) {
                     checkState(
@@ -457,6 +462,10 @@ public class StreamOperatorStateHandler {
         } else {
             throw new UnsupportedOperationException("Key can only be retrieved on KeyedStream.");
         }
+    }
+
+    public InternalTimeServiceManager<?> getAsyncInternalTimerServiceManager() {
+        return context.asyncInternalTimerServiceManager();
     }
 
     public Optional<KeyedStateStore> getKeyedStateStore() {

@@ -26,12 +26,19 @@ import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
+import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
@@ -97,6 +104,11 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend<
     }
 
     @Override
+    public KeyGroupRange getKeyGroupRange() {
+        return keyedStateBackend.getKeyGroupRange();
+    }
+
+    @Override
     public void switchContext(RecordContext<K> context) {
         keyedStateBackend.setCurrentKeyAndKeyGroup(context.getKey(), context.getKeyGroup());
     }
@@ -138,5 +150,33 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend<
             throws Exception {
         return keyedStateBackend.snapshot(
                 checkpointId, timestamp, streamFactory, checkpointOptions);
+    }
+
+    @Nonnull
+    @Override
+    public <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
+            KeyGroupedInternalPriorityQueue<T> create(
+                    @Nonnull String stateName,
+                    @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
+        return keyedStateBackend.create(stateName, byteOrderedElementSerializer);
+    }
+
+    @Override
+    public <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
+            KeyGroupedInternalPriorityQueue<T> create(
+                    @Nonnull String stateName,
+                    @Nonnull TypeSerializer<T> byteOrderedElementSerializer,
+                    boolean allowFutureMetadataUpdates) {
+        return keyedStateBackend.create(
+                stateName, byteOrderedElementSerializer, allowFutureMetadataUpdates);
+    }
+
+    @Override
+    public boolean requiresLegacySynchronousTimerSnapshots(SnapshotType checkpointType) {
+        if (keyedStateBackend instanceof AbstractKeyedStateBackend) {
+            return ((AbstractKeyedStateBackend) keyedStateBackend)
+                    .requiresLegacySynchronousTimerSnapshots(checkpointType);
+        }
+        return false;
     }
 }

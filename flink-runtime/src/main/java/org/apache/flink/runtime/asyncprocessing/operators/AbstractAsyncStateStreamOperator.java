@@ -89,6 +89,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     public void initializeState(StreamTaskStateInitializer streamTaskStateManager)
             throws Exception {
         super.initializeState(streamTaskStateManager);
+        this.timeServiceManager = stateHandler.getAsyncInternalTimerServiceManager();
         getRuntimeContext().setKeyedStateStoreV2(stateHandler.getKeyedStateStoreV2().orElse(null));
         final StreamTask<?, ?> containingTask = checkNotNull(getContainingTask());
         environment = containingTask.getEnvironment();

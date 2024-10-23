@@ -26,6 +26,7 @@ import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.util.Disposable;
 
@@ -41,6 +42,7 @@ import java.io.Closeable;
 public interface AsyncKeyedStateBackend<K>
         extends Snapshotable<SnapshotResult<KeyedStateHandle>>,
                 InternalCheckpointListener,
+                PriorityQueueSetFactory,
                 Disposable,
                 Closeable,
                 AsyncExecutionController.SwitchContextListener<K> {
@@ -83,9 +85,23 @@ public interface AsyncKeyedStateBackend<K>
     @Nonnull
     StateExecutor createStateExecutor();
 
+    /** Returns the key groups which this state backend is responsible for. */
+    KeyGroupRange getKeyGroupRange();
+
     /** By default, a state backend does nothing when a key is switched in async processing. */
     @Override
     default void switchContext(RecordContext<K> context) {}
+
+    // TODO remove this once heap-based timers are working with ForSt incremental snapshots!
+    /**
+     * Whether the keyed state backend requires legacy synchronous timer snapshots.
+     *
+     * @param checkpointType
+     * @return true as default in case of AsyncKeyedStateBackend
+     */
+    default boolean requiresLegacySynchronousTimerSnapshots(SnapshotType checkpointType) {
+        return true;
+    }
 
     @Override
     void dispose();

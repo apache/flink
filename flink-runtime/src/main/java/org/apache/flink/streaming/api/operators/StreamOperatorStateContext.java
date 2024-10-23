@@ -68,6 +68,12 @@ public interface StreamOperatorStateContext {
     InternalTimeServiceManager<?> internalTimerServiceManager();
 
     /**
+     * Returns the internal timer service manager create by async state backend for the stream
+     * operator. This method returns null for non-keyed operators.
+     */
+    InternalTimeServiceManager<?> asyncInternalTimerServiceManager();
+
+    /**
      * Returns an iterable to obtain input streams for previously stored operator state partitions
      * that are assigned to this stream operator.
      */
