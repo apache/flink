@@ -20,11 +20,8 @@ package org.apache.flink.table.api.dataview;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.MapState;
-import org.apache.flink.api.common.typeinfo.TypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.dataview.MapViewTypeInfoFactory;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.types.DataType;
@@ -88,11 +85,7 @@ import java.util.Objects;
  * }
  *
  * }</pre>
- *
- * @param <K> key type
- * @param <V> value type
  */
-@TypeInfo(MapViewTypeInfoFactory.class)
 @PublicEvolving
 public class MapView<K, V> implements DataView {
 
@@ -254,27 +247,5 @@ public class MapView<K, V> implements DataView {
                 MapView.class,
                 DataTypes.FIELD(
                         "map", DataTypes.MAP(keyDataType, valueDataType).bridgedTo(Map.class)));
-    }
-
-    // --------------------------------------------------------------------------------------------
-    // Legacy
-    // --------------------------------------------------------------------------------------------
-
-    @Deprecated public transient TypeInformation<?> keyType;
-
-    @Deprecated public transient TypeInformation<?> valueType;
-
-    /**
-     * Creates a {@link MapView} with the specified key and value types.
-     *
-     * @param keyType The type of keys of the map view.
-     * @param valueType The type of values of the map view.
-     * @deprecated This method uses the old type system. Please use a {@link DataTypeHint} instead
-     *     if the reflective type extraction is not successful.
-     */
-    @Deprecated
-    public MapView(TypeInformation<?> keyType, TypeInformation<?> valueType) {
-        this.keyType = keyType;
-        this.valueType = valueType;
     }
 }
