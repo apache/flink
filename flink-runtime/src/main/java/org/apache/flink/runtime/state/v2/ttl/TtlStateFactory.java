@@ -64,6 +64,19 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS> {
         Preconditions.checkNotNull(stateDesc);
         Preconditions.checkNotNull(stateBackend);
         Preconditions.checkNotNull(timeProvider);
+        if (stateDesc.getTtlConfig().isEnabled()) {
+            if (!stateDesc.getTtlConfig().getCleanupStrategies().inRocksdbCompactFilter()) {
+                throw new UnsupportedOperationException(
+                        "Only ROCKSDB_COMPACTION_FILTER strategy is supported in state V2.");
+            }
+            if (stateDesc
+                    .getTtlConfig()
+                    .getUpdateType()
+                    .equals(StateTtlConfig.UpdateType.OnReadAndWrite)) {
+                throw new UnsupportedOperationException(
+                        "OnReadAndWrite update type is not supported in state V2.");
+            }
+        }
         return stateDesc.getTtlConfig().isEnabled()
                 ? new TtlStateFactory<K, N, SV, TTLSV, S, IS>(
                                 defaultNamespace,

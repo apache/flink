@@ -61,11 +61,7 @@ class TtlMapState<K, N, UK, UV>
 
     @Override
     public StateFuture<UV> asyncGet(UK key) {
-        return original.asyncGet(key)
-                .thenApply(
-                        ttlValue ->
-                                getElementWithTtlCheck(
-                                        ttlValue, (newTtl) -> original.asyncPut(key, newTtl)));
+        return original.asyncGet(key).thenApply(ttlValue -> getElementWithTtlCheck(ttlValue));
     }
 
     @Override
@@ -91,20 +87,7 @@ class TtlMapState<K, N, UK, UV>
     @Override
     public StateFuture<Boolean> asyncContains(UK key) {
         return original.asyncGet(key)
-                .thenApply(
-                        ttlValue -> {
-                            if (ttlValue == null) {
-                                return false;
-                            }
-                            boolean unexpired = !expired(ttlValue);
-                            if (!unexpired || returnExpired) {
-                                if (updateTsOnRead) {
-                                    original.put(key, rewrapWithNewTs(ttlValue));
-                                }
-                                return true;
-                            }
-                            return false;
-                        });
+                .thenApply(ttlValue -> getElementWithTtlCheck(ttlValue) != null);
     }
 
     @Override
@@ -132,17 +115,7 @@ class TtlMapState<K, N, UK, UV>
 
     @Override
     public UV get(UK key) {
-        TtlValue<UV> ttlValue = original.get(key);
-        if (ttlValue == null) {
-            return null;
-        } else if (expired(ttlValue)) {
-            if (!returnExpired) {
-                return null;
-            }
-        } else if (updateTsOnRead) {
-            original.put(key, rewrapWithNewTs(ttlValue));
-        }
-        return ttlValue.getUserValue();
+        return getElementWithTtlCheck(original.get(key));
     }
 
     @Override
@@ -171,18 +144,7 @@ class TtlMapState<K, N, UK, UV>
 
     @Override
     public boolean contains(UK key) {
-        TtlValue<UV> ttlValue = original.get(key);
-        if (ttlValue == null) {
-            return false;
-        }
-        boolean unexpired = !expired(ttlValue);
-        if (!unexpired || returnExpired) {
-            if (updateTsOnRead) {
-                original.put(key, rewrapWithNewTs(ttlValue));
-            }
-            return true;
-        }
-        return false;
+        return getElementWithTtlCheck(original.get(key)) != null;
     }
 
     @Override
@@ -236,10 +198,7 @@ class TtlMapState<K, N, UK, UV>
             rightAfterNextIsCalled = false;
             while (nextUnexpired == null && originalIterator.hasNext()) {
                 Map.Entry<UK, TtlValue<UV>> ttlEntry = originalIterator.next();
-                UV value =
-                        getElementWithTtlCheck(
-                                ttlEntry.getValue(),
-                                (newTtl) -> original.put(ttlEntry.getKey(), newTtl));
+                UV value = getElementWithTtlCheck(ttlEntry.getValue());
                 nextUnexpired =
                         value == null
                                 ? null
@@ -287,17 +246,14 @@ class TtlMapState<K, N, UK, UV>
                 Function<R, StateFuture<? extends U>> iterating) {
             Function<Map.Entry<UK, TtlValue<UV>>, StateFuture<? extends U>> ttlIterating =
                     (item) -> {
-                        UV value =
-                                getElementWithTtlCheck(
-                                        item.getValue(),
-                                        (newTtl) -> original.asyncPut(item.getKey(), newTtl));
+                        UV value = getElementWithTtlCheck(item.getValue());
                         if (value == null) {
-                            return iterating.apply(null);
+                            return null;
                         }
                         R result =
                                 resultMapper.apply(
                                         new AbstractMap.SimpleEntry<>(item.getKey(), value));
-                        return iterating.apply(value == null ? null : result);
+                        return iterating.apply(result);
                     };
             return originalIterator.onNext(ttlIterating);
         }
@@ -306,12 +262,8 @@ class TtlMapState<K, N, UK, UV>
         public StateFuture<Void> onNext(Consumer<R> iterating) {
             Consumer<Map.Entry<UK, TtlValue<UV>>> ttlIterating =
                     (item) -> {
-                        UV value =
-                                getElementWithTtlCheck(
-                                        item.getValue(),
-                                        (newTtl) -> original.asyncPut(item.getKey(), newTtl));
+                        UV value = getElementWithTtlCheck(item.getValue());
                         if (value == null) {
-                            iterating.accept(null);
                             return;
                         }
                         iterating.accept(

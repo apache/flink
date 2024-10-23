@@ -24,8 +24,6 @@ import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
 
-import java.util.function.Consumer;
-
 /**
  * Base class for TTL logic wrappers.
  *
@@ -111,7 +109,7 @@ public abstract class AbstractTtlDecorator<T> {
         return ttlValue;
     }
 
-    protected <T> T getElementWithTtlCheck(TtlValue<T> ttlValue, Consumer<TtlValue<T>> updater) {
+    protected <T> T getElementWithTtlCheck(TtlValue<T> ttlValue) {
         if (ttlValue == null) {
             return null;
         } else if (expired(ttlValue)) {
@@ -119,8 +117,6 @@ public abstract class AbstractTtlDecorator<T> {
             if (!returnExpired) {
                 return null;
             }
-        } else if (updateTsOnRead) {
-            updater.accept(rewrapWithNewTs(ttlValue));
         }
         return ttlValue.getUserValue();
     }

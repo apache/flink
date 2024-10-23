@@ -24,9 +24,6 @@ import org.apache.flink.runtime.state.ttl.AbstractTtlDecorator;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.ttl.TtlValue;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.Preconditions;
-
-import java.util.function.Consumer;
 
 /**
  * This class wraps aggregating function with TTL logic.
@@ -38,7 +35,6 @@ import java.util.function.Consumer;
 public class TtlAggregateFunction<IN, ACC, OUT>
         extends AbstractTtlDecorator<AggregateFunction<IN, ACC, OUT>>
         implements AggregateFunction<IN, TtlValue<ACC>, OUT> {
-    Consumer<TtlValue<ACC>> updater;
 
     public TtlAggregateFunction(
             AggregateFunction<IN, ACC, OUT> aggFunction,
@@ -61,10 +57,9 @@ public class TtlAggregateFunction<IN, ACC, OUT>
 
     @Override
     public OUT getResult(TtlValue<ACC> accumulator) {
-        Preconditions.checkNotNull(updater, "State updater should be set in TtlAggregatingState");
         ACC userAcc;
         try {
-            userAcc = getElementWithTtlCheck(accumulator, updater);
+            userAcc = getElementWithTtlCheck(accumulator);
         } catch (Exception e) {
             throw new FlinkRuntimeException(
                     "Failed to retrieve original internal aggregating state", e);

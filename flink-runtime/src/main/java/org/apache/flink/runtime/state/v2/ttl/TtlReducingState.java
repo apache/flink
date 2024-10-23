@@ -73,8 +73,7 @@ class TtlReducingState<K, N, T>
 
     @Override
     public StateFuture<T> asyncGetInternal() {
-        return original.asyncGetInternal()
-                .thenApply(ttlValue -> getElementWithTtlCheck(ttlValue, original::updateInternal));
+        return original.asyncGetInternal().thenApply(ttlValue -> getElementWithTtlCheck(ttlValue));
     }
 
     @Override
@@ -85,7 +84,7 @@ class TtlReducingState<K, N, T>
     @Override
     public T getInternal() {
         TtlValue<T> ttlValue = original.getInternal();
-        return getElementWithTtlCheck(ttlValue, original::updateInternal);
+        return getElementWithTtlCheck(ttlValue);
     }
 
     @Override

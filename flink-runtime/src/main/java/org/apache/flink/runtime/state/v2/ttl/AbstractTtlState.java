@@ -23,8 +23,9 @@ import org.apache.flink.runtime.state.ttl.TtlStateContext;
 import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
 
 /**
- * Base class for TTL logic wrappers of state objects. StateV2 does not support
+ * Base class for TTL logic wrappers of state objects. state V2 does not support
  * FULL_STATE_SCAN_SNAPSHOT and INCREMENTAL_CLEANUP, only supports ROCKSDB_COMPACTION_FILTER.
+ * UpdateType#OnReadAndWrite is also not supported in state V2.
  *
  * @param <K> The type of key the state is associated to
  * @param <N> The type of the namespace

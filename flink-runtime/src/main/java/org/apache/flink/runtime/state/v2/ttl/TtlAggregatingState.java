@@ -44,7 +44,6 @@ class TtlAggregatingState<K, N, IN, ACC, OUT>
                     ttlStateContext,
             TtlAggregateFunction<IN, ACC, OUT> aggregateFunction) {
         super(ttlStateContext);
-        aggregateFunction.updater = (ttlValue) -> original.updateInternal(ttlValue);
     }
 
     @Override
@@ -84,10 +83,7 @@ class TtlAggregatingState<K, N, IN, ACC, OUT>
 
     @Override
     public StateFuture<ACC> asyncGetInternal() {
-        return original.asyncGetInternal()
-                .thenApply(
-                        ttlValue ->
-                                getElementWithTtlCheck(ttlValue, original::asyncUpdateInternal));
+        return original.asyncGetInternal().thenApply(ttlValue -> getElementWithTtlCheck(ttlValue));
     }
 
     @Override
@@ -98,7 +94,7 @@ class TtlAggregatingState<K, N, IN, ACC, OUT>
     @Override
     public ACC getInternal() {
         TtlValue<ACC> ttlValue = original.getInternal();
-        return getElementWithTtlCheck(ttlValue, original::updateInternal);
+        return getElementWithTtlCheck(ttlValue);
     }
 
     @Override

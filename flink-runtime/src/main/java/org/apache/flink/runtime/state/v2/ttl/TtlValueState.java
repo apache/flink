@@ -41,11 +41,7 @@ class TtlValueState<K, N, T>
 
     @Override
     public StateFuture<T> asyncValue() {
-        return original.asyncValue()
-                .thenApply(
-                        (ttlValue) ->
-                                getElementWithTtlCheck(
-                                        ttlValue, (newTtl) -> original.asyncUpdate(newTtl)));
+        return original.asyncValue().thenApply((ttlValue) -> getElementWithTtlCheck(ttlValue));
     }
 
     @Override
@@ -56,7 +52,7 @@ class TtlValueState<K, N, T>
     @Override
     public T value() {
         TtlValue<T> ttlValue = original.value();
-        return getElementWithTtlCheck(ttlValue, (newTtl) -> original.update(newTtl));
+        return getElementWithTtlCheck(ttlValue);
     }
 
     @Override
