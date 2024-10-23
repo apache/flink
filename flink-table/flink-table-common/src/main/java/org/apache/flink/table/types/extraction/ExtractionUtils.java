@@ -343,10 +343,17 @@ public final class ExtractionUtils {
             if (!baseClass.isAssignableFrom(clazz)) {
                 return Optional.empty();
             }
-            final Type t =
-                    ((ParameterizedType) clazz.getGenericSuperclass())
-                            .getActualTypeArguments()[pos];
-            return Optional.ofNullable(toClass(t));
+            for (Class<?> c = clazz; c != null && c != baseClass; c = c.getSuperclass()) {
+                Type genericSuperClass = c.getGenericSuperclass();
+                if (genericSuperClass instanceof ParameterizedType) {
+                    final Type[] typeArguments =
+                            ((ParameterizedType) genericSuperClass).getActualTypeArguments();
+                    if (typeArguments.length > pos) {
+                        return Optional.ofNullable(toClass(typeArguments[pos]));
+                    }
+                }
+            }
+            return Optional.empty();
         } catch (Exception unused) {
             return Optional.empty();
         }
