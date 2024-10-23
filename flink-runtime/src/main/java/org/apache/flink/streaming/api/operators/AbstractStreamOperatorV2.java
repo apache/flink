@@ -217,10 +217,14 @@ public abstract class AbstractStreamOperatorV2<OUT>
                                 runtimeContext.getJobConfiguration(),
                                 runtimeContext.getTaskManagerRuntimeInfo().getConfiguration(),
                                 runtimeContext.getUserCodeClassLoader()),
-                        isUsingCustomRawKeyedState());
+                        isUsingCustomRawKeyedState(),
+                        isAsyncStateProcessingEnabled());
 
         stateHandler = new StreamOperatorStateHandler(context, getExecutionConfig(), cancelables);
-        timeServiceManager = context.internalTimerServiceManager();
+        timeServiceManager =
+                isAsyncStateProcessingEnabled()
+                        ? context.asyncInternalTimerServiceManager()
+                        : context.internalTimerServiceManager();
         stateHandler.initializeOperatorState(this);
 
         if (useSplittableTimers()
@@ -276,6 +280,14 @@ public abstract class AbstractStreamOperatorV2<OUT>
     }
 
     /**
+     * Indicates whether this operator is enabling the async state. Can be overridden by subclasses.
+     */
+    @Internal
+    public boolean isAsyncStateProcessingEnabled() {
+        return false;
+    }
+
+    /**
      * This method is called immediately before any elements are processed, it should contain the
      * operator's initialization logic, e.g. state initialization.
      *
@@ -318,7 +330,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
                 checkpointOptions,
                 factory,
                 isUsingCustomRawKeyedState(),
-                false);
+                isAsyncStateProcessingEnabled());
     }
 
     /**
@@ -510,10 +522,10 @@ public abstract class AbstractStreamOperatorV2<OUT>
         @SuppressWarnings("unchecked")
         InternalTimeServiceManager<K> keyedTimeServiceHandler =
                 (InternalTimeServiceManager<K>) timeServiceManager;
-        KeyedStateBackend<K> keyedStateBackend = getKeyedStateBackend();
-        checkState(keyedStateBackend != null, "Timers can only be used on keyed operators.");
+        TypeSerializer<K> keySerializer = stateHandler.getKeySerializer();
+        checkState(keySerializer != null, "Timers can only be used on keyed operators.");
         return keyedTimeServiceHandler.getInternalTimerService(
-                name, keyedStateBackend.getKeySerializer(), namespaceSerializer, triggerable);
+                name, keySerializer, namespaceSerializer, triggerable);
     }
 
     public void processWatermark(Watermark mark) throws Exception {
