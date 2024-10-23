@@ -18,7 +18,7 @@
 
 import { NgIf } from '@angular/common';
 import { Component, ChangeDetectionStrategy, Input, ChangeDetectorRef } from '@angular/core';
-import { RouterLinkWithHref } from '@angular/router';
+import { RouterLink } from '@angular/router';
 
 import { TableAggregatedMetricsComponent } from '@flink-runtime-web/components/table-aggregated-metrics/table-aggregated-metrics.component';
 import { VertexTaskManagerDetail } from '@flink-runtime-web/interfaces';
@@ -35,7 +35,7 @@ export interface JobOverviewTaskManagersTableAction {
   templateUrl: './taskmanagers-table-action.component.html',
   styleUrls: ['./taskmanagers-table-action.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgIf, NzDropDownModule, NzIconModule, NzModalModule, TableAggregatedMetricsComponent, RouterLinkWithHref],
+  imports: [NgIf, NzDropDownModule, NzIconModule, NzModalModule, TableAggregatedMetricsComponent, RouterLink],
   standalone: true
 })
 export class TaskmanagersTableActionComponent implements JobOverviewTaskManagersTableAction {

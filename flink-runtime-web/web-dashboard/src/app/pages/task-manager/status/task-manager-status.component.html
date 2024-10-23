@@ -29,7 +29,7 @@
       {{ taskManagerDetail.freeSlots }} / {{ taskManagerDetail.slotsNumber }}
     </nz-descriptions-item>
     <nz-descriptions-item [nzSpan]="1" nzTitle="Last Heartbeat">
-      {{ taskManagerDetail.timeSinceLastHeartbeat | date: 'yyyy-MM-dd HH:mm:ss' }}
+      {{ taskManagerDetail.timeSinceLastHeartbeat | date : 'yyyy-MM-dd HH:mm:ss' }}
     </nz-descriptions-item>
     <nz-descriptions-item [nzSpan]="1" nzTitle="Data Port">
       {{ taskManagerDetail.dataPort }}
