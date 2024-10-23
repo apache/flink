@@ -80,7 +80,6 @@ flink-table/flink-table-test-utils,\
 "
 
 MODULES_CONNECTORS="\
-flink-contrib/flink-connector-wikiedits,\
 flink-filesystems,\
 flink-filesystems/flink-azure-fs-hadoop,\
 flink-filesystems/flink-fs-hadoop-shaded,\
