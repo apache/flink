@@ -16,6 +16,11 @@
  */
 package org.apache.calcite.sql2rel;
 
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import org.apache.calcite.avatica.util.DateTimeUtils;
@@ -98,6 +103,8 @@ import static org.apache.calcite.sql.type.NonNullableAccessors.getComponentTypeO
 
 /**
  * Standard implementation of {@link SqlRexConvertletTable}.
+ *
+ * <p>Lines 555-578 fix incorrect cast behavior (FLINK-36399).
  *
  * <p>Lines 691-736 implement supporting RETURNING clause in JSON_QUERY (CALCITE-6365).
  */
@@ -545,9 +552,30 @@ public class StandardConvertletTable extends ReflectiveConvertletTable {
             type = cx.getValidator().getValidatedNodeType(dataType.getTypeName());
         }
         RexNode arg = cx.convertExpression(left);
-        if (arg.getType().isNullable()) {
+
+        // BEGIN FLINK MODIFICATION
+        /**
+         * Reason: the cast result type should be always nullable when {@link
+         * ExecutionConfigOptions#TABLE_EXEC_LEGACY_CAST_BEHAVIOUR} is enabled, this function
+         * behaves like try_cast.
+         */
+        boolean forceOutputTypeNullable = false;
+        if (cx.getValidator() instanceof FlinkCalciteSqlValidator) {
+            FlinkCalciteSqlValidator validator = (FlinkCalciteSqlValidator) cx.getValidator();
+
+            TableConfig tableConfig =
+                    ShortcutUtils.unwrapContext(validator.getRelOptCluster()).getTableConfig();
+            forceOutputTypeNullable =
+                    tableConfig
+                            .get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR)
+                            .isEnabled();
+        }
+
+        if (arg.getType().isNullable() || forceOutputTypeNullable) {
             type = typeFactory.createTypeWithNullability(type, true);
         }
+        // END FLINK MODIFICATION
+
         if (SqlUtil.isNullLiteral(left, false)) {
             final SqlValidatorImpl validator = (SqlValidatorImpl) cx.getValidator();
             validator.setValidatedNodeType(left, type);
