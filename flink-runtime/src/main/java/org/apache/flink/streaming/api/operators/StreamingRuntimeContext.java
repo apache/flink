@@ -122,9 +122,11 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
     }
 
     public void setKeyedStateStoreV2(@Nullable KeyedStateStoreV2 keyedStateStoreV2) {
-        this.keyedStateStoreV2 = keyedStateStoreV2;
-        // Only if the keyedStateStoreV2 is set, this context is switch to support state v2
-        this.supportKeyedStateApiSet = SupportKeyedStateApiSet.STATE_V2;
+        if (keyedStateStoreV2 != null) {
+            // Only if the keyedStateStoreV2 is set, this context is switch to support state v2
+            this.keyedStateStoreV2 = keyedStateStoreV2;
+            this.supportKeyedStateApiSet = SupportKeyedStateApiSet.STATE_V2;
+        }
     }
 
     // ------------------------------------------------------------------------

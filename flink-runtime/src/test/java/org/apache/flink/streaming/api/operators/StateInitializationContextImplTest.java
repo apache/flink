@@ -230,6 +230,7 @@ class StateInitializationContextImplTest {
                         closableRegistry,
                         new UnregisteredMetricsGroup(),
                         1.0,
+                        false,
                         false);
 
         OptionalLong restoredCheckpointId = stateContext.getRestoredCheckpointId();

@@ -83,6 +83,8 @@ public class StreamOperatorStateHandler {
 
     protected static final Logger LOG = LoggerFactory.getLogger(StreamOperatorStateHandler.class);
 
+    @Nullable private final TypeSerializer<?> keySerializer;
+
     @Nullable private final AsyncKeyedStateBackend<?> asyncKeyedStateBackend;
 
     @Nullable private final KeyedStateStoreV2 keyedStateStoreV2;
@@ -100,8 +102,9 @@ public class StreamOperatorStateHandler {
             ExecutionConfig executionConfig,
             CloseableRegistry closeableRegistry) {
         this.context = context;
-        operatorStateBackend = context.operatorStateBackend();
-        keyedStateBackend = context.keyedStateBackend();
+        this.keySerializer = context.keySerializer();
+        this.operatorStateBackend = context.operatorStateBackend();
+        this.keyedStateBackend = context.keyedStateBackend();
         this.closeableRegistry = closeableRegistry;
 
         if (keyedStateBackend != null) {
@@ -234,22 +237,28 @@ public class StreamOperatorStateHandler {
             throws CheckpointException {
         try {
             if (timeServiceManager.isPresent()) {
-                checkState(
-                        keyedStateBackend != null,
-                        "keyedStateBackend should be available with timeServiceManager");
-                final InternalTimeServiceManager<?> manager = timeServiceManager.get();
+                boolean requiresLegacyRawKeyedStateSnapshots;
+                final InternalTimeServiceManager<?> manager;
+                if (useAsyncState) {
+                    checkState(
+                            asyncKeyedStateBackend != null,
+                            "keyedStateBackend should be available with timeServiceManager");
+                    manager = timeServiceManager.get();
+                    requiresLegacyRawKeyedStateSnapshots =
+                            asyncKeyedStateBackend.requiresLegacySynchronousTimerSnapshots(
+                                    checkpointOptions.getCheckpointType());
+                } else {
+                    checkState(
+                            keyedStateBackend != null,
+                            "keyedStateBackend should be available with timeServiceManager");
+                    manager = timeServiceManager.get();
 
-                boolean requiresLegacyRawKeyedStateSnapshots =
-                        keyedStateBackend instanceof AbstractKeyedStateBackend
-                                && ((AbstractKeyedStateBackend<?>) keyedStateBackend)
-                                        .requiresLegacySynchronousTimerSnapshots(
-                                                checkpointOptions.getCheckpointType());
-                requiresLegacyRawKeyedStateSnapshots |=
-                        keyedStateBackend instanceof AsyncKeyedStateBackend
-                                && ((AsyncKeyedStateBackend<?>) keyedStateBackend)
-                                        .requiresLegacySynchronousTimerSnapshots(
-                                                checkpointOptions.getCheckpointType());
-
+                    requiresLegacyRawKeyedStateSnapshots =
+                            keyedStateBackend instanceof AbstractKeyedStateBackend
+                                    && ((AbstractKeyedStateBackend<?>) keyedStateBackend)
+                                            .requiresLegacySynchronousTimerSnapshots(
+                                                    checkpointOptions.getCheckpointType());
+                }
                 if (requiresLegacyRawKeyedStateSnapshots) {
                     checkState(
                             !isUsingCustomRawKeyedState,
@@ -366,13 +375,19 @@ public class StreamOperatorStateHandler {
     }
 
     @SuppressWarnings("unchecked")
+    public <K> TypeSerializer<K> getKeySerializer() {
+        return (TypeSerializer<K>) keySerializer;
+    }
+
+    @SuppressWarnings("unchecked")
     public <K> KeyedStateBackend<K> getKeyedStateBackend() {
         return (KeyedStateBackend<K>) keyedStateBackend;
     }
 
     @Nullable
-    public AsyncKeyedStateBackend getAsyncKeyedStateBackend() {
-        return asyncKeyedStateBackend;
+    @SuppressWarnings("unchecked")
+    public <K> AsyncKeyedStateBackend<K> getAsyncKeyedStateBackend() {
+        return (AsyncKeyedStateBackend<K>) asyncKeyedStateBackend;
     }
 
     public OperatorStateBackend getOperatorStateBackend() {

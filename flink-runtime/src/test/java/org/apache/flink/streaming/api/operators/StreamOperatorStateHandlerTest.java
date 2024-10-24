@@ -110,6 +110,7 @@ class StreamOperatorStateHandlerTest {
                             closeableRegistry,
                             new InterceptingOperatorMetricGroup(),
                             1.0,
+                            false,
                             false);
             StreamOperatorStateHandler stateHandler =
                     new StreamOperatorStateHandler(
