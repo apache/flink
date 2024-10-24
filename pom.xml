@@ -177,7 +177,7 @@ under the License.
 		<checkstyle.version>9.3</checkstyle.version>
 		<!-- can be removed with maven-spotless-plugin:2.38+ -->
 		<spotless.skip>false</spotless.skip>
-		<spotless.version>2.27.1</spotless.version>
+		<spotless.version>2.35.0</spotless.version>
 		<spotless.scalafmt.version>3.4.3</spotless.scalafmt.version>
 		<spotless.delimiter>package</spotless.delimiter>
 		<spotless.license.header>
