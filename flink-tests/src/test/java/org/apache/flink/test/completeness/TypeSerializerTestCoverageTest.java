@@ -59,6 +59,7 @@ import org.apache.flink.core.io.SimpleVersionedSerializerTypeSerializerProxy;
 import org.apache.flink.formats.avro.typeutils.AvroSerializer;
 import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.heap.TestDuplicateSerializer;
+import org.apache.flink.runtime.state.ttl.TtlAwareSerializer;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.streaming.api.datastream.CoGroupedStreams;
 import org.apache.flink.streaming.api.functions.sink.legacy.TwoPhaseCommitSinkFunction;
@@ -143,6 +144,7 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         EnumSerializer.class.getName(),
                         CoGroupedStreams.UnionSerializer.class.getName(),
                         TtlStateFactory.TtlSerializer.class.getName(),
+                        TtlAwareSerializer.class.getName(),
                         TimeWindow.Serializer.class.getName(),
                         InternalTimersSnapshotReaderWriters.LegacyTimerSerializer.class.getName(),
                         TwoPhaseCommitSinkFunction.StateSerializer.class.getName(),
@@ -164,6 +166,7 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         ExternalSerializer.class.getName(),
                         RawValueDataSerializer.class.getName(),
                         TimestampDataSerializer.class.getName(),
+                        TtlAwareSerializer.class.getName(),
                         org.apache.flink.table.runtime.operators.window.TimeWindow.Serializer.class
                                 .getName(),
                         ArrayDataSerializer.class.getName(),
@@ -204,6 +207,7 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         LocalTimeSerializer.class.getName(),
                         UnloadableDummyTypeSerializer.class.getName(),
                         TimeWindow.Serializer.class.getName(),
+                        TtlAwareSerializer.class.getName(),
                         CoGroupedStreams.UnionSerializer.class.getName(),
                         InternalTimersSnapshotReaderWriters.LegacyTimerSerializer.class.getName(),
                         TwoPhaseCommitSinkFunction.StateSerializer.class.getName(),

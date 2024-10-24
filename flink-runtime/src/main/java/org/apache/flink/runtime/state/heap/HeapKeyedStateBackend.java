@@ -51,6 +51,7 @@ import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTran
 import org.apache.flink.runtime.state.StateSnapshotTransformers;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.ttl.TtlAwareSerializer;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.StateMigrationException;
@@ -199,6 +200,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                 stateName, byteOrderedElementSerializer, allowFutureMetadataUpdates);
     }
 
+    @SuppressWarnings("unchecked")
     private <N, V> StateTable<K, N, V> tryRegisterStateTable(
             TypeSerializer<N> namespaceSerializer,
             StateDescriptor<?, V> stateDesc,
@@ -206,11 +208,12 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             boolean allowFutureMetadataUpdates)
             throws StateMigrationException {
 
-        @SuppressWarnings("unchecked")
         StateTable<K, N, V> stateTable =
                 (StateTable<K, N, V>) registeredKVStates.get(stateDesc.getName());
 
-        TypeSerializer<V> newStateSerializer = stateDesc.getSerializer();
+        TypeSerializer<V> newStateSerializer =
+                (TypeSerializer<V>)
+                        TtlAwareSerializer.wrapTtlAwareSerializer(stateDesc.getSerializer());
 
         if (stateTable != null) {
             RegisteredKeyValueStateBackendMetaInfo<N, V> restoredKvMetaInfo =
@@ -242,9 +245,13 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             TypeSerializer<V> previousStateSerializer = restoredKvMetaInfo.getStateSerializer();
 
             TypeSerializerSchemaCompatibility<V> stateCompatibility =
-                    restoredKvMetaInfo.updateStateSerializer(newStateSerializer);
+                    newStateSerializer
+                            .snapshotConfiguration()
+                            .resolveSchemaCompatibility(
+                                    previousStateSerializer.snapshotConfiguration());
 
-            if (stateCompatibility.isIncompatible()) {
+            if (stateCompatibility.isIncompatible()
+                    || stateCompatibility.isCompatibleAfterTtlMigration()) {
                 throw new StateMigrationException(
                         "For heap backends, the new state serializer ("
                                 + newStateSerializer
@@ -252,6 +259,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                                 + previousStateSerializer
                                 + ").");
             }
+            restoredKvMetaInfo.updateStateSerializer(newStateSerializer);
 
             restoredKvMetaInfo =
                     allowFutureMetadataUpdates

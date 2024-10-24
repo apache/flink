@@ -182,6 +182,7 @@ class RocksDBReducingState<K, N, V> extends AbstractRocksDBAppendingState<K, N, 
                         .setReduceFunction(
                                 ((ReducingStateDescriptor<SV>) stateDesc).getReduceFunction())
                         .setNamespaceSerializer(registerResult.f1.getNamespaceSerializer())
-                        .setDefaultValue(stateDesc.getDefaultValue());
+                        .setDefaultValue(stateDesc.getDefaultValue())
+                        .setColumnFamily(registerResult.f0);
     }
 }

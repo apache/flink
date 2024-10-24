@@ -97,6 +97,7 @@ public class CompositeTypeSerializerUtil {
                 new TypeSerializer[newNestedSerializerSnapshots.length];
 
         // check nested serializers for compatibility
+        boolean nestedSerializerRequiresTtlMigration = false;
         boolean nestedSerializerRequiresMigration = false;
         boolean hasReconfiguredNestedSerializers = false;
         for (int i = 0; i < oldNestedSerializerSnapshots.length; i++) {
@@ -110,7 +111,9 @@ public class CompositeTypeSerializerUtil {
                 return IntermediateCompatibilityResult.definedIncompatibleResult();
             }
 
-            if (compatibility.isCompatibleAfterMigration()) {
+            if (compatibility.isCompatibleAfterTtlMigration()) {
+                nestedSerializerRequiresTtlMigration = true;
+            } else if (compatibility.isCompatibleAfterMigration()) {
                 nestedSerializerRequiresMigration = true;
             } else if (compatibility.isCompatibleWithReconfiguredSerializer()) {
                 hasReconfiguredNestedSerializers = true;
@@ -120,6 +123,10 @@ public class CompositeTypeSerializerUtil {
             } else {
                 throw new IllegalStateException("Undefined compatibility type.");
             }
+        }
+
+        if (nestedSerializerRequiresTtlMigration) {
+            return IntermediateCompatibilityResult.definedCompatibleAfterTtlMigrationResult();
         }
 
         if (nestedSerializerRequiresMigration) {
@@ -148,6 +155,11 @@ public class CompositeTypeSerializerUtil {
         static <T> IntermediateCompatibilityResult<T> definedIncompatibleResult() {
             return new IntermediateCompatibilityResult<>(
                     TypeSerializerSchemaCompatibility.Type.INCOMPATIBLE, null);
+        }
+
+        static <T> IntermediateCompatibilityResult<T> definedCompatibleAfterTtlMigrationResult() {
+            return new IntermediateCompatibilityResult<>(
+                    TypeSerializerSchemaCompatibility.Type.COMPATIBLE_AFTER_TTL_MIGRATION, null);
         }
 
         static <T> IntermediateCompatibilityResult<T> definedCompatibleAfterMigrationResult() {
@@ -182,6 +194,11 @@ public class CompositeTypeSerializerUtil {
         public boolean isCompatibleAfterMigration() {
             return compatibilityType
                     == TypeSerializerSchemaCompatibility.Type.COMPATIBLE_AFTER_MIGRATION;
+        }
+
+        public boolean isCompatibleAfterTtlMigration() {
+            return compatibilityType
+                    == TypeSerializerSchemaCompatibility.Type.COMPATIBLE_AFTER_TTL_MIGRATION;
         }
 
         public boolean isIncompatible() {
