@@ -25,7 +25,6 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 
 import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.SetMultimap;
-import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFamily;
 import org.apache.calcite.sql.SqlCall;
@@ -104,19 +103,31 @@ public class SqlCastFunction extends SqlFunction {
         RelDataType ret = opBinding.getOperandType(1);
         RelDataType firstType = opBinding.getOperandType(0);
 
-        RelOptCluster relOptCluster =
-                ((FlinkCalciteSqlValidator) ((SqlCallBinding) opBinding).getValidator())
-                        .getRelOptCluster();
-        TableConfig tableConfig = ShortcutUtils.unwrapContext(relOptCluster).getTableConfig();
-        boolean legacyCastEnabled =
-                tableConfig
-                        .get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR)
-                        .isEnabled();
+        /**
+         * Reason: the cast result type should be always nullable when {@link
+         * ExecutionConfigOptions#TABLE_EXEC_LEGACY_CAST_BEHAVIOUR} is enabled, this function
+         * behaves like try_cast.
+         */
+        boolean forceOutputTypeNullable = false;
+        if (opBinding instanceof SqlCallBinding
+                && ((SqlCallBinding) opBinding).getValidator()
+                        instanceof FlinkCalciteSqlValidator) {
+            FlinkCalciteSqlValidator validator =
+                    (FlinkCalciteSqlValidator) ((SqlCallBinding) opBinding).getValidator();
+
+            TableConfig tableConfig =
+                    ShortcutUtils.unwrapContext(validator.getRelOptCluster()).getTableConfig();
+            forceOutputTypeNullable =
+                    tableConfig
+                            .get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR)
+                            .isEnabled();
+        }
+
         ret =
                 opBinding
                         .getTypeFactory()
                         .createTypeWithNullability(
-                                ret, firstType.isNullable() || legacyCastEnabled);
+                                ret, firstType.isNullable() || forceOutputTypeNullable);
 
         if (opBinding instanceof SqlCallBinding) {
             SqlCallBinding callBinding = (SqlCallBinding) opBinding;

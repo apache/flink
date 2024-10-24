@@ -25,7 +25,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import org.apache.calcite.avatica.util.DateTimeUtils;
 import org.apache.calcite.avatica.util.TimeUnit;
-import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -115,7 +114,7 @@ import static org.apache.calcite.util.Util.first;
  *   <li>Added in Flink-35216: Lines 731 ~ 776
  * </ol>
  *
- * <p>Lines 593-602 fix incorrect cast behavior (FLINK-36399).
+ * <p>Lines 592-615 fix incorrect cast behavior (FLINK-36399).
  *
  * <p>Lines 691-736 implement supporting RETURNING clause in JSON_QUERY (CALCITE-6365).
  */
@@ -591,17 +590,29 @@ public class StandardConvertletTable extends ReflectiveConvertletTable {
         }
         RexNode arg = cx.convertExpression(left);
 
-        RelOptCluster relOptCluster =
-                ((FlinkCalciteSqlValidator) cx.getValidator()).getRelOptCluster();
-        TableConfig tableConfig = ShortcutUtils.unwrapContext(relOptCluster).getTableConfig();
-        boolean legacyCastEnabled =
-                tableConfig
-                        .get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR)
-                        .isEnabled();
+        // BEGIN FLINK MODIFICATION
+        /**
+         * Reason: the cast result type should be always nullable when {@link
+         * ExecutionConfigOptions#TABLE_EXEC_LEGACY_CAST_BEHAVIOUR} is enabled, this function
+         * behaves like try_cast.
+         */
+        boolean forceOutputTypeNullable = false;
+        if (cx.getValidator() instanceof FlinkCalciteSqlValidator) {
+            FlinkCalciteSqlValidator validator = (FlinkCalciteSqlValidator) cx.getValidator();
 
-        if (arg.getType().isNullable() || legacyCastEnabled) {
+            TableConfig tableConfig =
+                    ShortcutUtils.unwrapContext(validator.getRelOptCluster()).getTableConfig();
+            forceOutputTypeNullable =
+                    tableConfig
+                            .get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR)
+                            .isEnabled();
+        }
+
+        if (arg.getType().isNullable() || forceOutputTypeNullable) {
             type = typeFactory.createTypeWithNullability(type, true);
         }
+        // END FLINK MODIFICATION
+
         if (SqlUtil.isNullLiteral(left, false)) {
             final SqlValidatorImpl validator = (SqlValidatorImpl) cx.getValidator();
             validator.setValidatedNodeType(left, type);
