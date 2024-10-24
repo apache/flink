@@ -47,7 +47,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.streaming.api.connector.sink2.CommittableMessage.EOI;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -95,6 +94,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamOperator<Void>
         implements OneInputStreamOperator<CommittableMessage<CommT>, Void> {
 
+    private static final int MAX_RETRIES = 10;
     /** The operator's state descriptor. */
     private static final ListStateDescriptor<byte[]> GLOBAL_COMMITTER_OPERATOR_RAW_STATES_DESC =
             new ListStateDescriptor<>(
@@ -195,23 +195,14 @@ public class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamO
 
     private void commit(long checkpointIdOrEOI) throws IOException, InterruptedException {
         lastCompletedCheckpointId = Math.max(lastCompletedCheckpointId, checkpointIdOrEOI);
-        // this is true for the last commit and we need to make sure that all committables are
-        // indeed committed as this function will never be invoked again
-        boolean waitForAllCommitted =
-                lastCompletedCheckpointId == EOI
-                        && committableCollector
-                                .getEndOfInputCommittable()
-                                .map(CheckpointCommittableManager::hasGloballyReceivedAll)
-                                .orElse(false);
-        do {
-            for (CheckpointCommittableManager<CommT> committable :
-                    committableCollector.getCheckpointCommittablesUpTo(lastCompletedCheckpointId)) {
-                if (committable.hasGloballyReceivedAll()) {
-                    committable.commit(committer);
-                }
+        for (CheckpointCommittableManager<CommT> checkpointManager :
+                committableCollector.getCheckpointCommittablesUpTo(lastCompletedCheckpointId)) {
+            if (!checkpointManager.hasGloballyReceivedAll()) {
+                return;
             }
-            committableCollector.compact();
-        } while (waitForAllCommitted && !committableCollector.isFinished());
+            checkpointManager.commit(committer, MAX_RETRIES);
+            committableCollector.remove(checkpointManager);
+        }
     }
 
     @Override

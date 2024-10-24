@@ -70,7 +70,6 @@ class GlobalCommitterSerializerTest {
         final GlobalCommittableWrapper<Integer, String> copy =
                 serializer.deserialize(2, serializer.serialize(wrapper));
         assertThat(copy.getGlobalCommittables()).containsExactlyInAnyOrderElementsOf(v1State);
-        assertThat(collector).returns(false, CommittableCollector::isFinished);
         assertThat(collector.getCheckpointCommittablesUpTo(2))
                 .singleElement()
                 .returns(1L, CheckpointCommittableManager::getCheckpointId)

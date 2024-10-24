@@ -98,7 +98,6 @@ class CompactorOperatorTest extends AbstractCompactTestBase {
             // 1summary+1compacted+2cleanup
             ListAssert<CommittableMessage<FileSinkCommittable>> results =
                     assertThat(harness.extractOutputValues()).hasSize(4);
-            results.element(0, as(committableSummary())).hasPendingCommittables(3);
             results.element(1, as(committableWithLineage()))
                     .hasCommittable(committable("0", "compacted-0", 10));
             results.element(2, as(committableWithLineage())).hasCommittable(cleanupPath("0", ".0"));
@@ -140,7 +139,6 @@ class CompactorOperatorTest extends AbstractCompactTestBase {
 
             ListAssert<CommittableMessage<FileSinkCommittable>> messages =
                     assertThat(harness.extractOutputValues()).hasSize(3);
-            messages.element(0, as(committableSummary())).hasPendingCommittables(2);
             messages.element(1, as(committableWithLineage()))
                     .hasCommittable(cleanupInprogressRequest);
             messages.element(2, as(committableWithLineage())).hasCommittable(cleanupPathRequest);
@@ -207,13 +205,13 @@ class CompactorOperatorTest extends AbstractCompactTestBase {
             // 1summary+1compacted+2cleanup * 2
             ListAssert<CommittableMessage<FileSinkCommittable>> results =
                     assertThat(harness.extractOutputValues()).hasSize(8);
-            results.element(0, as(committableSummary())).hasPendingCommittables(3);
+            results.element(0, as(committableSummary()));
             results.element(1, as(committableWithLineage()))
                     .hasCommittable(committable("0", "compacted-0", 10));
             results.element(2, as(committableWithLineage())).hasCommittable(cleanupPath("0", ".0"));
             results.element(3, as(committableWithLineage())).hasCommittable(cleanupPath("0", ".1"));
 
-            results.element(4, as(committableSummary())).hasPendingCommittables(3);
+            results.element(4, as(committableSummary()));
             results.element(5, as(committableWithLineage()))
                     .hasCommittable(committable("0", "compacted-2", 10));
             results.element(6, as(committableWithLineage())).hasCommittable(cleanupPath("0", ".2"));
@@ -311,7 +309,7 @@ class CompactorOperatorTest extends AbstractCompactTestBase {
             // + 1 summary + 1 cleanup + 1 summary
             ListAssert<CommittableMessage<FileSinkCommittable>> results =
                     assertThat(harness.extractOutputValues()).hasSize(18);
-            results.element(0, as(committableSummary())).hasPendingCommittables(14);
+            results.element(0, as(committableSummary()));
 
             List<FileSinkCommittable> expectedResult =
                     Arrays.asList(
@@ -335,11 +333,11 @@ class CompactorOperatorTest extends AbstractCompactTestBase {
                         .hasCommittable(expectedResult.get(i));
             }
 
-            results.element(15, as(committableSummary())).hasPendingCommittables(1);
+            results.element(15, as(committableSummary()));
             results.element(16, as(committableWithLineage()))
                     .hasCommittable(cleanupPath("0", ".6"));
 
-            results.element(17, as(committableSummary())).hasPendingCommittables(3);
+            results.element(17, as(committableSummary()));
         }
     }
 
@@ -378,7 +376,7 @@ class CompactorOperatorTest extends AbstractCompactTestBase {
 
             ListAssert<CommittableMessage<FileSinkCommittable>> results =
                     assertThat(harness.extractOutputValues()).hasSize(3);
-            results.element(0, as(committableSummary())).hasPendingCommittables(4);
+            results.element(0, as(committableSummary()));
             results.element(1, as(committableWithLineage()))
                     .hasCommittable(committable("0", "compacted-1", 1));
             results.element(2, as(committableWithLineage())).hasCommittable(cleanupPath("0", ".1"));
@@ -437,7 +435,7 @@ class CompactorOperatorTest extends AbstractCompactTestBase {
 
             ListAssert<CommittableMessage<FileSinkCommittable>> results =
                     assertThat(harness.extractOutputValues()).hasSize(2);
-            results.element(0, as(committableSummary())).hasPendingCommittables(1);
+            results.element(0, as(committableSummary()));
             results.element(1, as(committableWithLineage())).hasCommittable(cleanupPath("0", ".2"));
         }
     }

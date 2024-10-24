@@ -28,6 +28,7 @@ import org.apache.flink.runtime.metrics.groups.InternalSinkCommitterMetricGroup;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
+import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -66,7 +67,7 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
         implements OneInputStreamOperator<CommittableMessage<CommT>, CommittableMessage<CommT>>,
                 BoundedOneInput {
 
-    private static final long RETRY_DELAY = 1000;
+    private static final int MAX_RETRIES = 10;
     private final SimpleVersionedSerializer<CommT> committableSerializer;
     private final FunctionWithException<CommitterInitContext, Committer<CommT>, IOException>
             committerSupplier;
@@ -164,41 +165,37 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
 
     private void commitAndEmitCheckpoints() throws IOException, InterruptedException {
         long completedCheckpointId = endInput ? EOI : lastCompletedCheckpointId;
-        do {
-            for (CheckpointCommittableManager<CommT> manager :
-                    committableCollector.getCheckpointCommittablesUpTo(completedCheckpointId)) {
-                commitAndEmit(manager);
-            }
-            // !committableCollector.isFinished() indicates that we should retry
-            // Retry should be done here if this is a final checkpoint (indicated by endInput)
-            // WARN: this is an endless retry, may make the job stuck while finishing
-        } while (!committableCollector.isFinished() && endInput);
-
-        if (!committableCollector.isFinished()) {
-            // if not endInput, we can schedule retrying later
-            retryWithDelay();
+        for (CheckpointCommittableManager<CommT> checkpointManager :
+                committableCollector.getCheckpointCommittablesUpTo(completedCheckpointId)) {
+            // ensure that all committables of the first checkpoint are fully committed before
+            // attempting the next committable
+            commitAndEmit(checkpointManager);
+            committableCollector.remove(checkpointManager);
         }
-        committableCollector.compact();
     }
 
     private void commitAndEmit(CheckpointCommittableManager<CommT> committableManager)
             throws IOException, InterruptedException {
-        Collection<CommittableWithLineage<CommT>> committed = committableManager.commit(committer);
-        if (emitDownstream && committableManager.isFinished()) {
-            int subtaskId = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
-            int numberOfSubtasks = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
-            output.collect(
-                    new StreamRecord<>(committableManager.getSummary(subtaskId, numberOfSubtasks)));
-            for (CommittableWithLineage<CommT> committable : committed) {
-                output.collect(new StreamRecord<>(committable.withSubtaskId(subtaskId)));
-            }
+        committableManager.commit(committer, MAX_RETRIES);
+        if (emitDownstream) {
+            emit(committableManager);
         }
     }
 
-    private void retryWithDelay() {
-        processingTimeService.registerTimer(
-                processingTimeService.getCurrentProcessingTime() + RETRY_DELAY,
-                ts -> commitAndEmitCheckpoints());
+    private void emit(CheckpointCommittableManager<CommT> committableManager) {
+        int subtaskId = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
+        int numberOfSubtasks = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
+        long checkpointId = committableManager.getCheckpointId();
+        Collection<CommT> committables = committableManager.getSuccessfulCommittables();
+        output.collect(
+                new StreamRecord<>(
+                        new CommittableSummary<>(
+                                subtaskId, numberOfSubtasks, checkpointId, committables.size())));
+        for (CommT committable : committables) {
+            output.collect(
+                    new StreamRecord<>(
+                            new CommittableWithLineage<>(committable, checkpointId, subtaskId)));
+        }
     }
 
     @Override
