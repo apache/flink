@@ -47,7 +47,7 @@ public interface VertexParallelismAndInputInfosDecider {
      */
     ParallelismAndInputInfos decideParallelismAndInputInfosForVertex(
             JobVertexID jobVertexId,
-            List<BlockingResultInfo> consumedResults,
+            List<BlockingInputInfo> consumedResults,
             int vertexInitialParallelism,
             int vertexMinParallelism,
             int vertexMaxParallelism);

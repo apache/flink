@@ -48,6 +48,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchSchedulerFactory;
 import org.apache.flink.runtime.scheduler.adaptivebatch.BatchJobRecoveryHandler;
+import org.apache.flink.runtime.scheduler.adaptivebatch.BlockingInputInfo;
 import org.apache.flink.runtime.scheduler.adaptivebatch.BlockingResultInfo;
 import org.apache.flink.runtime.scheduler.adaptivebatch.DummyBatchJobRecoveryHandler;
 import org.apache.flink.runtime.scheduler.adaptivebatch.VertexParallelismAndInputInfosDecider;
@@ -71,6 +72,7 @@ import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.ALL_PRODUCERS_FINISHED;
 import static org.apache.flink.runtime.scheduler.SchedulerBase.computeVertexParallelismStore;
@@ -413,7 +415,7 @@ public class DefaultSchedulerBuilder {
             @Override
             public ParallelismAndInputInfos decideParallelismAndInputInfosForVertex(
                     JobVertexID jobVertexId,
-                    List<BlockingResultInfo> consumedResults,
+                    List<BlockingInputInfo> consumedResults,
                     int vertexInitialParallelism,
                     int vertexMinParallelism,
                     int vertexMaxParallelism) {
@@ -421,12 +423,18 @@ public class DefaultSchedulerBuilder {
                         vertexInitialParallelism > 0
                                 ? vertexInitialParallelism
                                 : parallelismFunction.apply(jobVertexId);
+
+                List<BlockingResultInfo> consumedResultsInfo =
+                        consumedResults.stream()
+                                .map(BlockingInputInfo::getConsumedResultInfo)
+                                .collect(Collectors.toList());
+
                 return new ParallelismAndInputInfos(
                         parallelism,
                         consumedResults.isEmpty()
                                 ? Collections.emptyMap()
                                 : VertexInputInfoComputationUtils.computeVertexInputInfos(
-                                        parallelism, consumedResults, true));
+                                        parallelism, consumedResultsInfo, true));
             }
 
             @Override

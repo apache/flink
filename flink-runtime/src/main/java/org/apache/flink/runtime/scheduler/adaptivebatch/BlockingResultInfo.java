@@ -22,6 +22,8 @@ import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.executiongraph.IntermediateResultInfo;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
 
+import java.util.Map;
+
 /**
  * The blocking result info, which will be used to calculate the vertex parallelism and input infos.
  */
@@ -64,4 +66,6 @@ public interface BlockingResultInfo extends IntermediateResultInfo {
      * @param partitionIndex the intermediate result partition index
      */
     void resetPartitionInfo(int partitionIndex);
+
+    Map<Integer, long[]> getSubpartitionBytesByPartitionIndex();
 }

@@ -90,6 +90,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -532,8 +533,8 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
 
             // We need to wait for the upstream vertex to complete, otherwise, dynamic filtering
             // information will be inaccessible during source parallelism inference.
-            Optional<List<BlockingResultInfo>> consumedResultsInfo =
-                    tryGetConsumedResultsInfo(jobVertex);
+            Optional<List<BlockingInputInfo>> consumedResultsInfo =
+                    tryGetConsumedInputsInfo(jobVertex);
             if (consumedResultsInfo.isPresent()) {
                 List<CompletableFuture<Integer>> sourceParallelismFutures =
                         sourceCoordinators.stream()
@@ -598,8 +599,8 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
                             createTimestamp);
                     newlyInitializedJobVertices.add(jobVertex);
                 } else {
-                    Optional<List<BlockingResultInfo>> consumedResultsInfo =
-                            tryGetConsumedResultsInfo(jobVertex);
+                    Optional<List<BlockingInputInfo>> consumedResultsInfo =
+                            tryGetConsumedInputsInfo(jobVertex);
                     if (consumedResultsInfo.isPresent()) {
                         ParallelismAndInputInfos parallelismAndInputInfos =
                                 tryDecideParallelismAndInputInfos(
@@ -624,7 +625,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
     }
 
     private ParallelismAndInputInfos tryDecideParallelismAndInputInfos(
-            final ExecutionJobVertex jobVertex, List<BlockingResultInfo> inputs) {
+            final ExecutionJobVertex jobVertex, List<BlockingInputInfo> inputs) {
         int vertexInitialParallelism = jobVertex.getParallelism();
         ForwardGroup forwardGroup = forwardGroupsByJobVertexId.get(jobVertex.getJobVertexId());
         if (!jobVertex.isParallelismDecided() && forwardGroup != null) {
@@ -748,13 +749,18 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
             for (IntermediateResult intermediateResult : intermediateResults) {
                 ExecutionVertexInputInfo inputInfo =
                         ev.getExecutionVertexInputInfo(intermediateResult.getId());
-                IndexRange partitionIndexRange = inputInfo.getPartitionIndexRange();
-                IndexRange subpartitionIndexRange = inputInfo.getSubpartitionIndexRange();
                 BlockingResultInfo blockingResultInfo =
                         checkNotNull(getBlockingResultInfo(intermediateResult.getId()));
-                inputBytes +=
-                        blockingResultInfo.getNumBytesProduced(
-                                partitionIndexRange, subpartitionIndexRange);
+                Map<IndexRange, IndexRange> consumedSubpartitionGroups =
+                        inputInfo.getConsumedSubpartitionGroupsInOrder();
+                for (Map.Entry<IndexRange, IndexRange> entry :
+                        consumedSubpartitionGroups.entrySet()) {
+                    IndexRange partitionIndexRange = entry.getKey();
+                    IndexRange subpartitionIndexRange = entry.getValue();
+                    inputBytes +=
+                            blockingResultInfo.getNumBytesProduced(
+                                    partitionIndexRange, subpartitionIndexRange);
+                }
             }
             ev.setInputBytes(inputBytes);
         }
@@ -778,29 +784,38 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
         jobVertex.setParallelism(parallelism);
     }
 
-    /** Get information of consumable results. */
-    private Optional<List<BlockingResultInfo>> tryGetConsumedResultsInfo(
+    /** Get information of consumable inputs. */
+    private Optional<List<BlockingInputInfo>> tryGetConsumedInputsInfo(
             final ExecutionJobVertex jobVertex) {
 
-        List<BlockingResultInfo> consumableResultInfo = new ArrayList<>();
+        List<BlockingInputInfo> consumableInputInfo = new ArrayList<>();
 
         DefaultLogicalVertex logicalVertex = logicalTopology.getVertex(jobVertex.getJobVertexId());
-        Iterable<DefaultLogicalResult> consumedResults = logicalVertex.getConsumedResults();
+        Iterator<DefaultLogicalResult> consumedResults =
+                logicalVertex.getConsumedResults().iterator();
+        Iterator<JobEdge> jobEdges = jobVertex.getJobVertex().getInputs().iterator();
 
-        for (DefaultLogicalResult consumedResult : consumedResults) {
+        while (consumedResults.hasNext() && jobEdges.hasNext()) {
+            DefaultLogicalResult consumedResult = consumedResults.next();
+            JobEdge jobEdge = jobEdges.next();
             final ExecutionJobVertex producerVertex =
                     getExecutionJobVertex(consumedResult.getProducer().getId());
             if (producerVertex.isFinished()) {
                 BlockingResultInfo resultInfo =
                         checkNotNull(blockingResultInfos.get(consumedResult.getId()));
-                consumableResultInfo.add(resultInfo);
+                consumableInputInfo.add(
+                        new BlockingInputInfo(
+                                resultInfo,
+                                jobEdge.getTypeNumber(),
+                                jobEdge.existInterInputsKeyCorrelation(),
+                                jobEdge.existIntraInputKeyCorrelation()));
             } else {
                 // not all inputs consumable, return Optional.empty()
                 return Optional.empty();
             }
         }
 
-        return Optional.of(consumableResultInfo);
+        return Optional.of(consumableInputInfo);
     }
 
     private boolean canInitialize(final ExecutionJobVertex jobVertex) {
