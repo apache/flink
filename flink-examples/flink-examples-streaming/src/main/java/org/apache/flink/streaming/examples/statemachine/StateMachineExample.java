@@ -96,7 +96,7 @@ public class StateMachineExample {
             boolean incrementalCheckpoints = params.getBoolean("incremental-checkpoints", false);
             configuration.set(
                     StateBackendOptions.STATE_BACKEND,
-                    "org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory");
+                    "org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackendFactory");
             configuration.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, incrementalCheckpoints);
             configuration.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
             configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);

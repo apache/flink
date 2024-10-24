@@ -21,12 +21,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend
 import org.apache.flink.runtime.state.CheckpointStorage
 import org.apache.flink.runtime.state.StateBackend
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage
+import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, PartitionTransformation}
