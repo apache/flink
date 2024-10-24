@@ -46,7 +46,7 @@ class BufferDebloaterTest {
                 .withBufferSize(50, 1100)
                 .withNumberOfBuffersInUse(16)
                 .withThroughput(3333)
-                .expectBufferSize(249);
+                .expectBufferSize(250);
     }
 
     @Test

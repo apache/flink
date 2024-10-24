@@ -51,6 +51,8 @@ public class NettyShuffleEnvironmentBuilder {
 
     private int bufferSize = DEFAULT_NETWORK_BUFFER_SIZE;
 
+    private int startingBufferSize = Integer.MAX_VALUE;
+
     private int numNetworkBuffers = DEFAULT_NUM_NETWORK_BUFFERS;
 
     private int partitionRequestInitialBackoff;
@@ -113,6 +115,11 @@ public class NettyShuffleEnvironmentBuilder {
 
     public NettyShuffleEnvironmentBuilder setBufferSize(int bufferSize) {
         this.bufferSize = bufferSize;
+        return this;
+    }
+
+    public NettyShuffleEnvironmentBuilder startingBufferSize(int startingBufferSize) {
+        this.startingBufferSize = startingBufferSize;
         return this;
     }
 
@@ -257,6 +264,7 @@ public class NettyShuffleEnvironmentBuilder {
                 new NettyShuffleEnvironmentConfiguration(
                         numNetworkBuffers,
                         bufferSize,
+                        startingBufferSize,
                         partitionRequestInitialBackoff,
                         partitionRequestMaxBackoff,
                         partitionRequestTimeout,

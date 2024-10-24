@@ -235,6 +235,7 @@ public class ResultPartitionBuilder {
                         networkBuffersPerChannel,
                         floatingNetworkBuffersPerGate,
                         networkBufferSize,
+                        Integer.MAX_VALUE,
                         blockingShuffleCompressionEnabled,
                         compressionCodec,
                         maxBuffersPerChannel,

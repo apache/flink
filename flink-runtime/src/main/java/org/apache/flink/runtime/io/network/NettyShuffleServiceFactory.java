@@ -226,6 +226,7 @@ public class NettyShuffleServiceFactory
                         config.networkBuffersPerChannel(),
                         config.floatingNetworkBuffersPerGate(),
                         config.networkBufferSize(),
+                        config.startingBufferSize(),
                         config.isBatchShuffleCompressionEnabled(),
                         config.getCompressionCodec(),
                         config.getMaxBuffersPerChannel(),

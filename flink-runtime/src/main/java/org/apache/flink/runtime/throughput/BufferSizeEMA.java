@@ -27,13 +27,18 @@ public class BufferSizeEMA {
     /** EMA algorithm specific constant which responsible for speed of reaction. */
     private final double alpha;
 
-    private int lastBufferSize;
+    private double lastBufferSize;
 
     public BufferSizeEMA(int maxBufferSize, int minBufferSize, long numberOfSamples) {
+        this(maxBufferSize, maxBufferSize, minBufferSize, numberOfSamples);
+    }
+
+    public BufferSizeEMA(
+            int startingBufferSize, int maxBufferSize, int minBufferSize, long numberOfSamples) {
         this.maxBufferSize = maxBufferSize;
         this.minBufferSize = minBufferSize;
         alpha = 2.0 / (numberOfSamples + 1);
-        this.lastBufferSize = maxBufferSize;
+        this.lastBufferSize = startingBufferSize;
     }
 
     /**
@@ -59,10 +64,11 @@ public class BufferSizeEMA {
         // Example of change speed:
         // growing = 32768, 29647, 26823, 24268, 21956, 19864
         // shrinking = 19864, 21755, 23826, 26095, 28580, 31301, 32768
-        long desirableBufferSize =
-                Math.min(totalBufferSizeInBytes / totalBuffers, 2L * lastBufferSize);
+        double desirableBufferSize =
+                Math.min(((double) totalBufferSizeInBytes) / totalBuffers, 2L * lastBufferSize);
 
         lastBufferSize += alpha * (desirableBufferSize - lastBufferSize);
-        return lastBufferSize = Math.max(minBufferSize, Math.min(lastBufferSize, maxBufferSize));
+        lastBufferSize = Math.max(minBufferSize, Math.min(lastBufferSize, maxBufferSize));
+        return (int) Math.round(lastBufferSize);
     }
 }
