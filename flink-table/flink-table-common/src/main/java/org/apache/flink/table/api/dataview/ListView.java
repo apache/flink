@@ -20,11 +20,8 @@ package org.apache.flink.table.api.dataview;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.typeinfo.TypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.dataview.ListViewTypeInfoFactory;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.types.DataType;
@@ -89,7 +86,6 @@ import java.util.Objects;
  *
  * @param <T> element type
  */
-@TypeInfo(ListViewTypeInfoFactory.class)
 @PublicEvolving
 public class ListView<T> implements DataView {
 
@@ -185,23 +181,5 @@ public class ListView<T> implements DataView {
         return DataTypes.STRUCTURED(
                 ListView.class,
                 DataTypes.FIELD("list", DataTypes.ARRAY(elementDataType).bridgedTo(List.class)));
-    }
-
-    // --------------------------------------------------------------------------------------------
-    // Legacy
-    // --------------------------------------------------------------------------------------------
-
-    @Deprecated public transient TypeInformation<?> elementType;
-
-    /**
-     * Creates a {@link ListView} for elements of the specified type.
-     *
-     * @param elementType The type of the list view elements.
-     * @deprecated This method uses the old type system. Please use a {@link DataTypeHint} instead
-     *     if the reflective type extraction is not successful.
-     */
-    @Deprecated
-    public ListView(TypeInformation<?> elementType) {
-        this.elementType = elementType;
     }
 }
