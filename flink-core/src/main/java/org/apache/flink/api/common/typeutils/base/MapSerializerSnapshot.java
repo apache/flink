@@ -66,4 +66,9 @@ public class MapSerializerSnapshot<K, V>
     public TypeSerializerSnapshot<K> getKeySerializerSnapshot() {
         return (TypeSerializerSnapshot<K>) getNestedSerializerSnapshots()[0];
     }
+
+    @SuppressWarnings("unchecked")
+    public TypeSerializerSnapshot<V> getValueSerializerSnapshot() {
+        return (TypeSerializerSnapshot<V>) getNestedSerializerSnapshots()[1];
+    }
 }
