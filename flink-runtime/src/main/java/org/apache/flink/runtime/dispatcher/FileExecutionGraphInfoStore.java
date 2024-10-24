@@ -28,7 +28,6 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.apache.flink.shaded.guava32.com.google.common.base.Ticker;
@@ -72,13 +71,13 @@ public class FileExecutionGraphInfoStore implements ExecutionGraphInfoStore {
 
     private final ScheduledFuture<?> cleanupFuture;
 
-    private final Thread shutdownHook;
-
     private int numFinishedJobs;
 
     private int numFailedJobs;
 
     private int numCanceledJobs;
+
+    private boolean closed;
 
     public FileExecutionGraphInfoStore(
             File rootDir,
@@ -132,11 +131,10 @@ public class FileExecutionGraphInfoStore implements ExecutionGraphInfoStore {
                         expirationTime.toMillis(),
                         TimeUnit.MILLISECONDS);
 
-        this.shutdownHook = ShutdownHookUtil.addShutdownHook(this, getClass().getSimpleName(), LOG);
-
         this.numFinishedJobs = 0;
         this.numFailedJobs = 0;
         this.numCanceledJobs = 0;
+        this.closed = false;
     }
 
     @Override
@@ -225,16 +223,24 @@ public class FileExecutionGraphInfoStore implements ExecutionGraphInfoStore {
     }
 
     @Override
+    public boolean isClosed() {
+        return closed;
+    }
+
+    @Override
     public void close() throws IOException {
+        if (isClosed()) {
+            return;
+        }
+
+        closed = true;
+
         cleanupFuture.cancel(false);
 
         jobDetailsCache.invalidateAll();
 
         // clean up the storage directory
         FileUtils.deleteFileOrDirectory(storageDir);
-
-        // Remove shutdown hook to prevent resource leaks
-        ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
     }
 
     // --------------------------------------------------------------

@@ -78,4 +78,7 @@ public interface ExecutionGraphInfoStore extends Closeable {
      */
     @Nullable
     JobDetails getAvailableJobDetails(JobID jobId);
+
+    /** Return the closed Status of the instance. */
+    boolean isClosed();
 }
