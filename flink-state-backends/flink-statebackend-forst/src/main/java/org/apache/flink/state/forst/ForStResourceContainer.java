@@ -56,6 +56,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 
+import static org.apache.flink.state.forst.ForStOptions.CACHE_DIRECTORY;
+import static org.apache.flink.state.forst.ForStOptions.CACHE_RESERVED_SIZE;
+import static org.apache.flink.state.forst.ForStOptions.CACHE_SIZE_BASE_LIMIT;
+
 /**
  * The container for ForSt resources, including option factory and shared resource among instances.
  *
@@ -79,6 +83,12 @@ public final class ForStResourceContainer implements AutoCloseable {
     @Nullable private final File localBasePath;
 
     @Nullable private final File localForStPath;
+
+    @Nullable private Path cacheBasePath;
+
+    private long cacheCapacity;
+
+    private long cacheReservedSize;
 
     /** The configurations from file. */
     private final ReadableConfig configuration;
@@ -137,6 +147,9 @@ public final class ForStResourceContainer implements AutoCloseable {
 
         this.enableStatistics = enableStatistics;
         this.handlesToClose = new ArrayList<>();
+        this.cacheBasePath = configuration.getOptional(CACHE_DIRECTORY).map(Path::new).orElse(null);
+        this.cacheCapacity = configuration.get(CACHE_SIZE_BASE_LIMIT);
+        this.cacheReservedSize = configuration.get(CACHE_RESERVED_SIZE);
     }
 
     /** Gets the ForSt {@link DBOptions} to be used for ForSt instances. */
@@ -317,6 +330,15 @@ public final class ForStResourceContainer implements AutoCloseable {
         if (remoteForStPath != null && localForStPath != null) {
             ForStFlinkFileSystem.setupLocalBasePath(
                     remoteForStPath.toString(), localForStPath.toString());
+        }
+        if (cacheCapacity > 0) {
+            if (cacheBasePath == null && localBasePath != null) {
+                cacheBasePath = new Path(localBasePath.getPath(), "cache");
+                LOG.info(
+                        "Cache base path is not configured, set to local base path: {}",
+                        cacheBasePath);
+            }
+            ForStFlinkFileSystem.configureCache(cacheBasePath, cacheCapacity, cacheReservedSize);
         }
     }
 

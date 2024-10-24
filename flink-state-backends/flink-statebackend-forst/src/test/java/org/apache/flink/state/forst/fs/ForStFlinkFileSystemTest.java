@@ -20,11 +20,20 @@ package org.apache.flink.state.forst.fs;
 
 import org.apache.flink.core.fs.ByteBufferReadable;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.local.LocalDataInputStream;
 import org.apache.flink.core.fs.local.LocalFileSystem;
+import org.apache.flink.state.forst.fs.cache.FileBasedCache;
+import org.apache.flink.state.forst.fs.cache.FileCacheEntry;
+import org.apache.flink.state.forst.fs.cache.FixedCapCacheLimiter;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
@@ -33,6 +42,7 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -40,9 +50,27 @@ import java.util.concurrent.CompletionException;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ForStFlinkFileSystem}. */
+@ExtendWith(ParameterizedTestExtension.class)
 public class ForStFlinkFileSystemTest {
 
-    @TempDir Path tempDir;
+    @TempDir static Path tempDir;
+
+    @Parameters(name = "FileBasedCache: {0}")
+    public static List<Object[]> modes() {
+        return Arrays.asList(
+                new Object[][] {
+                    {null},
+                    {
+                        new FileBasedCache(
+                                1024 * 3,
+                                new FixedCapCacheLimiter(1024 * 3),
+                                FileSystem.getLocalFileSystem(),
+                                new org.apache.flink.core.fs.Path(tempDir.toString() + "/cache"))
+                    }
+                });
+    }
+
+    @Parameter public FileBasedCache fileBasedCache;
 
     @Test
     void testReadAndWriteWithByteBuffer() throws Exception {
@@ -53,20 +81,21 @@ public class ForStFlinkFileSystemTest {
         testReadAndWriteWithByteBuffer(fileSystem);
     }
 
-    @Test
+    @TestTemplate
     void testPositionedRead() throws Exception {
         ForStFlinkFileSystem.setupLocalBasePath(tempDir.toString(), tempDir.toString());
         ForStFlinkFileSystem fileSystem =
                 new ForStFlinkFileSystem(
                         new ByteBufferReadableLocalFileSystem(),
                         tempDir.toString(),
-                        tempDir.toString());
+                        tempDir.toString(),
+                        fileBasedCache);
         testReadAndWriteWithByteBuffer(fileSystem);
     }
 
     private void testReadAndWriteWithByteBuffer(ForStFlinkFileSystem fileSystem) throws Exception {
         org.apache.flink.core.fs.Path testFilePath =
-                new org.apache.flink.core.fs.Path(tempDir.toString() + "/temp-file");
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/temp.sst");
         final int attempt = 200;
 
         // Test write with ByteBuffer
@@ -132,14 +161,15 @@ public class ForStFlinkFileSystemTest {
         assertThat(fileSystem.exists(testFilePath)).isFalse();
     }
 
-    @Test
+    @TestTemplate
     void testReadExceedingFileSize() throws Exception {
         ForStFlinkFileSystem.setupLocalBasePath(tempDir.toString(), tempDir.toString());
         ForStFlinkFileSystem fileSystem =
                 new ForStFlinkFileSystem(
                         new ByteBufferReadableLocalFileSystem(),
                         tempDir.toString(),
-                        tempDir.toString());
+                        tempDir.toString(),
+                        fileBasedCache);
 
         org.apache.flink.core.fs.Path testFilePath =
                 new org.apache.flink.core.fs.Path(tempDir.toString() + "/temp-file");
@@ -154,7 +184,7 @@ public class ForStFlinkFileSystemTest {
         }
     }
 
-    @Test
+    @TestTemplate
     void testMiscFileInLocal() throws IOException {
         org.apache.flink.core.fs.Path remotePath =
                 new org.apache.flink.core.fs.Path(tempDir.toString() + "/remote");
@@ -165,7 +195,8 @@ public class ForStFlinkFileSystemTest {
                 new ForStFlinkFileSystem(
                         new ByteBufferReadableLocalFileSystem(),
                         remotePath.toString(),
-                        localPath.toString());
+                        localPath.toString(),
+                        fileBasedCache);
         fileSystem.mkdirs(remotePath);
         fileSystem.mkdirs(localPath);
 
@@ -180,6 +211,66 @@ public class ForStFlinkFileSystemTest {
                 fileSystem.open(new org.apache.flink.core.fs.Path(remotePath, "CURRENT"));
         assertThat(is.read()).isEqualTo(233);
         is.close();
+    }
+
+    @Test
+    void testSstFileInCache() throws IOException {
+        org.apache.flink.core.fs.Path remotePath =
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/remote");
+        org.apache.flink.core.fs.Path localPath =
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/local");
+        org.apache.flink.core.fs.Path cachePath =
+                new org.apache.flink.core.fs.Path(tempDir.toString() + "/tmp-cache");
+        ForStFlinkFileSystem.setupLocalBasePath(remotePath.toString(), localPath.toString());
+        FileBasedCache cache =
+                new FileBasedCache(
+                        250,
+                        new FixedCapCacheLimiter(250),
+                        FileSystem.getLocalFileSystem(),
+                        cachePath);
+        ForStFlinkFileSystem fileSystem =
+                new ForStFlinkFileSystem(
+                        new ByteBufferReadableLocalFileSystem(),
+                        remotePath.toString(),
+                        localPath.toString(),
+                        cache);
+        fileSystem.mkdirs(remotePath);
+        fileSystem.mkdirs(localPath);
+        byte[] tmpBytes = new byte[233];
+        ByteBufferWritableFSDataOutputStream os =
+                fileSystem.create(new org.apache.flink.core.fs.Path(remotePath, "1.sst"));
+        os.write(tmpBytes);
+        os.sync();
+        os.close();
+        assertThat(fileSystem.exists(new org.apache.flink.core.fs.Path(remotePath, "1.sst")))
+                .isTrue();
+        assertThat(fileSystem.exists(new org.apache.flink.core.fs.Path(cachePath, "1.sst")))
+                .isTrue();
+        FileCacheEntry cacheEntry = cache.get(cachePath.getPath() + "/1.sst");
+        assertThat(cacheEntry).isNotNull();
+        assertThat(cacheEntry.getReferenceCount()).isEqualTo(1);
+
+        ByteBufferReadableFSDataInputStream is =
+                fileSystem.open(new org.apache.flink.core.fs.Path(remotePath, "1.sst"));
+
+        assertThat(is.read(tmpBytes)).isEqualTo(233);
+        assertThat(cacheEntry.getReferenceCount()).isEqualTo(1);
+        is.close();
+        assertThat(cacheEntry.getReferenceCount()).isEqualTo(1);
+
+        // evict
+        ByteBufferWritableFSDataOutputStream os1 =
+                fileSystem.create(new org.apache.flink.core.fs.Path(remotePath, "2.sst"));
+        os1.write(tmpBytes);
+        os1.sync();
+        os1.close();
+        assertThat(fileSystem.exists(new org.apache.flink.core.fs.Path(remotePath, "1.sst")))
+                .isTrue();
+        assertThat(fileSystem.exists(new org.apache.flink.core.fs.Path(cachePath, "1.sst")))
+                .isFalse();
+        assertThat(fileSystem.exists(new org.apache.flink.core.fs.Path(cachePath, "2.sst")))
+                .isTrue();
+        assertThat(cacheEntry.getReferenceCount()).isEqualTo(0);
     }
 
     private static class ByteBufferReadableLocalFileSystem extends LocalFileSystem {
