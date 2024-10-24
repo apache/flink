@@ -108,6 +108,13 @@ public interface DeclarativeSlotPool {
             long currentTime);
 
     /**
+     * Returns the task executors loading information.
+     *
+     * @return the task executors loading information.
+     */
+    TaskExecutorsLoadInformation getTaskExecutorsLoadInformation();
+
+    /**
      * Returns the free slot tracker.
      *
      * @return free slot tracker
