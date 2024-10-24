@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 import org.apache.flink.formats.avro.typeutils.AvroTypeInfo;
 import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
+import org.apache.flink.runtime.state.v2.ttl.TtlStateFactory;
 import org.apache.flink.table.dataview.ListViewTypeInfo;
 import org.apache.flink.table.dataview.MapViewTypeInfo;
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo;
@@ -82,7 +83,8 @@ public class TypeInfoTestCoverageTest extends TestLogger {
                         BigDecimalTypeInfo.class.getName(),
                         DecimalDataTypeInfo.class.getName(),
                         GenericRecordAvroTypeInfo.class.getName(),
-                        AvroTypeInfo.class.getName());
+                        AvroTypeInfo.class.getName(),
+                        TtlStateFactory.TtlTypeInformation.class.getName());
 
         // check if a test exists for each type information
         for (Class<? extends TypeInformation> typeInfo : typeInfos) {

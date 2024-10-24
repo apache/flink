@@ -58,49 +58,53 @@ public class AbstractAggregatingState<K, N, IN, ACC, OUT> extends AbstractKeyedS
         this.aggregateFunction = stateDescriptor.getAggregateFunction();
     }
 
-    protected StateFuture<ACC> asyncGetAccumulator() {
-        return handleRequest(StateRequestType.AGGREGATING_GET, null);
-    }
-
     @Override
     public StateFuture<OUT> asyncGet() {
-        return asyncGetAccumulator()
+        return asyncGetInternal()
                 .thenApply(acc -> (acc == null) ? null : this.aggregateFunction.getResult(acc));
     }
 
     @Override
     public StateFuture<Void> asyncAdd(IN value) {
-        return asyncGetAccumulator()
+        return asyncGetInternal()
                 .thenAccept(
                         acc -> {
                             final ACC safeAcc =
                                     (acc == null)
                                             ? this.aggregateFunction.createAccumulator()
                                             : acc;
-                            handleRequest(
-                                    StateRequestType.AGGREGATING_ADD,
-                                    this.aggregateFunction.add(value, safeAcc));
+                            asyncUpdateInternal(this.aggregateFunction.add(value, safeAcc));
                         });
     }
 
     @Override
+    public StateFuture<ACC> asyncGetInternal() {
+        return handleRequest(StateRequestType.AGGREGATING_GET, null);
+    }
+
+    @Override
+    public StateFuture<Void> asyncUpdateInternal(ACC valueToStore) {
+        return handleRequest(StateRequestType.AGGREGATING_ADD, valueToStore);
+    }
+
+    @Override
     public OUT get() {
-        return handleRequestSync(StateRequestType.AGGREGATING_GET, null);
+        ACC acc = getInternal();
+        return acc == null ? null : this.aggregateFunction.getResult(acc);
     }
 
     @Override
     public void add(IN value) {
-        ACC acc = handleRequestSync(StateRequestType.AGGREGATING_GET, null);
+        ACC acc = getInternal();
         try {
             ACC newValue =
                     acc == null
                             ? this.aggregateFunction.createAccumulator()
                             : this.aggregateFunction.add(value, acc);
-            handleRequestSync(StateRequestType.AGGREGATING_ADD, newValue);
+            updateInternal(newValue);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        handleRequestSync(StateRequestType.AGGREGATING_ADD, value);
     }
 
     @Override
@@ -113,16 +117,16 @@ public class AbstractAggregatingState<K, N, IN, ACC, OUT> extends AbstractKeyedS
         for (N source : sources) {
             if (source != null) {
                 setCurrentNamespace(source);
-                futures.add(handleRequest(StateRequestType.AGGREGATING_GET, null));
+                futures.add(asyncGetInternal());
             }
         }
         setCurrentNamespace(target);
-        futures.add(handleRequest(StateRequestType.AGGREGATING_GET, null));
+        futures.add(asyncGetInternal());
         // phase 2: merge the sources to the target
         return StateFutureUtils.combineAll(futures)
                 .thenCompose(
                         values -> {
-                            List<StateFuture<ACC>> updateFutures =
+                            List<StateFuture<Void>> updateFutures =
                                     new ArrayList<>(sources.size() + 1);
                             ACC current = null;
                             Iterator<ACC> valueIterator = values.iterator();
@@ -130,9 +134,7 @@ public class AbstractAggregatingState<K, N, IN, ACC, OUT> extends AbstractKeyedS
                                 ACC value = valueIterator.next();
                                 if (value != null) {
                                     setCurrentNamespace(source);
-                                    updateFutures.add(
-                                            handleRequest(
-                                                    StateRequestType.AGGREGATING_REMOVE, null));
+                                    updateFutures.add(asyncUpdateInternal(null));
                                     if (current == null) {
                                         current = value;
                                     } else {
@@ -146,8 +148,7 @@ public class AbstractAggregatingState<K, N, IN, ACC, OUT> extends AbstractKeyedS
                                     current = aggregateFunction.merge(current, targetValue);
                                 }
                                 setCurrentNamespace(target);
-                                updateFutures.add(
-                                        handleRequest(StateRequestType.AGGREGATING_ADD, current));
+                                updateFutures.add(asyncUpdateInternal(current));
                             }
                             return StateFutureUtils.combineAll(updateFutures)
                                     .thenAccept(ignores -> {});
@@ -168,7 +169,7 @@ public class AbstractAggregatingState<K, N, IN, ACC, OUT> extends AbstractKeyedS
                     ACC oldValue = handleRequestSync(StateRequestType.AGGREGATING_GET, null);
 
                     if (oldValue != null) {
-                        handleRequestSync(StateRequestType.AGGREGATING_REMOVE, null);
+                        handleRequestSync(StateRequestType.AGGREGATING_ADD, null);
 
                         if (current != null) {
                             current = aggregateFunction.merge(current, oldValue);
@@ -193,5 +194,15 @@ public class AbstractAggregatingState<K, N, IN, ACC, OUT> extends AbstractKeyedS
         } catch (Exception e) {
             throw new RuntimeException("merge namespace fail.", e);
         }
+    }
+
+    @Override
+    public ACC getInternal() {
+        return handleRequestSync(StateRequestType.AGGREGATING_GET, null);
+    }
+
+    @Override
+    public void updateInternal(ACC valueToStore) {
+        handleRequestSync(StateRequestType.AGGREGATING_ADD, valueToStore);
     }
 }

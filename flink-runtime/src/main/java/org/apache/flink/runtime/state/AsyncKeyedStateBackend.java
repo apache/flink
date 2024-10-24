@@ -28,6 +28,7 @@ import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
+import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
 import org.apache.flink.util.Disposable;
 
 import javax.annotation.Nonnull;
@@ -67,6 +68,24 @@ public interface AsyncKeyedStateBackend<K>
      */
     @Nonnull
     <N, S extends State, SV> S createState(
+            @Nonnull N defaultNamespace,
+            @Nonnull TypeSerializer<N> namespaceSerializer,
+            @Nonnull StateDescriptor<SV> stateDesc)
+            throws Exception;
+
+    /**
+     * Creates and returns a new state for internal usage.
+     *
+     * @param <N> the type of namespace for partitioning.
+     * @param <S> The type of the public API state.
+     * @param <SV> The type of the stored state value.
+     * @param defaultNamespace the default namespace for this state.
+     * @param namespaceSerializer the serializer for namespace.
+     * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
+     * @throws Exception Exceptions may occur during initialization of the state.
+     */
+    @Nonnull
+    <N, S extends InternalKeyedState, SV> S createStateInternal(
             @Nonnull N defaultNamespace,
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull StateDescriptor<SV> stateDesc)

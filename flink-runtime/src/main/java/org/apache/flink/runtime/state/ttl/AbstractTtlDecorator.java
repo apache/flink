@@ -29,24 +29,25 @@ import org.apache.flink.util.function.ThrowingRunnable;
  *
  * @param <T> Type of originally wrapped object
  */
-abstract class AbstractTtlDecorator<T> {
+public abstract class AbstractTtlDecorator<T> {
     /** Wrapped original state handler. */
-    final T original;
+    protected final T original;
 
-    final StateTtlConfig config;
+    protected final StateTtlConfig config;
 
-    final TtlTimeProvider timeProvider;
-
-    /** Whether to renew expiration timestamp on state read access. */
-    final boolean updateTsOnRead;
+    protected final TtlTimeProvider timeProvider;
 
     /** Whether to renew expiration timestamp on state read access. */
-    final boolean returnExpired;
+    protected final boolean updateTsOnRead;
+
+    /** Whether to renew expiration timestamp on state read access. */
+    protected final boolean returnExpired;
 
     /** State value time to live in milliseconds. */
-    final long ttl;
+    protected final long ttl;
 
-    AbstractTtlDecorator(T original, StateTtlConfig config, TtlTimeProvider timeProvider) {
+    protected AbstractTtlDecorator(
+            T original, StateTtlConfig config, TtlTimeProvider timeProvider) {
         Preconditions.checkNotNull(original);
         Preconditions.checkNotNull(config);
         Preconditions.checkNotNull(timeProvider);
@@ -60,25 +61,25 @@ abstract class AbstractTtlDecorator<T> {
         this.ttl = config.getTimeToLive().toMillis();
     }
 
-    <V> V getUnexpired(TtlValue<V> ttlValue) {
+    public <V> V getUnexpired(TtlValue<V> ttlValue) {
         return ttlValue == null || (!returnExpired && expired(ttlValue))
                 ? null
                 : ttlValue.getUserValue();
     }
 
-    <V> boolean expired(TtlValue<V> ttlValue) {
+    public <V> boolean expired(TtlValue<V> ttlValue) {
         return TtlUtils.expired(ttlValue, ttl, timeProvider);
     }
 
-    <V> TtlValue<V> wrapWithTs(V value) {
+    public <V> TtlValue<V> wrapWithTs(V value) {
         return TtlUtils.wrapWithTs(value, timeProvider.currentTimestamp());
     }
 
-    <V> TtlValue<V> rewrapWithNewTs(TtlValue<V> ttlValue) {
+    public <V> TtlValue<V> rewrapWithNewTs(TtlValue<V> ttlValue) {
         return wrapWithTs(ttlValue.getUserValue());
     }
 
-    <SE extends Throwable, CE extends Throwable, CLE extends Throwable, V>
+    public <SE extends Throwable, CE extends Throwable, CLE extends Throwable, V>
             V getWithTtlCheckAndUpdate(
                     SupplierWithException<TtlValue<V>, SE> getter,
                     ThrowingConsumer<TtlValue<V>, CE> updater,
@@ -88,7 +89,7 @@ abstract class AbstractTtlDecorator<T> {
         return ttlValue == null ? null : ttlValue.getUserValue();
     }
 
-    <SE extends Throwable, CE extends Throwable, CLE extends Throwable, V>
+    public <SE extends Throwable, CE extends Throwable, CLE extends Throwable, V>
             TtlValue<V> getWrappedWithTtlCheckAndUpdate(
                     SupplierWithException<TtlValue<V>, SE> getter,
                     ThrowingConsumer<TtlValue<V>, CE> updater,
@@ -106,5 +107,17 @@ abstract class AbstractTtlDecorator<T> {
             updater.accept(rewrapWithNewTs(ttlValue));
         }
         return ttlValue;
+    }
+
+    protected <T> T getElementWithTtlCheck(TtlValue<T> ttlValue) {
+        if (ttlValue == null) {
+            return null;
+        } else if (expired(ttlValue)) {
+            // don't clear state here cause forst is LSM-tree based.
+            if (!returnExpired) {
+                return null;
+            }
+        }
+        return ttlValue.getUserValue();
     }
 }

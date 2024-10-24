@@ -143,6 +143,8 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         EnumSerializer.class.getName(),
                         CoGroupedStreams.UnionSerializer.class.getName(),
                         TtlStateFactory.TtlSerializer.class.getName(),
+                        org.apache.flink.runtime.state.v2.ttl.TtlStateFactory.TtlSerializer.class
+                                .getName(),
                         TimeWindow.Serializer.class.getName(),
                         InternalTimersSnapshotReaderWriters.LegacyTimerSerializer.class.getName(),
                         TwoPhaseCommitSinkFunction.StateSerializer.class.getName(),
