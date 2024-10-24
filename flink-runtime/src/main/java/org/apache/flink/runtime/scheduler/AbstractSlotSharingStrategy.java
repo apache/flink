@@ -34,6 +34,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -95,15 +96,15 @@ abstract class AbstractSlotSharingStrategy
      * topologically sorted.
      */
     @Nonnull
-    static LinkedHashMap<JobVertexID, List<SchedulingExecutionVertex>> getExecutionVertices(
-            SchedulingTopology topology) {
-        final LinkedHashMap<JobVertexID, List<SchedulingExecutionVertex>> vertices =
-                new LinkedHashMap<>();
+    static <T> LinkedHashMap<JobVertexID, List<T>> getExecutionVertices(
+            SchedulingTopology topology,
+            Function<SchedulingExecutionVertex, T> executionVertexMapper) {
+        final LinkedHashMap<JobVertexID, List<T>> vertices = new LinkedHashMap<>();
         for (SchedulingExecutionVertex executionVertex : topology.getVertices()) {
-            final List<SchedulingExecutionVertex> executionVertexGroup =
+            final List<T> executionVertexGroup =
                     vertices.computeIfAbsent(
                             executionVertex.getId().getJobVertexId(), k -> new ArrayList<>());
-            executionVertexGroup.add(executionVertex);
+            executionVertexGroup.add(executionVertexMapper.apply(executionVertex));
         }
         return vertices;
     }
