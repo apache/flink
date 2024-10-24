@@ -103,7 +103,7 @@ IntelliJ 使用 Checkstyle-IDEA 插件在 IDE 中支持 checkstyle。
 1. 从 IntelliJ 插件存储库中安装 "Checkstyle-IDEA" 插件。
 2. 通过 Settings → Tools → Checkstyle 配置插件。
 3. 将 "Scan Scope" 设置为仅 Java 源（包括测试）。
-4. 在 "Checkstyle Version" 下拉菜单中选择 _9.3_ 版本，然后单击 "apply"。**此步骤很重要，请勿跳过！**
+4. 在 "Checkstyle Version" 下拉菜单中选择 _10.18.2_ 版本，然后单击 "apply"。**此步骤很重要，请勿跳过！**
 5. 在 "Configuration File" 窗格中，点击 "+" 图标添加新配置：
     1. 将 "Description" 设置为 Flink。
     2. 选择 "Use a local Checkstyle file" ，然后将其指向你存储库中 `"tools/maven/checkstyle.xml"` 文件。
