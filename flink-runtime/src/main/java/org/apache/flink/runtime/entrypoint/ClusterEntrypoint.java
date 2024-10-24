@@ -81,6 +81,8 @@ import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.configuration.ExternalLogOptions;
+import org.apache.flink.core.execution.TerminationLog;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,6 +106,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import java.util.Collections;
+import java.util.Iterator;
 
 /**
  * Base class for the Flink cluster entry points.
@@ -175,6 +180,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     private final Thread shutDownHook;
     private RpcSystem rpcSystem;
 
+    private TerminationLog terminationLogClass;
+
     protected ClusterEntrypoint(Configuration configuration) {
         this.configuration = generateClusterConfiguration(configuration);
         this.terminationFuture = new CompletableFuture<>();
@@ -229,6 +236,26 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             PluginManager pluginManager =
                     PluginUtils.createPluginManagerFromRootFolder(configuration);
             configureFileSystems(configuration, pluginManager);
+            // Fetch the terminationLogClass as specified by the user in the config or use the
+            // default class
+            final Iterator<TerminationLog> terminationLogIterator =
+                    pluginManager != null
+                            ? pluginManager.load(TerminationLog.class)
+                            : Collections.emptyIterator();
+            LOG.info(configuration.get(ExternalLogOptions.EXTERNAL_LOG_FACTORY_CLASS));
+            while (terminationLogIterator.hasNext()) {
+                TerminationLog logClassFile = terminationLogIterator.next();
+                if (logClassFile
+                        .getClass()
+                        .getCanonicalName()
+                        .equals(configuration.get(ExternalLogOptions.EXTERNAL_LOG_FACTORY_CLASS))) {
+                    this.terminationLogClass = logClassFile;
+                    LOG.info(
+                            "The termination log class used is "
+                                    + logClassFile.getClass().getCanonicalName());
+                    break;
+                }
+            }
 
             SecurityContext securityContext = installSecurityContext(configuration);
 
@@ -551,7 +578,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     public void onFatalError(Throwable exception) {
         ClusterEntryPointExceptionUtils.tryEnrichClusterEntryPointError(exception);
         LOG.error("Fatal error occurred in the cluster entrypoint.", exception);
-
+        
+        this.terminationLogClass.writeTerminationLog(exception, ErrorCode.RUNTIME_FAILURE.name());
         FlinkSecurityManager.forceProcessExit(RUNTIME_FAILURE_RETURN_CODE);
     }
 
@@ -721,6 +749,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             LOG.error(
                     String.format("Could not start cluster entrypoint %s.", clusterEntrypointName),
                     e);
+            clusterEntrypoint.terminationLogClass.writeTerminationLog(e, ErrorCode.STARTUP_FAILURE.name());
             System.exit(STARTUP_FAILURE_RETURN_CODE);
         }
 
@@ -730,6 +759,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         try {
             returnCode = clusterEntrypoint.getTerminationFuture().get().processExitCode();
         } catch (Throwable e) {
+            clusterEntrypoint.terminationLogClass.writeTerminationLog(e, ErrorCode.RUNTIME_FAILURE.name());
             throwable = ExceptionUtils.stripExecutionException(e);
             returnCode = RUNTIME_FAILURE_RETURN_CODE;
         }
@@ -757,5 +787,11 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         GRACEFUL_SHUTDOWN,
         // Process failure means that we don't clean up things so that they could be recovered
         PROCESS_FAILURE,
+    }
+
+    /** Error code whenever the cluster shuts down */
+    protected enum ErrorCode {
+        RUNTIME_FAILURE,
+        STARTUP_FAILURE
     }
 }
