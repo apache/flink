@@ -20,7 +20,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.javassist:javassist:3.24.0-GA
 - org.lz4:lz4-java:1.8.0
 - org.objenesis:objenesis:2.1
-- org.xerial.snappy:snappy-java:1.1.10.4
+- org.xerial.snappy:snappy-java:1.1.10.7
 - tools.profiler:async-profiler:2.9
 - org.snakeyaml:snakeyaml-engine:2.6
 
