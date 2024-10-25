@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.jdbc;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.data.ArrayData;
@@ -67,11 +68,13 @@ public class FlinkResultSet extends BaseResultSet {
     private final FlinkResultSetMetaData resultSetMetaData;
     private RowData currentRow;
     private boolean wasNull;
+    private JobID jobID;
 
     private volatile boolean closed;
 
     public FlinkResultSet(Statement statement, StatementResult result) {
         this(statement, new StatementResultIterator(result), result.getResultSchema());
+        this.jobID = result.getJobId();
     }
 
     public FlinkResultSet(
@@ -560,5 +563,9 @@ public class FlinkResultSet extends BaseResultSet {
     @Override
     public boolean isClosed() throws SQLException {
         return this.closed;
+    }
+
+    public JobID getJobID() {
+        return jobID;
     }
 }
