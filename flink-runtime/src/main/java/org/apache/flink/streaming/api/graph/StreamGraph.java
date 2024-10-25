@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.graph;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.attribute.Attribute;
 import org.apache.flink.api.common.cache.DistributedCache;
@@ -97,6 +98,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -1107,7 +1109,6 @@ public class StreamGraph implements Pipeline, ExecutionPlan {
         return getStreamNode(sourceId).getOutEdges();
     }
 
-    @VisibleForTesting
     public List<StreamEdge> getStreamEdges(int sourceId, int targetId) {
         List<StreamEdge> result = new ArrayList<>();
         for (StreamEdge edge : getStreamNode(sourceId).getOutEdges()) {
@@ -1416,6 +1417,78 @@ public class StreamGraph implements Pipeline, ExecutionPlan {
     public void deserializeUserDefinedInstances(
             ClassLoader userClassLoader, Executor serializationExecutor) throws Exception {
         this.userDefinedObjectsHolder.deserialize(userClassLoader, serializationExecutor);
+    }
+
+    // --------------------------------------------------------------------------------------------
+    //  Topological Graph Access
+    // --------------------------------------------------------------------------------------------
+
+    public List<StreamNode> getStreamNodesSortedTopologicallyFromSources()
+            throws InvalidProgramException {
+        // early out on empty lists
+        if (this.streamNodes.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<StreamNode> sorted = new ArrayList<>(streamNodes.size());
+        Set<StreamNode> remaining = new LinkedHashSet<>(streamNodes.values());
+
+        // start by source nodes
+        for (Integer sourceNodeId : sources) {
+            StreamNode streamNode = getStreamNode(sourceNodeId);
+            sorted.add(streamNode);
+            remaining.remove(streamNode);
+        }
+
+        int startNodePos = 0;
+
+        // traverse from the nodes that were added until we found all elements
+        while (!remaining.isEmpty()) {
+
+            // first check if we have more candidates to start traversing from. if not, then the
+            // graph is cyclic, which is not permitted
+            if (startNodePos >= sorted.size()) {
+                throw new InvalidProgramException("The stream graph is cyclic.");
+            }
+
+            StreamNode current = sorted.get(startNodePos++);
+            addNodesThatHaveNoNewPredecessors(current, sorted, remaining);
+        }
+
+        return sorted;
+    }
+
+    private void addNodesThatHaveNoNewPredecessors(
+            StreamNode start, List<StreamNode> target, Set<StreamNode> remaining) {
+
+        // forward traverse over all stream nodes
+        for (StreamEdge outEdge : start.getOutEdges()) {
+            StreamNode v = getStreamNode(outEdge.getTargetId());
+            if (!remaining.contains(v)) {
+                continue;
+            }
+
+            boolean hasNewPredecessors = false;
+
+            for (StreamEdge e : v.getInEdges()) {
+                // skip the edge through which we came
+                if (e == outEdge) {
+                    continue;
+                }
+
+                StreamNode source = getStreamNode(e.getSourceId());
+                if (remaining.contains(source)) {
+                    hasNewPredecessors = true;
+                    break;
+                }
+            }
+
+            if (!hasNewPredecessors) {
+                target.add(v);
+                remaining.remove(v);
+                addNodesThatHaveNoNewPredecessors(v, target, remaining);
+            }
+        }
     }
 
     @Override
