@@ -1107,7 +1107,6 @@ public class StreamGraph implements Pipeline, ExecutionPlan {
         return getStreamNode(sourceId).getOutEdges();
     }
 
-    @VisibleForTesting
     public List<StreamEdge> getStreamEdges(int sourceId, int targetId) {
         List<StreamEdge> result = new ArrayList<>();
         for (StreamEdge edge : getStreamNode(sourceId).getOutEdges()) {

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.streaming.api.graph.StreamEdge;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +43,8 @@ public class IntermediateDataSet implements java.io.Serializable {
 
     // All consumers must have the same partitioner and parallelism
     private final List<JobEdge> consumers = new ArrayList<>();
+
+    private final List<StreamEdge> outputStreamEdges = new ArrayList<>();
 
     // The type of partition to use at runtime
     private final ResultPartitionType resultType;
@@ -85,13 +88,17 @@ public class IntermediateDataSet implements java.io.Serializable {
         return resultType;
     }
 
+    public List<StreamEdge> getOutputStreamEdges() {
+        return outputStreamEdges;
+    }
+
     // --------------------------------------------------------------------------------------------
 
     public void addConsumer(JobEdge edge) {
         // sanity check
         checkState(id.equals(edge.getSourceId()), "Incompatible dataset id.");
 
-        if (consumers.isEmpty()) {
+        if (consumers.isEmpty() && outputStreamEdges.isEmpty()) {
             distributionPattern = edge.getDistributionPattern();
             isBroadcast = edge.isBroadcast();
         } else {
@@ -103,6 +110,22 @@ public class IntermediateDataSet implements java.io.Serializable {
         consumers.add(edge);
     }
 
+    public void addOutputStreamEdge(StreamEdge edge) {
+        DistributionPattern pattern =
+                edge.getPartitioner().isPointwise()
+                        ? DistributionPattern.POINTWISE
+                        : DistributionPattern.ALL_TO_ALL;
+        if (outputStreamEdges.isEmpty()) {
+            distributionPattern = pattern;
+            isBroadcast = edge.getPartitioner().isBroadcast();
+        } else {
+            checkState(distributionPattern == pattern, "Incompatible distribution pattern.");
+            checkState(
+                    isBroadcast == edge.getPartitioner().isBroadcast(),
+                    "Incompatible broadcast type.");
+        }
+        outputStreamEdges.add(edge);
+    }
     // --------------------------------------------------------------------------------------------
 
     @Override
