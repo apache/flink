@@ -27,12 +27,15 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for flink database metadata. */
@@ -190,6 +193,43 @@ public class FlinkDatabaseMetaDataTest extends FlinkJdbcDriverTestBase {
             assertFalse(databaseMetaData.supportsStoredFunctionsUsingCallSyntax());
             assertFalse(databaseMetaData.autoCommitFailureClosesAllResultSets());
             assertFalse(databaseMetaData.generatedKeyAlwaysReturned());
+        }
+    }
+
+    @Test
+    public void testUnwrapSuccessful() throws Exception {
+        DriverUri driverUri = getDriverUri();
+        try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
+            DatabaseMetaData databaseMetaData =
+                    new FlinkDatabaseMetaData(
+                            driverUri.getURL(), connection, new TestingStatement());
+            FlinkDatabaseMetaData unwrap = databaseMetaData.unwrap(FlinkDatabaseMetaData.class);
+            assertNotNull(unwrap);
+        }
+    }
+
+    @Test
+    public void testUnwrapFailed() throws Exception {
+        DriverUri driverUri = getDriverUri();
+        try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
+            DatabaseMetaData databaseMetaData =
+                    new FlinkDatabaseMetaData(
+                            driverUri.getURL(), connection, new TestingStatement());
+            assertThrows(
+                    SQLException.class,
+                    () -> databaseMetaData.unwrap(TestingDatabaseMetaData.class));
+        }
+    }
+
+    @Test
+    public void testIsWrapperFor() throws Exception {
+        DriverUri driverUri = getDriverUri();
+        try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
+            DatabaseMetaData databaseMetaData =
+                    new FlinkDatabaseMetaData(
+                            driverUri.getURL(), connection, new TestingStatement());
+            assertTrue(databaseMetaData.isWrapperFor(FlinkDatabaseMetaData.class));
+            assertFalse(databaseMetaData.isWrapperFor(TestingDatabaseMetaData.class));
         }
     }
 
