@@ -174,7 +174,7 @@ under the License.
 		<orc.version>1.5.6</orc.version>
 		<japicmp.referenceVersion>1.20.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
-		<checkstyle.version>9.3</checkstyle.version>
+		<checkstyle.version>10.18.2</checkstyle.version>
 		<!-- can be removed with maven-spotless-plugin:2.38+ -->
 		<spotless.skip>false</spotless.skip>
 		<spotless.version>2.35.0</spotless.version>
