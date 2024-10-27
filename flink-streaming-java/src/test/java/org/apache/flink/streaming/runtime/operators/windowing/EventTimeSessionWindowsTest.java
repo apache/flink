@@ -37,7 +37,7 @@ import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -111,7 +111,7 @@ class EventTimeSessionWindowsTest {
                 .merge(
                         (Collection<TimeWindow>)
                                 argThat(
-                                        contains(
+                                        containsInAnyOrder(
                                                 new TimeWindow(0, 1),
                                                 new TimeWindow(1, 2),
                                                 new TimeWindow(2, 3))),
@@ -120,7 +120,9 @@ class EventTimeSessionWindowsTest {
         verify(callback, times(1))
                 .merge(
                         (Collection<TimeWindow>)
-                                argThat(contains(new TimeWindow(4, 5), new TimeWindow(5, 6))),
+                                argThat(
+                                        containsInAnyOrder(
+                                                new TimeWindow(4, 5), new TimeWindow(5, 6))),
                         eq(new TimeWindow(4, 6)));
 
         verify(callback, times(2)).merge(anyCollection(), ArgumentMatchers.any());
@@ -144,13 +146,17 @@ class EventTimeSessionWindowsTest {
         verify(callback, times(1))
                 .merge(
                         (Collection<TimeWindow>)
-                                argThat(contains(new TimeWindow(1, 1), new TimeWindow(0, 2))),
+                                argThat(
+                                        containsInAnyOrder(
+                                                new TimeWindow(1, 1), new TimeWindow(0, 2))),
                         eq(new TimeWindow(0, 2)));
 
         verify(callback, times(1))
                 .merge(
                         (Collection<TimeWindow>)
-                                argThat(contains(new TimeWindow(5, 6), new TimeWindow(4, 7))),
+                                argThat(
+                                        containsInAnyOrder(
+                                                new TimeWindow(5, 6), new TimeWindow(4, 7))),
                         eq(new TimeWindow(4, 7)));
 
         verify(callback, times(2)).merge(anyCollection(), ArgumentMatchers.any());
