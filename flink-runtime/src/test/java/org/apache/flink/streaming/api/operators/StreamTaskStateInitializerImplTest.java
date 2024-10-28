@@ -111,6 +111,7 @@ class StreamTaskStateInitializerImplTest {
                         closeableRegistry,
                         new UnregisteredMetricsGroup(),
                         1.0,
+                        false,
                         false);
 
         OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
@@ -224,6 +225,7 @@ class StreamTaskStateInitializerImplTest {
                         closeableRegistry,
                         new UnregisteredMetricsGroup(),
                         1.0,
+                        false,
                         false);
 
         OperatorStateBackend operatorStateBackend = stateContext.operatorStateBackend();
