@@ -31,11 +31,13 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Collections;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.UNBOUNDED_ROW;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.ifThenElse;
+import static org.apache.flink.table.api.Expressions.lag;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.nullOf;
 import static org.apache.flink.table.api.Expressions.row;
@@ -902,6 +904,45 @@ public class QueryOperationTestPrograms {
                                                             .as("w"))
                                             .select($("v").lastValue().over($("w")), $("ts")),
                             "sink")
+                    .build();
+
+    static final TableTestProgram OVER_WINDOW_LAG =
+            TableTestProgram.of("over-window-lag", "validates over window with lag function")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema(
+                                            "ts STRING",
+                                            "b MAP<DOUBLE, DOUBLE>",
+                                            "`r_time` AS TO_TIMESTAMP(`ts`)",
+                                            "WATERMARK for `r_time` AS `r_time`")
+                                    .producedBeforeRestore(
+                                            Row.of(
+                                                    "2020-04-15 08:00:05",
+                                                    Collections.singletonMap(42.0, 42.0)))
+                                    .producedAfterRestore(
+                                            Row.of(
+                                                    "2020-04-15 08:00:06",
+                                                    Collections.singletonMap(42.1, 42.1)))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("ts STRING", "b MAP<DOUBLE, DOUBLE>")
+                                    .consumedBeforeRestore(Row.of("2020-04-15 08:00:05", null))
+                                    .consumedAfterRestore(
+                                            Row.of(
+                                                    "2020-04-15 08:00:06",
+                                                    Collections.singletonMap(42.0, 42.0)))
+                                    .build())
+                    .runTableApi(
+                            env ->
+                                    env.from("t")
+                                            .window(Over.orderBy($("r_time")).as("bLag"))
+                                            .select($("ts"), lag($("b"), 1).over($("bLag"))),
+                            "sink_t")
+                    .runSql(
+                            "SELECT `ts`, (LAG(`b`, 1) OVER(ORDER BY `r_time`)) AS `_c1` FROM (\n"
+                                    + "    SELECT `ts`, `b`, `r_time` FROM `default_catalog`.`default_database`.`t`\n"
+                                    + ")")
                     .build();
 
     static final TableTestProgram ACCESSING_NESTED_COLUMN =

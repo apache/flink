@@ -53,8 +53,12 @@ class CallSyntaxUtils {
 
     static String overRangeToSerializableString(
             ResolvedExpression preceding, ResolvedExpression following) {
+        if (((ValueLiteralExpression) preceding).isNull()
+                || ((ValueLiteralExpression) following).isNull()) {
+            return "";
+        }
         return String.format(
-                "%s BETWEEN %s AND %s",
+                " %s BETWEEN %s AND %s",
                 isRowsRange(preceding) ? "ROWS" : "RANGE",
                 toStringPrecedingOrFollowing(preceding, true),
                 toStringPrecedingOrFollowing(following, false));

@@ -325,10 +325,10 @@ public interface SqlCallSyntax {
                         CallSyntaxUtils.overRangeToSerializableString(
                                 operands.get(2), operands.get(3));
                 if (operands.size() == 4) {
-                    return String.format("%s OVER(ORDER BY %s %s)", projection, order, rangeBounds);
+                    return String.format("%s OVER(ORDER BY %s%s)", projection, order, rangeBounds);
                 } else {
                     return String.format(
-                            "%s OVER(PARTITION BY %s ORDER BY %s %s)",
+                            "%s OVER(PARTITION BY %s ORDER BY %s%s)",
                             projection,
                             CallSyntaxUtils.asSerializableOperand(operands.get(4)),
                             order,
