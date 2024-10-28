@@ -213,6 +213,7 @@ under the License.
 		<!-- Can be set to any value to reproduce a specific build. -->
 		<test.randomization.seed/>
 		<test.unit.pattern>**/*Test.*</test.unit.pattern>
+		<kryo.version>4.0.3</kryo.version>
 	</properties>
 
 	<dependencies>
@@ -756,9 +757,9 @@ under the License.
 
 			<!-- kryo used in different versions by Flink an chill -->
 			<dependency>
-				<groupId>com.esotericsoftware.kryo</groupId>
+				<groupId>com.esotericsoftware</groupId>
 				<artifactId>kryo</artifactId>
-				<version>2.24.0</version>
+				<version>${kryo.version}</version>
 			</dependency>
 
 			<dependency>
