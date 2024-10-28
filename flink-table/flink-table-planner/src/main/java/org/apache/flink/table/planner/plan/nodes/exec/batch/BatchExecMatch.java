@@ -20,12 +20,8 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -38,8 +34,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.MatchSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.operators.sink.StreamRecordTimestampInserter;
-import org.apache.flink.table.runtime.operators.sort.SortOperator;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -103,40 +97,6 @@ public class BatchExecMatch extends CommonExecMatch
             return inputTransform;
         }
 
-        SortSpec sortSpec = matchSpec.getOrderKeys();
-        RowType inputType = (RowType) inputEdge.getOutputType();
-        SortCodeGenerator codeGen =
-                new SortCodeGenerator(
-                        config, planner.getFlinkContext().getClassLoader(), inputType, sortSpec);
-        SortOperator operator =
-                new SortOperator(
-                        codeGen.generateNormalizedKeyComputer("BatchExecSortComputer"),
-                        codeGen.generateRecordComparator("BatchExecSortComparator"),
-                        config.get(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES),
-                        config.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED),
-                        (int)
-                                config.get(
-                                                ExecutionConfigOptions
-                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
-                                        .getBytes(),
-                        config.get(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED));
-        long sortMemory =
-                config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY).getBytes();
-        OneInputTransformation<RowData, RowData> sortedInputTransform =
-                ExecNodeUtil.createOneInputTransformation(
-                        inputTransform,
-                        createTransformationName(config),
-                        createTransformationDescription(config),
-                        SimpleOperatorFactory.of(operator),
-                        InternalTypeInfo.of(inputRowType),
-                        inputTransform.getParallelism(),
-                        sortMemory,
-                        false);
-        return translateTimestamp(sortedInputTransform, inputRowType, config);
-    }
-
-    protected Transformation<RowData> translateTimestamp(
-            Transformation<RowData> inputTransform, RowType inputRowType, ExecNodeConfig config) {
         // copy the timestamp field from order by clause into the StreamRecord timestamp field
         SortSpec.SortFieldSpec timeOrderField = matchSpec.getOrderKeys().getFieldSpec(0);
         int timeOrderFieldIdx = timeOrderField.getFieldIndex();
