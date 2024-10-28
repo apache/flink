@@ -27,8 +27,10 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.StateBackendOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -87,6 +89,9 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
         Configuration config = new Configuration();
         config.set(StateBackendOptions.STATE_BACKEND, "rocksdb");
         config.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, true);
+        config.set(
+                TaskManagerOptions.STARTING_MEMORY_SEGMENT_SIZE,
+                MemorySize.parse(String.valueOf(Short.MAX_VALUE)));
 
         cluster =
                 new MiniClusterWithClientResource(
