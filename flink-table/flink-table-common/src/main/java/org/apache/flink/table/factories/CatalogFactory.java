@@ -25,7 +25,6 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.legacy.factories.TableFactory;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -38,20 +37,7 @@ import java.util.Set;
  * instead.
  */
 @PublicEvolving
-public interface CatalogFactory extends TableFactory, Factory {
-
-    /**
-     * Creates and configures a {@link Catalog} using the given properties.
-     *
-     * @param properties normalized properties describing an external catalog.
-     * @return the configured catalog.
-     * @deprecated Use {@link this#createCatalog(Context)} instead and implement {@link Factory}
-     *     instead of {@link TableFactory}.
-     */
-    @Deprecated
-    default Catalog createCatalog(String name, Map<String, String> properties) {
-        throw new CatalogException("Catalog factories must implement createCatalog()");
-    }
+public interface CatalogFactory extends Factory {
 
     /**
      * Creates and configures a {@link Catalog} using the given context.
@@ -88,48 +74,14 @@ public interface CatalogFactory extends TableFactory, Factory {
     }
 
     default String factoryIdentifier() {
-        if (requiredContext() == null || supportedProperties() == null) {
-            throw new CatalogException("Catalog factories must implement factoryIdentifier()");
-        }
-
-        return null;
+        throw new CatalogException("Catalog factories must implement factoryIdentifier()");
     }
 
     default Set<ConfigOption<?>> requiredOptions() {
-        if (requiredContext() == null || supportedProperties() == null) {
-            throw new CatalogException("Catalog factories must implement requiredOptions()");
-        }
-
-        return null;
+        throw new CatalogException("Catalog factories must implement requiredOptions()");
     }
 
     default Set<ConfigOption<?>> optionalOptions() {
-        if (requiredContext() == null || supportedProperties() == null) {
-            throw new CatalogException("Catalog factories must implement optionalOptions()");
-        }
-
-        return null;
-    }
-
-    // --------------------------------------------------------------------------------------------
-    // Default implementations for legacy {@link TableFactory} stack.
-    // --------------------------------------------------------------------------------------------
-
-    /**
-     * @deprecated Implement the {@link Factory} based stack instead.
-     */
-    @Deprecated
-    default Map<String, String> requiredContext() {
-        // Default implementation for catalogs implementing the new {@link Factory} stack instead.
-        return null;
-    }
-
-    /**
-     * @deprecated Implement the {@link Factory} based stack instead.
-     */
-    @Deprecated
-    default List<String> supportedProperties() {
-        // Default implementation for catalogs implementing the new {@link Factory} stack instead.
-        return null;
+        throw new CatalogException("Catalog factories must implement optionalOptions()");
     }
 }
