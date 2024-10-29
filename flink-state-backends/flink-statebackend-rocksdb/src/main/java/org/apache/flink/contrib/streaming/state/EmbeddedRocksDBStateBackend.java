@@ -20,6 +20,7 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.util.TernaryBoolean;
 
 /**
  * @deprecated This class has been moved to {@link
@@ -33,6 +34,14 @@ public class EmbeddedRocksDBStateBackend
 
     public EmbeddedRocksDBStateBackend() {
         super();
+    }
+
+    public EmbeddedRocksDBStateBackend(boolean enableIncrementalCheckpointing) {
+        super(enableIncrementalCheckpointing);
+    }
+
+    public EmbeddedRocksDBStateBackend(TernaryBoolean enableIncrementalCheckpointing) {
+        super(enableIncrementalCheckpointing);
     }
 
     private EmbeddedRocksDBStateBackend(
