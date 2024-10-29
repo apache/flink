@@ -108,16 +108,14 @@ under the License.
 						<configuration>
 							<includes>
 								<include>
-									**/org/apache/flink/contrib/streaming/state/RocksDBTestUtils*
+									**/org/apache/flink/state/rocksdb/RocksDBTestUtils*
 								</include>
 								<include>
-									**/org/apache/flink/contrib/streaming/state/EmbeddedRocksDBStateBackendTest*
+									**/org/apache/flink/state/rocksdb/EmbeddedRocksDBStateBackendTest*
 								</include>
 								<!-- Exporting RocksDBStateBackendConfigTest$TestOptionsFactory for pyflink tests -->
 								<include>
-									**/org/apache/flink/contrib/streaming/state/RocksDBStateBackendConfigTest*
-								</include>
-								<include>**/org/apache/flink/contrib/streaming/state/benchmark/*
+									**/org/apache/flink/state/rocksdb/RocksDBStateBackendConfigTest*
 								</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>

@@ -161,7 +161,7 @@ A default state backend can be configured in the [Flink configuration file]({{< 
 
 Possible values for the config entry are *hashmap* (HashMapStateBackend), *rocksdb* (EmbeddedRocksDBStateBackend), or the fully qualified class
 name of the class that implements the state backend factory {{< gh_link file="flink-runtime/src/main/java/org/apache/flink/runtime/state/StateBackendFactory.java" name="StateBackendFactory" >}},
-such as `org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory` for EmbeddedRocksDBStateBackend.
+such as `org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackendFactory` for EmbeddedRocksDBStateBackend.
 
 The `execution.checkpointing.dir` option defines the directory to which all backends write checkpoint data and meta data files.
 You can find more details about the checkpoint directory structure [here]({{< ref "docs/ops/state/checkpoints" >}}#directory-structure).
