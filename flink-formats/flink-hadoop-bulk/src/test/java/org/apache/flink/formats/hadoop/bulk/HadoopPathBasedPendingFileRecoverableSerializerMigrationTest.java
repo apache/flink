@@ -51,7 +51,7 @@ class HadoopPathBasedPendingFileRecoverableSerializerMigrationTest {
 
     @Test
     @Disabled
-    public void prepareDeserialization() throws IOException {
+    void prepareDeserialization() throws IOException {
         String scenario = "common";
         java.nio.file.Path versionPath = resolveVersionPath(CURRENT_VERSION, scenario);
         HadoopPathBasedPendingFileRecoverableSerializer serializer =
