@@ -123,31 +123,6 @@ under the License.
 
 	<build>
 		<plugins>
-			<!-- [FLINK-36245] Skip compile TestAvroConsumerConfluent as Kafka connector is not support 2.0 for now -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<configuration>
-					<!-- [FLINK-36245] Skip compile TestAvroConsumerConfluent as Kafka connector is not support 2.0 for now -->
-					<excludes>
-						<exclude>org/apache/flink/streaming/examples/statemachine/KafkaEventsGeneratorJob.java</exclude>
-					</excludes>
-				</configuration>
-				<executions>
-					<execution>
-						<id>compile</id>
-						<phase>process-sources</phase>
-						<goals>
-							<goal>compile</goal>
-						</goals>
-						<configuration>
-							<compilerArgument>-Xlint:deprecation</compilerArgument>
-							<failOnWarning>true</failOnWarning>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
 			<!-- self-contained jars for each example -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
