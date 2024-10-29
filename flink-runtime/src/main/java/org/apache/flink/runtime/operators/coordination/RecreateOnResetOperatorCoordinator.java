@@ -19,6 +19,7 @@ limitations under the License.
 package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.metrics.groups.OperatorCoordinatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -239,6 +240,11 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
         QuiesceableContext(OperatorCoordinator.Context context) {
             this.context = context;
             quiesced = false;
+        }
+
+        @Override
+        public JobID getJobID() {
+            return context.getJobID();
         }
 
         @Override
