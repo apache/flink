@@ -146,11 +146,11 @@ class CatalogManagerTest {
 
         // Create a table
         catalogManager.createTable(
-                CatalogTable.of(
-                        Schema.newBuilder().build(),
-                        null,
-                        Collections.emptyList(),
-                        Collections.emptyMap()),
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().build())
+                        .comment(null)
+                        .partitionKeys(Collections.emptyList())
+                        .options(Collections.emptyMap()).build(),
                 ObjectIdentifier.of(
                         catalogManager.getCurrentCatalog(),
                         catalogManager.getCurrentDatabase(),
@@ -163,11 +163,11 @@ class CatalogManagerTest {
 
         // Create a temporary table
         catalogManager.createTemporaryTable(
-                CatalogTable.of(
-                        Schema.newBuilder().build(),
-                        null,
-                        Collections.emptyList(),
-                        Collections.emptyMap()),
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().build())
+                        .comment(null)
+                        .partitionKeys(Collections.emptyList())
+                        .options(Collections.emptyMap()).build(),
                 ObjectIdentifier.of(
                         catalogManager.getCurrentCatalog(),
                         catalogManager.getCurrentDatabase(),
@@ -180,11 +180,11 @@ class CatalogManagerTest {
 
         // Alter a table
         catalogManager.alterTable(
-                CatalogTable.of(
-                        Schema.newBuilder().build(),
-                        "table1 comment",
-                        Collections.emptyList(),
-                        Collections.emptyMap()),
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().build())
+                        .comment("table1 comment")
+                        .partitionKeys(Collections.emptyList())
+                        .options(Collections.emptyMap()).build(),
                 ObjectIdentifier.of(
                         catalogManager.getCurrentCatalog(),
                         catalogManager.getCurrentDatabase(),
@@ -612,11 +612,11 @@ class CatalogManagerTest {
                 new CatalogDatabaseImpl(Collections.emptyMap(), "database for exist_cat"),
                 false);
         catalogManager.createTable(
-                CatalogTable.of(
-                        Schema.newBuilder().build(),
-                        null,
-                        Collections.emptyList(),
-                        Collections.emptyMap()),
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().build())
+                        .comment(null)
+                        .partitionKeys(Collections.emptyList())
+                        .options(Collections.emptyMap()).build(),
                 ObjectIdentifier.of("exist_cat", "cat_db", "test_table"),
                 false);
         catalogManager.createModel(

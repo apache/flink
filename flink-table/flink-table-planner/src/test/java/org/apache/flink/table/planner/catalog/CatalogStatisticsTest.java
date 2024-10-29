@@ -124,11 +124,19 @@ class CatalogStatisticsTest {
         final Schema schema = Schema.newBuilder().fromResolvedSchema(resolvedSchema).build();
         catalog.createTable(
                 new ObjectPath(databaseName, "T1"),
-                CatalogTable.of(schema, "", Collections.emptyList(), properties),
+                CatalogTable.newBuilder()
+                        .schema(schema)
+                        .comment("")
+                        .partitionKeys(Collections.emptyList())
+                        .options(properties).build(),
                 false);
         catalog.createTable(
                 new ObjectPath(databaseName, "T2"),
-                CatalogTable.of(schema, "", Collections.emptyList(), properties),
+                CatalogTable.newBuilder()
+                        .schema(schema)
+                        .comment("")
+                        .partitionKeys(Collections.emptyList())
+                        .options(properties).build(),
                 false);
 
         alterTableStatistics(catalog, "T1");

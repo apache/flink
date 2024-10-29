@@ -76,8 +76,12 @@ public class TestTimeTravelCatalog extends GenericInMemoryCatalog {
     public void registerTableForTimeTravel(
             String tableName, Schema schema, Map<String, String> properties, long timestamp)
             throws TableAlreadyExistException, DatabaseNotExistException, TableNotExistException {
-        CatalogTable catalogTable =
-                CatalogTable.of(schema, "", Collections.emptyList(), properties, timestamp);
+        CatalogTable catalogTable = CatalogTable.newBuilder()
+                .schema(schema)
+                .comment("")
+                .partitionKeys(Collections.emptyList())
+                .options(properties)
+                .snapshot(timestamp).build();
         ObjectPath objectPath = new ObjectPath(getDefaultDatabase(), tableName);
         if (!timeTravelTables.containsKey(objectPath)) {
             timeTravelTables.put(objectPath, new ArrayList<>());

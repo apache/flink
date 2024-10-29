@@ -69,8 +69,11 @@ public class SqlMaterializedTableNodeToOperationConverterTest
                         .build();
         Map<String, String> options = new HashMap<>();
         options.put("connector", "COLLECTION");
-        final CatalogTable catalogTable =
-                CatalogTable.of(tableSchema, "", Arrays.asList("b", "c"), options);
+        final CatalogTable catalogTable = CatalogTable.newBuilder()
+                .schema(tableSchema)
+                .comment("")
+                .partitionKeys(Arrays.asList("b", "c"))
+                .options(options).build();
         catalog.createTable(path3, catalogTable, true);
     }
 

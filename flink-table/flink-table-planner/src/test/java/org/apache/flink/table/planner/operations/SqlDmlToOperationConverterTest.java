@@ -250,15 +250,13 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     public void testDelete() throws Exception {
         Map<String, String> options = new HashMap<>();
         options.put("connector", TestUpdateDeleteTableFactory.IDENTIFIER);
-        CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .column("a", DataTypes.INT().notNull())
-                                .column("c", DataTypes.STRING().notNull())
-                                .build(),
-                        null,
-                        Collections.emptyList(),
-                        options);
+        CatalogTable catalogTable = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().column("a", DataTypes.INT().notNull())
+                        .column("c", DataTypes.STRING().notNull())
+                        .build())
+                .comment(null)
+                .partitionKeys(Collections.emptyList())
+                .options(options).build();
         ObjectIdentifier tableIdentifier = ObjectIdentifier.of("builtin", "default", "test_delete");
         catalogManager.createTable(catalogTable, tableIdentifier, false);
 
@@ -284,16 +282,14 @@ public class SqlDmlToOperationConverterTest extends SqlNodeToOperationConversion
     public void testUpdate() throws Exception {
         Map<String, String> options = new HashMap<>();
         options.put("connector", TestUpdateDeleteTableFactory.IDENTIFIER);
-        CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .column("a", DataTypes.INT().notNull())
-                                .column("b", DataTypes.BIGINT().nullable())
-                                .column("c", DataTypes.STRING().notNull())
-                                .build(),
-                        null,
-                        Collections.emptyList(),
-                        options);
+        CatalogTable catalogTable = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().column("a", DataTypes.INT().notNull())
+                        .column("b", DataTypes.BIGINT().nullable())
+                        .column("c", DataTypes.STRING().notNull())
+                        .build())
+                .comment(null)
+                .partitionKeys(Collections.emptyList())
+                .options(options).build();
         ObjectIdentifier tableIdentifier = ObjectIdentifier.of("builtin", "default", "test_update");
         catalogManager.createTable(catalogTable, tableIdentifier, false);
 

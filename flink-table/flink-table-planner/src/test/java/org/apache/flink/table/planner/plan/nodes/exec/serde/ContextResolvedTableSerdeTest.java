@@ -229,9 +229,9 @@ public class ContextResolvedTableSerdeTest {
         final byte[] actualSerialized = createObjectWriter(ctx).writeValueAsBytes(spec);
 
         assertThatThrownBy(
-                        () ->
-                                createObjectReader(ctx)
-                                        .readValue(actualSerialized, ContextResolvedTable.class))
+                () ->
+                        createObjectReader(ctx)
+                                .readValue(actualSerialized, ContextResolvedTable.class))
                 .satisfies(
                         anyCauseMatches(
                                 TableException.class,
@@ -295,22 +295,22 @@ public class ContextResolvedTableSerdeTest {
                                 objectIdentifier,
                                 CATALOG,
                                 new ResolvedCatalogTable(
-                                        CatalogTable.of(
-                                                CATALOG_TABLE_SCHEMA,
-                                                null,
-                                                Collections.emptyList(),
-                                                PLAN_OPTIONS),
+                                        CatalogTable.newBuilder()
+                                                .schema(CATALOG_TABLE_SCHEMA)
+                                                .comment(null)
+                                                .partitionKeys(Collections.emptyList())
+                                                .options(PLAN_OPTIONS).build(),
                                         CATALOG_TABLE_RESOLVED_SCHEMA));
 
                 final byte[] actualSerialized =
                         createObjectWriter(serdeCtx).writeValueAsBytes(spec);
 
                 assertThatThrownBy(
-                                () ->
-                                        createObjectReader(serdeCtx)
-                                                .readValue(
-                                                        actualSerialized,
-                                                        ContextResolvedTable.class))
+                        () ->
+                                createObjectReader(serdeCtx)
+                                        .readValue(
+                                                actualSerialized,
+                                                ContextResolvedTable.class))
                         .satisfies(
                                 anyCauseMatches(
                                         TableException.class,
@@ -336,11 +336,11 @@ public class ContextResolvedTableSerdeTest {
                                 .writeValueAsBytes(PERMANENT_PLAN_CONTEXT_RESOLVED_TABLE);
 
                 assertThatThrownBy(
-                                () ->
-                                        createObjectReader(ctx)
-                                                .readValue(
-                                                        actualSerialized,
-                                                        ContextResolvedTable.class))
+                        () ->
+                                createObjectReader(ctx)
+                                        .readValue(
+                                                actualSerialized,
+                                                ContextResolvedTable.class))
                         .satisfies(
                                 anyCauseMatches(
                                         TableException.class,
@@ -417,23 +417,24 @@ public class ContextResolvedTableSerdeTest {
                                 PERMANENT_TABLE_IDENTIFIER,
                                 CATALOG,
                                 new ResolvedCatalogTable(
-                                        CatalogTable.of(
-                                                Schema.newBuilder()
+                                        CatalogTable.newBuilder()
+                                                .schema(Schema
+                                                        .newBuilder()
                                                         .fromResolvedSchema(resolvedSchema)
-                                                        .build(),
-                                                "my comment",
-                                                PARTITION_KEYS,
-                                                PLAN_OPTIONS),
+                                                        .build())
+                                                .comment("my comment")
+                                                .partitionKeys(PARTITION_KEYS)
+                                                .options(PLAN_OPTIONS).build(),
                                         resolvedSchema));
 
                 final byte[] actualSerialized = createObjectWriter(ctx).writeValueAsBytes(spec);
 
                 assertThatThrownBy(
-                                () ->
-                                        createObjectReader(ctx)
-                                                .readValue(
-                                                        actualSerialized,
-                                                        ContextResolvedTable.class))
+                        () ->
+                                createObjectReader(ctx)
+                                        .readValue(
+                                                actualSerialized,
+                                                ContextResolvedTable.class))
                         .satisfies(
                                 anyCauseMatches(
                                         TableException.class,
@@ -473,10 +474,10 @@ public class ContextResolvedTableSerdeTest {
                 assertThat(result.f1.getIdentifier()).isEqualTo(PERMANENT_TABLE_IDENTIFIER);
                 assertThat(result.f1.getResolvedSchema()).isEqualTo(CATALOG_TABLE_RESOLVED_SCHEMA);
                 assertThat(
-                                result.f1
-                                        .<ResolvedCatalogTable>getResolvedTable()
-                                        .getDistribution()
-                                        .get())
+                        result.f1
+                                .<ResolvedCatalogTable>getResolvedTable()
+                                .getDistribution()
+                                .get())
                         .isEqualTo(DISTRIBUTION);
                 assertThat(result.f1.<ResolvedCatalogTable>getResolvedTable().getPartitionKeys())
                         .isEqualTo(PARTITION_KEYS);
@@ -501,11 +502,11 @@ public class ContextResolvedTableSerdeTest {
                                 .writeValueAsBytes(PERMANENT_PLAN_CONTEXT_RESOLVED_TABLE);
 
                 assertThatThrownBy(
-                                () ->
-                                        createObjectReader(ctx)
-                                                .readValue(
-                                                        actualSerialized,
-                                                        ContextResolvedTable.class))
+                        () ->
+                                createObjectReader(ctx)
+                                        .readValue(
+                                                actualSerialized,
+                                                ContextResolvedTable.class))
                         .satisfies(
                                 anyCauseMatches(
                                         TableException.class,

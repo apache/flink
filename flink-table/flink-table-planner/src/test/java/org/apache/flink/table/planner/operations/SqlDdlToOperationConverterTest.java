@@ -444,15 +444,13 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
     public void testBasicCreateTableLike() {
         Map<String, String> sourceProperties = new HashMap<>();
         sourceProperties.put("format.type", "json");
-        CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .column("f0", DataTypes.INT().notNull())
-                                .column("f1", DataTypes.TIMESTAMP(3))
-                                .build(),
-                        null,
-                        Collections.emptyList(),
-                        sourceProperties);
+        CatalogTable catalogTable = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().column("f0", DataTypes.INT().notNull())
+                        .column("f1", DataTypes.TIMESTAMP(3))
+                        .build())
+                .comment(null)
+                .partitionKeys(Collections.emptyList())
+                .options(sourceProperties).build();
 
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
@@ -492,15 +490,13 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         Map<String, String> sourceProperties = new HashMap<>();
         sourceProperties.put("connector.type", "kafka");
         sourceProperties.put("format.type", "json");
-        CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .column("f0", DataTypes.INT().notNull())
-                                .column("f1", DataTypes.TIMESTAMP(3))
-                                .build(),
-                        null,
-                        Collections.emptyList(),
-                        sourceProperties);
+        CatalogTable catalogTable = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().column("f0", DataTypes.INT().notNull())
+                        .column("f1", DataTypes.TIMESTAMP(3))
+                        .build())
+                .comment(null)
+                .partitionKeys(Collections.emptyList())
+                .options(sourceProperties).build();
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
         final String sql = "create table mytable like `builtin`.`default`.sourceTable";
@@ -524,17 +520,15 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
     public void testMergingCreateTableLike() {
         Map<String, String> sourceProperties = new HashMap<>();
         sourceProperties.put("format.type", "json");
-        CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .column("f0", DataTypes.INT().notNull())
-                                .column("f1", DataTypes.TIMESTAMP(3))
-                                .columnByExpression("f2", "`f0` + 12345")
-                                .watermark("f1", "`f1` - interval '1' second")
-                                .build(),
-                        null,
-                        Arrays.asList("f0", "f1"),
-                        sourceProperties);
+        CatalogTable catalogTable = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().column("f0", DataTypes.INT().notNull())
+                        .column("f1", DataTypes.TIMESTAMP(3))
+                        .columnByExpression("f2", "`f0` + 12345")
+                        .watermark("f1", "`f1` - interval '1' second")
+                        .build())
+                .comment(null)
+                .partitionKeys(Arrays.asList("f0", "f1"))
+                .options(sourceProperties).build();
 
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
@@ -1006,12 +1000,13 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
 
     @Test
     public void testCreateTableLikeInvalidPartition() {
-        CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder().column("f0", DataTypes.INT().notNull()).build(),
-                        null,
-                        Collections.emptyList(),
-                        Collections.emptyMap());
+        CatalogTable catalogTable = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().column(
+                        "f0",
+                        DataTypes.INT().notNull()).build())
+                .comment(null)
+                .partitionKeys(Collections.emptyList())
+                .options(Collections.emptyMap()).build();
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
 
@@ -1046,12 +1041,13 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
 
     @Test
     public void testCreateTableLikeInvalidWatermark() {
-        CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder().column("f0", DataTypes.INT().notNull()).build(),
-                        null,
-                        Collections.emptyList(),
-                        Collections.emptyMap());
+        CatalogTable catalogTable = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().column(
+                        "f0",
+                        DataTypes.INT().notNull()).build())
+                .comment(null)
+                .partitionKeys(Collections.emptyList())
+                .options(Collections.emptyMap()).build();
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
 
@@ -1072,18 +1068,16 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
 
     @Test
     public void testCreateTableLikeNestedWatermark() {
-        CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .column("f0", DataTypes.INT().notNull())
-                                .column(
-                                        "f1",
-                                        DataTypes.ROW(
-                                                DataTypes.FIELD("tmstmp", DataTypes.TIMESTAMP(3))))
-                                .build(),
-                        null,
-                        Collections.emptyList(),
-                        Collections.emptyMap());
+        CatalogTable catalogTable = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().column("f0", DataTypes.INT().notNull())
+                        .column(
+                                "f1",
+                                DataTypes.ROW(
+                                        DataTypes.FIELD("tmstmp", DataTypes.TIMESTAMP(3))))
+                        .build())
+                .comment(null)
+                .partitionKeys(Collections.emptyList())
+                .options(Collections.emptyMap()).build();
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
 
@@ -1531,19 +1525,18 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
 
         // rename column e test computed column expression is ApiExpression which doesn't implement
         // the equals method
-        CatalogTable catalogTable2 =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .column("a", DataTypes.STRING().notNull())
-                                .column("b", DataTypes.INT().notNull())
-                                .column("e", DataTypes.STRING())
-                                .columnByExpression("j", $("e").upperCase())
-                                .columnByExpression("g", "TO_TIMESTAMP(e)")
-                                .primaryKey("a", "b")
-                                .build(),
-                        "tb2",
-                        Collections.singletonList("a"),
-                        Collections.emptyMap());
+        CatalogTable catalogTable2 = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder()
+                        .column("a", DataTypes.STRING().notNull())
+                        .column("b", DataTypes.INT().notNull())
+                        .column("e", DataTypes.STRING())
+                        .columnByExpression("j", $("e").upperCase())
+                        .columnByExpression("g", "TO_TIMESTAMP(e)")
+                        .primaryKey("a", "b")
+                        .build())
+                .comment("tb2")
+                .partitionKeys(Collections.singletonList("a"))
+                .options(Collections.emptyMap()).build();
         catalogManager
                 .getCatalog("cat1")
                 .get()
@@ -2662,19 +2655,17 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         Map<String, String> prop = new HashMap<>();
         prop.put("connector", "values");
         prop.put("bounded", "true");
-        CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .column("id", DataTypes.INT().notNull())
-                                .column("measurement", DataTypes.BIGINT().notNull())
-                                .column(
-                                        "ts",
-                                        DataTypes.ROW(
-                                                DataTypes.FIELD("tmstmp", DataTypes.TIMESTAMP(3))))
-                                .build(),
-                        null,
-                        Collections.emptyList(),
-                        prop);
+        CatalogTable catalogTable = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().column("id", DataTypes.INT().notNull())
+                        .column("measurement", DataTypes.BIGINT().notNull())
+                        .column(
+                                "ts",
+                                DataTypes.ROW(
+                                        DataTypes.FIELD("tmstmp", DataTypes.TIMESTAMP(3))))
+                        .build())
+                .comment(null)
+                .partitionKeys(Collections.emptyList())
+                .options(prop).build();
 
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "events"), false);
@@ -2704,15 +2695,13 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         Map<String, String> prop = new HashMap<>();
         prop.put("connector", "values");
         prop.put("bounded", "true");
-        CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .column("f0", DataTypes.INT())
-                                .column("f1", DataTypes.VARCHAR(20))
-                                .build(),
-                        null,
-                        Collections.emptyList(),
-                        prop);
+        CatalogTable catalogTable = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().column("f0", DataTypes.INT())
+                        .column("f1", DataTypes.VARCHAR(20))
+                        .build())
+                .comment(null)
+                .partitionKeys(Collections.emptyList())
+                .options(prop).build();
 
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "sourceA"), false);
@@ -2778,15 +2767,13 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         Map<String, String> prop = new HashMap<>();
         prop.put("connector", "values");
         prop.put("bounded", "true");
-        CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .column("id", DataTypes.BIGINT().notNull())
-                                .column("uid", DataTypes.BIGINT().notNull())
-                                .build(),
-                        null,
-                        Collections.emptyList(),
-                        prop);
+        CatalogTable catalogTable = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().column("id", DataTypes.BIGINT().notNull())
+                        .column("uid", DataTypes.BIGINT().notNull())
+                        .build())
+                .comment(null)
+                .partitionKeys(Collections.emptyList())
+                .options(prop).build();
 
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "id_table"), false);

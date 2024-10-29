@@ -53,11 +53,11 @@ class QueryOperationTest {
                                 ContextResolvedTable.temporary(
                                         ObjectIdentifier.of("cat1", "db1", "tab1"),
                                         new ResolvedCatalogTable(
-                                                CatalogTable.of(
-                                                        Schema.newBuilder().build(),
-                                                        null,
-                                                        Collections.emptyList(),
-                                                        Collections.emptyMap()),
+                                                CatalogTable.newBuilder()
+                                                        .schema(Schema.newBuilder().build())
+                                                        .comment(null)
+                                                        .partitionKeys(Collections.emptyList())
+                                                        .options(Collections.emptyMap()).build(),
                                                 schema))),
                         schema);
 
@@ -99,11 +99,11 @@ class QueryOperationTest {
                                 ContextResolvedTable.temporary(
                                         ObjectIdentifier.of("cat1", "db1", "tab1"),
                                         new ResolvedCatalogTable(
-                                                CatalogTable.of(
-                                                        Schema.newBuilder().build(),
-                                                        null,
-                                                        Collections.emptyList(),
-                                                        Collections.emptyMap()),
+                                                CatalogTable.newBuilder()
+                                                        .schema(Schema.newBuilder().build())
+                                                        .comment(null)
+                                                        .partitionKeys(Collections.emptyList())
+                                                        .options(Collections.emptyMap()).build(),
                                                 schema))),
                         schema);
 

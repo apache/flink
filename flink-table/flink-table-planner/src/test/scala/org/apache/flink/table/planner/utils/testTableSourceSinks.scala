@@ -866,12 +866,13 @@ object TestPartitionableSourceFactory {
       }
     }
 
-    val table = CatalogTable.of(
-      tableSchema,
-      "",
-      util.Arrays.asList[String]("part1", "part2"),
-      properties.asMap()
-    )
+    val table = CatalogTable
+      .newBuilder()
+      .schema(tableSchema)
+      .comment("")
+      .partitionKeys(util.Arrays.asList[String]("part1", "part2"))
+      .options(properties.asMap())
+      .build()
     val catalog = tEnv.getCatalog(tEnv.getCurrentCatalog).get()
     val path = new ObjectPath(tEnv.getCurrentDatabase, tableName)
     catalog.createTable(path, table, false)

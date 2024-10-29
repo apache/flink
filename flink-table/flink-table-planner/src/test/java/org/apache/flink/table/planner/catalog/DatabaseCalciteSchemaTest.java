@@ -86,6 +86,10 @@ class DatabaseCalciteSchemaTest {
                         .primaryKey("a", "b")
                         .build();
 
-        return CatalogTable.of(schema, null, new ArrayList<>(), new HashMap<>());
+        return CatalogTable.newBuilder()
+                .schema(schema)
+                .comment(null)
+                .partitionKeys(new ArrayList<>())
+                .options(new HashMap<>()).build();
     }
 }

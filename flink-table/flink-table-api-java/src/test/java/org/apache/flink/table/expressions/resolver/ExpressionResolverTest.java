@@ -397,14 +397,15 @@ class ExpressionResolverTest {
                                                             new SourceQueryOperation(
                                                                     ContextResolvedTable.anonymous(
                                                                             new ResolvedCatalogTable(
-                                                                                    CatalogTable.of(
-                                                                                            schema
-                                                                                                    .toSchema(),
-                                                                                            null,
-                                                                                            Collections
-                                                                                                    .emptyList(),
-                                                                                            Collections
-                                                                                                    .emptyMap()),
+                                                                                    CatalogTable
+                                                                                            .newBuilder()
+                                                                                            .schema(schema.toSchema())
+                                                                                            .comment(null)
+                                                                                            .partitionKeys(
+                                                                                                    Collections.emptyList())
+                                                                                            .options(
+                                                                                                    Collections.emptyMap())
+                                                                                            .build(),
                                                                                     ResolvedSchema
                                                                                             .physical(
                                                                                                     schema

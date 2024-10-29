@@ -203,9 +203,11 @@ class CatalogITCase {
                 CatalogManagerMocks.preparedCatalogManager().defaultCatalog("c2", c2).build();
         catalogManager.registerCatalog("c1", c1);
 
-        final CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder().build(), null, new ArrayList<>(), new HashMap<>());
+        final CatalogTable catalogTable = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().build())
+                .comment(null)
+                .partitionKeys(new ArrayList<>())
+                .options(new HashMap<>()).build();
 
         c1.createDatabase("d1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
         c1.createTable(new ObjectPath("d1", "t1"), catalogTable, true);
