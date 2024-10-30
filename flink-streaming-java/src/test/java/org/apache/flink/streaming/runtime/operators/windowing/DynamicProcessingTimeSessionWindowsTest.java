@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
 import org.junit.jupiter.api.Test;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -36,8 +36,8 @@ import java.util.Collections;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyCollection;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -87,7 +87,7 @@ class DynamicProcessingTimeSessionWindowsTest {
 
         assigner.mergeWindows(Collections.singletonList(new TimeWindow(0, 0)), callback);
 
-        verify(callback, never()).merge(anyCollection(), Matchers.anyObject());
+        verify(callback, never()).merge(anyCollection(), ArgumentMatchers.any());
     }
 
     @Test
@@ -102,7 +102,7 @@ class DynamicProcessingTimeSessionWindowsTest {
 
         assigner.mergeWindows(Collections.singletonList(new TimeWindow(0, 1)), callback);
 
-        verify(callback, never()).merge(anyCollection(), Matchers.anyObject());
+        verify(callback, never()).merge(anyCollection(), ArgumentMatchers.any());
     }
 
     @Test
@@ -142,7 +142,7 @@ class DynamicProcessingTimeSessionWindowsTest {
                                                 new TimeWindow(4, 5), new TimeWindow(5, 6))),
                         eq(new TimeWindow(4, 6)));
 
-        verify(callback, times(2)).merge(anyCollection(), Matchers.anyObject());
+        verify(callback, times(2)).merge(anyCollection(), ArgumentMatchers.any());
     }
 
     @Test
@@ -179,7 +179,7 @@ class DynamicProcessingTimeSessionWindowsTest {
                                                 new TimeWindow(5, 6), new TimeWindow(4, 7))),
                         eq(new TimeWindow(4, 7)));
 
-        verify(callback, times(2)).merge(anyCollection(), Matchers.anyObject());
+        verify(callback, times(2)).merge(anyCollection(), ArgumentMatchers.any());
     }
 
     @Test
