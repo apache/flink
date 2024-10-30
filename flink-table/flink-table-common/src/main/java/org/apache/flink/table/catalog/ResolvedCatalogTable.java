@@ -71,7 +71,6 @@ public final class ResolvedCatalogTable
      * symmetric. The framework will resolve functions and perform other validation tasks. A catalog
      * implementation must not deal with this during a read operation.
      */
-    @Override
     public Map<String, String> toProperties() {
         return CatalogPropertiesUtil.serializeCatalogTable(this);
     }

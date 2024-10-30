@@ -56,7 +56,7 @@ public class TableFactoryUtil {
     public static <T> TableSource<T> findAndCreateTableSource(TableSourceFactory.Context context) {
         try {
             return TableFactoryService.find(
-                            TableSourceFactory.class, context.getTable().toProperties())
+                            TableSourceFactory.class, Collections.emptyMap())
                     .createTableSource(context);
         } catch (Throwable t) {
             throw new TableException("findAndCreateTableSource failed.", t);
@@ -99,7 +99,7 @@ public class TableFactoryUtil {
     public static <T> TableSink<T> findAndCreateTableSink(TableSinkFactory.Context context) {
         try {
             return TableFactoryService.find(
-                            TableSinkFactory.class, context.getTable().toProperties())
+                            TableSinkFactory.class, Collections.emptyMap())
                     .createTableSink(context);
         } catch (Throwable t) {
             throw new TableException("findAndCreateTableSink failed.", t);

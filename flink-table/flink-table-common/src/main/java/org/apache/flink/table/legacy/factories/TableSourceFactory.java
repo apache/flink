@@ -65,7 +65,7 @@ public interface TableSourceFactory<T> extends TableFactory {
      */
     @Deprecated
     default TableSource<T> createTableSource(ObjectPath tablePath, CatalogTable table) {
-        return createTableSource(table.toProperties());
+        return null;
     }
 
     /**

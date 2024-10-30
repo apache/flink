@@ -173,11 +173,6 @@ class JavaCatalogTableTest extends TableTestBase {
         }
 
         @Override
-        public Map<String, String> toProperties() {
-            return Collections.emptyMap();
-        }
-
-        @Override
         public Map<String, String> getOptions() {
             Map<String, String> map = new HashMap<>();
             map.put("connector", "values");
