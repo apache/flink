@@ -563,6 +563,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                 return DataInputStatus.END_OF_DATA;
             case DATA_FINISHED:
                 if (watermarkAlignmentParams.isEnabled()) {
+                    if (currentMainOutput == null) {
+                        // if the source operator was stopped while waiting for the first checkpoint
+                        // then the output needs to be initialized so final watermark can be emitted
+                        initializeMainOutput(output);
+                    }
                     this.sampledLatestWatermark.addLatest(Watermark.MAX_WATERMARK.getTimestamp());
                     sampleAndEmitLatestWatermark();
                 }
