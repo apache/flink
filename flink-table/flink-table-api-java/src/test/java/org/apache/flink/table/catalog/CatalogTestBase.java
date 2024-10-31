@@ -168,7 +168,7 @@ public abstract class CatalogTestBase extends CatalogTest {
         return new HashMap<String, String>() {
             {
                 put(IS_STREAMING, "false");
-                putAll(getGenericFlag(isGeneric()));
+                put(FactoryUtil.CONNECTOR.key(), "hive");
             }
         };
     }
@@ -177,20 +177,8 @@ public abstract class CatalogTestBase extends CatalogTest {
         return new HashMap<String, String>() {
             {
                 put(IS_STREAMING, "true");
-                putAll(getGenericFlag(isGeneric()));
+                put(FactoryUtil.CONNECTOR.key(), "hive");
             }
         };
     }
-
-    private Map<String, String> getGenericFlag(boolean isGeneric) {
-        return new HashMap<String, String>() {
-            {
-                String connector = isGeneric ? "COLLECTION" : "hive";
-                put(FactoryUtil.CONNECTOR.key(), connector);
-            }
-        };
-    }
-
-    /** Whether the test meta-object is generic or not. */
-    protected abstract boolean isGeneric();
 }

@@ -81,7 +81,6 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX;
-import static org.apache.flink.table.catalog.CatalogPropertiesUtil.IS_GENERIC;
 import static org.apache.flink.table.catalog.hive.util.Constants.ALTER_TABLE_OP;
 import static org.apache.flink.table.catalog.hive.util.Constants.COLLECTION_DELIM;
 import static org.apache.flink.table.catalog.hive.util.Constants.SERDE_INFO_PROP_PREFIX;
@@ -91,7 +90,6 @@ import static org.apache.flink.table.catalog.hive.util.Constants.STORED_AS_INPUT
 import static org.apache.flink.table.catalog.hive.util.Constants.STORED_AS_OUTPUT_FORMAT;
 import static org.apache.flink.table.catalog.hive.util.Constants.TABLE_IS_EXTERNAL;
 import static org.apache.flink.table.catalog.hive.util.Constants.TABLE_LOCATION_URI;
-import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -541,15 +539,6 @@ public class HiveTableUtil {
             }
 
             properties = maskFlinkProperties(properties);
-            // we may need to explicitly set is_generic flag in the following cases:
-            // 1. user doesn't specify 'connector' or 'connector.type' when creating a table, w/o
-            // 'is_generic', such a table will be considered as a hive table upon retrieval
-            // 2. when creating views which don't have connector properties
-            if (isView
-                    || (!properties.containsKey(FLINK_PROPERTY_PREFIX + CONNECTOR.key())
-                            && !properties.containsKey(FLINK_PROPERTY_PREFIX + CONNECTOR_TYPE))) {
-                properties.put(IS_GENERIC, "true");
-            }
             hiveTable.setParameters(properties);
         }
 

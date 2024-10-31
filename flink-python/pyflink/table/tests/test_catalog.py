@@ -74,7 +74,6 @@ class CatalogTestBase(PyFlinkTestCase):
 
     def check_catalog_function_equals(self, f1, f2):
         self.assertEqual(f1.get_class_name(), f2.get_class_name())
-        self.assertEqual(f1.is_generic(), f2.is_generic())
         self.assertEqual(f1.get_function_language(), f2.get_function_language())
 
     def check_catalog_partition_equals(self, p1, p2):

@@ -1827,18 +1827,8 @@ public class HiveCatalog extends AbstractCatalog {
 
     @Internal
     public static boolean isHiveTable(Table table) {
-        boolean isHiveTable;
-        if (table.getParameters().containsKey(CatalogPropertiesUtil.IS_GENERIC)) {
-            isHiveTable =
-                    !Boolean.parseBoolean(
-                            table.getParameters().remove(CatalogPropertiesUtil.IS_GENERIC));
-        } else {
-            isHiveTable =
-                    !table.getParameters().containsKey(FLINK_PROPERTY_PREFIX + CONNECTOR.key())
-                            && !table.getParameters()
-                                    .containsKey(FLINK_PROPERTY_PREFIX + CONNECTOR_TYPE);
-        }
-        return isHiveTable;
+        return !table.getParameters().containsKey(FLINK_PROPERTY_PREFIX + CONNECTOR.key())
+                && !table.getParameters().containsKey(FLINK_PROPERTY_PREFIX + CONNECTOR_TYPE);
     }
 
     @Internal
@@ -1994,10 +1984,6 @@ public class HiveCatalog extends AbstractCatalog {
                 break;
             default:
                 throw new CatalogException("Unsupported alter database op:" + opStr);
-        }
-        // is_generic is deprecated, remove it
-        if (hiveDB.getParameters() != null) {
-            hiveDB.getParameters().remove(CatalogPropertiesUtil.IS_GENERIC);
         }
         return hiveDB;
     }

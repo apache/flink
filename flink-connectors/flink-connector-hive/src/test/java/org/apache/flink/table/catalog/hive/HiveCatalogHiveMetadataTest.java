@@ -26,7 +26,6 @@ import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
-import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTestUtil;
 import org.apache.flink.table.catalog.CatalogView;
@@ -135,8 +134,6 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
                             name, HiveTypeUtil.toHiveTypeInfo(type, true).getTypeName(), null));
         }
         hiveView.getSd().setCols(fields);
-        // test mark as non-generic with is_generic
-        hiveView.getParameters().put(CatalogPropertiesUtil.IS_GENERIC, "false");
         // add some other properties
         hiveView.getParameters().put("k1", "v1");
 
@@ -152,7 +149,6 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         // test mark as non-generic with connector
         hiveView.setDbName(path3.getDatabaseName());
         hiveView.setTableName(path3.getObjectName());
-        hiveView.getParameters().remove(CatalogPropertiesUtil.IS_GENERIC);
         hiveView.getParameters().put(CONNECTOR.key(), IDENTIFIER);
 
         ((HiveCatalog) catalog).client.createTable(hiveView);
@@ -650,11 +646,6 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
     private void createPartition(Map<String, String> partitionSpec) throws Exception {
         catalog.createPartition(
                 path1, new CatalogPartitionSpec(partitionSpec), createPartition(), true);
-    }
-
-    @Override
-    protected boolean isGeneric() {
-        return false;
     }
 
     @Override

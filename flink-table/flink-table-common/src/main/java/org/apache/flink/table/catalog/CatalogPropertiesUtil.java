@@ -56,14 +56,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public final class CatalogPropertiesUtil {
 
     /**
-     * Flag to distinguish if a meta-object is a generic Flink object or not.
-     *
-     * <p>It is used to distinguish between Flink's generic connector discovery logic or specialized
-     * catalog connectors.
-     */
-    public static final String IS_GENERIC = "is_generic";
-
-    /**
      * Globally reserved prefix for catalog properties. User-defined properties should not use this
      * prefix. E.g. it is used to distinguish properties created by Hive and Flink, as Hive
      * metastore has its own properties created upon table creation and migration between different
@@ -90,8 +82,6 @@ public final class CatalogPropertiesUtil {
 
             properties.putAll(resolvedTable.getOptions());
 
-            properties.remove(IS_GENERIC); // reserved option
-
             return properties;
         } catch (Exception e) {
             throw new CatalogException("Error in serializing catalog table.", e);
@@ -111,8 +101,6 @@ public final class CatalogPropertiesUtil {
             }
 
             properties.putAll(resolvedView.getOptions());
-
-            properties.remove(IS_GENERIC); // reserved option
 
             return properties;
         } catch (Exception e) {
