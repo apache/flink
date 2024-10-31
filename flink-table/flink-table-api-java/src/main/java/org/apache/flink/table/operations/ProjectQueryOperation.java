@@ -42,6 +42,7 @@ import java.util.stream.IntStream;
 @Internal
 public class ProjectQueryOperation implements QueryOperation {
 
+    private static final String INPUT_ALIAS = "$$T_PROJECT";
     private final List<ResolvedExpression> projectList;
     private final QueryOperation child;
     private final ResolvedSchema resolvedSchema;
@@ -76,9 +77,13 @@ public class ProjectQueryOperation implements QueryOperation {
     @Override
     public String asSerializableString() {
         return String.format(
-                "SELECT %s FROM (%s\n)",
+                "SELECT %s FROM (%s\n) " + INPUT_ALIAS,
                 IntStream.range(0, projectList.size())
                         .mapToObj(this::alias)
+                        .map(
+                                expr ->
+                                        OperationExpressionsUtils.scopeReferencesWithAlias(
+                                                INPUT_ALIAS, expr))
                         .map(ResolvedExpression::asSerializableString)
                         .collect(Collectors.joining(", ")),
                 OperationUtils.indent(child.asSerializableString()));
