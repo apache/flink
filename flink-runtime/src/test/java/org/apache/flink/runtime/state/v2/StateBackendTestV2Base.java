@@ -19,10 +19,13 @@
 package org.apache.flink.runtime.state.v2;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.state.StateFutureImpl;
 import org.apache.flink.metrics.MetricGroup;
@@ -41,6 +44,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
@@ -49,6 +53,8 @@ import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.runtime.testutils.statemigration.TestType;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.IOUtils;
 
 import org.junit.jupiter.api.AfterEach;
@@ -56,11 +62,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.RunnableFuture;
 
+import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -335,6 +343,128 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
         }
 
         assertThat(testExceptionHandler.exception).isNull();
+    }
+
+    @TestTemplate
+    void testKeyGroupedInternalPriorityQueue() throws Exception {
+        testKeyGroupedInternalPriorityQueue(false);
+    }
+
+    @TestTemplate
+    void testKeyGroupedInternalPriorityQueueAddAll() throws Exception {
+        testKeyGroupedInternalPriorityQueue(true);
+    }
+
+    void testKeyGroupedInternalPriorityQueue(boolean addAll) throws Exception {
+        String fieldName = "key-grouped-priority-queue";
+        AsyncKeyedStateBackend<Integer> backend =
+                createAsyncKeyedBackend(IntSerializer.INSTANCE, 128, env);
+        try {
+            KeyGroupedInternalPriorityQueue<TestType> priorityQueue =
+                    backend.create(fieldName, new TestType.V1TestTypeSerializer());
+
+            TestType elementA42 = new TestType("a", 42);
+            TestType elementA44 = new TestType("a", 44);
+            TestType elementB1 = new TestType("b", 1);
+            TestType elementB3 = new TestType("b", 3);
+
+            TestType[] elements = {
+                elementA44, elementB1, elementB1, elementB3, elementA42,
+            };
+
+            if (addAll) {
+                priorityQueue.addAll(asList(elements));
+            } else {
+                assertThat(priorityQueue.add(elements[0])).isTrue();
+                assertThat(priorityQueue.add(elements[1])).isTrue();
+                assertThat(priorityQueue.add(elements[2])).isFalse();
+                assertThat(priorityQueue.add(elements[3])).isFalse();
+                assertThat(priorityQueue.add(elements[4])).isFalse();
+            }
+            assertThat(priorityQueue.isEmpty()).isFalse();
+            assertThat(priorityQueue.getSubsetForKeyGroup(81))
+                    .containsExactlyInAnyOrder(elementA42, elementA44);
+            assertThat(priorityQueue.getSubsetForKeyGroup(22))
+                    .containsExactlyInAnyOrder(elementB1, elementB3);
+
+            assertThat(priorityQueue.peek()).isEqualTo(elementB1);
+            assertThat(priorityQueue.poll()).isEqualTo(elementB1);
+            assertThat(priorityQueue.peek()).isEqualTo(elementB3);
+
+            List<TestType> actualList = new ArrayList<>();
+            try (CloseableIterator<TestType> iterator = priorityQueue.iterator()) {
+                iterator.forEachRemaining(actualList::add);
+            }
+
+            assertThat(actualList).containsExactlyInAnyOrder(elementB3, elementA42, elementA44);
+
+            assertThat(priorityQueue.size()).isEqualTo(3);
+
+            assertThat(priorityQueue.remove(elementB1)).isFalse();
+            assertThat(priorityQueue.remove(elementB3)).isTrue();
+            assertThat(priorityQueue.peek()).isEqualTo(elementA42);
+        } finally {
+            IOUtils.closeQuietly(backend);
+            backend.dispose();
+        }
+    }
+
+    void testValueStateWorkWithTtl() throws Exception {
+        TestAsyncFrameworkExceptionHandler testExceptionHandler =
+                new TestAsyncFrameworkExceptionHandler();
+        AsyncKeyedStateBackend<Long> backend =
+                createAsyncKeyedBackend(LongSerializer.INSTANCE, 128, env);
+        AsyncExecutionController<Long> aec =
+                new AsyncExecutionController<>(
+                        new SyncMailboxExecutor(),
+                        testExceptionHandler,
+                        backend.createStateExecutor(),
+                        128,
+                        1,
+                        -1,
+                        1,
+                        null);
+        backend.setup(aec);
+        try {
+            ValueStateDescriptor<Long> kvId =
+                    new ValueStateDescriptor<>("id", TypeInformation.of(Long.class));
+            kvId.enableTimeToLive(StateTtlConfig.newBuilder(Duration.ofSeconds(1)).build());
+
+            ValueState<Long> state =
+                    backend.createState(
+                            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+            RecordContext recordContext = aec.buildContext("record-1", 1L);
+            recordContext.retain();
+            aec.setCurrentContext(recordContext);
+            state.update(1L);
+            assertThat(state.value()).isEqualTo(1L);
+            Thread.sleep(1000);
+            assertThat(state.value()).isNull();
+            recordContext.release();
+
+            RecordContext recordContext1 = aec.buildContext("record-2", 2L);
+            aec.setCurrentContext(recordContext1);
+            state.asyncUpdate(2L)
+                    .thenAccept(
+                            (val) -> {
+                                state.asyncValue()
+                                        .thenAccept(
+                                                (val1) -> {
+                                                    assertThat(val1).isEqualTo(2);
+                                                    Thread.sleep(1000);
+                                                    state.asyncValue()
+                                                            .thenAccept(
+                                                                    (val2) -> {
+                                                                        assertThat(val2).isNull();
+                                                                    });
+                                                });
+                            });
+            Thread.sleep(3000);
+            recordContext1.release();
+        } finally {
+            IOUtils.closeQuietly(backend);
+            backend.dispose();
+        }
     }
 
     static class TestAsyncFrameworkExceptionHandler

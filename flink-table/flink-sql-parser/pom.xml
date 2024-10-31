@@ -297,34 +297,27 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-			<plugin>
-				<groupId>com.googlecode.fmpp-maven-plugin</groupId>
-				<artifactId>fmpp-maven-plugin</artifactId>
-				<version>1.0</version>
-				<dependencies>
-					<dependency>
-						<groupId>org.freemarker</groupId>
-						<artifactId>freemarker</artifactId>
-						<version>2.3.28</version>
-					</dependency>
-				</dependencies>
+			<plugin> <!-- generate sources from fmpp -->
+				<groupId>org.apache.drill.tools</groupId>
+				<artifactId>drill-fmpp-maven-plugin</artifactId>
+				<version>1.21.2</version>
 				<executions>
 					<execution>
-						<id>generate-fmpp-sources</id>
+						<id>generate-fmpp</id>
 						<phase>generate-sources</phase>
 						<goals>
 							<goal>generate</goal>
 						</goals>
 						<configuration>
-							<cfgFile>${project.build.directory}/codegen/config.fmpp</cfgFile>
-							<outputDirectory>target/generated-sources</outputDirectory>
-							<templateDirectory>${project.build.directory}/codegen/templates</templateDirectory>
+							<config>${project.build.directory}/codegen/config.fmpp</config>
+							<output>${project.build.directory}/generated-sources</output>
+							<templates>${project.build.directory}/codegen/templates</templates>
 						</configuration>
 					</execution>
 				</executions>
 			</plugin>
 			<plugin>
-				<!-- This must be run AFTER the fmpp-maven-plugin -->
+				<!-- This must be run AFTER the drill-fmpp-maven-plugin -->
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>javacc-maven-plugin</artifactId>
 				<version>2.4</version>

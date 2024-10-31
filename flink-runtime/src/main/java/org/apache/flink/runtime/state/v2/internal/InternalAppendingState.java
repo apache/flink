@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.state.v2.internal;
 
 import org.apache.flink.api.common.state.v2.AppendingState;
+import org.apache.flink.api.common.state.v2.StateFuture;
 
 /**
  * This class defines the internal interface for appending state.
@@ -30,4 +31,32 @@ import org.apache.flink.api.common.state.v2.AppendingState;
  * @param <SYNCOUT> Type of the value that can be retrieved from the state by synchronous interface.
  */
 public interface InternalAppendingState<K, N, IN, SV, OUT, SYNCOUT>
-        extends InternalKeyedState<K, N, SV>, AppendingState<IN, OUT, SYNCOUT> {}
+        extends InternalKeyedState<K, N, SV>, AppendingState<IN, OUT, SYNCOUT> {
+    /**
+     * Get internally stored value.
+     *
+     * @return internally stored value.
+     */
+    StateFuture<SV> asyncGetInternal();
+
+    /**
+     * Update internally stored value.
+     *
+     * @param valueToStore new value to store.
+     */
+    StateFuture<Void> asyncUpdateInternal(SV valueToStore);
+
+    /**
+     * Get internally stored value.
+     *
+     * @return internally stored value.
+     */
+    SV getInternal();
+
+    /**
+     * Update internally stored value.
+     *
+     * @param valueToStore new value to store.
+     */
+    void updateInternal(SV valueToStore);
+}

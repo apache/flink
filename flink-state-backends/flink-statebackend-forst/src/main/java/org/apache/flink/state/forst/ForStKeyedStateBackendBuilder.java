@@ -27,19 +27,27 @@ import org.apache.flink.runtime.state.BackendBuildingException;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
+import org.apache.flink.runtime.state.InternalKeyContext;
+import org.apache.flink.runtime.state.InternalKeyContextImpl;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendBuilder;
 import org.apache.flink.runtime.state.StateSerializerProvider;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
+import org.apache.flink.state.forst.restore.ForStHeapTimersFullRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStIncrementalRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStNoneRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStRestoreResult;
 import org.apache.flink.state.forst.snapshot.ForStIncrementalSnapshotStrategy;
 import org.apache.flink.state.forst.snapshot.ForStSnapshotStrategyBase;
+import org.apache.flink.state.forst.sync.ForStPriorityQueueConfig;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -83,6 +91,9 @@ public class ForStKeyedStateBackendBuilder<K>
     /** String that identifies the operator that owns this backend. */
     private final String operatorIdentifier;
 
+    /** The configuration of rocksDB priorityQueue state. */
+    private final ForStPriorityQueueConfig priorityQueueConfig;
+
     protected final ClassLoader userCodeClassLoader;
 
     protected final CloseableRegistry cancelStreamRegistry;
@@ -91,6 +102,7 @@ public class ForStKeyedStateBackendBuilder<K>
 
     private final int numberOfKeyGroups;
     private final KeyGroupRange keyGroupRange;
+    private final TtlTimeProvider ttlTimeProvider;
 
     private final Collection<KeyedStateHandle> restoreStateHandles;
 
@@ -117,6 +129,8 @@ public class ForStKeyedStateBackendBuilder<K>
             TypeSerializer<K> keySerializer,
             int numberOfKeyGroups,
             KeyGroupRange keyGroupRange,
+            ForStPriorityQueueConfig priorityQueueConfig,
+            TtlTimeProvider ttlTimeProvider,
             MetricGroup metricGroup,
             StateBackend.CustomInitializationMetrics customInitializationMetrics,
             @Nonnull Collection<KeyedStateHandle> stateHandles,
@@ -129,6 +143,8 @@ public class ForStKeyedStateBackendBuilder<K>
                 StateSerializerProvider.fromNewRegisteredSerializer(keySerializer);
         this.numberOfKeyGroups = numberOfKeyGroups;
         this.keyGroupRange = keyGroupRange;
+        this.priorityQueueConfig = priorityQueueConfig;
+        this.ttlTimeProvider = ttlTimeProvider;
         this.metricGroup = metricGroup;
         this.customInitializationMetrics = customInitializationMetrics;
         this.restoreStateHandles = stateHandles;
@@ -157,6 +173,14 @@ public class ForStKeyedStateBackendBuilder<K>
 
         LinkedHashMap<String, ForStKeyedStateBackend.ForStKvStateInfo> kvStateInformation =
                 new LinkedHashMap<>();
+        LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates =
+                new LinkedHashMap<>();
+
+        ForStDBTtlCompactFiltersManager ttlCompactFiltersManager =
+                new ForStDBTtlCompactFiltersManager(
+                        ttlTimeProvider,
+                        optionsContainer.getQueryTimeAfterNumEntries(),
+                        optionsContainer.getPeriodicCompactionTime());
 
         RocksDB db = null;
         ForStRestoreOperation restoreOperation = null;
@@ -183,10 +207,11 @@ public class ForStKeyedStateBackendBuilder<K>
         Supplier<DataInputDeserializer> valueDeserializerView = DataInputDeserializer::new;
 
         UUID backendUID = UUID.randomUUID();
+        PriorityQueueSetFactory priorityQueueFactory;
 
         try {
             optionsContainer.prepareDirectories();
-            restoreOperation = getForStRestoreOperation(kvStateInformation);
+            restoreOperation = getForStRestoreOperation(kvStateInformation, registeredPQStates);
             ForStRestoreResult restoreResult = restoreOperation.restore();
             db = restoreResult.getDb();
             defaultColumnFamilyHandle = restoreResult.getDefaultColumnFamilyHandle();
@@ -208,6 +233,8 @@ public class ForStKeyedStateBackendBuilder<K>
                             backendUID,
                             materializedSstFiles,
                             lastCompletedCheckpointId);
+
+            priorityQueueFactory = createHeapQueueFactory();
 
         } catch (Throwable e) {
             // Do clean up
@@ -237,6 +264,8 @@ public class ForStKeyedStateBackendBuilder<K>
                 throw new BackendBuildingException(errMsg, e);
             }
         }
+        InternalKeyContext<K> keyContext =
+                new InternalKeyContextImpl<>(keyGroupRange, numberOfKeyGroups);
         logger.info(
                 "Finished building ForSt keyed state-backend at local base path: {}, remote base path: {}.",
                 optionsContainer.getLocalBasePath(),
@@ -251,15 +280,21 @@ public class ForStKeyedStateBackendBuilder<K>
                 valueDeserializerView,
                 db,
                 kvStateInformation,
+                registeredPQStates,
                 columnFamilyOptionsFactory,
                 defaultColumnFamilyHandle,
                 snapshotStrategy,
+                priorityQueueFactory,
                 cancelStreamRegistryForBackend,
-                nativeMetricMonitor);
+                nativeMetricMonitor,
+                keyContext,
+                ttlTimeProvider,
+                ttlCompactFiltersManager);
     }
 
     private ForStRestoreOperation getForStRestoreOperation(
-            LinkedHashMap<String, ForStKeyedStateBackend.ForStKvStateInfo> kvStateInformation) {
+            LinkedHashMap<String, ForStKeyedStateBackend.ForStKvStateInfo> kvStateInformation,
+            LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates) {
         // Currently, ForStDB does not support mixing local-dir and remote-dir, and ForStDB will
         // concatenates the dfs directory with the local directory as working dir when using flink
         // env. We expect to directly use the dfs directory in flink env or local directory as
@@ -299,7 +334,27 @@ public class ForStKeyedStateBackendBuilder<K>
                     customInitializationMetrics,
                     CollectionUtil.checkedSubTypeCast(
                             restoreStateHandles, IncrementalRemoteKeyedStateHandle.class));
+        } else if (priorityQueueConfig.getPriorityQueueStateType()
+                == ForStStateBackend.PriorityQueueStateType.HEAP) {
+            // Note: This branch can be touched after ForSt Support canonical savepoint,
+            // Timers are stored as raw keyed state instead of managed keyed state now.
+            return new ForStHeapTimersFullRestoreOperation<>(
+                    keyGroupRange,
+                    numberOfKeyGroups,
+                    userCodeClassLoader,
+                    kvStateInformation,
+                    registeredPQStates,
+                    createHeapQueueFactory(),
+                    keySerializerProvider,
+                    instanceForStPath,
+                    optionsContainer.getDbOptions(),
+                    columnFamilyOptionsFactory,
+                    nativeMetricOptions,
+                    metricGroup,
+                    restoreStateHandles,
+                    cancelStreamRegistry);
         }
+
         // TODO: Support Restoring
         throw new UnsupportedOperationException("Not support restoring yet for ForStStateBackend");
     }
@@ -350,5 +405,9 @@ public class ForStKeyedStateBackendBuilder<K>
             throw new UnsupportedOperationException("Not implemented yet for ForStStateBackend");
         }
         return snapshotStrategy;
+    }
+
+    private HeapPriorityQueueSetFactory createHeapQueueFactory() {
+        return new HeapPriorityQueueSetFactory(keyGroupRange, numberOfKeyGroups, 128);
     }
 }

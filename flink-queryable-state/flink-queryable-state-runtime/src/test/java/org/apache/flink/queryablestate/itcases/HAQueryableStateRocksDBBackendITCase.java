@@ -45,7 +45,7 @@ import java.nio.file.Path;
 
 /**
  * Several integration tests for queryable state using the {@link
- * org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend}.
+ * org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend}.
  */
 class HAQueryableStateRocksDBBackendITCase extends AbstractQueryableStateTestBase {
 

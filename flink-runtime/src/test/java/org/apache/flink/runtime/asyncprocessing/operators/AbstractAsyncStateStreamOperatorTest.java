@@ -40,7 +40,6 @@ import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ExecutorService;
@@ -222,7 +221,6 @@ public class AbstractAsyncStateStreamOperatorTest {
         }
     }
 
-    @Disabled("Support Timer for AsyncKeyedStateBackend")
     @Test
     void testTimerServiceIsAsync() throws Exception {
         try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>

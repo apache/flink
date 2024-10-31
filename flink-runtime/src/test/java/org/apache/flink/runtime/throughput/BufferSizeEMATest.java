@@ -32,21 +32,40 @@ class BufferSizeEMATest {
 
         // The result value seeks to the bottom limit but it will take a while until it reaches it.
         assertThat(calculator.calculateBufferSize(111, 13)).isEqualTo(104);
-        assertThat(calculator.calculateBufferSize(107, 7)).isEqualTo(59);
-        assertThat(calculator.calculateBufferSize(107, 7)).isEqualTo(37);
+        assertThat(calculator.calculateBufferSize(107, 7)).isEqualTo(60);
+        assertThat(calculator.calculateBufferSize(107, 7)).isEqualTo(38);
         assertThat(calculator.calculateBufferSize(107, 7)).isEqualTo(26);
-        assertThat(calculator.calculateBufferSize(107, 7)).isEqualTo(20);
-        assertThat(calculator.calculateBufferSize(107, 7)).isEqualTo(17);
-        assertThat(calculator.calculateBufferSize(107, 13)).isEqualTo(12);
+        assertThat(calculator.calculateBufferSize(107, 7)).isEqualTo(21);
+        assertThat(calculator.calculateBufferSize(107, 7)).isEqualTo(18);
+        assertThat(calculator.calculateBufferSize(107, 13)).isEqualTo(13);
+        assertThat(calculator.calculateBufferSize(107, 13)).isEqualTo(11);
         assertThat(calculator.calculateBufferSize(107, 13)).isEqualTo(10);
 
         // Upgrade
         assertThat(calculator.calculateBufferSize(333, 1)).isEqualTo(15);
-        assertThat(calculator.calculateBufferSize(333, 1)).isEqualTo(22);
-        assertThat(calculator.calculateBufferSize(333, 1)).isEqualTo(33);
-        assertThat(calculator.calculateBufferSize(333, 1)).isEqualTo(49);
-        assertThat(calculator.calculateBufferSize(333, 1)).isEqualTo(73);
-        assertThat(calculator.calculateBufferSize(333, 1)).isEqualTo(109);
+        assertThat(calculator.calculateBufferSize(333, 1)).isEqualTo(23);
+        assertThat(calculator.calculateBufferSize(333, 1)).isEqualTo(34);
+        assertThat(calculator.calculateBufferSize(333, 1)).isEqualTo(51);
+        assertThat(calculator.calculateBufferSize(333, 1)).isEqualTo(76);
+        assertThat(calculator.calculateBufferSize(333, 1)).isEqualTo(114);
+    }
+
+    /**
+     * Check that even with very small alpha, buffer size doesn't get stuck and can not eventually
+     * grow.
+     */
+    @Test
+    public void testSmallBufferSizeChanges() {
+        int numberOfSamples = 10000;
+        int startingBufferSize = 16;
+        BufferSizeEMA calculator =
+                new BufferSizeEMA(startingBufferSize, 32 * 1024, 16, numberOfSamples);
+
+        for (int i = 0; i < numberOfSamples; i++) {
+            calculator.calculateBufferSize(20000, 10);
+        }
+
+        assertThat(calculator.calculateBufferSize(10000, 10)).isGreaterThan(startingBufferSize);
     }
 
     @Test
@@ -70,7 +89,7 @@ class BufferSizeEMATest {
         assertThat(calculator.calculateBufferSize(0, 1)).isEqualTo(100);
         assertThat(calculator.calculateBufferSize(0, 1)).isEqualTo(50);
         assertThat(calculator.calculateBufferSize(0, 1)).isEqualTo(25);
-        assertThat(calculator.calculateBufferSize(0, 1)).isEqualTo(12);
+        assertThat(calculator.calculateBufferSize(0, 1)).isEqualTo(13);
         assertThat(calculator.calculateBufferSize(0, 1)).isEqualTo(10);
         assertThat(calculator.calculateBufferSize(0, 1)).isEqualTo(10);
     }

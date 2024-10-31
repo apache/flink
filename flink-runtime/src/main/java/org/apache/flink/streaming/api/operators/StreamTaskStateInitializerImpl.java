@@ -157,7 +157,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
             @Nonnull CloseableRegistry streamTaskCloseableRegistry,
             @Nonnull MetricGroup metricGroup,
             double managedMemoryFraction,
-            boolean isUsingCustomRawKeyedState)
+            boolean isUsingCustomRawKeyedState,
+            boolean isAsyncState)
             throws Exception {
 
         TaskInfo taskInfo = environment.getTaskInfo();
@@ -179,7 +180,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
         OperatorStateBackend operatorStateBackend = null;
         CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs = null;
         CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs = null;
-        InternalTimeServiceManager<?> timeServiceManager;
+        InternalTimeServiceManager<?> timeServiceManager = null;
+        InternalTimeServiceManager<?> asyncTimeServiceManager = null;
 
         final StateObject.StateObjectSizeStatsCollector statsCollector =
                 StateObject.StateObjectSizeStatsCollector.create();
@@ -187,18 +189,33 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
         try {
 
             // -------------- Keyed State Backend --------------
-            keyedStatedBackend =
-                    keyedStatedBackend(
-                            keySerializer,
-                            operatorIdentifierText,
-                            prioritizedOperatorSubtaskStates,
-                            streamTaskCloseableRegistry,
-                            metricGroup,
-                            managedMemoryFraction,
-                            statsCollector,
-                            StateBackend::createKeyedStateBackend);
-            if (stateBackend.supportsAsyncKeyedStateBackend()) {
-                asyncKeyedStateBackend =
+            if (isAsyncState) {
+                if (stateBackend.supportsAsyncKeyedStateBackend()) {
+                    asyncKeyedStateBackend =
+                            keyedStatedBackend(
+                                    keySerializer,
+                                    operatorIdentifierText,
+                                    prioritizedOperatorSubtaskStates,
+                                    streamTaskCloseableRegistry,
+                                    metricGroup,
+                                    managedMemoryFraction,
+                                    statsCollector,
+                                    StateBackend::createAsyncKeyedStateBackend);
+                } else {
+                    asyncKeyedStateBackend =
+                            new AsyncKeyedStateBackendAdaptor<>(
+                                    keyedStatedBackend(
+                                            keySerializer,
+                                            operatorIdentifierText,
+                                            prioritizedOperatorSubtaskStates,
+                                            streamTaskCloseableRegistry,
+                                            metricGroup,
+                                            managedMemoryFraction,
+                                            statsCollector,
+                                            StateBackend::createKeyedStateBackend));
+                }
+            } else {
+                keyedStatedBackend =
                         keyedStatedBackend(
                                 keySerializer,
                                 operatorIdentifierText,
@@ -207,12 +224,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                                 metricGroup,
                                 managedMemoryFraction,
                                 statsCollector,
-                                StateBackend::createAsyncKeyedStateBackend);
-            } else {
-                if (keyedStatedBackend != null) {
-                    asyncKeyedStateBackend =
-                            new AsyncKeyedStateBackendAdaptor<>(keyedStatedBackend);
-                }
+                                StateBackend::createKeyedStateBackend);
             }
 
             // -------------- Operator State Backend --------------
@@ -241,34 +253,43 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
             streamTaskCloseableRegistry.registerCloseable(rawOperatorStateInputs);
 
             // -------------- Internal Timer Service Manager --------------
-            if (keyedStatedBackend != null) {
-
-                // if the operator indicates that it is using custom raw keyed state,
-                // then whatever was written in the raw keyed state snapshot was NOT written
-                // by the internal timer services (because there is only ever one user of raw keyed
-                // state);
-                // in this case, timers should not attempt to restore timers from the raw keyed
-                // state.
-                final Iterable<KeyGroupStatePartitionStreamProvider> restoredRawKeyedStateTimers =
-                        (prioritizedOperatorSubtaskStates.isRestored()
-                                        && !isUsingCustomRawKeyedState)
-                                ? rawKeyedStateInputs
-                                : Collections.emptyList();
-
-                timeServiceManager =
-                        timeServiceManagerProvider.create(
-                                environment.getMetricGroup().getIOMetricGroup(),
-                                keyedStatedBackend,
-                                environment.getUserCodeClassLoader().asClassLoader(),
-                                keyContext,
-                                processingTimeService,
-                                restoredRawKeyedStateTimers,
-                                cancellationContext);
+            // if the operator indicates that it is using custom raw keyed state,
+            // then whatever was written in the raw keyed state snapshot was NOT written
+            // by the internal timer services (because there is only ever one user of raw keyed
+            // state);
+            // in this case, timers should not attempt to restore timers from the raw keyed
+            // state.
+            final Iterable<KeyGroupStatePartitionStreamProvider> restoredRawKeyedStateTimers =
+                    (prioritizedOperatorSubtaskStates.isRestored() && !isUsingCustomRawKeyedState)
+                            ? rawKeyedStateInputs
+                            : Collections.emptyList();
+            if (isAsyncState) {
+                if (asyncKeyedStateBackend != null) {
+                    asyncTimeServiceManager =
+                            timeServiceManagerProvider.create(
+                                    environment.getMetricGroup().getIOMetricGroup(),
+                                    asyncKeyedStateBackend,
+                                    asyncKeyedStateBackend.getKeyGroupRange(),
+                                    environment.getUserCodeClassLoader().asClassLoader(),
+                                    keyContext,
+                                    processingTimeService,
+                                    restoredRawKeyedStateTimers,
+                                    cancellationContext);
+                }
             } else {
-                timeServiceManager = null;
+                if (keyedStatedBackend != null) {
+                    timeServiceManager =
+                            timeServiceManagerProvider.create(
+                                    environment.getMetricGroup().getIOMetricGroup(),
+                                    keyedStatedBackend,
+                                    keyedStatedBackend.getKeyGroupRange(),
+                                    environment.getUserCodeClassLoader().asClassLoader(),
+                                    keyContext,
+                                    processingTimeService,
+                                    restoredRawKeyedStateTimers,
+                                    cancellationContext);
+                }
             }
-            // TODO: Support Timer for AsyncKeyedStateBackend
-
             // Add stats for input channel and result partition state
             Stream.concat(
                             prioritizedOperatorSubtaskStates.getPrioritizedInputChannelState()
@@ -292,9 +313,11 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
             return new StreamOperatorStateContextImpl(
                     prioritizedOperatorSubtaskStates.getRestoredCheckpointId(),
                     operatorStateBackend,
+                    keySerializer,
                     keyedStatedBackend,
                     asyncKeyedStateBackend,
                     timeServiceManager,
+                    asyncTimeServiceManager,
                     rawOperatorStateInputs,
                     rawKeyedStateInputs);
         } catch (Exception ex) {
@@ -775,9 +798,11 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
         private final @Nullable Long restoredCheckpointId;
 
         private final OperatorStateBackend operatorStateBackend;
+        private final @Nullable TypeSerializer<?> keySerializer;
         private final CheckpointableKeyedStateBackend<?> keyedStateBackend;
-        private final AsyncKeyedStateBackend asyncKeyedStateBackend;
+        private final AsyncKeyedStateBackend<?> asyncKeyedStateBackend;
         private final InternalTimeServiceManager<?> internalTimeServiceManager;
+        private final InternalTimeServiceManager<?> asyncInternalTimeServiceManager;
 
         private final CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs;
         private final CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs;
@@ -785,17 +810,21 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
         StreamOperatorStateContextImpl(
                 @Nullable Long restoredCheckpointId,
                 OperatorStateBackend operatorStateBackend,
+                @Nullable TypeSerializer<?> keySerializer,
                 CheckpointableKeyedStateBackend<?> keyedStateBackend,
-                AsyncKeyedStateBackend asyncKeyedStateBackend,
+                AsyncKeyedStateBackend<?> asyncKeyedStateBackend,
                 InternalTimeServiceManager<?> internalTimeServiceManager,
+                InternalTimeServiceManager<?> asyncInternalTimeServiceManager,
                 CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs,
                 CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs) {
 
             this.restoredCheckpointId = restoredCheckpointId;
             this.operatorStateBackend = operatorStateBackend;
+            this.keySerializer = keySerializer;
             this.keyedStateBackend = keyedStateBackend;
             this.asyncKeyedStateBackend = asyncKeyedStateBackend;
             this.internalTimeServiceManager = internalTimeServiceManager;
+            this.asyncInternalTimeServiceManager = asyncInternalTimeServiceManager;
             this.rawOperatorStateInputs = rawOperatorStateInputs;
             this.rawKeyedStateInputs = rawKeyedStateInputs;
         }
@@ -808,12 +837,17 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
         }
 
         @Override
+        public TypeSerializer<?> keySerializer() {
+            return keySerializer;
+        }
+
+        @Override
         public CheckpointableKeyedStateBackend<?> keyedStateBackend() {
             return keyedStateBackend;
         }
 
         @Override
-        public AsyncKeyedStateBackend asyncKeyedStateBackend() {
+        public AsyncKeyedStateBackend<?> asyncKeyedStateBackend() {
             return asyncKeyedStateBackend;
         }
 
@@ -825,6 +859,11 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
         @Override
         public InternalTimeServiceManager<?> internalTimerServiceManager() {
             return internalTimeServiceManager;
+        }
+
+        @Override
+        public InternalTimeServiceManager<?> asyncInternalTimerServiceManager() {
+            return asyncInternalTimeServiceManager;
         }
 
         @Override

@@ -60,6 +60,8 @@ public class NettyShuffleEnvironmentConfiguration {
 
     private final int networkBufferSize;
 
+    private final int startingBufferSize;
+
     private final int partitionRequestInitialBackoff;
 
     private final int partitionRequestMaxBackoff;
@@ -114,6 +116,7 @@ public class NettyShuffleEnvironmentConfiguration {
     public NettyShuffleEnvironmentConfiguration(
             int numNetworkBuffers,
             int networkBufferSize,
+            int startingBufferSize,
             int partitionRequestInitialBackoff,
             int partitionRequestMaxBackoff,
             int partitionRequestListenerTimeout,
@@ -138,6 +141,7 @@ public class NettyShuffleEnvironmentConfiguration {
 
         this.numNetworkBuffers = numNetworkBuffers;
         this.networkBufferSize = networkBufferSize;
+        this.startingBufferSize = startingBufferSize;
         this.partitionRequestInitialBackoff = partitionRequestInitialBackoff;
         this.partitionRequestMaxBackoff = partitionRequestMaxBackoff;
         this.partitionRequestListenerTimeout = partitionRequestListenerTimeout;
@@ -169,6 +173,10 @@ public class NettyShuffleEnvironmentConfiguration {
 
     public int networkBufferSize() {
         return networkBufferSize;
+    }
+
+    public int startingBufferSize() {
+        return startingBufferSize;
     }
 
     public int partitionRequestInitialBackoff() {
@@ -282,6 +290,15 @@ public class NettyShuffleEnvironmentConfiguration {
 
         final int pageSize = ConfigurationParserUtils.getPageSize(configuration);
 
+        int startingBufferSize = Integer.MAX_VALUE;
+        if (configuration.get(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED)) {
+            startingBufferSize =
+                    (int)
+                            configuration
+                                    .get(TaskManagerOptions.STARTING_MEMORY_SEGMENT_SIZE)
+                                    .getBytes();
+        }
+
         final NettyConfig nettyConfig =
                 createNettyConfig(
                         configuration,
@@ -360,6 +377,7 @@ public class NettyShuffleEnvironmentConfiguration {
         return new NettyShuffleEnvironmentConfiguration(
                 numberOfNetworkBuffers,
                 pageSize,
+                startingBufferSize,
                 initialRequestBackoff,
                 maxRequestBackoff,
                 listenerTimeout,

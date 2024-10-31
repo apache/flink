@@ -28,18 +28,14 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.AsyncStateException;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.runtime.state.v2.adaptor.AsyncKeyedStateBackendAdaptor;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
-import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -59,8 +55,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
-
-import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -238,25 +232,6 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
         }
     }
 
-    @Override
-    public OperatorSnapshotFutures snapshotState(
-            long checkpointId,
-            long timestamp,
-            CheckpointOptions checkpointOptions,
-            CheckpointStreamFactory factory)
-            throws Exception {
-        return stateHandler.snapshotState(
-                this,
-                Optional.ofNullable(timeServiceManager),
-                getOperatorName(),
-                checkpointId,
-                timestamp,
-                checkpointOptions,
-                factory,
-                isUsingCustomRawKeyedState(),
-                true);
-    }
-
     /**
      * Returns a {@link InternalTimerService} that can be used to query current processing time and
      * event time and to set timers. An operator can have several timer services, where each has its
@@ -292,13 +267,13 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
 
         InternalTimeServiceManager<K> keyedTimeServiceHandler =
                 (InternalTimeServiceManager<K>) timeServiceManager;
-        KeyedStateBackend<K> keyedStateBackend = getKeyedStateBackend();
-        checkState(keyedStateBackend != null, "Timers can only be used on keyed operators.");
+        TypeSerializer<K> keySerializer = stateHandler.getKeySerializer();
+        checkState(keySerializer != null, "Timers can only be used on keyed operators.");
         // A {@link RecordContext} will be set as the current processing context to preserve record
         // order when the given {@link Triggerable} is invoked.
         return keyedTimeServiceHandler.getAsyncInternalTimerService(
                 name,
-                keyedStateBackend.getKeySerializer(),
+                keySerializer,
                 namespaceSerializer,
                 triggerable,
                 (AsyncExecutionController<K>) asyncExecutionController);

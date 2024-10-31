@@ -23,6 +23,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.attribute.Attribute;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -34,23 +35,35 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.StateChangelogOptions;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.JobStatusHook;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
+import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.util.Hardware;
+import org.apache.flink.streaming.api.checkpoint.WithMasterCheckpointHook;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.lineage.LineageGraph;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.OutputFormatOperatorFactory;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.UdfStreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.ForwardForConsecutiveHashPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardForUnspecifiedPartitioner;
@@ -61,25 +74,41 @@ import org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
-import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
-import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
+import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
+import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TernaryBoolean;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
+import java.io.Serializable;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -87,18 +116,20 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * jobgraph for the execution.
  */
 @Internal
-public class StreamGraph implements Pipeline {
+public class StreamGraph implements Pipeline, ExecutionPlan {
+
+    private static final long serialVersionUID = 1L;
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamGraph.class);
 
-    public static final String ITERATION_SOURCE_NAME_PREFIX = "IterationSource";
-
-    public static final String ITERATION_SINK_NAME_PREFIX = "IterationSink";
+    private long initialClientHeartbeatTimeout;
 
     private String jobName;
 
+    private JobID jobId;
+
     private final Configuration jobConfiguration;
-    private final ExecutionConfig executionConfig;
+    private transient ExecutionConfig executionConfig;
     private final CheckpointConfig checkpointConfig;
     private SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.none();
 
@@ -109,20 +140,19 @@ public class StreamGraph implements Pipeline {
     /** Flag to indicate whether to put all vertices into the same slot sharing group by default. */
     private boolean allVerticesInSameSlotSharingGroupByDefault = true;
 
-    private Map<Integer, StreamNode> streamNodes;
+    private transient Map<Integer, StreamNode> streamNodes;
     private Set<Integer> sources;
     private Set<Integer> sinks;
-    private Map<Integer, Tuple2<Integer, OutputTag>> virtualSideOutputNodes;
-    private Map<Integer, Tuple3<Integer, StreamPartitioner<?>, StreamExchangeMode>>
+    private transient Map<Integer, Tuple2<Integer, OutputTag>> virtualSideOutputNodes;
+    private transient Map<Integer, Tuple3<Integer, StreamPartitioner<?>, StreamExchangeMode>>
             virtualPartitionNodes;
 
     protected Map<Integer, String> vertexIDtoBrokerID;
     protected Map<Integer, Long> vertexIDtoLoopTimeout;
-    private StateBackend stateBackend;
-    private CheckpointStorage checkpointStorage;
-    private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
+    private transient StateBackend stateBackend;
+    private transient CheckpointStorage checkpointStorage;
     private InternalTimeServiceManager.Provider timerServiceProvider;
-    private LineageGraph lineageGraph;
+    private transient LineageGraph lineageGraph;
     private JobType jobType = JobType.STREAMING;
     private Map<String, ResourceProfile> slotSharingGroupResources;
     private PipelineOptions.VertexDescriptionMode descriptionMode =
@@ -135,8 +165,29 @@ public class StreamGraph implements Pipeline {
 
     private boolean autoParallelismEnabled;
 
-    private final transient Map<StreamNode, StreamOperatorFactory<?>> nodeToHeadOperatorCache =
+    private final Map<StreamNode, StreamOperatorFactory<?>> nodeToHeadOperatorCache =
             new HashMap<>();
+
+    private JobCheckpointingSettings checkpointingSettings;
+
+    /** Set of blob keys identifying the JAR files required to run this job. */
+    private final List<PermanentBlobKey> userJarBlobKeys = new ArrayList<>();
+
+    /** Set of custom files required to run this job. */
+    private final Map<String, DistributedCache.DistributedCacheEntry> userArtifacts =
+            new HashMap<>();
+
+    /** List of classpath required to run this job. */
+    private List<URL> classpath = Collections.emptyList();
+
+    /** Set of JAR files required to run this job. */
+    private final List<Path> userJars = new ArrayList<>();
+
+    private boolean isEmpty;
+
+    private UserDefinedObjectsHolder userDefinedObjectsHolder;
+
+    private final Map<Integer, ResourceSpec> streamNodeMinResources = new HashMap<>();
 
     public StreamGraph(
             Configuration jobConfiguration,
@@ -147,6 +198,8 @@ public class StreamGraph implements Pipeline {
         this.executionConfig = checkNotNull(executionConfig);
         this.checkpointConfig = checkNotNull(checkpointConfig);
         this.savepointRestoreSettings = checkNotNull(savepointRestoreSettings);
+        this.jobId = new JobID();
+        this.jobName = "(unnamed job)";
 
         // create an empty new stream graph.
         clear();
@@ -159,7 +212,6 @@ public class StreamGraph implements Pipeline {
         virtualPartitionNodes = new HashMap<>();
         vertexIDtoBrokerID = new HashMap<>();
         vertexIDtoLoopTimeout = new HashMap<>();
-        iterationSourceSinkPairs = new HashSet<>();
         sources = new HashSet<>();
         sinks = new HashSet<>();
         slotSharingGroupResources = new HashMap<>();
@@ -169,6 +221,7 @@ public class StreamGraph implements Pipeline {
         return executionConfig;
     }
 
+    @Override
     public Configuration getJobConfiguration() {
         return jobConfiguration;
     }
@@ -185,10 +238,186 @@ public class StreamGraph implements Pipeline {
         return nodeToHeadOperatorCache.get(node);
     }
 
+    public CheckpointingMode getCheckpointingMode() {
+        return getCheckpointingMode(this.checkpointConfig);
+    }
+
+    public static CheckpointingMode getCheckpointingMode(CheckpointConfig checkpointConfig) {
+        CheckpointingMode checkpointingMode = checkpointConfig.getCheckpointingConsistencyMode();
+
+        checkArgument(
+                checkpointingMode == CheckpointingMode.EXACTLY_ONCE
+                        || checkpointingMode == CheckpointingMode.AT_LEAST_ONCE,
+                "Unexpected checkpointing mode.");
+
+        if (checkpointConfig.isCheckpointingEnabled()) {
+            return checkpointingMode;
+        } else {
+            // the "at-least-once" input handler is slightly cheaper (in the absence of
+            // checkpoints), so we use that one if checkpointing is not enabled
+            return CheckpointingMode.AT_LEAST_ONCE;
+        }
+    }
+
+    /**
+     * Adds the path of a JAR file required to run the job on a task manager.
+     *
+     * @param jar path of the JAR file required to run the job on a task manager
+     */
+    public void addJar(Path jar) {
+        if (jar == null) {
+            throw new IllegalArgumentException();
+        }
+
+        if (!userJars.contains(jar)) {
+            userJars.add(jar);
+        }
+    }
+
+    /**
+     * Gets the list of assigned user jar paths.
+     *
+     * @return The list of assigned user jar paths
+     */
+    @Override
+    public List<Path> getUserJars() {
+        return userJars;
+    }
+
+    public void createJobCheckpointingSettings() {
+        this.checkpointingSettings = createJobCheckpointingSettingsInternal();
+    }
+
+    private JobCheckpointingSettings createJobCheckpointingSettingsInternal() {
+        CheckpointConfig cfg = getCheckpointConfig();
+
+        long interval = cfg.getCheckpointInterval();
+        if (interval < MINIMAL_CHECKPOINT_TIME) {
+            interval = CheckpointCoordinatorConfiguration.DISABLED_CHECKPOINT_INTERVAL;
+        }
+
+        //  --- configure options ---
+
+        CheckpointRetentionPolicy retentionAfterTermination;
+        if (cfg.isExternalizedCheckpointsEnabled()) {
+            ExternalizedCheckpointRetention cleanup = cfg.getExternalizedCheckpointRetention();
+            // Sanity check
+            if (cleanup == null) {
+                throw new IllegalStateException(
+                        "Externalized checkpoints enabled, but no cleanup mode configured.");
+            }
+            retentionAfterTermination =
+                    cleanup.deleteOnCancellation()
+                            ? CheckpointRetentionPolicy.RETAIN_ON_FAILURE
+                            : CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION;
+        } else {
+            retentionAfterTermination = CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
+        }
+
+        //  --- configure the master-side checkpoint hooks ---
+
+        final ArrayList<MasterTriggerRestoreHook.Factory> hooks = new ArrayList<>();
+
+        for (StreamNode node : getStreamNodes()) {
+            if (node.getOperatorFactory() != null
+                    && node.getOperatorFactory() instanceof UdfStreamOperatorFactory) {
+                Function f =
+                        ((UdfStreamOperatorFactory<?>) node.getOperatorFactory()).getUserFunction();
+
+                if (f instanceof WithMasterCheckpointHook) {
+                    hooks.add(
+                            new FunctionMasterCheckpointHookFactory(
+                                    (WithMasterCheckpointHook<?>) f));
+                }
+            }
+        }
+
+        // because the hooks can have user-defined code, they need to be stored as
+        // eagerly serialized values
+        final SerializedValue<MasterTriggerRestoreHook.Factory[]> serializedHooks;
+        if (hooks.isEmpty()) {
+            serializedHooks = null;
+        } else {
+            try {
+                MasterTriggerRestoreHook.Factory[] asArray =
+                        hooks.toArray(new MasterTriggerRestoreHook.Factory[0]);
+                serializedHooks = new SerializedValue<>(asArray);
+            } catch (IOException e) {
+                throw new FlinkRuntimeException("Trigger/restore hook is not serializable", e);
+            }
+        }
+
+        // because the state backend can have user-defined code, it needs to be stored as
+        // eagerly serialized value
+        SerializedValue<StateBackend> serializedStateBackend;
+        if (this.stateBackend == null) {
+            serializedStateBackend = null;
+        } else {
+            try {
+                serializedStateBackend = new SerializedValue<>(this.stateBackend);
+            } catch (IOException e) {
+                throw new FlinkRuntimeException("State backend is not serializable", e);
+            }
+        }
+
+        // because the checkpoint storage can have user-defined code, it needs to be stored as
+        // eagerly serialized value
+        SerializedValue<CheckpointStorage> serializedCheckpointStorage;
+        if (this.checkpointStorage == null) {
+            serializedCheckpointStorage = null;
+        } else {
+            try {
+                serializedCheckpointStorage = new SerializedValue<>(this.checkpointStorage);
+            } catch (IOException e) {
+                throw new FlinkRuntimeException("Checkpoint storage is not serializable", e);
+            }
+        }
+
+        //  --- done, put it all together ---
+
+        return new JobCheckpointingSettings(
+                CheckpointCoordinatorConfiguration.builder()
+                        .setCheckpointInterval(interval)
+                        .setCheckpointIntervalDuringBacklog(
+                                cfg.getCheckpointIntervalDuringBacklog())
+                        .setCheckpointTimeout(cfg.getCheckpointTimeout())
+                        .setMinPauseBetweenCheckpoints(cfg.getMinPauseBetweenCheckpoints())
+                        .setMaxConcurrentCheckpoints(cfg.getMaxConcurrentCheckpoints())
+                        .setCheckpointRetentionPolicy(retentionAfterTermination)
+                        .setExactlyOnce(getCheckpointingMode() == CheckpointingMode.EXACTLY_ONCE)
+                        .setTolerableCheckpointFailureNumber(
+                                cfg.getTolerableCheckpointFailureNumber())
+                        .setUnalignedCheckpointsEnabled(cfg.isUnalignedCheckpointsEnabled())
+                        .setCheckpointIdOfIgnoredInFlightData(
+                                cfg.getCheckpointIdOfIgnoredInFlightData())
+                        .setAlignedCheckpointTimeout(cfg.getAlignedCheckpointTimeout().toMillis())
+                        .setEnableCheckpointsAfterTasksFinish(isEnableCheckpointsAfterTasksFinish())
+                        .build(),
+                serializedStateBackend,
+                getJobConfiguration()
+                        .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
+                        .map(TernaryBoolean::fromBoolean)
+                        .orElse(TernaryBoolean.UNDEFINED),
+                serializedCheckpointStorage,
+                serializedHooks,
+                Optional.ofNullable(stateBackend)
+                        .map(StateBackend::useManagedMemory)
+                        .map(TernaryBoolean::fromBoolean)
+                        .orElse(TernaryBoolean.UNDEFINED));
+    }
+
+    @Override
     public void setSavepointRestoreSettings(SavepointRestoreSettings savepointRestoreSettings) {
         this.savepointRestoreSettings = savepointRestoreSettings;
     }
 
+    @Override
+    public SerializedValue<ExecutionConfig> getSerializedExecutionConfig() {
+        checkNotNull(userDefinedObjectsHolder);
+        return userDefinedObjectsHolder.serializedExecutionConfig;
+    }
+
+    @Override
     public SavepointRestoreSettings getSavepointRestoreSettings() {
         return savepointRestoreSettings;
     }
@@ -213,6 +442,7 @@ public class StreamGraph implements Pipeline {
         this.stateBackend = backend;
     }
 
+    @VisibleForTesting
     public StateBackend getStateBackend() {
         return this.stateBackend;
     }
@@ -221,22 +451,12 @@ public class StreamGraph implements Pipeline {
         this.checkpointStorage = checkpointStorage;
     }
 
-    public CheckpointStorage getCheckpointStorage() {
-        return this.checkpointStorage;
-    }
-
     public InternalTimeServiceManager.Provider getTimerServiceProvider() {
         return timerServiceProvider;
     }
 
     public void setTimerServiceProvider(InternalTimeServiceManager.Provider timerServiceProvider) {
         this.timerServiceProvider = checkNotNull(timerServiceProvider);
-    }
-
-    public Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> getUserArtifacts() {
-        return Optional.ofNullable(jobConfiguration.get(PipelineOptions.CACHED_FILES))
-                .map(DistributedCache::parseCachedFilesFromString)
-                .orElse(new ArrayList<>());
     }
 
     public GlobalStreamExchangeMode getGlobalStreamExchangeMode() {
@@ -514,6 +734,7 @@ public class StreamGraph implements Pipeline {
                         vertexClass);
 
         streamNodes.put(vertexID, vertex);
+        isEmpty = false;
 
         return vertex;
     }
@@ -744,8 +965,23 @@ public class StreamGraph implements Pipeline {
         }
     }
 
+    @Override
     public boolean isDynamic() {
         return dynamic;
+    }
+
+    @Override
+    public JobCheckpointingSettings getCheckpointingSettings() {
+        if (checkpointingSettings == null) {
+            createJobCheckpointingSettings();
+        }
+
+        return checkpointingSettings;
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return streamNodes == null ? isEmpty : streamNodes.isEmpty();
     }
 
     public void setParallelism(Integer vertexId, int parallelism, boolean parallelismConfigured) {
@@ -768,6 +1004,7 @@ public class StreamGraph implements Pipeline {
             int vertexID, ResourceSpec minResources, ResourceSpec preferredResources) {
         if (getStreamNode(vertexID) != null) {
             getStreamNode(vertexID).setResources(minResources, preferredResources);
+            streamNodeMinResources.put(vertexID, minResources);
         }
     }
 
@@ -912,68 +1149,6 @@ public class StreamGraph implements Pipeline {
         return vertexIDtoLoopTimeout.get(vertexID);
     }
 
-    public Tuple2<StreamNode, StreamNode> createIterationSourceAndSink(
-            int loopId,
-            int sourceId,
-            int sinkId,
-            long timeout,
-            int parallelism,
-            int maxParallelism,
-            ResourceSpec minResources,
-            ResourceSpec preferredResources) {
-
-        final String coLocationGroup = "IterationCoLocationGroup-" + loopId;
-
-        StreamNode source =
-                this.addNode(
-                        sourceId,
-                        null,
-                        coLocationGroup,
-                        StreamIterationHead.class,
-                        null,
-                        ITERATION_SOURCE_NAME_PREFIX + "-" + loopId);
-        sources.add(source.getId());
-        setParallelism(source.getId(), parallelism);
-        setMaxParallelism(source.getId(), maxParallelism);
-        setResources(source.getId(), minResources, preferredResources);
-
-        StreamNode sink =
-                this.addNode(
-                        sinkId,
-                        null,
-                        coLocationGroup,
-                        StreamIterationTail.class,
-                        null,
-                        ITERATION_SINK_NAME_PREFIX + "-" + loopId);
-        sinks.add(sink.getId());
-        setParallelism(sink.getId(), parallelism);
-        setMaxParallelism(sink.getId(), parallelism);
-        // The tail node is always in the same slot sharing group with the head node
-        // so that they can share resources (they do not use non-sharable resources,
-        // i.e. managed memory). There is no contract on how the resources should be
-        // divided for head and tail nodes at the moment. To be simple, we assign all
-        // resources to the head node and set the tail node resources to be zero if
-        // resources are specified.
-        final ResourceSpec tailResources =
-                minResources.equals(ResourceSpec.UNKNOWN)
-                        ? ResourceSpec.UNKNOWN
-                        : ResourceSpec.ZERO;
-        setResources(sink.getId(), tailResources, tailResources);
-
-        iterationSourceSinkPairs.add(new Tuple2<>(source, sink));
-
-        this.vertexIDtoBrokerID.put(source.getId(), "broker-" + loopId);
-        this.vertexIDtoBrokerID.put(sink.getId(), "broker-" + loopId);
-        this.vertexIDtoLoopTimeout.put(source.getId(), timeout);
-        this.vertexIDtoLoopTimeout.put(sink.getId(), timeout);
-
-        return new Tuple2<>(source, sink);
-    }
-
-    public Set<Tuple2<StreamNode, StreamNode>> getIterationSourceSinkPairs() {
-        return iterationSourceSinkPairs;
-    }
-
     public StreamNode getSourceVertex(StreamEdge edge) {
         return streamNodes.get(edge.getSourceId());
     }
@@ -982,27 +1157,14 @@ public class StreamGraph implements Pipeline {
         return streamNodes.get(edge.getTargetId());
     }
 
-    private void removeEdge(StreamEdge edge) {
-        getSourceVertex(edge).getOutEdges().remove(edge);
-        getTargetVertex(edge).getInEdges().remove(edge);
-    }
-
-    private void removeVertex(StreamNode toRemove) {
-        Set<StreamEdge> edgesToRemove = new HashSet<>();
-
-        edgesToRemove.addAll(toRemove.getInEdges());
-        edgesToRemove.addAll(toRemove.getOutEdges());
-
-        for (StreamEdge edge : edgesToRemove) {
-            removeEdge(edge);
-        }
-        streamNodes.remove(toRemove.getId());
-    }
-
     /** Gets the assembled {@link JobGraph} with a random {@link JobID}. */
     @VisibleForTesting
     public JobGraph getJobGraph() {
-        return getJobGraph(Thread.currentThread().getContextClassLoader(), null);
+        return getJobGraph(Thread.currentThread().getContextClassLoader(), jobId);
+    }
+
+    public JobGraph getJobGraph(ClassLoader userClassLoader) {
+        return getJobGraph(userClassLoader, jobId);
     }
 
     /** Gets the assembled {@link JobGraph} with a specified {@link JobID}. */
@@ -1028,6 +1190,12 @@ public class StreamGraph implements Pipeline {
         this.jobType = jobType;
     }
 
+    @Override
+    public String getName() {
+        return jobName;
+    }
+
+    @Override
     public JobType getJobType() {
         return jobType;
     }
@@ -1079,6 +1247,319 @@ public class StreamGraph implements Pipeline {
     public void setAttribute(Integer vertexId, Attribute attribute) {
         if (getStreamNode(vertexId) != null) {
             getStreamNode(vertexId).setAttribute(attribute);
+        }
+    }
+
+    public void setJobId(JobID jobId) {
+        this.jobId = jobId;
+    }
+
+    @Override
+    public JobID getJobID() {
+        return jobId;
+    }
+
+    /**
+     * Sets the classpath required to run the job on a task manager.
+     *
+     * @param paths paths of the directories/JAR files required to run the job on a task manager
+     */
+    public void setClasspath(List<URL> paths) {
+        classpath = paths;
+    }
+
+    public List<URL> getClasspath() {
+        return classpath;
+    }
+
+    /**
+     * Adds the given jar files to the {@link JobGraph} via {@link JobGraph#addJar}.
+     *
+     * @param jarFilesToAttach a list of the {@link URL URLs} of the jar files to attach to the
+     *     jobgraph.
+     * @throws RuntimeException if a jar URL is not valid.
+     */
+    public void addJars(final List<URL> jarFilesToAttach) {
+        for (URL jar : jarFilesToAttach) {
+            try {
+                addJar(new Path(jar.toURI()));
+            } catch (URISyntaxException e) {
+                throw new RuntimeException("URL is invalid. This should not happen.", e);
+            }
+        }
+    }
+
+    /**
+     * Returns a list of BLOB keys referring to the JAR files required to run this job.
+     *
+     * @return list of BLOB keys referring to the JAR files required to run this job
+     */
+    @Override
+    public List<PermanentBlobKey> getUserJarBlobKeys() {
+        return this.userJarBlobKeys;
+    }
+
+    @Override
+    public List<URL> getClasspaths() {
+        return classpath;
+    }
+
+    public void addUserArtifact(String name, DistributedCache.DistributedCacheEntry file) {
+        if (file == null) {
+            throw new IllegalArgumentException();
+        }
+
+        userArtifacts.putIfAbsent(name, file);
+    }
+
+    @Override
+    public Map<String, DistributedCache.DistributedCacheEntry> getUserArtifacts() {
+        return userArtifacts;
+    }
+
+    @Override
+    public void addUserJarBlobKey(PermanentBlobKey key) {
+        if (key == null) {
+            throw new IllegalArgumentException();
+        }
+
+        if (!userJarBlobKeys.contains(key)) {
+            userJarBlobKeys.add(key);
+        }
+    }
+
+    @Override
+    public void setUserArtifactBlobKey(String entryName, PermanentBlobKey blobKey)
+            throws IOException {
+        byte[] serializedBlobKey;
+        serializedBlobKey = InstantiationUtil.serializeObject(blobKey);
+
+        userArtifacts.computeIfPresent(
+                entryName,
+                (key, originalEntry) ->
+                        new DistributedCache.DistributedCacheEntry(
+                                originalEntry.filePath,
+                                originalEntry.isExecutable,
+                                serializedBlobKey,
+                                originalEntry.isZipped));
+    }
+
+    @Override
+    public void writeUserArtifactEntriesToConfiguration() {
+        for (Map.Entry<String, DistributedCache.DistributedCacheEntry> userArtifact :
+                userArtifacts.entrySet()) {
+            DistributedCache.writeFileInfoToConfig(
+                    userArtifact.getKey(), userArtifact.getValue(), jobConfiguration);
+        }
+    }
+
+    @Override
+    public int getMaximumParallelism() {
+        int maxParallelism = -1;
+        for (StreamNode node : streamNodes.values()) {
+            maxParallelism = Math.max(node.getParallelism(), maxParallelism);
+        }
+        return maxParallelism;
+    }
+
+    public void setInitialClientHeartbeatTimeout(long initialClientHeartbeatTimeout) {
+        this.initialClientHeartbeatTimeout = initialClientHeartbeatTimeout;
+    }
+
+    @Override
+    public long getInitialClientHeartbeatTimeout() {
+        return initialClientHeartbeatTimeout;
+    }
+
+    @Override
+    public boolean isPartialResourceConfigured() {
+        boolean hasVerticesWithUnknownResource = false;
+        boolean hasVerticesWithConfiguredResource = false;
+
+        for (ResourceSpec minResource : streamNodeMinResources.values()) {
+            if (minResource == ResourceSpec.UNKNOWN) {
+                hasVerticesWithUnknownResource = true;
+            } else {
+                hasVerticesWithConfiguredResource = true;
+            }
+
+            if (hasVerticesWithUnknownResource && hasVerticesWithConfiguredResource) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public void serializeUserDefinedInstances() throws IOException {
+        final ExecutorService serializationExecutor =
+                Executors.newFixedThreadPool(
+                        Math.max(
+                                1,
+                                Math.min(
+                                        Hardware.getNumberCPUCores(),
+                                        getExecutionConfig().getParallelism())),
+                        new ExecutorThreadFactory("flink-operator-serialization-io"));
+        try {
+            this.userDefinedObjectsHolder =
+                    new UserDefinedObjectsHolder(
+                            streamNodes,
+                            virtualSideOutputNodes,
+                            virtualPartitionNodes,
+                            executionConfig,
+                            serializationExecutor);
+        } finally {
+            serializationExecutor.shutdown();
+        }
+    }
+
+    public void deserializeUserDefinedInstances(
+            ClassLoader userClassLoader, Executor serializationExecutor) throws Exception {
+        this.userDefinedObjectsHolder.deserialize(userClassLoader, serializationExecutor);
+    }
+
+    @Override
+    public String toString() {
+        return "StreamGraph(jobId: " + jobId + ")";
+    }
+
+    /**
+     * A static inner class designed to hold user-defined objects for serialization and
+     * deserialization in the stream graph.
+     */
+    private class UserDefinedObjectsHolder implements Serializable {
+
+        private static final long serialVersionUID = 1L;
+
+        private final SerializedValue<
+                        Map<Integer, Tuple3<Integer, StreamPartitioner<?>, StreamExchangeMode>>>
+                serializedVirtualPartitionNodes;
+
+        private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
+
+        private SerializedValue<Map<Integer, StreamNode>> serializedStreamNodes;
+
+        /**
+         * This collection stores operator factories serialized separately from the {@link
+         * StreamGraph}. This separation allows for the parallel serialization of operator
+         * factories, improving the overall performance of the serialization process.
+         *
+         * <p>Each tuple in this collection consists of an integer key that identifies the stream
+         * node, and a value that wraps the serialized representation of the associated {@link
+         * StreamOperatorFactory} instance.
+         */
+        private Collection<Tuple2<Integer, SerializedValue<StreamOperatorFactory<?>>>>
+                streamNodeToSerializedOperatorFactories;
+
+        private final SerializedValue<Map<Integer, Tuple2<Integer, OutputTag>>>
+                serializedVirtualSideOutputNodes;
+
+        public UserDefinedObjectsHolder(
+                Map<Integer, StreamNode> streamNodes,
+                Map<Integer, Tuple2<Integer, OutputTag>> virtualSideOutputNodes,
+                Map<Integer, Tuple3<Integer, StreamPartitioner<?>, StreamExchangeMode>>
+                        virtualPartitionNodes,
+                ExecutionConfig executionConfig,
+                Executor serializationExecutor)
+                throws IOException {
+            serializeStreamNodes(streamNodes, serializationExecutor);
+
+            this.serializedVirtualSideOutputNodes = new SerializedValue<>(virtualSideOutputNodes);
+            this.serializedVirtualPartitionNodes = new SerializedValue<>(virtualPartitionNodes);
+            this.serializedExecutionConfig = new SerializedValue<>(executionConfig);
+        }
+
+        private void serializeStreamNodes(
+                Map<Integer, StreamNode> toBeSerializedStreamNodes,
+                Executor serializationExecutor) {
+            try {
+                this.streamNodeToSerializedOperatorFactories =
+                        serializeOperatorFactories(
+                                toBeSerializedStreamNodes.values(), serializationExecutor);
+                this.serializedStreamNodes = new SerializedValue<>(toBeSerializedStreamNodes);
+            } catch (Exception e) {
+                throw new RuntimeException("Could not serialize stream nodes", e);
+            }
+        }
+
+        private Collection<Tuple2<Integer, SerializedValue<StreamOperatorFactory<?>>>>
+                serializeOperatorFactories(
+                        Collection<StreamNode> streamNodes, Executor serializationExecutor)
+                        throws Exception {
+            List<CompletableFuture<Tuple2<Integer, SerializedValue<StreamOperatorFactory<?>>>>>
+                    futures =
+                            streamNodes.stream()
+                                    .filter(node -> node.getOperatorFactory() != null)
+                                    .map(
+                                            node ->
+                                                    serializeOperatorFactoriesAsync(
+                                                            serializationExecutor, node))
+                                    .collect(Collectors.toList());
+            return FutureUtils.combineAll(futures).get();
+        }
+
+        private CompletableFuture<Tuple2<Integer, SerializedValue<StreamOperatorFactory<?>>>>
+                serializeOperatorFactoriesAsync(Executor serializationExecutor, StreamNode node) {
+            return CompletableFuture.supplyAsync(
+                    () -> {
+                        try {
+                            return Tuple2.of(
+                                    node.getId(), new SerializedValue<>(node.getOperatorFactory()));
+                        } catch (Throwable throwable) {
+                            throw new RuntimeException(
+                                    String.format("Could not serialize stream node %s", node),
+                                    throwable);
+                        }
+                    },
+                    serializationExecutor);
+        }
+
+        private void deserialize(ClassLoader userClassLoader, Executor serializationExecutor)
+                throws Exception {
+            Collection<Tuple2<Integer, StreamOperatorFactory<?>>> streamNodeToOperatorFactories =
+                    deserializeOperators(userClassLoader, serializationExecutor);
+
+            virtualSideOutputNodes =
+                    serializedVirtualSideOutputNodes.deserializeValue(userClassLoader);
+            virtualPartitionNodes =
+                    serializedVirtualPartitionNodes.deserializeValue(userClassLoader);
+            executionConfig = serializedExecutionConfig.deserializeValue(userClassLoader);
+            streamNodes = serializedStreamNodes.deserializeValue(userClassLoader);
+            streamNodeToOperatorFactories.forEach(
+                    tuple2 -> getStreamNode(tuple2.f0).setOperatorFactory(tuple2.f1));
+        }
+
+        private Collection<Tuple2<Integer, StreamOperatorFactory<?>>> deserializeOperators(
+                ClassLoader userClassLoader, Executor serializationExecutor) throws Exception {
+            List<CompletableFuture<Tuple2<Integer, StreamOperatorFactory<?>>>> futures =
+                    streamNodeToSerializedOperatorFactories.stream()
+                            .map(
+                                    tuple2 ->
+                                            deserializeOperatorFactoriesAsync(
+                                                    userClassLoader, serializationExecutor, tuple2))
+                            .collect(Collectors.toList());
+            return FutureUtils.combineAll(futures).get();
+        }
+
+        private CompletableFuture<Tuple2<Integer, StreamOperatorFactory<?>>>
+                deserializeOperatorFactoriesAsync(
+                        ClassLoader userClassLoader,
+                        Executor serializationExecutor,
+                        Tuple2<Integer, SerializedValue<StreamOperatorFactory<?>>> tuple2) {
+            return CompletableFuture.supplyAsync(
+                    () -> {
+                        try {
+                            StreamOperatorFactory<?> streamOperatorFactory =
+                                    tuple2.f1.deserializeValue(userClassLoader);
+                            return Tuple2.of(tuple2.f0, streamOperatorFactory);
+                        } catch (Throwable throwable) {
+                            throw new RuntimeException(
+                                    String.format(
+                                            "Could not deserialize stream node %s", tuple2.f0),
+                                    throwable);
+                        }
+                    },
+                    serializationExecutor);
         }
     }
 }

@@ -21,34 +21,36 @@ package org.apache.flink.formats.hadoop.bulk.committer;
 import org.apache.flink.formats.hadoop.bulk.AbstractFileCommitterTest;
 import org.apache.flink.formats.hadoop.bulk.HadoopFileCommitter;
 import org.apache.flink.formats.hadoop.bulk.committer.cluster.HDFSCluster;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.OperatingSystem;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.junit.AfterClass;
-import org.junit.Assume;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.io.IOException;
 
-/** Tests the behaviors of {@link HadoopRenameFileCommitter} with HDFS file system. */
-public class HadoopRenameCommitterHDFSITCase extends AbstractFileCommitterTest {
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
-    @ClassRule public static final TemporaryFolder CLASS_TEMPORARY_FOLDER = new TemporaryFolder();
+/** Tests the behaviors of {@link HadoopRenameFileCommitter} with HDFS file system. */
+@ExtendWith(MiniClusterExtension.class)
+class HadoopRenameCommitterHDFSITCase extends AbstractFileCommitterTest {
 
     private static HDFSCluster hdfsCluster;
 
-    @BeforeClass
-    public static void createHDFS() throws Exception {
-        Assume.assumeTrue(!OperatingSystem.isWindows());
+    @BeforeAll
+    static void createHDFS(@TempDir File tmp) throws Exception {
+        assumeFalse(OperatingSystem.isWindows());
 
-        hdfsCluster = new HDFSCluster(CLASS_TEMPORARY_FOLDER.newFolder());
+        hdfsCluster = new HDFSCluster(tmp);
     }
 
-    @AfterClass
-    public static void destroyHDFS() {
+    @AfterAll
+    static void destroyHDFS() {
         if (hdfsCluster != null) {
             hdfsCluster.shutdown();
         }
@@ -56,12 +58,8 @@ public class HadoopRenameCommitterHDFSITCase extends AbstractFileCommitterTest {
         hdfsCluster = null;
     }
 
-    public HadoopRenameCommitterHDFSITCase(boolean override) throws IOException {
-        super(override);
-    }
-
     @Override
-    protected Path getBasePath() throws IOException {
+    protected Path getBasePath() {
         return hdfsCluster.newFolder();
     }
 

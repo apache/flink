@@ -19,12 +19,10 @@
 package org.apache.flink.streaming.api.connector.sink2;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
+import org.apache.flink.streaming.api.transformations.GlobalCommitterTransform;
 import org.apache.flink.util.function.SerializableSupplier;
 
 /** This utility class provides building blocks for custom topologies. */
@@ -43,19 +41,10 @@ public class StandardSinkTopologies {
             DataStream<CommittableMessage<CommT>> committables,
             SerializableSupplier<Committer<CommT>> committerFactory,
             SerializableSupplier<SimpleVersionedSerializer<CommT>> committableSerializer) {
-        final PhysicalTransformation<Void> transformation =
-                (PhysicalTransformation<Void>)
-                        committables
-                                .global()
-                                .transform(
-                                        GLOBAL_COMMITTER_TRANSFORMATION_NAME,
-                                        Types.VOID,
-                                        new GlobalCommitterOperator<>(
-                                                committerFactory, committableSerializer))
-                                .getTransformation();
-        transformation.setChainingStrategy(ChainingStrategy.ALWAYS);
-        transformation.setName(GLOBAL_COMMITTER_TRANSFORMATION_NAME);
-        transformation.setParallelism(1);
-        transformation.setMaxParallelism(1);
+        committables
+                .getExecutionEnvironment()
+                .addOperator(
+                        new GlobalCommitterTransform<>(
+                                committables, committerFactory, committableSerializer));
     }
 }
