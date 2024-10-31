@@ -280,10 +280,22 @@ public class StateBackendBenchmarkUtils {
                 function);
     }
 
-    public static <K, S extends State, T> void compactState(
-            RocksDBKeyedStateBackend<K> backend, StateDescriptor<S, T> stateDescriptor)
+    /**
+     * Compact state if the backend is RocksDBKeyedStateBackend.
+     *
+     * @param backend The backend for which the state is bind to.
+     * @param stateDescriptor The descriptor for the state.
+     * @return true if the backend is RocksDBKeyedStateBackend, false otherwise
+     * @throws RocksDBException thrown if an error occurs within RocksDB
+     */
+    public static <K, S extends State, T> boolean compactState(
+            KeyedStateBackend<K> backend, StateDescriptor<S, T> stateDescriptor)
             throws RocksDBException {
-        backend.compactState(stateDescriptor);
+        if (!(backend instanceof RocksDBKeyedStateBackend)) {
+            return false;
+        }
+        ((RocksDBKeyedStateBackend<K>) backend).compactState(stateDescriptor);
+        return true;
     }
 
     public static void cleanUp(KeyedStateBackend<?> backend) throws IOException {
