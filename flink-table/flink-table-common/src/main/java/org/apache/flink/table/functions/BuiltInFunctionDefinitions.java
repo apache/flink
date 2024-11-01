@@ -2174,7 +2174,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition CURRENT_ROW_TIMESTAMP =
             BuiltInFunctionDefinition.newBuilder()
                     .name("currentRowTimestamp")
-                    .name("CURRENT_ROW_TIMESTAMP")
+                    .sqlName("CURRENT_ROW_TIMESTAMP")
                     .kind(SCALAR)
                     .outputTypeStrategy(explicit(TIMESTAMP_LTZ(3).notNull()))
                     .notDeterministic()
