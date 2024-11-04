@@ -1134,6 +1134,11 @@ public class AdaptiveScheduler
     }
 
     @Override
+    public JobID getJobId() {
+        return jobInfo.getJobId();
+    }
+
+    @Override
     public ArchivedExecutionGraph getArchivedExecutionGraph(
             JobStatus jobStatus, @Nullable Throwable cause) {
         return ArchivedExecutionGraph.createSparseArchivedExecutionGraphWithJobVertices(
