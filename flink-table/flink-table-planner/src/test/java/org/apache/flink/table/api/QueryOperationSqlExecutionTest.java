@@ -74,7 +74,8 @@ public class QueryOperationSqlExecutionTest implements TableTestProgramRunner {
                 QueryOperationTestPrograms.SQL_QUERY_OPERATION,
                 QueryOperationTestPrograms.OVER_WINDOW_RANGE,
                 QueryOperationTestPrograms.OVER_WINDOW_ROWS,
-                QueryOperationTestPrograms.OVER_WINDOW_ROWS_UNBOUNDED_NO_PARTITION);
+                QueryOperationTestPrograms.OVER_WINDOW_ROWS_UNBOUNDED_NO_PARTITION,
+                QueryOperationTestPrograms.ACCESSING_NESTED_COLUMN);
     }
 
     @ParameterizedTest

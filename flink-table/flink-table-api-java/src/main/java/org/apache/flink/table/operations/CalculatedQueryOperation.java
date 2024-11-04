@@ -33,6 +33,8 @@ import java.util.Map;
 @Internal
 public class CalculatedQueryOperation implements QueryOperation {
 
+    public static final String INPUT_ALIAS = "$$T_LAT";
+
     private final ContextResolvedFunction resolvedFunction;
     private final List<ResolvedExpression> arguments;
     private final ResolvedSchema resolvedSchema;
@@ -74,11 +76,12 @@ public class CalculatedQueryOperation implements QueryOperation {
         // if we ever add multi-way join in JoinQueryOperation we need to sort out uniqueness of the
         // table name
         return String.format(
-                "LATERAL TABLE(%s) T$0(%s)",
+                "LATERAL TABLE(%s) %s(%s)",
                 resolvedFunction
                         .toCallExpression(arguments, resolvedSchema.toPhysicalRowDataType())
                         .asSerializableString(),
-                OperationUtils.formatSelectColumns(resolvedSchema));
+                INPUT_ALIAS,
+                OperationUtils.formatSelectColumns(resolvedSchema, null));
     }
 
     @Override
