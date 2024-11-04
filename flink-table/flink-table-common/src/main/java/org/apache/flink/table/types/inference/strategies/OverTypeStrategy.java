@@ -33,7 +33,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import java.math.BigDecimal;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -202,18 +202,6 @@ public class OverTypeStrategy implements InputTypeStrategy {
 
     @Override
     public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-        return Arrays.asList(
-                Signature.of(
-                        Argument.ofGroup("ANY"),
-                        Argument.ofGroup("TIME ATTRIBUTE"),
-                        Argument.ofGroup("INTERVAL LITERAL | CURRENT_RANGE | UNBOUNDED_RANGE"),
-                        Argument.ofGroup("INTERVAL LITERAL | CURRENT_RANGE | UNBOUNDED_RANGE"),
-                        Argument.ofGroupVarying("ANY")),
-                Signature.of(
-                        Argument.ofGroup("ANY"),
-                        Argument.ofGroup("TIME ATTRIBUTE"),
-                        Argument.ofGroup("BIGINT | CURRENT_ROW | UNBOUNDED_ROW"),
-                        Argument.ofGroup("BIGINT | CURRENT_ROW | UNBOUNDED_ROW"),
-                        Argument.ofGroupVarying("ANY")));
+        return Collections.singletonList(Signature.of(Argument.ofGroupVarying("INTERNAL")));
     }
 }

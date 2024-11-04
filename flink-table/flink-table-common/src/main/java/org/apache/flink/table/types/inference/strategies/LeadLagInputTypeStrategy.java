@@ -40,7 +40,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Type strategy for {@link BuiltInFunctionDefinitions#LAG} & { @link
+ * Type strategy for {@link BuiltInFunctionDefinitions#LAG} and { @link
  * BuiltInFunctionDefinitions#LEAD}.
  *
  * <p>The second argument needs to be NUMERIC if provided. Third argument must have a common type

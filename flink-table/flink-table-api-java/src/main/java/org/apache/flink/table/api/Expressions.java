@@ -948,13 +948,12 @@ public final class Expressions {
     }
 
     /**
-     * A window function that provides access to a row at a specified physical offset which comes
-     * after the current row.
+     * A window function that provides access to a row that comes directly after the current row.
      *
      * <p>Example:
      *
      * <pre>{@code
-     * org.window(Over.orderBy($("ts")).partitionBy("organisation").as("w"))
+     * table.window(Over.orderBy($("ts")).partitionBy("organisation").as("w"))
      *    .select(
      *       $("organisation"),
      *       $("revenue"),
@@ -973,7 +972,7 @@ public final class Expressions {
      * <p>Example:
      *
      * <pre>{@code
-     * org.window(Over.orderBy($("ts")).partitionBy("organisation").as("w"))
+     * table.window(Over.orderBy($("ts")).partitionBy("organisation").as("w"))
      *    .select(
      *       $("organisation"),
      *       $("revenue"),
@@ -989,10 +988,14 @@ public final class Expressions {
      * A window function that provides access to a row at a specified physical offset which comes
      * after the current row.
      *
+     * <p>The value to return when offset is beyond the scope of the partition. If a default value
+     * is not specified, NULL is returned. {@code default} must be type-compatible with {@code
+     * value}.
+     *
      * <p>Example:
      *
      * <pre>{@code
-     * org.window(Over.orderBy($("ts")).partitionBy("organisation").as("w"))
+     * table.window(Over.orderBy($("ts")).partitionBy("organisation").as("w"))
      *    .select(
      *       $("organisation"),
      *       $("revenue"),
@@ -1005,13 +1008,12 @@ public final class Expressions {
     }
 
     /**
-     * A window function that provides access to a row at a specified physical offset which comes
-     * before the current row.
+     * A window function that provides access to a row that comes directly before the current row.
      *
      * <p>Example:
      *
      * <pre>{@code
-     * org.window(Over.orderBy($("ts")).partitionBy("organisation").as("w"))
+     * table.window(Over.orderBy($("ts")).partitionBy("organisation").as("w"))
      *    .select(
      *       $("organisation"),
      *       $("revenue"),
@@ -1030,7 +1032,7 @@ public final class Expressions {
      * <p>Example:
      *
      * <pre>{@code
-     * org.window(Over.orderBy($("ts")).partitionBy("organisation").as("w"))
+     * table.window(Over.orderBy($("ts")).partitionBy("organisation").as("w"))
      *    .select(
      *       $("organisation"),
      *       $("revenue"),
@@ -1045,6 +1047,10 @@ public final class Expressions {
     /**
      * A window function that provides access to a row at a specified physical offset which comes
      * before the current row.
+     *
+     * <p>The value to return when offset is beyond the scope of the partition. If a default value
+     * is not specified, NULL is returned. {@code default} must be type-compatible with {@code
+     * value}.
      *
      * <p>Example:
      *

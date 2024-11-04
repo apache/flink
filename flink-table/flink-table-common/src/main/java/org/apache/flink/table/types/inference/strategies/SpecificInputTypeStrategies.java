@@ -168,7 +168,7 @@ public final class SpecificInputTypeStrategies {
     public static final InputTypeStrategy IN = new SubQueryInputTypeStrategy();
 
     /**
-     * Type strategy for {@link BuiltInFunctionDefinitions#LAG} & { @link
+     * Type strategy for {@link BuiltInFunctionDefinitions#LAG} and { @link
      * BuiltInFunctionDefinitions#LEAD}.
      */
     public static final InputTypeStrategy LEAD_LAG = new LeadLagInputTypeStrategy();
