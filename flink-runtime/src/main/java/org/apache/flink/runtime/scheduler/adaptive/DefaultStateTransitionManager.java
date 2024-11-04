@@ -386,7 +386,15 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
                 Temporal firstChangeEventTimestamp,
                 Duration maxTriggerDelay) {
             super(clock, context);
-            this.scheduleRelativelyTo(this::onTrigger, firstChangeEventTimestamp, maxTriggerDelay);
+            this.scheduleRelativelyTo(
+                    () -> {
+                        LOG.info(
+                                "Scheduled onTrigger event fired in Stabilized phase, job {}.",
+                                getJobId());
+                        onTrigger();
+                    },
+                    firstChangeEventTimestamp,
+                    maxTriggerDelay);
         }
 
         @Override
