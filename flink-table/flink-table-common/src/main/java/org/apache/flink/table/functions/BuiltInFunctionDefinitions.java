@@ -787,6 +787,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition STDDEV_POP =
             BuiltInFunctionDefinition.newBuilder()
                     .name("stddevPop")
+                    .sqlName("STDDEV_POP")
                     .kind(AGGREGATE)
                     .inputTypeStrategy(sequence(logical(LogicalTypeFamily.NUMERIC)))
                     .outputTypeStrategy(
@@ -796,6 +797,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition STDDEV_SAMP =
             BuiltInFunctionDefinition.newBuilder()
                     .name("stddevSamp")
+                    .sqlName("STDDEV_SAMP")
                     .kind(AGGREGATE)
                     .inputTypeStrategy(sequence(logical(LogicalTypeFamily.NUMERIC)))
                     .outputTypeStrategy(
@@ -805,6 +807,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition VAR_POP =
             BuiltInFunctionDefinition.newBuilder()
                     .name("varPop")
+                    .sqlName("VAR_POP")
                     .kind(AGGREGATE)
                     .inputTypeStrategy(sequence(logical(LogicalTypeFamily.NUMERIC)))
                     .outputTypeStrategy(
@@ -814,6 +817,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition VAR_SAMP =
             BuiltInFunctionDefinition.newBuilder()
                     .name("varSamp")
+                    .sqlName("VAR_SAMP")
                     .kind(AGGREGATE)
                     .inputTypeStrategy(sequence(logical(LogicalTypeFamily.NUMERIC)))
                     .outputTypeStrategy(
@@ -851,6 +855,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition CHAR_LENGTH =
             BuiltInFunctionDefinition.newBuilder()
                     .name("charLength")
+                    .sqlName("CHAR_LENGTH")
                     .kind(SCALAR)
                     .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
                     .outputTypeStrategy(nullableIfArgs(explicit(INT())))
@@ -1090,6 +1095,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition FROM_BASE64 =
             BuiltInFunctionDefinition.newBuilder()
                     .name("fromBase64")
+                    .sqlName("FROM_BASE64")
                     .kind(SCALAR)
                     .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
@@ -1098,6 +1104,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition TO_BASE64 =
             BuiltInFunctionDefinition.newBuilder()
                     .name("toBase64")
+                    .sqlName("TO_BASE64")
                     .kind(SCALAR)
                     .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
@@ -1193,6 +1200,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition PARSE_URL =
             BuiltInFunctionDefinition.newBuilder()
                     .name("parseUrl")
+                    .sqlName("PARSE_URL")
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             or(
@@ -1266,6 +1274,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition REGEXP_REPLACE =
             BuiltInFunctionDefinition.newBuilder()
                     .name("regexpReplace")
+                    .sqlName("REGEXP_REPLACE")
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             sequence(
@@ -1286,6 +1295,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition SPLIT_INDEX =
             BuiltInFunctionDefinition.newBuilder()
                     .name("splitIndex")
+                    .sqlName("SPLIT_INDEX")
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             sequence(
@@ -1298,6 +1308,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition STR_TO_MAP =
             BuiltInFunctionDefinition.newBuilder()
                     .name("strToMap")
+                    .sqlName("STR_TO_MAP")
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             or(
@@ -1769,6 +1780,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition RAND_INTEGER =
             BuiltInFunctionDefinition.newBuilder()
                     .name("randInteger")
+                    .sqlName("RAND_INTEGER")
                     .kind(SCALAR)
                     .notDeterministic()
                     .inputTypeStrategy(
@@ -1850,6 +1862,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition CURRENT_DATE =
             BuiltInFunctionDefinition.newBuilder()
                     .name("currentDate")
+                    .sqlName("CURRENT_DATE")
                     .kind(SCALAR)
                     .outputTypeStrategy(explicit(DATE().notNull()))
                     .build();
@@ -1857,6 +1870,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition CURRENT_TIME =
             BuiltInFunctionDefinition.newBuilder()
                     .name("currentTime")
+                    .sqlName("CURRENT_TIME")
                     .kind(SCALAR)
                     .outputTypeStrategy(explicit(TIME().notNull()))
                     .build();
@@ -1871,6 +1885,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition CURRENT_TIMESTAMP =
             BuiltInFunctionDefinition.newBuilder()
                     .name("currentTimestamp")
+                    .sqlName("CURRENT_TIMESTAMP")
                     .kind(SCALAR)
                     .outputTypeStrategy(explicit(TIMESTAMP_LTZ(3).notNull()))
                     .build();
@@ -1885,6 +1900,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition CURRENT_ROW_TIMESTAMP =
             BuiltInFunctionDefinition.newBuilder()
                     .name("currentRowTimestamp")
+                    .sqlName("CURRENT_ROW_TIMESTAMP")
                     .kind(SCALAR)
                     .outputTypeStrategy(explicit(TIMESTAMP_LTZ(3).notNull()))
                     .notDeterministic()
@@ -1916,6 +1932,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition DATE_FORMAT =
             BuiltInFunctionDefinition.newBuilder()
                     .name("dateFormat")
+                    .sqlName("DATE_FORMAT")
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             or(
@@ -1963,6 +1980,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition CONVERT_TZ =
             BuiltInFunctionDefinition.newBuilder()
                     .name("convertTz")
+                    .sqlName("CONVERT_TZ")
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             sequence(
@@ -1975,6 +1993,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition FROM_UNIXTIME =
             BuiltInFunctionDefinition.newBuilder()
                     .name("fromUnixtime")
+                    .sqlName("FROM_UNIXTIME")
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             or(
@@ -1988,6 +2007,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition UNIX_TIMESTAMP =
             BuiltInFunctionDefinition.newBuilder()
                     .name("unixTimestamp")
+                    .sqlName("UNIX_TIMESTAMP")
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             or(
@@ -2002,6 +2022,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition TO_DATE =
             BuiltInFunctionDefinition.newBuilder()
                     .name("toDate")
+                    .sqlName("TO_DATE")
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             or(
@@ -2015,6 +2036,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition TO_TIMESTAMP_LTZ =
             BuiltInFunctionDefinition.newBuilder()
                     .name("toTimestampLtz")
+                    .sqlName("TO_TIMESTAMP_LTZ")
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             sequence(
@@ -2026,6 +2048,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition TO_TIMESTAMP =
             BuiltInFunctionDefinition.newBuilder()
                     .name("toTimestamp")
+                    .sqlName("TO_TIMESTAMP")
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             or(
