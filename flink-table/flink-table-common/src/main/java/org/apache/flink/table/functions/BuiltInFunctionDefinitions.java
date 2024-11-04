@@ -27,6 +27,7 @@ import org.apache.flink.table.api.JsonQueryWrapper;
 import org.apache.flink.table.api.JsonType;
 import org.apache.flink.table.api.JsonValueOnEmptyOrError;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
@@ -56,6 +57,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
@@ -2204,6 +2206,18 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("timestampDiff")
                     .kind(SCALAR)
+                    .callSyntax(
+                            "TIMESTAMPDIFF",
+                            (sqlName, operands) ->
+                                    String.format(
+                                            "%s(%s, %s)",
+                                            sqlName,
+                                            CallSyntaxUtils.getSymbolLiteral(
+                                                            operands.get(0), TimePointUnit.class)
+                                                    .name(),
+                                            operands.subList(1, operands.size()).stream()
+                                                    .map(ResolvedExpression::asSerializableString)
+                                                    .collect(Collectors.joining(", "))))
                     .inputTypeStrategy(
                             sequence(
                                     symbol(
