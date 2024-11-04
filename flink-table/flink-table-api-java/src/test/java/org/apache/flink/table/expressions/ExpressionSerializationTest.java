@@ -48,6 +48,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.timestampDiff;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for serializing {@link BuiltInFunctionDefinitions} into a SQL string. */
@@ -193,24 +194,6 @@ public class ExpressionSerializationTest {
                 TestSpec.forExpr($("f0").substring(2, 5))
                         .withField("f0", DataTypes.STRING())
                         .expectStr("SUBSTRING(`f0` FROM 2 FOR 5)"),
-                TestSpec.forExpr($("f0").extract(TimeIntervalUnit.HOUR))
-                        .withField("f0", DataTypes.TIMESTAMP())
-                        .expectStr("EXTRACT(HOUR FROM `f0`)"),
-                TestSpec.forExpr($("f0").floor(TimeIntervalUnit.HOUR))
-                        .withField("f0", DataTypes.TIMESTAMP())
-                        .expectStr("FLOOR(`f0` TO HOUR)"),
-                TestSpec.forExpr($("f0").ceil(TimeIntervalUnit.HOUR))
-                        .withField("f0", DataTypes.TIMESTAMP())
-                        .expectStr("CEIL(`f0` TO HOUR)"),
-                TestSpec.forExpr(
-                                Expressions.temporalOverlaps(
-                                        $("f0"), $("f1"),
-                                        $("f2"), $("f3")))
-                        .withField("f0", DataTypes.TIMESTAMP())
-                        .withField("f1", DataTypes.TIMESTAMP())
-                        .withField("f2", DataTypes.TIMESTAMP())
-                        .withField("f3", DataTypes.TIMESTAMP())
-                        .expectStr("(`f0`, `f1`) OVERLAPS (`f2`, `f3`)"),
                 TestSpec.forExpr($("f0").get("g0").plus($("f0").get("g1").get("h1")))
                         .withField(
                                 "f0",
@@ -305,8 +288,31 @@ public class ExpressionSerializationTest {
                                         .plus($("f0").avg().distinct())
                                         .plus($("f0").max()))
                         .withField("f0", DataTypes.BIGINT())
-                        .expectStr(
-                                "((COUNT(DISTINCT `f0`)) + (AVG(DISTINCT `f0`))) + (MAX(`f0`))"));
+                        .expectStr("((COUNT(DISTINCT `f0`)) + (AVG(DISTINCT `f0`))) + (MAX(`f0`))"),
+
+                // Time functions
+                TestSpec.forExpr($("f0").extract(TimeIntervalUnit.HOUR))
+                        .withField("f0", DataTypes.TIMESTAMP())
+                        .expectStr("EXTRACT(HOUR FROM `f0`)"),
+                TestSpec.forExpr($("f0").floor(TimeIntervalUnit.HOUR))
+                        .withField("f0", DataTypes.TIMESTAMP())
+                        .expectStr("FLOOR(`f0` TO HOUR)"),
+                TestSpec.forExpr($("f0").ceil(TimeIntervalUnit.HOUR))
+                        .withField("f0", DataTypes.TIMESTAMP())
+                        .expectStr("CEIL(`f0` TO HOUR)"),
+                TestSpec.forExpr(
+                                Expressions.temporalOverlaps(
+                                        $("f0"), $("f1"),
+                                        $("f2"), $("f3")))
+                        .withField("f0", DataTypes.TIMESTAMP())
+                        .withField("f1", DataTypes.TIMESTAMP())
+                        .withField("f2", DataTypes.TIMESTAMP())
+                        .withField("f3", DataTypes.TIMESTAMP())
+                        .expectStr("(`f0`, `f1`) OVERLAPS (`f2`, `f3`)"),
+                TestSpec.forExpr(timestampDiff(TimePointUnit.DAY, $("f0"), $("f1")))
+                        .withField("f0", DataTypes.TIMESTAMP())
+                        .withField("f1", DataTypes.TIMESTAMP())
+                        .expectStr("TIMESTAMPDIFF(DAY, `f0`, `f1`)"));
     }
 
     @ParameterizedTest
