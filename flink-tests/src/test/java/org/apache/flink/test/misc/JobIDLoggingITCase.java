@@ -20,7 +20,10 @@ package org.apache.flink.test.misc;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.eventtime.AscendingTimestampsWatermarks;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -30,6 +33,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.scheduler.adaptive.AdaptiveScheduler;
+import org.apache.flink.runtime.source.coordinator.SourceCoordinator;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -69,6 +73,10 @@ class JobIDLoggingITCase {
     @RegisterExtension
     public final LoggerAuditingExtension checkpointCoordinatorLogging =
             new LoggerAuditingExtension(CheckpointCoordinator.class, DEBUG);
+
+    @RegisterExtension
+    public final LoggerAuditingExtension sourceCoordinatorLogging =
+            new LoggerAuditingExtension(SourceCoordinator.class, DEBUG);
 
     @RegisterExtension
     public final LoggerAuditingExtension streamTaskLogging =
@@ -135,6 +143,15 @@ class JobIDLoggingITCase {
                         "Received acknowledge message for checkpoint .*",
                         "Completed checkpoint .*",
                         "Checkpoint state: .*"));
+
+        assertJobIDPresent(
+                jobID,
+                sourceCoordinatorLogging,
+                asList(
+                        "Starting split enumerator.*",
+                        "Distributing maxAllowedWatermark.*",
+                        "Source .* registering reader for parallel task.*",
+                        "Closing SourceCoordinator for source .*"));
 
         assertJobIDPresent(
                 jobID,
@@ -272,7 +289,15 @@ class JobIDLoggingITCase {
 
     private static JobID runJob(ClusterClient<?> clusterClient) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.fromSequence(Long.MIN_VALUE, Long.MAX_VALUE).addSink(new DiscardingSink<>());
+
+        env.fromSource(
+                        new NumberSequenceSource(0, Long.MAX_VALUE),
+                        WatermarkStrategy.forGenerator(ctx -> new AscendingTimestampsWatermarks())
+                                .withWatermarkAlignment(
+                                        "group-1", Duration.ofMillis(1000), Duration.ofMillis(1))
+                                .withTimestampAssigner((r, t) -> (long) r),
+                        "Source-42441337")
+                .addSink(new DiscardingSink<>());
         JobID jobId = clusterClient.submitJob(env.getStreamGraph().getJobGraph()).get();
         Deadline deadline = Deadline.fromNow(Duration.ofMinutes(5));
         while (deadline.hasTimeLeft()
