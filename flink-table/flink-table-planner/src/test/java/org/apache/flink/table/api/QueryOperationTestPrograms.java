@@ -940,9 +940,9 @@ public class QueryOperationTestPrograms {
                                             .select($("ts"), lag($("b"), 1).over($("bLag"))),
                             "sink_t")
                     .runSql(
-                            "SELECT `ts`, (LAG(`b`, 1) OVER(ORDER BY `r_time`)) AS `_c1` FROM (\n"
-                                    + "    SELECT `ts`, `b`, `r_time` FROM `default_catalog`.`default_database`.`t`\n"
-                                    + ")")
+                            "SELECT `$$T_PROJECT`.`ts`, (LAG(`$$T_PROJECT`.`b`, 1) OVER(ORDER BY `$$T_PROJECT`.`r_time`)) AS `_c1` FROM (\n"
+                                    + "    SELECT `$$T_SOURCE`.`ts`, `$$T_SOURCE`.`b`, `$$T_SOURCE`.`r_time` FROM `default_catalog`.`default_database`.`t` $$T_SOURCE\n"
+                                    + ") $$T_PROJECT")
                     .build();
 
     static final TableTestProgram ACCESSING_NESTED_COLUMN =
