@@ -788,7 +788,6 @@ public final class BuiltInFunctionDefinitions {
                     .kind(AGGREGATE)
                     .inputTypeStrategy(SpecificInputTypeStrategies.LEAD_LAG)
                     .outputTypeStrategy(SpecificTypeStrategies.LEAD_LAG)
-                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition LAG =
@@ -797,7 +796,6 @@ public final class BuiltInFunctionDefinitions {
                     .kind(AGGREGATE)
                     .inputTypeStrategy(SpecificInputTypeStrategies.LEAD_LAG)
                     .outputTypeStrategy(SpecificTypeStrategies.LEAD_LAG)
-                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition LISTAGG =
