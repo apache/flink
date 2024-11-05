@@ -176,6 +176,12 @@ public class TtlAwareSerializer<T> extends TypeSerializer<T> {
         return ttlSerializer || ttlListSerializer || ttlMapSerializer;
     }
 
+    public static boolean needTtlStateMigration(
+            TypeSerializer<?> previousSerializer, TypeSerializer<?> newSerializer) {
+        return TtlAwareSerializer.isSerializerTtlEnabled(previousSerializer)
+                != TtlAwareSerializer.isSerializerTtlEnabled(newSerializer);
+    }
+
     public static TypeSerializer<?> wrapTtlAwareSerializer(TypeSerializer<?> typeSerializer) {
         if (typeSerializer instanceof TtlAwareSerializer) {
             return typeSerializer;
