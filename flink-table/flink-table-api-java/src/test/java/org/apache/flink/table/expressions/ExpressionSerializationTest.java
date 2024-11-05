@@ -48,6 +48,8 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.lit;
+import static org.apache.flink.table.api.Expressions.timestampDiff;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for serializing {@link BuiltInFunctionDefinitions} into a SQL string. */
@@ -128,6 +130,8 @@ public class ExpressionSerializationTest {
                 TestSpec.forExpr(Expressions.negative($("f0")))
                         .withField("f0", DataTypes.BIGINT())
                         .expectStr("- `f0`"),
+                TestSpec.forExpr(Expressions.randInteger(Expressions.lit(10)))
+                        .expectStr("RAND_INTEGER(10)"),
                 TestSpec.forExpr($("f0").in(1, 2, 3, 4, 5))
                         .withField("f0", DataTypes.INT())
                         .expectStr("`f0` IN (1, 2, 3, 4, 5)"),
@@ -193,24 +197,27 @@ public class ExpressionSerializationTest {
                 TestSpec.forExpr($("f0").substring(2, 5))
                         .withField("f0", DataTypes.STRING())
                         .expectStr("SUBSTRING(`f0` FROM 2 FOR 5)"),
-                TestSpec.forExpr($("f0").extract(TimeIntervalUnit.HOUR))
-                        .withField("f0", DataTypes.TIMESTAMP())
-                        .expectStr("EXTRACT(HOUR FROM `f0`)"),
-                TestSpec.forExpr($("f0").floor(TimeIntervalUnit.HOUR))
-                        .withField("f0", DataTypes.TIMESTAMP())
-                        .expectStr("FLOOR(`f0` TO HOUR)"),
-                TestSpec.forExpr($("f0").ceil(TimeIntervalUnit.HOUR))
-                        .withField("f0", DataTypes.TIMESTAMP())
-                        .expectStr("CEIL(`f0` TO HOUR)"),
-                TestSpec.forExpr(
-                                Expressions.temporalOverlaps(
-                                        $("f0"), $("f1"),
-                                        $("f2"), $("f3")))
-                        .withField("f0", DataTypes.TIMESTAMP())
-                        .withField("f1", DataTypes.TIMESTAMP())
-                        .withField("f2", DataTypes.TIMESTAMP())
-                        .withField("f3", DataTypes.TIMESTAMP())
-                        .expectStr("(`f0`, `f1`) OVERLAPS (`f2`, `f3`)"),
+                TestSpec.forExpr($("f0").charLength())
+                        .withField("f0", DataTypes.STRING())
+                        .expectStr("CHAR_LENGTH(`f0`)"),
+                TestSpec.forExpr($("f0").fromBase64())
+                        .withField("f0", DataTypes.STRING())
+                        .expectStr("FROM_BASE64(`f0`)"),
+                TestSpec.forExpr($("f0").toBase64())
+                        .withField("f0", DataTypes.STRING())
+                        .expectStr("TO_BASE64(`f0`)"),
+                TestSpec.forExpr($("f0").parseUrl(lit("HOST")))
+                        .withField("f0", DataTypes.STRING())
+                        .expectStr("PARSE_URL(`f0`, 'HOST')"),
+                TestSpec.forExpr($("f0").regexpReplace(lit("[0-9]"), lit("$")))
+                        .withField("f0", DataTypes.STRING())
+                        .expectStr("REGEXP_REPLACE(`f0`, '[0-9]', '$')"),
+                TestSpec.forExpr($("f0").splitIndex(lit(":"), lit(2)))
+                        .withField("f0", DataTypes.STRING())
+                        .expectStr("SPLIT_INDEX(`f0`, ':', 2)"),
+                TestSpec.forExpr($("f0").strToMap())
+                        .withField("f0", DataTypes.STRING())
+                        .expectStr("STR_TO_MAP(`f0`)"),
                 TestSpec.forExpr($("f0").get("g0").plus($("f0").get("g1").get("h1")))
                         .withField(
                                 "f0",
@@ -305,8 +312,71 @@ public class ExpressionSerializationTest {
                                         .plus($("f0").avg().distinct())
                                         .plus($("f0").max()))
                         .withField("f0", DataTypes.BIGINT())
-                        .expectStr(
-                                "((COUNT(DISTINCT `f0`)) + (AVG(DISTINCT `f0`))) + (MAX(`f0`))"));
+                        .expectStr("((COUNT(DISTINCT `f0`)) + (AVG(DISTINCT `f0`))) + (MAX(`f0`))"),
+                TestSpec.forExpr($("f0").stddevPop())
+                        .withField("f0", DataTypes.BIGINT())
+                        .expectStr("STDDEV_POP(`f0`)"),
+                TestSpec.forExpr($("f0").stddevSamp())
+                        .withField("f0", DataTypes.BIGINT())
+                        .expectStr("STDDEV_SAMP(`f0`)"),
+                TestSpec.forExpr($("f0").varPop())
+                        .withField("f0", DataTypes.BIGINT())
+                        .expectStr("VAR_POP(`f0`)"),
+                TestSpec.forExpr($("f0").varSamp())
+                        .withField("f0", DataTypes.BIGINT())
+                        .expectStr("VAR_SAMP(`f0`)"),
+
+                // Time functions
+                TestSpec.forExpr($("f0").extract(TimeIntervalUnit.HOUR))
+                        .withField("f0", DataTypes.TIMESTAMP())
+                        .expectStr("EXTRACT(HOUR FROM `f0`)"),
+                TestSpec.forExpr($("f0").floor(TimeIntervalUnit.HOUR))
+                        .withField("f0", DataTypes.TIMESTAMP())
+                        .expectStr("FLOOR(`f0` TO HOUR)"),
+                TestSpec.forExpr($("f0").ceil(TimeIntervalUnit.HOUR))
+                        .withField("f0", DataTypes.TIMESTAMP())
+                        .expectStr("CEIL(`f0` TO HOUR)"),
+                TestSpec.forExpr(
+                                Expressions.temporalOverlaps(
+                                        $("f0"), $("f1"),
+                                        $("f2"), $("f3")))
+                        .withField("f0", DataTypes.TIMESTAMP())
+                        .withField("f1", DataTypes.TIMESTAMP())
+                        .withField("f2", DataTypes.TIMESTAMP())
+                        .withField("f3", DataTypes.TIMESTAMP())
+                        .expectStr("(`f0`, `f1`) OVERLAPS (`f2`, `f3`)"),
+                TestSpec.forExpr(timestampDiff(TimePointUnit.DAY, $("f0"), $("f1")))
+                        .withField("f0", DataTypes.TIMESTAMP())
+                        .withField("f1", DataTypes.TIMESTAMP())
+                        .expectStr("TIMESTAMPDIFF(DAY, `f0`, `f1`)"),
+                TestSpec.forExpr(Expressions.currentDate()).expectStr("CURRENT_DATE()"),
+                TestSpec.forExpr(Expressions.currentTime()).expectStr("CURRENT_TIME()"),
+                TestSpec.forExpr(Expressions.currentTimestamp()).expectStr("CURRENT_TIMESTAMP()"),
+                TestSpec.forExpr(Expressions.dateFormat($("f0"), lit("yyyy-MM-dd")))
+                        .withField("f0", DataTypes.TIMESTAMP(3))
+                        .expectStr("DATE_FORMAT(`f0`, 'yyyy-MM-dd')"),
+                TestSpec.forExpr(Expressions.toTimestamp($("f0")))
+                        .withField("f0", DataTypes.STRING())
+                        .expectStr("TO_TIMESTAMP(`f0`)"),
+                TestSpec.forExpr(Expressions.toTimestampLtz($("f0"), lit(3)))
+                        .withField("f0", DataTypes.BIGINT())
+                        .expectStr("TO_TIMESTAMP_LTZ(`f0`, 3)"),
+                TestSpec.forExpr($("f0").toDate())
+                        .withField("f0", DataTypes.STRING())
+                        .expectStr("CAST(`f0` AS DATE)"),
+                TestSpec.forExpr($("f0").toTime())
+                        .withField("f0", DataTypes.STRING())
+                        .expectStr("CAST(`f0` AS TIME(0))"),
+                TestSpec.forExpr($("f0").toTimestamp())
+                        .withField("f0", DataTypes.STRING())
+                        .expectStr("CAST(`f0` AS TIMESTAMP(3))"),
+                TestSpec.forExpr(Expressions.convertTz($("f0"), lit("PST"), lit("GMT")))
+                        .withField("f0", DataTypes.STRING())
+                        .expectStr("CONVERT_TZ(`f0`, 'PST', 'GMT')"),
+                TestSpec.forExpr(Expressions.fromUnixtime($("f0")))
+                        .withField("f0", DataTypes.BIGINT())
+                        .expectStr("FROM_UNIXTIME(`f0`)"),
+                TestSpec.forExpr(Expressions.unixTimestamp()).expectStr("UNIX_TIMESTAMP()"));
     }
 
     @ParameterizedTest

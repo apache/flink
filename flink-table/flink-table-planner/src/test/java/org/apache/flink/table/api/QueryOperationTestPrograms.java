@@ -59,7 +59,10 @@ public class QueryOperationTestPrograms {
                                     .consumedValues(Row.of(1L, "abc"), Row.of(2L, "cde"))
                                     .build())
                     .runTableApi(t -> t.from("s"), "sink")
-                    .runSql("SELECT `a`, `b` FROM `default_catalog`.`default_database`.`s`")
+                    .runSql(
+                            "SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM `default_catalog`"
+                                    + ".`default_database`.`s` "
+                                    + "$$T_SOURCE")
                     .build();
 
     static final TableTestProgram VALUES_QUERY_OPERATION =
@@ -71,10 +74,10 @@ public class QueryOperationTestPrograms {
                                     .build())
                     .runTableApi(t -> t.fromValues(row(1L, "abc"), row(2L, "cde")), "sink")
                     .runSql(
-                            "SELECT `f0`, `f1` FROM (VALUES \n"
+                            "SELECT `$$T_VAL`.`f0`, `$$T_VAL`.`f1` FROM (VALUES \n"
                                     + "    (CAST(1 AS BIGINT), 'abc'),\n"
                                     + "    (CAST(2 AS BIGINT), 'cde')\n"
-                                    + ") VAL$0(`f0`, `f1`)")
+                                    + ") $$T_VAL(`f0`, `f1`)")
                     .build();
 
     static final TableTestProgram FILTER_QUERY_OPERATION =
@@ -91,9 +94,10 @@ public class QueryOperationTestPrograms {
                                     .build())
                     .runTableApi(t -> t.from("s").where($("a").isGreaterOrEqual(15)), "sink")
                     .runSql(
-                            "SELECT `a`, `b` FROM (\n"
-                                    + "    SELECT `a`, `b` FROM `default_catalog`.`default_database`.`s`\n"
-                                    + ") WHERE `a` >= 15")
+                            "SELECT `$$T_FILTER`.`a`, `$$T_FILTER`.`b` FROM (\n"
+                                    + "    SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM `default_catalog`"
+                                    + ".`default_database`.`s` $$T_SOURCE\n"
+                                    + ") $$T_FILTER WHERE `$$T_FILTER`.`a` >= 15")
                     .build();
 
     static final TableTestProgram DISTINCT_QUERY_OPERATION =
@@ -114,11 +118,12 @@ public class QueryOperationTestPrograms {
                     .runTableApi(
                             t -> t.from("s").where($("a").isGreaterOrEqual(15)).distinct(), "sink")
                     .runSql(
-                            "SELECT DISTINCT `a`, `b` FROM (\n"
-                                    + "    SELECT `a`, `b` FROM (\n"
-                                    + "        SELECT `a`, `b` FROM `default_catalog`.`default_database`.`s`\n"
-                                    + "    ) WHERE `a` >= 15\n"
-                                    + ")")
+                            "SELECT DISTINCT `$$T_DISTINCT`.`a`, `$$T_DISTINCT`.`b` FROM (\n"
+                                    + "    SELECT `$$T_FILTER`.`a`, `$$T_FILTER`.`b` FROM (\n"
+                                    + "        SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM `default_catalog`"
+                                    + ".`default_database`.`s` $$T_SOURCE\n"
+                                    + "    ) $$T_FILTER WHERE `$$T_FILTER`.`a` >= 15\n"
+                                    + ") $$T_DISTINCT")
                     .build();
 
     static final TableTestProgram AGGREGATE_QUERY_OPERATION =
@@ -140,12 +145,14 @@ public class QueryOperationTestPrograms {
                     .runTableApi(
                             t -> t.from("s").groupBy($("b")).select($("b"), $("a").sum()), "sink")
                     .runSql(
-                            "SELECT `b`, `EXPR$0` FROM (\n"
-                                    + "    SELECT `b`, (SUM(`a`)) AS `EXPR$0` FROM (\n"
-                                    + "        SELECT `a`, `b` FROM `default_catalog`.`default_database`.`s`\n"
-                                    + "    )\n"
-                                    + "    GROUP BY `b`\n"
-                                    + ")")
+                            "SELECT `$$T_PROJECT`.`b`, `$$T_PROJECT`.`EXPR$0` FROM (\n"
+                                    + "    SELECT `$$T_AGG`.`b`, (SUM(`$$T_AGG`.`a`)) AS `EXPR$0`"
+                                    + " FROM (\n"
+                                    + "        SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM "
+                                    + "`default_catalog`.`default_database`.`s` $$T_SOURCE\n"
+                                    + "    ) $$T_AGG\n"
+                                    + "    GROUP BY `$$T_AGG`.`b`\n"
+                                    + ") $$T_PROJECT")
                     .build();
 
     static final TableTestProgram AGGREGATE_NO_GROUP_BY_QUERY_OPERATION =
@@ -167,12 +174,13 @@ public class QueryOperationTestPrograms {
                                     .build())
                     .runTableApi(t -> t.from("s").select($("a").sum()), "sink")
                     .runSql(
-                            "SELECT `EXPR$0` FROM (\n"
-                                    + "    SELECT (SUM(`a`)) AS `EXPR$0` FROM (\n"
-                                    + "        SELECT `a`, `b` FROM `default_catalog`.`default_database`.`s`\n"
-                                    + "    )\n"
+                            "SELECT `$$T_PROJECT`.`EXPR$0` FROM (\n"
+                                    + "    SELECT (SUM(`$$T_AGG`.`a`)) AS `EXPR$0` FROM (\n"
+                                    + "        SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM "
+                                    + "`default_catalog`.`default_database`.`s` $$T_SOURCE\n"
+                                    + "    ) $$T_AGG\n"
                                     + "    GROUP BY 1\n"
-                                    + ")")
+                                    + ") $$T_PROJECT")
                     .build();
 
     static final TableTestProgram WINDOW_AGGREGATE_QUERY_OPERATION =
@@ -207,13 +215,14 @@ public class QueryOperationTestPrograms {
                                             .select($("b"), $("w").start(), $("a").sum()),
                             "sink")
                     .runSql(
-                            "SELECT `b`, `EXPR$0`, `EXPR$1` FROM (\n"
-                                    + "    SELECT `b`, (SUM(`a`)) AS `EXPR$1`, (window_start) AS `EXPR$0` FROM TABLE(\n"
+                            "SELECT `$$T_PROJECT`.`b`, `$$T_PROJECT`.`EXPR$0`, `$$T_PROJECT`.`EXPR$1` FROM (\n"
+                                    + "    SELECT `$$T_WIN_AGG`.`b`, (SUM(`$$T_WIN_AGG`.`a`)) AS `EXPR$1`, (window_start) AS `EXPR$0` FROM TABLE(\n"
                                     + "        TUMBLE((\n"
-                                    + "            SELECT `a`, `b`, `ts` FROM `default_catalog`.`default_database`.`s`\n"
+                                    + "            SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b`, "
+                                    + "`$$T_SOURCE`.`ts` FROM `default_catalog`.`default_database`.`s` $$T_SOURCE\n"
                                     + "        ), DESCRIPTOR(`ts`), INTERVAL '0 00:00:05.0' DAY TO SECOND(3))\n"
-                                    + "    ) GROUP BY window_start, window_end, `b`\n"
-                                    + ")")
+                                    + "    ) $$T_WIN_AGG GROUP BY window_start, window_end, `$$T_WIN_AGG`.`b`\n"
+                                    + ") $$T_PROJECT")
                     .build();
 
     private static Instant dayOfSeconds(int second) {
@@ -259,13 +268,22 @@ public class QueryOperationTestPrograms {
                                             .select($("name"), $("d_name"), $("age")),
                             "sink")
                     .runSql(
-                            "SELECT `name`, `d_name`, `age` FROM (\n"
-                                    + "    SELECT `emp_id`, `e_dept_id`, `name`, `age`, `dept_id`, `d_name` FROM (\n"
-                                    + "        SELECT `emp_id`, `e_dept_id`, `name`, `age` FROM `default_catalog`.`default_database`.`e`\n"
-                                    + "    ) INNER JOIN (\n"
-                                    + "        SELECT `dept_id`, `d_name` FROM `default_catalog`.`default_database`.`d`\n"
-                                    + "    ) ON (`e_dept_id` = `dept_id`) AND (`age` >= 21)\n"
-                                    + ")")
+                            "SELECT `$$T_PROJECT`.`name`, `$$T_PROJECT`.`d_name`, `$$T_PROJECT`.`age` FROM (\n"
+                                    + "    SELECT `$$T1_JOIN`.`emp_id`, `$$T1_JOIN`.`e_dept_id`, "
+                                    + "`$$T1_JOIN`.`name`, "
+                                    + "`$$T1_JOIN`.`age`, `$$T2_JOIN`.`dept_id`, `$$T2_JOIN`"
+                                    + ".`d_name` FROM (\n"
+                                    + "        SELECT `$$T_SOURCE`.`emp_id`, `$$T_SOURCE`"
+                                    + ".`e_dept_id`, `$$T_SOURCE`.`name`, `$$T_SOURCE`.`age` FROM `default_catalog`.`default_database`.`e` $$T_SOURCE\n"
+                                    + "    ) $$T1_JOIN INNER JOIN (\n"
+                                    + "        SELECT `$$T_SOURCE`.`dept_id`, `$$T_SOURCE`"
+                                    + ".`d_name` FROM `default_catalog`.`default_database`.`d` $$T_SOURCE\n"
+                                    + "    ) $$T2_JOIN ON (`$$T1_JOIN`.`e_dept_id` = `$$T2_JOIN`"
+                                    + ".`dept_id`)"
+                                    + " AND "
+                                    + "(`$$T1_JOIN`.`age` "
+                                    + ">= 21)\n"
+                                    + ") $$T_PROJECT")
                     .build();
 
     static final TableTestProgram LATERAL_JOIN_QUERY_OPERATION =
@@ -285,10 +303,11 @@ public class QueryOperationTestPrograms {
                     .runTableApi(
                             t -> t.from("e").joinLateral(call("udtf", $("b")).as("f0")), "sink")
                     .runSql(
-                            "SELECT `a`, `b`, `f0` FROM (\n"
-                                    + "    SELECT `a`, `b` FROM `default_catalog`.`default_database`.`e`\n"
-                                    + ") INNER JOIN \n"
-                                    + "    LATERAL TABLE(`default_catalog`.`default_database`.`udtf`(`b`)) T$0(`f0`) ON TRUE")
+                            "SELECT `$$T1_JOIN`.`a`, `$$T1_JOIN`.`b`, `$$T_LAT`.`f0` FROM (\n"
+                                    + "    SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM "
+                                    + "`default_catalog`.`default_database`.`e` $$T_SOURCE\n"
+                                    + ") $$T1_JOIN INNER JOIN \n"
+                                    + "    LATERAL TABLE(`default_catalog`.`default_database`.`udtf`(`b`)) $$T_LAT(`f0`) ON TRUE")
                     .build();
 
     static final TableTestProgram UNION_ALL_QUERY_OPERATION =
@@ -311,9 +330,11 @@ public class QueryOperationTestPrograms {
                     .runTableApi(t -> t.from("s").unionAll(t.from("t")), "sink")
                     .runSql(
                             "SELECT `a`, `b` FROM (\n"
-                                    + "    SELECT `a`, `b` FROM `default_catalog`.`default_database`.`s`\n"
+                                    + "    SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM "
+                                    + "`default_catalog`.`default_database`.`s` $$T_SOURCE\n"
                                     + ") UNION ALL (\n"
-                                    + "    SELECT `a`, `b` FROM `default_catalog`.`default_database`.`t`\n"
+                                    + "    SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM "
+                                    + "`default_catalog`.`default_database`.`t` $$T_SOURCE\n"
                                     + ")")
                     .build();
 
@@ -338,9 +359,11 @@ public class QueryOperationTestPrograms {
                             t -> t.from("s").orderBy($("a"), $("b").desc()).offset(1).fetch(2),
                             "sink")
                     .runSql(
-                            "SELECT `a`, `b` FROM (\n"
-                                    + "    SELECT `a`, `b` FROM `default_catalog`.`default_database`.`s`\n"
-                                    + ") ORDER BY `a` ASC, `b` DESC OFFSET 1 ROWS FETCH NEXT 2 ROWS ONLY")
+                            "SELECT `$$T_SORT`.`a`, `$$T_SORT`.`b` FROM (\n"
+                                    + "    SELECT `$$T_SOURCE`.`a`, `$$T_SOURCE`.`b` FROM `default_catalog`"
+                                    + ".`default_database`.`s` $$T_SOURCE\n"
+                                    + ") $$T_SORT ORDER BY `$$T_SORT`.`a` ASC, `$$T_SORT`.`b` DESC"
+                                    + " OFFSET 1 ROWS FETCH NEXT 2 ROWS ONLY")
                     .build();
 
     static final TableTestProgram SQL_QUERY_OPERATION =
@@ -361,10 +384,12 @@ public class QueryOperationTestPrograms {
                                             .select($("a").plus(2), $("b").substr(2, 3)),
                             "sink")
                     .runSql(
-                            "SELECT (`a` + 2) AS `_c0`, (SUBSTR(`b`, 2, 3)) AS `_c1` FROM (\n"
+                            "SELECT (`$$T_PROJECT`.`a` + 2) AS `_c0`, (SUBSTR(`$$T_PROJECT`.`b`, "
+                                    + "2, 3)) AS "
+                                    + "`_c1` FROM (\n"
                                     + "    SELECT `s`.`a`, `s`.`b`\n"
                                     + "    FROM `default_catalog`.`default_database`.`s` AS `s`\n"
-                                    + ")")
+                                    + ") $$T_PROJECT")
                     .build();
 
     static final TableTestProgram GROUP_HOP_WINDOW_EVENT_TIME =
@@ -765,9 +790,13 @@ public class QueryOperationTestPrograms {
                                     .consumedAfterRestore(Row.of("Apple", 3L, dayOfSeconds(2)))
                                     .build())
                     .runSql(
-                            "SELECT `k`, (LAST_VALUE(`v`) OVER(PARTITION BY `k` ORDER BY `ts` RANGE BETWEEN INTERVAL '0 00:00:02.0' DAY TO SECOND(3) PRECEDING AND CURRENT ROW)) AS `_c1`, `ts` FROM (\n"
-                                    + "    SELECT `k`, `v`, `ts` FROM `default_catalog`.`default_database`.`data`\n"
-                                    + ")")
+                            "SELECT `$$T_PROJECT`.`k`, (LAST_VALUE(`$$T_PROJECT`.`v`) "
+                                    + "OVER(PARTITION BY `$$T_PROJECT`.`k` "
+                                    + "ORDER BY `$$T_PROJECT`.`ts` RANGE BETWEEN INTERVAL '0 "
+                                    + "00:00:02.0' DAY TO SECOND(3) PRECEDING AND CURRENT ROW)) AS `_c1`, `$$T_PROJECT`.`ts` FROM (\n"
+                                    + "    SELECT `$$T_SOURCE`.`k`, `$$T_SOURCE`.`v`, "
+                                    + "`$$T_SOURCE`.`ts` FROM `default_catalog`.`default_database`.`data` $$T_SOURCE\n"
+                                    + ") $$T_PROJECT")
                     .runTableApi(
                             tableEnvAccessor ->
                                     tableEnvAccessor
@@ -807,10 +836,14 @@ public class QueryOperationTestPrograms {
                                     .consumedAfterRestore(Row.of("Apple", 3L, dayOfSeconds(2)))
                                     .build())
                     .runSql(
-                            "SELECT `k`, (LAST_VALUE(`v`) OVER(PARTITION BY `k` ORDER BY `ts` "
-                                    + "ROWS BETWEEN CAST(2 AS BIGINT) PRECEDING AND CURRENT ROW)) AS `_c1`, `ts` FROM (\n"
-                                    + "    SELECT `k`, `v`, `ts` FROM `default_catalog`.`default_database`.`data`\n"
-                                    + ")")
+                            "SELECT `$$T_PROJECT`.`k`, (LAST_VALUE(`$$T_PROJECT`.`v`) OVER"
+                                    + "(PARTITION BY `$$T_PROJECT`.`k` "
+                                    + "ORDER BY `$$T_PROJECT`.`ts` "
+                                    + "ROWS BETWEEN CAST(2 AS BIGINT) PRECEDING AND CURRENT ROW))"
+                                    + " AS `_c1`, `$$T_PROJECT`.`ts` FROM (\n"
+                                    + "    SELECT `$$T_SOURCE`.`k`, `$$T_SOURCE`.`v`, "
+                                    + "`$$T_SOURCE`.`ts` FROM `default_catalog`.`default_database`.`data` $$T_SOURCE\n"
+                                    + ") $$T_PROJECT")
                     .runTableApi(
                             tableEnvAccessor ->
                                     tableEnvAccessor
@@ -852,11 +885,13 @@ public class QueryOperationTestPrograms {
                                     .consumedAfterRestore(Row.of(3L, dayOfSeconds(2)))
                                     .build())
                     .runSql(
-                            "SELECT (LAST_VALUE(`v`) OVER(ORDER BY `ts` "
+                            "SELECT (LAST_VALUE(`$$T_PROJECT`.`v`) OVER(ORDER BY `$$T_PROJECT`"
+                                    + ".`ts` "
                                     + "ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)) AS "
-                                    + "`_c0`, `ts` FROM (\n"
-                                    + "    SELECT `k`, `v`, `ts` FROM `default_catalog`.`default_database`.`data`\n"
-                                    + ")")
+                                    + "`_c0`, `$$T_PROJECT`.`ts` FROM (\n"
+                                    + "    SELECT `$$T_SOURCE`.`k`, `$$T_SOURCE`.`v`, "
+                                    + "`$$T_SOURCE`.`ts` FROM `default_catalog`.`default_database`.`data` $$T_SOURCE\n"
+                                    + ") $$T_PROJECT")
                     .runTableApi(
                             tableEnvAccessor ->
                                     tableEnvAccessor
@@ -866,6 +901,49 @@ public class QueryOperationTestPrograms {
                                                             .preceding(UNBOUNDED_ROW)
                                                             .as("w"))
                                             .select($("v").lastValue().over($("w")), $("ts")),
+                            "sink")
+                    .build();
+
+    static final TableTestProgram ACCESSING_NESTED_COLUMN =
+            TableTestProgram.of(
+                            "project-nested-columnd",
+                            "test projection with nested columns of an inline type")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("data")
+                                    .addSchema("f0 bigint")
+                                    .producedBeforeRestore(Row.of(1L), Row.of(2L))
+                                    .producedAfterRestore(Row.of(3L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("v bigint")
+                                    .consumedBeforeRestore(Row.of(1L), Row.of(2L))
+                                    .consumedAfterRestore(Row.of(3L))
+                                    .build())
+                    .runSql(
+                            "SELECT (`$$T_PROJECT`.`composite_column`.`f0_nested`) AS `composite_column$f0_nested` FROM (\n"
+                                    + "    SELECT (CAST(ROW(`$$T_PROJECT`.`f0`, 'a') AS ROW<`f0_nested` BIGINT, `f1_nested` VARCHAR(2147483647)>)) AS `composite_column` FROM (\n"
+                                    + "        SELECT `$$T_SOURCE`.`f0` FROM `default_catalog`.`default_database`.`data` $$T_SOURCE\n"
+                                    + "    ) $$T_PROJECT\n"
+                                    + ") $$T_PROJECT")
+                    .runTableApi(
+                            tableEnvAccessor ->
+                                    tableEnvAccessor
+                                            .from("data")
+                                            .select(
+                                                    row($("f0"), lit("a"))
+                                                            .cast(
+                                                                    DataTypes.ROW(
+                                                                            DataTypes.FIELD(
+                                                                                    "f0_nested",
+                                                                                    DataTypes
+                                                                                            .BIGINT()),
+                                                                            DataTypes.FIELD(
+                                                                                    "f1_nested",
+                                                                                    DataTypes
+                                                                                            .STRING())))
+                                                            .as("composite_column"))
+                                            .select($("composite_column").get("f0_nested")),
                             "sink")
                     .build();
 }

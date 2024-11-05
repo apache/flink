@@ -21,6 +21,7 @@ package org.apache.flink.runtime.source.coordinator;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.connector.source.DynamicFilteringInfo;
@@ -49,6 +50,7 @@ import org.apache.flink.runtime.state.heap.AbstractHeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueue;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -103,6 +105,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
 
     private final WatermarkAlignmentParams watermarkAlignmentParams;
 
+    private final JobID jobID;
     /** The name of the operator this SourceCoordinator is associated with. */
     private final String operatorName;
     /** The Source that is associated with this SourceCoordinator. */
@@ -133,6 +136,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
             SourceCoordinatorContext<SplitT> context,
             CoordinatorStore coordinatorStore) {
         this(
+                new JobID(),
                 operatorName,
                 source,
                 context,
@@ -142,12 +146,14 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
     }
 
     public SourceCoordinator(
+            JobID jobID,
             String operatorName,
             Source<?, SplitT, EnumChkT> source,
             SourceCoordinatorContext<SplitT> context,
             CoordinatorStore coordinatorStore,
             WatermarkAlignmentParams watermarkAlignmentParams,
             @Nullable String coordinatorListeningID) {
+        this.jobID = jobID;
         this.operatorName = operatorName;
         this.source = source;
         this.enumCheckpointSerializer = source.getEnumeratorCheckpointSerializer();
@@ -296,12 +302,15 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
 
     @Override
     public void close() throws Exception {
-        LOG.info("Closing SourceCoordinator for source {}.", operatorName);
-        if (started) {
-            closeQuietly(enumerator);
+        try (MdcUtils.MdcCloseable mdcCloseable =
+                MdcUtils.withContext(MdcUtils.asContextData(jobID))) {
+            LOG.info("Closing SourceCoordinator for source {}.", operatorName);
+            if (started) {
+                closeQuietly(enumerator);
+            }
+            closeQuietly(context);
+            LOG.info("Source coordinator for source {} closed.", operatorName);
         }
-        closeQuietly(context);
-        LOG.info("Source coordinator for source {} closed.", operatorName);
     }
 
     @Override

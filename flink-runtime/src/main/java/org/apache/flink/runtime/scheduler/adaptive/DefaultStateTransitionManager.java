@@ -157,7 +157,7 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
         Preconditions.checkState(
                 !(phase instanceof Transitioning),
                 "The state transition operation has already been triggered.");
-        LOG.debug("Transitioning from {} to {}.", phase, newPhase);
+        LOG.info("Transitioning from {} to {}.", phase, newPhase);
         phase = newPhase;
     }
 
@@ -228,6 +228,11 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
         void onChange() {}
 
         void onTrigger() {}
+
+        @Override
+        public String toString() {
+            return getClass().getSimpleName();
+        }
     }
 
     /**
@@ -345,6 +350,7 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
 
         private void transitionToSubSequentStateForDesiredResources() {
             if (hasDesiredResources()) {
+                LOG.info("Desired resources are met, transitioning to the subsequent state.");
                 context().triggerTransitionToSubsequentState();
             } else {
                 LOG.debug(
@@ -373,6 +379,7 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
         @Override
         void onTrigger() {
             if (hasSufficientResources()) {
+                LOG.info("Sufficient resources are met, progressing to subsequent state.");
                 context().triggerTransitionToSubsequentState();
             } else {
                 LOG.debug("Sufficient resources are not met, progressing to idling.");
