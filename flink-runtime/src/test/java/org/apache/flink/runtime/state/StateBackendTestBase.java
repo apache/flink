@@ -74,6 +74,7 @@ import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
+import org.apache.flink.runtime.state.ttl.TtlAwareSerializer;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.testutils.statemigration.TestType;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
@@ -1160,7 +1161,9 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             // have identical mappings
             InternalKvState internalKvState = (InternalKvState) state;
             KryoSerializer<TestPojo> kryoSerializer =
-                    (KryoSerializer<TestPojo>) internalKvState.getValueSerializer();
+                    (KryoSerializer<TestPojo>)
+                            ((TtlAwareSerializer<TestPojo>) internalKvState.getValueSerializer())
+                                    .getOriginalTypeSerializer();
             int mainPojoClassRegistrationId =
                     kryoSerializer.getKryo().getRegistration(TestPojo.class).getId();
             int nestedPojoClassARegistrationId =

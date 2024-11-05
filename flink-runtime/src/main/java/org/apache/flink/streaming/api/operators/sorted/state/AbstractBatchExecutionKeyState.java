@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators.sorted.state;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.runtime.state.ttl.TtlAwareSerializer;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -37,13 +38,15 @@ abstract class AbstractBatchExecutionKeyState<K, N, V> implements InternalKvStat
     private N currentNamespace;
     private V currentNamespaceValue;
 
+    @SuppressWarnings("unchecked")
     protected AbstractBatchExecutionKeyState(
             V defaultValue,
             TypeSerializer<K> keySerializer,
             TypeSerializer<N> namespaceSerializer,
             TypeSerializer<V> stateTypeSerializer) {
         this.defaultValue = defaultValue;
-        this.stateTypeSerializer = stateTypeSerializer;
+        this.stateTypeSerializer =
+                (TypeSerializer<V>) TtlAwareSerializer.wrapTtlAwareSerializer(stateTypeSerializer);
         this.keySerializer = keySerializer;
         this.namespaceSerializer = namespaceSerializer;
     }

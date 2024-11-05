@@ -24,6 +24,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
+import org.apache.flink.runtime.state.ttl.TtlAwareSerializer;
+import org.apache.flink.runtime.state.ttl.TtlAwareSerializerSnapshotWrapper;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
@@ -57,11 +59,12 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
         this(
                 stateType,
                 name,
-                StateSerializerProvider.fromNewRegisteredSerializer(namespaceSerializer),
-                StateSerializerProvider.fromNewRegisteredSerializer(stateSerializer),
+                namespaceSerializer,
+                stateSerializer,
                 StateSnapshotTransformFactory.noTransform());
     }
 
+    @SuppressWarnings("unchecked")
     public RegisteredKeyValueStateBackendMetaInfo(
             @Nonnull StateDescriptor.Type stateType,
             @Nonnull String name,
@@ -73,7 +76,9 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
                 stateType,
                 name,
                 StateSerializerProvider.fromNewRegisteredSerializer(namespaceSerializer),
-                StateSerializerProvider.fromNewRegisteredSerializer(stateSerializer),
+                StateSerializerProvider.fromNewRegisteredSerializer(
+                        (TypeSerializer<S>)
+                                TtlAwareSerializer.wrapTtlAwareSerializer(stateSerializer)),
                 stateSnapshotTransformFactory);
     }
 
@@ -93,9 +98,12 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
                 StateSerializerProvider.fromPreviousSerializerSnapshot(
                         (TypeSerializerSnapshot<S>)
                                 Preconditions.checkNotNull(
-                                        snapshot.getTypeSerializerSnapshot(
-                                                StateMetaInfoSnapshot.CommonSerializerKeys
-                                                        .VALUE_SERIALIZER))),
+                                        new TtlAwareSerializerSnapshotWrapper<>(
+                                                        snapshot.getTypeSerializerSnapshot(
+                                                                StateMetaInfoSnapshot
+                                                                        .CommonSerializerKeys
+                                                                        .VALUE_SERIALIZER))
+                                                .getTtlAwareSerializerSnapshot())),
                 StateSnapshotTransformFactory.noTransform());
 
         Preconditions.checkState(
