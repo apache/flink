@@ -77,7 +77,7 @@ Flink JobManager 是 [Flink Cluster](#flink-cluster) 的主节点。它包含三
 
 #### Flink JobMaster
 
-JobMaster 是在 [Flink JobManager](#flink-jobmanager) 运行中的组件之一。JobManager 负责监督单个作业 [Task](#task) 的执行。以前，整个 [Flink JobManager](#flink-jobmanager) 都叫做 JobManager。
+JobMaster 是在 [Flink JobManager](#flink-jobmanager) 运行中的组件之一。JobMaster 负责监督单个作业 [Task](#task) 的执行。以前，整个 [Flink JobManager](#flink-jobmanager) 都叫做 JobManager。
 
 #### JobResultStore
 
