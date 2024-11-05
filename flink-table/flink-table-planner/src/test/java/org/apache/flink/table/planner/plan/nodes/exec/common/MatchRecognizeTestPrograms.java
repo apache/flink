@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.common;
 
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMatch;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -25,7 +26,7 @@ import org.apache.flink.types.Row;
 
 /** {@link TableTestProgram} definitions for testing {@link StreamExecMatch}. */
 public class MatchRecognizeTestPrograms {
-    static final Row[] SIMPLE_DATA = {
+    private static final Row[] SIMPLE_DATA = {
         Row.of(1L, "a"),
         Row.of(2L, "z"),
         Row.of(3L, "b"),
@@ -38,9 +39,9 @@ public class MatchRecognizeTestPrograms {
         Row.of(10L, "b")
     };
 
-    static final Row[] SIMPLE_DATA2 = {Row.of(11L, "c")};
+    private static final Row[] SIMPLE_DATA2 = {Row.of(11L, "c")};
 
-    static final Row[] COMPLEX_DATA = {
+    private static final Row[] COMPLEX_DATA = {
         Row.of("ACME", 1L, 19, 1),
         Row.of("BETA", 2L, 18, 1),
         Row.of("ACME", 3L, 17, 2),
@@ -49,9 +50,9 @@ public class MatchRecognizeTestPrograms {
         Row.of("ACME", 6L, 20, 4)
     };
 
-    static final Row[] COMPLEX_DATA2 = {Row.of("BETA", 7L, 22, 4)};
+    private static final Row[] COMPLEX_DATA2 = {Row.of("BETA", 7L, 22, 4)};
 
-    static final TableTestProgram MATCH_SIMPLE =
+    public static final TableTestProgram MATCH_SIMPLE =
             TableTestProgram.of("match-simple", "simple match recognize test")
                     .setupTableSource(
                             SourceTestStep.newBuilder("MyTable")
@@ -83,7 +84,7 @@ public class MatchRecognizeTestPrograms {
                                     + "     ) AS T")
                     .build();
 
-    static final TableTestProgram MATCH_COMPLEX =
+    public static final TableTestProgram MATCH_COMPLEX =
             TableTestProgram.of("match-complex", "complex match recognize test")
                     .setupTableSource(
                             SourceTestStep.newBuilder("MyTable")
@@ -120,7 +121,28 @@ public class MatchRecognizeTestPrograms {
                                     + ") AS T")
                     .build();
 
-    static final Row[] BEFORE_DATA = {
+    private static final Row[] BEFORE_DATA = {
+        Row.of("2020-10-10 00:00:01", 9, 1),
+        Row.of("2020-10-10 00:00:01", 8, 2),
+        Row.of("2020-10-10 00:00:01", 10, 3),
+        Row.of("2020-10-10 00:00:04", 7, 4),
+        Row.of("2020-10-10 00:00:06", 5, 6),
+        Row.of("2020-10-10 00:00:07", 8, 5),
+        Row.of("2020-10-10 00:00:12", 3, 7),
+        Row.of("2020-10-10 00:00:16", 4, 9),
+        Row.of("2020-10-10 00:00:32", 7, 10),
+        Row.of("2020-10-10 00:00:33", 9, 12),
+        Row.of("2020-10-10 00:00:34", 5, 11)
+    };
+
+    private static final Row[] AFTER_DATA = {
+        Row.of("2020-10-10 00:00:41", 3, 13),
+        Row.of("2020-10-10 00:00:42", 11, 16),
+        Row.of("2020-10-10 00:00:43", 12, 15),
+        Row.of("2020-10-10 00:00:44", 13, 14)
+    };
+
+    private static final Row[] BEFORE_DATA_WITH_OUT_OF_ORDER_DATA = {
         Row.of("2020-10-10 00:00:01", 10, 3),
         Row.of("2020-10-10 00:00:01", 8, 2),
         Row.of("2020-10-10 00:00:01", 9, 1),
@@ -136,7 +158,7 @@ public class MatchRecognizeTestPrograms {
         Row.of("2020-10-10 00:00:34", 5, 11)
     };
 
-    static final Row[] AFTER_DATA = {
+    private static final Row[] AFTER_DATA_WITH_OUT_OF_ORDER_DATA = {
         Row.of("2020-10-10 00:00:33", 9, 12),
         Row.of("2020-10-10 00:00:41", 3, 13),
         Row.of("2020-10-10 00:00:42", 11, 16),
@@ -144,7 +166,7 @@ public class MatchRecognizeTestPrograms {
         Row.of("2020-10-10 00:00:44", 13, 14)
     };
 
-    static final SourceTestStep SOURCE =
+    private static final SourceTestStep SOURCE =
             SourceTestStep.newBuilder("MyEventTimeTable")
                     .addSchema(
                             "ts STRING",
@@ -157,9 +179,48 @@ public class MatchRecognizeTestPrograms {
                     .producedAfterRestore(AFTER_DATA)
                     .build();
 
-    static final TableTestProgram MATCH_ORDER_BY_EVENT_TIME =
+    public static final TableTestProgram MATCH_ORDER_BY_EVENT_TIME =
             TableTestProgram.of("match-order-by-event-time", "complex match recognize test")
                     .setupTableSource(SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("MySink")
+                                    .addSchema("first bigint", "last bigint", "up bigint")
+                                    .consumedBeforeRestore(Row.of(9L, 8L, 10L), Row.of(7L, 5L, 8L))
+                                    .consumedAfterRestore(Row.of(9L, 3L, 11L))
+                                    .build())
+                    .runSql(getEventTimeSql("ORDER BY rowtime"))
+                    .build();
+
+    public static final TableTestProgram MATCH_ORDER_BY_INT_COLUMN =
+            TableTestProgram.of("match-order-by-int-column", "complex match recognize test")
+                    .setupTableSource(SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("MySink")
+                                    .addSchema("first bigint", "last bigint", "up bigint")
+                                    .consumedBeforeRestore(Row.of(9L, 8L, 10L), Row.of(7L, 5L, 8L))
+                                    .consumedAfterRestore(Row.of(9L, 3L, 11L))
+                                    .build())
+                    .runSql(getEventTimeSql("ORDER BY rowtime, sequence_num"))
+                    .build();
+
+    private static final SourceTestStep SOURCE_WITH_OUT_OF_ORDER_DATA =
+            SourceTestStep.newBuilder("MyEventTimeTable")
+                    .addSchema(
+                            "ts STRING",
+                            "price INT",
+                            "sequence_num INT",
+                            "`rowtime` AS TO_TIMESTAMP(`ts`)",
+                            "`proctime` AS PROCTIME()",
+                            "WATERMARK for `rowtime` AS `rowtime` - INTERVAL '2' SECOND")
+                    .producedBeforeRestore(BEFORE_DATA_WITH_OUT_OF_ORDER_DATA)
+                    .producedAfterRestore(AFTER_DATA_WITH_OUT_OF_ORDER_DATA)
+                    .build();
+
+    public static final TableTestProgram MATCH_ORDER_BY_EVENT_TIME_WITH_OUT_OF_ORDER_DATA =
+            TableTestProgram.of(
+                            "match-order-by-event-time-with-out-of-order-data",
+                            "complex match recognize test")
+                    .setupTableSource(SOURCE_WITH_OUT_OF_ORDER_DATA)
                     .setupTableSink(
                             SinkTestStep.newBuilder("MySink")
                                     .addSchema("first bigint", "last bigint", "up bigint")
@@ -169,9 +230,11 @@ public class MatchRecognizeTestPrograms {
                     .runSql(getEventTimeSql("ORDER BY rowtime"))
                     .build();
 
-    static final TableTestProgram MATCH_ORDER_BY_INT_COLUMN =
-            TableTestProgram.of("match-order-by-int-column", "complex match recognize test")
-                    .setupTableSource(SOURCE)
+    public static final TableTestProgram MATCH_ORDER_BY_INT_COLUMN_WITH_OUT_OF_ORDER_DATA =
+            TableTestProgram.of(
+                            "match-order-by-int-column-with-out-of-order-data",
+                            "complex match recognize test")
+                    .setupTableSource(SOURCE_WITH_OUT_OF_ORDER_DATA)
                     .setupTableSink(
                             SinkTestStep.newBuilder("MySink")
                                     .addSchema("first bigint", "last bigint", "up bigint")
@@ -199,7 +262,7 @@ public class MatchRecognizeTestPrograms {
         return String.format(sql, orderByClause);
     }
 
-    static final TableTestProgram MATCH_SKIP_TO_FIRST =
+    public static final TableTestProgram MATCH_SKIP_TO_FIRST =
             getSkipTestProgram(
                     "match-skip-to-first",
                     "skip to first match recognize test",
@@ -207,7 +270,7 @@ public class MatchRecognizeTestPrograms {
                     new Row[] {Row.of(1L, 100, 106), Row.of(1L, 105, 107), Row.of(1L, 101, 101)},
                     new Row[] {Row.of(1L, 100, 111)});
 
-    static final TableTestProgram MATCH_SKIP_TO_LAST =
+    public static final TableTestProgram MATCH_SKIP_TO_LAST =
             getSkipTestProgram(
                     "match-skip-to-last",
                     "skip to last match recognize test",
@@ -215,7 +278,7 @@ public class MatchRecognizeTestPrograms {
                     new Row[] {Row.of(1L, 100, 106), Row.of(1L, 105, 107), Row.of(1L, 101, 101)},
                     new Row[] {Row.of(1L, 100, 111)});
 
-    static final TableTestProgram MATCH_SKIP_TO_NEXT_ROW =
+    public static final TableTestProgram MATCH_SKIP_TO_NEXT_ROW =
             getSkipTestProgram(
                     "match-skip-to-next-row",
                     "skip to next row match recognize test",
@@ -231,7 +294,7 @@ public class MatchRecognizeTestPrograms {
                     },
                     new Row[] {Row.of(1L, 100, 111), Row.of(1L, 110, 111), Row.of(1L, 111, 111)});
 
-    static final TableTestProgram MATCH_SKIP_PAST_LAST_ROW =
+    public static final TableTestProgram MATCH_SKIP_PAST_LAST_ROW =
             getSkipTestProgram(
                     "match-skip-past-last-row",
                     "skip past last row match recognize test",
