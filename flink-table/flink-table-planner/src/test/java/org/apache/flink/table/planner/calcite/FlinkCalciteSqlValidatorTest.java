@@ -70,12 +70,12 @@ class FlinkCalciteSqlValidatorTest {
     @ParameterizedTest
     @ValueSource(
             strings = {
-                "INSERT INTO t2 (a, b) VALUES(1)",
+                "INSERT INTO t2 (a, b) VALUES (1)",
                 "INSERT INTO t2 (a, b) VALUES (1, 2), (3)",
                 "INSERT INTO t2 (a, b) VALUES (1), (2, 3)",
                 "INSERT INTO t2 (a, b) VALUES (1, 2), (3, 4, 5)",
                 "INSERT INTO t2 (a, b) SELECT 1",
-                "INSERT INTO t2 (a, b) SELECT COALESCE('a', 'b'), LEAST(1, 2), CURRENT_TIME(1)",
+                "INSERT INTO t2 (a, b) SELECT COALESCE(123, 456), LEAST(1, 2), GREATEST(3, 4, 5)",
                 "INSERT INTO t2 (a, b) SELECT * FROM t1",
                 "INSERT INTO t2 (a, b) SELECT *, 42 FROM t2_copy",
                 "INSERT INTO t2 (a, b) SELECT 42, * FROM t2_copy",
