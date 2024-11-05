@@ -26,7 +26,7 @@ import org.apache.flink.util.Preconditions.checkArgument
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.runtime.{CalciteContextException, Resources}
 import org.apache.calcite.sql.`type`.SqlTypeUtil
-import org.apache.calcite.sql.{SqlCall, SqlDataTypeSpec, SqlIdentifier, SqlKind, SqlNode, SqlNodeList, SqlOrderBy, SqlSelect, SqlUtil, SqlWith}
+import org.apache.calcite.sql.{SqlBasicCall, SqlCall, SqlDataTypeSpec, SqlIdentifier, SqlKind, SqlNode, SqlNodeList, SqlOrderBy, SqlSelect, SqlUtil, SqlWith}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.validate.SqlValidatorException
@@ -193,9 +193,31 @@ object SqlRewriterUtils {
     // Expands the select list first in case there is a star(*).
     // Validates the select first to register the where scope.
     validator.validate(cte)
-    val select = cte.body.asInstanceOf[SqlSelect];
-    reorderAndValidateForSelect(validator, select, targetRowType, assignedFields, targetPosition)
+    val selects = new util.ArrayList[SqlSelect]()
+    extractSelectsFromCte(cte.body.asInstanceOf[SqlCall], selects)
+
+    for (select <- selects) {
+      reorderAndValidateForSelect(validator, select, targetRowType, assignedFields, targetPosition)
+    }
     cte
+  }
+
+  def extractSelectsFromCte(cte: SqlCall, selects: util.List[SqlSelect]): Unit = {
+    cte match {
+      case select: SqlSelect =>
+        selects.add(select)
+        return
+      case _ =>
+    }
+    for (s <- cte.getOperandList) {
+      s match {
+        case select: SqlSelect =>
+          selects.add(select)
+        case call: SqlCall =>
+          extractSelectsFromCte(call, selects)
+        case _ =>
+      }
+    }
   }
 
   def rewriteSqlSelect(
