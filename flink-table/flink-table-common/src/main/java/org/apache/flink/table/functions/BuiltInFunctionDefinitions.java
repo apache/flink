@@ -782,6 +782,24 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(TypeStrategies.aggArg0(t -> t, true))
                     .build();
 
+    public static final BuiltInFunctionDefinition LEAD =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("lead")
+                    .kind(AGGREGATE)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.LEAD_LAG)
+                    .outputTypeStrategy(SpecificTypeStrategies.LEAD_LAG)
+                    .runtimeDeferred()
+                    .build();
+
+    public static final BuiltInFunctionDefinition LAG =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("lag")
+                    .kind(AGGREGATE)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.LEAD_LAG)
+                    .outputTypeStrategy(SpecificTypeStrategies.LEAD_LAG)
+                    .runtimeDeferred()
+                    .build();
+
     public static final BuiltInFunctionDefinition LISTAGG =
             BuiltInFunctionDefinition.newBuilder()
                     .name("listAgg")

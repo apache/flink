@@ -139,6 +139,9 @@ public class OverConvertRule implements CallExpressionConvertRule {
     }
 
     private static boolean isRows(ValueLiteralExpression preceding) {
+        if (preceding.isNull()) {
+            return true;
+        }
         return preceding
                 .getValueAs(OverWindowRange.class)
                 .map(r -> r == OverWindowRange.CURRENT_ROW || r == OverWindowRange.UNBOUNDED_ROW)
@@ -193,12 +196,20 @@ public class OverConvertRule implements CallExpressionConvertRule {
     private RexWindowBound createBound(ConvertContext context, Expression bound, SqlKind sqlKind) {
         if (bound instanceof ValueLiteralExpression) {
             final ValueLiteralExpression literal = (ValueLiteralExpression) bound;
-            return literal.getValueAs(OverWindowRange.class)
-                    .map(r -> createSymbolBound(r, sqlKind))
-                    .orElseGet(
-                            () ->
-                                    createLiteralBound(
-                                            context, (ValueLiteralExpression) bound, sqlKind));
+            if (literal.isNull()) {
+                if (sqlKind == SqlKind.PRECEDING) {
+                    return RexWindowBounds.UNBOUNDED_PRECEDING;
+                } else {
+                    return RexWindowBounds.CURRENT_ROW;
+                }
+            } else {
+                return literal.getValueAs(OverWindowRange.class)
+                        .map(r -> createSymbolBound(r, sqlKind))
+                        .orElseGet(
+                                () ->
+                                        createLiteralBound(
+                                                context, (ValueLiteralExpression) bound, sqlKind));
+            }
         } else {
             throw new TableException("Unexpected expression: " + bound);
         }
