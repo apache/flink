@@ -131,10 +131,9 @@ object SqlRewriterUtils {
     call.getKind match {
       case SqlKind.SELECT =>
         val sqlSelect = call.asInstanceOf[SqlSelect]
-        val identifiersSize = sqlSelect.getSelectList.count(s => !SqlIdentifier.STAR.equals(s))
         if (
-          identifiersSize == 0
-          && targetPosition.nonEmpty && sqlSelect.getSelectList.size() != targetPosition.size()
+          targetPosition.nonEmpty && sqlSelect.getSelectList.size() != targetPosition.size()
+          && !sqlSelect.getSelectList.contains(SqlIdentifier.STAR)
         ) {
           throw newValidationError(call, RESOURCE.columnCountMismatch())
         }
