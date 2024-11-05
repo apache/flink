@@ -20,14 +20,13 @@ package org.apache.flink.table.planner.calcite
 import org.apache.flink.sql.parser.`type`.SqlMapTypeNameSpec
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator.ExplicitTableSqlSelect
-import org.apache.flink.table.planner.calcite.PreValidateReWriter.{newValidationError, notSupported}
-import org.apache.flink.table.planner.calcite.SqlRewriterUtils.{rewriteSqlCall, rewriteSqlSelect, rewriteSqlValues}
+import org.apache.flink.table.planner.calcite.SqlRewriterUtils.{rewriteSqlCall, rewriteSqlSelect, rewriteSqlValues, rewriteSqlWith}
 import org.apache.flink.util.Preconditions.checkArgument
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.runtime.{CalciteContextException, Resources}
 import org.apache.calcite.sql.`type`.SqlTypeUtil
-import org.apache.calcite.sql.{SqlCall, SqlDataTypeSpec, SqlIdentifier, SqlKind, SqlNode, SqlNodeList, SqlOrderBy, SqlSelect, SqlUtil}
+import org.apache.calcite.sql.{SqlCall, SqlDataTypeSpec, SqlIdentifier, SqlKind, SqlNode, SqlNodeList, SqlOrderBy, SqlSelect, SqlUtil, SqlWith}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.validate.SqlValidatorException
@@ -53,6 +52,14 @@ class SqlRewriterUtils(validator: FlinkCalciteSqlValidator) {
       assignedFields: util.LinkedHashMap[Integer, SqlNode],
       targetPosition: util.List[Int]): SqlCall = {
     rewriteSqlValues(svalues, targetRowType, assignedFields, targetPosition)
+  }
+
+  def rewriteWith(
+      sqlWith: SqlWith,
+      targetRowType: RelDataType,
+      assignedFields: util.LinkedHashMap[Integer, SqlNode],
+      targetPosition: util.List[Int]): SqlCall = {
+    rewriteSqlWith(validator, sqlWith, targetRowType, assignedFields, targetPosition)
   }
 
   def rewriteCall(
@@ -133,7 +140,8 @@ object SqlRewriterUtils {
         val sqlSelect = call.asInstanceOf[SqlSelect]
         if (
           targetPosition.nonEmpty && sqlSelect.getSelectList.size() != targetPosition.size()
-          && !sqlSelect.getSelectList.contains(SqlIdentifier.STAR)
+          && sqlSelect.getSelectList.count(
+            s => s.isInstanceOf[SqlIdentifier] && s.asInstanceOf[SqlIdentifier].isStar) == 0
         ) {
           throw newValidationError(call, RESOURCE.columnCountMismatch())
         }
@@ -166,10 +174,28 @@ object SqlRewriterUtils {
           operands.get(0).asInstanceOf[SqlIdentifier],
           Collections.emptyList())
         rewriterUtils.rewriteSelect(expTable, targetRowType, assignedFields, targetPosition)
-      // Not support:
-      // case SqlKind.WITH =>
+      case SqlKind.WITH =>
+        rewriterUtils.rewriteWith(
+          call.asInstanceOf[SqlWith],
+          targetRowType,
+          assignedFields,
+          targetPosition)
       case _ => throw new ValidationException(unsupportedErrorMessage())
     }
+  }
+
+  def rewriteSqlWith(
+      validator: FlinkCalciteSqlValidator,
+      cte: SqlWith,
+      targetRowType: RelDataType,
+      assignedFields: util.LinkedHashMap[Integer, SqlNode],
+      targetPosition: util.List[Int]): SqlCall = {
+    // Expands the select list first in case there is a star(*).
+    // Validates the select first to register the where scope.
+    validator.validate(cte)
+    val select = cte.body.asInstanceOf[SqlSelect];
+    reorderAndValidateForSelect(validator, select, targetRowType, assignedFields, targetPosition)
+    cte
   }
 
   def rewriteSqlSelect(
@@ -181,32 +207,7 @@ object SqlRewriterUtils {
     // Expands the select list first in case there is a star(*).
     // Validates the select first to register the where scope.
     validator.validate(select)
-    val sourceList = validator.expandStar(select.getSelectList, select, false).getList
-
-    if (targetPosition.nonEmpty && sourceList.size() != targetPosition.size()) {
-      throw newValidationError(select, RESOURCE.columnCountMismatch())
-    }
-    val fixedNodes = new util.ArrayList[SqlNode]
-    val currentNodes =
-      if (targetPosition.isEmpty) {
-        new util.ArrayList[SqlNode](sourceList)
-      } else {
-        reorder(new util.ArrayList[SqlNode](sourceList), targetPosition)
-      }
-    (0 until targetRowType.getFieldList.length).foreach {
-      idx =>
-        if (assignedFields.containsKey(idx)) {
-          fixedNodes.add(assignedFields.get(idx))
-        } else if (currentNodes.size() > 0) {
-          fixedNodes.add(currentNodes.remove(0))
-        }
-    }
-    // Although it is error case, we still append the old remaining
-    // projection nodes to new projection.
-    if (currentNodes.size > 0) {
-      fixedNodes.addAll(currentNodes)
-    }
-    select.setSelectList(new SqlNodeList(fixedNodes, select.getSelectList.getParserPosition))
+    reorderAndValidateForSelect(validator, select, targetRowType, assignedFields, targetPosition)
     select
   }
 
@@ -224,29 +225,55 @@ object SqlRewriterUtils {
         } else {
           Collections.singletonList(value)
         }
-        val currentNodes =
-          if (targetPosition.isEmpty) {
-            new util.ArrayList[SqlNode](valueAsList)
-          } else {
-            reorder(new util.ArrayList[SqlNode](valueAsList), targetPosition)
-          }
-        val fieldNodes = new util.ArrayList[SqlNode]
-        (0 until targetRowType.getFieldList.length).foreach {
-          fieldIdx =>
-            if (assignedFields.containsKey(fieldIdx)) {
-              fieldNodes.add(assignedFields.get(fieldIdx))
-            } else if (currentNodes.size() > 0) {
-              fieldNodes.add(currentNodes.remove(0))
-            }
-        }
-        // Although it is error case, we still append the old remaining
-        // value items to new item list.
-        if (currentNodes.size > 0) {
-          fieldNodes.addAll(currentNodes)
-        }
-        fixedNodes.add(SqlStdOperatorTable.ROW.createCall(value.getParserPosition, fieldNodes))
+        val nodes = getReorderedNodes(targetRowType, assignedFields, targetPosition, valueAsList)
+        fixedNodes.add(SqlStdOperatorTable.ROW.createCall(value.getParserPosition, nodes))
     }
     SqlStdOperatorTable.VALUES.createCall(values.getParserPosition, fixedNodes)
+  }
+
+  private def getReorderedNodes(
+      targetRowType: RelDataType,
+      assignedFields: util.LinkedHashMap[Integer, SqlNode],
+      targetPosition: util.List[Int],
+      valueAsList: util.List[SqlNode]): util.List[SqlNode] = {
+    val currentNodes =
+      if (targetPosition.isEmpty) {
+        new util.ArrayList[SqlNode](valueAsList)
+      } else {
+        reorder(new util.ArrayList[SqlNode](valueAsList), targetPosition)
+      }
+
+    val fieldNodes = new util.ArrayList[SqlNode]
+    (0 until targetRowType.getFieldList.length).foreach {
+      idx =>
+        if (assignedFields.containsKey(idx)) {
+          fieldNodes.add(assignedFields.get(idx))
+        } else if (currentNodes.size() > 0) {
+          fieldNodes.add(currentNodes.remove(0))
+        }
+    }
+    // Although it is error case, we still append the old remaining
+    // value items to new item list.
+    if (currentNodes.size > 0) {
+      fieldNodes.addAll(currentNodes)
+    }
+    fieldNodes
+  }
+
+  private def reorderAndValidateForSelect(
+      validator: FlinkCalciteSqlValidator,
+      select: SqlSelect,
+      targetRowType: RelDataType,
+      assignedFields: util.LinkedHashMap[Integer, SqlNode],
+      targetPosition: util.List[Int]): Unit = {
+    val sourceList = validator.expandStar(select.getSelectList, select, false).getList
+
+    if (targetPosition.nonEmpty && sourceList.size() != targetPosition.size()) {
+      throw newValidationError(select, RESOURCE.columnCountMismatch())
+    }
+
+    val nodes = getReorderedNodes(targetRowType, assignedFields, targetPosition, sourceList)
+    select.setSelectList(new SqlNodeList(nodes, select.getSelectList.getParserPosition))
   }
 
   def newValidationError(
