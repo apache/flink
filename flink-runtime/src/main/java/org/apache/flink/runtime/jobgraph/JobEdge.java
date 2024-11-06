@@ -65,6 +65,22 @@ public class JobEdge implements java.io.Serializable {
     /** Optional description of the caching inside an operator, to be displayed in the JSON plan. */
     private String operatorLevelCachingDescription;
 
+    private final int typeNumber;
+
+    /**
+     * There are relationships between multiple inputs, if the records corresponding to the same key
+     * from one input is split, the corresponding key records from the other inputs must be
+     * duplicated (meaning that it must be sent to the downstream nodes where the split data is
+     * sent).
+     */
+    private final boolean interInputsKeysCorrelated;
+
+    /**
+     * Whether records with the same key are correlated and must be sent to the same downstream task
+     * to be processed together.
+     */
+    private final boolean intraInputKeyCorrelated;
+
     /**
      * Constructs a new job edge, that connects an intermediate result to a consumer task.
      *
@@ -78,7 +94,10 @@ public class JobEdge implements java.io.Serializable {
             JobVertex target,
             DistributionPattern distributionPattern,
             boolean isBroadcast,
-            boolean isForward) {
+            boolean isForward,
+            int typeNumber,
+            boolean interInputsKeysCorrelated,
+            boolean intraInputKeyCorrelated) {
         if (source == null || target == null || distributionPattern == null) {
             throw new NullPointerException();
         }
@@ -87,6 +106,9 @@ public class JobEdge implements java.io.Serializable {
         this.source = source;
         this.isBroadcast = isBroadcast;
         this.isForward = isForward;
+        this.typeNumber = typeNumber;
+        this.interInputsKeysCorrelated = interInputsKeysCorrelated;
+        this.intraInputKeyCorrelated = intraInputKeyCorrelated;
     }
 
     /**
@@ -231,6 +253,21 @@ public class JobEdge implements java.io.Serializable {
      */
     public void setOperatorLevelCachingDescription(String operatorLevelCachingDescription) {
         this.operatorLevelCachingDescription = operatorLevelCachingDescription;
+    }
+
+    /** Gets typeNumber of the edge. */
+    public int getTypeNumber() {
+        return typeNumber;
+    }
+
+    /** Gets whether the records with same key of this edge are correlated with other inputs. */
+    public boolean areInterInputsKeysCorrelated() {
+        return interInputsKeysCorrelated;
+    }
+
+    /** Gets whether the records with same key of this edge are correlated. */
+    public boolean isIntraInputKeyCorrelated() {
+        return intraInputKeyCorrelated;
     }
 
     // --------------------------------------------------------------------------------------------
