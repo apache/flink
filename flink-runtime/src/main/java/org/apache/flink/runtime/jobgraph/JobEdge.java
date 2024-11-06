@@ -65,6 +65,12 @@ public class JobEdge implements java.io.Serializable {
     /** Optional description of the caching inside an operator, to be displayed in the JSON plan. */
     private String operatorLevelCachingDescription;
 
+    private final int typeNumber;
+
+    private final boolean existInterInputsKeyCorrelation;
+
+    private final boolean existIntraInputKeyCorrelation;
+
     /**
      * Constructs a new job edge, that connects an intermediate result to a consumer task.
      *
@@ -77,7 +83,10 @@ public class JobEdge implements java.io.Serializable {
             IntermediateDataSet source,
             JobVertex target,
             DistributionPattern distributionPattern,
-            boolean isBroadcast) {
+            boolean isBroadcast,
+            int typeNumber,
+            boolean existInterInputsKeyCorrelation,
+            boolean existIntraInputKeyCorrelation) {
         if (source == null || target == null || distributionPattern == null) {
             throw new NullPointerException();
         }
@@ -85,6 +94,9 @@ public class JobEdge implements java.io.Serializable {
         this.distributionPattern = distributionPattern;
         this.source = source;
         this.isBroadcast = isBroadcast;
+        this.typeNumber = typeNumber;
+        this.existInterInputsKeyCorrelation = existInterInputsKeyCorrelation;
+        this.existIntraInputKeyCorrelation = existIntraInputKeyCorrelation;
     }
 
     /**
@@ -234,6 +246,21 @@ public class JobEdge implements java.io.Serializable {
      */
     public void setOperatorLevelCachingDescription(String operatorLevelCachingDescription) {
         this.operatorLevelCachingDescription = operatorLevelCachingDescription;
+    }
+
+    /** Gets typeNumber of the edge. */
+    public int getTypeNumber() {
+        return typeNumber;
+    }
+
+    /** Gets whether the edge exist InterInputsKeyCorrelation. */
+    public boolean existInterInputsKeyCorrelation() {
+        return existInterInputsKeyCorrelation;
+    }
+
+    /** Gets whether the edge exist IntraInputKeyCorrelation. */
+    public boolean existIntraInputKeyCorrelation() {
+        return existIntraInputKeyCorrelation;
     }
 
     // --------------------------------------------------------------------------------------------
