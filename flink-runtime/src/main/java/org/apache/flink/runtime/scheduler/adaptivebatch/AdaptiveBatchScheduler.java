@@ -90,6 +90,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -101,6 +102,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionVertex.NUM_BYTES_UNKNOWN;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.HYBRID_FULL;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.HYBRID_SELECTIVE;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -278,12 +280,9 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
         // method and then read with a broadcast method. Therefore, we need to update the
         // result info:
         // 1. Update the DistributionPattern to reflect the optimized data distribution.
-        // 2. Aggregate subpartition bytes when possible for efficiency.
         for (JobVertex newVertex : newVertices) {
             for (JobEdge input : newVertex.getInputs()) {
                 tryUpdateResultInfo(input.getSourceId(), input.getDistributionPattern());
-                Optional.ofNullable(blockingResultInfos.get(input.getSourceId()))
-                        .ifPresent(this::maybeAggregateSubpartitionBytes);
             }
         }
     }
@@ -500,7 +499,6 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
                                 }
                                 resultInfo.recordPartitionInfo(
                                         partitionId.getPartitionNumber(), partitionBytes);
-                                maybeAggregateSubpartitionBytes(resultInfo);
                                 return resultInfo;
                             });
                 });
@@ -509,8 +507,9 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
     /**
      * Aggregates subpartition bytes if all conditions are met. This method checks whether the
      * result info instance is of type {@link AllToAllBlockingResultInfo}, whether all consumer
-     * vertices are created, and whether all consumer vertices are initialized. If these conditions
-     * are satisfied, the fine-grained statistic info will not be required by consumer vertices, and
+     * vertices are created, whether all consumer vertices are initialized, and whether input bytes
+     * information for all consumer vertices has been initialized . If these conditions are
+     * satisfied, the fine-grained statistic info will not be required by consumer vertices, and
      * then we could aggregate the subpartition bytes.
      *
      * @param resultInfo the BlockingResultInfo instance to potentially aggregate subpartition bytes
@@ -524,7 +523,17 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
                 && intermediateResult.areAllConsumerVerticesCreated()
                 && intermediateResult.getConsumerVertices().stream()
                         .map(this::getExecutionJobVertex)
-                        .allMatch(ExecutionJobVertex::isInitialized)) {
+                        .allMatch(ExecutionJobVertex::isInitialized)
+                && intermediateResult.getConsumerVertices().stream()
+                        .map(this::getExecutionJobVertex)
+                        .map(ExecutionJobVertex::getTaskVertices)
+                        .allMatch(
+                                taskVertices ->
+                                        Arrays.stream(taskVertices)
+                                                .allMatch(
+                                                        taskVertex ->
+                                                                taskVertex.getInputBytes()
+                                                                        != NUM_BYTES_UNKNOWN))) {
             ((AllToAllBlockingResultInfo) resultInfo).aggregateSubpartitionBytes();
         }
     }
@@ -606,8 +615,8 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
 
             // We need to wait for the upstream vertex to complete, otherwise, dynamic filtering
             // information will be inaccessible during source parallelism inference.
-            Optional<List<BlockingResultInfo>> consumedResultsInfo =
-                    tryGetConsumedResultsInfo(jobVertex);
+            Optional<List<BlockingInputInfo>> consumedResultsInfo =
+                    tryGetConsumedResultsInfoView(jobVertex);
             if (consumedResultsInfo.isPresent()) {
                 List<CompletableFuture<Integer>> sourceParallelismFutures =
                         sourceCoordinators.stream()
@@ -683,8 +692,8 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
                             createTimestamp);
                     newlyInitializedJobVertices.add(jobVertex);
                 } else {
-                    Optional<List<BlockingResultInfo>> consumedResultsInfo =
-                            tryGetConsumedResultsInfo(jobVertex);
+                    Optional<List<BlockingInputInfo>> consumedResultsInfo =
+                            tryGetConsumedResultsInfoView(jobVertex);
                     if (consumedResultsInfo.isPresent()) {
                         ParallelismAndInputInfos parallelismAndInputInfos =
                                 tryDecideParallelismAndInputInfos(
@@ -695,7 +704,6 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
                                 parallelismAndInputInfos.getJobVertexInputInfos(),
                                 createTimestamp);
                         newlyInitializedJobVertices.add(jobVertex);
-                        consumedResultsInfo.get().forEach(this::maybeAggregateSubpartitionBytes);
                     }
                 }
             }
@@ -710,7 +718,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
     }
 
     private ParallelismAndInputInfos tryDecideParallelismAndInputInfos(
-            final ExecutionJobVertex jobVertex, List<BlockingResultInfo> inputs) {
+            final ExecutionJobVertex jobVertex, List<BlockingInputInfo> inputs) {
         int vertexInitialParallelism =
                 adaptiveExecutionHandler.getInitialParallelism(jobVertex.getJobVertexId());
         int vertexMinParallelism = ExecutionConfig.PARALLELISM_DEFAULT;
@@ -792,7 +800,12 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
                                     ir ->
                                             ir.getResultType() == HYBRID_FULL
                                                     || ir.getResultType() == HYBRID_SELECTIVE);
-            if (intermediateResults.isEmpty() || hasHybridEdge) {
+            // When inputBytes have already been set (e.g. failed to restart), we don't need to
+            // recalculate, otherwise an exception may be triggered if BlockingResultInfo has
+            // already been aggregated.
+            if (ev.getInputBytes() != ExecutionVertex.NUM_BYTES_UNKNOWN
+                    || intermediateResults.isEmpty()
+                    || hasHybridEdge) {
                 continue;
             }
             long inputBytes = 0;
@@ -811,6 +824,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
                             blockingResultInfo.getNumBytesProduced(
                                     partitionIndexRange, subpartitionIndexRange);
                 }
+                maybeAggregateSubpartitionBytes(blockingResultInfo);
             }
             ev.setInputBytes(inputBytes);
         }
@@ -835,21 +849,28 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
     }
 
     /** Get information of consumable results. */
-    private Optional<List<BlockingResultInfo>> tryGetConsumedResultsInfo(
+    private Optional<List<BlockingInputInfo>> tryGetConsumedResultsInfoView(
             final ExecutionJobVertex jobVertex) {
 
-        List<BlockingResultInfo> consumableResultInfo = new ArrayList<>();
+        List<BlockingInputInfo> consumableResultInfo = new ArrayList<>();
 
         DefaultLogicalVertex logicalVertex = logicalTopology.getVertex(jobVertex.getJobVertexId());
-        Iterable<DefaultLogicalResult> consumedResults = logicalVertex.getConsumedResults();
+        Iterator<JobEdge> jobEdges = jobVertex.getJobVertex().getInputs().iterator();
 
-        for (DefaultLogicalResult consumedResult : consumedResults) {
+        for (DefaultLogicalResult consumedResult : logicalVertex.getConsumedResults()) {
+            checkState(jobEdges.hasNext());
+            JobEdge jobEdge = jobEdges.next();
             final ExecutionJobVertex producerVertex =
                     getExecutionJobVertex(consumedResult.getProducer().getId());
             if (producerVertex.isFinished()) {
                 BlockingResultInfo resultInfo =
                         checkNotNull(blockingResultInfos.get(consumedResult.getId()));
-                consumableResultInfo.add(resultInfo);
+                consumableResultInfo.add(
+                        new BlockingInputInfo(
+                                resultInfo,
+                                jobEdge.getTypeNumber(),
+                                jobEdge.areInterInputsKeysCorrelated(),
+                                jobEdge.isIntraInputKeyCorrelated()));
             } else {
                 // not all inputs consumable, return Optional.empty()
                 return Optional.empty();
