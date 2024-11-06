@@ -65,7 +65,9 @@ public class YarnEntrypointUtils {
 
         configuration.set(JobManagerOptions.ADDRESS, hostname);
         configuration.set(RestOptions.ADDRESS, hostname);
-        configuration.set(RestOptions.BIND_ADDRESS, hostname);
+        if (!configuration.contains(RestOptions.BIND_ADDRESS)) {
+            configuration.set(RestOptions.BIND_ADDRESS, hostname);
+        }
 
         // if a web monitor shall be started, set the port to random binding
         if (configuration.get(WebOptions.PORT, 0) >= 0) {
