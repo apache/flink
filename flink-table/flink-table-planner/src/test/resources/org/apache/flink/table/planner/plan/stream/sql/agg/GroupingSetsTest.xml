@@ -1004,8 +1004,9 @@ FROM (select *, 1 g1, 1 g2 from MyTable) t
       <![CDATA[
 LogicalProject(gt=[CASE(=($0, 1), _UTF-16LE'aaa', =($2, 1), _UTF-16LE'bbb', null:CHAR(3) CHARACTER SET "UTF-16LE")], b=[$1], c=[$3], a=[$4])
 +- LogicalAggregate(group=[{0, 1, 2, 3}], groups=[[{0, 1}, {1, 2, 3}]], a=[AVG($4)])
-   +- LogicalProject(g1=[1], b=[$1], g2=[1], c=[$2], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(g1=[$3], b=[$1], g2=[$4], c=[$2], a=[$0])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], g1=[1], g2=[1])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

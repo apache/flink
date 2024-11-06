@@ -16,11 +16,8 @@
  */
 package org.apache.calcite.rel.metadata;
 
-import static java.util.Objects.requireNonNull;
-
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPredicateList;
@@ -79,12 +76,19 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * Utility to infer Predicates that are applicable above a RelNode.
  *
- * <p>The class was copied over based on calcite-1.32.0 and added the bugfix of CALCITE-6317.
+ * <p>The class was copied over because of * CALCITE-6317 * and should be removed after upgraded to
+ * calcite-1.37.0.
  *
- * <p>Should be removed once upgraded to calcite-1.37.
+ * <p>FLINK modifications are at lines
+ *
+ * <ol>
+ *   <li>Port fix of CALCITE-6317 (Calcite 1.37.0): Lines 328~351, 396~398
+ * </ol>
  *
  * <p>This is currently used by {@link
  * org.apache.calcite.rel.rules.JoinPushTransitivePredicatesRule} to infer <em>Predicates</em> that
@@ -320,6 +324,7 @@ public class RelMdPredicates implements MetadataHandler<BuiltInMetadata.Predicat
         return joinInference.inferPredicates(false);
     }
 
+    // FLINK MODIFICATION BEGIN
     /**
      * Check whether the fields specified by the predicateColumns appear in all the groupSets of the
      * aggregate.
@@ -342,6 +347,8 @@ public class RelMdPredicates implements MetadataHandler<BuiltInMetadata.Predicat
         }
         return true;
     }
+
+    // FLINK MODIFICATION END
 
     /**
      * Infers predicates for an Aggregate.
@@ -386,7 +393,9 @@ public class RelMdPredicates implements MetadataHandler<BuiltInMetadata.Predicat
         for (RexNode r : inputInfo.pulledUpPredicates) {
             ImmutableBitSet rCols = RelOptUtil.InputFinder.bits(r);
 
+            // FLINK MODIFICATION BEGIN
             if (groupKeys.contains(rCols) && this.allGroupSetsOverlap(rCols, agg)) {
+                // FLINK MODIFICATION END
                 r = r.accept(new RexPermuteInputsShuttle(m, input));
                 aggPullUpPredicates.add(r);
             }
