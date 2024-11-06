@@ -152,7 +152,19 @@ under the License.
 					<groupId>org.locationtech.proj4j</groupId>
 					<artifactId>proj4j</artifactId>
 				</exclusion>
+				<!-- Exclude json-path as we are manually overriding it to a newer version -->
+				<exclusion>
+					<groupId>com.jayway.jsonpath</groupId>
+					<artifactId>json-path</artifactId>
+				</exclusion>
 			</exclusions>
+		</dependency>
+
+		<!-- Override the json-path version used by Calcite 1.32 to deal with CVE-2023-1370 -->
+		<dependency>
+			<groupId>com.jayway.jsonpath</groupId>
+			<artifactId>json-path</artifactId>
+			<version>${jsonpath.version}</version>
 		</dependency>
 
 		<dependency>
