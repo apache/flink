@@ -19,6 +19,7 @@
 package org.apache.flink.core.fs.local;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.ByteBufferReadable;
 import org.apache.flink.core.fs.FSDataInputStream;
 
 import javax.annotation.Nonnull;
@@ -26,6 +27,7 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
 /**
@@ -33,7 +35,7 @@ import java.nio.channels.FileChannel;
  * local file system.
  */
 @Internal
-public class LocalDataInputStream extends FSDataInputStream {
+public class LocalDataInputStream extends FSDataInputStream implements ByteBufferReadable {
 
     /** The file input stream used to read data from. */
     private final FileInputStream fis;
@@ -87,5 +89,15 @@ public class LocalDataInputStream extends FSDataInputStream {
     @Override
     public long skip(final long n) throws IOException {
         return this.fis.skip(n);
+    }
+
+    @Override
+    public int read(ByteBuffer byteBuffer) throws IOException {
+        return this.fileChannel.read(byteBuffer);
+    }
+
+    @Override
+    public int read(long position, ByteBuffer byteBuffer) throws IOException {
+        return this.fileChannel.read(byteBuffer, position);
     }
 }

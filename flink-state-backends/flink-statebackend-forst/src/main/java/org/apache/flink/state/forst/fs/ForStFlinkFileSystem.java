@@ -21,11 +21,23 @@ package org.apache.flink.state.forst.fs;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.BlockLocation;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.state.forst.fs.cache.BundledCacheLimitPolicy;
+import org.apache.flink.state.forst.fs.cache.CacheLimitPolicy;
+import org.apache.flink.state.forst.fs.cache.CachedDataInputStream;
+import org.apache.flink.state.forst.fs.cache.CachedDataOutputStream;
+import org.apache.flink.state.forst.fs.cache.FileBasedCache;
+import org.apache.flink.state.forst.fs.cache.SizeBasedCacheLimitPolicy;
+import org.apache.flink.state.forst.fs.cache.SpaceBasedCacheLimitPolicy;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Map;
@@ -46,21 +58,45 @@ public class ForStFlinkFileSystem extends FileSystem {
     // TODO: make it configurable
     private static final int DEFAULT_INPUT_STREAM_CAPACITY = 32;
 
+    private static final long SST_FILE_SIZE = 1024 * 1024 * 64;
+
     private static final Map<String, String> remoteLocalMapping = new ConcurrentHashMap<>();
     private static final Function<String, Boolean> miscFileFilter = s -> !s.endsWith(".sst");
+    private static Path cacheBase = null;
+    private static long cacheCapacity = Long.MAX_VALUE;
+    private static long cacheReservedSize = 0;
 
     private final FileSystem localFS;
     private final FileSystem delegateFS;
     private final String remoteBase;
     private final Function<String, Boolean> localFileFilter;
     private final String localBase;
+    @Nullable private final FileBasedCache fileBasedCache;
 
-    public ForStFlinkFileSystem(FileSystem delegateFS, String remoteBase, String localBase) {
+    public ForStFlinkFileSystem(
+            FileSystem delegateFS,
+            String remoteBase,
+            String localBase,
+            @Nullable FileBasedCache fileBasedCache) {
         this.localFS = FileSystem.getLocalFileSystem();
         this.delegateFS = delegateFS;
         this.localFileFilter = miscFileFilter;
         this.remoteBase = remoteBase;
         this.localBase = localBase;
+        this.fileBasedCache = fileBasedCache;
+    }
+
+    /**
+     * Configure cache for ForStFlinkFileSystem.
+     *
+     * @param path the cache base path.
+     * @param cacheCap the cache capacity.
+     * @param reserveSize the cache reserved size.
+     */
+    public static void configureCache(Path path, long cacheCap, long reserveSize) {
+        cacheBase = path;
+        cacheCapacity = cacheCap;
+        cacheReservedSize = reserveSize;
     }
 
     /**
@@ -75,7 +111,32 @@ public class ForStFlinkFileSystem extends FileSystem {
     public static FileSystem get(URI uri) throws IOException {
         String localBase = remoteLocalMapping.get(uri.toString());
         Preconditions.checkNotNull(localBase, "localBase is null, remote uri:" + uri);
-        return new ForStFlinkFileSystem(FileSystem.get(uri), uri.toString(), localBase);
+        return new ForStFlinkFileSystem(
+                FileSystem.get(uri), uri.toString(), localBase, getFileBasedCache());
+    }
+
+    private static FileBasedCache getFileBasedCache() throws IOException {
+        if (cacheBase == null || cacheCapacity <= 0 && cacheReservedSize <= 0) {
+            return null;
+        }
+        CacheLimitPolicy cacheLimitPolicy = null;
+        if (cacheCapacity > 0 && cacheReservedSize > 0) {
+            cacheLimitPolicy =
+                    new BundledCacheLimitPolicy(
+                            new SizeBasedCacheLimitPolicy(cacheCapacity),
+                            new SpaceBasedCacheLimitPolicy(
+                                    new File(cacheBase.toString()),
+                                    cacheReservedSize,
+                                    SST_FILE_SIZE));
+        } else if (cacheCapacity > 0) {
+            cacheLimitPolicy = new SizeBasedCacheLimitPolicy(cacheCapacity);
+        } else if (cacheReservedSize > 0) {
+            cacheLimitPolicy =
+                    new SpaceBasedCacheLimitPolicy(
+                            new File(cacheBase.toString()), cacheReservedSize, SST_FILE_SIZE);
+        }
+        return new FileBasedCache(
+                Integer.MAX_VALUE, cacheLimitPolicy, cacheBase.getFileSystem(), cacheBase);
     }
 
     /**
@@ -118,7 +179,12 @@ public class ForStFlinkFileSystem extends FileSystem {
             return new ByteBufferWritableFSDataOutputStream(
                     localFS.create(localPathTuple.f1, overwriteMode));
         }
-        return new ByteBufferWritableFSDataOutputStream(delegateFS.create(path, overwriteMode));
+
+        FSDataOutputStream originalOutputStream = delegateFS.create(path, overwriteMode);
+        CachedDataOutputStream cachedDataOutputStream =
+                fileBasedCache == null ? null : fileBasedCache.create(originalOutputStream, path);
+        return new ByteBufferWritableFSDataOutputStream(
+                cachedDataOutputStream == null ? originalOutputStream : cachedDataOutputStream);
     }
 
     @Override
@@ -132,7 +198,12 @@ public class ForStFlinkFileSystem extends FileSystem {
         }
         FileStatus fileStatus = checkNotNull(getFileStatus(path));
         return new ByteBufferReadableFSDataInputStream(
-                () -> delegateFS.open(path, bufferSize),
+                () -> {
+                    FSDataInputStream inputStream = delegateFS.open(path, bufferSize);
+                    CachedDataInputStream cachedDataInputStream =
+                            fileBasedCache == null ? null : fileBasedCache.open(path, inputStream);
+                    return cachedDataInputStream == null ? inputStream : cachedDataInputStream;
+                },
                 DEFAULT_INPUT_STREAM_CAPACITY,
                 fileStatus.getLen());
     }
@@ -148,7 +219,14 @@ public class ForStFlinkFileSystem extends FileSystem {
         }
         FileStatus fileStatus = checkNotNull(getFileStatus(path));
         return new ByteBufferReadableFSDataInputStream(
-                () -> delegateFS.open(path), DEFAULT_INPUT_STREAM_CAPACITY, fileStatus.getLen());
+                () -> {
+                    FSDataInputStream inputStream = delegateFS.open(path);
+                    CachedDataInputStream cachedDataInputStream =
+                            fileBasedCache == null ? null : fileBasedCache.open(path, inputStream);
+                    return cachedDataInputStream == null ? inputStream : cachedDataInputStream;
+                },
+                DEFAULT_INPUT_STREAM_CAPACITY,
+                fileStatus.getLen());
     }
 
     @Override
@@ -294,6 +372,9 @@ public class ForStFlinkFileSystem extends FileSystem {
             success = localFS.delete(localPathTuple.f1, recursive); // delete from local
         }
         success |= delegateFS.delete(path, recursive); // and delete from remote
+        if (fileBasedCache != null) {
+            fileBasedCache.delete(path);
+        }
         return success;
     }
 
