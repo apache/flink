@@ -22,6 +22,7 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSortMergeJoin
+import org.apache.flink.table.planner.plan.utils.JoinUtil
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
@@ -72,6 +73,7 @@ class BatchPhysicalSortMergeJoinRule
     val providedTraitSet = call.getPlanner
       .emptyTraitSet()
       .replace(FlinkConventions.BATCH_PHYSICAL)
+    val withJobStrategyHint = JoinUtil.containsJoinStrategyHint(join.getHints)
     // do not try to remove redundant sort for shorter optimization time
     val newJoin = new BatchPhysicalSortMergeJoin(
       join.getCluster,
@@ -81,7 +83,8 @@ class BatchPhysicalSortMergeJoinRule
       join.getCondition,
       join.getJoinType,
       false,
-      false)
+      false,
+      withJobStrategyHint)
     call.transformTo(newJoin)
   }
 }
