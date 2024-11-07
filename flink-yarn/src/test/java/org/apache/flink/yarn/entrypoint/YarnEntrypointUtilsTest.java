@@ -90,6 +90,24 @@ class YarnEntrypointUtilsTest {
     }
 
     @Test
+    void testRestBindingAddressUnspecified() throws IOException {
+        final Configuration initialConfiguration = new Configuration();
+        final Configuration configuration = loadConfiguration(initialConfiguration);
+
+        assertThat(configuration.get(RestOptions.BIND_ADDRESS)).isEqualTo("foobar");
+    }
+
+    @Test
+    void testRestBindingAddressSpecified() throws Exception {
+        final Configuration initialConfiguration = new Configuration();
+        final String bindingAddress = "0.0.0.0";
+        initialConfiguration.set(RestOptions.BIND_ADDRESS, bindingAddress);
+        final Configuration configuration = loadConfiguration(initialConfiguration);
+
+        assertThat(configuration.get(RestOptions.BIND_ADDRESS)).isEqualTo(bindingAddress);
+    }
+
+    @Test
     void testParsingValidKerberosEnv() throws IOException {
         final Configuration initialConfiguration = new Configuration();
         Map<String, String> env = new HashMap<>();

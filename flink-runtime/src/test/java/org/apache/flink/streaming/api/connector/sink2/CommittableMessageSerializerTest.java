@@ -47,7 +47,7 @@ class CommittableMessageSerializerTest {
     @Test
     void testCommittableSummarySerDe() throws IOException {
         final CommittableSummary<Integer> committableSummary =
-                new CommittableSummary<>(1, 2, 3L, 4, 5, 6);
+                new CommittableSummary<>(1, 2, 3L, 4, 5);
         final CommittableMessage<Integer> message =
                 SERIALIZER.deserialize(
                         CommittableMessageSerializer.VERSION,
@@ -58,7 +58,5 @@ class CommittableMessageSerializerTest {
         assertThat(copy.getNumberOfSubtasks()).isEqualTo(2);
         assertThat(copy.getCheckpointIdOrEOI()).isEqualTo(3L);
         assertThat(copy.getNumberOfCommittables()).isEqualTo(4);
-        assertThat(copy.getNumberOfPendingCommittables()).isEqualTo(5);
-        assertThat(copy.getNumberOfFailedCommittables()).isEqualTo(6);
     }
 }

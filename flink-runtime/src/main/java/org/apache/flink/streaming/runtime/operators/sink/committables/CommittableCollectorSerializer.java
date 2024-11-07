@@ -207,7 +207,7 @@ public final class CommittableCollectorSerializer<CommT>
 
         @Override
         public int getVersion() {
-            return 1;
+            return 2;
         }
 
         @Override
@@ -219,7 +219,6 @@ public final class CommittableCollectorSerializer<CommT>
                     new ArrayList<>(subtask.getRequests()),
                     out);
             out.writeInt(subtask.getNumCommittables());
-            out.writeInt(subtask.getNumDrained());
             out.writeInt(subtask.getNumFailed());
             return out.getCopyOfBuffer();
         }
@@ -236,7 +235,7 @@ public final class CommittableCollectorSerializer<CommT>
             return new SubtaskCommittableManager<>(
                     requests,
                     in.readInt(),
-                    in.readInt(),
+                    version >= 2 ? 0 : in.readInt(),
                     in.readInt(),
                     subtaskId,
                     checkNotNull(

@@ -1039,6 +1039,11 @@ class ExecutingTest {
         public void suspend(Throwable cause) {}
 
         @Override
+        public JobID getJobId() {
+            return null;
+        }
+
+        @Override
         public JobStatus getJobStatus() {
             return null;
         }

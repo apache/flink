@@ -463,17 +463,17 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
     /** A {@link Committer} that always re-commits the committables data it received. */
     static class RetryOnceCommitter extends DefaultCommitter {
 
-        private final Set<CommitRequest<String>> seen = new LinkedHashSet<>();
+        private final Set<String> seen = new LinkedHashSet<>();
 
         @Override
         public void commit(Collection<CommitRequest<String>> committables) {
             committables.forEach(
                     c -> {
-                        if (seen.remove(c)) {
+                        if (seen.remove(c.getCommittable())) {
                             checkNotNull(committedData);
                             committedData.add(c);
                         } else {
-                            seen.add(c);
+                            seen.add(c.getCommittable());
                             c.retryLater();
                         }
                     });

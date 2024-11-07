@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.util.function.FunctionWithException;
@@ -50,6 +51,15 @@ interface State extends LabeledGlobalFailureHandler {
      * @param cause cause for the suspension
      */
     void suspend(Throwable cause);
+
+    /**
+     * Gets the {@link JobID} of the job. The implementation should avoid to use the {@link
+     * State#getJob()} method as it may create the {@link ArchivedExecutionGraph} which is
+     * expensive.
+     *
+     * @return the {@link JobID} of the job
+     */
+    JobID getJobId();
 
     /**
      * Gets the current {@link JobStatus}. The returned job status will remain unchanged at least

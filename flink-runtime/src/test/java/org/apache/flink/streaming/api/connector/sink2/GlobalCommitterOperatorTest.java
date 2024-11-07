@@ -48,7 +48,7 @@ class GlobalCommitterOperatorTest {
 
             long cid = 1L;
             testHarness.processElement(
-                    new StreamRecord<>(new CommittableSummary<>(1, 1, cid, 2, 0, 0)));
+                    new StreamRecord<>(new CommittableSummary<>(1, 1, cid, 2, 0)));
 
             testHarness.processElement(new StreamRecord<>(new CommittableWithLineage<>(1, cid, 1)));
 
@@ -82,7 +82,7 @@ class GlobalCommitterOperatorTest {
 
             long cid = 1L;
             testHarness.processElement(
-                    new StreamRecord<>(new CommittableSummary<>(1, 1, cid, 2, 0, 0)));
+                    new StreamRecord<>(new CommittableSummary<>(1, 1, cid, 2, 0)));
 
             testHarness.processElement(new StreamRecord<>(new CommittableWithLineage<>(1, cid, 1)));
 
@@ -115,7 +115,7 @@ class GlobalCommitterOperatorTest {
             testHarness.open();
 
             final CommittableSummary<Integer> committableSummary =
-                    new CommittableSummary<>(1, 1, 0L, 1, 1, 0);
+                    new CommittableSummary<>(1, 1, 0L, 1, 1);
             testHarness.processElement(new StreamRecord<>(committableSummary));
             final CommittableWithLineage<Integer> first = new CommittableWithLineage<>(1, 0L, 1);
             testHarness.processElement(new StreamRecord<>(first));
@@ -146,10 +146,10 @@ class GlobalCommitterOperatorTest {
         testHarness.open();
 
         final CommittableSummary<Integer> committableSummary =
-                new CommittableSummary<>(1, 2, EOI, 1, 1, 0);
+                new CommittableSummary<>(1, 2, EOI, 1, 0);
         testHarness.processElement(new StreamRecord<>(committableSummary));
         final CommittableSummary<Integer> committableSummary2 =
-                new CommittableSummary<>(2, 2, EOI, 1, 1, 0);
+                new CommittableSummary<>(2, 2, EOI, 1, 0);
         testHarness.processElement(new StreamRecord<>(committableSummary2));
 
         final CommittableWithLineage<Integer> first = new CommittableWithLineage<>(1, EOI, 1);

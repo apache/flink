@@ -179,7 +179,7 @@ rest:
   #
   # To enable this, set the bind address to one that has access to outside-facing
   # network interface, such as 0.0.0.0.
-  bind-address: localhost
+  # bind-address: localhost
   # # The port to which the REST client connects to. If rest.bind-port has
   # # not been specified, then the server will bind to this port as well.
   # port: 8081

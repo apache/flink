@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
@@ -27,6 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecMatch;
@@ -38,15 +40,26 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Collections;
+import java.util.List;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
 
 /** Batch {@link ExecNode} which matches along with MATCH_RECOGNIZE. */
+@ExecNodeMetadata(
+        name = "batch-exec-match",
+        version = 1,
+        producedTransformations = {
+            CommonExecMatch.TIMESTAMP_INSERTER_TRANSFORMATION,
+            CommonExecMatch.MATCH_TRANSFORMATION
+        },
+        minPlanVersion = FlinkVersion.v2_0,
+        minStateVersion = FlinkVersion.v2_0)
 public class BatchExecMatch extends CommonExecMatch
         implements BatchExecNode<RowData>, MultipleTransformationTranslator<RowData> {
-
-    public static final String TIMESTAMP_INSERTER_TRANSFORMATION = "timestamp-inserter";
 
     public BatchExecMatch(
             ReadableConfig tableConfig,
@@ -62,6 +75,18 @@ public class BatchExecMatch extends CommonExecMatch
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
+    }
+
+    @JsonCreator
+    public BatchExecMatch(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
+            @JsonProperty(FIELD_NAME_MATCH_SPEC) MatchSpec matchSpec,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, context, persistedConfig, matchSpec, inputProperties, outputType, description);
     }
 
     @Override

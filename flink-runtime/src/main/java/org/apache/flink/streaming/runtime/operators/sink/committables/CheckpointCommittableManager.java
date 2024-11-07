@@ -20,8 +20,6 @@ package org.apache.flink.streaming.runtime.operators.sink.committables;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink2.Committer;
-import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
-import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -50,12 +48,6 @@ public interface CheckpointCommittableManager<CommT> {
     /** Returns the number of upstream subtasks belonging to the checkpoint. */
     int getNumberOfSubtasks();
 
-    /**
-     * Returns a summary of the current commit progress for the emitting subtask identified by the
-     * parameters.
-     */
-    CommittableSummary<CommT> getSummary(int emittingSubtaskId, int emittingNumberOfSubtasks);
-
     boolean isFinished();
 
     /**
@@ -69,8 +61,29 @@ public interface CheckpointCommittableManager<CommT> {
      * checkpoint have been received.
      *
      * @param committer used to commit to the external system
-     * @return successfully committed committables with meta information
+     * @param maxRetries
      */
-    Collection<CommittableWithLineage<CommT>> commit(Committer<CommT> committer)
+    void commit(Committer<CommT> committer, int maxRetries)
             throws IOException, InterruptedException;
+
+    /**
+     * Returns the number of committables that have been successfully committed; that is, the
+     * corresponding {@link org.apache.flink.api.connector.sink2.Committer.CommitRequest} was not
+     * used to signal an error of any kind (retryable or not).
+     *
+     * @return number of successful committables
+     */
+    Collection<CommT> getSuccessfulCommittables();
+
+    /**
+     * Returns the number of committables that have failed with a known error. By the current
+     * semantics of {@link
+     * org.apache.flink.api.connector.sink2.Committer.CommitRequest#signalFailedWithKnownReason(Throwable)}
+     * discards the committable but proceeds processing. The returned number should be emitted
+     * downstream in a {@link org.apache.flink.streaming.api.connector.sink2.CommittableSummary},
+     * such that downstream can assess if all committables have been processed.
+     *
+     * @return number of failed committables
+     */
+    int getNumFailed();
 }
