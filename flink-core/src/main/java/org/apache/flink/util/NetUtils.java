@@ -423,7 +423,7 @@ public class NetUtils {
                 final int port = Integer.parseInt(range);
                 if (!isValidHostPort(port)) {
                     throw new IllegalConfigurationException(
-                            "Invalid port configuration. Port must be between 0"
+                            "Invalid port configuration. Port must be between 0 "
                                     + "and 65535, but was "
                                     + port
                                     + ".");
@@ -434,7 +434,7 @@ public class NetUtils {
                 final int start = Integer.parseInt(range.substring(0, dashIdx));
                 if (!isValidHostPort(start)) {
                     throw new IllegalConfigurationException(
-                            "Invalid port configuration. Port must be between 0"
+                            "Invalid port configuration. Port must be between 0 "
                                     + "and 65535, but range start was "
                                     + start
                                     + ".");
@@ -442,7 +442,7 @@ public class NetUtils {
                 final int end = Integer.parseInt(range.substring(dashIdx + 1));
                 if (!isValidHostPort(end)) {
                     throw new IllegalConfigurationException(
-                            "Invalid port configuration. Port must be between 0"
+                            "Invalid port configuration. Port must be between 0 "
                                     + "and 65535, but range end was "
                                     + end
                                     + ".");
