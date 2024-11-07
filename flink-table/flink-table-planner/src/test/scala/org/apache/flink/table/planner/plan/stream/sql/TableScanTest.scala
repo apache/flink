@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.core.testutils.FlinkAssertions
 import org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches
 import org.apache.flink.table.api._

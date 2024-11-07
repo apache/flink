@@ -39,10 +39,14 @@ import org.apache.flink.util.CollectionUtil;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -62,74 +66,60 @@ class ProcedureITCase extends StreamingTestBase {
         tEnv().useCatalog("test_p");
     }
 
-    @Test
-    void testShowProcedures() {
-        List<Row> rows =
-                CollectionUtil.iteratorToList(tEnv().executeSql("show procedures").collect());
-        assertThat(rows).isEmpty();
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("argsForShowProcedures")
+    void testShowProcedures(String sql, String expected) {
+        List<Row> rows = CollectionUtil.iteratorToList(tEnv().executeSql(sql).collect());
+        if (expected.isEmpty()) {
+            assertThat(rows).isEmpty();
+        } else {
+            assertThat(rows.toString()).isEqualTo(expected);
+        }
+    }
 
-        // should throw exception since the database(`db1`) to show from doesn't
-        // exist
-        assertThatThrownBy(() -> tEnv().executeSql("show procedures in `db1`"))
-                .isInstanceOf(TableException.class)
-                .hasMessage(
-                        "Fail to show procedures because the Database `db1` to show from/in does not exist in Catalog `test_p`.");
+    private static Stream<Arguments> argsForShowProcedures() {
+        return Stream.of(
+                Arguments.of("show procedures", ""),
+                Arguments.of(
+                        "show procedures in `system`",
+                        "[+I[generate_n], +I[generate_user], +I[get_env_conf], +I[get_year], +I[named_args], +I[named_args_optional], +I[named_args_overload], +I[sum_n]]"),
+                Arguments.of(
+                        "show procedures in `system` like 'generate%'",
+                        "[+I[generate_n], +I[generate_user]]"),
+                Arguments.of("show procedures in `system` like 'gEnerate%'", ""),
+                Arguments.of(
+                        "show procedures in `system` ilike 'gEnerate%'",
+                        "[+I[generate_n], +I[generate_user]]"),
+                Arguments.of(
+                        "show procedures in `system` not like 'generate%'",
+                        "[+I[get_env_conf], +I[get_year], +I[named_args], +I[named_args_optional], +I[named_args_overload], +I[sum_n]]"),
+                Arguments.of(
+                        "show procedures in `system` not ilike 'generaTe%'",
+                        "[+I[get_env_conf], +I[get_year], +I[named_args], +I[named_args_optional], +I[named_args_overload], +I[sum_n]]"));
+    }
 
-        // show procedure with specifying catalog & database, but the catalog haven't implemented
-        // the
-        // interface to list procedure
-        assertThatThrownBy(
-                        () ->
-                                tEnv().executeSql(
-                                                "show procedures in default_catalog.default_catalog"))
-                .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessage(
-                        "listProcedures is not implemented for class org.apache.flink.table.catalog.GenericInMemoryCatalog.");
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("argsForShowProceduresForFailedCases")
+    void testShowProceduresForFailedCase(
+            String sql, Class<?> expectedExceptionClass, String expectedErrorMsg) {
+        assertThatThrownBy(() -> tEnv().executeSql(sql))
+                .isInstanceOf(expectedExceptionClass)
+                .hasMessage(expectedErrorMsg);
+    }
 
-        // show procedure in system database
-        rows =
-                CollectionUtil.iteratorToList(
-                        tEnv().executeSql("show procedures in `system`").collect());
-        assertThat(rows.toString())
-                .isEqualTo(
-                        "[+I[generate_n], +I[generate_user], +I[get_env_conf], +I[get_year], +I[named_args], +I[named_args_optional], +I[named_args_overload], +I[sum_n]]");
-
-        // show procedure with like
-        rows =
-                CollectionUtil.iteratorToList(
-                        tEnv().executeSql("show procedures in `system` like 'generate%'")
-                                .collect());
-        assertThat(rows.toString()).isEqualTo("[+I[generate_n], +I[generate_user]]");
-        rows =
-                CollectionUtil.iteratorToList(
-                        tEnv().executeSql("show procedures in `system` like 'gEnerate%'")
-                                .collect());
-        assertThat(rows).isEmpty();
-
-        //  show procedure with ilike
-        rows =
-                CollectionUtil.iteratorToList(
-                        tEnv().executeSql("show procedures in `system` ilike 'gEnerate%'")
-                                .collect());
-        assertThat(rows.toString()).isEqualTo("[+I[generate_n], +I[generate_user]]");
-
-        // show procedure with not like
-        rows =
-                CollectionUtil.iteratorToList(
-                        tEnv().executeSql("show procedures in `system` not like 'generate%'")
-                                .collect());
-        assertThat(rows.toString())
-                .isEqualTo(
-                        "[+I[get_env_conf], +I[get_year], +I[named_args], +I[named_args_optional], +I[named_args_overload], +I[sum_n]]");
-
-        // show procedure with not ilike
-        rows =
-                CollectionUtil.iteratorToList(
-                        tEnv().executeSql("show procedures in `system` not ilike 'generaTe%'")
-                                .collect());
-        assertThat(rows.toString())
-                .isEqualTo(
-                        "[+I[get_env_conf], +I[get_year], +I[named_args], +I[named_args_optional], +I[named_args_overload], +I[sum_n]]");
+    private static Stream<Arguments> argsForShowProceduresForFailedCases() {
+        return Stream.of(
+                // should throw exception since the database(`db1`) to show from doesn't exist
+                Arguments.of(
+                        "show procedures in `db1`",
+                        TableException.class,
+                        "Fail to show procedures because the Database `db1` to show from/in does not exist in Catalog `test_p`."),
+                // show procedure with specifying catalog & database, but the catalog haven't
+                // implemented the interface to list procedure
+                Arguments.of(
+                        "show procedures in default_catalog.default_catalog",
+                        UnsupportedOperationException.class,
+                        "listProcedures is not implemented for class org.apache.flink.table.catalog.GenericInMemoryCatalog."));
     }
 
     @Test

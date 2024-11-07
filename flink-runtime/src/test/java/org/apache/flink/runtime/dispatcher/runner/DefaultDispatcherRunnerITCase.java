@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
@@ -41,7 +40,7 @@ import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.jobmanager.TestingJobPersistenceComponentFactory;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
@@ -49,9 +48,10 @@ import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceExtension;
-import org.apache.flink.runtime.testutils.TestingJobGraphStore;
+import org.apache.flink.runtime.testutils.TestingExecutionPlanStore;
 import org.apache.flink.runtime.util.BlobServerExtension;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 
@@ -62,6 +62,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
@@ -76,7 +77,7 @@ class DefaultDispatcherRunnerITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultDispatcherRunnerITCase.class);
 
-    private static final Time TIMEOUT = Time.seconds(10L);
+    private static final Duration TIMEOUT = Duration.ofSeconds(10L);
 
     @RegisterExtension
     public static AllCallbackWrapper<TestingRpcServiceExtension> rpcServiceExtensionWrapper =
@@ -96,7 +97,7 @@ class DefaultDispatcherRunnerITCase {
 
     private TestingFatalErrorHandler fatalErrorHandler;
 
-    private JobGraphStore jobGraphStore;
+    private ExecutionPlanStore executionPlanStore;
 
     private JobResultStore jobResultStore;
 
@@ -112,7 +113,7 @@ class DefaultDispatcherRunnerITCase {
         jobGraph = createJobGraph();
         dispatcherLeaderElection = new TestingLeaderElection();
         fatalErrorHandler = new TestingFatalErrorHandler();
-        jobGraphStore = TestingJobGraphStore.newBuilder().build();
+        executionPlanStore = TestingExecutionPlanStore.newBuilder().build();
         jobResultStore = new EmbeddedJobResultStore();
 
         partialDispatcherServices =
@@ -182,8 +183,8 @@ class DefaultDispatcherRunnerITCase {
                 DefaultDispatcherRunnerFactory.createSessionRunner(
                         new TestingDispatcherFactory(
                                 jobManagerRunnerFactory, cleanupRunnerFactory));
-        jobGraphStore.start(null);
-        jobGraphStore.putJobGraph(jobGraph);
+        executionPlanStore.start(null);
+        executionPlanStore.putExecutionPlan(jobGraph);
 
         try (final DispatcherRunner dispatcherRunner = createDispatcherRunner()) {
 
@@ -250,7 +251,7 @@ class DefaultDispatcherRunnerITCase {
         public Dispatcher createDispatcher(
                 RpcService rpcService,
                 DispatcherId fencingToken,
-                Collection<JobGraph> recoveredJobs,
+                Collection<ExecutionPlan> recoveredJobs,
                 Collection<JobResult> recoveredDirtyJobResults,
                 DispatcherBootstrapFactory dispatcherBootstrapFactory,
                 PartialDispatcherServicesWithJobPersistenceComponents
@@ -277,7 +278,7 @@ class DefaultDispatcherRunnerITCase {
         return dispatcherRunnerFactory.createDispatcherRunner(
                 dispatcherLeaderElection,
                 fatalErrorHandler,
-                new TestingJobPersistenceComponentFactory(jobGraphStore, jobResultStore),
+                new TestingJobPersistenceComponentFactory(executionPlanStore, jobResultStore),
                 EXECUTOR_RESOURCE.getExecutor(),
                 rpcServiceExtensionWrapper.getCustomExtension().getTestingRpcService(),
                 partialDispatcherServices);

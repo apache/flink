@@ -169,6 +169,10 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         long checkpointInterval =
                 getCheckpointIntervalConfig(restClusterClient, activeRefreshHandler.getJobId());
         assertThat(checkpointInterval).isEqualTo(30 * 1000);
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
     }
 
     @Test
@@ -230,6 +234,10 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         long actualCheckpointInterval =
                 getCheckpointIntervalConfig(restClusterClient, activeRefreshHandler.getJobId());
         assertThat(actualCheckpointInterval).isEqualTo(checkpointInterval);
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
     }
 
     @Test
@@ -330,10 +338,14 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                 .containsKey("table.catalog-store.file.path")
                 .doesNotContainKey(WORKFLOW_SCHEDULER_TYPE.key())
                 .doesNotContainKey(RESOURCES_DOWNLOAD_DIR.key());
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
     }
 
     @Test
-    void testCreateMaterializedTableFailedInInContinuousMode() {
+    void testCreateMaterializedTableFailedInInContinuousMode() throws Exception {
         // create a materialized table with invalid SQL
         String materializedTableDDL =
                 "CREATE MATERIALIZED TABLE users_shops"
@@ -429,6 +441,11 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                                         "SELECT * FROM my_materialized_table where ds = '2024-01-02'")
                                 .size())
                 .isEqualTo(1);
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(
+                        fileSystemCatalogName, TEST_DEFAULT_DATABASE, "my_materialized_table"));
     }
 
     @Test
@@ -509,6 +526,10 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                         "Currently, refreshing materialized table only supports referring to char, varchar and string type partition keys. All specified partition keys in partition specs with unsupported types are:\n"
                                 + "\n"
                                 + "ds2");
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
     }
 
     @Test
@@ -654,6 +675,10 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                 getJobRestoreSavepointPath(restClusterClient, resumeJobId);
         assertThat(actualRestorePath).isNotEmpty();
         assertThat(actualRestorePath.get()).isEqualTo(actualSavepointPath);
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
     }
 
     @Test
@@ -714,6 +739,10 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "Savepoint directory is not configured, can't stop job with savepoint.");
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
     }
 
     @Test
@@ -921,6 +950,10 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                 fromJson((String) jobDetail.getJobDataMap().get(WORKFLOW_INFO), WorkflowInfo.class);
         assertThat(workflowInfo.getDynamicOptions())
                 .containsEntry("debezium-json.ignore-parse-errors", "true");
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
     }
 
     @Test
@@ -1324,6 +1357,11 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                                         "SELECT * FROM my_materialized_table where ds = '2024-01-01'")
                                 .size())
                 .isNotEqualTo(getPartitionSize(data, "2024-01-01"));
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(
+                        fileSystemCatalogName, TEST_DEFAULT_DATABASE, "my_materialized_table"));
     }
 
     @Test
@@ -1387,6 +1425,13 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                                         "SELECT * FROM my_materialized_table_without_partition_options where ds = '2024-01-02'")
                                 .size())
                 .isEqualTo(getPartitionSize(data, "2024-01-02"));
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(
+                        fileSystemCatalogName,
+                        TEST_DEFAULT_DATABASE,
+                        "my_materialized_table_without_partition_options"));
     }
 
     @Test
@@ -1448,6 +1493,11 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                                         "SELECT * FROM my_materialized_table where ds = '2024-01-01'")
                                 .size())
                 .isNotEqualTo(getPartitionSize(data, "2024-01-01"));
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(
+                        fileSystemCatalogName, TEST_DEFAULT_DATABASE, "my_materialized_table"));
     }
 
     @Test
@@ -1517,6 +1567,11 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                                                 TEST_DEFAULT_DATABASE,
                                                 "my_materialized_table")
                                         .asSerializableString()));
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(
+                        fileSystemCatalogName, TEST_DEFAULT_DATABASE, "my_materialized_table"));
     }
 
     private int getPartitionSize(List<Row> data, String partition) {

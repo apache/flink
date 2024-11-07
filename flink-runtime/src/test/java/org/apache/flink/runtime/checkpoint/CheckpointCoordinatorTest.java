@@ -21,7 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
@@ -70,7 +70,6 @@ import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.memory.NonPersistentMetadataCheckpointStorageLocation;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
@@ -140,9 +139,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -2447,7 +2446,7 @@ class CheckpointCoordinatorTest {
     @Test
     void testPeriodicSchedulingWithInactiveTasks() throws Exception {
         CheckpointCoordinator checkpointCoordinator =
-                setupCheckpointCoordinatorWithInactiveTasks(new MemoryStateBackend());
+                setupCheckpointCoordinatorWithInactiveTasks(new JobManagerCheckpointStorage());
 
         // the coordinator should start checkpointing now
         manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
@@ -2911,7 +2910,7 @@ class CheckpointCoordinatorTest {
 
     @Test
     void testSharedStateRegistrationOnRestore() throws Exception {
-        for (RestoreMode restoreMode : RestoreMode.values()) {
+        for (RecoveryClaimMode recoveryClaimMode : RecoveryClaimMode.values()) {
             JobVertexID jobVertexID1 = new JobVertexID();
 
             int parallelism1 = 2;
@@ -2929,7 +2928,7 @@ class CheckpointCoordinatorTest {
                     SharedStateRegistry.DEFAULT_FACTORY.create(
                             org.apache.flink.util.concurrent.Executors.directExecutor(),
                             checkpoints,
-                            restoreMode);
+                            recoveryClaimMode);
             final EmbeddedCompletedCheckpointStore store =
                     new EmbeddedCompletedCheckpointStore(10, checkpoints, firstInstance);
 
@@ -3035,7 +3034,7 @@ class CheckpointCoordinatorTest {
                     SharedStateRegistry.DEFAULT_FACTORY.create(
                             org.apache.flink.util.concurrent.Executors.directExecutor(),
                             store.getAllCheckpoints(),
-                            restoreMode);
+                            recoveryClaimMode);
             final EmbeddedCompletedCheckpointStore secondStore =
                     new EmbeddedCompletedCheckpointStore(
                             10, store.getAllCheckpoints(), secondInstance);
@@ -3079,7 +3078,7 @@ class CheckpointCoordinatorTest {
             verifyDiscard(
                     sharedHandlesByCheckpoint,
                     cpId ->
-                            restoreMode == RestoreMode.CLAIM && cpId == 0
+                            recoveryClaimMode == RecoveryClaimMode.CLAIM && cpId == 0
                                     ? TernaryBoolean.TRUE
                                     : TernaryBoolean.FALSE);
 

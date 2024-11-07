@@ -89,6 +89,13 @@ public abstract class AbstractStateIterator<T> implements StateIterator<T> {
                 nextPayloadForContinuousLoading());
     }
 
+    private StateIterator<T> syncNextLoad() {
+        return stateHandler.handleRequestSync(
+                originalState,
+                StateRequestType.ITERATOR_LOADING,
+                nextPayloadForContinuousLoading());
+    }
+
     @Override
     public <U> StateFuture<Collection<U>> onNext(Function<T, StateFuture<? extends U>> iterating) {
         // Public interface implementation, this is on task thread.
@@ -99,7 +106,10 @@ public abstract class AbstractStateIterator<T> implements StateIterator<T> {
         Collection<StateFuture<? extends U>> resultFutures = new ArrayList<>();
 
         for (T item : cache) {
-            resultFutures.add(iterating.apply(item));
+            StateFuture<? extends U> resultFuture = iterating.apply(item);
+            if (resultFuture != null) {
+                resultFutures.add(resultFuture);
+            }
         }
         if (hasNext()) {
             return StateFutureUtils.combineAll(resultFutures)
@@ -131,6 +141,18 @@ public abstract class AbstractStateIterator<T> implements StateIterator<T> {
             return asyncNextLoad().thenCompose(itr -> itr.onNext(iterating));
         } else {
             return StateFutureUtils.completedVoidFuture();
+        }
+    }
+
+    public void onNextSync(Consumer<T> iterating) {
+        if (isEmpty()) {
+            return;
+        }
+        for (T item : cache) {
+            iterating.accept(item);
+        }
+        if (hasNext()) {
+            ((AbstractStateIterator<T>) syncNextLoad()).onNextSync(iterating);
         }
     }
 

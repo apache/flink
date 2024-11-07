@@ -30,10 +30,11 @@ import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -46,8 +47,8 @@ import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampM
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for window join operators created by {@link WindowJoinOperatorBuilder}. */
-@RunWith(Parameterized.class)
-public class WindowJoinOperatorTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class WindowJoinOperatorTest {
 
     private static final InternalTypeInfo<RowData> INPUT_ROW_TYPE =
             InternalTypeInfo.ofFields(new BigIntType(), VarCharType.STRING_TYPE);
@@ -71,17 +72,17 @@ public class WindowJoinOperatorTest {
 
     private final ZoneId shiftTimeZone;
 
-    public WindowJoinOperatorTest(ZoneId shiftTimeZone) {
+    WindowJoinOperatorTest(ZoneId shiftTimeZone) {
         this.shiftTimeZone = shiftTimeZone;
     }
 
-    @Parameterized.Parameters(name = "TimeZone = {0}")
-    public static Collection<Object[]> runMode() {
+    @Parameters(name = "TimeZone = {0}")
+    private static Collection<Object[]> runMode() {
         return Arrays.asList(new Object[] {UTC_ZONE_ID}, new Object[] {SHANGHAI_ZONE_ID});
     }
 
-    @Test
-    public void testSemiJoin() throws Exception {
+    @TestTemplate
+    void testSemiJoin() throws Exception {
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(FlinkJoinType.SEMI);
 
@@ -135,8 +136,8 @@ public class WindowJoinOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    public void testAntiJoin() throws Exception {
+    @TestTemplate
+    void testAntiJoin() throws Exception {
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(FlinkJoinType.ANTI);
         testHarness.open();
@@ -188,8 +189,8 @@ public class WindowJoinOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    public void testInnerJoin() throws Exception {
+    @TestTemplate
+    void testInnerJoin() throws Exception {
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(FlinkJoinType.INNER);
 
@@ -263,8 +264,8 @@ public class WindowJoinOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    public void testLeftOuterJoin() throws Exception {
+    @TestTemplate
+    void testLeftOuterJoin() throws Exception {
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(FlinkJoinType.LEFT);
 
@@ -340,8 +341,8 @@ public class WindowJoinOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    public void testRightOuterJoin() throws Exception {
+    @TestTemplate
+    void testRightOuterJoin() throws Exception {
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(FlinkJoinType.RIGHT);
 
@@ -416,8 +417,8 @@ public class WindowJoinOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    public void testOuterJoin() throws Exception {
+    @TestTemplate
+    void testOuterJoin() throws Exception {
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(FlinkJoinType.FULL);
 

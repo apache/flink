@@ -20,16 +20,17 @@ package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateBackendOptions;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DynamicTableSource;
-import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
@@ -42,7 +43,7 @@ import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CloseableIterator;
-import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -59,17 +60,21 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.runtime.state.StateBackendLoader.HASHMAP_STATE_BACKEND_NAME;
 import static org.apache.flink.runtime.state.StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME;
 import static org.apache.flink.table.test.TableAssertions.assertThat;
 import static org.apache.flink.table.types.DataType.getFieldDataTypes;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 /** Test base for testing aggregate {@link BuiltInFunctionDefinition built-in functions}. */
 @Execution(ExecutionMode.CONCURRENT)
@@ -214,17 +219,6 @@ abstract class BuiltInAggregateFunctionTestBase {
             return this;
         }
 
-        TestSpec testSqlRuntimeError(
-                Function<Table, String> sqlSpec,
-                DataType expectedRowType,
-                Class<? extends Throwable> exceptionClass,
-                String exceptionMessage) {
-            this.testItems.add(
-                    new SqlRuntimeErrorItem(
-                            sqlSpec, expectedRowType, exceptionClass, exceptionMessage));
-            return this;
-        }
-
         TestSpec testApiResult(
                 List<Expression> selectExpr,
                 List<Expression> groupByExpr,
@@ -272,6 +266,45 @@ abstract class BuiltInAggregateFunctionTestBase {
                     tableApiSpec.groupByExpr,
                     expectedSqlRowType,
                     expectedRows);
+            return this;
+        }
+
+        TestSpec testSqlValidationError(Function<Table, String> sqlSpec, String errorMessage) {
+            this.testItems.add(
+                    new SqlErrorTestItem(
+                            sqlSpec, null, ValidationException.class, errorMessage, true));
+            return this;
+        }
+
+        TestSpec testTableApiValidationError(TableApiAggSpec tableApiSpec, String errorMessage) {
+            this.testItems.add(
+                    new TableApiErrorTestItem(
+                            tableApiSpec.selectExpr,
+                            tableApiSpec.groupByExpr,
+                            null,
+                            ValidationException.class,
+                            errorMessage,
+                            true));
+            return this;
+        }
+
+        TestSpec testValidationError(
+                Function<Table, String> sqlSpec,
+                TableApiAggSpec tableApiSpec,
+                String errorMessage) {
+            testSqlValidationError(sqlSpec, errorMessage);
+            testTableApiValidationError(tableApiSpec, errorMessage);
+            return this;
+        }
+
+        TestSpec testSqlRuntimeError(
+                Function<Table, String> sqlSpec,
+                DataType expectedRowType,
+                Class<? extends Throwable> errorClass,
+                String errorMessage) {
+            this.testItems.add(
+                    new SqlErrorTestItem(
+                            sqlSpec, expectedRowType, errorClass, errorMessage, false));
             return this;
         }
 
@@ -326,9 +359,13 @@ abstract class BuiltInAggregateFunctionTestBase {
         }
     }
 
+    // ---------------------------------------------------------------------------------------------
+
     private interface TestItem {
         void execute(TableEnvironment tEnv, Table sourceTable);
     }
+
+    // ---------------------------------------------------------------------------------------------
 
     private abstract static class SuccessItem implements TestItem {
         private final @Nullable DataType expectedRowType;
@@ -362,41 +399,6 @@ abstract class BuiltInAggregateFunctionTestBase {
         protected abstract TableResult getResult(TableEnvironment tEnv, Table sourceTable);
     }
 
-    private abstract static class RuntimeErrorItem implements TestItem {
-        private final @Nullable DataType expectedRowType;
-        private final Class<? extends Throwable> exceptionClass;
-        private final String exceptionMessage;
-
-        public RuntimeErrorItem(
-                @Nullable DataType expectedRowType,
-                Class<? extends Throwable> exceptionClass,
-                String exceptionMessage) {
-            this.expectedRowType = expectedRowType;
-            this.exceptionClass = exceptionClass;
-            this.exceptionMessage = exceptionMessage;
-        }
-
-        @Override
-        public void execute(TableEnvironment tEnv, Table sourceTable) {
-            final TableResult tableResult = getResult(tEnv, sourceTable);
-
-            if (expectedRowType != null) {
-                final DataType actualRowType =
-                        tableResult.getResolvedSchema().toSourceRowDataType();
-
-                assertThat(actualRowType)
-                        .getChildren()
-                        .containsExactlyElementsOf(getFieldDataTypes(expectedRowType));
-            }
-
-            assertThatThrownBy(() -> CollectionUtil.iteratorToList(tableResult.collect()))
-                    .hasRootCauseInstanceOf(exceptionClass)
-                    .hasRootCauseMessage(exceptionMessage);
-        }
-
-        protected abstract TableResult getResult(TableEnvironment tEnv, Table sourceTable);
-    }
-
     private static class SqlTestItem extends SuccessItem {
         private final Function<Table, String> spec;
 
@@ -405,24 +407,6 @@ abstract class BuiltInAggregateFunctionTestBase {
                 @Nullable DataType expectedRowType,
                 @Nullable List<Row> expectedRows) {
             super(expectedRowType, expectedRows);
-            this.spec = spec;
-        }
-
-        @Override
-        protected TableResult getResult(TableEnvironment tEnv, Table sourceTable) {
-            return tEnv.sqlQuery(spec.apply(sourceTable)).execute();
-        }
-    }
-
-    private static class SqlRuntimeErrorItem extends RuntimeErrorItem {
-        private final Function<Table, String> spec;
-
-        public SqlRuntimeErrorItem(
-                Function<Table, String> spec,
-                @Nullable DataType expectedRowType,
-                Class<? extends Throwable> exceptionClass,
-                String exceptionMessage) {
-            super(expectedRowType, exceptionClass, exceptionMessage);
             this.spec = spec;
         }
 
@@ -561,6 +545,117 @@ abstract class BuiltInAggregateFunctionTestBase {
                                     .map(Expression::asSummaryString)
                                     .collect(Collectors.joining(", "))
                             : "");
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    private abstract static class ErrorTestItem implements TestItem {
+        private final DataType expectedRowType;
+        private final Class<? extends Throwable> errorClass;
+        private final String errorMessage;
+        private final boolean expectedDuringValidation;
+
+        public ErrorTestItem(
+                @Nullable DataType expectedRowType,
+                @Nullable Class<? extends Throwable> errorClass,
+                @Nullable String errorMessage,
+                boolean expectedDuringValidation) {
+            Preconditions.checkState(errorClass != null || errorMessage != null);
+            this.expectedRowType = expectedRowType;
+            this.errorClass = errorClass;
+            this.errorMessage = errorMessage;
+            this.expectedDuringValidation = expectedDuringValidation;
+        }
+
+        Consumer<? super Throwable> errorMatcher() {
+            if (errorClass != null && errorMessage != null) {
+                return anyCauseMatches(errorClass, errorMessage);
+            }
+            if (errorMessage != null) {
+                return anyCauseMatches(errorMessage);
+            }
+            return anyCauseMatches(errorClass);
+        }
+
+        @Override
+        public void execute(TableEnvironment tEnv, Table sourceTable) {
+            AtomicReference<TableResult> tableResult = new AtomicReference<>();
+
+            Throwable t =
+                    catchThrowable(() -> tableResult.set(this.query(tEnv, sourceTable).execute()));
+
+            if (this.expectedDuringValidation) {
+                assertThat(t)
+                        .as("Expected a validation exception")
+                        .isNotNull()
+                        .satisfies(this.errorMatcher());
+                return;
+            } else {
+                assertThat(t).as("Error while validating the query").isNull();
+            }
+
+            if (expectedRowType != null) {
+                final DataType actualRowType =
+                        tableResult.get().getResolvedSchema().toSourceRowDataType();
+
+                assertThat(actualRowType)
+                        .getChildren()
+                        .containsExactlyElementsOf(getFieldDataTypes(expectedRowType));
+            }
+
+            assertThatThrownBy(() -> tableResult.get().await())
+                    .isNotNull()
+                    .satisfies(this.errorMatcher());
+        }
+
+        protected abstract Table query(TableEnvironment tEnv, @Nullable Table inputTable);
+    }
+
+    private static final class SqlErrorTestItem extends ErrorTestItem {
+        private final Function<Table, String> spec;
+
+        public SqlErrorTestItem(
+                Function<Table, String> spec,
+                @Nullable DataType expectedRowType,
+                Class<? extends Throwable> errorClass,
+                String errorMessage,
+                boolean expectedDuringValidation) {
+            super(expectedRowType, errorClass, errorMessage, expectedDuringValidation);
+            this.spec = spec;
+        }
+
+        @Override
+        protected Table query(TableEnvironment tEnv, Table sourceTable) {
+            return tEnv.sqlQuery(spec.apply(sourceTable));
+        }
+    }
+
+    private static final class TableApiErrorTestItem extends ErrorTestItem {
+        private final List<Expression> selectExpr;
+        private final List<Expression> groupByExpr;
+
+        public TableApiErrorTestItem(
+                List<Expression> selectExpr,
+                List<Expression> groupByExpr,
+                DataType expectedRowType,
+                Class<? extends Throwable> errorClass,
+                String errorMessage,
+                boolean expectedDuringValidation) {
+            super(expectedRowType, errorClass, errorMessage, expectedDuringValidation);
+            this.selectExpr = selectExpr;
+            this.groupByExpr = groupByExpr;
+        }
+
+        @Override
+        protected Table query(TableEnvironment tEnv, Table sourceTable) {
+            if (groupByExpr != null) {
+                return sourceTable
+                        .groupBy(groupByExpr.toArray(new Expression[0]))
+                        .select(selectExpr.toArray(new Expression[0]));
+            } else {
+                return sourceTable.select(selectExpr.toArray(new Expression[0]));
+            }
         }
     }
 

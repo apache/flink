@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.api.common.functions.{FlatMapFunction, Function}
+import org.apache.flink.api.common.functions.{FlatMapFunction, Function, OpenContext}
 import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.streaming.api.functions.async.AsyncFunction
 import org.apache.flink.table.api.ValidationException
@@ -381,7 +381,7 @@ object LookupJoinCodeGenerator {
         }
 
         @Override
-        public void open(${className[Configuration]} parameters) throws Exception {
+        public void open(${className[OpenContext]} openContext) throws Exception {
           ${ctx.reuseOpenCode()}
         }
 
@@ -492,7 +492,7 @@ object LookupJoinCodeGenerator {
         }
 
         @Override
-        public void open(${className[Configuration]} parameters) throws Exception {
+        public void open(${className[OpenContext]} openContext) throws Exception {
           ${ctx.reuseOpenCode()}
         }
 

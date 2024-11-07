@@ -17,10 +17,8 @@
  */
 package org.apache.flink.table.planner.plan.stream.table.validation
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{TableFunc0, TableTestBase}
-import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable

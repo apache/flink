@@ -948,6 +948,126 @@ public final class Expressions {
     }
 
     /**
+     * A window function that provides access to a row that comes directly after the current row.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * table.window(Over.orderBy($("ts")).partitionBy("organisation").as("w"))
+     *    .select(
+     *       $("organisation"),
+     *       $("revenue"),
+     *       lag($("revenue")).over($("w").as("next_revenue")
+     *    )
+     * }</pre>
+     */
+    public static ApiExpression lead(Object value) {
+        return apiCall(BuiltInFunctionDefinitions.LEAD, value);
+    }
+
+    /**
+     * A window function that provides access to a row at a specified physical offset which comes
+     * after the current row.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * table.window(Over.orderBy($("ts")).partitionBy("organisation").as("w"))
+     *    .select(
+     *       $("organisation"),
+     *       $("revenue"),
+     *       lag($("revenue"), 1).over($("w").as("next_revenue")
+     *    )
+     * }</pre>
+     */
+    public static ApiExpression lead(Object value, Object offset) {
+        return apiCall(BuiltInFunctionDefinitions.LEAD, value, offset);
+    }
+
+    /**
+     * A window function that provides access to a row at a specified physical offset which comes
+     * after the current row.
+     *
+     * <p>The value to return when offset is beyond the scope of the partition. If a default value
+     * is not specified, NULL is returned. {@code default} must be type-compatible with {@code
+     * value}.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * table.window(Over.orderBy($("ts")).partitionBy("organisation").as("w"))
+     *    .select(
+     *       $("organisation"),
+     *       $("revenue"),
+     *       lag($("revenue"), 1, lit(0)).over($("w").as("next_revenue")
+     *    )
+     * }</pre>
+     */
+    public static ApiExpression lead(Object value, Object offset, Object defaultValue) {
+        return apiCall(BuiltInFunctionDefinitions.LEAD, value, offset, defaultValue);
+    }
+
+    /**
+     * A window function that provides access to a row that comes directly before the current row.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * table.window(Over.orderBy($("ts")).partitionBy("organisation").as("w"))
+     *    .select(
+     *       $("organisation"),
+     *       $("revenue"),
+     *       lag($("revenue")).over($("w").as("prev_revenue")
+     *    )
+     * }</pre>
+     */
+    public static ApiExpression lag(Object value) {
+        return apiCall(BuiltInFunctionDefinitions.LAG, value);
+    }
+
+    /**
+     * A window function that provides access to a row at a specified physical offset which comes
+     * before the current row.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * table.window(Over.orderBy($("ts")).partitionBy("organisation").as("w"))
+     *    .select(
+     *       $("organisation"),
+     *       $("revenue"),
+     *       lag($("revenue"), 1).over($("w").as("prev_revenue")
+     *    )
+     * }</pre>
+     */
+    public static ApiExpression lag(Object value, Object offset) {
+        return apiCall(BuiltInFunctionDefinitions.LAG, value, offset);
+    }
+
+    /**
+     * A window function that provides access to a row at a specified physical offset which comes
+     * before the current row.
+     *
+     * <p>The value to return when offset is beyond the scope of the partition. If a default value
+     * is not specified, NULL is returned. {@code default} must be type-compatible with {@code
+     * value}.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * org.window(Over.orderBy($("ts")).partitionBy("organisation").as("w"))
+     *    .select(
+     *       $("organisation"),
+     *       $("revenue"),
+     *       lag($("revenue"), 1, lit(0)).over($("w").as("prev_revenue")
+     *    )
+     * }</pre>
+     */
+    public static ApiExpression lag(Object value, Object offset, Object defaultValue) {
+        return apiCall(BuiltInFunctionDefinitions.LAG, value, offset, defaultValue);
+    }
+
+    /**
      * A call to a function that will be looked up in a catalog. There are two kinds of functions:
      *
      * <ul>

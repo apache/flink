@@ -29,8 +29,8 @@ import java.io.IOException;
 import java.util.UUID;
 
 /**
- * A checkpoint storage location for the {@link MemoryStateBackend} in case no durable persistence
- * for metadata has been configured.
+ * A checkpoint storage location for the {@link MemCheckpointStreamFactory} in case no durable
+ * persistence for metadata has been configured.
  */
 public class NonPersistentMetadataCheckpointStorageLocation extends MemCheckpointStreamFactory
         implements CheckpointStorageLocation {

@@ -26,7 +26,6 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -41,6 +40,7 @@ import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.testutils.statemigration.TestType;
 import org.apache.flink.util.IOUtils;
@@ -53,6 +53,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -79,15 +80,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
     protected abstract B getStateBackend() throws Exception;
 
     protected CheckpointStorage getCheckpointStorage() throws Exception {
-        StateBackend stateBackend = getStateBackend();
-        if (stateBackend instanceof CheckpointStorage) {
-            return (CheckpointStorage) stateBackend;
-        }
-
-        throw new IllegalStateException(
-                "The state backend under test does not implement CheckpointStorage."
-                        + "Please override 'createCheckpointStorage' and provide an appropriate"
-                        + "checkpoint storage instance");
+        return new JobManagerCheckpointStorage();
     }
 
     /**
@@ -1198,12 +1191,13 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
 
         ValueStateDescriptor<TestType> initialAccessDescriptor =
                 new ValueStateDescriptor<>(stateName, new TestType.V1TestTypeSerializer());
-        initialAccessDescriptor.enableTimeToLive(StateTtlConfig.newBuilder(Time.days(1)).build());
+        initialAccessDescriptor.enableTimeToLive(
+                StateTtlConfig.newBuilder(Duration.ofDays(1)).build());
 
         ValueStateDescriptor<TestType> newAccessDescriptorAfterRestore =
                 new ValueStateDescriptor<>(stateName, new TestType.V2TestTypeSerializer());
         newAccessDescriptorAfterRestore.enableTimeToLive(
-                StateTtlConfig.newBuilder(Time.days(2)).build());
+                StateTtlConfig.newBuilder(Duration.ofDays(2)).build());
 
         testKeyedValueStateUpgrade(initialAccessDescriptor, newAccessDescriptorAfterRestore);
     }
@@ -1214,7 +1208,8 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
 
         ValueStateDescriptor<TestType> initialAccessDescriptor =
                 new ValueStateDescriptor<>(stateName, new TestType.V1TestTypeSerializer());
-        initialAccessDescriptor.enableTimeToLive(StateTtlConfig.newBuilder(Time.days(1)).build());
+        initialAccessDescriptor.enableTimeToLive(
+                StateTtlConfig.newBuilder(Duration.ofDays(1)).build());
 
         ValueStateDescriptor<TestType> newAccessDescriptorAfterRestore =
                 new ValueStateDescriptor<>(stateName, new TestType.V2TestTypeSerializer());
@@ -1238,7 +1233,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
         ValueStateDescriptor<TestType> newAccessDescriptorAfterRestore =
                 new ValueStateDescriptor<>(stateName, new TestType.V2TestTypeSerializer());
         newAccessDescriptorAfterRestore.enableTimeToLive(
-                StateTtlConfig.newBuilder(Time.days(1)).build());
+                StateTtlConfig.newBuilder(Duration.ofDays(1)).build());
 
         assertThatThrownBy(
                         () ->

@@ -66,11 +66,8 @@ public class CompactCoordinatorStateHandlerFactory
                             parameters) {
         try {
             final CompactCoordinatorStateHandler handler =
-                    new CompactCoordinatorStateHandler(committableSerializerSupplier.get());
-            handler.setup(
-                    parameters.getContainingTask(),
-                    parameters.getStreamConfig(),
-                    parameters.getOutput());
+                    new CompactCoordinatorStateHandler(
+                            parameters, committableSerializerSupplier.get());
             return (T) handler;
         } catch (Exception e) {
             throw new IllegalStateException(

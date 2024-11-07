@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.batch;
 
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsAggregatePushDown;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
@@ -35,7 +33,6 @@ import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
-import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -77,16 +74,9 @@ public abstract class PushLocalAggIntoScanRuleBase extends RelOptRule {
     }
 
     protected boolean canPushDown(
-            RelOptRuleCall call,
             BatchPhysicalGroupAggregateBase aggregate,
             BatchPhysicalTableSourceScan tableSourceScan,
             @Nullable BatchPhysicalCalc calc) {
-        TableConfig tableConfig = ShortcutUtils.unwrapContext(call.getPlanner()).getTableConfig();
-        if (!tableConfig.get(
-                OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED)) {
-            return false;
-        }
-
         if (aggregate.isFinal() || aggregate.getAggCallList().isEmpty()) {
             return false;
         }

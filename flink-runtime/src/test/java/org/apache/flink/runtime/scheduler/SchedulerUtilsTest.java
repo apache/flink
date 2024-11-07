@@ -21,7 +21,7 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -80,7 +80,7 @@ class SchedulerUtilsTest {
                         Executors.directExecutor(),
                         log,
                         new JobID(),
-                        RestoreMode.CLAIM);
+                        RecoveryClaimMode.CLAIM);
 
         assertThat(completedCheckpointStore.getMaxNumberOfRetainedCheckpoints())
                 .isEqualTo(maxNumberOfCheckpointsToRetain);
@@ -106,7 +106,7 @@ class SchedulerUtilsTest {
                         Executors.directExecutor(),
                         log,
                         new JobID(),
-                        RestoreMode.CLAIM);
+                        RecoveryClaimMode.CLAIM);
 
         SharedStateRegistry sharedStateRegistry = checkpointStore.getSharedStateRegistry();
 
@@ -135,13 +135,13 @@ class SchedulerUtilsTest {
                     int maxNumberOfCheckpointsToRetain,
                     SharedStateRegistryFactory sharedStateRegistryFactory,
                     Executor ioExecutor,
-                    RestoreMode restoreMode) {
+                    RecoveryClaimMode recoveryClaimMode) {
                 List<CompletedCheckpoint> checkpoints = singletonList(checkpoint);
                 return new EmbeddedCompletedCheckpointStore(
                         maxNumberOfCheckpointsToRetain,
                         checkpoints,
                         sharedStateRegistryFactory.create(
-                                ioExecutor, checkpoints, RestoreMode.DEFAULT));
+                                ioExecutor, checkpoints, RecoveryClaimMode.DEFAULT));
             }
 
             @Override
@@ -153,7 +153,7 @@ class SchedulerUtilsTest {
 
     private CompletedCheckpoint buildCheckpoint(KeyedStateHandle incremental) {
         OperatorID operatorID = new OperatorID();
-        OperatorState operatorState = new OperatorState(operatorID, 1, 1);
+        OperatorState operatorState = new OperatorState(null, null, operatorID, 1, 1);
         operatorState.putState(
                 0, OperatorSubtaskState.builder().setManagedKeyedState(incremental).build());
         return new CompletedCheckpoint(

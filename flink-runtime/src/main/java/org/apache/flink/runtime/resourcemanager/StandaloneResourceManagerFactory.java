@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.ResourceManagerOptions;
@@ -40,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 
@@ -72,7 +72,7 @@ public final class StandaloneResourceManagerFactory extends ResourceManagerFacto
             ResourceManagerRuntimeServices resourceManagerRuntimeServices,
             Executor ioExecutor) {
 
-        final Time standaloneClusterStartupPeriodTime =
+        final Duration standaloneClusterStartupPeriodTime =
                 ConfigurationUtils.getStandaloneClusterStartupPeriodTime(configuration);
 
         return new StandaloneResourceManager(
@@ -89,7 +89,7 @@ public final class StandaloneResourceManagerFactory extends ResourceManagerFacto
                 fatalErrorHandler,
                 resourceManagerMetricGroup,
                 standaloneClusterStartupPeriodTime,
-                Time.fromDuration(configuration.get(RpcOptions.ASK_TIMEOUT_DURATION)),
+                configuration.get(RpcOptions.ASK_TIMEOUT_DURATION),
                 ioExecutor);
     }
 

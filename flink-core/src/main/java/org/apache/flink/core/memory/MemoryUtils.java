@@ -154,7 +154,7 @@ public class MemoryUtils {
      * @param buffer {@link ByteBuffer} which wraps the native memory address to get
      * @return native memory address wrapped by the given {@link ByteBuffer}
      */
-    static long getByteBufferAddress(ByteBuffer buffer) {
+    public static long getByteBufferAddress(ByteBuffer buffer) {
         Preconditions.checkNotNull(buffer, "buffer is null");
         Preconditions.checkArgument(
                 buffer.isDirect(), "Can't get address of a non-direct ByteBuffer.");

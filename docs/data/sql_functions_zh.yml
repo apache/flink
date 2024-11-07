@@ -69,14 +69,14 @@ comparison:
       `12 NOT BETWEEN 15 AND NULL` 返回 `TRUE`；
       `12 NOT BETWEEN SYMMETRIC 12 AND NULL` 返回 `UNKNOWN`。
   - sql: string1 LIKE string2 [ ESCAPE char ]
-    table: string1.like(string2)
+    table: string1.like(string2[, char])
     description: |
       如果 string1 匹配 string2 返回 `TRUE`；如果 string1 或 string2 为 `NULL` 返回 `UNKNOWN`。
-      如果需要可以定义转义字符。尚不支持转义字符。
+      如果需要可以定义包含单个字符的转义字符，默认为 '\'。
   - sql: string1 NOT LIKE string2 [ ESCAPE char ]
     description: |
       如果 string1 与 string2 不匹配返回 `TRUE`；如果 string1 或 string2 为 `NULL` 返回 `UNKNOWN`。
-      如果需要可以定义转义字符。尚不支持转义字符。
+      如果需要可以定义包含单个字符的转义字符，默认为 '\'。
   - sql: string1 SIMILAR TO string2 [ ESCAPE char ]
     table: string1.similar(string2)
     description: |
@@ -296,6 +296,16 @@ arithmetic:
     description: |
       以十六进制格式返回整数 numeric 或字符串 string 的字符串表示。如果参数为 `NULL`，则返回 `NULL`。
       例如数字 20 返回“14”，数字 100 返回“64”，字符串“hello,world” 返回“68656C6C6F2C776F726C64”。
+  - sql: UNHEX(expr)
+    table: expr.unhex()
+    description: |
+      将十六进制字符串 expr 转换为 BINARY。
+      
+      如果 expr 的长度为奇数，则会舍弃第一个字符，并在结果开头补充一个空字节。
+      
+      expr <CHAR | VARCHAR>
+      
+      返回一个 BINARY。如果 expr 为 `NULL` 或包含非十六进制字符，则返回 `NULL`。
   - sql: TRUNCATE(numeric1, integer2)
     table: NUMERIC1.truncate(INTEGER2)
     description: |
@@ -303,6 +313,26 @@ arithmetic:
       如果 integer2 为 0，则结果没有小数点或小数部分。integer2 可以为负数，使值的小数点左边的 integer2 位变为零。
       此函数也可以只传入一个参数 numeric1 且不设置参数 integer2 来使用。如果未设置 integer2 则 integer2 默认为 0。
       例如 42.324.truncate(2) 为 42.32，42.324.truncate() 为 42.0。
+  - sql: PERCENTILE(expr, percentage[, frequency])
+    table: expr.percentile(percentage[, frequency])
+    description: |
+      返回 expr 的 percentage 百分位值。
+
+      percentage 必须是一个在 `[0.0, 1.0]` 之间的字面数值，或者是一个该范围的数组。
+      如果传递了一个可变表达式给这个函数，结果将根据其中的任意一个值进行计算。
+      frequency 描述了 expr 的统计次数，默认值为 1。
+
+      如果没有 expr 恰好位于指定的百分位上，则结果通过对两个最接近的 expr 进行线性插值来计算。
+      如果 expr 或 frequency 为 `NULL`，或者 frequency 不是正数，则将忽略该输入行。
+
+      注意: 建议在窗口场景中使用此函数，因为它通常能提供更好的性能。
+      在常规的分组聚合场景中，用户应注意每条记录引发的全面排序带来的性能开销。
+
+      `value <NUMERIC>, percentage [<NUMERIC NOT NULL> | <ARRAY<NUMERIC NOT NULL> NOT NULL>], frequency <INTEGER_NUMERIC>`
+      `(INTEGER_NUMERIC: TINYINT, SMALLINT, INTEGER, BIGINT)`
+      `(NUMERIC: INTEGER_NUMERIC, FLOAT, DOUBLE, DECIMAL)`
+
+      如果 percentage 是数字，返回类型为 `DOUBLE`；如果 percentage 是数组，返回类型为 `ARRAY<DOUBLE>`。 如果 percentage 是空数组，则返回 `NULL`。
 
 string:
   - sql: string1 || string2
@@ -322,6 +352,18 @@ string:
   - sql: POSITION(string1 IN string2)
     table: STRING1.position(STRING2)
     description: 返回 STRING2 中第一次出现 STRING1 的位置（从 1 开始）；如果在 STRING2 中找不到 STRING1 返回 0。
+  - sql: PRINTF(format[, obj]*)
+    table: format.printf(obj...)
+    description: |
+      格式化 print-style 样式的字符串。
+      
+      函数使用 java.util.Formatter (Locale.US) 解析字符串。
+      
+      null obj 被格式化为字符串 "null"。
+      
+      strfmt <CHAR | VARCHAR>, obj <ANY>
+      
+      返回一个 STRING 格式的格式化后的字符串。如果 format 为 `NULL` 或不合法，则返回 `NULL`。
   - sql: TRIM([ BOTH | LEADING | TRAILING ] string1 FROM string2)
     table: |
       STRING1.trim(LEADING, STRING2)
@@ -330,16 +372,34 @@ string:
       STRING1.trim(BOTH)
       STRING1.trim()
     description: 删除字符串 STRING1 开头和结尾可能存在的字符串 STRING2 并返回。默认情况下，会删除 STRING1 开头和结尾的空格。
-  - sql: LTRIM(string)
-    table: STRING.ltrim()
+  - sql: LTRIM(str[, trimStr])
+    table: str.ltrim([trimStr])
     description: |
-      返回从 STRING 中删除左边空格的字符串。
+      从 str 的开头删除 trimStr 中的字符。trimStr 默认设置为空格。
+      
       例如 `' This is a test String.'.ltrim()` 返回 `'This is a test String.'`。
-  - sql: RTRIM(string)
-    table: STRING.rtrim()
+      
+      str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
+      
+      返回一个 STRING 格式的裁剪后的 str。如果任何参数为 `NULL`，则返回 `NULL`。
+  - sql: RTRIM(str[, trimStr])
+    table: str.rtrim([trimStr])
     description: |
-      返回从 STRING 中删除右边空格的字符串。
+      从 str 的结尾删除 trimStr 中的字符。trimStr 默认设置为空格。
+      
       例如 `'This is a test String. '.rtrim()` 返回 `'This is a test String.'`。
+      
+      str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
+      
+      返回一个 STRING 格式的裁剪后的 str。如果任何参数为 `NULL`，则返回 `NULL`。
+  - sql: BTRIM(str[, trimStr])
+    table: str.btrim([trimStr])
+    description: |      
+      从 str 的开头和结尾删除 trimStr 中的字符。trimStr 默认设置为空格。      
+      
+      str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
+      
+      返回一个 STRING 格式的裁剪后的 str。如果任何参数为 `NULL`，则返回 `NULL`。
   - sql: REPEAT(string, int)
     table: STRING.repeat(INT)
     description: |
@@ -358,6 +418,30 @@ string:
       将字符串 STRING1 从位置 INT1 开始替换 INT2（默认为 STRING2 的长度）个来自字符串 STRING2 的字符并返回。
       例如 `'xxxxxtest'.overlay('xxxx', 6)` 返回 `"xxxxxxxxx"`；
       `'xxxxxtest'.overlay('xxxx', 6, 2)` 返回 `"xxxxxxxxxst"`。
+  - sql: STARTSWITH(expr, startExpr)
+    table: expr.startsWith(startExpr)
+    description: |
+      判断 expr 是否以 startExpr 开头。如果 startExpr 为空，则结果为 true。
+      
+      expr 和 startExpr 应具有相同的类型。
+      
+      `expr <CHAR | VARCHAR>, startExpr <CHAR | VARCHAR>`
+      
+      `expr <BINARY | VARBINARY>, startExpr <BINARY | VARBINARY>`
+      
+      返回一个 `BOOLEAN`。如果任意参数为 `NULL`，则返回 `NULL`。
+  - sql: ENDSWITH(expr, endExpr)
+    table: expr.endsWith(endExpr)
+    description: |
+      判断 expr 是否以 endExpr 结尾。如果 endExpr 为空，则结果为 true。
+      
+      expr 和 endExpr 应具有相同的类型。
+      
+      `expr <CHAR | VARCHAR>, endExpr <CHAR | VARCHAR>`
+      
+      `expr <BINARY | VARBINARY>, endExpr <BINARY | VARBINARY>`
+      
+      返回一个 `BOOLEAN`。如果任意参数为 `NULL`，则返回 `NULL`。
   - sql: SUBSTRING(string FROM integer1 [ FOR integer2 ])
     table: |
       STRING.substring(INT1)
@@ -369,12 +453,58 @@ string:
       返回一个新字符串，它用 STRING3（非重叠）替换 STRING1 中所有出现的 STRING2。
       例如 `'hello world'.replace('world', 'flink')` 返回 `'hello flink'`；
       `'ababab'.replace('abab', 'z')` 返回 `'zab'`。
+  - sql: REGEXP_COUNT(str, regex)
+    table: str.regexpCount(regex)
+    description: |
+      返回字符串 str 匹配正则表达式模式 regex 的次数。regex 必须是一个 Java 正则表达式。
+      
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
+      
+      返回一个 `INTEGER` 表示匹配成功的次数。如果任何参数为 `NULL` 或 regex 非法，则返回 `NULL`。
   - sql: REGEXP_EXTRACT(string1, string2[, integer])
     table: STRING1.regexpExtract(STRING2[, INTEGER1])
     description: |
       将字符串 STRING1 按照 STRING2 正则表达式的规则拆分，返回指定 INTEGER1 处位置的字符串。正则表达式匹配组索引从 1 开始，
       0 表示匹配整个正则表达式。此外，正则表达式匹配组索引不应超过定义的组数。
       例如 `REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2)` 返回 `"bar"`。
+  - sql: REGEXP_EXTRACT_ALL(str, regex[, extractIndex])
+    table: str.regexpExtractAll(regex[, extractIndex])
+    description: |
+      提取字符串 str 中与正则表达式 regex 匹配且与 extractIndex 组对应的所有子串。
+      
+      regex 可以包含多个组。extractIndex 用于指示要提取哪个正则组，索引从 1 开始，也作为未指定时的默认值。0 表示匹配整个正则表达式。
+      
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>, extractIndex <TINYINT | SMALLINT | INTEGER | BIGINT>`
+      
+      返回一个 `ARRAY<STRING>`，表示所有匹配的子串。如果任何参数为 `NULL`或非法，则返回 `NULL`。
+  - sql: REGEXP_INSTR(str, regex)
+    table: str.regexpInstr(regex)
+    description: |
+      返回 str 中第一个匹配 regex 的子字符串的索引。
+      
+      结果索引从 1 开始，如果匹配失败则返回 0。
+      
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
+      
+      返回一个 `INTEGER` 表示 str 中第一个匹配 regex 的子字符串索引。如果任何参数为 `NULL` 或 regex 非法，则返回 `NULL`。
+  - sql: REGEXP_SUBSTR(str, regex)
+    table: str.regexpSubStr(regex)
+    description: |
+      返回 str 中第一个匹配 regex 的子字符串。
+      
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
+      
+      返回一个 `STRING` 表示 str 中第一个匹配 regex 的子字符串。如果任何参数为 `NULL` 或 regex 非法或匹配失败，则返回 `NULL`。
+  - sql: TRANSLATE(expr, fromStr, toStr)
+    table: expr.translate(fromStr, toStr)
+    description: |
+      将 expr 中所有出现在 fromStr 之中的字符替换为 toStr 中的相应字符。
+
+      如果 toStr 的长度短于 fromStr，则未匹配的字符将被移除。
+
+      `expr <CHAR | VARCHAR>, fromStr <CHAR | VARCHAR>, toStr <CHAR | VARCHAR>`
+
+      返回 `STRING` 格式的转换结果。
   - sql: INITCAP(string)
     table: STRING.initCap()
     description: |
@@ -487,6 +617,22 @@ string:
   - sql: SUBSTR(string, integer1[, integer2])
     table: STRING.substr(INTEGER1[, INTEGER2])
     description: 返回字符串的子字符串，从位置 integer1 开始，长度为 integer2（默认到末尾）。
+  - sql: JSON_QUOTE(string)
+    table: STRING.JsonQuote()
+    description: Quotes a string as a JSON value by wrapping it with double quote characters, escaping interior quote and special characters ('"', '\', '/', 'b', 'f', 'n', 'r', 't'), and returning the result as a string. If the argument is NULL, the function returns NULL.
+  - sql: JSON_UNQUOTE(string)
+    table: STRING.JsonUnquote()
+    description: Unquotes JSON value, unescapes escaped special characters ('"', '\', '/', 'b', 'f', 'n', 'r', 't', 'u' hex hex hex hex), and returns the result as a string. If the argument is NULL, returns NULL. If the value does not start and end with double quotes or if it starts and ends with double quotes but is not a valid JSON string literal, the value is passed through unmodified.
+  - sql: ELT(index, expr[, exprs]*)
+    table: index.elt(expr, exprs...)
+    description: |
+      返回第 index 个表达式。index 必须是介于 1 和 表达式数量之间的整数。
+      
+      index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <CHAR | VARCHAR>, exprs <CHAR | VARCHAR>
+      
+      index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <BINARY | VARBINARY>, exprs <BINARY | VARBINARY>
+      
+      结果类型为所有 expr 的公共类型。如果 index 为 `NULL` 或超出范围，则返回 `NULL`。
 
 temporal:
   - sql: DATE string
@@ -1188,8 +1334,10 @@ aggregate:
       在窗口分区内根据 rows 的排序为每一行分配一个唯一的序列号，从 1 开始。ROW_NUMBER 和 RANK 相似。ROW_NUMBER 按
       顺序对所有行进行编号（例如 1，2，3，4，5）。RANK 为等值 row 提供相同的序列值（例如 1，2，2，4，5）。
   - sql: LEAD(expression [, offset] [, default])
+    table: lead(expression [, offset] [, default])
     description: 返回窗口中当前行之后第 offset 行处的表达式值。offset 的默认值为 1，default 的默认值为 `NULL`。
   - sql: LAG(expression [, offset] [, default])
+    table: lag(expression [, offset] [, default])
     description: 返回窗口中当前行之前第 offset 行处的表达式值。offset 的默认值为 1，default 的默认值为 `NULL`。
   - sql: FIRST_VALUE(expression)
     table: FIELD.firstValue

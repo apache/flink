@@ -20,7 +20,6 @@ package org.apache.flink.api.common.state;
 import org.apache.flink.api.common.state.StateTtlConfig.CleanupStrategies;
 import org.apache.flink.api.common.state.StateTtlConfig.IncrementalCleanupStrategy;
 import org.apache.flink.api.common.state.StateTtlConfig.RocksdbCompactFilterCleanupStrategy;
-import org.apache.flink.api.common.time.Time;
 
 import org.junit.jupiter.api.Test;
 
@@ -37,7 +36,9 @@ class StateTtlConfigTest {
     @Test
     void testStateTtlConfigBuildWithoutCleanupInBackground() {
         StateTtlConfig ttlConfig =
-                StateTtlConfig.newBuilder(Time.seconds(1)).disableCleanupInBackground().build();
+                StateTtlConfig.newBuilder(Duration.ofSeconds(1))
+                        .disableCleanupInBackground()
+                        .build();
 
         assertThat(ttlConfig.getCleanupStrategies()).isNotNull();
 
@@ -55,7 +56,7 @@ class StateTtlConfigTest {
 
     @Test
     void testStateTtlConfigBuildWithCleanupInBackground() {
-        StateTtlConfig ttlConfig = StateTtlConfig.newBuilder(Time.seconds(1)).build();
+        StateTtlConfig ttlConfig = StateTtlConfig.newBuilder(Duration.ofSeconds(1)).build();
 
         assertThat(ttlConfig.getCleanupStrategies()).isNotNull();
 
@@ -67,13 +68,10 @@ class StateTtlConfigTest {
 
         assertThat(cleanupStrategies.isCleanupInBackground()).isTrue();
         assertThat(incrementalCleanupStrategy).isNotNull();
-        assertThat(rocksdbCleanupStrategy).isNotNull();
+        assertThat(rocksdbCleanupStrategy).isNull();
         assertThat(cleanupStrategies.inRocksdbCompactFilter()).isTrue();
         assertThat(incrementalCleanupStrategy.getCleanupSize()).isEqualTo(5);
         assertThat(incrementalCleanupStrategy.runCleanupForEveryRecord()).isFalse();
-        assertThat(rocksdbCleanupStrategy.getQueryTimeAfterNumEntries()).isEqualTo(1000L);
-        assertThat(rocksdbCleanupStrategy.getPeriodicCompactionTime())
-                .isEqualTo(Duration.ofDays(30));
     }
 
     @Test
@@ -83,7 +81,7 @@ class StateTtlConfigTest {
         for (Integer illegalCleanUpSize : illegalCleanUpSizes) {
             assertThatThrownBy(
                             () ->
-                                    StateTtlConfig.newBuilder(Time.seconds(1))
+                                    StateTtlConfig.newBuilder(Duration.ofSeconds(1))
                                             .cleanupIncrementally(illegalCleanUpSize, false)
                                             .build())
                     .isInstanceOf(IllegalArgumentException.class);

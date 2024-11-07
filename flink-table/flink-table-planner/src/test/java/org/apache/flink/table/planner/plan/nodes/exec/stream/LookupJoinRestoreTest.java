@@ -41,6 +41,7 @@ public class LookupJoinRestoreTest extends RestoreTestBase {
                 LookupJoinTestPrograms.LOOKUP_JOIN_POST_FILTER,
                 LookupJoinTestPrograms.LOOKUP_JOIN_PRE_POST_FILTER,
                 LookupJoinTestPrograms.LOOKUP_JOIN_ASYNC_HINT,
-                LookupJoinTestPrograms.LOOKUP_JOIN_RETRY_HINT);
+                LookupJoinTestPrograms.LOOKUP_JOIN_RETRY_HINT,
+                LookupJoinTestPrograms.LOOKUP_JOIN_WITH_TRY_RESOLVE);
     }
 }

@@ -18,10 +18,8 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -37,6 +35,7 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.junit.jupiter.api.Test;
@@ -61,7 +60,8 @@ class AdaptiveSchedulerSimpleITCase {
 
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
         configuration.set(
-                JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, Duration.ofMillis(100L));
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT,
+                Duration.ofMillis(100L));
 
         return configuration;
     }
@@ -115,11 +115,9 @@ class AdaptiveSchedulerSimpleITCase {
         alwaysFailingOperator.setParallelism(1);
 
         final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(alwaysFailingOperator);
-        ExecutionConfig executionConfig = new ExecutionConfig();
         // configure a high delay between attempts: We'll stay in RESTARTING for 10 seconds.
-        executionConfig.setRestartStrategy(
-                RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, timeInRestartingState));
-        jobGraph.setExecutionConfig(executionConfig);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(
+                jobGraph, Integer.MAX_VALUE, timeInRestartingState);
 
         miniCluster.submitJob(jobGraph).join();
 
@@ -156,9 +154,7 @@ class AdaptiveSchedulerSimpleITCase {
 
         onceFailingOperator.setParallelism(1);
         final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(onceFailingOperator);
-        ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
-        jobGraph.setExecutionConfig(executionConfig);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(jobGraph, 1, 0L);
         return jobGraph;
     }
 

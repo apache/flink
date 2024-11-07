@@ -34,14 +34,12 @@ import org.apache.hadoop.fs.viewfs.ConfigUtil;
 import org.apache.hadoop.fs.viewfs.ViewFileSystemTestSetup;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.hdfs.MiniDFSNNTopology;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assume;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -49,12 +47,13 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Test for {@link org.apache.hadoop.fs.viewfs.ViewFileSystem} support. */
-public class HadoopViewFileSystemTruncateTest {
+class HadoopViewFileSystemTruncateTest {
 
-    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @TempDir static File tempFolder;
 
     private final FileSystemTestHelper fileSystemTestHelper = new FileSystemTestHelper("/tests");
 
@@ -66,21 +65,21 @@ public class HadoopViewFileSystemTruncateTest {
     private FileSystem fsTarget;
     private Path targetTestRoot;
 
-    @BeforeClass
-    public static void testHadoopVersion() {
-        Assume.assumeTrue(HadoopUtils.isMinHadoopVersion(2, 7));
+    @BeforeAll
+    static void testHadoopVersion() {
+        assumeThat(HadoopUtils.isMinHadoopVersion(2, 7)).isTrue();
     }
 
-    @BeforeClass
-    public static void verifyOS() {
-        Assume.assumeTrue(
-                "HDFS cluster cannot be started on Windows without extensions.",
-                !OperatingSystem.isWindows());
+    @BeforeAll
+    static void verifyOS() {
+        assumeThat(OperatingSystem.isWindows())
+                .describedAs("HDFS cluster cannot be started on Windows without extensions.")
+                .isFalse();
     }
 
-    @BeforeClass
-    public static void createHDFS() throws Exception {
-        final File baseDir = TEMP_FOLDER.newFolder();
+    @BeforeAll
+    static void createHDFS() throws Exception {
+        final File baseDir = tempFolder;
 
         final Configuration hdConf = new Configuration();
         hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
@@ -94,8 +93,8 @@ public class HadoopViewFileSystemTruncateTest {
         fHdfs = hdfsCluster.getFileSystem(0);
     }
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
         fsTarget = fHdfs;
         targetTestRoot = fileSystemTestHelper.getAbsoluteTestRootPath(fsTarget);
 
@@ -113,18 +112,18 @@ public class HadoopViewFileSystemTruncateTest {
         ConfigUtil.addLink(fsViewConf, mountOnNn1.toString(), targetTestRoot.toUri());
     }
 
-    @AfterClass
-    public static void shutdownCluster() {
+    @AfterAll
+    static void shutdownCluster() {
         hdfsCluster.shutdown();
     }
 
-    @After
-    public void tearDown() throws Exception {
+    @AfterEach
+    void tearDown() throws Exception {
         fsTarget.delete(fileSystemTestHelper.getTestRootPath(fsTarget), true);
     }
 
     @Test
-    public void testViewFileSystemRecoverWorks() throws IOException {
+    void testViewFileSystemRecoverWorks() throws IOException {
 
         final org.apache.flink.core.fs.Path testPath =
                 new org.apache.flink.core.fs.Path(fSystem.getUri() + "mountOnNn1/test-1");
@@ -166,7 +165,7 @@ public class HadoopViewFileSystemTruncateTest {
                 InputStreamReader ir = new InputStreamReader(in, UTF_8);
                 BufferedReader reader = new BufferedReader(ir)) {
             final String line = reader.readLine();
-            assertEquals(expectedContent, line);
+            assertThat(line).isEqualTo(expectedContent);
         }
     }
 }

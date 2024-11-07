@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen
 
+import org.apache.flink.api.common.functions.{DefaultOpenContext, OpenContext}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.Indenter.toISC
@@ -74,7 +75,7 @@ object CollectorCodeGenerator {
         }
 
         @Override
-        public void open(${className[Configuration]} parameters) throws Exception {
+        public void open(${className[OpenContext]} openContext) throws Exception {
           ${ctx.reuseOpenCode()}
         }
 
@@ -142,7 +143,7 @@ object CollectorCodeGenerator {
         }
 
         @Override
-        public void open(${className[Configuration]} parameters) throws Exception {
+        public void open(${className[OpenContext]} openContext) throws Exception {
           ${ctx.reuseOpenCode()}
         }
 
@@ -180,7 +181,7 @@ object CollectorCodeGenerator {
       s"""
          |$collectorTerm = new ${generatedCollector.getClassName}();
          |$collectorTerm.setRuntimeContext(getRuntimeContext());
-         |$collectorTerm.open(new ${className[Configuration]}());
+         |$collectorTerm.open(new ${className[DefaultOpenContext]}());
          |""".stripMargin
     ctx.addReusableOpenStatement(openCollector)
 

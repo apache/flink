@@ -18,8 +18,9 @@
 package org.apache.flink.table.api.bridge.scala.internal
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment, _}
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.api.{createTypeInformation, TableConfig}
 import org.apache.flink.table.catalog.FunctionCatalog
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.ModifyOperation
@@ -84,7 +85,7 @@ class StreamTableEnvironmentImplTest {
       new FunctionCatalog(tableConfig, resourceManager, catalogManager, moduleManager),
       tableConfig,
       env,
-      new TestPlanner(elements.javaStream.getTransformation),
+      new TestPlanner(elements.getTransformation),
       new ExecutorMock,
       true)
   }

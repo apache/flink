@@ -18,13 +18,13 @@
 
 package org.apache.flink.state.forst;
 
+import org.forstdb.Cache;
+import org.forstdb.NativeLibraryLoader;
+import org.forstdb.WriteBufferManager;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.rocksdb.Cache;
-import org.rocksdb.NativeLibraryLoader;
-import org.rocksdb.WriteBufferManager;
 
 import java.io.IOException;
 

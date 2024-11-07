@@ -25,10 +25,8 @@ import org.apache.flink.connector.file.src.assigners.LocalityAwareSplitAssigner;
 import org.apache.flink.connector.file.src.enumerate.BlockSplittingRecursiveEnumerator;
 import org.apache.flink.connector.file.src.enumerate.FileEnumerator;
 import org.apache.flink.connector.file.src.enumerate.NonSplittingRecursiveEnumerator;
-import org.apache.flink.connector.file.src.impl.FileRecordFormatAdapter;
 import org.apache.flink.connector.file.src.impl.StreamFormatAdapter;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
-import org.apache.flink.connector.file.src.reader.FileRecordFormat;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -198,21 +196,6 @@ public final class FileSource<T> extends AbstractFileSource<T, FileSourceSplit>
         checkArgument(paths.length > 0, "paths must not be empty");
 
         return new FileSourceBuilder<>(paths, bulkFormat);
-    }
-
-    /**
-     * Builds a new {@code FileSource} using a {@link FileRecordFormat} to read record-by-record
-     * from a a file path.
-     *
-     * <p>A {@code FileRecordFormat} is more general than the {@link StreamFormat}, but also
-     * requires often more careful parametrization.
-     *
-     * @deprecated Please use {@link #forRecordStreamFormat(StreamFormat, Path...)} instead.
-     */
-    @Deprecated
-    public static <T> FileSourceBuilder<T> forRecordFileFormat(
-            final FileRecordFormat<T> recordFormat, final Path... paths) {
-        return forBulkFileFormat(new FileRecordFormatAdapter<>(recordFormat), paths);
     }
 
     // ------------------------------------------------------------------------

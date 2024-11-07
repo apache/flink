@@ -19,7 +19,6 @@
 package org.apache.flink.api.common;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
 import org.apache.flink.util.OptionalFailure;
 
@@ -135,43 +134,5 @@ public class JobExecutionResult extends JobSubmissionResult {
         }
 
         return result.toString();
-    }
-
-    /**
-     * Gets the accumulator with the given name as an integer.
-     *
-     * @param accumulatorName Name of the counter
-     * @return Result of the counter, or null if the counter does not exist
-     * @throws java.lang.ClassCastException Thrown, if the accumulator was not aggregating a {@link
-     *     java.lang.Integer}
-     * @deprecated Will be removed in future versions. Use {@link #getAccumulatorResult} instead.
-     */
-    @Deprecated
-    @PublicEvolving
-    public Integer getIntCounterResult(String accumulatorName) {
-        Object result = this.accumulatorResults.get(accumulatorName).getUnchecked();
-        if (result == null) {
-            return null;
-        }
-        if (!(result instanceof Integer)) {
-            throw new ClassCastException(
-                    "Requested result of the accumulator '"
-                            + accumulatorName
-                            + "' should be Integer but has type "
-                            + result.getClass());
-        }
-        return (Integer) result;
-    }
-
-    /**
-     * Returns a dummy object for wrapping a JobSubmissionResult.
-     *
-     * @param result The SubmissionResult
-     * @return a JobExecutionResult
-     * @deprecated Will be removed in future versions.
-     */
-    @Deprecated
-    public static JobExecutionResult fromJobSubmissionResult(JobSubmissionResult result) {
-        return new JobExecutionResult(result.getJobID(), -1, null);
     }
 }

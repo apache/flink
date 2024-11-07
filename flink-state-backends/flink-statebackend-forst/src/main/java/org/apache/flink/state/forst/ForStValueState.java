@@ -28,22 +28,24 @@ import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
-import org.apache.flink.runtime.state.v2.InternalValueState;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.v2.AbstractValueState;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.util.Preconditions;
 
-import org.rocksdb.ColumnFamilyHandle;
+import org.forstdb.ColumnFamilyHandle;
 
 import java.io.IOException;
 import java.util.function.Supplier;
 
 /**
- * The {@link InternalValueState} implement for ForStDB.
+ * The {@link AbstractValueState} implement for ForStDB.
  *
  * @param <K> The type of the key.
  * @param <V> The type of the value.
  */
-public class ForStValueState<K, N, V> extends InternalValueState<K, N, V>
+public class ForStValueState<K, N, V> extends AbstractValueState<K, N, V>
         implements ValueState<V>, ForStInnerTable<K, N, V> {
 
     /** The column family which this internal value state belongs to. */
@@ -52,6 +54,10 @@ public class ForStValueState<K, N, V> extends InternalValueState<K, N, V>
     /** The serialized key builder which should be thread-safe. */
     private final ThreadLocal<SerializedCompositeKeyBuilder<K>> serializedKeyBuilder;
 
+    /** The default namespace if not set. * */
+    private final N defaultNamespace;
+
+    /** The serializer for namespace. * */
     private final ThreadLocal<TypeSerializer<N>> namespaceSerializer;
 
     /** The data outputStream used for value serializer, which should be thread-safe. */
@@ -60,20 +66,30 @@ public class ForStValueState<K, N, V> extends InternalValueState<K, N, V>
     /** The data inputStream used for value deserializer, which should be thread-safe. */
     private final ThreadLocal<DataInputDeserializer> valueDeserializerView;
 
+    /** Whether to enable the reuse of serialized key(and namespace). */
+    private final boolean enableKeyReuse;
+
     public ForStValueState(
             StateRequestHandler stateRequestHandler,
             ColumnFamilyHandle columnFamily,
             ValueStateDescriptor<V> valueStateDescriptor,
             Supplier<SerializedCompositeKeyBuilder<K>> serializedKeyBuilderInitializer,
+            N defaultNamespace,
             Supplier<TypeSerializer<N>> namespaceSerializerInitializer,
             Supplier<DataOutputSerializer> valueSerializerViewInitializer,
             Supplier<DataInputDeserializer> valueDeserializerViewInitializer) {
         super(stateRequestHandler, valueStateDescriptor);
         this.columnFamilyHandle = columnFamily;
         this.serializedKeyBuilder = ThreadLocal.withInitial(serializedKeyBuilderInitializer);
+        this.defaultNamespace = defaultNamespace;
         this.namespaceSerializer = ThreadLocal.withInitial(namespaceSerializerInitializer);
         this.valueSerializerView = ThreadLocal.withInitial(valueSerializerViewInitializer);
         this.valueDeserializerView = ThreadLocal.withInitial(valueDeserializerViewInitializer);
+        // We only enable key reuse for the most common namespace across all states.
+        this.enableKeyReuse =
+                (defaultNamespace instanceof VoidNamespace)
+                        && (namespaceSerializerInitializer.get()
+                                instanceof VoidNamespaceSerializer);
     }
 
     @Override
@@ -83,13 +99,12 @@ public class ForStValueState<K, N, V> extends InternalValueState<K, N, V>
 
     @Override
     public byte[] serializeKey(ContextKey<K, N> contextKey) throws IOException {
-        return contextKey.getOrCreateSerializedKey(
-                ctxKey -> {
-                    SerializedCompositeKeyBuilder<K> builder = serializedKeyBuilder.get();
-                    builder.setKeyAndKeyGroup(ctxKey.getRawKey(), ctxKey.getKeyGroup());
-                    return builder.buildCompositeKeyNamespace(
-                            contextKey.getNamespace(this), namespaceSerializer.get());
-                });
+        return ForStSerializerUtils.serializeKeyAndNamespace(
+                contextKey,
+                serializedKeyBuilder.get(),
+                defaultNamespace,
+                namespaceSerializer.get(),
+                enableKeyReuse);
     }
 
     @Override
@@ -109,22 +124,26 @@ public class ForStValueState<K, N, V> extends InternalValueState<K, N, V>
 
     @SuppressWarnings("unchecked")
     @Override
-    public ForStDBGetRequest<K, N, V> buildDBGetRequest(StateRequest<?, ?, ?> stateRequest) {
+    public ForStDBGetRequest<K, N, V, V> buildDBGetRequest(StateRequest<?, ?, ?, ?> stateRequest) {
         Preconditions.checkArgument(stateRequest.getRequestType() == StateRequestType.VALUE_GET);
         ContextKey<K, N> contextKey =
-                new ContextKey<>((RecordContext<K>) stateRequest.getRecordContext());
-        return ForStDBGetRequest.of(
+                new ContextKey<>(
+                        (RecordContext<K>) stateRequest.getRecordContext(),
+                        (N) stateRequest.getNamespace());
+        return new ForStDBSingleGetRequest<>(
                 contextKey, this, (InternalStateFuture<V>) stateRequest.getFuture());
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public ForStDBPutRequest<K, N, V> buildDBPutRequest(StateRequest<?, ?, ?> stateRequest) {
+    public ForStDBPutRequest<K, N, V> buildDBPutRequest(StateRequest<?, ?, ?, ?> stateRequest) {
         Preconditions.checkArgument(
                 stateRequest.getRequestType() == StateRequestType.VALUE_UPDATE
                         || stateRequest.getRequestType() == StateRequestType.CLEAR);
         ContextKey<K, N> contextKey =
-                new ContextKey<>((RecordContext<K>) stateRequest.getRecordContext());
+                new ContextKey<>(
+                        (RecordContext<K>) stateRequest.getRecordContext(),
+                        (N) stateRequest.getNamespace());
         V value =
                 (stateRequest.getRequestType() == StateRequestType.CLEAR)
                         ? null // "Delete(key)" is equivalent to "Put(key, null)"

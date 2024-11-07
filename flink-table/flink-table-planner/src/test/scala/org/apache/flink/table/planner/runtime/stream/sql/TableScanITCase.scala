@@ -19,13 +19,16 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.legacy.api.{TableSchema, Types}
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink}
-import org.apache.flink.table.planner.utils.{TestPreserveWMTableSource, TestTableSourceWithTime, WithoutTimeAttributesTableSource}
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
+import org.apache.flink.table.planner.utils.{TestPreserveWMTableSource, WithoutTimeAttributesTableSource}
+import org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
@@ -53,14 +56,23 @@ class TableScanITCase extends StreamingTestBase {
   @Test
   def testProctimeTableSource(): Unit = {
     val tableName = "MyTable"
-
-    val data = Seq("Mary", "Peter", "Bob", "Liz")
-
-    val schema = new TableSchema(Array("name", "ptime"), Array(Types.STRING, Types.LOCAL_DATE_TIME))
-    val returnType = Types.STRING
-
-    val tableSource = new TestTableSourceWithTime(false, schema, returnType, data, null, "ptime")
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
+    val dataId =
+      TestValuesTableFactory.registerData(
+        Seq(
+          row("Mary"),
+          row("Peter"),
+          row("Bob"),
+          row("Liz")
+        ))
+    tEnv.executeSql(s"""
+                       |create table $tableName (
+                       |  name string,
+                       |  ptime as proctime()
+                       |) with (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId'
+                       |)
+                       |""".stripMargin)
 
     val sqlQuery = s"SELECT name FROM $tableName"
     val result = tEnv.sqlQuery(sqlQuery).toDataStream
@@ -73,30 +85,28 @@ class TableScanITCase extends StreamingTestBase {
   }
 
   @Test
-  def testRowtimeTableSourceWithFieldReMapping(): Unit = {
+  def testRowtimeTableSource(): Unit = {
     val tableName = "MyTable"
-
-    val data: Seq[Row] = Seq(
-      Row.of(Int.box(1), Long.box(11), "Mary"),
-      Row.of(Int.box(2), Long.box(12), "Peter"),
-      Row.of(Int.box(3), Long.box(13), "Bob"),
-      Row.of(Int.box(4), Long.box(14), "Liz")
-    )
-
-    val schema = new TableSchema(
-      Array("key", "rowtime", "payload"),
-      Array(Types.INT(), Types.SQL_TIMESTAMP(), Types.STRING()))
-    val returnType = Types.ROW(Types.INT(), Types.LONG(), Types.STRING())
-    val mapping = Map("key" -> "f0", "ts" -> "f1", "payload" -> "f2")
-    val tableSource = new TestTableSourceWithTime(
-      false,
-      schema,
-      returnType,
-      data,
-      rowtime = "rowtime",
-      mapping = mapping,
-      existingTs = "ts")
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
+    val dataId =
+      TestValuesTableFactory.registerData(
+        Seq(
+          row(Int.box(1), toLocalDateTime(11), "Mary"),
+          row(Int.box(2), toLocalDateTime(12), "Peter"),
+          row(Int.box(3), toLocalDateTime(13), "Bob"),
+          row(Int.box(4), toLocalDateTime(14), "Liz")
+        ))
+    tEnv.executeSql(s"""
+                       |create table $tableName (
+                       |  key int,
+                       |  rowtime timestamp(3),
+                       |  payload string,
+                       |  watermark for rowtime as rowtime
+                       |) with (
+                       |  'connector' = 'values',
+                       |  'bounded' = 'true',
+                       |  'data-id' = '$dataId'
+                       |)
+                       |""".stripMargin)
 
     val sqlQuery =
       s"""

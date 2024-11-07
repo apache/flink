@@ -22,13 +22,13 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.ExpressionReducer
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDeduplicate
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalRank, StreamPhysicalWindowDeduplicate}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankRange, RankType, VariableRankRange}
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelCollation
-import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexLiteral, RexNode, RexUtil}
+import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
 
 import java.util
@@ -77,9 +77,7 @@ object RankUtil {
       tableConfig: TableConfig,
       classLoader: ClassLoader): (Option[RankRange], Option[RexNode]) = {
     val predicate = FlinkRexUtil.expandSearch(rexBuilder, oriPred)
-    // Converts the condition to conjunctive normal form (CNF)
-    val cnfNodeCount = tableConfig.get(FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
-    val cnfCondition = FlinkRexUtil.toCnf(rexBuilder, cnfNodeCount, predicate)
+    val cnfCondition = FlinkRexUtil.toCnf(rexBuilder, predicate)
 
     // split the condition into sort limit condition and other condition
     val (limitPreds: Seq[LimitPredicate], otherPreds: Seq[RexNode]) = cnfCondition match {
@@ -329,7 +327,7 @@ object RankUtil {
   }
 
   /**
-   * Whether the given rank could be converted to [[StreamPhysicalDeduplicate]].
+   * Whether the given rank could be converted to [[StreamPhysicalWindowDeduplicate]].
    *
    * Returns true if the given rank is sorted by time attribute and limits 1 and its RankFunction is
    * ROW_NUMBER, else false.
@@ -337,7 +335,7 @@ object RankUtil {
    * @param rank
    *   The [[FlinkLogicalRank]] node
    * @return
-   *   True if the input rank could be converted to [[StreamPhysicalDeduplicate]]
+   *   True if the input rank could be converted to [[StreamPhysicalWindowDeduplicate]]
    */
   def canConvertToDeduplicate(rank: FlinkLogicalRank): Boolean = {
     val sortCollation = rank.orderKey
@@ -352,21 +350,57 @@ object RankUtil {
     }
 
     val inputRowType = rank.getInput.getRowType
-    val isSortOnTimeAttribute = sortOnTimeAttribute(sortCollation, inputRowType)
+    val isSortOnTimeAttribute = sortOnTimeAttributeOnly(sortCollation, inputRowType)
 
     !rank.outputRankNumber && isLimit1 && isSortOnTimeAttribute && isRowNumberType
   }
 
-  private def sortOnTimeAttribute(
+  private def sortOnTimeAttributeOnly(
       sortCollation: RelCollation,
       inputRowType: RelDataType): Boolean = {
     if (sortCollation.getFieldCollations.size() != 1) {
-      false
-    } else {
-      val firstSortField = sortCollation.getFieldCollations.get(0)
-      val fieldType = inputRowType.getFieldList.get(firstSortField.getFieldIndex).getType
-      FlinkTypeFactory.isProctimeIndicatorType(fieldType) ||
-      FlinkTypeFactory.isRowtimeIndicatorType(fieldType)
+      return false
     }
+    val firstSortField = sortCollation.getFieldCollations.get(0)
+    val fieldType = inputRowType.getFieldList.get(firstSortField.getFieldIndex).getType
+    FlinkTypeFactory.isProctimeIndicatorType(fieldType) ||
+    FlinkTypeFactory.isRowtimeIndicatorType(fieldType)
+  }
+
+  /**
+   * Checks if the given sort collation has a field collation which based on a rowtime attribute.
+   */
+  def sortOnRowTime(sortCollation: RelCollation, inputRowType: RelDataType): Boolean = {
+    sortCollation.getFieldCollations.exists {
+      firstSortField =>
+        val fieldType = inputRowType.getFieldList.get(firstSortField.getFieldIndex).getType
+        FlinkTypeFactory.isRowtimeIndicatorType(fieldType)
+    }
+  }
+
+  /** Whether the given rank is logically a deduplication. */
+  def isDeduplication(rank: Rank): Boolean = {
+    !rank.outputRankNumber && rank.rankType == RankType.ROW_NUMBER && isTop1(rank.rankRange)
+  }
+
+  /** Whether the given [[StreamPhysicalRank]] could be converted to [[StreamExecDeduplicate]]. */
+  def canConvertToDeduplicate(rank: StreamPhysicalRank): Boolean = {
+    lazy val inputInsertOnly = ChangelogPlanUtils.inputInsertOnly(rank)
+    lazy val sortOnTimeAttributeOnly =
+      RankUtil.sortOnTimeAttributeOnly(rank.orderKey, rank.getInput.getRowType)
+
+    isDeduplication(rank) && inputInsertOnly && sortOnTimeAttributeOnly
+  }
+
+  /**
+   * Determines if the given order key indicates that the last row should be kept for deduplication.
+   */
+  def keepLastDeduplicateRow(orderKey: RelCollation): Boolean = {
+    // order by timeIndicator desc ==> lastRow, otherwise is firstRow
+    if (orderKey.getFieldCollations.size() != 1) {
+      return false
+    }
+    val fieldCollation = orderKey.getFieldCollations.get(0)
+    fieldCollation.direction.isDescending
   }
 }

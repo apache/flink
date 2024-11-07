@@ -24,9 +24,6 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.apache.commons.cli.CommandLine;
@@ -322,7 +319,6 @@ class CliFrontendPackageProgramTest {
             assertThat(prog.getArguments()).isEqualTo(reducedArguments);
 
             Configuration c = new Configuration();
-            Optimizer compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), c);
 
             // we expect this to fail with a "ClassNotFoundException"
             Pipeline pipeline = PackagedProgramUtils.getPipelineFromProgram(prog, c, 666, true);

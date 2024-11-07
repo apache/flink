@@ -121,6 +121,16 @@ public final class InputTypeStrategies {
                 Arrays.asList(strategies), Arrays.asList(argumentNames));
     }
 
+    /**
+     * Strategy for a varying named function signature like {@code f(i INT, str STRING, num
+     * NUMERIC...)} using a sequence of {@link ArgumentTypeStrategy}s. The first n - 1 arguments
+     * must be constant. The n-th argument can occur 0, 1, or more times.
+     */
+    public static InputTypeStrategy varyingSequence(
+            List<String> argumentNames, List<ArgumentTypeStrategy> strategies) {
+        return new VaryingSequenceInputTypeStrategy(strategies, argumentNames);
+    }
+
     /** Arbitrarily often repeating sequence of argument type strategies. */
     public static InputTypeStrategy repeatingSequence(ArgumentTypeStrategy... strategies) {
         return new RepeatingSequenceInputTypeStrategy(Arrays.asList(strategies));

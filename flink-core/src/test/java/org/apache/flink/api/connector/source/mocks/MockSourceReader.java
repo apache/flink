@@ -26,11 +26,16 @@ import org.apache.flink.core.io.InputStatus;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /** A mock {@link SourceReader} for unit tests. */
 public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> {
+    private final Set<String> pausedSplits = new HashSet<>();
     private final List<MockSourceSplit> assignedSplits = new ArrayList<>();
     private final List<SourceEvent> receivedSourceEvents = new ArrayList<>();
     private final List<Long> completedCheckpoints = new ArrayList<>();
@@ -88,6 +93,7 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 
     @Override
     public InputStatus pollNext(ReaderOutput<Integer> sourceOutput) throws Exception {
+        releaseFinishedSplits(sourceOutput);
 
         if (waitingForSplitsBehaviour == WaitingForSplits.WAIT_FOR_INITIAL
                 && splitsAssignmentState == SplitsAssignmentState.NO_SPLITS_ASSIGNED) {
@@ -100,11 +106,16 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
                         || waitingForSplitsBehaviour == WaitingForSplits.DO_NOT_WAIT_FOR_SPLITS;
         currentSplitIndex = 0;
         // Find first splits with available records.
-        while (currentSplitIndex < assignedSplits.size()
-                && !assignedSplits.get(currentSplitIndex).isAvailable()) {
-            finished &= assignedSplits.get(currentSplitIndex).isFinished();
+        for (MockSourceSplit assignedSplit : assignedSplits) {
+            finished &= assignedSplit.isFinished();
+            if (!pausedSplits.contains(assignedSplit.splitId())) {
+                if (assignedSplit.isAvailable()) {
+                    break;
+                }
+            }
             currentSplitIndex++;
         }
+
         // Read from the split with available record.
         if (currentSplitIndex < assignedSplits.size()) {
             if (idle) {
@@ -132,6 +143,18 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
         }
     }
 
+    private void releaseFinishedSplits(ReaderOutput<Integer> sourceOutput) {
+        Iterator<MockSourceSplit> assignedSplitsIterator = assignedSplits.iterator();
+        while (assignedSplitsIterator.hasNext()) {
+            MockSourceSplit assignedSplit = assignedSplitsIterator.next();
+            if (assignedSplit.isFinished()) {
+                sourceOutput.releaseOutputForSplit(assignedSplit.splitId());
+                assignedSplitsIterator.remove();
+                pausedSplits.remove(assignedSplit.splitId());
+            }
+        }
+    }
+
     @Override
     public List<MockSourceSplit> snapshotState(long checkpointId) {
         return assignedSplits;
@@ -149,6 +172,12 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
         }
         assignedSplits.addAll(splits);
         markAvailable();
+    }
+
+    public void pauseOrResumeSplits(
+            Collection<String> splitsToPause, Collection<String> splitsToResume) {
+        pausedSplits.removeAll(splitsToResume);
+        pausedSplits.addAll(splitsToPause);
     }
 
     @Override
@@ -223,5 +252,9 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
 
     public List<Long> getAbortedCheckpoints() {
         return abortedCheckpoints;
+    }
+
+    public Set<String> getPausedSplits() {
+        return pausedSplits;
     }
 }

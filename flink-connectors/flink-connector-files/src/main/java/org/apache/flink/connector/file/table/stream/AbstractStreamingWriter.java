@@ -18,20 +18,28 @@
 
 package org.apache.flink.connector.file.table.stream;
 
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.functions.sink.filesystem.Bucket;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketLifeCycleListener;
 import org.apache.flink.streaming.api.functions.sink.filesystem.Buckets;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSinkHelper;
+import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+
+import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
+
+import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Operator for file system sink. It is a operator version of {@link StreamingFileSink}. It can send
@@ -58,6 +66,16 @@ public abstract class AbstractStreamingWriter<IN, OUT> extends AbstractStreamOpe
 
     protected transient long currentWatermark;
 
+    /**
+     * Used to remember that EOI has already happened so that we don't emit the last committables of
+     * the final checkpoints twice.
+     */
+    private static final ListStateDescriptor<Boolean> END_OF_INPUT_STATE_DESC =
+            new ListStateDescriptor<>("end_of_input_state", BooleanSerializer.INSTANCE);
+
+    private boolean endOfInput;
+    private ListState<Boolean> endOfInputState;
+
     public AbstractStreamingWriter(
             long bucketCheckInterval,
             StreamingFileSink.BucketsBuilder<
@@ -65,7 +83,6 @@ public abstract class AbstractStreamingWriter<IN, OUT> extends AbstractStreamOpe
                     bucketsBuilder) {
         this.bucketCheckInterval = bucketCheckInterval;
         this.bucketsBuilder = bucketsBuilder;
-        setChainingStrategy(ChainingStrategy.ALWAYS);
     }
 
     /** Notifies a partition created. */
@@ -123,6 +140,27 @@ public abstract class AbstractStreamingWriter<IN, OUT> extends AbstractStreamOpe
                         bucketCheckInterval);
 
         currentWatermark = Long.MIN_VALUE;
+
+        // Figure out if we have seen end of input before and if we should anything downstream. We
+        // have the following
+        // cases:
+        // 1. state is empty:
+        //   - First time initialization
+        //   - Restoring from a previous version of Flink that didn't handle EOI
+        //   - Upscaled from a final or regular checkpoint
+        // In all cases, we regularly handle EOI, potentially resulting in unnecessary .
+        // 2. state is not empty:
+        //   - This implies Flink restores from a version that handles EOI.
+        //   - If there is one entry, no rescaling happened (for this subtask), so if it's true,
+        //     we recover from a final checkpoint (for this subtask) and can ignore another EOI
+        //     else we have a regular checkpoint.
+        //   - If there are multiple entries, Flink downscaled, and we need to check if all are
+        //     true and do the same as above. As soon as one entry is false, we regularly start
+        //     the writer and potentially emit duplicate summaries if we indeed recovered from a
+        //     final checkpoint.
+        endOfInputState = context.getOperatorStateStore().getListState(END_OF_INPUT_STATE_DESC);
+        List<Boolean> previousState = Lists.newArrayList(endOfInputState.get());
+        endOfInput = !previousState.isEmpty() && !previousState.contains(false);
     }
 
     @Override
@@ -139,6 +177,7 @@ public abstract class AbstractStreamingWriter<IN, OUT> extends AbstractStreamOpe
 
     @Override
     public void processElement(StreamRecord<IN> element) throws Exception {
+        checkState(!endOfInput, "Received element after endOfInput: %s", element);
         helper.onElement(
                 element.getValue(),
                 getProcessingTimeService().getCurrentProcessingTime(),
@@ -149,15 +188,20 @@ public abstract class AbstractStreamingWriter<IN, OUT> extends AbstractStreamOpe
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         super.notifyCheckpointComplete(checkpointId);
-        commitUpToCheckpoint(checkpointId);
+        if (!this.endOfInput) {
+            commitUpToCheckpoint(checkpointId);
+        }
     }
 
     @Override
     public void endInput() throws Exception {
-        buckets.onProcessingTime(Long.MAX_VALUE);
-        helper.snapshotState(Long.MAX_VALUE);
-        output.emitWatermark(new Watermark(Long.MAX_VALUE));
-        commitUpToCheckpoint(Long.MAX_VALUE);
+        if (!this.endOfInput) {
+            this.endOfInput = true;
+            buckets.onProcessingTime(Long.MAX_VALUE);
+            helper.snapshotState(Long.MAX_VALUE);
+            output.emitWatermark(new Watermark(Long.MAX_VALUE));
+            commitUpToCheckpoint(Long.MAX_VALUE);
+        }
     }
 
     @Override

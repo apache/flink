@@ -52,11 +52,12 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.time.ZoneId;
@@ -81,16 +82,16 @@ import static org.assertj.core.api.Assertions.fail;
  * <p>To simplify the testing logic, the table aggregate outputs same value with the aggregate
  * except that the table aggregate outputs two same records each time.
  */
-@RunWith(Parameterized.class)
-public class WindowOperatorTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class WindowOperatorTest {
 
     private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
     private static final ZoneId SHANGHAI_ZONE_ID = ZoneId.of("Asia/Shanghai");
     private final boolean isTableAggregate;
     private final ZoneId shiftTimeZone;
 
-    @Parameterized.Parameters(name = "isTableAggregate = {0}, TimeZone = {1}")
-    public static Collection<Object[]> runMode() {
+    @Parameters(name = "isTableAggregate = {0}, TimeZone = {1}")
+    private static Collection<Object[]> runMode() {
         return Arrays.asList(
                 new Object[] {false, UTC_ZONE_ID},
                 new Object[] {true, UTC_ZONE_ID},
@@ -159,8 +160,8 @@ public class WindowOperatorTest {
         return results;
     }
 
-    @Test
-    public void testEventTimeSlidingWindows() throws Exception {
+    @TestTemplate
+    void testEventTimeSlidingWindows() throws Exception {
         closeCalled.set(0);
 
         WindowOperator operator =
@@ -331,8 +332,8 @@ public class WindowOperatorTest {
         assertThat(closeCalled.get()).as("Close was not called.").isEqualTo(2);
     }
 
-    @Test
-    public void testProcessingTimeSlidingWindows() throws Throwable {
+    @TestTemplate
+    void testProcessingTimeSlidingWindows() throws Throwable {
         closeCalled.set(0);
 
         WindowOperator operator =
@@ -475,8 +476,8 @@ public class WindowOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    public void testEventTimeCumulativeWindows() throws Exception {
+    @TestTemplate
+    void testEventTimeCumulativeWindows() throws Exception {
         closeCalled.set(0);
 
         WindowOperator operator =
@@ -647,8 +648,8 @@ public class WindowOperatorTest {
         assertThat(closeCalled.get()).as("Close was not called.").isEqualTo(2);
     }
 
-    @Test
-    public void testEventTimeCumulativeWindowsWithLateArrival() throws Exception {
+    @TestTemplate
+    void testEventTimeCumulativeWindowsWithLateArrival() throws Exception {
         WindowOperator operator =
                 WindowOperatorBuilder.builder()
                         .withInputFields(inputFieldTypes)
@@ -715,8 +716,8 @@ public class WindowOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    public void testProcessingTimeCumulativeWindows() throws Throwable {
+    @TestTemplate
+    void testProcessingTimeCumulativeWindows() throws Throwable {
         closeCalled.set(0);
 
         WindowOperator operator =
@@ -879,9 +880,9 @@ public class WindowOperatorTest {
         testHarness.close();
     }
 
-    @Test
+    @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testEventTimeTumblingWindows() throws Exception {
+    void testEventTimeTumblingWindows() throws Exception {
         closeCalled.set(0);
 
         WindowOperator operator =
@@ -1001,9 +1002,9 @@ public class WindowOperatorTest {
         assertThat(closeCalled.get()).as("Close was not called.").isEqualTo(2);
     }
 
-    @Test
+    @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testEventTimeTumblingWindowsWithEarlyFiring() throws Exception {
+    void testEventTimeTumblingWindowsWithEarlyFiring() throws Exception {
         closeCalled.set(0);
 
         WindowOperator operator =
@@ -1150,9 +1151,9 @@ public class WindowOperatorTest {
         assertThat(closeCalled.get()).as("Close was not called.").isEqualTo(2);
     }
 
-    @Test
+    @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testEventTimeTumblingWindowsWithEarlyAndLateFirings() throws Exception {
+    void testEventTimeTumblingWindowsWithEarlyAndLateFirings() throws Exception {
         closeCalled.set(0);
 
         WindowOperator operator =
@@ -1316,9 +1317,9 @@ public class WindowOperatorTest {
         assertThat(closeCalled.get()).as("Close was not called.").isEqualTo(2);
     }
 
-    @Test
+    @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testProcessingTimeTumblingWindows() throws Exception {
+    void testProcessingTimeTumblingWindows() throws Exception {
         closeCalled.set(0);
 
         WindowOperator operator =
@@ -1401,9 +1402,9 @@ public class WindowOperatorTest {
         testHarness.close();
     }
 
-    @Test
+    @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testEventTimeSessionWindows() throws Exception {
+    void testEventTimeSessionWindows() throws Exception {
         closeCalled.set(0);
 
         WindowOperator operator =
@@ -1520,8 +1521,8 @@ public class WindowOperatorTest {
         assertThat(operator.getNumLateRecordsDropped().getCount()).isEqualTo(1);
     }
 
-    @Test
-    public void testProcessingTimeSessionWindows() throws Throwable {
+    @TestTemplate
+    void testProcessingTimeSessionWindows() throws Throwable {
         closeCalled.set(0);
 
         WindowOperator operator =
@@ -1614,9 +1615,9 @@ public class WindowOperatorTest {
      * <p>In this test, elements that have 33 as the second tuple field will be put into a point
      * window.
      */
-    @Test
+    @TestTemplate
     @SuppressWarnings("unchecked")
-    public void testPointSessions() throws Exception {
+    void testPointSessions() throws Exception {
         closeCalled.set(0);
 
         WindowOperator operator =
@@ -1691,8 +1692,8 @@ public class WindowOperatorTest {
         assertThat(closeCalled.get()).as("Close was not called.").isEqualTo(2);
     }
 
-    @Test
-    public void testLateness() throws Exception {
+    @TestTemplate
+    void testLateness() throws Exception {
         WindowOperator operator =
                 WindowOperatorBuilder.builder()
                         .withInputFields(inputFieldTypes)
@@ -1755,8 +1756,8 @@ public class WindowOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    public void testCleanupTimerWithEmptyReduceStateForTumblingWindows() throws Exception {
+    @TestTemplate
+    void testCleanupTimerWithEmptyReduceStateForTumblingWindows() throws Exception {
         final int windowSize = 2;
         final long lateness = 1;
 
@@ -1801,8 +1802,8 @@ public class WindowOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    public void testCleanupTimeOverflow() throws Exception {
+    @TestTemplate
+    void testCleanupTimeOverflow() throws Exception {
         if (!UTC_ZONE_ID.equals(shiftTimeZone)) {
             return;
         }
@@ -1869,8 +1870,8 @@ public class WindowOperatorTest {
         testHarness.close();
     }
 
-    @Test
-    public void testTumblingCountWindow() throws Exception {
+    @TestTemplate
+    void testTumblingCountWindow() throws Exception {
         if (!UTC_ZONE_ID.equals(shiftTimeZone)) {
             return;
         }
@@ -1953,8 +1954,8 @@ public class WindowOperatorTest {
         assertThat(closeCalled.get()).as("Close was not called.").isEqualTo(2);
     }
 
-    @Test
-    public void testSlidingCountWindow() throws Exception {
+    @TestTemplate
+    void testSlidingCountWindow() throws Exception {
         if (!UTC_ZONE_ID.equals(shiftTimeZone)) {
             return;
         }
@@ -2038,8 +2039,8 @@ public class WindowOperatorTest {
         assertThat(closeCalled.get()).as("Close was not called.").isEqualTo(2);
     }
 
-    @Test
-    public void testWindowCloseWithoutOpen() throws Exception {
+    @TestTemplate
+    void testWindowCloseWithoutOpen() throws Exception {
         if (!UTC_ZONE_ID.equals(shiftTimeZone)) {
             return;
         }

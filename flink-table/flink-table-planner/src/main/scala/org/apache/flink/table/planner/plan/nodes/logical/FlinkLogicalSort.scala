@@ -19,7 +19,6 @@ package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED
 import org.apache.flink.table.planner.plan.utils.SortUtil
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
@@ -96,13 +95,9 @@ class FlinkLogicalSortBatchConverter(config: Config) extends ConverterRule(confi
     val sort = rel.asInstanceOf[LogicalSort]
     val newInput = RelOptRule.convert(sort.getInput, FlinkConventions.LOGICAL)
     val tableConfig = unwrapTableConfig(sort)
-    val enableRangeSort = tableConfig.get(TABLE_EXEC_RANGE_SORT_ENABLED)
     val limitValue = tableConfig.get(TABLE_EXEC_SORT_DEFAULT_LIMIT)
     val (offset, fetch) =
-      if (
-        sort.fetch == null && sort.offset == null
-        && !enableRangeSort && limitValue > 0
-      ) {
+      if (sort.fetch == null && sort.offset == null && limitValue > 0) {
         // force the sort add limit
         val rexBuilder = rel.getCluster.getRexBuilder
         val intType = rexBuilder.getTypeFactory.createSqlType(SqlTypeName.INTEGER)

@@ -85,7 +85,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
     "type" : "LookupJoin[6]",
     "pact" : "Operator",
     "contents" : "[6]:LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], lookup=[id=100], where=[(id = 100)], select=[a, name, age], upsertMaterialize=[true])",
-    "parallelism" : 1,
+    "parallelism" : 4,
     "predecessors" : [ {
       "id" : 8,
       "ship_strategy" : "HASH",
@@ -96,7 +96,7 @@ Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])
     "type" : "Sink: Sink1[7]",
     "pact" : "Data Sink",
     "contents" : "[7]:Sink(table=[default_catalog.default_database.Sink1], fields=[a, name, age])",
-    "parallelism" : 1,
+    "parallelism" : 4,
     "predecessors" : [ {
       "id" : 10,
       "ship_strategy" : "FORWARD",

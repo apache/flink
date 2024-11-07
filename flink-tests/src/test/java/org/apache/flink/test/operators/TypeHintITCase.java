@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.operators;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -25,15 +26,17 @@ import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.test.operators.util.CollectionDataSets;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
+import org.apache.flink.test.operators.util.CollectionDataStreams;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
@@ -47,13 +50,15 @@ public class TypeHintITCase extends AbstractTestBaseJUnit4 {
 
     @Test
     public void testIdentityMapWithMissingTypesAndStringTypeHint() throws Exception {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
-        DataSet<Tuple3<Integer, Long, String>> identityMapDs =
+        DataStreamSource<Tuple3<Integer, Long, String>> ds =
+                CollectionDataStreams.getSmall3TupleDataSet(env);
+        DataStream<Tuple3<Integer, Long, String>> identityMapDs =
                 ds.map(new Mapper<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>>())
                         .returns(new TypeHint<Tuple3<Integer, Long, String>>() {});
-        List<Tuple3<Integer, Long, String>> result = identityMapDs.collect();
+        List<Tuple3<Integer, Long, String>> result =
+                CollectionUtil.iteratorToList(identityMapDs.executeAndCollect());
 
         String expectedResult = "(2,2,Hello)\n" + "(3,2,Hello world)\n" + "(1,1,Hi)\n";
 
@@ -62,10 +67,11 @@ public class TypeHintITCase extends AbstractTestBaseJUnit4 {
 
     @Test
     public void testIdentityMapWithMissingTypesAndTypeInformationTypeHint() throws Exception {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
-        DataSet<Tuple3<Integer, Long, String>> identityMapDs =
+        DataStreamSource<Tuple3<Integer, Long, String>> ds =
+                CollectionDataStreams.getSmall3TupleDataSet(env);
+        DataStream<Tuple3<Integer, Long, String>> identityMapDs =
                 ds
                         // all following generics get erased during compilation
                         .map(
@@ -77,7 +83,8 @@ public class TypeHintITCase extends AbstractTestBaseJUnit4 {
                                         BasicTypeInfo.INT_TYPE_INFO,
                                         BasicTypeInfo.LONG_TYPE_INFO,
                                         BasicTypeInfo.STRING_TYPE_INFO));
-        List<Tuple3<Integer, Long, String>> result = identityMapDs.collect();
+        List<Tuple3<Integer, Long, String>> result =
+                CollectionUtil.iteratorToList(identityMapDs.executeAndCollect());
 
         String expectedResult = "(2,2,Hello)\n" + "(3,2,Hello world)\n" + "(1,1,Hi)\n";
 
@@ -86,13 +93,14 @@ public class TypeHintITCase extends AbstractTestBaseJUnit4 {
 
     @Test
     public void testFlatMapWithClassTypeHint() throws Exception {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
-        DataSet<Integer> identityMapDs =
+        DataStreamSource<Tuple3<Integer, Long, String>> ds =
+                CollectionDataStreams.getSmall3TupleDataSet(env);
+        DataStream<Integer> identityMapDs =
                 ds.flatMap(new FlatMapper<Tuple3<Integer, Long, String>, Integer>())
                         .returns(Integer.class);
-        List<Integer> result = identityMapDs.collect();
+        List<Integer> result = CollectionUtil.iteratorToList(identityMapDs.executeAndCollect());
 
         String expectedResult = "2\n" + "3\n" + "1\n";
 
@@ -101,21 +109,24 @@ public class TypeHintITCase extends AbstractTestBaseJUnit4 {
 
     @Test
     public void testJoinWithTypeInformationTypeHint() throws Exception {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
-        DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
-        DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.getSmall3TupleDataSet(env);
-        DataSet<Integer> resultDs =
+        DataStreamSource<Tuple3<Integer, Long, String>> ds1 =
+                CollectionDataStreams.getSmall3TupleDataSet(env);
+        DataStreamSource<Tuple3<Integer, Long, String>> ds2 =
+                CollectionDataStreams.getSmall3TupleDataSet(env);
+        DataStream<Integer> resultDs =
                 ds1.join(ds2)
-                        .where(0)
-                        .equalTo(0)
-                        .with(
+                        .where(x -> x.f0)
+                        .equalTo(x -> x.f0)
+                        .window(GlobalWindows.createWithEndOfStreamTrigger())
+                        .apply(
                                 new Joiner<
                                         Tuple3<Integer, Long, String>,
                                         Tuple3<Integer, Long, String>,
-                                        Integer>())
-                        .returns(BasicTypeInfo.INT_TYPE_INFO);
-        List<Integer> result = resultDs.collect();
+                                        Integer>() {});
+        List<Integer> result = CollectionUtil.iteratorToList(resultDs.executeAndCollect());
 
         String expectedResult = "2\n" + "3\n" + "1\n";
 
@@ -124,70 +135,24 @@ public class TypeHintITCase extends AbstractTestBaseJUnit4 {
 
     @Test
     public void testFlatJoinWithTypeInformationTypeHint() throws Exception {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
-        DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
-        DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.getSmall3TupleDataSet(env);
-        DataSet<Integer> resultDs =
+        DataStreamSource<Tuple3<Integer, Long, String>> ds1 =
+                CollectionDataStreams.getSmall3TupleDataSet(env);
+        DataStreamSource<Tuple3<Integer, Long, String>> ds2 =
+                CollectionDataStreams.getSmall3TupleDataSet(env);
+        DataStream<Integer> resultDs =
                 ds1.join(ds2)
-                        .where(0)
-                        .equalTo(0)
-                        .with(
+                        .where(x -> x.f0)
+                        .equalTo(x -> x.f0)
+                        .window(GlobalWindows.createWithEndOfStreamTrigger())
+                        .apply(
                                 new FlatJoiner<
                                         Tuple3<Integer, Long, String>,
                                         Tuple3<Integer, Long, String>,
-                                        Integer>())
-                        .returns(BasicTypeInfo.INT_TYPE_INFO);
-        List<Integer> result = resultDs.collect();
-
-        String expectedResult = "2\n" + "3\n" + "1\n";
-
-        compareResultAsText(result, expectedResult);
-    }
-
-    @Test
-    public void testUnsortedGroupReduceWithTypeInformationTypeHint() throws Exception {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-        DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
-        DataSet<Integer> resultDs =
-                ds.groupBy(0)
-                        .reduceGroup(new GroupReducer<Tuple3<Integer, Long, String>, Integer>())
-                        .returns(BasicTypeInfo.INT_TYPE_INFO);
-        List<Integer> result = resultDs.collect();
-
-        String expectedResult = "2\n" + "3\n" + "1\n";
-
-        compareResultAsText(result, expectedResult);
-    }
-
-    @Test
-    public void testSortedGroupReduceWithTypeInformationTypeHint() throws Exception {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-        DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
-        DataSet<Integer> resultDs =
-                ds.groupBy(0)
-                        .sortGroup(0, Order.ASCENDING)
-                        .reduceGroup(new GroupReducer<Tuple3<Integer, Long, String>, Integer>())
-                        .returns(BasicTypeInfo.INT_TYPE_INFO);
-        List<Integer> result = resultDs.collect();
-
-        String expectedResult = "2\n" + "3\n" + "1\n";
-
-        compareResultAsText(result, expectedResult);
-    }
-
-    @Test
-    public void testCombineGroupWithTypeInformationTypeHint() throws Exception {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-        DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.getSmall3TupleDataSet(env);
-        DataSet<Integer> resultDs =
-                ds.groupBy(0)
-                        .combineGroup(new GroupCombiner<Tuple3<Integer, Long, String>, Integer>())
-                        .returns(BasicTypeInfo.INT_TYPE_INFO);
-        List<Integer> result = resultDs.collect();
+                                        Integer>() {});
+        List<Integer> result = CollectionUtil.iteratorToList(resultDs.executeAndCollect());
 
         String expectedResult = "2\n" + "3\n" + "1\n";
 
@@ -196,21 +161,24 @@ public class TypeHintITCase extends AbstractTestBaseJUnit4 {
 
     @Test
     public void testCoGroupWithTypeInformationTypeHint() throws Exception {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
-        DataSet<Tuple3<Integer, Long, String>> ds1 = CollectionDataSets.getSmall3TupleDataSet(env);
-        DataSet<Tuple3<Integer, Long, String>> ds2 = CollectionDataSets.getSmall3TupleDataSet(env);
-        DataSet<Integer> resultDs =
+        DataStreamSource<Tuple3<Integer, Long, String>> ds1 =
+                CollectionDataStreams.getSmall3TupleDataSet(env);
+        DataStreamSource<Tuple3<Integer, Long, String>> ds2 =
+                CollectionDataStreams.getSmall3TupleDataSet(env);
+        DataStream<Integer> resultDs =
                 ds1.coGroup(ds2)
-                        .where(0)
-                        .equalTo(0)
-                        .with(
+                        .where(x -> x.f0)
+                        .equalTo(x -> x.f0)
+                        .window(GlobalWindows.createWithEndOfStreamTrigger())
+                        .apply(
                                 new CoGrouper<
                                         Tuple3<Integer, Long, String>,
                                         Tuple3<Integer, Long, String>,
-                                        Integer>())
-                        .returns(BasicTypeInfo.INT_TYPE_INFO);
-        List<Integer> result = resultDs.collect();
+                                        Integer>() {});
+        List<Integer> result = CollectionUtil.iteratorToList(resultDs.executeAndCollect());
 
         String expectedResult = "2\n" + "3\n" + "1\n";
 

@@ -23,12 +23,12 @@ import shutil
 import tempfile
 import time
 import uuid
+import unittest
 
-from pyflink.common import Configuration, ExecutionConfig, RestartStrategies
+from pyflink.common import Configuration, ExecutionConfig
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import (StreamExecutionEnvironment, CheckpointConfig,
-                                CheckpointingMode, MemoryStateBackend, TimeCharacteristic,
-                                SlotSharingGroup)
+                                CheckpointingMode, SlotSharingGroup)
 from pyflink.datastream.connectors.kafka import FlinkKafkaConsumer
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.formats.json import JsonRowDeserializationSchema
@@ -77,45 +77,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         self.assertEqual(parallelism, 8)
 
-    def test_set_get_restart_strategy(self):
-        self.env.set_restart_strategy(RestartStrategies.no_restart())
-
-        restart_strategy = self.env.get_restart_strategy()
-
-        self.assertEqual(restart_strategy, RestartStrategies.no_restart())
-
-    def test_add_default_kryo_serializer(self):
-        self.env.add_default_kryo_serializer(
-            "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
-            "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
-
-        class_dict = self.env.get_config().get_default_kryo_serializer_classes()
-
-        self.assertEqual(class_dict,
-                         {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
-                          'org.apache.flink.runtime.state'
-                          '.StateBackendTestBase$CustomKryoTestSerializer'})
-
-    def test_register_type_with_kryo_serializer(self):
-        self.env.register_type_with_kryo_serializer(
-            "org.apache.flink.runtime.state.StateBackendTestBase$TestPojo",
-            "org.apache.flink.runtime.state.StateBackendTestBase$CustomKryoTestSerializer")
-
-        class_dict = self.env.get_config().get_registered_types_with_kryo_serializer_classes()
-
-        self.assertEqual(class_dict,
-                         {'org.apache.flink.runtime.state.StateBackendTestBase$TestPojo':
-                          'org.apache.flink.runtime.state'
-                          '.StateBackendTestBase$CustomKryoTestSerializer'})
-
-    def test_register_type(self):
-        self.env.register_type("org.apache.flink.runtime.state.StateBackendTestBase$TestPojo")
-
-        type_list = self.env.get_config().get_registered_pojo_types()
-
-        self.assertEqual(type_list,
-                         ['org.apache.flink.runtime.state.StateBackendTestBase$TestPojo'])
-
     def test_get_set_max_parallelism(self):
         self.env.set_max_parallelism(12)
 
@@ -161,21 +122,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         self.assertEqual(mode, CheckpointingMode.AT_LEAST_ONCE)
 
-    def test_get_state_backend(self):
-        state_backend = self.env.get_state_backend()
-
-        self.assertIsNone(state_backend)
-
-    def test_set_state_backend(self):
-        input_backend = MemoryStateBackend()
-
-        self.env.set_state_backend(input_backend)
-
-        output_backend = self.env.get_state_backend()
-
-        self.assertEqual(output_backend._j_memory_state_backend,
-                         input_backend._j_memory_state_backend)
-
     def test_is_changelog_state_backend_enabled(self):
         self.assertIsNone(self.env.is_changelog_state_backend_enabled())
 
@@ -189,30 +135,15 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         self.assertFalse(self.env.is_changelog_state_backend_enabled())
 
-    def test_get_set_stream_time_characteristic(self):
-        default_time_characteristic = self.env.get_stream_time_characteristic()
-
-        self.assertEqual(default_time_characteristic, TimeCharacteristic.EventTime)
-
-        self.env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)
-
-        time_characteristic = self.env.get_stream_time_characteristic()
-
-        self.assertEqual(time_characteristic, TimeCharacteristic.ProcessingTime)
-
     def test_configure(self):
         configuration = Configuration()
         configuration.set_string('pipeline.operator-chaining', 'false')
-        configuration.set_string('pipeline.time-characteristic', 'IngestionTime')
         configuration.set_string('execution.buffer-timeout', '1 min')
         configuration.set_string('execution.checkpointing.timeout', '12000')
         self.env.configure(configuration)
         self.assertEqual(self.env.is_chaining_enabled(), False)
-        self.assertEqual(self.env.get_stream_time_characteristic(),
-                         TimeCharacteristic.IngestionTime)
         self.assertEqual(self.env.get_buffer_timeout(), 60000)
         self.assertEqual(self.env.get_checkpoint_config().get_checkpoint_timeout(), 12000)
-        self.assertTrue(self.env.get_state_backend() is None)
 
     def test_execute(self):
         tmp_dir = tempfile.gettempdir()
@@ -317,22 +248,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         results.sort()
         expected.sort()
         self.assertEqual(expected, results)
-
-    def test_read_text_file(self):
-        texts = ["Mike", "Marry", "Ted", "Jack", "Bob", "Henry"]
-        text_file_path = self.tempdir + '/text_file'
-        with open(text_file_path, 'a') as f:
-            for text in texts:
-                f.write(text)
-                f.write('\n')
-
-        ds = self.env.read_text_file(text_file_path)
-        ds.add_sink(self.test_sink)
-        self.env.execute("test read text file")
-        results = self.test_sink.get_results()
-        results.sort()
-        texts.sort()
-        self.assertEqual(texts, results)
 
     def test_execute_async(self):
         ds = self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')],
@@ -554,6 +469,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         expected.sort()
         self.assertEqual(expected, result)
 
+    @unittest.skip("Disable due to Kafka connector need to release a new version 2.0")
     def test_add_jars(self):
         # find kafka connector jars
         flink_source_root = _find_flink_source_root()
@@ -575,6 +491,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.env.add_source(kafka_consumer).print()
         self.env.get_execution_plan()
 
+    @unittest.skip("Disable due to Kafka connector need to release a new version 2.0")
     def test_add_classpaths(self):
         # find kafka connector jars
         flink_source_root = _find_flink_source_root()

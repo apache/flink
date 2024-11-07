@@ -22,7 +22,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.calcite.bridge.CalciteContext;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -61,6 +60,7 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.hive.HiveFunctionWrapper;
 import org.apache.flink.table.functions.hive.HiveGenericUDF;
+import org.apache.flink.table.legacy.api.constraints.UniqueConstraint;
 import org.apache.flink.table.operations.CreateTableASOperation;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.Operation;
@@ -321,7 +321,7 @@ public class HiveParserDDLSemanticAnalyzer {
                 res = convertDescribeTable(ast);
                 break;
             case HiveASTParser.TOK_SHOWDATABASES:
-                res = convertShowDatabases();
+                res = convertShowDatabases(catalogRegistry.getCurrentCatalog());
                 break;
             case HiveASTParser.TOK_SHOWTABLES:
                 res = convertShowTables(ast, false);
@@ -1803,8 +1803,8 @@ public class HiveParserDDLSemanticAnalyzer {
                 HiveConf.getVar(conf, HiveConf.ConfVars.DEFAULTPARTITIONNAME));
     }
 
-    private Operation convertShowDatabases() {
-        return new ShowDatabasesOperation();
+    private Operation convertShowDatabases(String catalogName) {
+        return new ShowDatabasesOperation(catalogName);
     }
 
     private Operation convertShowTables(HiveParserASTNode ast, boolean expectView) {
@@ -1843,7 +1843,11 @@ public class HiveParserDDLSemanticAnalyzer {
         if (pattern != null) {
             handleUnsupportedOperation("SHOW TABLES/VIEWS LIKE is not supported");
         }
-        return expectView ? new ShowViewsOperation() : new ShowTablesOperation();
+        return expectView
+                ? new ShowViewsOperation(
+                        catalogRegistry.getCurrentCatalog(), catalogRegistry.getCurrentDatabase())
+                : new ShowTablesOperation(
+                        catalogRegistry.getCurrentCatalog(), catalogRegistry.getCurrentDatabase());
     }
 
     /**
@@ -1857,7 +1861,8 @@ public class HiveParserDDLSemanticAnalyzer {
             assert (ast.getChild(0).getType() == HiveASTParser.KW_LIKE);
             throw new ValidationException("SHOW FUNCTIONS LIKE is not supported yet");
         }
-        return new ShowFunctionsOperation();
+        return new ShowFunctionsOperation(
+                catalogRegistry.getCurrentCatalog(), catalogRegistry.getCurrentDatabase());
     }
 
     private Operation convertAlterTableRename(

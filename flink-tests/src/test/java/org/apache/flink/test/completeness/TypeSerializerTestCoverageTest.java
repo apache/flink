@@ -48,29 +48,21 @@ import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.api.java.typeutils.runtime.ValueSerializer;
 import org.apache.flink.api.java.typeutils.runtime.WritableSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
-import org.apache.flink.api.scala.typeutils.EnumValueSerializer;
-import org.apache.flink.api.scala.typeutils.NothingSerializer;
-import org.apache.flink.api.scala.typeutils.OptionSerializer;
-import org.apache.flink.api.scala.typeutils.TraversableSerializer;
-import org.apache.flink.api.scala.typeutils.TrySerializer;
-import org.apache.flink.api.scala.typeutils.UnitSerializer;
 import org.apache.flink.cep.nfa.DeweyNumber;
-import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.NFAStateSerializer;
-import org.apache.flink.cep.nfa.SharedBuffer;
 import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 import org.apache.flink.cep.nfa.sharedbuffer.Lockable;
 import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferEdge;
-import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferNode;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferNodeSerializer;
 import org.apache.flink.core.io.SimpleVersionedSerializerTypeSerializerProxy;
 import org.apache.flink.formats.avro.typeutils.AvroSerializer;
 import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.heap.TestDuplicateSerializer;
+import org.apache.flink.runtime.state.ttl.TtlAwareSerializer;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.streaming.api.datastream.CoGroupedStreams;
-import org.apache.flink.streaming.api.functions.sink.TwoPhaseCommitSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.TwoPhaseCommitSinkFunction;
 import org.apache.flink.streaming.api.operators.InternalTimersSnapshotReaderWriters;
 import org.apache.flink.streaming.api.operators.co.IntervalJoinOperator;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
@@ -152,6 +144,9 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         EnumSerializer.class.getName(),
                         CoGroupedStreams.UnionSerializer.class.getName(),
                         TtlStateFactory.TtlSerializer.class.getName(),
+                        TtlAwareSerializer.class.getName(),
+                        org.apache.flink.runtime.state.v2.ttl.TtlStateFactory.TtlSerializer.class
+                                .getName(),
                         TimeWindow.Serializer.class.getName(),
                         InternalTimersSnapshotReaderWriters.LegacyTimerSerializer.class.getName(),
                         TwoPhaseCommitSinkFunction.StateSerializer.class.getName(),
@@ -160,16 +155,8 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         org.apache.flink.queryablestate.client.VoidNamespaceSerializer.class
                                 .getName(),
                         org.apache.flink.runtime.state.VoidNamespaceSerializer.class.getName(),
-                        EnumValueSerializer.class.getName(),
-                        OptionSerializer.class.getName(),
-                        TraversableSerializer.class.getName(),
-                        UnitSerializer.class.getName(),
-                        NothingSerializer.class.getName(),
-                        TrySerializer.class.getName(),
-                        "org.apache.flink.api.scala.package$Tuple2CaseClassSerializer",
                         TestDuplicateSerializer.class.getName(),
                         LinkedListSerializer.class.getName(),
-                        SharedBuffer.SharedBufferSerializer.class.getName(),
                         WindowKeySerializer.class.getName(),
                         DeweyNumber.DeweyNumberSerializer.class.getName(),
                         SharedBufferNodeSerializer.class.getName(),
@@ -195,8 +182,6 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         SharedBufferEdge.SharedBufferEdgeSerializer.class.getName(),
                         RowDataSerializer.class.getName(),
                         DecimalDataSerializer.class.getName(),
-                        SharedBufferNode.SharedBufferNodeSerializer.class.getName(),
-                        NFA.NFASerializer.class.getName(),
                         AvroSerializer.class.getName());
 
         //  type serializer whitelist for TypeSerializerUpgradeTestBase test coverage
@@ -227,13 +212,8 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         InternalTimersSnapshotReaderWriters.LegacyTimerSerializer.class.getName(),
                         TwoPhaseCommitSinkFunction.StateSerializer.class.getName(),
                         GlobalWindow.Serializer.class.getName(),
-                        UnitSerializer.class.getName(),
-                        NothingSerializer.class.getName(),
-                        TrySerializer.class.getName(),
-                        "org.apache.flink.api.scala.package$Tuple2CaseClassSerializer",
                         TestDuplicateSerializer.class.getName(),
                         LinkedListSerializer.class.getName(),
-                        SharedBuffer.SharedBufferSerializer.class.getName(),
                         WindowKeySerializer.class.getName(),
                         DeweyNumber.DeweyNumberSerializer.class.getName(),
                         SharedBufferNodeSerializer.class.getName(),
@@ -259,8 +239,6 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         SharedBufferEdge.SharedBufferEdgeSerializer.class.getName(),
                         RowDataSerializer.class.getName(),
                         DecimalDataSerializer.class.getName(),
-                        SharedBufferNode.SharedBufferNodeSerializer.class.getName(),
-                        NFA.NFASerializer.class.getName(),
                         AvroSerializer.class.getName(),
                         // KeyAndValueSerializer shouldn't be used to serialize data to state and
                         // doesn't need to ensure upgrade compatibility.

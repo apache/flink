@@ -21,7 +21,7 @@ package org.apache.flink.runtime.asyncprocessing;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.core.state.InternalStateFuture;
-import org.apache.flink.runtime.state.v2.InternalPartitionedState;
+import org.apache.flink.runtime.state.v2.internal.InternalPartitionedState;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -41,6 +41,17 @@ public interface StateRequestHandler {
      */
     <IN, OUT> InternalStateFuture<OUT> handleRequest(
             @Nullable State state, StateRequestType type, @Nullable IN payload);
+
+    /**
+     * Submit a {@link StateRequest} to this StateRequestHandler, and wait for the response
+     * synchronously.
+     *
+     * @param state the state to request.
+     * @param type the type of this request.
+     * @param payload the payload input for this request.
+     * @return the state future.
+     */
+    <IN, OUT> OUT handleRequestSync(State state, StateRequestType type, @Nullable IN payload);
 
     /**
      * Set current namespace for a state. See {@link

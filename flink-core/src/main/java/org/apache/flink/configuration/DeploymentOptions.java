@@ -50,10 +50,6 @@ public class DeploymentOptions {
                                             text("yarn-session"),
                                             text("kubernetes-application"),
                                             text("kubernetes-session"))
-                                    .text(
-                                            "And one of the following values when calling %s (deprecated):",
-                                            TextElement.code("bin/flink run-application"))
-                                    .list(text("yarn-application"), text("kubernetes-application"))
                                     .build());
 
     public static final ConfigOption<Boolean> ATTACHED =

@@ -18,14 +18,12 @@
 
 package org.apache.flink.runtime.rest.handler.job;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -35,6 +33,7 @@ import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -44,6 +43,7 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.ObjectInputStream;
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
@@ -60,7 +60,7 @@ public final class JobSubmitHandler
                 JobSubmitResponseBody,
                 EmptyMessageParameters> {
 
-    private static final String FILE_TYPE_JOB_GRAPH = "JobGraph";
+    private static final String FILE_TYPE_EXECUTION_PLAN = "ExecutionPlan";
     private static final String FILE_TYPE_JAR = "Jar";
     private static final String FILE_TYPE_ARTIFACT = "Artifact";
 
@@ -69,7 +69,7 @@ public final class JobSubmitHandler
 
     public JobSubmitHandler(
             GatewayRetriever<? extends DispatcherGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> headers,
             Executor executor,
             Configuration configuration) {
@@ -100,7 +100,7 @@ public final class JobSubmitHandler
 
         final JobSubmitRequestBody requestBody = request.getRequestBody();
 
-        if (requestBody.jobGraphFileName == null) {
+        if (requestBody.executionPlanFileName == null) {
             throw new RestHandlerException(
                     String.format(
                             "The %s field must not be omitted or be null.",
@@ -108,47 +108,50 @@ public final class JobSubmitHandler
                     HttpResponseStatus.BAD_REQUEST);
         }
 
-        CompletableFuture<JobGraph> jobGraphFuture = loadJobGraph(requestBody, nameToFile);
+        CompletableFuture<ExecutionPlan> executionPlanFuture =
+                loadExecutionPlan(requestBody, nameToFile);
 
         Collection<Path> jarFiles = getJarFilesToUpload(requestBody.jarFileNames, nameToFile);
 
         Collection<Tuple2<String, Path>> artifacts =
                 getArtifactFilesToUpload(requestBody.artifactFileNames, nameToFile);
 
-        CompletableFuture<JobGraph> finalizedJobGraphFuture =
-                uploadJobGraphFiles(gateway, jobGraphFuture, jarFiles, artifacts, configuration);
+        CompletableFuture<ExecutionPlan> finalizedExecutionPlanFuture =
+                uploadExecutionPlanFiles(
+                        gateway, executionPlanFuture, jarFiles, artifacts, configuration);
 
         CompletableFuture<Acknowledge> jobSubmissionFuture =
-                finalizedJobGraphFuture.thenCompose(
-                        jobGraph -> gateway.submitJob(jobGraph, timeout));
+                finalizedExecutionPlanFuture.thenCompose(
+                        executionPlan -> gateway.submitJob(executionPlan, timeout));
 
         return jobSubmissionFuture.thenCombine(
-                jobGraphFuture,
-                (ack, jobGraph) -> new JobSubmitResponseBody("/jobs/" + jobGraph.getJobID()));
+                executionPlanFuture,
+                (ack, executionPlan) ->
+                        new JobSubmitResponseBody("/jobs/" + executionPlan.getJobID()));
     }
 
-    private CompletableFuture<JobGraph> loadJobGraph(
+    private CompletableFuture<ExecutionPlan> loadExecutionPlan(
             JobSubmitRequestBody requestBody, Map<String, Path> nameToFile)
             throws MissingFileException {
-        final Path jobGraphFile =
+        final Path executionPlanFile =
                 getPathAndAssertUpload(
-                        requestBody.jobGraphFileName, FILE_TYPE_JOB_GRAPH, nameToFile);
+                        requestBody.executionPlanFileName, FILE_TYPE_EXECUTION_PLAN, nameToFile);
 
         return CompletableFuture.supplyAsync(
                 () -> {
-                    JobGraph jobGraph;
+                    ExecutionPlan executionPlan;
                     try (ObjectInputStream objectIn =
                             new ObjectInputStream(
-                                    jobGraphFile.getFileSystem().open(jobGraphFile))) {
-                        jobGraph = (JobGraph) objectIn.readObject();
+                                    executionPlanFile.getFileSystem().open(executionPlanFile))) {
+                        executionPlan = (ExecutionPlan) objectIn.readObject();
                     } catch (Exception e) {
                         throw new CompletionException(
                                 new RestHandlerException(
-                                        "Failed to deserialize JobGraph.",
+                                        "Failed to deserialize ExecutionPlan.",
                                         HttpResponseStatus.BAD_REQUEST,
                                         e));
                     }
-                    return jobGraph;
+                    return executionPlan;
                 },
                 executor);
     }
@@ -178,22 +181,22 @@ public final class JobSubmitHandler
         return artifacts;
     }
 
-    private CompletableFuture<JobGraph> uploadJobGraphFiles(
+    private CompletableFuture<ExecutionPlan> uploadExecutionPlanFiles(
             DispatcherGateway gateway,
-            CompletableFuture<JobGraph> jobGraphFuture,
+            CompletableFuture<ExecutionPlan> executionPlanFuture,
             Collection<Path> jarFiles,
             Collection<Tuple2<String, Path>> artifacts,
             Configuration configuration) {
         CompletableFuture<Integer> blobServerPortFuture = gateway.getBlobServerPort(timeout);
 
-        return jobGraphFuture.thenCombine(
+        return executionPlanFuture.thenCombine(
                 blobServerPortFuture,
-                (JobGraph jobGraph, Integer blobServerPort) -> {
+                (ExecutionPlan executionPlan, Integer blobServerPort) -> {
                     final InetSocketAddress address =
                             new InetSocketAddress(gateway.getHostname(), blobServerPort);
                     try {
-                        ClientUtils.uploadJobGraphFiles(
-                                jobGraph,
+                        ClientUtils.uploadExecutionPlanFiles(
+                                executionPlan,
                                 jarFiles,
                                 artifacts,
                                 () -> new BlobClient(address, configuration));
@@ -204,7 +207,7 @@ public final class JobSubmitHandler
                                         HttpResponseStatus.INTERNAL_SERVER_ERROR,
                                         e));
                     }
-                    return jobGraph;
+                    return executionPlan;
                 });
     }
 

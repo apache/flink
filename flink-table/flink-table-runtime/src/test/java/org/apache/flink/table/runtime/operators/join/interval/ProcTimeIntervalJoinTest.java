@@ -27,7 +27,7 @@ import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,7 +36,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link ProcTimeIntervalJoin}. */
-public class ProcTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
+class ProcTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
 
     private int keyIdx = 0;
     private RowDataKeySelector keySelector =
@@ -46,7 +46,7 @@ public class ProcTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
 
     /** a.proctime >= b.proctime - 10 and a.proctime <= b.proctime + 20. * */
     @Test
-    public void testProcTimeInnerJoinWithCommonBounds() throws Exception {
+    void testProcTimeInnerJoinWithCommonBounds() throws Exception {
         ProcTimeIntervalJoin joinProcessFunc =
                 new ProcTimeIntervalJoin(
                         FlinkJoinType.INNER, -10, 20, 15, rowType, rowType, joinFunction);
@@ -105,7 +105,7 @@ public class ProcTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
 
     /** a.proctime >= b.proctime - 10 and a.proctime <= b.proctime - 5. * */
     @Test
-    public void testProcTimeInnerJoinWithNegativeBounds() throws Exception {
+    void testProcTimeInnerJoinWithNegativeBounds() throws Exception {
         ProcTimeIntervalJoin joinProcessFunc =
                 new ProcTimeIntervalJoin(
                         FlinkJoinType.INNER, -10, -5, 2, rowType, rowType, joinFunction);

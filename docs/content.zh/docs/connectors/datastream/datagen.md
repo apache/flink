@@ -55,14 +55,13 @@ DataStreamSource<String> stream =
 `DataGeneratorSource` 支持速率限制参数。以下代码将生成一个`Long`值数据流，其整体速率（包括所有数据源子任务）不超过每秒 100 个事件。
 
 ```java
-GeneratorFunction<Long, Long> generatorFunction = index -> index;
-double recordsPerSecond = 100;
+GeneratorFunction<Long, String> generatorFunction = index -> "Number: " + index;
 
 DataGeneratorSource<String> source =
         new DataGeneratorSource<>(
              generatorFunction,
              Long.MAX_VALUE,
-             RateLimiterStrategy.perSecond(recordsPerSecond),
+             RateLimiterStrategy.perSecond(100),
              Types.STRING);
 ```
 

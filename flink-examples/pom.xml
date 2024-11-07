@@ -36,7 +36,6 @@ under the License.
 	</properties>
 
 	<modules>
-		<module>flink-examples-batch</module>
 		<module>flink-examples-streaming</module>
 		<module>flink-examples-table</module>
 		<module>flink-examples-build-helper</module>

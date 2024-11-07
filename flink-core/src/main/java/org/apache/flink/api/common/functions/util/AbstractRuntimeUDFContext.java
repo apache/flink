@@ -91,12 +91,6 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
     }
 
     @Override
-    @Deprecated
-    public ExecutionConfig getExecutionConfig() {
-        return executionConfig;
-    }
-
-    @Override
     public <T> TypeSerializer<T> createSerializer(TypeInformation<T> typeInformation) {
         return typeInformation.createSerializer(executionConfig.getSerializerConfig());
     }

@@ -19,10 +19,16 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.OverWindowRange;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.TableSymbol;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+
+import java.util.Optional;
 
 /** Utility functions that can be used for writing {@link SqlCallSyntax}. */
 @Internal
@@ -43,6 +49,61 @@ class CallSyntaxUtils {
 
     static <T extends TableSymbol> T getSymbolLiteral(ResolvedExpression operands, Class<T> clazz) {
         return ((ValueLiteralExpression) operands).getValueAs(clazz).get();
+    }
+
+    static String overRangeToSerializableString(
+            ResolvedExpression preceding, ResolvedExpression following) {
+        if (((ValueLiteralExpression) preceding).isNull()
+                || ((ValueLiteralExpression) following).isNull()) {
+            return "";
+        }
+        return String.format(
+                " %s BETWEEN %s AND %s",
+                isRowsRange(preceding) ? "ROWS" : "RANGE",
+                toStringPrecedingOrFollowing(preceding, true),
+                toStringPrecedingOrFollowing(following, false));
+    }
+
+    private static String toStringPrecedingOrFollowing(
+            ResolvedExpression precedingOrFollowing, boolean isPreceding) {
+        final String suffix = isPreceding ? "PRECEDING" : "FOLLOWING";
+        return Optional.of(precedingOrFollowing)
+                .flatMap(
+                        expr -> {
+                            if (expr instanceof ValueLiteralExpression) {
+                                return ((ValueLiteralExpression) expr)
+                                        .getValueAs(OverWindowRange.class)
+                                        .map(
+                                                r -> {
+                                                    switch (r) {
+                                                        case CURRENT_ROW:
+                                                        case CURRENT_RANGE:
+                                                            return "CURRENT ROW";
+                                                        case UNBOUNDED_ROW:
+                                                        case UNBOUNDED_RANGE:
+                                                            return "UNBOUNDED " + suffix;
+                                                        default:
+                                                            throw new IllegalStateException(
+                                                                    "Unknown window range: " + r);
+                                                    }
+                                                });
+                            } else {
+                                return Optional.empty();
+                            }
+                        })
+                .orElseGet(() -> precedingOrFollowing.asSerializableString() + " " + suffix);
+    }
+
+    private static boolean isRowsRange(ResolvedExpression expression) {
+        LogicalType logicalType = expression.getOutputDataType().getLogicalType();
+        boolean isSymbol = logicalType.is(LogicalTypeRoot.SYMBOL);
+        if (isSymbol) {
+            OverWindowRange windowRange = getSymbolLiteral(expression, OverWindowRange.class);
+            return windowRange == OverWindowRange.CURRENT_ROW
+                    || windowRange == OverWindowRange.UNBOUNDED_ROW;
+        }
+
+        return logicalType.is(LogicalTypeFamily.NUMERIC);
     }
 
     private CallSyntaxUtils() {}

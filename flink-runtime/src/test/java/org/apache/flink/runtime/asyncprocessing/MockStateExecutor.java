@@ -29,7 +29,7 @@ public class MockStateExecutor implements StateExecutor {
     public CompletableFuture<Void> executeBatchRequests(
             StateRequestContainer stateRequestContainer) {
         Preconditions.checkArgument(stateRequestContainer instanceof MockStateRequestContainer);
-        for (StateRequest<?, ?, ?> request :
+        for (StateRequest<?, ?, ?, ?> request :
                 ((MockStateRequestContainer) stateRequestContainer).getStateRequestList()) {
             request.getFuture().complete(null);
         }
@@ -39,6 +39,11 @@ public class MockStateExecutor implements StateExecutor {
     @Override
     public StateRequestContainer createStateRequestContainer() {
         return new MockStateRequestContainer();
+    }
+
+    @Override
+    public boolean fullyLoaded() {
+        return false;
     }
 
     @Override

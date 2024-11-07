@@ -15,7 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import warnings
 
 from pyflink.java_gateway import get_gateway
 from pyflink.util.java_utils import create_url_class_loader
@@ -166,18 +165,6 @@ class EnvironmentSettings(object):
         """
         return self._j_environment_settings.isStreamingMode()
 
-    def to_configuration(self) -> Configuration:
-        """
-        Convert to `pyflink.common.Configuration`.
-
-        :return: Configuration with specified value.
-
-        .. note:: Deprecated in 1.15. Please use
-                :func:`EnvironmentSettings.get_configuration` instead.
-        """
-        warnings.warn("Deprecated in 1.15.", DeprecationWarning)
-        return Configuration(j_configuration=self._j_environment_settings.toConfiguration())
-
     def get_configuration(self) -> Configuration:
         """
         Get the underlying `pyflink.common.Configuration`.
@@ -194,24 +181,6 @@ class EnvironmentSettings(object):
         :return: A builder of EnvironmentSettings.
         """
         return EnvironmentSettings.Builder()
-
-    @staticmethod
-    def from_configuration(config: Configuration) -> 'EnvironmentSettings':
-        """
-        Creates the EnvironmentSetting with specified Configuration.
-
-        :return: EnvironmentSettings.
-
-        .. note:: Deprecated in 1.15. Please use
-                :func:`EnvironmentSettings.Builder.with_configuration` instead.
-        """
-        warnings.warn("Deprecated in 1.15.", DeprecationWarning)
-        gateway = get_gateway()
-        context_classloader = gateway.jvm.Thread.currentThread().getContextClassLoader()
-        new_classloader = create_url_class_loader([], context_classloader)
-        gateway.jvm.Thread.currentThread().setContextClassLoader(new_classloader)
-        return EnvironmentSettings(
-            get_gateway().jvm.EnvironmentSettings.fromConfiguration(config._j_configuration))
 
     @staticmethod
     def in_streaming_mode() -> 'EnvironmentSettings':

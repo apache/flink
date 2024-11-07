@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.webmonitor.handlers.utils;
 
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /** Javadoc. */
 public class EagerSinkProgram {
     public static void main(String[] args) throws Exception {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        env.fromElements("hello", "world").print();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.fromData("hello", "world").executeAndCollect();
     }
 }

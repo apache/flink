@@ -54,7 +54,7 @@ class CompactCoordinatorTest extends AbstractCompactTestBase {
     void testSizeThreshold() throws Exception {
         FileCompactStrategy strategy = Builder.newBuilder().setSizeThreshold(10).build();
         CompactCoordinator coordinator =
-                new CompactCoordinator(strategy, getTestCommittableSerializer());
+                new CompactCoordinator(null, strategy, getTestCommittableSerializer());
 
         try (OneInputStreamOperatorTestHarness<
                         CommittableMessage<FileSinkCommittable>, CompactorRequest>
@@ -84,7 +84,7 @@ class CompactCoordinatorTest extends AbstractCompactTestBase {
     void testCompactOnCheckpoint() throws Exception {
         FileCompactStrategy strategy = Builder.newBuilder().enableCompactionOnCheckpoint(1).build();
         CompactCoordinator coordinator =
-                new CompactCoordinator(strategy, getTestCommittableSerializer());
+                new CompactCoordinator(null, strategy, getTestCommittableSerializer());
 
         try (OneInputStreamOperatorTestHarness<
                         CommittableMessage<FileSinkCommittable>, CompactorRequest>
@@ -130,7 +130,7 @@ class CompactCoordinatorTest extends AbstractCompactTestBase {
     void testCompactOverMultipleCheckpoints() throws Exception {
         FileCompactStrategy strategy = Builder.newBuilder().enableCompactionOnCheckpoint(3).build();
         CompactCoordinator coordinator =
-                new CompactCoordinator(strategy, getTestCommittableSerializer());
+                new CompactCoordinator(null, strategy, getTestCommittableSerializer());
 
         try (OneInputStreamOperatorTestHarness<
                         CommittableMessage<FileSinkCommittable>, CompactorRequest>
@@ -166,7 +166,7 @@ class CompactCoordinatorTest extends AbstractCompactTestBase {
     void testCompactOnEndOfInput() throws Exception {
         FileCompactStrategy strategy = Builder.newBuilder().setSizeThreshold(10).build();
         CompactCoordinator coordinator =
-                new CompactCoordinator(strategy, getTestCommittableSerializer());
+                new CompactCoordinator(null, strategy, getTestCommittableSerializer());
 
         try (OneInputStreamOperatorTestHarness<
                         CommittableMessage<FileSinkCommittable>, CompactorRequest>
@@ -197,7 +197,7 @@ class CompactCoordinatorTest extends AbstractCompactTestBase {
     void testPassthrough() throws Exception {
         FileCompactStrategy strategy = Builder.newBuilder().setSizeThreshold(10).build();
         CompactCoordinator coordinator =
-                new CompactCoordinator(strategy, getTestCommittableSerializer());
+                new CompactCoordinator(null, strategy, getTestCommittableSerializer());
 
         try (OneInputStreamOperatorTestHarness<
                         CommittableMessage<FileSinkCommittable>, CompactorRequest>
@@ -230,7 +230,7 @@ class CompactCoordinatorTest extends AbstractCompactTestBase {
     void testRestore() throws Exception {
         FileCompactStrategy strategy = Builder.newBuilder().setSizeThreshold(10).build();
         CompactCoordinator coordinator =
-                new CompactCoordinator(strategy, getTestCommittableSerializer());
+                new CompactCoordinator(null, strategy, getTestCommittableSerializer());
 
         FileSinkCommittable committable0 = committable("0", ".0", 5);
         FileSinkCommittable committable1 = committable("0", ".1", 6);
@@ -251,7 +251,7 @@ class CompactCoordinatorTest extends AbstractCompactTestBase {
             state = harness.snapshot(1, 1);
         }
 
-        coordinator = new CompactCoordinator(strategy, getTestCommittableSerializer());
+        coordinator = new CompactCoordinator(null, strategy, getTestCommittableSerializer());
         try (OneInputStreamOperatorTestHarness<
                         CommittableMessage<FileSinkCommittable>, CompactorRequest>
                 harness = new OneInputStreamOperatorTestHarness<>(coordinator)) {
@@ -282,7 +282,7 @@ class CompactCoordinatorTest extends AbstractCompactTestBase {
     void testRestoreWithChangedStrategy() throws Exception {
         FileCompactStrategy strategy = Builder.newBuilder().setSizeThreshold(100).build();
         CompactCoordinator coordinator =
-                new CompactCoordinator(strategy, getTestCommittableSerializer());
+                new CompactCoordinator(null, strategy, getTestCommittableSerializer());
 
         FileSinkCommittable committable0 = committable("0", ".0", 5);
         FileSinkCommittable committable1 = committable("0", ".1", 6);
@@ -312,7 +312,7 @@ class CompactCoordinatorTest extends AbstractCompactTestBase {
 
         FileCompactStrategy changedStrategy = Builder.newBuilder().setSizeThreshold(10).build();
         CompactCoordinator changedCoordinator =
-                new CompactCoordinator(changedStrategy, getTestCommittableSerializer());
+                new CompactCoordinator(null, changedStrategy, getTestCommittableSerializer());
         try (OneInputStreamOperatorTestHarness<
                         CommittableMessage<FileSinkCommittable>, CompactorRequest>
                 harness = new OneInputStreamOperatorTestHarness<>(changedCoordinator)) {
@@ -336,7 +336,7 @@ class CompactCoordinatorTest extends AbstractCompactTestBase {
     void testStateHandler() throws Exception {
         FileCompactStrategy strategy = Builder.newBuilder().setSizeThreshold(10).build();
         CompactCoordinator coordinator =
-                new CompactCoordinator(strategy, getTestCommittableSerializer());
+                new CompactCoordinator(null, strategy, getTestCommittableSerializer());
 
         // with . prefix
         FileSinkCommittable committable0 = committable("0", ".0", 5);
@@ -365,7 +365,7 @@ class CompactCoordinatorTest extends AbstractCompactTestBase {
         }
 
         CompactCoordinatorStateHandler handler =
-                new CompactCoordinatorStateHandler(getTestCommittableSerializer());
+                new CompactCoordinatorStateHandler(null, getTestCommittableSerializer());
         try (OneInputStreamOperatorTestHarness<
                         CommittableMessage<FileSinkCommittable>,
                         Either<CommittableMessage<FileSinkCommittable>, CompactorRequest>>

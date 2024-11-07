@@ -58,7 +58,7 @@ import static org.apache.flink.table.runtime.util.JoinUtil.getJoinType;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Base test class for {@link HashJoinOperator}. */
-public abstract class Int2HashJoinOperatorTestBase implements Serializable {
+abstract class Int2HashJoinOperatorTestBase implements Serializable {
 
     public void buildJoin(
             MutableObjectIterator<BinaryRowData> buildInput,

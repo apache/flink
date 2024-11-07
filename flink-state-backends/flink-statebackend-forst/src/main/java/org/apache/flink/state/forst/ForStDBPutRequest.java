@@ -18,9 +18,12 @@
 
 package org.apache.flink.state.forst;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.state.InternalStateFuture;
 
-import org.rocksdb.ColumnFamilyHandle;
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.RocksDB;
+import org.forstdb.RocksDBException;
 
 import javax.annotation.Nullable;
 
@@ -30,32 +33,41 @@ import java.io.IOException;
  * The Put access request for ForStDB.
  *
  * @param <K> The type of key in put access request.
+ * @param <N> The type of namespace in put access request.
  * @param <V> The type of value in put access request.
  */
 public class ForStDBPutRequest<K, N, V> {
 
-    private final ContextKey<K, N> key;
-    @Nullable private final V value;
-    private final ForStInnerTable<K, N, V> table;
-    private final InternalStateFuture<Void> future;
+    final ContextKey<K, N> key;
+    @Nullable final V value;
+    final boolean isMerge;
+    final ForStInnerTable<K, N, V> table;
+    final InternalStateFuture<Void> future;
 
-    private ForStDBPutRequest(
+    ForStDBPutRequest(
             ContextKey<K, N> key,
             V value,
+            boolean isMerge,
             ForStInnerTable<K, N, V> table,
             InternalStateFuture<Void> future) {
         this.key = key;
         this.value = value;
+        this.isMerge = isMerge;
         this.table = table;
         this.future = future;
     }
 
-    public boolean valueIsNull() {
-        return value == null;
-    }
-
-    public ColumnFamilyHandle getColumnFamilyHandle() {
-        return table.getColumnFamilyHandle();
+    public void process(ForStDBWriteBatchWrapper writeBatchWrapper, RocksDB db)
+            throws IOException, RocksDBException {
+        if (value == null) {
+            writeBatchWrapper.remove(table.getColumnFamilyHandle(), buildSerializedKey());
+        } else if (isMerge) {
+            writeBatchWrapper.merge(
+                    table.getColumnFamilyHandle(), buildSerializedKey(), buildSerializedValue());
+        } else {
+            writeBatchWrapper.put(
+                    table.getColumnFamilyHandle(), buildSerializedKey(), buildSerializedValue());
+        }
     }
 
     public byte[] buildSerializedKey() throws IOException {
@@ -84,6 +96,25 @@ public class ForStDBPutRequest<K, N, V> {
             @Nullable V value,
             ForStInnerTable<K, N, V> table,
             InternalStateFuture<Void> future) {
-        return new ForStDBPutRequest<>(key, value, table, future);
+        return new ForStDBPutRequest<>(key, value, false, table, future);
+    }
+
+    static <K, N, V> ForStDBPutRequest<K, N, V> ofMerge(
+            ContextKey<K, N> key,
+            @Nullable V value,
+            ForStInnerTable<K, N, V> table,
+            InternalStateFuture<Void> future) {
+        return new ForStDBPutRequest<>(key, value, true, table, future);
+    }
+
+    // --------------- For testing usage ---------------
+    @VisibleForTesting
+    public boolean valueIsNull() {
+        return value == null;
+    }
+
+    @VisibleForTesting
+    public ColumnFamilyHandle getColumnFamilyHandle() {
+        return table.getColumnFamilyHandle();
     }
 }

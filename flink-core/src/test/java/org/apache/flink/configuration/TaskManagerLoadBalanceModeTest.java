@@ -20,7 +20,6 @@ package org.apache.flink.configuration;
 
 import org.junit.jupiter.api.Test;
 
-import static org.apache.flink.configuration.ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY;
 import static org.apache.flink.configuration.TaskManagerOptions.TASK_MANAGER_LOAD_BALANCE_MODE;
 import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadBalanceMode;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,47 +29,21 @@ class TaskManagerLoadBalanceModeTest {
 
     @Test
     void testReadTaskManagerLoadBalanceMode() {
-        // Check for non-set 'taskmanager.load-balance.mode' and
-        // 'cluster.evenly-spread-out-slots: false'
+        // Check for non-set 'taskmanager.load-balance.mode'
         Configuration conf1 = new Configuration();
-        assertThat(TaskManagerLoadBalanceMode.loadFromConfiguration(conf1))
+        assertThat(conf1.get(TaskManagerOptions.TASK_MANAGER_LOAD_BALANCE_MODE))
                 .isEqualTo(TASK_MANAGER_LOAD_BALANCE_MODE.defaultValue());
 
-        // Check for non-set 'taskmanager.load-balance.mode' and
-        // 'cluster.evenly-spread-out-slots: true'
-        Configuration conf2 = new Configuration();
-        conf2.set(EVENLY_SPREAD_OUT_SLOTS_STRATEGY, true);
-        assertThat(TaskManagerLoadBalanceMode.loadFromConfiguration(conf2))
-                .isEqualTo(TaskManagerLoadBalanceMode.SLOTS);
-
-        // Check for setting manually 'taskmanager.load-balance.mode: NONE' and
-        // 'cluster.evenly-spread-out-slots: false'
+        // Check for setting manually 'taskmanager.load-balance.mode: NONE'
         Configuration conf3 = new Configuration();
         conf3.set(TASK_MANAGER_LOAD_BALANCE_MODE, TaskManagerLoadBalanceMode.NONE);
-        assertThat(TaskManagerLoadBalanceMode.loadFromConfiguration(conf3))
+        assertThat(conf3.get(TaskManagerOptions.TASK_MANAGER_LOAD_BALANCE_MODE))
                 .isEqualTo(TaskManagerLoadBalanceMode.NONE);
 
-        // Check for setting manually 'taskmanager.load-balance.mode: NONE' and
-        // 'cluster.evenly-spread-out-slots: true'
-        Configuration conf4 = new Configuration();
-        conf4.set(TASK_MANAGER_LOAD_BALANCE_MODE, TaskManagerLoadBalanceMode.NONE);
-        conf4.set(EVENLY_SPREAD_OUT_SLOTS_STRATEGY, true);
-        assertThat(TaskManagerLoadBalanceMode.loadFromConfiguration(conf4))
-                .isEqualTo(TaskManagerLoadBalanceMode.NONE);
-
-        // Check for setting manually 'taskmanager.load-balance.mode: SLOTS' and
-        // 'cluster.evenly-spread-out-slots: false'
+        // Check for setting manually 'taskmanager.load-balance.mode: SLOTS'
         Configuration conf5 = new Configuration();
         conf5.set(TASK_MANAGER_LOAD_BALANCE_MODE, TaskManagerLoadBalanceMode.SLOTS);
-        assertThat(TaskManagerLoadBalanceMode.loadFromConfiguration(conf5))
-                .isEqualTo(TaskManagerLoadBalanceMode.SLOTS);
-
-        // Check for setting manually 'taskmanager.load-balance.mode: SLOTS' and
-        // 'cluster.evenly-spread-out-slots: true'
-        Configuration conf6 = new Configuration();
-        conf6.set(TASK_MANAGER_LOAD_BALANCE_MODE, TaskManagerLoadBalanceMode.SLOTS);
-        conf6.set(EVENLY_SPREAD_OUT_SLOTS_STRATEGY, true);
-        assertThat(TaskManagerLoadBalanceMode.loadFromConfiguration(conf6))
+        assertThat(conf5.get(TaskManagerOptions.TASK_MANAGER_LOAD_BALANCE_MODE))
                 .isEqualTo(TaskManagerLoadBalanceMode.SLOTS);
     }
 }

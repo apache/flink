@@ -23,7 +23,6 @@ import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
@@ -61,6 +60,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -187,7 +187,7 @@ public class ExecutionJobVertex
 
     protected void initialize(
             int executionHistorySizeLimit,
-            Time timeout,
+            Duration timeout,
             long createTimestamp,
             SubtaskAttemptNumberStore initialAttemptCounts)
             throws JobException {
@@ -271,7 +271,7 @@ public class ExecutionJobVertex
             ExecutionJobVertex jobVertex,
             int subTaskIndex,
             IntermediateResult[] producedDataSets,
-            Time timeout,
+            Duration timeout,
             long createTimestamp,
             int executionHistorySizeLimit,
             int initialAttemptCount) {

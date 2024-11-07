@@ -47,7 +47,7 @@ public interface NonKeyedPartitionStream<T> extends DataStream {
      * @param processFunction to perform two output operation.
      * @return new stream with this operation.
      */
-    <OUT1, OUT2> TwoNonKeyedPartitionStreams<OUT1, OUT2> process(
+    <OUT1, OUT2> ProcessConfigurableAndTwoNonKeyedPartitionStream<OUT1, OUT2> process(
             TwoOutputStreamProcessFunction<T, OUT1, OUT2> processFunction);
 
     /**
@@ -114,11 +114,13 @@ public interface NonKeyedPartitionStream<T> extends DataStream {
      * used as the return value of operation with two output.
      */
     @Experimental
-    interface TwoNonKeyedPartitionStreams<T1, T2> {
+    interface ProcessConfigurableAndTwoNonKeyedPartitionStream<OUT1, OUT2>
+            extends ProcessConfigurable<
+                    ProcessConfigurableAndTwoNonKeyedPartitionStream<OUT1, OUT2>> {
         /** Get the first stream. */
-        ProcessConfigurableAndNonKeyedPartitionStream<T1> getFirst();
+        ProcessConfigurableAndNonKeyedPartitionStream<OUT1> getFirst();
 
         /** Get the second stream. */
-        ProcessConfigurableAndNonKeyedPartitionStream<T2> getSecond();
+        ProcessConfigurableAndNonKeyedPartitionStream<OUT2> getSecond();
     }
 }

@@ -548,10 +548,52 @@ Flink SQL> SHOW JARS;
 ## SHOW CATALOGS
 
 ```sql
-SHOW CATALOGS
+SHOW CATALOGS [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]
 ```
 
-展示所有的 catalog。
+展示所有的 catalog。另外返回的结果能被一个可选的匹配字符串过滤。
+
+**LIKE**
+根据可选的 `LIKE` 语句与 `<sql_like_pattern>` 是否模糊匹配的所有 catalog。
+
+`LIKE` 子句中 SQL 正则式的语法与 `MySQL` 方言中的语法相同。
+* `%` 匹配任意数量的字符, 也包括0数量字符, `\%` 匹配一个 `%` 字符.
+* `_` 只匹配一个字符, `\_` 匹配一个 `_` 字符.
+
+**ILIKE**
+它的行为和 LIKE 相同，只是对于大小写是不敏感的。
+
+### SHOW CATALOGS 示例
+
+假定我们在当前 flink session 中有 `catalog1` 和 `catalog2`。
+
+- 显示所有的 catalog。
+
+```sql
+show catalogs;
++-----------------+
+|    catalog name |
++-----------------+
+|        catalog1 |
+|        catalog2 |
+| default_catalog |
++-----------------+
+3 rows in set
+```
+
+- 显示模糊匹配指定 SQL 正则式的所有catalog。
+
+```sql
+show catalogs like '%log1';
+-- show catalogs ilike '%log1';
+-- show catalogs ilike '%LOG1';
++--------------+
+| catalog name |
++--------------+
+|     catalog1 |
++--------------+
+1 row in set
+```
 
 ## SHOW CURRENT CATALOG
 
@@ -913,10 +955,17 @@ SHOW PROCEDURES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] (LIKE | I
 ## SHOW VIEWS
 
 ```sql
-SHOW VIEWS
+SHOW VIEWS [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE <sql_like_pattern> ]
 ```
 
-展示当前 catalog 和当前 database 中所有的视图。
+Show all views for an optionally specified database. If no database is specified then the views are returned from the current database. Additionally, the output of this statement may be filtered by an optional matching pattern.
+
+**LIKE**
+Show all views with given view name and optional `LIKE` clause, whose name is whether similar to the `<sql_like_pattern>`.
+
+The syntax of sql pattern in `LIKE` clause is the same as that of `MySQL` dialect.
+* `%` matches any number of characters, even zero characters, `\%` matches one `%` character.
+* `_` matches exactly one character, `\_` matches one `_` character.
 
 ## SHOW CREATE VIEW
 

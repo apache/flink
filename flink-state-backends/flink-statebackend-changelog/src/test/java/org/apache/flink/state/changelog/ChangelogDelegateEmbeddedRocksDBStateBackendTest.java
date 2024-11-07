@@ -19,12 +19,9 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateLatencyTrackOptions;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendTest;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
@@ -32,6 +29,8 @@ import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
+import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackendTest;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
 import org.junit.jupiter.api.Disabled;
@@ -40,6 +39,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Duration;
 
 /** Tests for {@link ChangelogStateBackend} delegating {@link EmbeddedRocksDBStateBackend}. */
 public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
@@ -111,7 +111,7 @@ public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
                         .configure(configuration, Thread.currentThread().getContextClassLoader());
         ChangelogStateBackendTestUtils.testMaterializedRestore(
                 stateBackend,
-                StateTtlConfig.newBuilder(Time.minutes(1)).build(),
+                StateTtlConfig.newBuilder(Duration.ofMinutes(1)).build(),
                 env,
                 streamFactory);
     }

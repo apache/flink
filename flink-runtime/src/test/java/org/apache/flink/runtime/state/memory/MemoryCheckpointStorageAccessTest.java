@@ -28,6 +28,7 @@ import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.AbstractFileCheckpointStorageAccessTestBase;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory.MemoryCheckpointOutputStream;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
 import org.junit.jupiter.api.Test;
@@ -42,13 +43,11 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * Tests for the {@link MemoryBackendCheckpointStorageAccess}, which implements the checkpoint
- * storage aspects of the {@link MemoryStateBackend}.
- */
+/** Tests for the {@link MemoryBackendCheckpointStorageAccess}. */
 public class MemoryCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessTestBase {
 
-    private static final int DEFAULT_MAX_STATE_SIZE = MemoryStateBackend.DEFAULT_MAX_STATE_SIZE;
+    private static final int DEFAULT_MAX_STATE_SIZE =
+            JobManagerCheckpointStorage.DEFAULT_MAX_STATE_SIZE;
 
     // ------------------------------------------------------------------------
     //  General Fs-based checkpoint storage tests, inherited
@@ -81,43 +80,43 @@ public class MemoryCheckpointStorageAccessTest extends AbstractFileCheckpointSto
     void testParametrizationDefault() throws Exception {
         final JobID jid = new JobID();
 
-        MemoryStateBackend backend = new MemoryStateBackend();
+        JobManagerCheckpointStorage jobManagerCheckpointStorage = new JobManagerCheckpointStorage();
 
         MemoryBackendCheckpointStorageAccess storage =
-                (MemoryBackendCheckpointStorageAccess) backend.createCheckpointStorage(jid);
+                (MemoryBackendCheckpointStorageAccess)
+                        jobManagerCheckpointStorage.createCheckpointStorage(jid);
 
         assertThat(storage.supportsHighlyAvailableStorage()).isFalse();
         assertThat(storage.hasDefaultSavepointLocation()).isFalse();
         assertThat(storage.getDefaultSavepointDirectory()).isNull();
-        assertThat(storage.getMaxStateSize()).isEqualTo(MemoryStateBackend.DEFAULT_MAX_STATE_SIZE);
+        assertThat(storage.getMaxStateSize())
+                .isEqualTo(JobManagerCheckpointStorage.DEFAULT_MAX_STATE_SIZE);
     }
 
     @Test
     void testParametrizationDirectories() throws Exception {
         final JobID jid = new JobID();
-        final Path checkpointPath = new Path(TempDirUtils.newFolder(tmp).toURI().toString());
-        final Path savepointPath = new Path(TempDirUtils.newFolder(tmp).toURI().toString());
+        final String checkpointPath = TempDirUtils.newFolder(tmp).toURI().toString();
 
-        MemoryStateBackend backend =
-                new MemoryStateBackend(checkpointPath.toString(), savepointPath.toString());
+        JobManagerCheckpointStorage jobManagerCheckpointStorage =
+                new JobManagerCheckpointStorage(checkpointPath);
 
         MemoryBackendCheckpointStorageAccess storage =
-                (MemoryBackendCheckpointStorageAccess) backend.createCheckpointStorage(jid);
+                (MemoryBackendCheckpointStorageAccess)
+                        jobManagerCheckpointStorage.createCheckpointStorage(jid);
 
         assertThat(storage.supportsHighlyAvailableStorage()).isTrue();
-        assertThat(storage.hasDefaultSavepointLocation()).isTrue();
-        assertThat(storage.getDefaultSavepointDirectory()).isNotNull();
-
-        assertThat(storage.getDefaultSavepointDirectory()).isEqualTo(savepointPath);
     }
 
     @Test
     void testParametrizationStateSize() throws Exception {
         final int maxSize = 17;
 
-        MemoryStateBackend backend = new MemoryStateBackend(maxSize);
+        JobManagerCheckpointStorage jobManagerCheckpointStorage =
+                new JobManagerCheckpointStorage(maxSize);
         MemoryBackendCheckpointStorageAccess storage =
-                (MemoryBackendCheckpointStorageAccess) backend.createCheckpointStorage(new JobID());
+                (MemoryBackendCheckpointStorageAccess)
+                        jobManagerCheckpointStorage.createCheckpointStorage(new JobID());
 
         assertThat(storage.getMaxStateSize()).isEqualTo(maxSize);
     }

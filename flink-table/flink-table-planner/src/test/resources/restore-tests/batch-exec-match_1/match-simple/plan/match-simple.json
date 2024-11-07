@@ -1,0 +1,350 @@
+{
+  "flinkVersion" : "2.0",
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "batch-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MyTable`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "id",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "name",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "proctime",
+              "kind" : "COMPUTED",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "CALL",
+                  "internalName" : "$PROCTIME$1",
+                  "operands" : [ ],
+                  "type" : {
+                    "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+                    "nullable" : false,
+                    "precision" : 3,
+                    "kind" : "PROCTIME"
+                  }
+                },
+                "serializableString" : "PROCTIME()"
+              }
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "outputType" : "ROW<`id` BIGINT, `name` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[id, name])",
+    "dynamicFilteringDataListenerID" : "762d67d2-f2f6-4bde-8065-2986390990c5",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 2,
+    "type" : "batch-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "SINGLETON"
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`id` BIGINT, `name` VARCHAR(2147483647)>",
+    "description" : "Exchange(distribution=[single])",
+    "requiredExchangeMode" : "UNDEFINED"
+  }, {
+    "id" : 3,
+    "type" : "batch-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "CALL",
+      "internalName" : "$PROCTIME$1",
+      "operands" : [ ],
+      "type" : {
+        "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+        "nullable" : false,
+        "precision" : 3,
+        "kind" : "PROCTIME"
+      }
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "id",
+        "fieldType" : "BIGINT"
+      }, {
+        "name" : "name",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "proctime",
+        "fieldType" : {
+          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "nullable" : false,
+          "precision" : 3,
+          "kind" : "PROCTIME"
+        }
+      } ]
+    },
+    "description" : "Calc(select=[id, name, PROCTIME() AS proctime])"
+  }, {
+    "id" : 4,
+    "type" : "batch-exec-match_1",
+    "matchSpec" : {
+      "pattern" : {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "sqlKind" : "PATTERN_CONCAT",
+        "operands" : [ {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "sqlKind" : "PATTERN_CONCAT",
+          "operands" : [ {
+            "kind" : "LITERAL",
+            "value" : "A\"",
+            "type" : "CHAR(2) NOT NULL"
+          }, {
+            "kind" : "LITERAL",
+            "value" : "l",
+            "type" : "CHAR(1) NOT NULL"
+          } ],
+          "type" : "NULL"
+        }, {
+          "kind" : "LITERAL",
+          "value" : "C",
+          "type" : "CHAR(1) NOT NULL"
+        } ],
+        "type" : "NULL"
+      },
+      "patternDefinitions" : {
+        "A\"" : {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$=$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "internalName" : "$LAST$1",
+            "operands" : [ {
+              "kind" : "PATTERN_INPUT_REF",
+              "alpha" : "*",
+              "inputIndex" : 1,
+              "type" : "VARCHAR(2147483647)"
+            }, {
+              "kind" : "LITERAL",
+              "value" : 0,
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "VARCHAR(2147483647)"
+          }, {
+            "kind" : "LITERAL",
+            "value" : "a",
+            "type" : "VARCHAR(2147483647) NOT NULL"
+          } ],
+          "type" : "BOOLEAN"
+        },
+        "C" : {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$=$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "internalName" : "$LAST$1",
+            "operands" : [ {
+              "kind" : "PATTERN_INPUT_REF",
+              "alpha" : "*",
+              "inputIndex" : 1,
+              "type" : "VARCHAR(2147483647)"
+            }, {
+              "kind" : "LITERAL",
+              "value" : 0,
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "VARCHAR(2147483647)"
+          }, {
+            "kind" : "LITERAL",
+            "value" : "c",
+            "type" : "VARCHAR(2147483647) NOT NULL"
+          } ],
+          "type" : "BOOLEAN"
+        },
+        "l" : {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$=$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "internalName" : "$LAST$1",
+            "operands" : [ {
+              "kind" : "PATTERN_INPUT_REF",
+              "alpha" : "*",
+              "inputIndex" : 1,
+              "type" : "VARCHAR(2147483647)"
+            }, {
+              "kind" : "LITERAL",
+              "value" : 0,
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "VARCHAR(2147483647)"
+          }, {
+            "kind" : "LITERAL",
+            "value" : "b",
+            "type" : "VARCHAR(2147483647) NOT NULL"
+          } ],
+          "type" : "BOOLEAN"
+        }
+      },
+      "measures" : {
+        "aid" : {
+          "kind" : "CALL",
+          "syntax" : "PREFIX",
+          "internalName" : "$FINAL$1",
+          "operands" : [ {
+            "kind" : "PATTERN_INPUT_REF",
+            "alpha" : "A\"",
+            "inputIndex" : 0,
+            "type" : "BIGINT"
+          } ],
+          "type" : "BIGINT"
+        },
+        "bid" : {
+          "kind" : "CALL",
+          "syntax" : "PREFIX",
+          "internalName" : "$FINAL$1",
+          "operands" : [ {
+            "kind" : "PATTERN_INPUT_REF",
+            "alpha" : "l",
+            "inputIndex" : 0,
+            "type" : "BIGINT"
+          } ],
+          "type" : "BIGINT"
+        },
+        "cid" : {
+          "kind" : "CALL",
+          "syntax" : "PREFIX",
+          "internalName" : "$FINAL$1",
+          "operands" : [ {
+            "kind" : "PATTERN_INPUT_REF",
+            "alpha" : "C",
+            "inputIndex" : 0,
+            "type" : "BIGINT"
+          } ],
+          "type" : "BIGINT"
+        }
+      },
+      "after" : {
+        "kind" : "LITERAL",
+        "symbol" : "MATCH_RECOGNIZE_AFTER_OPTION",
+        "value" : "SKIP_TO_NEXT_ROW",
+        "type" : {
+          "type" : "SYMBOL",
+          "nullable" : false
+        }
+      },
+      "subsets" : { },
+      "allRows" : false,
+      "partition" : {
+        "fields" : [ ]
+      },
+      "orderBy" : {
+        "fields" : [ {
+          "index" : 2,
+          "isAscending" : true,
+          "nullIsLast" : false
+        } ]
+      },
+      "interval" : null
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`aid` BIGINT, `bid` BIGINT, `cid` BIGINT>",
+    "description" : "Match(orderBy=[proctime ASC], measures=[FINAL(A\".id) AS aid, FINAL(l.id) AS bid, FINAL(C.id) AS cid], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[((_UTF-16LE'A\"', _UTF-16LE'l'), _UTF-16LE'C')], define=[{A\"==(LAST(*.$1, 0), _UTF-16LE'a'), l==(LAST(*.$1, 0), _UTF-16LE'b'), C==(LAST(*.$1, 0), _UTF-16LE'c')}])"
+  }, {
+    "id" : 5,
+    "type" : "batch-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "b",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "c",
+              "dataType" : "BIGINT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`aid` BIGINT, `bid` BIGINT, `cid` BIGINT>",
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[aid, bid, cid])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 4,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 4,
+    "target" : 5,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

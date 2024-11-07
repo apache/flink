@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystemFactory;
 import org.apache.flink.fs.s3.common.FlinkS3FileSystem.S5CmdConfiguration;
@@ -76,6 +77,18 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
                     .defaultValue("-r 0")
                     .withDescription(
                             "Extra arguments to be passed to s5cmd. For example, --no-sign-request for public buckets and -r 10 for 10 retries");
+
+    public static final ConfigOption<MemorySize> S5CMD_BATCH_MAX_SIZE =
+            ConfigOptions.key("s3.s5cmd.batch.max-size")
+                    .memoryType()
+                    .defaultValue(MemorySize.ofMebiBytes(1024))
+                    .withDescription("Maximum size of files to download per one call to s5cmd.");
+
+    public static final ConfigOption<Integer> S5CMD_BATCH_MAX_FILES =
+            ConfigOptions.key("s3.s5cmd.batch.max-files")
+                    .intType()
+                    .defaultValue(100)
+                    .withDescription("Maximum number of files to download per one call to s5cmd");
 
     public static final ConfigOption<Long> PART_UPLOAD_MIN_SIZE =
             ConfigOptions.key("s3.upload.min.part.size")

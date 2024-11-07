@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.java.typeutils;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -91,11 +90,6 @@ public class MissingTypeInfo extends TypeInformation<InvalidTypesException> {
             SerializerConfig serializerConfig) {
         throw new UnsupportedOperationException(
                 "The missing type information cannot be used as a type information.");
-    }
-
-    @Override
-    public TypeSerializer<InvalidTypesException> createSerializer(ExecutionConfig config) {
-        return createSerializer(config.getSerializerConfig());
     }
 
     @Override

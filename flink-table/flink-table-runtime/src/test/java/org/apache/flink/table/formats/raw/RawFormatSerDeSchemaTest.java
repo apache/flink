@@ -32,9 +32,8 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.StringUtils;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -62,11 +61,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 /** Tests for {@link RawFormatDeserializationSchema} {@link RawFormatSerializationSchema}. */
-@RunWith(Parameterized.class)
-public class RawFormatSerDeSchemaTest {
+class RawFormatSerDeSchemaTest {
 
-    @Parameterized.Parameters(name = "{index}: {0}")
-    public static List<TestSpec> testData() {
+    static List<TestSpec> testData() {
         return Arrays.asList(
                 TestSpec.type(TINYINT()).values(Byte.MAX_VALUE).binary(new byte[] {Byte.MAX_VALUE}),
                 TestSpec.type(SMALLINT()).values(Short.MAX_VALUE).binary(hexStringToByte("7fff")),
@@ -143,10 +140,9 @@ public class RawFormatSerDeSchemaTest {
                         .binary((byte[]) null));
     }
 
-    @Parameterized.Parameter public TestSpec testSpec;
-
-    @Test
-    public void testSerializationAndDeserialization() throws Exception {
+    @ParameterizedTest
+    @MethodSource("testData")
+    void testSerializationAndDeserialization(final TestSpec testSpec) throws Exception {
         RawFormatDeserializationSchema deserializationSchema =
                 new RawFormatDeserializationSchema(
                         testSpec.type.getLogicalType(),

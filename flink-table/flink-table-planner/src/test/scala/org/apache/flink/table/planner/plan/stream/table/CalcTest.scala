@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.stream.table
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.{Func1, Func23, Func24}
 import org.apache.flink.table.planner.utils.TableTestBase
@@ -152,6 +151,24 @@ class CalcTest extends TableTestBase {
     val resultTable = sourceTable
       .map(Func23('a, 'b, 'c))
       .map(Func24('f0, 'f1, 'f2, 'f3))
+
+    util.verifyExecPlan(resultTable)
+  }
+
+  @Test
+  def testRowTypeEquality(): Unit = {
+    val util = streamTestUtil()
+    util.addTable(s"""
+                     |CREATE TABLE MyTable (
+                     |  my_row ROW(a INT, b STRING)
+                     |) WITH (
+                     |  'connector' = 'values'
+                     |  )
+                     |""".stripMargin)
+
+    val resultTable = util.tableEnv
+      .from("MyTable")
+      .select('my_row === row(1, "str"))
 
     util.verifyExecPlan(resultTable)
   }

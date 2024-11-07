@@ -223,7 +223,8 @@ public class SingleInputGateFactory {
                     new BufferDebloater(
                             owningTaskName,
                             gateIndex,
-                            debloatConfiguration.getTargetTotalBufferSize().toMillis(),
+                            debloatConfiguration.getTargetTotalTime().toMillis(),
+                            debloatConfiguration.getStartingBufferSize(),
                             debloatConfiguration.getMaxBufferSize(),
                             debloatConfiguration.getMinBufferSize(),
                             debloatConfiguration.getBufferDebloatThresholdPercentages(),

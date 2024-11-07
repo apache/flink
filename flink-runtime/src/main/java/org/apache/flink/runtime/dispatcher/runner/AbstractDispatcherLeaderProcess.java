@@ -25,11 +25,11 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.highavailability.JobResultStore;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmanager.JobGraphWriter;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanWriter;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -258,9 +258,9 @@ public abstract class AbstractDispatcherLeaderProcess implements DispatcherLeade
     public interface DispatcherGatewayServiceFactory {
         DispatcherGatewayService create(
                 DispatcherId dispatcherId,
-                Collection<JobGraph> recoveredJobs,
+                Collection<ExecutionPlan> recoveredJobs,
                 Collection<JobResult> recoveredDirtyJobResults,
-                JobGraphWriter jobGraphWriter,
+                ExecutionPlanWriter executionPlanWriter,
                 JobResultStore jobResultStore);
     }
 
@@ -268,7 +268,7 @@ public abstract class AbstractDispatcherLeaderProcess implements DispatcherLeade
     public interface DispatcherGatewayService extends AutoCloseableAsync {
         DispatcherGateway getGateway();
 
-        CompletableFuture<Void> onRemovedJobGraph(JobID jobId);
+        CompletableFuture<Void> onRemovedExecutionPlan(JobID jobId);
 
         CompletableFuture<ApplicationStatus> getShutDownFuture();
 

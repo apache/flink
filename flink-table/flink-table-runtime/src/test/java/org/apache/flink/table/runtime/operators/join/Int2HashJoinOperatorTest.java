@@ -22,15 +22,14 @@ import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.util.UniformBinaryRowGenerator;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Random test for {@link HashJoinOperator}. */
 public class Int2HashJoinOperatorTest extends Int2HashJoinOperatorTestBase {
 
     // ---------------------- build first inner join -----------------------------------------
     @Test
-    public void testBuildFirstHashInnerJoin() throws Exception {
-
+    protected void testBuildFirstHashInnerJoin() throws Exception {
         int numKeys = 100;
         int buildValsPerKey = 3;
         int probeValsPerKey = 10;
@@ -52,8 +51,7 @@ public class Int2HashJoinOperatorTest extends Int2HashJoinOperatorTestBase {
 
     // ---------------------- build first left out join -----------------------------------------
     @Test
-    public void testBuildFirstHashLeftOutJoin() throws Exception {
-
+    protected void testBuildFirstHashLeftOutJoin() throws Exception {
         int numKeys1 = 9;
         int numKeys2 = 10;
         int buildValsPerKey = 3;
@@ -76,8 +74,7 @@ public class Int2HashJoinOperatorTest extends Int2HashJoinOperatorTestBase {
 
     // ---------------------- build first right out join -----------------------------------------
     @Test
-    public void testBuildFirstHashRightOutJoin() throws Exception {
-
+    protected void testBuildFirstHashRightOutJoin() throws Exception {
         int numKeys1 = 9;
         int numKeys2 = 10;
         int buildValsPerKey = 3;
@@ -92,8 +89,7 @@ public class Int2HashJoinOperatorTest extends Int2HashJoinOperatorTestBase {
 
     // ---------------------- build first full out join -----------------------------------------
     @Test
-    public void testBuildFirstHashFullOutJoin() throws Exception {
-
+    protected void testBuildFirstHashFullOutJoin() throws Exception {
         int numKeys1 = 9;
         int numKeys2 = 10;
         int buildValsPerKey = 3;
@@ -108,8 +104,7 @@ public class Int2HashJoinOperatorTest extends Int2HashJoinOperatorTestBase {
 
     // ---------------------- build second inner join -----------------------------------------
     @Test
-    public void testBuildSecondHashInnerJoin() throws Exception {
-
+    protected void testBuildSecondHashInnerJoin() throws Exception {
         int numKeys = 100;
         int buildValsPerKey = 3;
         int probeValsPerKey = 10;
@@ -131,8 +126,7 @@ public class Int2HashJoinOperatorTest extends Int2HashJoinOperatorTestBase {
 
     // ---------------------- build second left out join -----------------------------------------
     @Test
-    public void testBuildSecondHashLeftOutJoin() throws Exception {
-
+    protected void testBuildSecondHashLeftOutJoin() throws Exception {
         int numKeys1 = 10;
         int numKeys2 = 9;
         int buildValsPerKey = 3;
@@ -155,8 +149,7 @@ public class Int2HashJoinOperatorTest extends Int2HashJoinOperatorTestBase {
 
     // ---------------------- build second right out join -----------------------------------------
     @Test
-    public void testBuildSecondHashRightOutJoin() throws Exception {
-
+    protected void testBuildSecondHashRightOutJoin() throws Exception {
         int numKeys1 = 9;
         int numKeys2 = 10;
         int buildValsPerKey = 3;
@@ -179,8 +172,7 @@ public class Int2HashJoinOperatorTest extends Int2HashJoinOperatorTestBase {
 
     // ---------------------- build second full out join -----------------------------------------
     @Test
-    public void testBuildSecondHashFullOutJoin() throws Exception {
-
+    protected void testBuildSecondHashFullOutJoin() throws Exception {
         int numKeys1 = 9;
         int numKeys2 = 10;
         int buildValsPerKey = 3;
@@ -194,8 +186,7 @@ public class Int2HashJoinOperatorTest extends Int2HashJoinOperatorTestBase {
     }
 
     @Test
-    public void testSemiJoin() throws Exception {
-
+    protected void testSemiJoin() throws Exception {
         int numKeys1 = 9;
         int numKeys2 = 10;
         int buildValsPerKey = 3;
@@ -211,8 +202,7 @@ public class Int2HashJoinOperatorTest extends Int2HashJoinOperatorTestBase {
     }
 
     @Test
-    public void testAntiJoin() throws Exception {
-
+    protected void testAntiJoin() throws Exception {
         int numKeys1 = 9;
         int numKeys2 = 10;
         int buildValsPerKey = 3;
@@ -228,7 +218,7 @@ public class Int2HashJoinOperatorTest extends Int2HashJoinOperatorTestBase {
     }
 
     @Test
-    public void testBuildLeftSemiJoin() throws Exception {
+    protected void testBuildLeftSemiJoin() throws Exception {
         int numKeys1 = 10;
         int numKeys2 = 9;
         int buildValsPerKey = 10;
@@ -249,7 +239,7 @@ public class Int2HashJoinOperatorTest extends Int2HashJoinOperatorTestBase {
     }
 
     @Test
-    public void testBuildLeftAntiJoin() throws Exception {
+    protected void testBuildLeftAntiJoin() throws Exception {
         int numKeys1 = 10;
         int numKeys2 = 9;
         int buildValsPerKey = 10;

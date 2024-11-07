@@ -23,7 +23,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,7 +41,7 @@ class TimeUtilsPrettyPrintingTest {
                 Arguments.of(Duration.ofMillis(60000), "1 min"),
                 Arguments.of(Duration.ofHours(23), "23 h"),
                 Arguments.of(Duration.ofMillis(-1), "-1 ms"),
-                Arguments.of(Duration.ofMillis(TimeUnit.DAYS.toMillis(1)), "1 d"),
+                Arguments.of(Duration.ofDays(1), "1 d"),
                 Arguments.of(Duration.ofHours(24), "1 d"),
                 Arguments.of(Duration.ofMillis(9223372036854775807L), "9223372036854775807 ms"),
                 Arguments.of(

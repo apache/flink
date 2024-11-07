@@ -30,6 +30,7 @@ import org.apache.flink.core.fs.local.LocalFileSystem;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
+import java.util.Map;
 
 /**
  * Interface of all file systems used by Flink. This interface may be extended to implement
@@ -238,6 +239,25 @@ public interface IFileSystem {
     }
 
     /**
+     * Creates a new {@link RecoverableWriter}. A recoverable writer creates streams that can
+     * persist and recover their intermediate state. Persisting and recovering intermediate state is
+     * a core building block for writing to files that span multiple checkpoints.
+     *
+     * <p>The returned object can act as a shared factory to open and recover multiple streams.
+     *
+     * <p>This method is optional on file systems and various file system implementations may not
+     * support this method, throwing an {@code UnsupportedOperationException}.
+     *
+     * @param conf Map contains a flag to indicate whether the writer should not write to local
+     *     storage. and can provide more information to instantiate the writer.
+     * @return A RecoverableWriter for this file system.
+     * @throws IOException Thrown, if the recoverable writer cannot be instantiated.
+     */
+    default RecoverableWriter createRecoverableWriter(Map<String, String> conf) throws IOException {
+        return createRecoverableWriter();
+    }
+
+    /**
      * List the statuses of the files/directories in the given path if the path is a directory.
      *
      * @param f given path
@@ -334,14 +354,6 @@ public interface IFileSystem {
      * @return True, if this is a distributed file system, false otherwise.
      */
     boolean isDistributedFS();
-
-    /**
-     * Gets a description of the characteristics of this file system.
-     *
-     * @deprecated this method is not used anymore.
-     */
-    @Deprecated
-    FileSystemKind getKind();
 
     /**
      * Initializes output directories on local file systems according to the given write mode.

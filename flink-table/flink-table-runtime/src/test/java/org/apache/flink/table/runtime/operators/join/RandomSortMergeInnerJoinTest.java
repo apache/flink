@@ -45,12 +45,13 @@ import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -64,8 +65,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Test for sort merge inner join. */
-@RunWith(Parameterized.class)
-public class RandomSortMergeInnerJoinTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class RandomSortMergeInnerJoinTest {
 
     private static final long SEED1 = 561349061987311L;
     private static final long SEED2 = 231434613412342L;
@@ -76,17 +77,17 @@ public class RandomSortMergeInnerJoinTest {
     private TypeComparator<Tuple2<Integer, String>> comparator1;
     private TypeComparator<Tuple2<Integer, String>> comparator2;
 
-    public RandomSortMergeInnerJoinTest(boolean leftIsSmall) {
+    RandomSortMergeInnerJoinTest(boolean leftIsSmall) {
         this.leftIsSmall = leftIsSmall;
     }
 
-    @Parameterized.Parameters
-    public static Collection<Boolean> parameters() {
+    @Parameters(name = "leftIsSmaller={0}")
+    private static Collection<Boolean> parameters() {
         return Arrays.asList(true, false);
     }
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         comparator1 =
                 new TupleComparator<>(
                         new int[] {0},
@@ -99,8 +100,8 @@ public class RandomSortMergeInnerJoinTest {
                         new TypeSerializer<?>[] {IntSerializer.INSTANCE});
     }
 
-    @Test
-    public void test() throws Exception {
+    @TestTemplate
+    void test() throws Exception {
         final TupleGenerator generator1 =
                 new TupleGenerator(SEED1, 500, 4096, KeyMode.SORTED, ValueMode.RANDOM_LENGTH);
         final TupleGenerator generator2 =
@@ -129,8 +130,8 @@ public class RandomSortMergeInnerJoinTest {
         assertThat(expectedMatchesMap).allSatisfy((i, e) -> assertThat(e).isEmpty());
     }
 
-    @Test
-    public void testMergeWithHighNumberOfCommonKeys() throws Exception {
+    @TestTemplate
+    void testMergeWithHighNumberOfCommonKeys() throws Exception {
         // the size of the left and right inputs
         final int input1Size = 200;
         final int input2Size = 100;

@@ -23,8 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -66,7 +64,6 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
-import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTracker;
@@ -83,8 +80,8 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolFactory;
-import org.apache.flink.runtime.jobmaster.slotpool.FreeSlotInfoTracker;
-import org.apache.flink.runtime.jobmaster.slotpool.FreeSlotInfoTrackerTestUtils;
+import org.apache.flink.runtime.jobmaster.slotpool.FreeSlotTracker;
+import org.apache.flink.runtime.jobmaster.slotpool.FreeSlotTrackerTestUtils;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
@@ -103,6 +100,7 @@ import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
+import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.TestingSchedulerNG;
 import org.apache.flink.runtime.scheduler.TestingSchedulerNGFactory;
 import org.apache.flink.runtime.shuffle.DefaultPartitionWithMetrics;
@@ -123,6 +121,7 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -189,7 +188,7 @@ class JobMasterTest {
 
     @TempDir private Path temporaryFolder;
 
-    private static final Time testingTimeout = Time.seconds(10L);
+    private static final Duration testingTimeout = Duration.ofSeconds(10L);
 
     private static final long fastHeartbeatInterval = 1L;
     private static final long fastHeartbeatTimeout = 10L;
@@ -369,7 +368,7 @@ class JobMasterTest {
 
             final JobID disconnectedJobManager =
                     disconnectedJobManagerFuture.get(
-                            testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+                            testingTimeout.toMillis(), TimeUnit.MILLISECONDS);
 
             assertThat(disconnectedJobManager).isEqualTo(jobGraph.getJobID());
         }
@@ -498,7 +497,7 @@ class JobMasterTest {
 
         private final OneShotLatch hasReceivedSlotOffers;
 
-        private final Map<ResourceID, Collection<SlotInfo>> registeredSlots;
+        private final Map<ResourceID, Collection<PhysicalSlot>> registeredSlots;
 
         private TestingSlotPool(JobID jobId, OneShotLatch hasReceivedSlotOffers) {
             this.jobId = jobId;
@@ -554,7 +553,7 @@ class JobMasterTest {
                 TaskManagerGateway taskManagerGateway,
                 Collection<SlotOffer> offers) {
             hasReceivedSlotOffers.trigger();
-            final Collection<SlotInfo> slotInfos =
+            final Collection<PhysicalSlot> slotInfos =
                     Optional.ofNullable(registeredSlots.get(taskManagerLocation.getResourceID()))
                             .orElseThrow(
                                     () -> new FlinkRuntimeException("TaskManager not registered."));
@@ -563,11 +562,12 @@ class JobMasterTest {
 
             for (SlotOffer offer : offers) {
                 slotInfos.add(
-                        new SimpleSlotContext(
-                                offer.getAllocationId(),
-                                taskManagerLocation,
-                                slotIndex,
-                                taskManagerGateway));
+                        TestingPhysicalSlot.builder()
+                                .withAllocationID(offer.getAllocationId())
+                                .withTaskManagerLocation(taskManagerLocation)
+                                .withTaskManagerGateway(taskManagerGateway)
+                                .withPhysicalSlotNumber(slotIndex)
+                                .build());
                 slotIndex++;
             }
 
@@ -582,12 +582,12 @@ class JobMasterTest {
         }
 
         @Override
-        public FreeSlotInfoTracker getFreeSlotInfoTracker() {
-            Map<AllocationID, SlotInfo> freeSlots =
+        public FreeSlotTracker getFreeSlotTracker() {
+            Map<AllocationID, PhysicalSlot> freeSlots =
                     registeredSlots.values().stream()
                             .flatMap(Collection::stream)
                             .collect(Collectors.toMap(SlotInfo::getAllocationId, s -> s));
-            return FreeSlotInfoTrackerTestUtils.createDefaultFreeSlotInfoTracker(freeSlots);
+            return FreeSlotTrackerTestUtils.createDefaultFreeSlotTracker(freeSlots);
         }
 
         @Override
@@ -610,7 +610,7 @@ class JobMasterTest {
                 @Nonnull SlotRequestId slotRequestId,
                 @Nonnull ResourceProfile resourceProfile,
                 @Nonnull Collection<AllocationID> preferredAllocations,
-                @Nullable Time timeout) {
+                @Nullable Duration timeout) {
             return new CompletableFuture<>();
         }
 
@@ -630,7 +630,7 @@ class JobMasterTest {
 
         @Override
         public AllocatedSlotReport createAllocatedSlotReport(ResourceID taskManagerId) {
-            final Collection<SlotInfo> slotInfos =
+            final Collection<PhysicalSlot> slotInfos =
                     registeredSlots.getOrDefault(taskManagerId, Collections.emptyList());
 
             final List<AllocatedSlotInfo> allocatedSlotInfos =
@@ -703,7 +703,7 @@ class JobMasterTest {
             // register job manager success will trigger monitor heartbeat target between jm and rm
             final Tuple3<JobMasterId, ResourceID, JobID> registrationInformation =
                     jobManagerRegistrationFuture.get(
-                            testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+                            testingTimeout.toMillis(), TimeUnit.MILLISECONDS);
 
             assertThat(registrationInformation.f0).isEqualTo(jobMasterId);
             assertThat(registrationInformation.f1).isEqualTo(jmResourceId);
@@ -711,7 +711,7 @@ class JobMasterTest {
 
             final JobID disconnectedJobManager =
                     disconnectedJobManagerFuture.get(
-                            testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+                            testingTimeout.toMillis(), TimeUnit.MILLISECONDS);
 
             // heartbeat timeout should trigger disconnect JobManager from ResourceManager
             assertThat(disconnectedJobManager).isEqualTo(jobGraph.getJobID());
@@ -1076,14 +1076,9 @@ class JobMasterTest {
         source.setInputSplitSource(inputSplitSource);
         source.setInvokableClass(AbstractInvokable.class);
 
-        final ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(100, 0));
-
         final JobGraph inputSplitJobGraph =
-                JobGraphBuilder.newStreamingJobGraphBuilder()
-                        .addJobVertex(source)
-                        .setExecutionConfig(executionConfig)
-                        .build();
+                JobGraphBuilder.newStreamingJobGraphBuilder().addJobVertex(source).build();
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(inputSplitJobGraph, 100, 0L);
 
         try (final JobMaster jobMaster =
                 new JobMasterBuilder(inputSplitJobGraph, rpcService)
@@ -1432,7 +1427,7 @@ class JobMasterTest {
 
     /**
      * Tests that the timeout in {@link JobMasterGateway#triggerSavepoint(String, boolean,
-     * SavepointFormatType, Time)} is respected.
+     * SavepointFormatType, Duration)} is respected.
      */
     @Test
     void testTriggerSavepointTimeout() throws Exception {
@@ -1457,7 +1452,7 @@ class JobMasterTest {
                     jobMaster.getSelfGateway(JobMasterGateway.class);
             final CompletableFuture<String> savepointFutureLowTimeout =
                     jobMasterGateway.triggerSavepoint(
-                            "/tmp", false, SavepointFormatType.CANONICAL, Time.milliseconds(1));
+                            "/tmp", false, SavepointFormatType.CANONICAL, Duration.ofMillis(1));
             final CompletableFuture<String> savepointFutureHighTimeout =
                     jobMasterGateway.triggerSavepoint(
                             "/tmp", false, SavepointFormatType.CANONICAL, RpcUtils.INF_TIMEOUT);
@@ -1465,7 +1460,7 @@ class JobMasterTest {
             assertThatThrownBy(
                             () ->
                                     savepointFutureLowTimeout.get(
-                                            testingTimeout.getSize(), testingTimeout.getUnit()))
+                                            testingTimeout.toMillis(), TimeUnit.MILLISECONDS))
                     .hasRootCauseInstanceOf(TimeoutException.class);
 
             assertThat(savepointFutureHighTimeout).isNotDone();
@@ -1596,7 +1591,7 @@ class JobMasterTest {
 
             // trigger some request to guarantee ensure the slotAllocationFailure processing if
             // complete
-            jobMasterGateway.requestJobStatus(Time.seconds(5)).get();
+            jobMasterGateway.requestJobStatus(Duration.ofSeconds(5)).get();
             assertThat(disconnectTaskExecutorFuture).isNotDone();
         }
     }
@@ -2555,10 +2550,7 @@ class JobMasterTest {
     private JobGraph createSingleVertexJobWithRestartStrategy() throws IOException {
         final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
 
-        final ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(
-                RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
-        jobGraph.setExecutionConfig(executionConfig);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(jobGraph, Integer.MAX_VALUE, 0L);
 
         return jobGraph;
     }

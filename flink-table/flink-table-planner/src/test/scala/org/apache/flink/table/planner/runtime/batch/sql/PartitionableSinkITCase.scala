@@ -24,20 +24,22 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.BatchExecutionOptions
 import org.apache.flink.connector.file.table.FileSystemConnectorOptions
 import org.apache.flink.core.testutils.EachCallbackWrapper
+import org.apache.flink.legacy.table.sinks.StreamTableSink
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
-import org.apache.flink.table.api.{Schema, TableEnvironment, TableException, TableSchema, ValidationException}
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction
+import org.apache.flink.table.api.{Schema, TableEnvironment, TableException, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog.{CatalogTable, ObjectPath, ResolvedSchema}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
 import org.apache.flink.table.descriptors.DescriptorProperties
-import org.apache.flink.table.descriptors.Schema.SCHEMA
-import org.apache.flink.table.factories.TableSinkFactory
+import org.apache.flink.table.legacy.api.TableSchema
+import org.apache.flink.table.legacy.descriptors.Schema.SCHEMA
+import org.apache.flink.table.legacy.factories.TableSinkFactory
+import org.apache.flink.table.legacy.sinks.{PartitionableTableSink, TableSink}
 import org.apache.flink.table.planner.runtime.batch.sql.PartitionableSinkITCase.{type4, _}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.table.sinks.{PartitionableTableSink, StreamTableSink, TableSink}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.utils.LegacyRowExtension
@@ -53,7 +55,7 @@ import java.util.{function, ArrayList => JArrayList, LinkedList => JLinkedList, 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
-/** Test cases for [[org.apache.flink.table.sinks.PartitionableTableSink]]. */
+/** Test cases for [[PartitionableTableSink]]. */
 class PartitionableSinkITCase extends BatchTestBase {
 
   @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =

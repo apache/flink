@@ -222,28 +222,6 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
     </tr>
     <tr>
       <td>
-        <strong>register_table_source(name, table_source)</strong>
-      </td>
-      <td>
-        Registers an external `TableSource` in the TableEnvironment's catalog.
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_table_source" name="link">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <strong>register_table_sink(name, table_sink)</strong>
-      </td>
-      <td>
-        Registers an external `TableSink` in the TableEnvironment's catalog.
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_table_sink" name="link">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
         <strong>insert_into(target_path, table)</strong>
       </td>
       <td>
@@ -456,46 +434,6 @@ For more details about the different kinds of UDFs, please refer to [User Define
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_system_function" name="link">}}
-      </td>
-    </tr>
-  </tbody>
-</table>
-
-<big><strong>Deprecated APIs</strong></big>
-
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 20%">APIs</th>
-      <th class="text-center">Description</th>
-      <th class="text-center" style="width: 10%">Docs</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>
-        <strong>register_function(name, function)</strong>
-      </td>
-      <td>
-        Registers a Python user-defined function under a unique name. 
-        Replaces already existing user-defined function under this name.
-        It can be replaced by <strong>create_temporary_system_function</strong>.
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_function" name="link">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <strong>register_java_function(name, function_class_name)</strong>
-      </td>
-      <td>
-        Registers a Java user defined function under a unique name. 
-        Replaces already existing user-defined functions under this name.
-        It can be replaced by <strong>create_java_temporary_system_function</strong>.
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_java_function" name="link">}}
       </td>
     </tr>
   </tbody>
@@ -833,9 +771,9 @@ table_env.get_config().set("restart-strategy.fixed-delay.delay", "30s")
 table_env.get_config().set("execution.checkpointing.mode", "EXACTLY_ONCE")
 table_env.get_config().set("execution.checkpointing.interval", "3min")
 
-# set the statebackend type to "rocksdb", other available options are "filesystem" and "jobmanager"
+# set the statebackend type to "rocksdb", other available options are "hashmap"
 # you can also set the full qualified Java class name of the StateBackendFactory to this option
-# e.g. org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory
+# e.g. org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackendFactory
 table_env.get_config().set("state.backend.type", "rocksdb")
 
 # set the checkpoint directory, which is required by the RocksDB statebackend

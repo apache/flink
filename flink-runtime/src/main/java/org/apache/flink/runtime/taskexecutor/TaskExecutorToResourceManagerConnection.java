@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.registration.RegisteredRpcConnection;
 import org.apache.flink.runtime.registration.RegistrationConnectionListener;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -31,6 +30,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 
 import org.slf4j.Logger;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -155,7 +155,7 @@ public class TaskExecutorToResourceManagerConnection
                 long timeoutMillis)
                 throws Exception {
 
-            Time timeout = Time.milliseconds(timeoutMillis);
+            Duration timeout = Duration.ofMillis(timeoutMillis);
             return resourceManager.registerTaskExecutor(taskExecutorRegistration, timeout);
         }
     }

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -50,6 +49,7 @@ import org.apache.flink.util.concurrent.Executors;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -82,11 +82,11 @@ class JobVertexFlameGraphHandlerTest {
         handler =
                 new JobVertexFlameGraphHandler(
                         () -> null,
-                        Time.milliseconds(100L),
+                        Duration.ofMillis(100L),
                         Collections.emptyMap(),
                         new DefaultExecutionGraphCache(
                                 restHandlerConfiguration.getTimeout(),
-                                Time.milliseconds(restHandlerConfiguration.getRefreshInterval())),
+                                Duration.ofMillis(restHandlerConfiguration.getRefreshInterval())),
                         Executors.directExecutor(),
                         new TestThreadInfoTracker(taskThreadInfoStatsDefaultSample));
     }

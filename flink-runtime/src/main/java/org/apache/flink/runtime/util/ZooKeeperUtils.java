@@ -25,7 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStore;
@@ -35,12 +35,11 @@ import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointStoreUtil;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmanager.DefaultJobGraphStore;
+import org.apache.flink.runtime.jobmanager.DefaultExecutionPlanStore;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStoreUtil;
-import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStoreWatcher;
+import org.apache.flink.runtime.jobmanager.ZooKeeperExecutionPlanStoreUtil;
+import org.apache.flink.runtime.jobmanager.ZooKeeperExecutionPlanStoreWatcher;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriverFactory;
@@ -51,6 +50,7 @@ import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHel
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -99,7 +99,8 @@ public class ZooKeeperUtils {
     private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperUtils.class);
 
     /** The prefix of the submitted job graph file. */
-    public static final String HA_STORAGE_SUBMITTED_JOBGRAPH_PREFIX = "submittedJobGraph";
+    public static final String HA_STORAGE_SUBMITTED_EXECUTION_PLAN_PREFIX =
+            "submittedExecutionPlan";
 
     /** The prefix of the completed checkpoint file. */
     public static final String HA_STORAGE_COMPLETED_CHECKPOINT = "completedCheckpoint";
@@ -514,25 +515,26 @@ public class ZooKeeperUtils {
     }
 
     /**
-     * Creates a {@link DefaultJobGraphStore} instance with {@link ZooKeeperStateHandleStore},
-     * {@link ZooKeeperJobGraphStoreWatcher} and {@link ZooKeeperJobGraphStoreUtil}.
+     * Creates a {@link DefaultExecutionPlanStore} instance with {@link ZooKeeperStateHandleStore},
+     * {@link ZooKeeperExecutionPlanStoreWatcher} and {@link ZooKeeperExecutionPlanStoreUtil}.
      *
      * @param client The {@link CuratorFramework} ZooKeeper client to use
      * @param configuration {@link Configuration} object
-     * @return {@link DefaultJobGraphStore} instance
-     * @throws Exception if the submitted job graph store cannot be created
+     * @return {@link DefaultExecutionPlanStore} instance
+     * @throws Exception if the submitted execution plan store cannot be created
      */
-    public static JobGraphStore createJobGraphs(
+    public static ExecutionPlanStore createExecutionPlans(
             CuratorFramework client, Configuration configuration) throws Exception {
 
         checkNotNull(configuration, "Configuration");
 
-        RetrievableStateStorageHelper<JobGraph> stateStorage =
-                createFileSystemStateStorage(configuration, HA_STORAGE_SUBMITTED_JOBGRAPH_PREFIX);
+        RetrievableStateStorageHelper<ExecutionPlan> stateStorage =
+                createFileSystemStateStorage(
+                        configuration, HA_STORAGE_SUBMITTED_EXECUTION_PLAN_PREFIX);
 
         // ZooKeeper submitted jobs root dir
         String zooKeeperJobsPath =
-                configuration.get(HighAvailabilityOptions.HA_ZOOKEEPER_JOBGRAPHS_PATH);
+                configuration.get(HighAvailabilityOptions.HA_ZOOKEEPER_EXECUTION_PLANS_PATH);
 
         // Ensure that the job graphs path exists
         client.newNamespaceAwareEnsurePath(zooKeeperJobsPath).ensure(client.getZookeeperClient());
@@ -540,17 +542,15 @@ public class ZooKeeperUtils {
         // All operations will have the path as root
         CuratorFramework facade = client.usingNamespace(client.getNamespace() + zooKeeperJobsPath);
 
-        final String zooKeeperFullJobsPath = client.getNamespace() + zooKeeperJobsPath;
-
-        final ZooKeeperStateHandleStore<JobGraph> zooKeeperStateHandleStore =
+        final ZooKeeperStateHandleStore<ExecutionPlan> zooKeeperStateHandleStore =
                 new ZooKeeperStateHandleStore<>(facade, stateStorage);
 
         final PathChildrenCache pathCache = new PathChildrenCache(facade, "/", false);
 
-        return new DefaultJobGraphStore<>(
+        return new DefaultExecutionPlanStore<>(
                 zooKeeperStateHandleStore,
-                new ZooKeeperJobGraphStoreWatcher(pathCache),
-                ZooKeeperJobGraphStoreUtil.INSTANCE);
+                new ZooKeeperExecutionPlanStoreWatcher(pathCache),
+                ZooKeeperExecutionPlanStoreUtil.INSTANCE);
     }
 
     /**
@@ -561,7 +561,7 @@ public class ZooKeeperUtils {
      * @param configuration {@link Configuration} object
      * @param maxNumberOfCheckpointsToRetain The maximum number of checkpoints to retain
      * @param executor to run ZooKeeper callbacks
-     * @param restoreMode the mode in which the job is being restored
+     * @param recoveryClaimMode the mode in which the job is being restored
      * @return {@link DefaultCompletedCheckpointStore} instance
      * @throws Exception if the completed checkpoint store cannot be created
      */
@@ -572,7 +572,7 @@ public class ZooKeeperUtils {
             SharedStateRegistryFactory sharedStateRegistryFactory,
             Executor ioExecutor,
             Executor executor,
-            RestoreMode restoreMode)
+            RecoveryClaimMode recoveryClaimMode)
             throws Exception {
 
         checkNotNull(configuration, "Configuration");
@@ -592,7 +592,7 @@ public class ZooKeeperUtils {
                         ZooKeeperCheckpointStoreUtil.INSTANCE,
                         completedCheckpoints,
                         sharedStateRegistryFactory.create(
-                                ioExecutor, completedCheckpoints, restoreMode),
+                                ioExecutor, completedCheckpoints, recoveryClaimMode),
                         executor);
         LOG.info(
                 "Initialized {} in '{}' with {}.",

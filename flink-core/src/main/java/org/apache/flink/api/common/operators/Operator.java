@@ -132,32 +132,6 @@ public abstract class Operator<OUT> implements Visitable<Operator<?>> {
     }
 
     /**
-     * Sets a stub parameters in the configuration of this contract. The stub parameters are
-     * accessible by the user code at runtime. Parameters that the user code needs to access at
-     * runtime to configure its behavior are typically stored as stub parameters.
-     *
-     * @see #getParameters()
-     * @param key The parameter key.
-     * @param value The parameter value.
-     */
-    public void setParameter(String key, int value) {
-        this.parameters.setInteger(key, value);
-    }
-
-    /**
-     * Sets a stub parameters in the configuration of this contract. The stub parameters are
-     * accessible by the user code at runtime. Parameters that the user code needs to access at
-     * runtime to configure its behavior are typically stored as stub parameters.
-     *
-     * @see #getParameters()
-     * @param key The parameter key.
-     * @param value The parameter value.
-     */
-    public void setParameter(String key, boolean value) {
-        this.parameters.setBoolean(key, value);
-    }
-
-    /**
      * Gets the parallelism for this contract instance. The parallelism denotes how many parallel
      * instances of the user function will be spawned during the execution. If this value is {@link
      * ExecutionConfig#PARALLELISM_DEFAULT}, then the system will decide the number of parallel

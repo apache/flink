@@ -73,9 +73,6 @@ public class GenericCLI implements CustomCommandLine {
                             + "\" config option. For the \"run\" action the "
                             + "currently available targets are: "
                             + getTargetNames()
-                            + ". For the \"run-application\" (deprecated) action"
-                            + " the currently available targets are: "
-                            + String.join(DELIMITER, getApplicationModeTargetNames())
                             + ".");
 
     private final Configuration configuration;

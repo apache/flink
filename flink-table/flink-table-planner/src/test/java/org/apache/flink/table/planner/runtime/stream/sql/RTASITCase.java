@@ -109,6 +109,132 @@ class RTASITCase extends StreamingTestBase {
     }
 
     @Test
+    void testCreateOrReplaceTableASWithNewColumnsOnly() throws Exception {
+        tEnv().executeSql(
+                        "CREATE OR REPLACE TABLE target"
+                                + " (`p1` INT, `p2` STRING)"
+                                + " WITH ('connector' = 'values', 'bounded' = 'true')"
+                                + " AS SELECT a, c FROM source")
+                .await();
+
+        // verify written rows
+        assertThat(TestValuesTableFactory.getResultsAsStrings("target").toString())
+                .isEqualTo(
+                        "["
+                                + "+I[null, null, 1, Hi], "
+                                + "+I[null, null, 2, Hello], "
+                                + "+I[null, null, 3, Hello world]"
+                                + "]");
+
+        // verify the table after replacing
+        CatalogTable expectCatalogTable =
+                getExpectCatalogTable(
+                        new String[] {"p1", "p2", "a", "c"},
+                        new AbstractDataType[] {
+                            DataTypes.INT(), DataTypes.STRING(), DataTypes.INT(), DataTypes.STRING()
+                        });
+
+        verifyCatalogTable(expectCatalogTable, getCatalogTable("target"));
+    }
+
+    @Test
+    void testCreateOrReplaceTableAsSelectWithColumnsFromQueryOnly() throws Exception {
+        tEnv().executeSql(
+                        "CREATE OR REPLACE TABLE target"
+                                + " (`a` DOUBLE, `c` STRING)"
+                                + " WITH ('connector' = 'values', 'bounded' = 'true')"
+                                + " AS SELECT a, c FROM source")
+                .await();
+
+        // verify written rows
+        assertThat(TestValuesTableFactory.getResultsAsStrings("target").toString())
+                .isEqualTo("[+I[1.0, Hi], +I[2.0, Hello], +I[3.0, Hello world]]");
+
+        // verify the table after replacing
+        CatalogTable expectCatalogTable =
+                getExpectCatalogTable(
+                        new String[] {"a", "c"},
+                        new AbstractDataType[] {DataTypes.DOUBLE(), DataTypes.STRING()});
+
+        verifyCatalogTable(expectCatalogTable, getCatalogTable("target"));
+    }
+
+    @Test
+    void testCreateOrReplaceTableAsSelectWithMixOfNewColumnsAndQueryColumns() throws Exception {
+        tEnv().executeSql(
+                        "CREATE OR REPLACE TABLE target"
+                                + " (`p1` INT, `a` DOUBLE)"
+                                + " WITH ('connector' = 'values', 'bounded' = 'true')"
+                                + " AS SELECT a, c FROM source")
+                .await();
+
+        // verify written rows
+        assertThat(TestValuesTableFactory.getResultsAsStrings("target").toString())
+                .isEqualTo(
+                        "["
+                                + "+I[null, 1.0, Hi], "
+                                + "+I[null, 2.0, Hello], "
+                                + "+I[null, 3.0, Hello world]"
+                                + "]");
+
+        // verify the table after replacing
+        CatalogTable expectCatalogTable =
+                getExpectCatalogTable(
+                        new String[] {"p1", "a", "c"},
+                        new AbstractDataType[] {
+                            DataTypes.INT(), DataTypes.DOUBLE(), DataTypes.STRING()
+                        });
+
+        verifyCatalogTable(expectCatalogTable, getCatalogTable("target"));
+    }
+
+    @Test
+    void testReplaceTableAsSelectWithColumnOrdering() throws Exception {
+        tEnv().executeSql(
+                        "REPLACE TABLE target"
+                                + " (c, a)"
+                                + " WITH ('connector' = 'values', 'bounded' = 'true')"
+                                + " AS SELECT a, c FROM source")
+                .await();
+
+        // verify written rows
+        assertThat(TestValuesTableFactory.getResultsAsStrings("target").toString())
+                .isEqualTo("[" + "+I[Hi, 1], " + "+I[Hello, 2], " + "+I[Hello world, 3]" + "]");
+
+        // verify the table after replacing
+        CatalogTable expectCatalogTable =
+                getExpectCatalogTable(
+                        new String[] {"c", "a"},
+                        new AbstractDataType[] {DataTypes.STRING(), DataTypes.INT()});
+
+        verifyCatalogTable(expectCatalogTable, getCatalogTable("target"));
+    }
+
+    @Test
+    void testCreateOrReplaceTableASWithSortLimit() throws Exception {
+        tEnv().executeSql(
+                        "CREATE OR REPLACE TABLE target WITH ('connector' = 'values',"
+                                + " 'sink-insert-only' = 'false')"
+                                + " AS (SELECT a, c FROM source order by `a` LIMIT 2)")
+                .await();
+
+        // verify written rows
+        assertThat(TestValuesTableFactory.getResultsAsStrings("target").toString())
+                .isEqualTo("[+I[1, Hi], +I[2, Hello]]");
+
+        // verify the table after replacing
+        Map<String, String> expectedOptions = new HashMap<>();
+        expectedOptions.put("connector", "values");
+        expectedOptions.put("sink-insert-only", "false");
+        CatalogTable expectCatalogTable =
+                getExpectCatalogTable(
+                        new String[] {"a", "c"},
+                        new AbstractDataType[] {DataTypes.INT(), DataTypes.STRING()},
+                        expectedOptions);
+        verifyCatalogTable(expectCatalogTable, getCatalogTable("target"));
+    }
+
+    @Test
     void testCreateOrReplaceTableASWithTableNotExist() throws Exception {
         tEnv().executeSql(
                         "CREATE OR REPLACE TABLE not_exist_target WITH ('connector' = 'values',"
@@ -130,11 +256,16 @@ class RTASITCase extends StreamingTestBase {
 
     private CatalogTable getExpectCatalogTable(
             String[] cols, AbstractDataType<?>[] fieldDataTypes) {
+        return getExpectCatalogTable(cols, fieldDataTypes, getDefaultTargetTableOptions());
+    }
+
+    private CatalogTable getExpectCatalogTable(
+            String[] cols, AbstractDataType<?>[] fieldDataTypes, Map<String, String> tableOptions) {
         return CatalogTable.of(
                 Schema.newBuilder().fromFields(cols, fieldDataTypes).build(),
                 null,
                 Collections.emptyList(),
-                getDefaultTargetTableOptions());
+                tableOptions);
     }
 
     private Map<String, String> getDefaultTargetTableOptions() {

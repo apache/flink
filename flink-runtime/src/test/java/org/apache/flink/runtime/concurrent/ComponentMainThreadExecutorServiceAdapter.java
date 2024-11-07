@@ -78,6 +78,13 @@ public class ComponentMainThreadExecutorServiceAdapter implements ComponentMainT
             @Nonnull ScheduledExecutorService singleThreadExecutor) {
         final Thread thread =
                 CompletableFuture.supplyAsync(Thread::currentThread, singleThreadExecutor).join();
+        final String testMainThreadNamePrefix = "ComponentMainThread";
+        if (!thread.getName().contains(testMainThreadNamePrefix)) {
+            // we have to check the current name first because this instance can be reused as a
+            // ScheduledExecutorService
+            thread.setName(String.format("%s-%s", testMainThreadNamePrefix, thread.getName()));
+        }
+
         return new ComponentMainThreadExecutorServiceAdapter(singleThreadExecutor, thread);
     }
 

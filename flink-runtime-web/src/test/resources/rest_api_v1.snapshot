@@ -290,9 +290,6 @@
     },
     "query-parameters" : {
       "queryParameters" : [ {
-        "key" : "program-args",
-        "mandatory" : false
-      }, {
         "key" : "programArg",
         "mandatory" : false
       }, {
@@ -308,9 +305,6 @@
       "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarPlanRequestBody",
       "properties" : {
         "entryClass" : {
-          "type" : "string"
-        },
-        "programArgs" : {
           "type" : "string"
         },
         "programArgsList" : {
@@ -355,9 +349,6 @@
     },
     "query-parameters" : {
       "queryParameters" : [ {
-        "key" : "program-args",
-        "mandatory" : false
-      }, {
         "key" : "programArg",
         "mandatory" : false
       }, {
@@ -373,9 +364,6 @@
       "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarPlanRequestBody",
       "properties" : {
         "entryClass" : {
-          "type" : "string"
-        },
-        "programArgs" : {
           "type" : "string"
         },
         "programArgsList" : {
@@ -426,9 +414,6 @@
         "key" : "savepointPath",
         "mandatory" : false
       }, {
-        "key" : "program-args",
-        "mandatory" : false
-      }, {
         "key" : "programArg",
         "mandatory" : false
       }, {
@@ -444,9 +429,6 @@
       "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarRunRequestBody",
       "properties" : {
         "entryClass" : {
-          "type" : "string"
-        },
-        "programArgs" : {
           "type" : "string"
         },
         "programArgsList" : {
@@ -467,6 +449,10 @@
         "savepointPath" : {
           "type" : "string"
         },
+        "restoreMode" : {
+          "type" : "string",
+          "enum" : [ "CLAIM", "NO_CLAIM", "LEGACY" ]
+        },
         "claimMode" : {
           "type" : "string",
           "enum" : [ "CLAIM", "NO_CLAIM", "LEGACY" ]
@@ -476,10 +462,6 @@
           "additionalProperties" : {
             "type" : "string"
           }
-        },
-        "restoreMode" : {
-          "type" : "string",
-          "enum" : [ "CLAIM", "NO_CLAIM", "LEGACY" ]
         }
       }
     },
@@ -715,7 +697,7 @@
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobSubmitRequestBody",
       "properties" : {
-        "jobGraphFileName" : {
+        "executionPlanFileName" : {
           "type" : "string"
         },
         "jobJarFileNames" : {
@@ -1902,7 +1884,7 @@
       "type" : "any"
     }
   }, {
-    "url" : "/jobs/:jobid/coordinators/:operatorid",
+    "url" : "/jobs/:jobid/coordinators/:operatorUid",
     "method" : "POST",
     "status-code" : "200 OK",
     "file-upload" : false,
@@ -1910,7 +1892,7 @@
       "pathParameters" : [ {
         "key" : "jobid"
       }, {
-        "key" : "operatorid"
+        "key" : "operatorUid"
       } ]
     },
     "query-parameters" : {
@@ -1961,42 +1943,6 @@
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfoWithHistory",
       "properties" : {
-        "root-exception" : {
-          "type" : "string"
-        },
-        "timestamp" : {
-          "type" : "integer"
-        },
-        "all-exceptions" : {
-          "type" : "array",
-          "items" : {
-            "type" : "object",
-            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfo:ExecutionExceptionInfo",
-            "properties" : {
-              "exception" : {
-                "type" : "string"
-              },
-              "task" : {
-                "type" : "string"
-              },
-              "location" : {
-                "type" : "string"
-              },
-              "endpoint" : {
-                "type" : "string"
-              },
-              "timestamp" : {
-                "type" : "integer"
-              },
-              "taskManagerId" : {
-                "type" : "string"
-              }
-            }
-          }
-        },
-        "truncated" : {
-          "type" : "boolean"
-        },
         "exceptionHistory" : {
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfoWithHistory:JobExceptionHistory",
@@ -2023,9 +1969,6 @@
                     }
                   },
                   "taskName" : {
-                    "type" : "string"
-                  },
-                  "location" : {
                     "type" : "string"
                   },
                   "endpoint" : {
@@ -2056,9 +1999,6 @@
                           }
                         },
                         "taskName" : {
-                          "type" : "string"
-                        },
-                        "location" : {
                           "type" : "string"
                         },
                         "endpoint" : {
@@ -2615,9 +2555,6 @@
               "attempt" : {
                 "type" : "integer"
               },
-              "host" : {
-                "type" : "string"
-              },
               "endpoint" : {
                 "type" : "string"
               },
@@ -2986,9 +2923,6 @@
               "attempt" : {
                 "type" : "integer"
               },
-              "host" : {
-                "type" : "string"
-              },
               "endpoint" : {
                 "type" : "string"
               },
@@ -3080,9 +3014,6 @@
         },
         "attempt" : {
           "type" : "integer"
-        },
-        "host" : {
-          "type" : "string"
         },
         "endpoint" : {
           "type" : "string"
@@ -3192,9 +3123,6 @@
         },
         "attempt" : {
           "type" : "integer"
-        },
-        "host" : {
-          "type" : "string"
         },
         "endpoint" : {
           "type" : "string"
@@ -3392,9 +3320,6 @@
               "subtask" : {
                 "type" : "integer"
               },
-              "host" : {
-                "type" : "string"
-              },
               "endpoint" : {
                 "type" : "string"
               },
@@ -3450,9 +3375,6 @@
             "type" : "object",
             "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexTaskManagersInfo:TaskManagersInfo",
             "properties" : {
-              "host" : {
-                "type" : "string"
-              },
               "endpoint" : {
                 "type" : "string"
               },
@@ -4039,12 +3961,6 @@
               "type" : "integer"
             },
             "mappedMax" : {
-              "type" : "integer"
-            },
-            "memorySegmentsAvailable" : {
-              "type" : "integer"
-            },
-            "memorySegmentsTotal" : {
               "type" : "integer"
             },
             "nettyShuffleMemorySegmentsAvailable" : {

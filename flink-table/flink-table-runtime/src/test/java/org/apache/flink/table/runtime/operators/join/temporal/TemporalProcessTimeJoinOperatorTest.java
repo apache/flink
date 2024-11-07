@@ -28,7 +28,7 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +39,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterR
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 
 /** Harness tests for {@link TemporalProcessTimeJoinOperator}. */
-public class TemporalProcessTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
+class TemporalProcessTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
 
     private int keyIdx = 0;
     private InternalTypeInfo<RowData> rowType =
@@ -59,7 +59,7 @@ public class TemporalProcessTimeJoinOperatorTest extends TemporalTimeJoinOperato
 
     /** Test proctime temporal join. */
     @Test
-    public void testProcTimeTemporalJoin() throws Exception {
+    void testProcTimeTemporalJoin() throws Exception {
         TemporalProcessTimeJoinOperator joinOperator =
                 new TemporalProcessTimeJoinOperator(rowType, joinCondition, 0, 0, false);
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
@@ -89,7 +89,7 @@ public class TemporalProcessTimeJoinOperatorTest extends TemporalTimeJoinOperato
 
     /** Test proctime temporal join when set idle state retention. */
     @Test
-    public void testProcTimeTemporalJoinWithStateRetention() throws Exception {
+    void testProcTimeTemporalJoinWithStateRetention() throws Exception {
         final int minRetentionTime = 10;
         final int maxRetentionTime = minRetentionTime * 3 / 2;
         TemporalProcessTimeJoinOperator joinOperator =
@@ -119,7 +119,7 @@ public class TemporalProcessTimeJoinOperatorTest extends TemporalTimeJoinOperato
 
     /** Test proctime left temporal join when set idle state retention. */
     @Test
-    public void testLeftProcTimeTemporalJoinWithStateRetention() throws Exception {
+    void testLeftProcTimeTemporalJoinWithStateRetention() throws Exception {
         final int minRetentionTime = 10;
         final int maxRetentionTime = minRetentionTime * 3 / 2;
         TemporalProcessTimeJoinOperator joinOperator =
@@ -151,7 +151,7 @@ public class TemporalProcessTimeJoinOperatorTest extends TemporalTimeJoinOperato
 
     /** Test proctime temporal join changelog stream. */
     @Test
-    public void testProcTimeTemporalJoinOnChangelog() throws Exception {
+    void testProcTimeTemporalJoinOnChangelog() throws Exception {
         TemporalProcessTimeJoinOperator joinOperator =
                 new TemporalProcessTimeJoinOperator(rowType, joinCondition, 0, 0, false);
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =

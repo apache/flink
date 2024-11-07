@@ -29,4 +29,4 @@ import org.apache.flink.annotation.Experimental;
  * @param <OUT> Type of the value that can be retrieved from the state.
  */
 @Experimental
-public interface MergingState<IN, OUT> extends AppendingState<IN, OUT> {}
+public interface MergingState<IN, OUT, SYNCOUT> extends AppendingState<IN, OUT, SYNCOUT> {}

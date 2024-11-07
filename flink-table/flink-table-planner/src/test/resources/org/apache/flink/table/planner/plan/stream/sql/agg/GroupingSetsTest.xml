@@ -986,4 +986,38 @@ Calc(select=[(deptno + 1) AS EXPR$0, c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCaseWhenRefGroupingSetsNullableCols">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+    case
+     when g1 = 1 then 'aaa'
+     when g2 = 1 then 'bbb'
+    end as gt,
+    b, c,
+    AVG(a) AS a
+FROM (select *, 1 g1, 1 g2 from MyTable) t
+    GROUP BY GROUPING SETS ((g1, b), (g2, b, c))
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(gt=[CASE(=($0, 1), _UTF-16LE'aaa', =($2, 1), _UTF-16LE'bbb', null:CHAR(3) CHARACTER SET "UTF-16LE")], b=[$1], c=[$3], a=[$4])
++- LogicalAggregate(group=[{0, 1, 2, 3}], groups=[[{0, 1}, {1, 2, 3}]], a=[AVG($4)])
+   +- LogicalProject(g1=[$3], b=[$1], g2=[$4], c=[$2], a=[$0])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], g1=[1], g2=[1])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[CASE((g1 = 1), 'aaa', (g2 = 1), 'bbb', null:CHAR(3)) AS gt, b, c, a])
++- GroupAggregate(groupBy=[g1, b, g2, c, $e], select=[g1, b, g2, c, $e, AVG(a) AS a])
+   +- Exchange(distribution=[hash[g1, b, g2, c, $e]])
+      +- Expand(projects=[{g1, b, null AS g2, null AS c, a, 3 AS $e}, {null AS g1, b, g2, c, a, 8 AS $e}])
+         +- Calc(select=[1 AS g1, b, 1 AS g2, c, a])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

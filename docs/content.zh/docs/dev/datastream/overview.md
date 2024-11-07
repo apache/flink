@@ -61,12 +61,6 @@ Flink 程序看起来像一个转换 `DataStream` 的常规程序。每个程序
 4. 指定计算结果的存储位置；
 5. 触发程序执行。
 
-{{< hint warning >}}
-All Flink Scala APIs are deprecated and will be removed in a future Flink version. You can still build your application in Scala, but you should move to the Java version of either the DataStream and/or Table API.
-
-See <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-265+Deprecate+and+remove+Scala+API+support">FLIP-265 Deprecate and remove Scala API support</a>
-{{< /hint >}}
-
 {{< tabs "fa68701c-59e8-4509-858e-3e8a123eeacf" >}}
 {{< tab "Java" >}}
 
@@ -118,51 +112,6 @@ print();
 ```
 
 {{< /tab >}}
-{{< tab "Scala" >}}
-
-现在我们将对这些步骤逐一进行概述，更多细节请参考相关章节。请注意，Java DataStream API 的所有核心类都可以在 {{< gh_link file="/flink-streaming-scala/src/main/scala/org/apache/flink/streaming/api/scala" name="org.apache.flink.streaming.api.scala" >}} 中找到。
-
-`StreamExecutionEnvironment` 是所有 Flink 程序的基础。你可以使用 `StreamExecutionEnvironment` 的如下静态方法获取 `StreamExecutionEnvironment`：
-
-```scala
-getExecutionEnvironment()
-
-createLocalEnvironment()
-
-createRemoteEnvironment(host: String, port: Int, jarFiles: String*)
-```
-
-通常，你只需要使用 `getExecutionEnvironment()` 即可，因为该方法会根据上下文做正确的处理：如果在 IDE 中执行你的程序或作为常规 Java 程序，它将创建一个本地环境，该环境将在你的本地机器上执行你的程序。如果你基于程序创建了一个 JAR 文件，并通过[命令行]({{< ref "docs/deployment/cli" >}})调用它，Flink 集群管理器将执行程序的 main 方法，同时 `getExecutionEnvironment()` 方法会返回一个执行环境以在集群上执行你的程序。
-
-为了指定 data sources，执行环境提供了一些方法，支持使用各种方法从文件中读取数据：你可以直接逐行读取数据，像读 CSV 文件一样，或使用任何第三方提供的 source。如果只是将一个文本文件作为一个行的序列来读，你可以使用：
-
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-
-val text: DataStream[String] = env.readTextFile("file:///path/to/file")
-```
-
-这将为你生成一个 DataStream，然后你可以在上面应用转换来创建新的派生 DataStream。
-
-你可以调用 DataStream 上具有转换功能的方法来应用转换。例如，一个 map 的转换如下所示：
-
-```scala
-val input: DataSet[String] = ...
-
-val mapped = input.map { x => x.toInt }
-```
-
-这将通过把原始集合中的每一个字符串转换为一个整数来创建一个新的 DataStream。
-
-一旦你有了包含最终结果的 DataStream，你就可以通过创建 sink 把它写到外部系统。下面是一些用于创建 sink 的示例方法：
-
-```scala
-writeAsText(path: String)
-
-print()
-```
-
-{{< /tab >}}
 {{< /tabs >}}
 
 一旦指定了完整的程序，需要调用 `StreamExecutionEnvironment` 的 `execute()` 方法来**触发程序执行**。根据 `ExecutionEnvironment` 的类型，执行会在你的本地机器上触发，或将你的程序提交到某个集群上执行。
@@ -198,7 +147,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import java.time.Duration;
 import org.apache.flink.util.Collector;
 
 public class WindowWordCount {
@@ -211,7 +160,7 @@ public class WindowWordCount {
                 .socketTextStream("localhost", 9999)
                 .flatMap(new Splitter())
                 .keyBy(value -> value.f0)
-                .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+                .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5)))
                 .sum(1);
 
         dataStream.print();
@@ -231,31 +180,6 @@ public class WindowWordCount {
 }
 ```
 
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-
-import org.apache.flink.streaming.api.scala._
-import org.apache.flink.streaming.api.windowing.time.Time
-
-object WindowWordCount {
-  def main(args: Array[String]) {
-
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val text = env.socketTextStream("localhost", 9999)
-
-    val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
-      .map { (_, 1) }
-      .keyBy(_._1)
-      .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
-      .sum(1)
-
-    counts.print()
-
-    env.execute("Window Stream WordCount")
-  }
-}
-```
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -320,51 +244,6 @@ Source 是你的程序从中读取其输入的地方。你可以用 `StreamExecu
 - `addSource` - 关联一个新的 source function。例如，你可以使用 `addSource(new FlinkKafkaConsumer<>(...))` 来从 Apache Kafka 获取数据。更多详细信息见[连接器]({{< ref "docs/connectors/datastream/overview" >}})。
 
 {{< /tab >}}
-{{< tab "Scala" >}}
-
-Source 是你的程序从中读取其输入的地方。你可以用 `StreamExecutionEnvironment.addSource(sourceFunction)` 将一个 source 关联到你的程序。Flink 自带了许多预先实现的 source functions，不过你仍然可以通过实现 `SourceFunction` 接口编写自定义的非并行 source，也可以通过实现 `ParallelSourceFunction` 接口或者继承 `RichParallelSourceFunction` 类编写自定义的并行 sources。
-通过 `StreamExecutionEnvironment` 可以访问多种预定义的 stream source：
-
-基于文件：
-
-- `readTextFile(path)` - 读取文本文件，例如遵守 TextInputFormat 规范的文件，逐行读取并将它们作为字符串返回。
-
-- `readFile(fileInputFormat, path)` - 按照指定的文件输入格式读取（一次）文件。
-
-- `readFile(fileInputFormat, path, watchType, interval, pathFilter, typeInfo)` -  这是前两个方法内部调用的方法。它基于给定的 `fileInputFormat` 读取路径 `path` 上的文件。根据提供的 `watchType` 的不同，source 可能定期（每 `interval` 毫秒）监控路径上的新数据（watchType 为 `FileProcessingMode.PROCESS_CONTINUOUSLY`），或者处理一次当前路径中的数据然后退出（watchType 为 `FileProcessingMode.PROCESS_ONCE`)。使用 `pathFilter`，用户可以进一步排除正在处理的文件。
-
-    *实现：*
-
-    在底层，Flink 将文件读取过程拆分为两个子任务，即 *目录监控* 和 *数据读取*。每个子任务都由一个单独的实体实现。监控由单个**非并行**（并行度 = 1）任务实现，而读取由多个并行运行的任务执行。后者的并行度和作业的并行度相等。单个监控任务的作用是扫描目录（定期或仅扫描一次，取决于 `watchType`），找到要处理的文件，将它们划分为 *分片*，并将这些分片分配给下游 reader。Reader 是将实际获取数据的角色。每个分片只能被一个 reader 读取，而一个 reader 可以一个一个地读取多个分片。
-
-    *重要提示：*
-
-    1. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_CONTINUOUSLY`，当一个文件被修改时，它的内容会被完全重新处理。这可能会打破 “精确一次” 的语义，因为在文件末尾追加数据将导致重新处理文件的**所有**内容。
-
-    2. 如果 `watchType` 设置为 `FileProcessingMode.PROCESS_ONCE`，source 扫描**一次**路径然后退出，无需等待 reader 读完文件内容。当然，reader 会继续读取数据，直到所有文件内容都读完。关闭 source 会导致在那之后不再有检查点。这可能会导致节点故障后恢复速度变慢，因为作业将从最后一个检查点恢复读取。
-
-基于套接字：
-
-- `socketTextStream` - 从套接字读取。元素可以由分隔符分隔。
-
-基于集合：
-
-- `fromCollection(Collection)` - 从 Java Java.util.Collection 创建数据流。集合中的所有元素必须属于同一类型。 
-  
-- `fromCollection(Iterator, Class)` - 从迭代器创建数据流。class 参数指定迭代器返回元素的数据类型。
-  
-- `fromElements(T ...)` - 从给定的对象序列中创建数据流。所有的对象必须属于同一类型。
-  
-- `fromParallelCollection(SplittableIterator, Class)` - 从迭代器并行创建数据流。class 参数指定迭代器返回元素的数据类型。
-  
-- `fromSequence(from, to)` - 基于给定间隔内的数字序列并行生成数据流。
-
-自定义：
-
-- `addSource` - 关联一个新的 source function。例如，你可以使用 `addSource(new FlinkKafkaConsumer<>(...))` 来从 Apache Kafka 获取数据。更多详细信息见[连接器]({{< ref "docs/connectors/datastream/overview" >}})。
-
-
-{{< /tab >}}
 {{< /tabs >}}
 
 {{< top >}}
@@ -385,24 +264,6 @@ Data Sinks
 
 {{< tabs "355a7803-ea54-44b2-9970-e0cdd58a959b" >}}
 {{< tab "Java" >}}
-
-Data sinks 使用 DataStream 并将它们转发到文件、套接字、外部系统或打印它们。Flink 自带了多种内置的输出格式，这些格式相关的实现封装在 DataStreams 的算子里：
-
-- `writeAsText()` / `TextOutputFormat` - 将元素按行写成字符串。通过调用每个元素的 toString() 方法获得字符串。
-
-- `writeAsCsv(...)` / `CsvOutputFormat` - 将元组写成逗号分隔值文件。行和字段的分隔符是可配置的。每个字段的值来自对象的 *toString()* 方法。
-
-- `print()` / `printToErr()`  - 在标准输出/标准错误流上打印每个元素的 *toString()* 值。
-  可选地，可以提供一个前缀（msg）附加到输出。这有助于区分不同的 *print* 调用。如果并行度大于1，输出结果将附带输出任务标识符的前缀。
-  
-- `writeUsingOutputFormat()` / `FileOutputFormat` - 自定义文件输出的方法和基类。支持自定义 object 到 byte 的转换。
-  
-- `writeToSocket` - 根据 `SerializationSchema` 将元素写入套接字。
-
-- `addSink` - 调用自定义 sink function。Flink 捆绑了连接到其他系统（例如 Apache Kafka）的连接器，这些连接器被实现为 sink functions。
-
-{{< /tab >}}
-{{< tab "Scala" >}}
 
 Data sinks 使用 DataStream 并将它们转发到文件、套接字、外部系统或打印它们。Flink 自带了多种内置的输出格式，这些格式相关的实现封装在 DataStreams 的算子里：
 
@@ -464,14 +325,6 @@ env.setBufferTimeout(timeoutMillis);
 env.generateSequence(1,10).map(new MyMapper()).setBufferTimeout(timeoutMillis);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env: LocalStreamEnvironment = StreamExecutionEnvironment.createLocalEnvironment
-env.setBufferTimeout(timeoutMillis)
-
-env.generateSequence(1,10).map(myMap).setBufferTimeout(timeoutMillis)
-```
-{{< /tab >}}
 {{< /tabs >}}
 
 为了最大限度地提高吞吐量，设置 `setBufferTimeout(-1)` 来删除超时，这样缓冲区仅在它们已满时才会被刷新。要最小化延迟，请将超时设置为接近 0 的值（例如 5 或 10 毫秒）。应避免超时为 0 的缓冲区，因为它会导致严重的性能下降。
@@ -506,17 +359,6 @@ DataStream<String> lines = env.addSource(/* some source */);
 env.execute();
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-
-```scala
-val env = StreamExecutionEnvironment.createLocalEnvironment()
-
-val lines = env.addSource(/* some source */)
-// 构建你的程序
-
-env.execute()
-```
-{{< /tab >}}
 {{< /tabs >}}
 
 <a name="collection-data-sources"></a>
@@ -544,22 +386,6 @@ Iterator<Long> longIt = ...
 DataStream<Long> myLongs = env.fromCollection(longIt, Long.class);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-val env = StreamExecutionEnvironment.createLocalEnvironment()
-
-// 从元素列表创建一个 DataStream
-val myInts = env.fromElements(1, 2, 3, 4, 5)
-
-// 从任何 Java 集合创建一个 DataStream
-val data: Seq[(String, Int)] = ...
-val myTuples = env.fromCollection(data)
-
-// 从迭代器创建一个 DataStream
-val longIt: Iterator[Long] = ...
-val myLongs = env.fromCollection(longIt)
-```
-{{< /tab >}}
 {{< /tabs >}}
 
 **注意：** 目前，集合 data source 要求数据类型和迭代器实现 `Serializable`。此外，集合 data sources 不能并行执行（parallelism = 1）。
@@ -578,13 +404,6 @@ DataStream<Tuple2<String, Integer>> myResult = ...
 Iterator<Tuple2<String, Integer>> myOutput = myResult.collectAsync();
 ```
 
-{{< /tab >}}
-{{< tab "Scala" >}}
-
-```scala
-val myResult: DataStream[(String, Int)] = ...
-val myOutput: Iterator[(String, Int)] = myResult.collectAsync()
-```
 {{< /tab >}}
 {{< /tabs >}}
 

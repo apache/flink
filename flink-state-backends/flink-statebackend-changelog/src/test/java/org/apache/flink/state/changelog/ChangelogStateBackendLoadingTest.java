@@ -25,7 +25,6 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -40,11 +39,11 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.delegate.DelegatingStateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
+import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TernaryBoolean;
@@ -56,7 +55,6 @@ import org.junit.rules.TemporaryFolder;
 import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
@@ -155,37 +153,6 @@ public class ChangelogStateBackendLoadingTest {
                 appBackend, config("rocksdb", true), config(), cl, null);
     }
 
-    // ----------------------------------------------------------
-    // The following tests are testing different combinations of
-    // state backend and checkpointStorage after FLINK-19463
-    // disentangles Checkpointing from state backends.
-    // After "jobmanager" and "filesystem" state backends are removed,
-    // These tests can be simplified.
-    //
-    @Test
-    public void testLoadingMemoryStateBackendFromConfig() throws Exception {
-        testLoadingStateBackend(
-                "jobmanager", MemoryStateBackend.class, MemoryStateBackend.class, true);
-    }
-
-    @Test
-    public void testLoadingMemoryStateBackend() throws Exception {
-        testLoadingStateBackend(
-                "jobmanager", MemoryStateBackend.class, MemoryStateBackend.class, false);
-    }
-
-    @Test
-    public void testLoadingFsStateBackendFromConfig() throws Exception {
-        testLoadingStateBackend(
-                "filesystem", HashMapStateBackend.class, JobManagerCheckpointStorage.class, true);
-    }
-
-    @Test
-    public void testLoadingFsStateBackend() throws Exception {
-        testLoadingStateBackend(
-                "filesystem", HashMapStateBackend.class, JobManagerCheckpointStorage.class, false);
-    }
-
     @Test
     public void testLoadingHashMapStateBackendFromConfig() throws Exception {
         testLoadingStateBackend(
@@ -219,29 +186,12 @@ public class ChangelogStateBackendLoadingTest {
     @Test
     public void testEnableChangelogStateBackendInStreamExecutionEnvironment() throws Exception {
         StreamExecutionEnvironment env = getEnvironment();
-        assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
-                env, TernaryBoolean.UNDEFINED, null);
+        assertStateBackendAndChangelogInStreamGraphAndJobGraph(env, TernaryBoolean.UNDEFINED);
 
-        // set back and force
-        env.setStateBackend(new MemoryStateBackend());
-        assertTrue(env.getStateBackend() instanceof MemoryStateBackend);
-        assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
-                env, TernaryBoolean.UNDEFINED, MemoryStateBackend.class);
         env.enableChangelogStateBackend(true);
-        assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
-                env, TernaryBoolean.TRUE, MemoryStateBackend.class);
+        assertStateBackendAndChangelogInStreamGraphAndJobGraph(env, TernaryBoolean.TRUE);
         env.enableChangelogStateBackend(false);
-        assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
-                env, TernaryBoolean.FALSE, MemoryStateBackend.class);
-
-        // enable changelog before set statebackend
-        env = getEnvironment();
-        env.enableChangelogStateBackend(true);
-        assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
-                env, TernaryBoolean.TRUE, null);
-        env.setStateBackend(new MemoryStateBackend());
-        assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
-                env, TernaryBoolean.TRUE, MemoryStateBackend.class);
+        assertStateBackendAndChangelogInStreamGraphAndJobGraph(env, TernaryBoolean.FALSE);
     }
 
     private Configuration config(String stateBackend, boolean enableChangelogStateBackend) {
@@ -338,17 +288,9 @@ public class ChangelogStateBackendLoadingTest {
         return env;
     }
 
-    private void assertStateBackendAndChangelogInEnvironmentAndStreamGraphAndJobGraph(
-            StreamExecutionEnvironment env,
-            TernaryBoolean isChangelogEnabled,
-            Class<?> rootStateBackendClass)
-            throws Exception {
+    private void assertStateBackendAndChangelogInStreamGraphAndJobGraph(
+            StreamExecutionEnvironment env, TernaryBoolean isChangelogEnabled) throws Exception {
         assertEquals(isChangelogEnabled, env.isChangelogStateBackendEnabled());
-        if (rootStateBackendClass == null) {
-            assertNull(env.getStateBackend());
-        } else {
-            assertSame(rootStateBackendClass, env.getStateBackend().getClass());
-        }
 
         StreamGraph streamGraph = env.getStreamGraph(false);
         assertEquals(
@@ -358,36 +300,10 @@ public class ChangelogStateBackendLoadingTest {
                         .getOptional(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)
                         .map(TernaryBoolean::fromBoolean)
                         .orElse(TernaryBoolean.UNDEFINED));
-        if (rootStateBackendClass == null) {
-            assertNull(streamGraph.getStateBackend());
-        } else {
-            assertSame(rootStateBackendClass, streamGraph.getStateBackend().getClass());
-        }
+
         JobCheckpointingSettings checkpointingSettings =
                 streamGraph.getJobGraph().getCheckpointingSettings();
         assertEquals(isChangelogEnabled, checkpointingSettings.isChangelogStateBackendEnabled());
-        if (rootStateBackendClass == null) {
-            assertNull(checkpointingSettings.getDefaultStateBackend());
-        } else {
-            assertSame(
-                    rootStateBackendClass,
-                    checkpointingSettings.getDefaultStateBackend().deserializeValue(cl).getClass());
-            assertSame(
-                    rootStateBackendClass,
-                    unwrapFromDelegatingStateBackend(
-                                    checkpointingSettings
-                                            .getDefaultStateBackend()
-                                            .deserializeValue(cl))
-                            .getClass());
-        }
-    }
-
-    private StateBackend unwrapFromDelegatingStateBackend(StateBackend backend) {
-        if (backend instanceof DelegatingStateBackend) {
-            return ((DelegatingStateBackend) backend).getDelegatedStateBackend();
-        } else {
-            return backend;
-        }
     }
 
     private static class MockStateBackend extends AbstractStateBackend

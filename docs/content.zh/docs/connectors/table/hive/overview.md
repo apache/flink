@@ -104,7 +104,7 @@ export HADOOP_CLASSPATH=`hadoop classpath`
    /lib
 
        // Flink's Hive connector.Contains flink-hadoop-compatibility and flink-orc jars
-       flink-connector-hive{{< scala_version >}}-{{< version >}}.jar
+       flink-connector-hive-{{< version >}}.jar
 
        // Hive dependencies
        hive-exec-2.3.4.jar
@@ -120,7 +120,7 @@ export HADOOP_CLASSPATH=`hadoop classpath`
    /lib
 
        // Flink's Hive connector
-       flink-connector-hive{{< scala_version >}}-{{< version >}}.jar
+       flink-connector-hive-{{< version >}}.jar
 
        // Hive dependencies
        hive-exec-3.1.0.jar
@@ -142,7 +142,7 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 <!-- Flink Dependency -->
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-hive{{< scala_version >}}</artifactId>
+  <artifactId>flink-connector-hive</artifactId>
   <version>{{< version >}}</version>
   <scope>provided</scope>
 </dependency>

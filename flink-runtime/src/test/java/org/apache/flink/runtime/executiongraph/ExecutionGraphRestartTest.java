@@ -18,9 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -46,6 +44,7 @@ import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
@@ -418,13 +417,10 @@ class ExecutionGraphRestartTest {
     private static JobGraph createJobGraphToCancel() throws IOException {
         JobVertex vertex =
                 ExecutionGraphTestUtils.createJobVertex("Test Vertex", 1, NoOpInvokable.class);
-        ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(
-                RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, Integer.MAX_VALUE));
-
-        return JobGraphBuilder.newStreamingJobGraphBuilder()
-                .addJobVertex(vertex)
-                .setExecutionConfig(executionConfig)
-                .build();
+        JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder().addJobVertex(vertex).build();
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(
+                jobGraph, Integer.MAX_VALUE, Integer.MAX_VALUE);
+        return jobGraph;
     }
 }

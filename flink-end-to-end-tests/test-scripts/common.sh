@@ -55,8 +55,9 @@ source "${FLINK_DIR}/bin/bash-java-utils.sh"
 if [[ -z "${FLINK_CONF_DIR:-}" ]]; then
     FLINK_CONF_DIR="$FLINK_DIR/conf"
 fi
-setJavaRun "$FLINK_CONF_DIR"
 FLINK_CONF=${FLINK_CONF_DIR}/config.yaml
+setJavaRun "$FLINK_CONF"
+
 # Flatten the configuration file config.yaml to enable end-to-end test cases which will modify 
 # it directly through shell scripts.
 output=$(updateAndGetFlinkConfiguration "${FLINK_CONF_DIR}" "${FLINK_DIR}/bin" "${FLINK_DIR}/lib" -flatten)
@@ -292,11 +293,11 @@ function wait_rest_endpoint_up {
   exit 1
 }
 
-function relocate_rocksdb_logs {
-  # After FLINK-24785, RocksDB's log would be created under Flink's log directory by default,
-  # this would make e2e tests' artifacts containing too many log files.
-  # As RocksDB's log would not help much in e2e tests, move the location back to its own folder.
-  set_config_key "state.backend.rocksdb.log.dir" "/dev/null"
+function reset_rocksdb_log_level {
+  # After upgrading RocksDB to 8.10 in FLINK-35573, the log dir of RocksDB cannot be set to/dev/null.
+  # To avoid the problem of large logs, we can set the log level of rocksdb to HEADER_LOG in e2e test,
+  # and then continue to keep it under tm's log dir
+  set_config_key "state.backend.rocksdb.log.level" "HEADER_LEVEL"
 }
 
 function wait_dispatcher_running {
@@ -305,7 +306,7 @@ function wait_dispatcher_running {
 }
 
 function start_cluster {
-  relocate_rocksdb_logs
+  reset_rocksdb_log_level
   "$FLINK_DIR"/bin/start-cluster.sh
   wait_dispatcher_running
 }
@@ -877,7 +878,7 @@ function wait_for_restart_to_complete {
     while [[ ${current_num_restarts} -lt ${expected_num_restarts} ]]; do
         echo "Still waiting for restarts. Expected: $expected_num_restarts Current: $current_num_restarts"
         sleep 5
-        current_num_restarts=$(get_job_metric ${jobid} "fullRestarts")
+        current_num_restarts=$(get_job_metric ${jobid} "numRestarts")
         if [[ -z ${current_num_restarts} ]]; then
             current_num_restarts=${base_num_restarts}
         fi

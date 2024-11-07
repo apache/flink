@@ -17,9 +17,8 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.streaming.runtime.operators.util.WatermarkStrategyWithPunctuatedWatermarks
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils._
@@ -63,13 +62,17 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data2.+=((1, 1L, "HiHi"))
     data2.+=((2, 2L, "HeHe"))
 
-    val tmp1 = env.fromCollection(data1).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+    val tmp1 = StreamingEnvUtil
+      .fromCollection(env, data1)
+      .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
     tEnv.createTemporaryView("TmpT1", tmp1)
     val subquery1 = "SELECT IF(a = 1, CAST(NULL AS INT), a) as a, b, c, proctime FROM TmpT1"
     val t1 = tEnv.sqlQuery(subquery1)
     tEnv.createTemporaryView("T1", t1)
 
-    val tmp2 = env.fromCollection(data2).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+    val tmp2 = StreamingEnvUtil
+      .fromCollection(env, data2)
+      .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
     tEnv.createTemporaryView("TmpT2", tmp2)
     val subquery2 = "SELECT IF(a = 1, CAST(NULL AS INT), a) as a, b, c, proctime FROM TmpT2"
     val t2 = tEnv.sqlQuery(subquery2)
@@ -106,13 +109,17 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data2.+=((1, 1L, "HiHi"))
     data2.+=((2, 2L, "HeHe"))
 
-    val tmp1 = env.fromCollection(data1).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+    val tmp1 = StreamingEnvUtil
+      .fromCollection(env, data1)
+      .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
     tEnv.createTemporaryView("TmpT1", tmp1)
     val subquery1 = "SELECT IF(a = 1, CAST(NULL AS INT), a) as a, b, c, proctime FROM TmpT1"
     val t1 = tEnv.sqlQuery(subquery1)
     tEnv.createTemporaryView("T1", t1)
 
-    val tmp2 = env.fromCollection(data2).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+    val tmp2 = StreamingEnvUtil
+      .fromCollection(env, data2)
+      .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
     tEnv.createTemporaryView("TmpT2", tmp2)
     val subquery2 = "SELECT IF(a = 1, CAST(NULL AS INT), a) as a, b, c, proctime FROM TmpT2"
     val t2 = tEnv.sqlQuery(subquery2)
@@ -155,8 +162,12 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data1.+=((null.asInstanceOf[String], 20L, "leftNull"))
     data2.+=((null.asInstanceOf[String], 20L, "rightNull"))
 
-    val t1 = env.fromCollection(data1).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
-    val t2 = env.fromCollection(data2).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data1)
+      .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+    val t2 = StreamingEnvUtil
+      .fromCollection(env, data2)
+      .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
 
     tEnv.createTemporaryView("T1", t1)
     tEnv.createTemporaryView("T2", t2)
@@ -200,12 +211,12 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     // test null key
     data2.+=((null.asInstanceOf[String], "RIGHT10", 10000L))
 
-    val t1 = env
-      .fromCollection(data1)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data1)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
-    val t2 = env
-      .fromCollection(data2)
+    val t2 = StreamingEnvUtil
+      .fromCollection(env, data2)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
@@ -255,12 +266,12 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     // test null key
     data2.+=((null.asInstanceOf[String], "RIGHT10", 10000L))
 
-    val t1 = env
-      .fromCollection(data1)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data1)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
-    val t2 = env
-      .fromCollection(data2)
+    val t2 = StreamingEnvUtil
+      .fromCollection(env, data2)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
@@ -310,12 +321,12 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     // test null key
     data2.+=((null.asInstanceOf[String], "RIGHT10", 10000L))
 
-    val t1 = env
-      .fromCollection(data1)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data1)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
-    val t2 = env
-      .fromCollection(data2)
+    val t2 = StreamingEnvUtil
+      .fromCollection(env, data2)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
@@ -378,12 +389,12 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     // test null key
     data2.+=((null.asInstanceOf[String], "RIGHT10", 10000L))
 
-    val t1 = env
-      .fromCollection(data1)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data1)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
-    val t2 = env
-      .fromCollection(data2)
+    val t2 = StreamingEnvUtil
+      .fromCollection(env, data2)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
@@ -439,9 +450,9 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       .watermark("rowtime", "rowtime - INTERVAL '1' SECOND")
       .build()
 
-    val t1 = tEnv.fromDataStream(env.fromCollection(data1), schema)
+    val t1 = tEnv.fromDataStream(StreamingEnvUtil.fromCollection(env, data1), schema)
 
-    val t2 = tEnv.fromDataStream(env.fromCollection(data2), schema)
+    val t2 = tEnv.fromDataStream(StreamingEnvUtil.fromCollection(env, data2), schema)
 
     tEnv.createTemporaryView("T1", t1)
     tEnv.createTemporaryView("T2", t2)
@@ -503,12 +514,12 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data2.+=((2, 14L, "RIGHT7", 7000L))
     data2.+=((1, 4L, "RIGHT8", 8000L))
 
-    val t1 = env
-      .fromCollection(data1)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data1)
       .assignTimestampsAndWatermarks(new Row4WatermarkExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
-    val t2 = env
-      .fromCollection(data2)
+    val t2 = StreamingEnvUtil
+      .fromCollection(env, data2)
       .assignTimestampsAndWatermarks(new Row4WatermarkExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
@@ -555,12 +566,12 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data2.+=((2, 8, "RIGHT7", 7000L))
     data2.+=((1, 4L, "RIGHT8", 8000L))
 
-    val t1 = env
-      .fromCollection(data1)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data1)
       .assignTimestampsAndWatermarks(new Row4WatermarkExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
-    val t2 = env
-      .fromCollection(data2)
+    val t2 = StreamingEnvUtil
+      .fromCollection(env, data2)
       .assignTimestampsAndWatermarks(new Row4WatermarkExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
@@ -606,12 +617,12 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data2.+=(("A", "R-3", 8000L)) // 3 joining records
     data2.+=(("D", "R-2", 8000L)) // no joining record
 
-    val t1 = env
-      .fromCollection(data1)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data1)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
-    val t2 = env
-      .fromCollection(data2)
+    val t2 = StreamingEnvUtil
+      .fromCollection(env, data2)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
@@ -660,12 +671,12 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data2.+=(("A", "R-3", 8000L)) // 3 joining records
     data2.+=(("D", "R-2", 8000L)) // no joining record
 
-    val t1 = env
-      .fromCollection(data1)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data1)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
-    val t2 = env
-      .fromCollection(data2)
+    val t2 = StreamingEnvUtil
+      .fromCollection(env, data2)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
@@ -707,11 +718,11 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data2.+=((1, 1L, "HiHi"))
     data2.+=((2, 2L, "HeHe"))
 
-    val t1 = env
-      .fromCollection(data1)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data1)
       .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
-    val t2 = env
-      .fromCollection(data2)
+    val t2 = StreamingEnvUtil
+      .fromCollection(env, data2)
       .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
 
     tEnv.createTemporaryView("T1", t1)
@@ -755,13 +766,13 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data2.+=(("D", "R-8", 8000L))
     data2.+=(("A", "R-11", 11000L))
 
-    val t1 = env
-      .fromCollection(data1)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data1)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
-    val t2 = env
-      .fromCollection(data2)
+    val t2 = StreamingEnvUtil
+      .fromCollection(env, data2)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
@@ -812,12 +823,12 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data2.+=(("B", "R-7", 7000L))
     data2.+=(("D", "R-8", 8000L))
 
-    val t1 = env
-      .fromCollection(data1)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data1)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
-    val t2 = env
-      .fromCollection(data2)
+    val t2 = StreamingEnvUtil
+      .fromCollection(env, data2)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
@@ -861,8 +872,12 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data2.+=((1, 1L, "HiHi"))
     data2.+=((2, 2L, "HeHe"))
 
-    val t1 = env.fromCollection(data1).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
-    val t2 = env.fromCollection(data2).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data1)
+      .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+    val t2 = StreamingEnvUtil
+      .fromCollection(env, data2)
+      .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
 
     tEnv.createTemporaryView("T1", t1)
     tEnv.createTemporaryView("T2", t2)
@@ -903,12 +918,12 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data2.+=(("D", "R-8", 8000L))
     data2.+=(("A", "R-20", 20000L))
 
-    val t1 = env
-      .fromCollection(data1)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data1)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
-    val t2 = env
-      .fromCollection(data2)
+    val t2 = StreamingEnvUtil
+      .fromCollection(env, data2)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
@@ -956,12 +971,12 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data2.+=(("B", "R-7", 7000L))
     data2.+=(("D", "R-8", 8000L))
 
-    val t1 = env
-      .fromCollection(data1)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data1)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
-    val t2 = env
-      .fromCollection(data2)
+    val t2 = StreamingEnvUtil
+      .fromCollection(env, data2)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
@@ -1005,8 +1020,12 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data2.+=((1, 1L, "HiHi"))
     data2.+=((2, 2L, "HeHe"))
 
-    val t1 = env.fromCollection(data1).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
-    val t2 = env.fromCollection(data2).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data1)
+      .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
+    val t2 = StreamingEnvUtil
+      .fromCollection(env, data2)
+      .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
 
     tEnv.createTemporaryView("T1", t1)
     tEnv.createTemporaryView("T2", t2)
@@ -1047,12 +1066,12 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data2.+=(("B", "R-7", 7000L))
     data2.+=(("D", "R-8", 8000L))
 
-    val t1 = env
-      .fromCollection(data1)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data1)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
-    val t2 = env
-      .fromCollection(data2)
+    val t2 = StreamingEnvUtil
+      .fromCollection(env, data2)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
@@ -1102,12 +1121,12 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     data2.+=(("B", "R-7", 7000L))
     data2.+=(("D", "R-8", 8000L))
 
-    val t1 = env
-      .fromCollection(data1)
+    val t1 = StreamingEnvUtil
+      .fromCollection(env, data1)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
-    val t2 = env
-      .fromCollection(data2)
+    val t2 = StreamingEnvUtil
+      .fromCollection(env, data2)
       .assignTimestampsAndWatermarks(new Row3WatermarkExtractor2)
       .toTable(tEnv, 'key, 'id, 'rowtime.rowtime)
 
@@ -1132,7 +1151,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
 }
 
 private class Row4WatermarkExtractor
-  extends AssignerWithPunctuatedWatermarks[(Int, Long, String, Long)] {
+  extends WatermarkStrategyWithPunctuatedWatermarks[(Int, Long, String, Long)] {
 
   override def checkAndGetNextWatermark(
       lastElement: (Int, Long, String, Long),
@@ -1148,7 +1167,7 @@ private class Row4WatermarkExtractor
 }
 
 private class Row3WatermarkExtractor2
-  extends AssignerWithPunctuatedWatermarks[(String, String, Long)] {
+  extends WatermarkStrategyWithPunctuatedWatermarks[(String, String, Long)] {
 
   override def checkAndGetNextWatermark(
       lastElement: (String, String, Long),

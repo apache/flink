@@ -22,10 +22,8 @@ import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtensi
 
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 
 /**
  * Tests that the {@link JobExceptionsInfoWithHistory} with no root exception can be marshalled and
@@ -41,27 +39,7 @@ class JobExceptionsInfoWithHistoryNoRootTest
 
     @Override
     protected JobExceptionsInfoWithHistory getTestResponseInstance() throws Exception {
-        List<JobExceptionsInfo.ExecutionExceptionInfo> executionTaskExceptionInfoList =
-                new ArrayList<>();
-        executionTaskExceptionInfoList.add(
-                new JobExceptionsInfo.ExecutionExceptionInfo(
-                        "exception1",
-                        "task1",
-                        "location1",
-                        System.currentTimeMillis(),
-                        "taskManagerId1"));
-        executionTaskExceptionInfoList.add(
-                new JobExceptionsInfo.ExecutionExceptionInfo(
-                        "exception2",
-                        "task2",
-                        "location2",
-                        System.currentTimeMillis(),
-                        "taskManagerId2"));
         return new JobExceptionsInfoWithHistory(
-                null,
-                null,
-                executionTaskExceptionInfoList,
-                false,
                 new JobExceptionsInfoWithHistory.JobExceptionHistory(
                         Arrays.asList(
                                 new JobExceptionsInfoWithHistory.RootExceptionInfo(
@@ -77,7 +55,6 @@ class JobExceptionsInfoWithHistoryNoRootTest
                                                         Collections.emptyMap(),
                                                         "task name #2",
                                                         "location #2",
-                                                        "location #2",
                                                         "taskManagerId #2"))),
                                 new JobExceptionsInfoWithHistory.RootExceptionInfo(
                                         "local task failure #1",
@@ -85,7 +62,6 @@ class JobExceptionsInfoWithHistoryNoRootTest
                                         1L,
                                         Collections.emptyMap(),
                                         "task name",
-                                        "location",
                                         "location",
                                         "taskManagerId",
                                         Collections.emptyList())),

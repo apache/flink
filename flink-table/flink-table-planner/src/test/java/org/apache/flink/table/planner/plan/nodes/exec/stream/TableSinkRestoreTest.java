@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.planner.plan.nodes.exec.common.TableSinkTestPrograms;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
@@ -42,6 +43,7 @@ public class TableSinkRestoreTest extends RestoreTestBase {
                 TableSinkTestPrograms.SINK_OVERWRITE,
                 TableSinkTestPrograms.SINK_WRITING_METADATA,
                 TableSinkTestPrograms.SINK_NDF_PRIMARY_KEY,
-                TableSinkTestPrograms.SINK_PARTIAL_INSERT);
+                TableSinkTestPrograms.SINK_PARTIAL_INSERT,
+                TableSinkTestPrograms.SINK_UPSERT);
     }
 }

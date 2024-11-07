@@ -19,7 +19,6 @@
 package org.apache.flink.state.api.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -96,12 +95,6 @@ public final class SavepointRuntimeContext implements RuntimeContext {
     @Override
     public OperatorMetricGroup getMetricGroup() {
         return ctx.getMetricGroup();
-    }
-
-    @Override
-    @Deprecated
-    public ExecutionConfig getExecutionConfig() {
-        return ctx.getExecutionConfig();
     }
 
     @Override

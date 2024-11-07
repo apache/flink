@@ -33,9 +33,9 @@ import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.async.queue.OrderedStreamElementQueue;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
@@ -139,6 +139,7 @@ public class AsyncWaitOperator<IN, OUT>
     private transient AtomicBoolean retryDisabledOnFinish;
 
     public AsyncWaitOperator(
+            StreamOperatorParameters<OUT> parameters,
             @Nonnull AsyncFunction<IN, OUT> asyncFunction,
             long timeout,
             int capacity,
@@ -146,9 +147,7 @@ public class AsyncWaitOperator<IN, OUT>
             @Nonnull AsyncRetryStrategy<OUT> asyncRetryStrategy,
             @Nonnull ProcessingTimeService processingTimeService,
             @Nonnull MailboxExecutor mailboxExecutor) {
-        super(asyncFunction);
-
-        setChainingStrategy(ChainingStrategy.ALWAYS);
+        super(null, asyncFunction);
 
         Preconditions.checkArgument(
                 capacity > 0, "The number of concurrent async operation should be greater than 0.");
@@ -172,10 +171,12 @@ public class AsyncWaitOperator<IN, OUT>
         this.processingTimeService = Preconditions.checkNotNull(processingTimeService);
 
         this.mailboxExecutor = mailboxExecutor;
+
+        setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
     }
 
     @Override
-    public void setup(
+    protected void setup(
             StreamTask<?, ?> containingTask,
             StreamConfig config,
             Output<StreamRecord<OUT>> output) {

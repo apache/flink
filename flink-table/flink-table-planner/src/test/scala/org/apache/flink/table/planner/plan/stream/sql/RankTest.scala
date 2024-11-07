@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.utils.TableTestBase
@@ -843,14 +842,15 @@ class RankTest extends TableTestBase {
                                |CREATE VIEW v1 AS
                                |SELECT c, b, SUM(a) FILTER (WHERE a > 0) AS d FROM v0 GROUP BY c, b
                                |""".stripMargin)
-    util.verifyRelPlan("""
-                         |SELECT c, b, d
-                         |FROM (
-                         |    SELECT
-                         |       c, b, d,
-                         |       ROW_NUMBER() OVER (PARTITION BY c, b ORDER BY d DESC) AS rn FROM v1
-                         |) WHERE rn < 10
-                         |""".stripMargin)
+    util.verifyExecPlan(
+      """
+        |SELECT c, b, d
+        |FROM (
+        |    SELECT
+        |       c, b, d,
+        |       ROW_NUMBER() OVER (PARTITION BY c, b ORDER BY d DESC) AS rn FROM v1
+        |) WHERE rn < 10
+        |""".stripMargin)
   }
   @Test
   def testUpdatableRankAfterLookupJoin(): Unit = {

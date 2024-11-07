@@ -137,7 +137,7 @@ class FlinkYarnSessionCliTest {
 
     @Test
     void testCorrectSettingOfDetachedMode() throws Exception {
-        final String[] params = new String[] {"-yd"};
+        final String[] params = new String[] {"-d"};
         FlinkYarnSessionCli yarnCLI = createFlinkYarnSessionCli();
 
         final CommandLine commandLine = yarnCLI.parseCommandLineOptions(params, true);

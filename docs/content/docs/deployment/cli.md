@@ -74,11 +74,7 @@ stored in a variable `JOB_ID` for the commands below:
 $ export JOB_ID="cca7bc1061d61cf15238e92312c2fc20"
 ```
 
-There is another action called `run-application` available to run the job in 
-[Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode). This documentation does not address
-this action individually as it works similarly to the `run` action in terms of the CLI frontend.
-
-The `run` and `run-application` commands support passing additional configuration parameters via the
+The `run` command support passing additional configuration parameters via the
 `-D` argument. For example setting the [maximum parallelism]({{< ref "docs/deployment/config#pipeline-max-parallelism" >}}#application-mode) 
 for a job can be done by setting `-Dpipeline.max-parallelism=120`. This argument is very useful for
 configuring application mode clusters, because you can pass any configuration parameter 
@@ -274,7 +270,7 @@ Use the [stop](#stopping-a-job-gracefully-creating-a-final-savepoint) action ins
 
 ### Starting a Job from a Savepoint
 
-Starting a job from a savepoint can be achieved using the `run` (and `run-application`) action.
+Starting a job from a savepoint can be achieved using the `run` action.
 ```bash
 $ ./bin/flink run \
       --detached \ 
@@ -335,14 +331,6 @@ Here's an overview of actions supported by Flink's CLI tool:
             <td>
                 This action executes jobs. It requires at least the jar containing the job. Flink-
                 or job-related arguments can be passed if necessary.
-            </td>
-        </tr>
-        <tr>
-            <td><code class="highlighter-rouge">run-application</code></td>
-            <td>
-                This action executes jobs in <a href="{{< ref "docs/deployment/overview" >}}#application-mode">
-                Application Mode</a>. Other than that, it requires the same parameters as the 
-                <code class="highlighter-rouge">run</code> action.
             </td>
         </tr>
         <tr>
@@ -412,18 +400,17 @@ Flink is compatible with multiple cluster management frameworks like
 Resource Provider section. Jobs can be submitted in different [Deployment Modes]({{< ref "docs/deployment/overview" >}}#deployment-modes). 
 The parameterization of a job submission differs based on the underlying framework and Deployment Mode. 
 
-`bin/flink` offers a parameter `--target` to handle the different options. In addition to that, jobs 
-have to be submitted using either `run` (for [Session]({{< ref "docs/deployment/overview" >}}#session-mode) 
-and [Per-Job Mode (deprecated)]({{< ref "docs/deployment/overview" >}}#per-job-mode)) or `run-application` (for 
-[Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode)). See the following summary of 
+`bin/flink` offers a parameter `--target` to handle the different options. In addition to that, jobs
+have to be submitted using either `run` (for [Session]({{< ref "docs/deployment/overview" >}}#session-mode)
+and [Per-Job Mode (deprecated)]({{< ref "docs/deployment/overview" >}}#per-job-mode)) or `run-application` (for
+[Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode)). See the following summary of
 parameter combinations: 
 * YARN
   * `./bin/flink run --target yarn-session`: Submission to an already running Flink on YARN cluster
-  * `./bin/flink run --target yarn-per-job`: Submission spinning up a Flink on YARN cluster in Per-Job Mode (deprecated)
-  * `./bin/flink run-application --target yarn-application`: Submission spinning up Flink on YARN cluster in Application Mode
+  * `./bin/flink run --target yarn-application`: Submission spinning up Flink on YARN cluster in Application Mode
 * Kubernetes
   * `./bin/flink run --target kubernetes-session`: Submission to an already running Flink on Kubernetes cluster
-  * `./bin/flink run-application --target kubernetes-application`: Submission spinning up a Flink on Kubernetes cluster in Application Mode
+  * `./bin/flink run --target kubernetes-application`: Submission spinning up a Flink on Kubernetes cluster in Application Mode
 * Standalone:
   * `./bin/flink run --target local`: Local submission using a MiniCluster in Session Mode
   * `./bin/flink run --target remote`: Submission to an already running Flink cluster
@@ -493,7 +480,7 @@ $ ./bin/flink run \
 
 - Run a PyFlink job using a [YARN cluster in Application Mode]({{< ref "docs/deployment/resource-providers/yarn" >}}#application-mode):
 ```bash
-$ ./bin/flink run-application -t yarn-application \
+$ ./bin/flink run -t yarn-application \
       -Djobmanager.memory.process.size=1024m \
       -Dtaskmanager.memory.process.size=1024m \
       -Dyarn.application.name=<ApplicationName> \
@@ -514,7 +501,7 @@ If the size of an archive file is more than 2 GB, you could upload it to a distr
 
 - Run a PyFlink application on a native Kubernetes cluster having the cluster ID `<ClusterId>`, it requires a docker image with PyFlink installed, please refer to [Enabling PyFlink in docker]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#enabling-python):
 ```bash
-$ ./bin/flink run-application \
+$ ./bin/flink run \
       --target kubernetes-application \
       --parallelism 8 \
       -Dkubernetes.cluster-id=<ClusterId> \
@@ -532,7 +519,7 @@ Resource Provider section.
 
 Besides `--pyFiles`, `--pyModule` and `--python` mentioned above, there are also some other Python
 related options. Here's an overview of all the Python related options for the actions
-`run` and `run-application` supported by Flink's CLI tool:
+`run` supported by Flink's CLI tool:
 <table class="table table-bordered">
     <thead>
         <tr>

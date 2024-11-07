@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.entrypoint;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.ConfigOption;
@@ -31,7 +30,6 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JMXServerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.failure.FailureEnricher;
@@ -93,6 +91,7 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.UUID;
@@ -124,7 +123,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     protected static final int STARTUP_FAILURE_RETURN_CODE = 1;
     protected static final int RUNTIME_FAILURE_RETURN_CODE = 2;
 
-    private static final Time INITIALIZATION_SHUTDOWN_TIMEOUT = Time.seconds(30L);
+    private static final Duration INITIALIZATION_SHUTDOWN_TIMEOUT = Duration.ofSeconds(30L);
 
     /** The lock to guard startup / shutdown / manipulation methods. */
     private final Object lock = new Object();
@@ -252,9 +251,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                                 ShutdownBehaviour.GRACEFUL_SHUTDOWN,
                                 ExceptionUtils.stringifyException(strippedThrowable),
                                 false)
-                        .get(
-                                INITIALIZATION_SHUTDOWN_TIMEOUT.toMilliseconds(),
-                                TimeUnit.MILLISECONDS);
+                        .get(INITIALIZATION_SHUTDOWN_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
                 strippedThrowable.addSuppressed(e);
             }
@@ -707,24 +704,6 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         final Configuration configuration =
                 GlobalConfiguration.loadConfiguration(
                         entrypointClusterConfiguration.getConfigDir(), dynamicProperties);
-
-        final int restPort = entrypointClusterConfiguration.getRestPort();
-
-        if (restPort >= 0) {
-            LOG.warn(
-                    "The 'webui-port' parameter of 'jobmanager.sh' has been deprecated. Please use '-D {}=<port> instead.",
-                    RestOptions.PORT);
-            configuration.set(RestOptions.PORT, restPort);
-        }
-
-        final String hostname = entrypointClusterConfiguration.getHostname();
-
-        if (hostname != null) {
-            LOG.warn(
-                    "The 'host' parameter of 'jobmanager.sh' has been deprecated. Please use '-D {}=<host> instead.",
-                    JobManagerOptions.ADDRESS);
-            configuration.set(JobManagerOptions.ADDRESS, hostname);
-        }
 
         return configuration;
     }

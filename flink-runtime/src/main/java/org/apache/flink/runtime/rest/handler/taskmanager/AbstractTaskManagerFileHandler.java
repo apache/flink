@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.taskmanager;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.blob.TransientBlobService;
@@ -53,6 +52,7 @@ import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -72,14 +72,14 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 
     protected AbstractTaskManagerFileHandler(
             @Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            @Nonnull Time timeout,
+            @Nonnull Duration timeout,
             @Nonnull Map<String, String> responseHeaders,
             @Nonnull
                     UntypedResponseMessageHeaders<EmptyRequestBody, M>
                             untypedResponseMessageHeaders,
             @Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
             @Nonnull TransientBlobService transientBlobService,
-            @Nonnull Time cacheEntryDuration) {
+            @Nonnull Duration cacheEntryDuration) {
         super(leaderRetriever, timeout, responseHeaders, untypedResponseMessageHeaders);
 
         this.resourceManagerGatewayRetriever =
@@ -89,8 +89,7 @@ public abstract class AbstractTaskManagerFileHandler<M extends TaskManagerMessag
 
         this.fileBlobKeys =
                 CacheBuilder.newBuilder()
-                        .expireAfterWrite(
-                                cacheEntryDuration.toMilliseconds(), TimeUnit.MILLISECONDS)
+                        .expireAfterWrite(cacheEntryDuration.toMillis(), TimeUnit.MILLISECONDS)
                         .removalListener(this::removeBlob)
                         .build(
                                 new CacheLoader<

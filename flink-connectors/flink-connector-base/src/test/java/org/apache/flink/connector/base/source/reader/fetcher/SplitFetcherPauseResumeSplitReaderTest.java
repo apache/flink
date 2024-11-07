@@ -45,6 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
+import static org.apache.flink.configuration.PipelineOptions.ALLOW_UNALIGNED_SOURCE_SPLITS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -52,7 +53,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Tests {@link SplitFetcher} integration to pause or resume {@link SplitReader} based on {@link
  * SourceReader} output.
  */
-public class SplitFetcherPauseResumeSplitReaderTest {
+class SplitFetcherPauseResumeSplitReaderTest {
 
     /**
      * Tests if pause or resume shows expected behavior which requires creation and execution of
@@ -60,7 +61,7 @@ public class SplitFetcherPauseResumeSplitReaderTest {
      */
     @ParameterizedTest(name = "Individual reader per split: {0}")
     @ValueSource(booleans = {false, true})
-    public void testPauseResumeSplitReaders(boolean individualReader) throws Exception {
+    void testPauseResumeSplitReaders(boolean individualReader) throws Exception {
         final AtomicInteger numSplitReaders = new AtomicInteger();
         final MockSplitReader.Builder readerBuilder =
                 SteppingSourceReaderTestHarness.createSplitReaderBuilder();
@@ -104,12 +105,10 @@ public class SplitFetcherPauseResumeSplitReaderTest {
      */
     @ParameterizedTest(name = "Allow unaligned source splits: {0}")
     @ValueSource(booleans = {true, false})
-    public void testPauseResumeUnsupported(boolean allowUnalignedSourceSplits) throws Exception {
+    void testPauseResumeUnsupported(boolean allowUnalignedSourceSplits) throws Exception {
         final AtomicInteger numSplitReaders = new AtomicInteger();
         final Configuration configuration = new Configuration();
-        configuration.setBoolean(
-                "pipeline.watermark-alignment.allow-unaligned-source-splits",
-                allowUnalignedSourceSplits);
+        configuration.set(ALLOW_UNALIGNED_SOURCE_SPLITS, allowUnalignedSourceSplits);
         final MockSplitReader.Builder readerBuilder =
                 SteppingSourceReaderTestHarness.createSplitReaderBuilder();
 

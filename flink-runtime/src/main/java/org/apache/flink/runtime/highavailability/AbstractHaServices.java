@@ -23,7 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
@@ -136,8 +136,8 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     }
 
     @Override
-    public JobGraphStore getJobGraphStore() throws Exception {
-        return createJobGraphStore();
+    public ExecutionPlanStore getExecutionPlanStore() throws Exception {
+        return createExecutionPlanStore();
     }
 
     @Override
@@ -241,12 +241,12 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     protected abstract CheckpointRecoveryFactory createCheckpointRecoveryFactory() throws Exception;
 
     /**
-     * Create the submitted job graph store for the job manager.
+     * Create the submitted execution plan store for the job manager.
      *
-     * @return Submitted job graph store
-     * @throws Exception if the submitted job graph store could not be created
+     * @return Submitted execution plan store
+     * @throws Exception if the submitted execution plan store could not be created
      */
-    protected abstract JobGraphStore createJobGraphStore() throws Exception;
+    protected abstract ExecutionPlanStore createExecutionPlanStore() throws Exception;
 
     /**
      * Closes the components which is used for external operations(e.g. Zookeeper Client, Kubernetes

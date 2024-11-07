@@ -29,7 +29,7 @@ under the License.
 		<version>2.0-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-sql-connector-hive-2.3.10_${scala.binary.version}</artifactId>
+	<artifactId>flink-sql-connector-hive-2.3.10</artifactId>
 	<name>Flink : Connectors : SQL : Hive 2.3.10</name>
 
 	<packaging>jar</packaging>
@@ -41,7 +41,7 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-hive_${scala.binary.version}</artifactId>
+			<artifactId>flink-connector-hive</artifactId>
 			<version>${project.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
@@ -99,7 +99,7 @@ under the License.
 						<configuration>
 							<artifactSet>
 								<includes>
-									<include>org.apache.flink:flink-connector-hive_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-connector-hive</include>
 									<include>org.apache.hive:hive-exec</include>
 									<include>org.antlr:antlr-runtime</include>
 								</includes>

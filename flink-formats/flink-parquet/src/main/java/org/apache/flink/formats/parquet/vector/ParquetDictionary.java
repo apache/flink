@@ -62,7 +62,7 @@ public final class ParquetDictionary implements Dictionary {
 
     @Override
     public byte[] decodeToBinary(int id) {
-        return dictionary.decodeToBinary(id).getBytes();
+        return dictionary.decodeToBinary(id).getBytesUnsafe();
     }
 
     @Override

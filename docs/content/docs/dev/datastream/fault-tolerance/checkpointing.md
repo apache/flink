@@ -200,7 +200,7 @@ env.get_checkpoint_config().set_tolerable_checkpoint_failure_number(2)
 env.get_checkpoint_config().set_max_concurrent_checkpoints(1)
 
 # enable externalized checkpoints which are retained after job cancellation
-env.get_checkpoint_config().enable_externalized_checkpoints(ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION)
+env.get_checkpoint_config().set_externalized_checkpoint_retention(ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION)
 
 # enables the unaligned checkpoints
 env.get_checkpoint_config().enable_unaligned_checkpoints()
@@ -210,7 +210,7 @@ env.get_checkpoint_config().enable_unaligned_checkpoints()
 
 ### Related Config Options
 
-Some more parameters and/or defaults may be set via Flink configuration file (see [configuration]({{< ref "docs/deployment/config" >}}))` for a full guide):
+Some more parameters and/or defaults may be set via Flink configuration file (see [configuration]({{< ref "docs/deployment/config" >}}) for a full guide):
 
 {{< generated/checkpointing_configuration >}}
 

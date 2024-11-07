@@ -47,7 +47,7 @@ import java.util.regex.Pattern;
  * {@code serializeToDataOutputView} and {@code deserializeFromDataInputView} instead.
  */
 @Public
-public class Path implements IOReadableWritable, Serializable {
+public class Path implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -447,49 +447,6 @@ public class Path implements IOReadableWritable, Serializable {
         }
 
         return new Path(scheme + ":" + "//" + authority + pathUri.getPath());
-    }
-
-    // ------------------------------------------------------------------------
-    //  Legacy Serialization
-    // ------------------------------------------------------------------------
-
-    /**
-     * Read uri from {@link DataInputView}.
-     *
-     * @param in the input view to read the uri.
-     * @throws IOException if an error happened.
-     * @deprecated the method is deprecated since Flink 1.19 because Path will no longer implement
-     *     {@link IOReadableWritable} in future versions. Please use {@code
-     *     deserializeFromDataInputView} instead.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-347%3A+Remove+IOReadableWritable
-     *     +serialization+in+Path"> FLIP-347: Remove IOReadableWritable serialization in Path </a>
-     */
-    @Deprecated
-    @Override
-    public void read(DataInputView in) throws IOException {
-        Path path = deserializeFromDataInputView(in);
-        if (path != null) {
-            uri = path.toUri();
-        }
-    }
-
-    /**
-     * Write uri to {@link DataOutputView}.
-     *
-     * @param out the output view to be written the uri.
-     * @throws IOException if an error happened.
-     * @deprecated the method is deprecated since Flink 1.19 because Path will no longer implement
-     *     {@link IOReadableWritable} in future versions. Please use {@code
-     *     serializeToDataOutputView} instead.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-347%3A+Remove+IOReadableWritable
-     *     +serialization+in+Path"> FLIP-347: Remove IOReadableWritable serialization in Path </a>
-     */
-    @Deprecated
-    @Override
-    public void write(DataOutputView out) throws IOException {
-        serializeToDataOutputView(this, out);
     }
 
     // ------------------------------------------------------------------------

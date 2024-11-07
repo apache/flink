@@ -19,7 +19,8 @@
 package org.apache.flink.test.util;
 
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
 
 import org.junit.jupiter.api.Test;
 
@@ -70,7 +71,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
     //  Methods to create the test program and for pre- and post- test work
     // --------------------------------------------------------------------------------------------
 
-    protected abstract void testProgram() throws Exception;
+    protected abstract JobExecutionResult testProgram() throws Exception;
 
     protected void preSubmit() throws Exception {}
 
@@ -94,18 +95,17 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
         // We should fix that we are able to get access to the latest execution result from a
         // different
         // execution environment and how the object reuse mode is enabled
-        TestEnvironment env = MINI_CLUSTER_EXTENSION.getTestEnvironment();
+        TestStreamEnvironment env = MINI_CLUSTER_EXTENSION.getTestStreamEnvironment();
         env.getConfig().enableObjectReuse();
 
         // Possibly run the test multiple times
         executeProgramMultipleTimes(env);
     }
 
-    private void executeProgramMultipleTimes(ExecutionEnvironment env) throws Exception {
+    private void executeProgramMultipleTimes(StreamExecutionEnvironment env) throws Exception {
         for (int i = 0; i < numberOfTestRepetitions; i++) {
             try {
-                testProgram();
-                this.latestExecutionResult = env.getLastJobExecutionResult();
+                this.latestExecutionResult = testProgram();
             } catch (Exception e) {
                 System.err.println(e.getMessage());
                 e.printStackTrace();
@@ -129,44 +129,10 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
         // We should fix that we are able to get access to the latest execution result from a
         // different
         // execution environment and how the object reuse mode is enabled
-        ExecutionEnvironment env = MINI_CLUSTER_EXTENSION.getTestEnvironment();
+        StreamExecutionEnvironment env = MINI_CLUSTER_EXTENSION.getTestStreamEnvironment();
         env.getConfig().disableObjectReuse();
 
         // Possibly run the test multiple times
         executeProgramMultipleTimes(env);
-    }
-
-    @Test
-    public void testJobCollectionExecution() throws Exception {
-
-        // check if collection execution should be skipped.
-        if (this.skipCollectionExecution()) {
-            return;
-        }
-
-        isCollectionExecution = true;
-
-        preSubmit();
-        // prepare the test environment
-        CollectionTestEnvironment env = new CollectionTestEnvironment();
-        env.setAsContext();
-
-        // call the test program
-        try {
-            testProgram();
-            this.latestExecutionResult = env.getLastJobExecutionResult();
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            fail("Error while calling the test program: " + e.getMessage());
-        } finally {
-            MINI_CLUSTER_EXTENSION.getTestEnvironment().setAsContext();
-        }
-
-        assertThat(this.latestExecutionResult)
-                .as("The test program never triggered an execution.")
-                .isNotNull();
-
-        postSubmit();
     }
 }

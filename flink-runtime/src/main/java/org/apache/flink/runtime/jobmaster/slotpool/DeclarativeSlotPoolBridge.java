@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -71,6 +70,8 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
 
     private boolean isJobRestarting = false;
 
+    private final boolean slotBatchAllocatable;
+
     public DeclarativeSlotPoolBridge(
             JobID jobId,
             DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
@@ -80,6 +81,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
             Duration batchSlotTimeout,
             RequestSlotMatchingStrategy requestSlotMatchingStrategy,
             Duration slotRequestMaxInterval,
+            boolean slotBatchAllocatable,
             @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
         super(
                 jobId,
@@ -97,6 +99,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
                 "Using the request slot matching strategy: {}",
                 requestSlotMatchingStrategy.getClass().getSimpleName());
         this.requestSlotMatchingStrategy = requestSlotMatchingStrategy;
+        this.slotBatchAllocatable = slotBatchAllocatable;
 
         this.isBatchSlotRequestTimeoutCheckDisabled = false;
 
@@ -203,10 +206,63 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
 
     @VisibleForTesting
     void newSlotsAreAvailable(Collection<? extends PhysicalSlot> newSlots) {
+        if (pendingRequests.isEmpty()) {
+            return;
+        }
+
+        if (slotBatchAllocatable) {
+            newSlotsAvailableForSlotBatchAllocatable(newSlots);
+        } else {
+            newSlotsAvailableForDirectlyAllocatable(newSlots);
+        }
+    }
+
+    private void newSlotsAvailableForSlotBatchAllocatable(
+            Collection<? extends PhysicalSlot> newSlots) {
+        log.debug("Received new available slots: {}", newSlots);
+
+        final FreeSlotTracker freeSlotInfoTracker = getDeclarativeSlotPool().getFreeSlotTracker();
+
+        final int slotsNum = freeSlotInfoTracker.getAvailableSlots().size();
+        if (slotsNum < pendingRequests.size()) {
+            // Do nothing and waiting slots.
+            log.debug(
+                    "The number of available slots: {}, the required number of slots: {}, waiting for more available slots.",
+                    slotsNum,
+                    pendingRequests.size());
+            return;
+        }
+
+        final Collection<PhysicalSlot> availableSlots =
+                freeSlotInfoTracker.getFreeSlotsInformation();
+        final Collection<RequestSlotMatchingStrategy.RequestSlotMatch> requestSlotMatches =
+                requestSlotMatchingStrategy.matchRequestsAndSlots(
+                        availableSlots, pendingRequests.values());
+        if (requestSlotMatches.size() == pendingRequests.size()) {
+            reserveAndFulfillMatchedFreeSlots(requestSlotMatches);
+        } else if (requestSlotMatches.size() < pendingRequests.size()) {
+            // Do nothing and waiting slots.
+            log.debug(
+                    "Ignored the matched results: {}, pendingRequests: {}, waiting for more available slots.",
+                    requestSlotMatches,
+                    pendingRequests);
+        } else {
+            // For requestSlotMatches.size() > pendingRequests.size()
+            throw new IllegalStateException(
+                    "The number of matched slots is not equals to the pendingRequests.");
+        }
+    }
+
+    private void newSlotsAvailableForDirectlyAllocatable(
+            Collection<? extends PhysicalSlot> newSlots) {
         final Collection<RequestSlotMatchingStrategy.RequestSlotMatch> requestSlotMatches =
                 requestSlotMatchingStrategy.matchRequestsAndSlots(
                         newSlots, pendingRequests.values());
+        reserveAndFulfillMatchedFreeSlots(requestSlotMatches);
+    }
 
+    private void reserveAndFulfillMatchedFreeSlots(
+            Collection<RequestSlotMatchingStrategy.RequestSlotMatch> requestSlotMatches) {
         for (RequestSlotMatchingStrategy.RequestSlotMatch match : requestSlotMatches) {
             final PendingRequest pendingRequest = match.getPendingRequest();
             final PhysicalSlot slot = match.getSlot();
@@ -233,6 +289,11 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
             Preconditions.checkState(
                     pendingRequest.fulfill(slot), "Pending requests must be fulfillable.");
         }
+    }
+
+    @VisibleForTesting
+    Collection<PhysicalSlot> getFreeSlotsInformation() {
+        return getDeclarativeSlotPool().getFreeSlotTracker().getFreeSlotsInformation();
     }
 
     private void reserveFreeSlot(
@@ -282,7 +343,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
             @Nonnull SlotRequestId slotRequestId,
             @Nonnull ResourceProfile resourceProfile,
             @Nonnull Collection<AllocationID> preferredAllocations,
-            @Nullable Time timeout) {
+            @Nullable Duration timeout) {
         assertRunningInMainThread();
 
         log.debug(
@@ -318,7 +379,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
     }
 
     private CompletableFuture<PhysicalSlot> internalRequestNewSlot(
-            PendingRequest pendingRequest, @Nullable Time timeout) {
+            PendingRequest pendingRequest, @Nullable Duration timeout) {
         internalRequestNewAllocatedSlot(pendingRequest);
 
         if (timeout == null) {
@@ -326,12 +387,12 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         } else {
             return FutureUtils.orTimeout(
                             pendingRequest.getSlotFuture(),
-                            timeout.toMilliseconds(),
+                            timeout.toMillis(),
                             TimeUnit.MILLISECONDS,
                             componentMainThreadExecutor,
                             String.format(
                                     "Pending slot request %s timed out after %d ms.",
-                                    pendingRequest.getSlotRequestId(), timeout.toMilliseconds()))
+                                    pendingRequest.getSlotRequestId(), timeout.toMillis()))
                     .whenComplete(
                             (physicalSlot, throwable) -> {
                                 if (throwable instanceof TimeoutException) {
@@ -425,7 +486,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         final Collection<? extends SlotInfo> allSlotsInformation =
                 getDeclarativeSlotPool().getAllSlotsInformation();
         final Set<AllocationID> freeSlots =
-                getDeclarativeSlotPool().getFreeSlotInfoTracker().getAvailableSlots();
+                getDeclarativeSlotPool().getFreeSlotTracker().getAvailableSlots();
 
         return allSlotsInformation.stream()
                 .filter(slotInfo -> !freeSlots.contains(slotInfo.getAllocationId()))
@@ -433,10 +494,10 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
     }
 
     @Override
-    public FreeSlotInfoTracker getFreeSlotInfoTracker() {
+    public FreeSlotTracker getFreeSlotTracker() {
         assertRunningInMainThread();
 
-        return getDeclarativeSlotPool().getFreeSlotInfoTracker();
+        return getDeclarativeSlotPool().getFreeSlotTracker();
     }
 
     @Override
@@ -510,7 +571,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
 
     private Set<ResourceProfile> getResourceProfilesFromAllSlots() {
         return Stream.concat(
-                        getFreeSlotInfoTracker().getFreeSlotsInformation().stream(),
+                        getFreeSlotTracker().getFreeSlotsInformation().stream(),
                         getAllocatedSlotsInformation().stream())
                 .map(SlotInfo::getResourceProfile)
                 .collect(Collectors.toSet());

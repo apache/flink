@@ -21,14 +21,17 @@ import org.apache.flink.api.common.io.{OutputFormat, RichOutputFormat}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.legacy.table.factories.StreamTableSinkFactory
+import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, OutputFormatTableSink, StreamTableSink}
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
-import org.apache.flink.table.api.{TableEnvironment, TableSchema}
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction
+import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
 import org.apache.flink.table.descriptors.DescriptorProperties
-import org.apache.flink.table.descriptors.Schema.SCHEMA
-import org.apache.flink.table.factories.StreamTableSinkFactory
+import org.apache.flink.table.legacy.api.TableSchema
+import org.apache.flink.table.legacy.descriptors.Schema.SCHEMA
+import org.apache.flink.table.legacy.sinks.TableSink
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.TableConnectorUtils
@@ -132,7 +135,7 @@ object MemoryTableSourceSinkUtil {
 
     override def configure(parameters: Configuration): Unit = {}
 
-    override def open(taskNumber: Int, numTasks: Int): Unit = {}
+    override def open(context: OutputFormat.InitializationContext): Unit = {}
 
     override def writeRecord(record: Row): Unit = {
       tableData.synchronized {

@@ -20,13 +20,14 @@ package org.apache.flink.table.planner.runtime.utils
 import org.apache.flink.api.common.state.{ListState, ListStateDescriptor}
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.runtime.state.{StateInitializationContext, StateSnapshotContext}
-import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
-import org.apache.flink.streaming.api.functions.source.SourceFunction
-import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction
 import org.apache.flink.streaming.api.operators.{AbstractStreamOperator, OneInputStreamOperator}
 import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.streaming.runtime.operators.util.WatermarkStrategyWithPunctuatedWatermarks
 import org.apache.flink.streaming.runtime.streamrecord.{RecordAttributes, StreamRecord}
 import org.apache.flink.table.planner.JLong
+
+import SourceFunction.SourceContext
 
 object TimeTestUtil {
 
@@ -44,7 +45,7 @@ object TimeTestUtil {
   }
 
   class TimestampAndWatermarkWithOffset[T <: Product](offset: Long)
-    extends AssignerWithPunctuatedWatermarks[T] {
+    extends WatermarkStrategyWithPunctuatedWatermarks[T] {
 
     override def checkAndGetNextWatermark(lastElement: T, extractedTimestamp: Long): Watermark = {
       new Watermark(extractedTimestamp - offset)

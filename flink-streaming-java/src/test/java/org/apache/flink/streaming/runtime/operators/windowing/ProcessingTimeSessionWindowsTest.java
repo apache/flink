@@ -24,21 +24,21 @@ import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.ProcessingTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SessionWindowTimeGapExtractor;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
 
 import org.junit.jupiter.api.Test;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 
+import java.time.Duration;
 import java.util.Collection;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.mockito.Matchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -56,7 +56,7 @@ class ProcessingTimeSessionWindowsTest {
                 mock(WindowAssigner.WindowAssignerContext.class);
 
         ProcessingTimeSessionWindows assigner =
-                ProcessingTimeSessionWindows.withGap(Time.milliseconds(5000));
+                ProcessingTimeSessionWindows.withGap(Duration.ofMillis(5000));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(0L);
         assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
@@ -77,11 +77,11 @@ class ProcessingTimeSessionWindowsTest {
                 mock(MergingWindowAssigner.MergeCallback.class);
 
         ProcessingTimeSessionWindows assigner =
-                ProcessingTimeSessionWindows.withGap(Time.milliseconds(5000));
+                ProcessingTimeSessionWindows.withGap(Duration.ofMillis(5000));
 
         assigner.mergeWindows(Lists.newArrayList(new TimeWindow(0, 0)), callback);
 
-        verify(callback, never()).merge(anyCollection(), Matchers.anyObject());
+        verify(callback, never()).merge(anyCollection(), ArgumentMatchers.any());
     }
 
     @Test
@@ -90,11 +90,11 @@ class ProcessingTimeSessionWindowsTest {
                 mock(MergingWindowAssigner.MergeCallback.class);
 
         ProcessingTimeSessionWindows assigner =
-                ProcessingTimeSessionWindows.withGap(Time.milliseconds(5000));
+                ProcessingTimeSessionWindows.withGap(Duration.ofMillis(5000));
 
         assigner.mergeWindows(Lists.newArrayList(new TimeWindow(0, 1)), callback);
 
-        verify(callback, never()).merge(anyCollection(), Matchers.anyObject());
+        verify(callback, never()).merge(anyCollection(), ArgumentMatchers.any());
     }
 
     @Test
@@ -103,7 +103,7 @@ class ProcessingTimeSessionWindowsTest {
                 mock(MergingWindowAssigner.MergeCallback.class);
 
         ProcessingTimeSessionWindows assigner =
-                ProcessingTimeSessionWindows.withGap(Time.milliseconds(5000));
+                ProcessingTimeSessionWindows.withGap(Duration.ofMillis(5000));
 
         assigner.mergeWindows(
                 Lists.newArrayList(
@@ -132,7 +132,7 @@ class ProcessingTimeSessionWindowsTest {
                                                 new TimeWindow(4, 5), new TimeWindow(5, 6))),
                         eq(new TimeWindow(4, 6)));
 
-        verify(callback, times(2)).merge(anyCollection(), Matchers.anyObject());
+        verify(callback, times(2)).merge(anyCollection(), ArgumentMatchers.any());
     }
 
     @Test
@@ -141,7 +141,7 @@ class ProcessingTimeSessionWindowsTest {
                 mock(MergingWindowAssigner.MergeCallback.class);
 
         ProcessingTimeSessionWindows assigner =
-                ProcessingTimeSessionWindows.withGap(Time.milliseconds(5000));
+                ProcessingTimeSessionWindows.withGap(Duration.ofMillis(5000));
 
         assigner.mergeWindows(
                 Lists.newArrayList(
@@ -167,7 +167,7 @@ class ProcessingTimeSessionWindowsTest {
                                                 new TimeWindow(5, 6), new TimeWindow(4, 7))),
                         eq(new TimeWindow(4, 7)));
 
-        verify(callback, times(2)).merge(anyCollection(), Matchers.anyObject());
+        verify(callback, times(2)).merge(anyCollection(), ArgumentMatchers.any());
     }
 
     @Test
@@ -178,7 +178,7 @@ class ProcessingTimeSessionWindowsTest {
                 mock(WindowAssigner.WindowAssignerContext.class);
 
         ProcessingTimeSessionWindows assigner =
-                ProcessingTimeSessionWindows.withGap(Time.seconds(5));
+                ProcessingTimeSessionWindows.withGap(Duration.ofSeconds(5));
 
         when(mockContext.getCurrentProcessingTime()).thenReturn(0L);
         assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext))
@@ -195,11 +195,11 @@ class ProcessingTimeSessionWindowsTest {
 
     @Test
     void testInvalidParameters() {
-        assertThatThrownBy(() -> ProcessingTimeSessionWindows.withGap(Time.seconds(-1)))
+        assertThatThrownBy(() -> ProcessingTimeSessionWindows.withGap(Duration.ofSeconds(-1)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("0 < size");
 
-        assertThatThrownBy(() -> ProcessingTimeSessionWindows.withGap(Time.seconds(0)))
+        assertThatThrownBy(() -> ProcessingTimeSessionWindows.withGap(Duration.ofSeconds(0)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("0 < size");
     }
@@ -207,7 +207,7 @@ class ProcessingTimeSessionWindowsTest {
     @Test
     void testProperties() {
         ProcessingTimeSessionWindows assigner =
-                ProcessingTimeSessionWindows.withGap(Time.seconds(5));
+                ProcessingTimeSessionWindows.withGap(Duration.ofSeconds(5));
 
         assertThat(assigner.isEventTime()).isFalse();
         assertThat(assigner.getWindowSerializer(new ExecutionConfig()))

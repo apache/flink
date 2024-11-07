@@ -28,15 +28,15 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.ParameterTool;
 
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.applyTumblingWindows;
-import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createTimestampExtractor;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createWatermarkStrategy;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
 import static org.apache.flink.streaming.tests.TestOperatorEnum.EVENT_SOURCE;
 import static org.apache.flink.streaming.tests.TestOperatorEnum.TIME_WINDOW_OPER;
@@ -61,7 +61,7 @@ public class RocksDBStateMemoryControlTestProgram {
                 env.addSource(DataStreamAllroundTestJobFactory.createEventSource(pt))
                         .name(EVENT_SOURCE.getName())
                         .uid(EVENT_SOURCE.getUid())
-                        .assignTimestampsAndWatermarks(createTimestampExtractor(pt))
+                        .assignTimestampsAndWatermarks(createWatermarkStrategy(pt))
                         .keyBy(Event::getKey);
 
         keyedStream

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 
 import java.io.IOException;
 
@@ -35,7 +36,7 @@ public class DiscardingSink<IN> implements Sink<IN>, SupportsConcurrentExecution
     private static final long serialVersionUID = 1L;
 
     @Override
-    public SinkWriter<IN> createWriter(InitContext context) throws IOException {
+    public SinkWriter<IN> createWriter(WriterInitContext context) throws IOException {
         return new DiscardingElementWriter();
     }
 

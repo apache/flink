@@ -136,14 +136,9 @@ public class HiveServer2DelegationTokenProvider implements DelegationTokenProvid
                             try {
                                 LOG.info("Obtaining Kerberos security token for HiveServer2");
 
-                                String principal =
-                                        hiveConf.getTrimmed(
-                                                "hive.metastore.kerberos.principal", "");
+                                String user = UserGroupInformation.getCurrentUser().getUserName();
+                                String tokenStr = hive.getDelegationToken(user, user);
 
-                                String tokenStr =
-                                        hive.getDelegationToken(
-                                                UserGroupInformation.getCurrentUser().getUserName(),
-                                                principal);
                                 Token<HiveServer2DelegationTokenIdentifier> hive2Token =
                                         new Token<>();
                                 hive2Token.decodeFromUrlString(tokenStr);

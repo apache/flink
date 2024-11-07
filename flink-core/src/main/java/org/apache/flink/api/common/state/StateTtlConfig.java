@@ -19,7 +19,6 @@
 package org.apache.flink.api.common.state;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnegative;
@@ -32,7 +31,6 @@ import java.util.EnumMap;
 
 import static org.apache.flink.api.common.state.StateTtlConfig.CleanupStrategies.EMPTY_STRATEGY;
 import static org.apache.flink.api.common.state.StateTtlConfig.IncrementalCleanupStrategy.DEFAULT_INCREMENTAL_CLEANUP_STRATEGY;
-import static org.apache.flink.api.common.state.StateTtlConfig.RocksdbCompactFilterCleanupStrategy.DEFAULT_ROCKSDB_COMPACT_FILTER_CLEANUP_STRATEGY;
 import static org.apache.flink.api.common.state.StateTtlConfig.StateVisibility.NeverReturnExpired;
 import static org.apache.flink.api.common.state.StateTtlConfig.TtlTimeCharacteristic.ProcessingTime;
 import static org.apache.flink.api.common.state.StateTtlConfig.UpdateType.OnCreateAndWrite;
@@ -86,10 +84,7 @@ public class StateTtlConfig implements Serializable {
     /** This option configures time scale to use for ttl. */
     @PublicEvolving
     public enum TtlTimeCharacteristic {
-        /**
-         * Processing time, see also <code>
-         * org.apache.flink.streaming.api.TimeCharacteristic.ProcessingTime</code>.
-         */
+        /** Processing time. */
         ProcessingTime
     }
 
@@ -121,13 +116,6 @@ public class StateTtlConfig implements Serializable {
     @Nonnull
     public StateVisibility getStateVisibility() {
         return stateVisibility;
-    }
-
-    /** @deprecated Use {@link #getTimeToLive()} */
-    @Deprecated
-    @Nonnull
-    public Time getTtl() {
-        return Time.fromDuration(getTimeToLive());
     }
 
     public Duration getTimeToLive() {
@@ -162,13 +150,6 @@ public class StateTtlConfig implements Serializable {
                 + '}';
     }
 
-    /** @deprecated Use {@link #newBuilder(Duration)} */
-    @Deprecated
-    @Nonnull
-    public static Builder newBuilder(@Nonnull Time ttl) {
-        return new Builder(ttl);
-    }
-
     public static Builder newBuilder(Duration ttl) {
         return new Builder(ttl);
     }
@@ -184,12 +165,6 @@ public class StateTtlConfig implements Serializable {
         private boolean isCleanupInBackground = true;
         private final EnumMap<CleanupStrategies.Strategies, CleanupStrategies.CleanupStrategy>
                 strategies = new EnumMap<>(CleanupStrategies.Strategies.class);
-
-        /** @deprecated Use {@link #newBuilder(Duration)} */
-        @Deprecated
-        public Builder(@Nonnull Time ttl) {
-            this(Time.toDuration(ttl));
-        }
 
         private Builder(Duration ttl) {
             this.ttl = ttl;
@@ -362,18 +337,6 @@ public class StateTtlConfig implements Serializable {
             return this;
         }
 
-        /**
-         * Sets the ttl time.
-         *
-         * @param ttl The ttl time.
-         * @deprecated Use {@link #setTimeToLive(Duration)}
-         */
-        @Deprecated
-        @Nonnull
-        public Builder setTtl(@Nonnull Time ttl) {
-            return setTimeToLive(Time.toDuration(ttl));
-        }
-
         public Builder setTimeToLive(Duration ttl) {
             this.ttl = Preconditions.checkNotNull(ttl);
             return this;
@@ -444,15 +407,13 @@ public class StateTtlConfig implements Serializable {
         }
 
         public boolean inRocksdbCompactFilter() {
-            return getRocksdbCompactFilterCleanupStrategy() != null;
+            return isCleanupInBackground || getRocksdbCompactFilterCleanupStrategy() != null;
         }
 
         @Nullable
         public RocksdbCompactFilterCleanupStrategy getRocksdbCompactFilterCleanupStrategy() {
-            RocksdbCompactFilterCleanupStrategy defaultStrategy =
-                    isCleanupInBackground ? DEFAULT_ROCKSDB_COMPACT_FILTER_CLEANUP_STRATEGY : null;
             return (RocksdbCompactFilterCleanupStrategy)
-                    strategies.getOrDefault(Strategies.ROCKSDB_COMPACTION_FILTER, defaultStrategy);
+                    strategies.get(Strategies.ROCKSDB_COMPACTION_FILTER);
         }
     }
 
@@ -494,11 +455,18 @@ public class StateTtlConfig implements Serializable {
         private static final long serialVersionUID = 3109278796506988980L;
 
         /**
-         * Default value is 30 days so that every file goes through the compaction process at least
-         * once every 30 days if not compacted sooner.
+         * @deprecated Use {@link
+         *     org.apache.flink.state.rocksdb.RocksDBConfigurableOptions#COMPACT_FILTER_PERIODIC_COMPACTION_TIME}
+         *     instead.
          */
-        static final Duration DEFAULT_PERIODIC_COMPACTION_TIME = Duration.ofDays(30);
+        @Deprecated static final Duration DEFAULT_PERIODIC_COMPACTION_TIME = Duration.ofDays(30);
 
+        /**
+         * @deprecated Use {@link
+         *     org.apache.flink.state.rocksdb.RocksDBConfigurableOptions#COMPACT_FILTER_QUERY_TIME_AFTER_NUM_ENTRIES}
+         *     instead.
+         */
+        @Deprecated
         static final RocksdbCompactFilterCleanupStrategy
                 DEFAULT_ROCKSDB_COMPACT_FILTER_CLEANUP_STRATEGY =
                         new RocksdbCompactFilterCleanupStrategy(1000L);

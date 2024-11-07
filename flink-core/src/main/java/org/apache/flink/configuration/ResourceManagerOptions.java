@@ -40,14 +40,6 @@ public class ResourceManagerOptions {
                     .withDescription(
                             "Timeout for jobs which don't have a job manager as leader assigned.");
 
-    /** This option is not used any more. */
-    @Deprecated
-    public static final ConfigOption<Integer> LOCAL_NUMBER_RESOURCE_MANAGER =
-            ConfigOptions.key("local.number-resourcemanager")
-                    .intType()
-                    .defaultValue(1)
-                    .withDescription("The number of resource managers start.");
-
     /**
      * Defines the network port to connect to for communication with the resource manager. By
      * default, the port of the JobManager, because the same ActorSystem is used. Its not possible
@@ -225,52 +217,15 @@ public class ResourceManagerOptions {
                                                     JobManagerOptions.SLOT_REQUEST_TIMEOUT.key()))
                                     .build());
 
-    /**
-     * The timeout for an idle task manager to be released, in milliseconds.
-     *
-     * @deprecated Use {@link #TASK_MANAGER_TIMEOUT}.
-     */
-    @Deprecated
-    public static final ConfigOption<Long> SLOT_MANAGER_TASK_MANAGER_TIMEOUT =
-            ConfigOptions.key("slotmanager.taskmanager-timeout")
-                    .longType()
-                    .defaultValue(30000L)
-                    .withDescription("The timeout for an idle task manager to be released.");
-
     /** The timeout for an idle task manager to be released. */
     public static final ConfigOption<Duration> TASK_MANAGER_TIMEOUT =
             ConfigOptions.key("resourcemanager.taskmanager-timeout")
                     .durationType()
                     .defaultValue(Duration.ofMillis(30000L))
-                    .withDeprecatedKeys(SLOT_MANAGER_TASK_MANAGER_TIMEOUT.key())
+                    .withDeprecatedKeys("slotmanager.taskmanager-timeout")
                     .withDescription(
                             Description.builder()
                                     .text("The timeout for an idle task manager to be released.")
-                                    .build());
-
-    /**
-     * Release task executor only when each produced result partition is either consumed or failed.
-     *
-     * <p>Currently, produced result partition is released when it fails or consumer sends close
-     * request to confirm successful end of consumption and to close the communication channel.
-     *
-     * @deprecated The default value should be reasonable enough in all cases, this option is to
-     *     fallback to older behaviour which will be removed or refactored in future.
-     */
-    @Deprecated
-    public static final ConfigOption<Boolean> TASK_MANAGER_RELEASE_WHEN_RESULT_CONSUMED =
-            ConfigOptions.key("resourcemanager.taskmanager-release.wait.result.consumed")
-                    .booleanType()
-                    .defaultValue(true)
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Release task executor only when each produced result partition is either consumed or failed. "
-                                                    + "'True' is default. 'False' means that idle task executor release is not blocked "
-                                                    + "by receiver confirming consumption of result partition "
-                                                    + "and can happen right away after 'resourcemanager.taskmanager-timeout' has elapsed. "
-                                                    + "Setting this option to 'false' can speed up task executor release but can lead to unexpected failures "
-                                                    + "if end of consumption is slower than 'resourcemanager.taskmanager-timeout'.")
                                     .build());
 
     /**

@@ -68,20 +68,27 @@ public class ForStStateBackendFactoryTest {
         final String localDirs = localDir1 + File.pathSeparator + localDir2;
         final boolean incremental = !CheckpointingOptions.INCREMENTAL_CHECKPOINTS.defaultValue();
 
-        // TODO: Support short name of backendKey
-
         final Configuration config1 = new Configuration();
-        config1.setString(backendKey, ForStStateBackendFactory.class.getName());
+        config1.setString(backendKey, "forst");
         config1.set(ForStOptions.LOCAL_DIRECTORIES, localDirs);
         config1.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, incremental);
 
+        final Configuration config2 = new Configuration();
+        config2.setString(backendKey, ForStStateBackendFactory.class.getName());
+        config2.set(ForStOptions.LOCAL_DIRECTORIES, localDirs);
+        config2.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, incremental);
+
         StateBackend backend1 = StateBackendLoader.loadStateBackendFromConfig(config1, cl, null);
+        StateBackend backend2 = StateBackendLoader.loadStateBackendFromConfig(config2, cl, null);
 
         assertTrue(backend1 instanceof ForStStateBackend);
+        assertTrue(backend2 instanceof ForStStateBackend);
 
         ForStStateBackend fs1 = (ForStStateBackend) backend1;
+        ForStStateBackend fs2 = (ForStStateBackend) backend1;
 
         checkPaths(fs1.getLocalDbStoragePaths(), localDir1, localDir2);
+        checkPaths(fs2.getLocalDbStoragePaths(), localDir1, localDir2);
     }
 
     /**

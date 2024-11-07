@@ -31,24 +31,6 @@ import static org.apache.flink.configuration.description.TextElement.code;
 @PublicEvolving
 public class WebOptions {
 
-    /** Config parameter defining the runtime monitor web-frontend server address. */
-    @Deprecated
-    public static final ConfigOption<String> ADDRESS =
-            key("web.address")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDeprecatedKeys("jobmanager.web.address")
-                    .withDescription("Address for runtime monitor web-frontend server.");
-
-    /**
-     * The port for the runtime monitor web-frontend server.
-     *
-     * @deprecated Use {@link RestOptions#PORT} instead
-     */
-    @Deprecated
-    public static final ConfigOption<Integer> PORT =
-            key("web.port").intType().defaultValue(8081).withDeprecatedKeys("jobmanager.web.port");
-
     /**
      * The config parameter defining the Access-Control-Allow-Origin header for all responses from
      * the web-frontend.
@@ -68,16 +50,6 @@ public class WebOptions {
                     .defaultValue(Duration.ofMillis(3000L))
                     .withDeprecatedKeys("jobmanager.web.refresh-interval")
                     .withDescription("Refresh interval for the web-frontend.");
-
-    /** Config parameter to override SSL support for the JobManager Web UI. */
-    @Deprecated
-    public static final ConfigOption<Boolean> SSL_ENABLED =
-            key("web.ssl.enabled")
-                    .booleanType()
-                    .defaultValue(true)
-                    .withDeprecatedKeys("jobmanager.web.ssl.enabled")
-                    .withDescription(
-                            "Flag indicating whether to override SSL support for the JobManager Web UI.");
 
     /** The config parameter defining the flink web directory to be used by the webmonitor. */
     @Documentation.OverrideDefault("System.getProperty(\"java.io.tmpdir\")")
@@ -168,42 +140,6 @@ public class WebOptions {
                     .defaultValue(16)
                     .withDescription(
                             "The maximum number of failures collected by the exception history per job.");
-
-    /** @deprecated - no longer used. */
-    @Deprecated
-    public static final ConfigOption<Integer> BACKPRESSURE_CLEANUP_INTERVAL =
-            key("web.backpressure.cleanup-interval")
-                    .intType()
-                    .defaultValue(10 * 60 * 1000)
-                    .withDeprecatedKeys("jobmanager.web.backpressure.cleanup-interval")
-                    .withDescription("This config option is no longer used");
-
-    /** @deprecated - no longer used. */
-    @Deprecated
-    public static final ConfigOption<Integer> BACKPRESSURE_REFRESH_INTERVAL =
-            key("web.backpressure.refresh-interval")
-                    .intType()
-                    .defaultValue(60 * 1000)
-                    .withDeprecatedKeys("jobmanager.web.backpressure.refresh-interval")
-                    .withDescription("This config option is no longer used");
-
-    /** @deprecated - no longer used. */
-    @Deprecated
-    public static final ConfigOption<Integer> BACKPRESSURE_NUM_SAMPLES =
-            key("web.backpressure.num-samples")
-                    .intType()
-                    .defaultValue(100)
-                    .withDeprecatedKeys("jobmanager.web.backpressure.num-samples")
-                    .withDescription("This config option is no longer used");
-
-    /** @deprecated - no longer used. */
-    @Deprecated
-    public static final ConfigOption<Integer> BACKPRESSURE_DELAY =
-            key("web.backpressure.delay-between-samples")
-                    .intType()
-                    .defaultValue(50)
-                    .withDeprecatedKeys("jobmanager.web.backpressure.delay-between-samples")
-                    .withDescription("This config option is no longer used");
 
     /** Timeout for asynchronous operations by the web monitor in milliseconds. */
     public static final ConfigOption<Duration> TIMEOUT =

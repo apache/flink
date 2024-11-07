@@ -20,7 +20,6 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -183,7 +182,7 @@ class TaskExecutorOperatorEventHandlingTest {
                 .allocateSlot(0, jobId, tdd.getAllocationId(), Duration.ofSeconds(60));
 
         final TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-        tmGateway.submitTask(tdd, env.getJobMasterId(), Time.seconds(10)).get();
+        tmGateway.submitTask(tdd, env.getJobMasterId(), Duration.ofSeconds(10)).get();
         taskRunningFuture.get();
 
         return env;

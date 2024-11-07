@@ -25,6 +25,8 @@ import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
+import org.apache.flink.table.catalog.exceptions.ModelAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.ModelNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
@@ -55,6 +57,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 
     private final Map<String, CatalogDatabase> databases;
     private final Map<ObjectPath, CatalogBaseTable> tables;
+    private final Map<ObjectPath, CatalogModel> models;
     private final Map<ObjectPath, CatalogFunction> functions;
     private final Map<ObjectPath, Map<CatalogPartitionSpec, CatalogPartition>> partitions;
 
@@ -74,6 +77,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
         this.databases = new LinkedHashMap<>();
         this.databases.put(defaultDatabase, new CatalogDatabaseImpl(new HashMap<>(), null));
         this.tables = new LinkedHashMap<>();
+        this.models = new LinkedHashMap<>();
         this.functions = new LinkedHashMap<>();
         this.partitions = new LinkedHashMap<>();
         this.tableStats = new LinkedHashMap<>();
@@ -381,6 +385,104 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
         }
     }
 
+    // ------ models ------
+
+    @Override
+    public void createModel(ObjectPath modelPath, CatalogModel model, boolean ignoreIfExists)
+            throws ModelAlreadyExistException, DatabaseNotExistException {
+        checkNotNull(modelPath);
+        checkNotNull(model);
+        if (!databaseExists(modelPath.getDatabaseName())) {
+            throw new DatabaseNotExistException(getName(), modelPath.getDatabaseName());
+        }
+        if (modelExists(modelPath)) {
+            if (!ignoreIfExists) {
+                throw new ModelAlreadyExistException(getName(), modelPath);
+            }
+        } else {
+            models.put(modelPath, model.copy());
+        }
+    }
+
+    @Override
+    public void alterModel(ObjectPath modelPath, CatalogModel newModel, boolean ignoreIfNotExists)
+            throws ModelNotExistException {
+        checkNotNull(modelPath);
+        checkNotNull(newModel);
+
+        CatalogModel existingModel = models.get(modelPath);
+        if (existingModel == null) {
+            if (ignoreIfNotExists) {
+                return;
+            }
+            throw new ModelNotExistException(getName(), modelPath);
+        }
+        models.put(modelPath, newModel.copy());
+    }
+
+    @Override
+    public void dropModel(ObjectPath modelPath, boolean ignoreIfNotExists)
+            throws ModelNotExistException {
+        checkNotNull(modelPath);
+        if (modelExists(modelPath)) {
+            models.remove(modelPath);
+        } else if (!ignoreIfNotExists) {
+            throw new ModelNotExistException(getName(), modelPath);
+        }
+    }
+
+    @Override
+    public void renameModel(ObjectPath modelPath, String newModelName, boolean ignoreIfNotExists)
+            throws ModelNotExistException, ModelAlreadyExistException {
+        checkNotNull(modelPath);
+        checkArgument(!StringUtils.isNullOrWhitespaceOnly(newModelName));
+
+        if (modelExists(modelPath)) {
+            ObjectPath newPath = new ObjectPath(modelPath.getDatabaseName(), newModelName);
+
+            if (modelExists(newPath)) {
+                throw new ModelAlreadyExistException(getName(), newPath);
+            } else {
+                models.put(newPath, models.remove(modelPath));
+            }
+        } else if (!ignoreIfNotExists) {
+            throw new ModelNotExistException(getName(), modelPath);
+        }
+    }
+
+    @Override
+    public List<String> listModels(String databaseName) throws DatabaseNotExistException {
+        checkArgument(
+                !StringUtils.isNullOrWhitespaceOnly(databaseName),
+                "databaseName cannot be null or empty");
+
+        if (!databaseExists(databaseName)) {
+            throw new DatabaseNotExistException(getName(), databaseName);
+        }
+
+        return models.keySet().stream()
+                .filter(k -> k.getDatabaseName().equals(databaseName))
+                .map(k -> k.getObjectName())
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public CatalogModel getModel(ObjectPath modelPath) throws ModelNotExistException {
+        checkNotNull(modelPath);
+
+        if (!modelExists(modelPath)) {
+            throw new ModelNotExistException(getName(), modelPath);
+        } else {
+            return models.get(modelPath).copy();
+        }
+    }
+
+    @Override
+    public boolean modelExists(ObjectPath modelPath) {
+        checkNotNull(modelPath);
+        return databaseExists(modelPath.getDatabaseName()) && models.containsKey(modelPath);
+    }
+
     // ------ functions ------
 
     @Override
@@ -465,8 +567,8 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
         checkNotNull(path);
 
         ObjectPath functionPath = normalize(path);
-
-        if (!functionExists(functionPath)) {
+        if (!(databaseExists(functionPath.getDatabaseName())
+                && functions.containsKey(functionPath))) {
             throw new FunctionNotExistException(getName(), functionPath);
         } else {
             return functions.get(functionPath).copy();
@@ -476,11 +578,12 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
     @Override
     public boolean functionExists(ObjectPath path) {
         checkNotNull(path);
-
-        ObjectPath functionPath = normalize(path);
-
-        return databaseExists(functionPath.getDatabaseName())
-                && functions.containsKey(functionPath);
+        try {
+            getFunction(path);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private ObjectPath normalize(ObjectPath path) {

@@ -32,7 +32,7 @@ public class TestNonRichOutputFormat implements OutputFormat<String> {
     public void configure(Configuration parameters) {}
 
     @Override
-    public void open(int a, int b) {}
+    public void open(InitializationContext context) {}
 
     @Override
     public void close() {}

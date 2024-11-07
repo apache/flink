@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -52,6 +51,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.Capacity
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
@@ -64,6 +64,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.charset.Charset;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -136,7 +137,7 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
             YarnTestBase.teardown();
         } finally {
             if (restClient != null) {
-                restClient.shutdown(Time.seconds(5));
+                restClient.shutdown(Duration.ofSeconds(5));
             }
 
             if (restClientExecutor != null) {
@@ -180,6 +181,7 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
      * (-ys).
      */
     @Test
+    @Disabled("per-job mode is deprecated, we will be removed in 2.0 version.")
     void perJobYarnCluster() throws Exception {
         runTest(
                 () -> {
@@ -224,6 +226,7 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
      * memory remains.
      */
     @Test
+    @Disabled("per-job mode is deprecated, we will be removed in 2.0 version.")
     void perJobYarnClusterOffHeap() throws Exception {
         runTest(
                 () -> {
@@ -482,6 +485,7 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
      * client.
      */
     @Test
+    @Disabled("per-job mode is deprecated, we will be removed in 2.0 version.")
     void perJobYarnClusterWithParallelism() throws Exception {
         runTest(
                 () -> {
@@ -519,6 +523,7 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
     /** Test a fire-and-forget job submission to a YARN cluster. */
     @Test
+    @Disabled("per-job mode is deprecated, we will be removed in 2.0 version.")
     void testDetachedPerJobYarnCluster(@TempDir File tempDir) throws Exception {
         runTest(
                 () -> {
@@ -535,6 +540,7 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
     /** Test a fire-and-forget job submission to a YARN cluster. */
     @Test
+    @Disabled("per-job mode is deprecated, we will be removed in 2.0 version.")
     void testDetachedPerJobYarnClusterWithStreamingJob(@TempDir File tempDir) throws Exception {
         runTest(
                 () -> {

@@ -19,7 +19,6 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
@@ -319,7 +318,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       BasicTypeInfo.DOUBLE_TYPE_INFO
     ) // tpe is automatically
 
-    val ds = env.fromCollection(data)
+    val ds = StreamingEnvUtil.fromCollection(env, data)
     val t = ds.toTable(tEnv, 'category, 'shopId, 'num)
     tEnv.createTemporaryView("T", t)
 

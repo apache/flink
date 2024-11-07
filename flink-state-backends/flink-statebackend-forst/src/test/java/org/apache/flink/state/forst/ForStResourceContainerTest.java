@@ -19,27 +19,32 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
+import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
 import org.apache.flink.util.function.ThrowingRunnable;
 
+import org.forstdb.BlockBasedTableConfig;
+import org.forstdb.BloomFilter;
+import org.forstdb.Cache;
+import org.forstdb.ColumnFamilyDescriptor;
+import org.forstdb.ColumnFamilyHandle;
+import org.forstdb.ColumnFamilyOptions;
+import org.forstdb.DBOptions;
+import org.forstdb.FlinkEnv;
+import org.forstdb.IndexType;
+import org.forstdb.LRUCache;
+import org.forstdb.NativeLibraryLoader;
+import org.forstdb.ReadOptions;
+import org.forstdb.RocksDB;
+import org.forstdb.TableFormatConfig;
+import org.forstdb.WriteBufferManager;
+import org.forstdb.WriteOptions;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.rocksdb.BlockBasedTableConfig;
-import org.rocksdb.BloomFilter;
-import org.rocksdb.Cache;
-import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
-import org.rocksdb.FlinkEnv;
-import org.rocksdb.IndexType;
-import org.rocksdb.LRUCache;
-import org.rocksdb.NativeLibraryLoader;
-import org.rocksdb.ReadOptions;
-import org.rocksdb.TableFormatConfig;
-import org.rocksdb.WriteBufferManager;
-import org.rocksdb.WriteOptions;
 
 import java.io.File;
 import java.io.IOException;
@@ -49,7 +54,6 @@ import java.util.Collection;
 import java.util.HashSet;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -295,7 +299,7 @@ public class ForStResourceContainerTest {
             assertThat(actual.indexType(), is(IndexType.kTwoLevelIndexSearch));
             assertThat(actual.partitionFilters(), is(true));
             assertThat(actual.pinTopLevelIndexAndFilter(), is(true));
-            assertThat(actual.filterPolicy(), not(blockBasedFilter));
+            assertFalse(actual.filterPolicy() == blockBasedFilter);
         }
         assertFalse("Block based filter is left unclosed.", blockBasedFilter.isOwningHandle());
     }
@@ -316,5 +320,28 @@ public class ForStResourceContainerTest {
             assertFalse(localBasePath.exists());
             assertFalse(new File(remoteBasePath.getPath()).exists());
         }
+    }
+
+    @Test
+    public void testFileSystemInit() throws Exception {
+        File localBasePath = TMP_FOLDER.newFolder();
+        Path remoteBasePath = new Path(TMP_FOLDER.newFolder().getPath());
+        ArrayList<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(1);
+        ArrayList<ColumnFamilyDescriptor> columnFamilyDescriptors = new ArrayList<>(1);
+        columnFamilyDescriptors.add(new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY));
+        DBOptions dbOptions2 =
+                new DBOptions().setCreateIfMissing(true).setAvoidFlushDuringShutdown(true);
+        ForStFlinkFileSystem.setupLocalBasePath(remoteBasePath.toString(), localBasePath.getPath());
+        FileSystem forstFileSystem = ForStFlinkFileSystem.get(remoteBasePath.toUri());
+        dbOptions2.setEnv(new FlinkEnv(remoteBasePath.toString(), forstFileSystem));
+        RocksDB db =
+                RocksDB.open(
+                        dbOptions2,
+                        remoteBasePath.getPath(),
+                        columnFamilyDescriptors,
+                        columnFamilyHandles);
+        db.put("key".getBytes(), "value".getBytes());
+        db.getSnapshot();
+        db.close();
     }
 }

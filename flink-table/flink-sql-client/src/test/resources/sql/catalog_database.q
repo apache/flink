@@ -62,6 +62,42 @@ show catalogs;
 2 rows in set
 !ok
 
+show catalogs like '%c1';
++--------------+
+| catalog name |
++--------------+
+|           c1 |
++--------------+
+1 row in set
+!ok
+
+show catalogs not like 'default%';
++--------------+
+| catalog name |
++--------------+
+|           c1 |
++--------------+
+1 row in set
+!ok
+
+show catalogs ilike '%c1';
++--------------+
+| catalog name |
++--------------+
+|           c1 |
++--------------+
+1 row in set
+!ok
+
+show catalogs not ilike 'default%';
++--------------+
+| catalog name |
++--------------+
+|           c1 |
++--------------+
+1 row in set
+!ok
+
 show current catalog;
 +----------------------+
 | current catalog name |
@@ -101,7 +137,9 @@ show create catalog cat_comment;
 +--------------------------------------------------------------------------------------------------------------------------------+
 |                                                                                                                         result |
 +--------------------------------------------------------------------------------------------------------------------------------+
-| CREATE CATALOG `cat_comment` COMMENT 'hello ''catalog''' WITH (
+| CREATE CATALOG `cat_comment`
+COMMENT 'hello ''catalog'''
+WITH (
   'default-database' = 'db',
   'type' = 'generic_in_memory'
 )
@@ -150,7 +188,8 @@ show create catalog cat2;
 +---------------------------------------------------------------------------------------------+
 |                                                                                      result |
 +---------------------------------------------------------------------------------------------+
-| CREATE CATALOG `cat2` WITH (
+| CREATE CATALOG `cat2`
+WITH (
   'default-database' = 'db',
   'type' = 'generic_in_memory'
 )
@@ -799,7 +838,7 @@ show tables;
 !ok
 
 # ==========================================================================
-# test enhanced show tables
+# test enhanced show tables and views
 # ==========================================================================
 
 create catalog catalog1 with ('type'='generic_in_memory');
@@ -826,6 +865,10 @@ create view catalog1.db1.v_person as select * from catalog1.db1.person;
 [INFO] Execute statement succeeded.
 !info
 
+create view catalog1.db1.v_address comment 'view comment' as select * from catalog1.db1.address;
+[INFO] Execute statement succeeded.
+!info
+
 show tables from catalog1.db1;
 +------------+
 | table name |
@@ -833,9 +876,20 @@ show tables from catalog1.db1;
 |    address |
 |        dim |
 |     person |
+|  v_address |
 |   v_person |
 +------------+
-4 rows in set
+5 rows in set
+!ok
+
+show views from catalog1.db1;
++-----------+
+| view name |
++-----------+
+| v_address |
+|  v_person |
++-----------+
+2 rows in set
 !ok
 
 show tables from catalog1.db1 like '%person%';
@@ -848,14 +902,33 @@ show tables from catalog1.db1 like '%person%';
 2 rows in set
 !ok
 
+show views from catalog1.db1 like '%person%';
++-----------+
+| view name |
++-----------+
+|  v_person |
++-----------+
+1 row in set
+!ok
+
 show tables in catalog1.db1 not like '%person%';
 +------------+
 | table name |
 +------------+
 |    address |
 |        dim |
+|  v_address |
 +------------+
-2 rows in set
+3 rows in set
+!ok
+
+show views in catalog1.db1 not like '%person%';
++-----------+
+| view name |
++-----------+
+| v_address |
++-----------+
+1 row in set
 !ok
 
 use catalog catalog1;
@@ -868,5 +941,14 @@ show tables from db1 like 'p_r%';
 +------------+
 |     person |
 +------------+
+1 row in set
+!ok
+
+show views from db1 like '%p_r%';
++-----------+
+| view name |
++-----------+
+|  v_person |
++-----------+
 1 row in set
 !ok

@@ -118,8 +118,6 @@ from pyflink.table.expression import Expression
 from pyflink.table.module import Module, ModuleEntry
 from pyflink.table.result_kind import ResultKind
 from pyflink.table.schema import Schema
-from pyflink.table.sinks import CsvTableSink, TableSink, WriteMode
-from pyflink.table.sources import CsvTableSource, TableSource
 from pyflink.table.sql_dialect import SqlDialect
 from pyflink.table.statement_set import StatementSet
 from pyflink.table.table import GroupWindowedTable, GroupedTable, OverWindowedTable, Table, \
@@ -167,10 +165,5 @@ __all__ = [
     'RowKind',
     'ChangelogMode',
     'ExplainDetail',
-    'TableSource',
-    'TableSink',
-    'CsvTableSource',
-    'CsvTableSink',
-    'WriteMode',
     'ResultKind'
 ]

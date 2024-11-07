@@ -18,20 +18,17 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.legacy.sources.FilterableTableSource;
+import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
-import org.apache.flink.table.sources.FilterableTableSource;
-import org.apache.flink.table.sources.TableSource;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
@@ -50,7 +47,6 @@ import java.util.stream.Collectors;
 import scala.Tuple2;
 
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext;
-import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig;
 
 /** Planner rule that tries to push a filter into a {@link FilterableTableSource}. */
 @Value.Enclosing
@@ -71,12 +67,6 @@ public class PushFilterIntoLegacyTableSourceScanRule
 
     @Override
     public boolean matches(RelOptRuleCall call) {
-        TableConfig tableConfig = unwrapTableConfig(call);
-        if (!tableConfig.get(
-                OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED)) {
-            return false;
-        }
-
         Filter filter = call.rel(0);
         if (filter.getCondition() == null) {
             return false;
@@ -110,11 +100,9 @@ public class PushFilterIntoLegacyTableSourceScanRule
             FlinkPreparingTableBase relOptTable) {
         RelBuilder relBuilder = call.builder();
         FlinkContext context = unwrapContext(call);
-        int maxCnfNodeCount = FlinkRelOptUtil.getMaxCnfNodeCount(scan);
         Tuple2<Expression[], RexNode[]> extracted =
                 RexNodeExtractor.extractConjunctiveConditions(
                         filter.getCondition(),
-                        maxCnfNodeCount,
                         filter.getInput().getRowType().getFieldNames(),
                         relBuilder.getRexBuilder(),
                         context.getFunctionCatalog(),

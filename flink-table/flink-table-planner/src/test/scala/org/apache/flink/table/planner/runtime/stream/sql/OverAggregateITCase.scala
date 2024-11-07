@@ -17,12 +17,12 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestData, TestingAppendSink}
+import org.apache.flink.table.planner.runtime.utils.{StreamingEnvUtil, StreamingWithStateTestBase, TestData, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeProcessOperator
@@ -32,6 +32,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTe
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.assertj.core.data.Percentage
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
@@ -83,8 +84,12 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     val source = failingDataSource(data)
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Int, Long, String)]],
+        new EventTimeProcessOperator[(Int, Long, String)]
+      )
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
@@ -123,8 +128,11 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     )
     val source = failingDataSource(data)
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Int, Long, String)]],
+        new EventTimeProcessOperator[(Int, Long, String)])
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
     tEnv.createTemporaryView("T1", t1)
     val sink = new TestingAppendSink
@@ -540,8 +548,11 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     val source = failingDataSource(data)
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Long, Int, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Long, Int, String)]],
+        new EventTimeProcessOperator[(Long, Int, String)])
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
@@ -612,8 +623,11 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     val source = failingDataSource(data)
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Long, Int, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Long, Int, String)]],
+        new EventTimeProcessOperator[(Long, Int, String)])
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
@@ -690,9 +704,13 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
     )
 
     val source = failingDataSource(data)
+
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Long, Int, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Long, Int, String)]],
+        new EventTimeProcessOperator[(Long, Int, String)])
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
@@ -760,8 +778,11 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     val source = failingDataSource(data)
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Long, Int, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Long, Int, String)]],
+        new EventTimeProcessOperator[(Long, Int, String)])
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
@@ -833,8 +854,11 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     val source = failingDataSource(data)
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Int, Long, String)]],
+        new EventTimeProcessOperator[(Int, Long, String)])
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
@@ -901,8 +925,11 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     val source = failingDataSource(data)
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Int, Long, String)]],
+        new EventTimeProcessOperator[(Int, Long, String)])
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
@@ -961,8 +988,11 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     val source = failingDataSource(data)
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Int, Long, String)]],
+        new EventTimeProcessOperator[(Int, Long, String)])
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
@@ -1018,8 +1048,11 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     val source = failingDataSource(data)
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Int, Long, String)]],
+        new EventTimeProcessOperator[(Int, Long, String)])
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
@@ -1087,8 +1120,11 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     val source = failingDataSource(data)
     val t1 = source
-      .transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
-      .setParallelism(source.parallelism)
+      .transform(
+        "TimeAssigner",
+        implicitly[TypeInformation[(Int, Long, String)]],
+        new EventTimeProcessOperator[(Int, Long, String)])
+      .setParallelism(source.getParallelism)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
@@ -1341,7 +1377,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     env.setParallelism(1)
 
-    val table = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'proctime.proctime)
+    val table = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b, 'proctime.proctime)
     tEnv.createTemporaryView("MyTable", table)
     tEnv.createTemporarySystemFunction("PairCount", classOf[CountPairs])
 
@@ -1397,5 +1433,66 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "6.660000000000000000",
       "11.100000000000000000")
     assertThat(sink.getAppendResults).isEqualTo(expected)
+  }
+
+  @TestTemplate
+  def testPercentile(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  PERCENTILE(b, 0.5)
+        |  OVER (ORDER BY proctime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW) AS `swo`,
+        |  PERCENTILE(b, 0.5, a) 
+        |  OVER (ORDER BY proctime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW) AS `sw`,
+        |  PERCENTILE(b, ARRAY[0.5, 0.9, 0.3])
+        |  OVER (ORDER BY proctime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW) AS `mwo`,
+        |  PERCENTILE(b, ARRAY[0.5, 0.9, 0.3], a)
+        |  OVER (ORDER BY proctime ROWS BETWEEN 3 PRECEDING AND CURRENT ROW) AS `mw`
+        |FROM MyTable
+      """.stripMargin
+    val outer =
+      s"""
+         |SELECT
+         | `swo`,
+         | `sw`,
+         | `mwo`[1], `mwo`[2], `mwo`[3],
+         | `mw`[1], `mw`[2], `mw`[3]
+         |FROM ($sql)
+    """.stripMargin
+
+    val t =
+      failingDataSource(TestData.tupleData5).toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
+    tEnv.createTemporaryView("MyTable", t)
+
+    val sink = new TestingAppendSink()
+    tEnv.sqlQuery(outer).toDataStream.addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List(
+      List(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0),
+      List(1.5, 2.0, 1.5, 1.9, 1.3, 2.0, 2.0, 1.6),
+      List(2.0, 2.0, 2.0, 2.8, 1.6, 2.0, 3.0, 2.0),
+      List(2.5, 3.0, 2.5, 3.7, 1.9, 3.0, 4.0, 2.1),
+      List(3.5, 4.0, 3.5, 4.7, 2.9, 4.0, 5.0, 3.0),
+      List(4.5, 5.0, 4.5, 5.7, 3.9, 5.0, 6.0, 4.0),
+      List(5.5, 6.0, 5.5, 6.7, 4.9, 6.0, 7.0, 5.0),
+      List(6.5, 7.0, 6.5, 7.7, 5.9, 7.0, 8.0, 6.0),
+      List(7.5, 8.0, 7.5, 8.7, 6.9, 8.0, 9.0, 7.0),
+      List(8.5, 8.5, 8.5, 9.7, 7.9, 8.5, 10.0, 8.0),
+      List(9.5, 10.0, 9.5, 10.7, 8.9, 10.0, 11.0, 9.0),
+      List(10.5, 11.0, 10.5, 11.7, 9.9, 11.0, 12.0, 10.0),
+      List(11.5, 12.0, 11.5, 12.7, 10.9, 12.0, 13.0, 11.0),
+      List(12.5, 12.5, 12.5, 13.7, 11.9, 12.5, 14.0, 12.0),
+      List(13.5, 13.5, 13.5, 14.7, 12.9, 13.5, 15.0, 13.0)
+    )
+    val ERROR_RATE = Percentage.withPercentage(1e-6)
+
+    val result = sink.getAppendResults
+    for (i <- result.indices) {
+      val actual = result(i).split(",")
+      for (j <- expected(i).indices) {
+        assertThat(actual(j).toDouble).isCloseTo(expected(i)(j), ERROR_RATE)
+      }
+    }
   }
 }

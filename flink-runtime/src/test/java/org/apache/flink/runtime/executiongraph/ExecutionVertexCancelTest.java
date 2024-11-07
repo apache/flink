@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
@@ -37,6 +36,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -286,7 +286,7 @@ class ExecutionVertexCancelTest {
 
         @Override
         public CompletableFuture<Acknowledge> cancelTask(
-                ExecutionAttemptID executionAttemptID, Time timeout) {
+                ExecutionAttemptID executionAttemptID, Duration timeout) {
             index++;
 
             if (index >= successfulOperations) {

@@ -22,10 +22,8 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
@@ -33,8 +31,9 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
 
 import org.junit.jupiter.api.Test;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -42,7 +41,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -95,7 +94,7 @@ class MergingWindowSetTest {
 
         MergingWindowSet<TimeWindow> windowSet =
                 new MergingWindowSet<>(
-                        EventTimeSessionWindows.withGap(Time.milliseconds(3)), mockState);
+                        EventTimeSessionWindows.withGap(Duration.ofMillis(3)), mockState);
 
         TestingMergeFunction mergeFunction = new TestingMergeFunction();
 
@@ -213,7 +212,7 @@ class MergingWindowSetTest {
 
         MergingWindowSet<TimeWindow> windowSet =
                 new MergingWindowSet<>(
-                        EventTimeSessionWindows.withGap(Time.milliseconds(3)), mockState);
+                        EventTimeSessionWindows.withGap(Duration.ofMillis(3)), mockState);
 
         TestingMergeFunction mergeFunction = new TestingMergeFunction();
 
@@ -311,7 +310,7 @@ class MergingWindowSetTest {
 
         MergingWindowSet<TimeWindow> windowSet =
                 new MergingWindowSet<>(
-                        EventTimeSessionWindows.withGap(Time.milliseconds(3)), mockState);
+                        EventTimeSessionWindows.withGap(Duration.ofMillis(3)), mockState);
 
         TestingMergeFunction mergeFunction = new TestingMergeFunction();
 
@@ -343,7 +342,7 @@ class MergingWindowSetTest {
 
         MergingWindowSet<TimeWindow> windowSet =
                 new MergingWindowSet<>(
-                        EventTimeSessionWindows.withGap(Time.milliseconds(3)), mockState);
+                        EventTimeSessionWindows.withGap(Duration.ofMillis(3)), mockState);
 
         TestingMergeFunction mergeFunction = new TestingMergeFunction();
 
@@ -368,7 +367,7 @@ class MergingWindowSetTest {
 
         MergingWindowSet<TimeWindow> windowSet =
                 new MergingWindowSet<>(
-                        EventTimeSessionWindows.withGap(Time.milliseconds(3)), mockState);
+                        EventTimeSessionWindows.withGap(Duration.ofMillis(3)), mockState);
 
         TestingMergeFunction mergeFunction = new TestingMergeFunction();
 
@@ -431,7 +430,7 @@ class MergingWindowSetTest {
 
         MergingWindowSet<TimeWindow> windowSet =
                 new MergingWindowSet<>(
-                        EventTimeSessionWindows.withGap(Time.milliseconds(3)), mockState);
+                        EventTimeSessionWindows.withGap(Duration.ofMillis(3)), mockState);
 
         assertThat(windowSet.getStateWindow(new TimeWindow(17, 42)))
                 .isEqualTo(new TimeWindow(42, 17));
@@ -445,7 +444,7 @@ class MergingWindowSetTest {
 
         MergingWindowSet<TimeWindow> windowSet =
                 new MergingWindowSet<>(
-                        EventTimeSessionWindows.withGap(Time.milliseconds(3)), mockState);
+                        EventTimeSessionWindows.withGap(Duration.ofMillis(3)), mockState);
 
         TestingMergeFunction mergeFunction = new TestingMergeFunction();
 
@@ -469,7 +468,7 @@ class MergingWindowSetTest {
                                                         new TimeWindow(17, 42),
                                                         new TimeWindow(17, 42))))));
 
-        verify(mockState, times(1)).update(Matchers.anyObject());
+        verify(mockState, times(1)).update(ArgumentMatchers.any());
     }
 
     @Test
@@ -484,7 +483,7 @@ class MergingWindowSetTest {
 
         MergingWindowSet<TimeWindow> windowSet =
                 new MergingWindowSet<>(
-                        EventTimeSessionWindows.withGap(Time.milliseconds(3)), mockState);
+                        EventTimeSessionWindows.withGap(Duration.ofMillis(3)), mockState);
 
         assertThat(windowSet.getStateWindow(new TimeWindow(17, 42)))
                 .isEqualTo(new TimeWindow(42, 17));
@@ -492,7 +491,7 @@ class MergingWindowSetTest {
 
         windowSet.persist();
 
-        verify(mockState, times(0)).add(Matchers.<Tuple2<TimeWindow, TimeWindow>>anyObject());
+        verify(mockState, times(0)).add(ArgumentMatchers.any());
     }
 
     private static class TestingMergeFunction
@@ -564,12 +563,6 @@ class MergingWindowSetTest {
         public Collection<TimeWindow> assignWindows(
                 Object element, long timestamp, WindowAssignerContext context) {
             return Collections.singletonList(new TimeWindow(timestamp, timestamp + sessionTimeout));
-        }
-
-        @Override
-        public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
-            throw new UnsupportedOperationException(
-                    "This method is deprecated and shouldn't be invoked. Please use getDefaultTrigger() instead.");
         }
 
         @Override

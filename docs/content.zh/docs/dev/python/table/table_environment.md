@@ -222,28 +222,6 @@ TableEnvironment API
     </tr>
     <tr>
       <td>
-        <strong>register_table_source(name, table_source)</strong>
-      </td>
-      <td>
-        在 TableEnvironment 的 catalog 中注册一个外部 `TableSource`。
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_table_source" name="链接">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <strong>register_table_sink(name, table_sink)</strong>
-      </td>
-      <td>
-        在 TableEnvironment 的 catalog 中注册一个外部 `TableSink`。
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_table_sink" name="链接">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
         <strong>insert_into(target_path, table)</strong>
       </td>
       <td>
@@ -452,46 +430,6 @@ TableEnvironment API
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_system_function" name="链接">}}
-      </td>
-    </tr>
-  </tbody>
-</table>
-
-<big><strong>废弃的 APIs</strong></big>
-
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 20%">APIs</th>
-      <th class="text-center">描述</th>
-      <th class="text-center" style="width: 10%">文档</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>
-        <strong>register_function(name, function)</strong>
-      </td>
-      <td>
-        注册一个 Python 用户自定义函数，并为其指定一个唯一的名称。 
-        若已有与该名称相同的用户自定义函数，则替换之。
-        它可以通过 <strong>create_temporary_system_function</strong> 来替换。
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_function" name="链接">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <strong>register_java_function(name, function_class_name)</strong>
-      </td>
-      <td>
-        注册一个 Java 用户自定义函数，并为其指定一个唯一的名称。 
-        若已有与该名称相同的用户自定义函数，则替换之。
-        它可以通过 <strong>create_java_temporary_system_function</strong> 来替换。
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.register_java_function" name="链接">}}
       </td>
     </tr>
   </tbody>
@@ -829,9 +767,9 @@ table_env.get_config().set("restart-strategy.fixed-delay.delay", "30s")
 table_env.get_config().set("execution.checkpointing.mode", "EXACTLY_ONCE")
 table_env.get_config().set("execution.checkpointing.interval", "3min")
 
-# 设置 statebackend 类型为 "rocksdb"，其他可选项有 "filesystem" 和 "jobmanager"
+# 设置 statebackend 类型为 "rocksdb"，其他可选项有 "hashmap"
 # 你也可以将这个属性设置为 StateBackendFactory 的完整类名
-# e.g. org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory
+# e.g. org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackendFactory
 table_env.get_config().set("state.backend.type", "rocksdb")
 
 # 设置 RocksDB statebackend 所需要的 checkpoint 目录

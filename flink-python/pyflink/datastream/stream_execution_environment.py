@@ -17,7 +17,6 @@
 ################################################################################
 import os
 import tempfile
-import warnings
 
 from typing import List, Any, Optional, cast
 
@@ -28,7 +27,6 @@ from pyflink.common.execution_config import ExecutionConfig
 from pyflink.common.io import InputFormat
 from pyflink.common.job_client import JobClient
 from pyflink.common.job_execution_result import JobExecutionResult
-from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
 from pyflink.common.typeinfo import TypeInformation, Types
 from pyflink.datastream import SlotSharingGroup
 from pyflink.datastream.checkpoint_config import CheckpointConfig
@@ -37,12 +35,10 @@ from pyflink.datastream.connectors import Source
 from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
 from pyflink.datastream.functions import SourceFunction
-from pyflink.datastream.state_backend import _from_j_state_backend, StateBackend
-from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.datastream.utils import ResultTypeQueryable
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import PickleSerializer
-from pyflink.util.java_utils import load_java_class, add_jars_to_context_class_loader, \
+from pyflink.util.java_utils import add_jars_to_context_class_loader, \
     invoke_method, get_field_value, is_local_deployment, get_j_env_configuration
 
 
@@ -301,59 +297,6 @@ class StreamExecutionEnvironment(object):
             self._j_stream_execution_environment.getCheckpointingConsistencyMode()
         return CheckpointingMode._from_j_checkpointing_mode(j_checkpointing_mode)
 
-    def get_state_backend(self) -> StateBackend:
-        """
-        Gets the state backend that defines how to store and checkpoint state.
-
-        .. seealso:: :func:`set_state_backend`
-
-        :return: The :class:`StateBackend`.
-        """
-        j_state_backend = self._j_stream_execution_environment.getStateBackend()
-        return _from_j_state_backend(j_state_backend)
-
-    def set_state_backend(self, state_backend: StateBackend) -> 'StreamExecutionEnvironment':
-        """
-        Sets the state backend that describes how to store and checkpoint operator state. It
-        defines both which data structures hold state during execution (for example hash tables,
-        RockDB, or other data stores) as well as where checkpointed data will be persisted.
-
-        The :class:`~pyflink.datastream.MemoryStateBackend` for example maintains the state in heap
-        memory, as objects. It is lightweight without extra dependencies, but can checkpoint only
-        small states(some counters).
-
-        In contrast, the :class:`~pyflink.datastream.FsStateBackend` stores checkpoints of the state
-        (also maintained as heap objects) in files. When using a replicated file system (like HDFS,
-        S3, Alluxio, etc) this will guarantee that state is not lost upon failures of
-        individual nodes and that streaming program can be executed highly available and strongly
-        consistent(assuming that Flink is run in high-availability mode).
-
-        The build-in state backend includes:
-            :class:`~pyflink.datastream.MemoryStateBackend`,
-            :class:`~pyflink.datastream.FsStateBackend`
-            and :class:`~pyflink.datastream.RocksDBStateBackend`.
-
-        .. seealso:: :func:`get_state_backend`
-
-        Example:
-        ::
-
-            >>> env.set_state_backend(EmbeddedRocksDBStateBackend())
-
-        :param state_backend: The :class:`StateBackend`.
-        :return: This object.
-
-        .. note:: Deprecated since version 1.19: This method is deprecated and will be removed in
-                  future FLINK major version. Use `stream_execution_environment.configure` method
-                  instead to set the state backend.
-        """
-        warnings.warn("Deprecated since version 1.19: This method is deprecated and will be removed"
-                      " in future FLINK major version. Use `stream_execution_environment.configure`"
-                      " method instead to set the state backend.", DeprecationWarning)
-        self._j_stream_execution_environment = \
-            self._j_stream_execution_environment.setStateBackend(state_backend._j_state_backend)
-        return self
-
     def enable_changelog_state_backend(self, enabled: bool) -> 'StreamExecutionEnvironment':
         """
         Enable the change log for current state backend. This change log allows operators to persist
@@ -430,151 +373,6 @@ class StreamExecutionEnvironment(object):
             return None
         else:
             return j_path.toString()
-
-    def set_restart_strategy(self, restart_strategy_configuration: RestartStrategyConfiguration):
-        """
-        Sets the restart strategy configuration. The configuration specifies which restart strategy
-        will be used for the execution graph in case of a restart.
-
-        Example:
-        ::
-
-            >>> env.set_restart_strategy(RestartStrategies.no_restart())
-
-        :param restart_strategy_configuration: Restart strategy configuration to be set.
-        :return:
-
-        .. note:: Deprecated since version 1.19: This method is deprecated and will be removed in
-                  future FLINK major version. Use `stream_execution_environment.configure` method
-                  instead to set the restart strategy.
-        """
-        warnings.warn("Deprecated since version 1.19: This method is deprecated and will be removed"
-                      " in future FLINK major version. Use `stream_execution_environment.configure`"
-                      " method instead to set the restart strategy.", DeprecationWarning)
-        self._j_stream_execution_environment.setRestartStrategy(
-            restart_strategy_configuration._j_restart_strategy_configuration)
-
-    def get_restart_strategy(self) -> RestartStrategyConfiguration:
-        """
-        Returns the specified restart strategy configuration.
-
-        :return: The restart strategy configuration to be used.
-        """
-        return RestartStrategies._from_j_restart_strategy(
-            self._j_stream_execution_environment.getRestartStrategy())
-
-    def add_default_kryo_serializer(self, type_class_name: str, serializer_class_name: str):
-        """
-        Adds a new Kryo default serializer to the Runtime.
-
-        Example:
-        ::
-
-            >>> env.add_default_kryo_serializer("com.aaa.bbb.TypeClass", "com.aaa.bbb.Serializer")
-
-        :param type_class_name: The full-qualified java class name of the types serialized with the
-                                given serializer.
-        :param serializer_class_name: The full-qualified java class name of the serializer to use.
-
-        .. note:: Deprecated since version 1.19: Register data types and serializers through hard
-                  codes is deprecated, because you need to modify the codes when upgrading job
-                  version. You should configure this by option `pipeline.serialization-config`.
-        """
-        warnings.warn("Deprecated since version 1.19: Register data types and serializers through"
-                      " hard codes is deprecated, because you need to modify the codes when"
-                      " upgrading job version. You should configure this by config option "
-                      " 'pipeline.serialization-config'.", DeprecationWarning)
-
-        type_clz = load_java_class(type_class_name)
-        j_serializer_clz = load_java_class(serializer_class_name)
-        self._j_stream_execution_environment.addDefaultKryoSerializer(type_clz, j_serializer_clz)
-
-    def register_type_with_kryo_serializer(self, type_class_name: str, serializer_class_name: str):
-        """
-        Registers the given Serializer via its class as a serializer for the given type at the
-        KryoSerializer.
-
-        Example:
-        ::
-
-            >>> env.register_type_with_kryo_serializer("com.aaa.bbb.TypeClass",
-            ...                                        "com.aaa.bbb.Serializer")
-
-        :param type_class_name: The full-qualified java class name of the types serialized with
-                                the given serializer.
-        :param serializer_class_name: The full-qualified java class name of the serializer to use.
-
-        .. note:: Deprecated since version 1.19: Register data types and serializers through hard
-                  codes is deprecated, because you need to modify the codes when upgrading job
-                  version. You should configure this by option `pipeline.serialization-config`.
-        """
-        warnings.warn("Deprecated since version 1.19: Register data types and serializers through"
-                      " hard codes is deprecated, because you need to modify the codes when"
-                      " upgrading job version. You should configure this by config option "
-                      " 'pipeline.serialization-config'.", DeprecationWarning)
-        type_clz = load_java_class(type_class_name)
-        j_serializer_clz = load_java_class(serializer_class_name)
-        self._j_stream_execution_environment.registerTypeWithKryoSerializer(
-            type_clz, j_serializer_clz)
-
-    def register_type(self, type_class_name: str):
-        """
-        Registers the given type with the serialization stack. If the type is eventually
-        serialized as a POJO, then the type is registered with the POJO serializer. If the
-        type ends up being serialized with Kryo, then it will be registered at Kryo to make
-        sure that only tags are written.
-
-        Example:
-        ::
-
-            >>> env.register_type("com.aaa.bbb.TypeClass")
-
-        :param type_class_name: The full-qualified java class name of the type to register.
-
-        .. note:: Deprecated since version 1.19: Register data types and serializers through hard
-                  codes is deprecated, because you need to modify the codes when upgrading job
-                  version. You should configure this by option `pipeline.serialization-config`.
-        """
-        warnings.warn("Deprecated since version 1.19: Register data types and serializers through"
-                      " hard codes is deprecated, because you need to modify the codes when"
-                      " upgrading job version. You should configure this by config option "
-                      " 'pipeline.serialization-config'.", DeprecationWarning)
-        type_clz = load_java_class(type_class_name)
-        self._j_stream_execution_environment.registerType(type_clz)
-
-    def set_stream_time_characteristic(self, characteristic: TimeCharacteristic):
-        """
-        Sets the time characteristic for all streams create from this environment, e.g., processing
-        time, event time, or ingestion time.
-
-        If you set the characteristic to IngestionTime of EventTime this will set a default
-        watermark update interval of 200 ms. If this is not applicable for your application
-        you should change it using
-        :func:`pyflink.common.ExecutionConfig.set_auto_watermark_interval`.
-
-        Example:
-        ::
-
-            >>> env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
-
-        :param characteristic: The time characteristic, which could be
-                               :data:`TimeCharacteristic.ProcessingTime`,
-                               :data:`TimeCharacteristic.IngestionTime`,
-                               :data:`TimeCharacteristic.EventTime`.
-        """
-        j_characteristic = TimeCharacteristic._to_j_time_characteristic(characteristic)
-        self._j_stream_execution_environment.setStreamTimeCharacteristic(j_characteristic)
-
-    def get_stream_time_characteristic(self) -> 'TimeCharacteristic':
-        """
-        Gets the time characteristic.
-
-        .. seealso:: :func:`set_stream_time_characteristic`
-
-        :return: The :class:`TimeCharacteristic`.
-        """
-        j_characteristic = self._j_stream_execution_environment.getStreamTimeCharacteristic()
-        return TimeCharacteristic._from_j_time_characteristic(j_characteristic)
 
     def configure(self, configuration: Configuration):
         """
@@ -976,21 +774,6 @@ class StreamExecutionEnvironment(object):
             j_type_info)
         return DataStream(j_data_stream=j_data_stream)
 
-    def read_text_file(self, file_path: str, charset_name: str = "UTF-8") -> DataStream:
-        """
-        Reads the given file line-by-line and creates a DataStream that contains a string with the
-        contents of each such line. The charset with the given name will be used to read the files.
-
-        Note that this interface is not fault tolerant that is supposed to be used for test purpose.
-
-        :param file_path: The path of the file, as a URI (e.g., "file:///some/local/file" or
-                          "hdfs://host:port/file/path")
-        :param charset_name: The name of the character set used to read the file.
-        :return: The DataStream that represents the data read from the given file as text lines.
-        """
-        return DataStream(self._j_stream_execution_environment
-                          .readTextFile(file_path, charset_name))
-
     def from_collection(self, collection: List[Any],
                         type_info: TypeInformation = None) -> DataStream:
         """
@@ -1036,7 +819,7 @@ class StreamExecutionEnvironment(object):
             )
 
             JInputFormatSourceFunction = gateway.jvm.org.apache.flink.streaming.api.functions.\
-                source.InputFormatSourceFunction
+                source.legacy.InputFormatSourceFunction
             JBoundedness = gateway.jvm.org.apache.flink.api.connector.source.Boundedness
 
             j_data_stream_source = invoke_method(
@@ -1047,7 +830,7 @@ class StreamExecutionEnvironment(object):
                  "Collection Source",
                  out_put_type_info.get_java_type_info(),
                  JBoundedness.BOUNDED],
-                ["org.apache.flink.streaming.api.functions.source.SourceFunction",
+                ["org.apache.flink.streaming.api.functions.source.legacy.SourceFunction",
                  "java.lang.String",
                  "org.apache.flink.api.common.typeinfo.TypeInformation",
                  "org.apache.flink.api.connector.source.Boundedness"])

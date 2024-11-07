@@ -82,12 +82,14 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
         SimpleVersionedSerializer<SplitT> splitSerializer = source.getSplitSerializer();
         SourceCoordinatorContext<SplitT> sourceCoordinatorContext =
                 new SourceCoordinatorContext<>(
+                        context.getJobID(),
                         coordinatorThreadFactory,
                         numWorkerThreads,
                         context,
                         splitSerializer,
                         context.isConcurrentExecutionAttemptsSupported());
         return new SourceCoordinator<>(
+                context.getJobID(),
                 operatorName,
                 source,
                 sourceCoordinatorContext,

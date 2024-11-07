@@ -45,6 +45,7 @@ import org.apache.flink.sql.parser.ddl.SqlDropFunction;
 import org.apache.flink.sql.parser.ddl.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.SqlDropView;
 import org.apache.flink.sql.parser.ddl.SqlRemoveJar;
+import org.apache.flink.sql.parser.ddl.SqlReplaceTableAs;
 import org.apache.flink.sql.parser.ddl.SqlReset;
 import org.apache.flink.sql.parser.ddl.SqlSet;
 import org.apache.flink.sql.parser.ddl.SqlStopJob;
@@ -64,7 +65,6 @@ import org.apache.flink.sql.parser.dml.SqlStatementSet;
 import org.apache.flink.sql.parser.dql.SqlLoadModule;
 import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
 import org.apache.flink.sql.parser.dql.SqlRichExplain;
-import org.apache.flink.sql.parser.dql.SqlShowCatalogs;
 import org.apache.flink.sql.parser.dql.SqlShowColumns;
 import org.apache.flink.sql.parser.dql.SqlShowCreateTable;
 import org.apache.flink.sql.parser.dql.SqlShowCreateView;
@@ -73,8 +73,6 @@ import org.apache.flink.sql.parser.dql.SqlShowCurrentDatabase;
 import org.apache.flink.sql.parser.dql.SqlShowJars;
 import org.apache.flink.sql.parser.dql.SqlShowJobs;
 import org.apache.flink.sql.parser.dql.SqlShowModules;
-import org.apache.flink.sql.parser.dql.SqlShowTables;
-import org.apache.flink.sql.parser.dql.SqlShowViews;
 import org.apache.flink.sql.parser.dql.SqlUnloadModule;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
@@ -126,15 +124,12 @@ import org.apache.flink.table.operations.ModifyType;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.operations.ShowCatalogsOperation;
 import org.apache.flink.table.operations.ShowColumnsOperation;
 import org.apache.flink.table.operations.ShowCreateTableOperation;
 import org.apache.flink.table.operations.ShowCreateViewOperation;
 import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
 import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
 import org.apache.flink.table.operations.ShowModulesOperation;
-import org.apache.flink.table.operations.ShowTablesOperation;
-import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
@@ -166,6 +161,8 @@ import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
+import org.apache.flink.table.operations.utils.LikeType;
+import org.apache.flink.table.operations.utils.ShowLikeOperator;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverters;
@@ -281,8 +278,6 @@ public class SqlNodeToOperationConversion {
             return Optional.of(converter.convertDropCatalog((SqlDropCatalog) validated));
         } else if (validated instanceof SqlLoadModule) {
             return Optional.of(converter.convertLoadModule((SqlLoadModule) validated));
-        } else if (validated instanceof SqlShowCatalogs) {
-            return Optional.of(converter.convertShowCatalogs((SqlShowCatalogs) validated));
         } else if (validated instanceof SqlShowCurrentCatalog) {
             return Optional.of(
                     converter.convertShowCurrentCatalog((SqlShowCurrentCatalog) validated));
@@ -317,14 +312,10 @@ public class SqlNodeToOperationConversion {
             return Optional.of(converter.convertDropTable((SqlDropTable) validated));
         } else if (validated instanceof SqlAlterTable) {
             return Optional.of(converter.convertAlterTable((SqlAlterTable) validated));
-        } else if (validated instanceof SqlShowTables) {
-            return Optional.of(converter.convertShowTables((SqlShowTables) validated));
         } else if (validated instanceof SqlShowColumns) {
             return Optional.of(converter.convertShowColumns((SqlShowColumns) validated));
         } else if (validated instanceof SqlDropView) {
             return Optional.of(converter.convertDropView((SqlDropView) validated));
-        } else if (validated instanceof SqlShowViews) {
-            return Optional.of(converter.convertShowViews((SqlShowViews) validated));
         } else if (validated instanceof SqlCreateFunction) {
             return Optional.of(converter.convertCreateFunction((SqlCreateFunction) validated));
         } else if (validated instanceof SqlDropFunction) {
@@ -916,11 +907,6 @@ public class SqlNodeToOperationConversion {
         return new AlterDatabaseOperation(catalogName, databaseName, catalogDatabase);
     }
 
-    /** Convert SHOW CATALOGS statement. */
-    private Operation convertShowCatalogs(SqlShowCatalogs sqlShowCatalogs) {
-        return new ShowCatalogsOperation();
-    }
-
     /** Convert SHOW CURRENT CATALOG statement. */
     private Operation convertShowCurrentCatalog(SqlShowCurrentCatalog sqlShowCurrentCatalog) {
         return new ShowCurrentCatalogOperation();
@@ -931,47 +917,16 @@ public class SqlNodeToOperationConversion {
         return new ShowCurrentDatabaseOperation();
     }
 
-    /** Convert SHOW TABLES statement. */
-    private Operation convertShowTables(SqlShowTables sqlShowTables) {
-        if (sqlShowTables.getPreposition() == null) {
-            return new ShowTablesOperation(
-                    sqlShowTables.getLikeSqlPattern(),
-                    sqlShowTables.isWithLike(),
-                    sqlShowTables.isNotLike());
-        }
-        String[] fullDatabaseName = sqlShowTables.fullDatabaseName();
-        if (fullDatabaseName.length > 2) {
-            throw new ValidationException(
-                    String.format(
-                            "show tables from/in identifier [ %s ] format error",
-                            String.join(".", fullDatabaseName)));
-        }
-        String catalogName =
-                (fullDatabaseName.length == 1)
-                        ? catalogManager.getCurrentCatalog()
-                        : fullDatabaseName[0];
-        String databaseName =
-                (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
-        return new ShowTablesOperation(
-                catalogName,
-                databaseName,
-                sqlShowTables.getLikeSqlPattern(),
-                sqlShowTables.isWithLike(),
-                sqlShowTables.isNotLike(),
-                sqlShowTables.getPreposition());
-    }
-
     /** Convert SHOW COLUMNS statement. */
     private Operation convertShowColumns(SqlShowColumns sqlShowColumns) {
         UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlShowColumns.fullTableName());
+                UnresolvedIdentifier.of(sqlShowColumns.getSqlIdentifierNameList());
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-        return new ShowColumnsOperation(
-                identifier,
-                sqlShowColumns.getLikeSqlPattern(),
-                sqlShowColumns.isWithLike(),
-                sqlShowColumns.isNotLike(),
-                sqlShowColumns.getPreposition());
+        ShowLikeOperator likeOp =
+                ShowLikeOperator.of(
+                        LikeType.of(sqlShowColumns.getLikeType(), sqlShowColumns.isNotLike()),
+                        sqlShowColumns.getLikeSqlPattern());
+        return new ShowColumnsOperation(identifier, sqlShowColumns.getLikeSqlPattern(), likeOp);
     }
 
     /** Convert SHOW CREATE TABLE statement. */
@@ -1000,11 +955,6 @@ public class SqlNodeToOperationConversion {
                 identifier, sqlDropView.getIfExists(), sqlDropView.isTemporary());
     }
 
-    /** Convert SHOW VIEWS statement. */
-    private Operation convertShowViews(SqlShowViews sqlShowViews) {
-        return new ShowViewsOperation();
-    }
-
     /** Convert RICH EXPLAIN statement. */
     private Operation convertRichExplain(SqlRichExplain sqlExplain) {
         SqlNode sqlNode = sqlExplain.getStatement();
@@ -1015,6 +965,16 @@ public class SqlNodeToOperationConversion {
             operation = convertSqlStatementSet((SqlStatementSet) sqlNode);
         } else if (sqlNode.getKind().belongsTo(SqlKind.QUERY)) {
             operation = convertSqlQuery(sqlExplain.getStatement());
+        } else if ((sqlNode instanceof SqlCreateTableAs)
+                || (sqlNode instanceof SqlReplaceTableAs)) {
+            operation =
+                    convert(flinkPlanner, catalogManager, sqlNode)
+                            .orElseThrow(
+                                    () ->
+                                            new ValidationException(
+                                                    String.format(
+                                                            "EXPLAIN statement doesn't support %s",
+                                                            sqlNode.getKind())));
         } else {
             throw new ValidationException(
                     String.format("EXPLAIN statement doesn't support %s", sqlNode.getKind()));
@@ -1389,8 +1349,11 @@ public class SqlNodeToOperationConversion {
     private int[][] getTargetColumnIndices(
             @Nonnull ContextResolvedTable contextResolvedTable,
             @Nullable SqlNodeList targetColumns) {
+        if (targetColumns == null) {
+            return null;
+        }
         List<String> allColumns = contextResolvedTable.getResolvedSchema().getColumnNames();
-        return Optional.ofNullable(targetColumns).orElse(SqlNodeList.EMPTY).stream()
+        return targetColumns.stream()
                 .mapToInt(c -> allColumns.indexOf(((SqlIdentifier) c).getSimple()))
                 .mapToObj(idx -> new int[] {idx})
                 .toArray(int[][]::new);

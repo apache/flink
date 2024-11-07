@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
@@ -43,6 +42,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -56,7 +56,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for the interaction between the {@link ResourceManager} and the {@link JobMaster}. */
 class ResourceManagerJobMasterTest {
 
-    private static final Time TIMEOUT = Time.seconds(10L);
+    private static final Duration TIMEOUT = Duration.ofSeconds(10L);
 
     private TestingRpcService rpcService;
 
@@ -148,7 +148,7 @@ class ResourceManagerJobMasterTest {
                         jobId,
                         TIMEOUT);
         assertThatFuture(successfulFuture)
-                .succeedsWithin(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS)
+                .succeedsWithin(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
                 .isInstanceOf(JobMasterRegistrationSuccess.class);
     }
 
@@ -186,7 +186,7 @@ class ResourceManagerJobMasterTest {
                         jobId,
                         TIMEOUT);
         assertThatFuture(successfulFuture)
-                .succeedsWithin(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS)
+                .succeedsWithin(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
                 .isInstanceOf(JobMasterRegistrationSuccess.class);
 
         final TaskExecutorGateway taskExecutorGateway =
@@ -200,9 +200,9 @@ class ResourceManagerJobMasterTest {
 
         resourceManagerGateway.disconnectTaskManager(taskExecutorId, new Exception("for test"));
         assertThatFuture(disconnectRMFuture)
-                .succeedsWithin(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+                .succeedsWithin(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
         final ResourceID resourceId =
-                disconnectTMFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+                disconnectTMFuture.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
         assertThat(resourceId).isEqualTo(taskExecutorId);
     }
 
@@ -215,7 +215,7 @@ class ResourceManagerJobMasterTest {
                                 resourceManagerGateway.getAddress(),
                                 ResourceManagerId.generate(),
                                 ResourceManagerGateway.class)
-                        .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+                        .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 
         // test throw exception when receive a registration from job master which takes unmatched
         // leaderSessionId
@@ -288,7 +288,7 @@ class ResourceManagerJobMasterTest {
 
         assertThatFuture(registrationFuture)
                 .as("Expected to fail with a ResourceManagerException.")
-                .failsWithin(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS)
+                .failsWithin(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
                 .withThrowableOfType(ExecutionException.class)
                 .withCauseInstanceOf(ResourceManagerException.class);
 

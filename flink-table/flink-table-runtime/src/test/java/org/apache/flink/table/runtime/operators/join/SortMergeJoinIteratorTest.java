@@ -32,12 +32,13 @@ import org.apache.flink.table.runtime.operators.sort.IntRecordComparator;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.LazyMemorySegmentPool;
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -51,8 +52,8 @@ import static org.apache.flink.runtime.memory.MemoryManager.DEFAULT_PAGE_SIZE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** UT for sort merge join iterators. */
-@RunWith(Parameterized.class)
-public class SortMergeJoinIteratorTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class SortMergeJoinIteratorTest {
 
     private static final int MEMORY_SIZE = 40 * DEFAULT_PAGE_SIZE;
     private static final int BUFFER_MEMORY = 20;
@@ -62,24 +63,24 @@ public class SortMergeJoinIteratorTest {
     private IOManager ioManager;
     private BinaryRowDataSerializer serializer;
 
-    public SortMergeJoinIteratorTest(boolean leftIsSmall) throws Exception {
+    SortMergeJoinIteratorTest(boolean leftIsSmall) {
         this.leftIsSmall = leftIsSmall;
     }
 
-    @Parameterized.Parameters
-    public static Collection<Boolean> parameters() {
+    @Parameters(name = "leftIsSmall = {0}")
+    private static Collection<Boolean> parameters() {
         return Arrays.asList(true, false);
     }
 
-    @Before
-    public void before() throws MemoryAllocationException {
+    @BeforeEach
+    void before() throws MemoryAllocationException {
         this.memManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
         this.ioManager = new IOManagerAsync();
         this.serializer = new BinaryRowDataSerializer(1);
     }
 
-    @Test
-    public void testInner() throws Exception {
+    @TestTemplate
+    void testInner() throws Exception {
         inner(oneEmpty(), emptyList());
         inner(haveNull(), emptyList());
         inner(noJoin(), emptyList());
@@ -88,8 +89,8 @@ public class SortMergeJoinIteratorTest {
         inner(nmMultiJoin(), newExpect1(6));
     }
 
-    @Test
-    public void testOneSideOuter() throws Exception {
+    @TestTemplate
+    void testOneSideOuter() throws Exception {
         List<Tuple2<BinaryRowData, BinaryRowData>> compare1;
         List<Tuple2<BinaryRowData, BinaryRowData>> compare2;
         List<Tuple2<BinaryRowData, BinaryRowData>> compare3;
@@ -120,8 +121,8 @@ public class SortMergeJoinIteratorTest {
         oneSideOuter(nmMultiJoin(), compare6);
     }
 
-    @Test
-    public void testFullOuter() throws Exception {
+    @TestTemplate
+    void testFullOuter() throws Exception {
         fullOuter(oneEmpty(), Arrays.asList(newTuple(newRow(1), null), newTuple(newRow(2), null)));
         fullOuter(
                 haveNull(),

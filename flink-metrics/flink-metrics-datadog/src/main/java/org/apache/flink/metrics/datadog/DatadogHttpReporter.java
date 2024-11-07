@@ -89,7 +89,7 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
         final String name =
                 this.useLogicalIdentifier
                         ? "flink."
-                                + ((LogicalScopeProvider) group)
+                                + LogicalScopeProvider.castFrom(group)
                                         .getLogicalScope(CharacterFilter.NO_OP_FILTER)
                                 + "."
                                 + metricName

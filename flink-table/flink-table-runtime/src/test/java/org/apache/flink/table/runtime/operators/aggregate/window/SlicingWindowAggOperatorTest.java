@@ -25,10 +25,11 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigners;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.time.ZoneId;
@@ -42,15 +43,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for slicing window aggregate operators created by {@link WindowAggOperatorBuilder}. */
-@RunWith(Parameterized.class)
-public class SlicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class SlicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
 
     public SlicingWindowAggOperatorTest(ZoneId shiftTimeZone) {
         super(shiftTimeZone);
     }
 
-    @Test
-    public void testEventTimeHoppingWindows() throws Exception {
+    @Parameters(name = "TimeZone = {0}")
+    private static Collection<Object[]> runMode() {
+        return Arrays.asList(new Object[] {UTC_ZONE_ID}, new Object[] {SHANGHAI_ZONE_ID});
+    }
+
+    @TestTemplate
+    void testEventTimeHoppingWindows() throws Exception {
         final SliceAssigner assigner =
                 SliceAssigners.hopping(
                         2, shiftTimeZone, Duration.ofSeconds(3), Duration.ofSeconds(1));
@@ -158,8 +164,8 @@ public class SlicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
         testHarness.close();
     }
 
-    @Test
-    public void testProcessingTimeHoppingWindows() throws Exception {
+    @TestTemplate
+    void testProcessingTimeHoppingWindows() throws Exception {
         final SliceAssigner assigner =
                 SliceAssigners.hopping(-1, shiftTimeZone, Duration.ofHours(3), Duration.ofHours(1));
         final SlicingSumAndCountAggsFunction aggsFunction =
@@ -280,8 +286,8 @@ public class SlicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
         assertThat(aggsFunction.closeCalled.get()).as("Close was not called.").isGreaterThan(0);
     }
 
-    @Test
-    public void testEventTimeCumulativeWindows() throws Exception {
+    @TestTemplate
+    void testEventTimeCumulativeWindows() throws Exception {
         final SliceAssigner assigner =
                 SliceAssigners.cumulative(
                         2, shiftTimeZone, Duration.ofSeconds(3), Duration.ofSeconds(1));
@@ -397,8 +403,8 @@ public class SlicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
         testHarness.close();
     }
 
-    @Test
-    public void testProcessingTimeCumulativeWindows() throws Exception {
+    @TestTemplate
+    void testProcessingTimeCumulativeWindows() throws Exception {
         final SliceAssigner assigner =
                 SliceAssigners.cumulative(
                         -1, shiftTimeZone, Duration.ofDays(1), Duration.ofHours(8));
@@ -533,8 +539,8 @@ public class SlicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
         assertThat(aggsFunction.closeCalled.get()).as("Close was not called.").isGreaterThan(0);
     }
 
-    @Test
-    public void testEventTimeTumblingWindows() throws Exception {
+    @TestTemplate
+    void testEventTimeTumblingWindows() throws Exception {
         final SliceAssigner assigner =
                 SliceAssigners.tumbling(2, shiftTimeZone, Duration.ofSeconds(3));
         final SlicingSumAndCountAggsFunction aggsFunction =
@@ -635,8 +641,8 @@ public class SlicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
         testHarness.close();
     }
 
-    @Test
-    public void testProcessingTimeTumblingWindows() throws Exception {
+    @TestTemplate
+    void testProcessingTimeTumblingWindows() throws Exception {
 
         final SliceAssigner assigner =
                 SliceAssigners.tumbling(-1, shiftTimeZone, Duration.ofHours(5));
@@ -715,8 +721,8 @@ public class SlicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
         testHarness.close();
     }
 
-    @Test
-    public void testInvalidWindows() {
+    @TestTemplate
+    void testInvalidWindows() {
         final SliceAssigner assigner =
                 SliceAssigners.hopping(
                         2, shiftTimeZone, Duration.ofSeconds(3), Duration.ofSeconds(1));
@@ -756,10 +762,5 @@ public class SlicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
         protected long getWindowEnd(Long window) {
             return window;
         }
-    }
-
-    @Parameterized.Parameters(name = "TimeZone = {0}")
-    public static Collection<Object[]> runMode() {
-        return Arrays.asList(new Object[] {UTC_ZONE_ID}, new Object[] {SHANGHAI_ZONE_ID});
     }
 }

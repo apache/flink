@@ -29,8 +29,8 @@ $FLINK_DIR/bin/taskmanager.sh start
 $FLINK_DIR/bin/taskmanager.sh start
 
 # CLI regular expressions
-JOB_INFO_PACT_DATA_SOURCE_REGEX_EXTRACTOR="\"pact\": \"(Data Source)\""
-JOB_INFO_PACT_DATA_SINK_REGEX_EXTRACTOR="\"pact\": \"(Data Sink)\""
+JOB_INFO_PACT_DATA_SOURCE_REGEX_EXTRACTOR="\"pact\" : \"(Data Source)\""
+JOB_INFO_PACT_DATA_SINK_REGEX_EXTRACTOR="\"pact\" : \"(Data Sink)\""
 JOB_LIST_REGEX_EXTRACTOR_BY_STATUS="([0-9,a-f]*) :"
 
 EXIT_CODE=0
@@ -72,11 +72,11 @@ function extract_task_manager_slot_request_count() {
 printf "\n==============================================================================\n"
 printf "Test default job launch with non-detach mode\n"
 printf "==============================================================================\n"
-RESULT=`$FLINK_DIR/bin/flink run $FLINK_DIR/examples/batch/WordCount.jar`
+RESULT=`$FLINK_DIR/bin/flink run $FLINK_DIR/examples/streaming/WordCount.jar --output file:///${TEST_DATA_DIR}/trash`
 EXIT_CODE=$?
 echo "$RESULT"
 
-if [[ $RESULT != *"(java.util.ArrayList) [170 elements]"* ]];then
+if [[ $RESULT != *"Job with JobID"*"has finished"* ]];then
     echo "[FAIL] Invalid accumulator result."
     EXIT_CODE=1
 fi
@@ -86,16 +86,16 @@ if [ $EXIT_CODE == 0 ]; then
     printf "Test job launch with complex parameter set\n"
     printf "==============================================================================\n"
     eval "$FLINK_DIR/bin/flink run -m localhost:8081 -p 4 \
-      -c org.apache.flink.examples.java.wordcount.WordCount \
-      $FLINK_DIR/examples/batch/WordCount.jar \
+      -c org.apache.flink.streaming.examples.wordcount.WordCount \
+      $FLINK_DIR/examples/streaming/WordCount.jar \
       --input file:///$FLINK_DIR/README.txt \
       --output file:///${TEST_DATA_DIR}/result1"
     EXIT_CODE=$?
 fi
 
 if [ $EXIT_CODE == 0 ]; then
-    ROW_COUNT=`cat ${TEST_DATA_DIR}/result1/* | wc -l`
-    if [ $((ROW_COUNT)) -ne 111 ]; then
+    ROW_COUNT=`find ${TEST_DATA_DIR}/result1/* -type f | xargs wc -l | grep "total" | awk '{print $1}'`
+    if [ $((ROW_COUNT)) -ne 192 ]; then
         echo "[FAIL] Unexpected number of rows in output."
         echo "Found: $ROW_COUNT"
         EXIT_CODE=1
@@ -116,7 +116,7 @@ printf "\n======================================================================
 printf "Test CLI information\n"
 printf "==============================================================================\n"
 if [ $EXIT_CODE == 0 ]; then
-    RETURN=`$FLINK_DIR/bin/flink info $FLINK_DIR/examples/batch/WordCount.jar`
+    RETURN=`$FLINK_DIR/bin/flink info $FLINK_DIR/examples/streaming/WordCount.jar`
     echo "$RETURN"
     PACT_MATCH=`extract_valid_pact_from_job_info_return "$RETURN"`
     if [[ $PACT_MATCH == -1 ]]; then # expect at least a Data Source and a Data Sink pact match

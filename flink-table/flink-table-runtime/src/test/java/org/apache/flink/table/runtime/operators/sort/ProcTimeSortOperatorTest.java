@@ -31,7 +31,7 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +39,7 @@ import java.util.List;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 
 /** Tests for {@link ProcTimeSortOperator}. */
-public class ProcTimeSortOperatorTest {
+class ProcTimeSortOperatorTest {
 
     private InternalTypeInfo<RowData> inputRowType =
             InternalTypeInfo.ofFields(
@@ -61,7 +61,7 @@ public class ProcTimeSortOperatorTest {
             new RowDataHarnessAssertor(inputRowType.toRowFieldTypes());
 
     @Test
-    public void test() throws Exception {
+    void test() throws Exception {
         ProcTimeSortOperator operator = createSortOperator();
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createTestHarness(operator);

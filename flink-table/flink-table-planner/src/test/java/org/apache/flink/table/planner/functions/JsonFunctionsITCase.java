@@ -88,7 +88,9 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
         testCases.addAll(jsonStringSpec());
         testCases.addAll(jsonObjectSpec());
         testCases.addAll(jsonArraySpec());
-
+        testCases.addAll(jsonQuoteSpec());
+        testCases.addAll(jsonUnquoteSpecWithValidInput());
+        testCases.addAll(jsonUnquoteSpecWithInvalidInput());
         return testCases.stream();
     }
 
@@ -838,6 +840,300 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "}",
                                 STRING().notNull(),
                                 STRING().notNull()));
+    }
+
+    private static List<TestSetSpec> jsonQuoteSpec() {
+
+        return Arrays.asList(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUOTE)
+                        .onFieldsWithData(0)
+                        .testResult(
+                                nullOf(STRING()).jsonQuote(),
+                                "JSON_QUOTE(CAST(NULL AS STRING))",
+                                null,
+                                STRING().nullable()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_QUOTE)
+                        .onFieldsWithData(
+                                "V",
+                                "\"null\"",
+                                "[1, 2, 3]",
+                                "This is a \t test \n with special characters: \" \\ \b \f \r \u0041",
+                                "\"kv_pair_test\": \"\\b\\f\\r\"",
+                                "\ttab and fwd slash /",
+                                "\\u006z will not be escaped",
+                                "≠ will be escaped",
+                                null)
+                        .andDataTypes(
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().nullable())
+                        .testResult(
+                                $("f0").jsonQuote(), "JSON_QUOTE(f0)", "\"V\"", STRING().notNull())
+                        .testResult(
+                                $("f1").jsonQuote(),
+                                "JSON_QUOTE(f1)",
+                                "\"\\\"null\\\"\"",
+                                STRING().notNull())
+                        .testResult(
+                                $("f2").jsonQuote(),
+                                "JSON_QUOTE(f2)",
+                                "\"[1, 2, 3]\"",
+                                STRING().notNull())
+                        .testResult(
+                                $("f3").jsonQuote(),
+                                "JSON_QUOTE(f3)",
+                                "\"This is a \\t test \\n with special characters: \\\" \\\\ \\b \\f \\r A\"",
+                                STRING().notNull())
+                        .testResult(
+                                $("f4").jsonQuote(),
+                                "JSON_QUOTE(f4)",
+                                "\"\\\"kv_pair_test\\\": \\\"\\\\b\\\\f\\\\r\\\"\"",
+                                STRING().notNull())
+                        .testResult(
+                                $("f5").jsonQuote(),
+                                "JSON_QUOTE(f5)",
+                                "\"\\ttab and fwd slash \\/\"",
+                                STRING().notNull())
+                        .testResult(
+                                $("f6").jsonQuote(),
+                                "JSON_QUOTE(f6)",
+                                "\"\\\\u006z will not be escaped\"",
+                                STRING().notNull())
+                        .testResult(
+                                $("f7").jsonQuote(),
+                                "JSON_QUOTE(f7)",
+                                "\"\\u2260 will be escaped\"",
+                                STRING().notNull())
+                        .testResult(
+                                $("f8").jsonQuote(), "JSON_QUOTE(f8)", null, STRING().nullable()));
+    }
+
+    private static List<TestSetSpec> jsonUnquoteSpecWithValidInput() {
+
+        return Arrays.asList(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_UNQUOTE)
+                        .onFieldsWithData(0)
+                        .testResult(
+                                nullOf(STRING()).jsonQuote(),
+                                "JSON_UNQUOTE(CAST(NULL AS STRING))",
+                                null,
+                                STRING().nullable()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_UNQUOTE)
+                        .onFieldsWithData(
+                                "\"abc\"",
+                                "\"[\"abc\"]\"",
+                                "\"[\"\\u0041\"]\"",
+                                "\"\\u0041\"",
+                                "\"[\"\\t\\u0032\"]\"",
+                                "\"[\"This is a \\t test \\n with special characters: \\b \\f \\r \\u0041\"]\"",
+                                "\"\"\"",
+                                "\"\"\ufffa\"",
+                                "\"a unicode \u2260\"",
+                                "\"valid unicode literal \\uD801\\uDC00\"",
+                                "[1,2,3]",
+                                "[]",
+                                "[\"string\",2]",
+                                "{\"key\":\"value\"}",
+                                "{\"key\":[\"complex\"]}",
+                                "{\"key\":1}",
+                                "1",
+                                "true",
+                                null)
+                        .andDataTypes(
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().nullable())
+                        .testResult(
+                                $("f0").jsonUnquote(),
+                                "JSON_UNQUOTE(f0)",
+                                "abc",
+                                STRING().notNull())
+                        .testResult(
+                                $("f1").jsonUnquote(),
+                                "JSON_UNQUOTE(f1)",
+                                "[\"abc\"]",
+                                STRING().notNull())
+                        .testResult(
+                                $("f2").jsonUnquote(),
+                                "JSON_UNQUOTE(f2)",
+                                "[\"A\"]",
+                                STRING().notNull())
+                        .testResult(
+                                $("f3").jsonUnquote(), "JSON_UNQUOTE(f3)", "A", STRING().notNull())
+                        .testResult(
+                                $("f4").jsonUnquote(),
+                                "JSON_UNQUOTE(f4)",
+                                "[\"\t2\"]",
+                                STRING().notNull())
+                        .testResult(
+                                $("f5").jsonUnquote(),
+                                "JSON_UNQUOTE(f5)",
+                                "[\"This is a \t test \n with special characters: \b \f \r A\"]",
+                                STRING().notNull())
+                        .testResult(
+                                $("f6").jsonUnquote(), "JSON_UNQUOTE(f6)", "\"", STRING().notNull())
+                        .testResult(
+                                $("f7").jsonUnquote(),
+                                "JSON_UNQUOTE(f7)",
+                                "\"\ufffa",
+                                STRING().notNull())
+                        .testResult(
+                                $("f8").jsonUnquote(),
+                                "JSON_UNQUOTE(f8)",
+                                "a unicode ≠",
+                                STRING().notNull())
+                        .testResult(
+                                $("f9").jsonUnquote(),
+                                "JSON_UNQUOTE(f9)",
+                                "valid unicode literal \uD801\uDC00",
+                                STRING().notNull())
+                        .testResult(
+                                $("f10").jsonUnquote(),
+                                "JSON_UNQUOTE(f10)",
+                                "[1,2,3]",
+                                STRING().notNull())
+                        .testResult(
+                                $("f11").jsonUnquote(),
+                                "JSON_UNQUOTE(f11)",
+                                "[]",
+                                STRING().notNull())
+                        .testResult(
+                                $("f12").jsonUnquote(),
+                                "JSON_UNQUOTE(f12)",
+                                "[\"string\",2]",
+                                STRING().notNull())
+                        .testResult(
+                                $("f13").jsonUnquote(),
+                                "JSON_UNQUOTE(f13)",
+                                "{\"key\":\"value\"}",
+                                STRING().notNull())
+                        .testResult(
+                                $("f14").jsonUnquote(),
+                                "JSON_UNQUOTE(f14)",
+                                "{\"key\":[\"complex\"]}",
+                                STRING().notNull())
+                        .testResult(
+                                $("f15").jsonUnquote(),
+                                "JSON_UNQUOTE(f15)",
+                                "{\"key\":1}",
+                                STRING().notNull())
+                        .testResult(
+                                $("f16").jsonUnquote(),
+                                "JSON_UNQUOTE(f16)",
+                                "1",
+                                STRING().notNull())
+                        .testResult(
+                                $("f17").jsonUnquote(),
+                                "JSON_UNQUOTE(f17)",
+                                "true",
+                                STRING().notNull())
+                        .testResult(
+                                $("f18").jsonUnquote(),
+                                "JSON_UNQUOTE(f18)",
+                                null,
+                                STRING().nullable()));
+    }
+
+    private static List<TestSetSpec> jsonUnquoteSpecWithInvalidInput() {
+
+        return Arrays.asList(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_UNQUOTE)
+                        .onFieldsWithData(0)
+                        .testResult(
+                                nullOf(STRING()).jsonQuote(),
+                                "JSON_UNQUOTE(CAST(NULL AS STRING))",
+                                null,
+                                STRING().nullable()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_UNQUOTE)
+                        .onFieldsWithData(
+                                "\"invalid json string pass through \\u006z\"",
+                                "\"invalid unicode literal and invalid json through \\u23\"",
+                                "\"invalid unicode literal and invalid json pass through \\u≠FFF\"",
+                                "\"invalid unicode literal but valid json pass through \"\"\\uzzzz\"",
+                                "\"[1,2,3]",
+                                "\"[1, 2, 3}",
+                                "\"",
+                                "[",
+                                "[}",
+                                "",
+                                null)
+                        .andDataTypes(
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().notNull(),
+                                STRING().nullable())
+                        .testResult(
+                                $("f0").jsonUnquote(),
+                                "JSON_UNQUOTE(f0)",
+                                "\"invalid json string pass through \\u006z\"",
+                                STRING().notNull())
+                        .testResult(
+                                $("f1").jsonUnquote(),
+                                "JSON_UNQUOTE(f1)",
+                                "\"invalid unicode literal and invalid json through \\u23\"",
+                                STRING().notNull())
+                        .testResult(
+                                $("f2").jsonUnquote(),
+                                "JSON_UNQUOTE(f2)",
+                                "\"invalid unicode literal and invalid json pass through \\u≠FFF\"",
+                                STRING().notNull())
+                        .testResult(
+                                $("f3").jsonUnquote(),
+                                "JSON_UNQUOTE(f3)",
+                                "\"invalid unicode literal but valid json pass through \"\"\\uzzzz\"",
+                                STRING().notNull())
+                        .testResult(
+                                $("f4").jsonUnquote(),
+                                "JSON_UNQUOTE(f4)",
+                                "\"[1,2,3]",
+                                STRING().notNull())
+                        .testResult(
+                                $("f5").jsonUnquote(),
+                                "JSON_UNQUOTE(f5)",
+                                "\"[1, 2, 3}",
+                                STRING().notNull())
+                        .testResult(
+                                $("f6").jsonUnquote(), "JSON_UNQUOTE(f6)", "\"", STRING().notNull())
+                        .testResult(
+                                $("f7").jsonUnquote(), "JSON_UNQUOTE(f7)", "[", STRING().notNull())
+                        .testResult(
+                                $("f8").jsonUnquote(), "JSON_UNQUOTE(f8)", "[}", STRING().notNull())
+                        .testResult(
+                                $("f9").jsonUnquote(), "JSON_UNQUOTE(f9)", "", STRING().notNull())
+                        .testResult(
+                                $("f10").jsonQuote(),
+                                "JSON_UNQUOTE(f10)",
+                                null,
+                                STRING().nullable()));
     }
 
     private static List<TestSetSpec> jsonArraySpec() {

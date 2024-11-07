@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.api.common.functions.{AbstractRichFunction, RichFunction}
+import org.apache.flink.api.common.functions.{AbstractRichFunction, OpenContext, RichFunction}
 import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.table.api.{DataTypes, TableException}
 import org.apache.flink.table.api.Expressions.callSql
@@ -630,7 +630,7 @@ object BridgingFunctionGenUtil {
            |    ${ctx.reuseInitCode()}
            |  }
            |
-           |  public void open(${className[Configuration]} parameters) throws Exception {
+           |  public void open(${className[OpenContext]} openContext) throws Exception {
            |    ${ctx.reuseOpenCode()}
            |  }
            |

@@ -103,6 +103,18 @@ class TableNotExistException(JavaException):
     """
 
 
+class ModelAlreadyExistException(JavaException):
+    """
+    Exception for trying to create a model that already exists.
+    """
+
+
+class ModelNotExistException(JavaException):
+    """
+    Exception for trying to operate on a model that doesn't exist.
+    """
+
+
 class TableNotPartitionedException(JavaException):
     """
     Exception for trying to operate partition on a non-partitioned table.
@@ -137,6 +149,10 @@ exception_mapping = {
         TableNotExistException,
     "org.apache.flink.table.catalog.exceptions.TableNotPartitionedException":
         TableNotPartitionedException,
+    "org.apache.flink.table.catalog.exceptions.ModelAlreadyExistException":
+        ModelAlreadyExistException,
+    "org.apache.flink.table.catalog.exceptions.ModelNotExistException":
+        ModelNotExistException,
 }
 
 

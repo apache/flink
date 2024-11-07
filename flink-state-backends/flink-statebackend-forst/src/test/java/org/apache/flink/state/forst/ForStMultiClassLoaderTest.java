@@ -19,14 +19,16 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
+import org.apache.flink.util.concurrent.Executors;
 
+import org.forstdb.RocksDB;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.rocksdb.RocksDB;
 
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 import static org.junit.Assert.assertNotEquals;
@@ -76,13 +78,15 @@ public class ForStMultiClassLoaderTest {
 
         final String tempDir = tmp.newFolder().getAbsolutePath();
 
-        final Method meth1 = clazz1.getDeclaredMethod("ensureForStIsLoaded", String.class);
-        final Method meth2 = clazz2.getDeclaredMethod("ensureForStIsLoaded", String.class);
+        final Method meth1 =
+                clazz1.getDeclaredMethod("ensureForStIsLoaded", String.class, Executor.class);
+        final Method meth2 =
+                clazz2.getDeclaredMethod("ensureForStIsLoaded", String.class, Executor.class);
         meth1.setAccessible(true);
         meth2.setAccessible(true);
 
         // if all is well, these methods can both complete successfully
-        meth1.invoke(instance1, tempDir);
-        meth2.invoke(instance2, tempDir);
+        meth1.invoke(instance1, tempDir, Executors.directExecutor());
+        meth2.invoke(instance2, tempDir, Executors.directExecutor());
     }
 }

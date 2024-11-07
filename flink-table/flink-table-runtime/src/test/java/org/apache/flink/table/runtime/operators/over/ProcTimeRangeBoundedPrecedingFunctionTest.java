@@ -32,13 +32,13 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link ProcTimeRangeBoundedPrecedingFunction}. */
-public class ProcTimeRangeBoundedPrecedingFunctionTest {
+class ProcTimeRangeBoundedPrecedingFunctionTest {
 
     private static GeneratedAggsHandleFunction aggsHandleFunction =
             new GeneratedAggsHandleFunction("Function", "", new Object[0]) {
@@ -59,7 +59,7 @@ public class ProcTimeRangeBoundedPrecedingFunctionTest {
     private TypeInformation<RowData> keyType = keySelector.getProducedType();
 
     @Test
-    public void testStateCleanup() throws Exception {
+    void testStateCleanup() throws Exception {
         ProcTimeRangeBoundedPrecedingFunction<RowData> function =
                 new ProcTimeRangeBoundedPrecedingFunction<>(
                         aggsHandleFunction, accTypes, inputFieldTypes, 2000);

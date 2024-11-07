@@ -20,7 +20,6 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -51,6 +50,7 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -71,6 +71,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collection;
@@ -103,7 +104,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource =
             new TestingFatalErrorHandlerResource();
 
-    private static final Time timeout = Time.seconds(10L);
+    private static final Duration timeout = Duration.ofSeconds(10L);
 
     private static TestingRpcService rpcService;
 
@@ -647,7 +648,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         // submit and fail during job master runner construction
         queue.offer(Optional.of(testException));
         try {
-            dispatcherGateway.submitJob(jobGraph, Time.minutes(1)).get();
+            dispatcherGateway.submitJob(jobGraph, Duration.ofMinutes(1)).get();
             fail("A FlinkException is expected");
         } catch (Throwable expectedException) {
             assertThat(expectedException, containsCause(FlinkException.class));
@@ -659,7 +660,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         // don't fail this time
         queue.offer(Optional.empty());
         // submit job again
-        dispatcherGateway.submitJob(jobGraph, Time.minutes(1L)).get();
+        dispatcherGateway.submitJob(jobGraph, Duration.ofMinutes(1L)).get();
         blockingJobManagerRunnerFactory.setJobStatus(JobStatus.RUNNING);
 
         // Ensure job is running
@@ -684,7 +685,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         // terminated
         assertThatNoCleanupWasTriggered();
         final CompletableFuture<Void> jobTerminationFuture =
-                dispatcher.getJobTerminationFuture(jobId, Time.hours(1));
+                dispatcher.getJobTerminationFuture(jobId, Duration.ofHours(1));
         assertFalse(jobTerminationFuture.isDone());
 
         archiveFuture.complete(Acknowledge.get());
@@ -713,7 +714,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         suspendJob(jobManagerRunnerFactory.takeCreatedJobManagerRunner());
 
         assertLocalCleanupTriggered(jobId);
-        dispatcher.getJobTerminationFuture(jobId, Time.hours(1)).join();
+        dispatcher.getJobTerminationFuture(jobId, Duration.ofHours(1)).join();
 
         assertFalse(isArchived.get());
     }
@@ -730,7 +731,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
         @Override
         public TestingJobManagerRunner createJobManagerRunner(
-                JobGraph jobGraph,
+                ExecutionPlan executionPlan,
                 Configuration configuration,
                 RpcService rpcService,
                 HighAvailabilityServices highAvailabilityServices,
@@ -745,7 +746,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
             this.testingRunner =
                     super.createJobManagerRunner(
-                            jobGraph,
+                            executionPlan,
                             configuration,
                             rpcService,
                             highAvailabilityServices,
@@ -764,8 +765,9 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                                                     new ExecutionGraphInfo(
                                                             ArchivedExecutionGraph
                                                                     .createSparseArchivedExecutionGraph(
-                                                                            jobGraph.getJobID(),
-                                                                            jobGraph.getName(),
+                                                                            executionPlan
+                                                                                    .getJobID(),
+                                                                            executionPlan.getName(),
                                                                             JobStatus.RUNNING,
                                                                             null,
                                                                             null,
@@ -793,7 +795,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
         @Override
         public JobManagerRunner createJobManagerRunner(
-                JobGraph jobGraph,
+                ExecutionPlan executionPlan,
                 Configuration configuration,
                 RpcService rpcService,
                 HighAvailabilityServices highAvailabilityServices,
@@ -820,7 +822,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
         @Override
         public JobManagerRunner createJobManagerRunner(
-                JobGraph jobGraph,
+                ExecutionPlan executionPlan,
                 Configuration configuration,
                 RpcService rpcService,
                 HighAvailabilityServices highAvailabilityServices,

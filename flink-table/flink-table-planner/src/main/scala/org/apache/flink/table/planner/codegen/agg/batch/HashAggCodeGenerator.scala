@@ -17,16 +17,12 @@
  */
 package org.apache.flink.table.planner.codegen.agg.batch
 
-import org.apache.flink.annotation.Experimental
-import org.apache.flink.configuration.ConfigOption
-import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.functions.DeclarativeAggregateFunction
-import org.apache.flink.table.planner.{JBoolean, JDouble, JLong}
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils, OperatorCodeGenerator, ProjectionCodeGenerator}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.ROW_DATA
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
@@ -45,85 +41,6 @@ import org.apache.calcite.tools.RelBuilder
  * much better than Sort Aggregate).
  */
 object HashAggCodeGenerator {
-
-  /**
-   * Whether to enable adaptive local hash aggregation.
-   * @deprecated
-   *   This configuration has been deprecated as part of FLIP-457 and will be removed in Flink 2.0.
-   *   Please use
-   *   [[org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_ENABLED]]
-   *   instead.
-   */
-  @Deprecated
-  @Experimental
-  val TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_ENABLED: ConfigOption[JBoolean] =
-    key("table.exec.local-hash-agg.adaptive.enabled")
-      .booleanType()
-      .defaultValue(Boolean.box(true))
-      .withDescription(
-        s"""
-           |Whether to enable adaptive local hash aggregation. Adaptive local hash
-           |aggregation is an optimization of local hash aggregation, which can adaptively 
-           |determine whether to continue to do local hash aggregation according to the distinct
-           | value rate of sampling data. If distinct value rate bigger than defined threshold
-           |(see parameter: table.exec.local-hash-agg.adaptive.distinct-value-rate-threshold), 
-           |we will stop aggregating and just send the input data to the downstream after a simple 
-           |projection. Otherwise, we will continue to do aggregation. Adaptive local hash aggregation
-           |only works in batch mode. Default value of this parameter is true.
-           |""".stripMargin)
-
-  /**
-   * The value to define how many records as sample data when adaptive local hash aggregation is
-   * enabled.
-   * @deprecated
-   *   This configuration has been deprecated as part of FLIP-457 and will be removed in Flink 2.0.
-   *   Please use
-   *   [[org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD]]
-   *   instead.
-   */
-  @Deprecated
-  @Experimental
-  val TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD: ConfigOption[JLong] =
-    key("table.exec.local-hash-agg.adaptive.sampling-threshold")
-      .longType()
-      .defaultValue(Long.box(500000L))
-      .withDescription(
-        s"""
-           |If adaptive local hash aggregation is enabled, this value defines how 
-           |many records will be used as sampled data to calculate distinct value rate 
-           |(see parameter: table.exec.local-hash-agg.adaptive.distinct-value-rate-threshold) 
-           |for the local aggregate. The higher the sampling threshold, the more accurate 
-           |the distinct value rate is. But as the sampling threshold increases, local 
-           |aggregation is meaningless when the distinct values rate is low. 
-           |The default value is 500000.
-           |""".stripMargin)
-
-  /**
-   * The value to define the ratio between local aggregation result number and sampling threshold
-   * when adaptive local hash aggregation is enabled.
-   *
-   * @deprecated
-   *   This configuration has been deprecated as part of FLIP-457 and will be removed in Flink 2.0.
-   *   Please use
-   *   [[org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_DISTINCT_VALUE_RATE_THRESHOLD]]
-   *   instead.
-   */
-  @Deprecated
-  @Experimental
-  val TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_DISTINCT_VALUE_RATE_THRESHOLD: ConfigOption[JDouble] =
-    key("table.exec.local-hash-agg.adaptive.distinct-value-rate-threshold")
-      .doubleType()
-      .defaultValue(0.5d)
-      .withDescription(
-        s"""
-           |The distinct value rate can be defined as the number of local 
-           |aggregation result for the sampled data divided by the sampling 
-           |threshold (see ${TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD.key()}). 
-           |If the computed result is lower than the given configuration value, 
-           |the remaining input records proceed to do local aggregation, otherwise 
-           |the remaining input records are subjected to simple projection which 
-           |calculation cost is less than local aggregation. The default value is 0.5.
-           |""".stripMargin)
 
   def genWithKeys(
       ctx: CodeGeneratorContext,

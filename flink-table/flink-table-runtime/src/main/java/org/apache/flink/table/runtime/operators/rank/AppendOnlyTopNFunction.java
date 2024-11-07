@@ -99,7 +99,7 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
         CacheBuilder<Object, Object> cacheBuilder = CacheBuilder.newBuilder();
         if (ttlConfig.isEnabled()) {
             cacheBuilder.expireAfterWrite(
-                    ttlConfig.getTtl().toMilliseconds(), TimeUnit.MILLISECONDS);
+                    ttlConfig.getTimeToLive().toMillis(), TimeUnit.MILLISECONDS);
         }
         kvSortedMap = cacheBuilder.maximumSize(lruCacheSize).build();
         LOG.info(

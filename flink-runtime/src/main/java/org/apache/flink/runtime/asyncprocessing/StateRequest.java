@@ -20,6 +20,7 @@ package org.apache.flink.runtime.asyncprocessing;
 
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.runtime.state.v2.internal.InternalPartitionedState;
 
 import javax.annotation.Nullable;
 
@@ -30,9 +31,10 @@ import java.io.Serializable;
  *
  * @param <K> Type of partitioned key.
  * @param <IN> Type of input of this request.
+ * @param <N> Type of namespace.
  * @param <OUT> Type of value that request will return.
  */
-public class StateRequest<K, IN, OUT> implements Serializable {
+public class StateRequest<K, N, IN, OUT> implements Serializable {
 
     /**
      * The underlying state to be accessed, can be empty for {@link StateRequestType#SYNC_POINT}.
@@ -51,6 +53,8 @@ public class StateRequest<K, IN, OUT> implements Serializable {
     /** The record context of this request. */
     private final RecordContext<K> context;
 
+    @Nullable private final N namespace;
+
     public StateRequest(
             @Nullable State state,
             StateRequestType type,
@@ -62,6 +66,8 @@ public class StateRequest<K, IN, OUT> implements Serializable {
         this.payload = payload;
         this.stateFuture = stateFuture;
         this.context = context;
+        this.namespace =
+                state == null ? null : context.getNamespace((InternalPartitionedState<N>) state);
     }
 
     public StateRequestType getRequestType() {
@@ -84,5 +90,9 @@ public class StateRequest<K, IN, OUT> implements Serializable {
 
     public RecordContext<K> getRecordContext() {
         return context;
+    }
+
+    public @Nullable N getNamespace() {
+        return namespace;
     }
 }

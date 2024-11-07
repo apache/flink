@@ -355,14 +355,15 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
             @PolyNull SqlNode node, boolean underFrom) {
 
         // Special case for window TVFs like:
-        // TUMBLE(TABLE t, DESCRIPTOR(metadata_virtual), INTERVAL '1' MINUTE))
+        // TUMBLE(TABLE t, DESCRIPTOR(metadata_virtual), INTERVAL '1' MINUTE)) or
+        // SESSION(TABLE t PARTITION BY a, DESCRIPTOR(metadata_virtual), INTERVAL '1' MINUTE))
         //
         // "TABLE t" is translated into an implicit "SELECT * FROM t". This would ignore columns
         // that are not expanded by default. However, the descriptor explicitly states the need
         // for this column. Therefore, explicit table expressions (for window TVFs at most one)
         // are captured before rewriting and replaced with a "marker" SqlSelect that contains the
         // descriptor information. The "marker" SqlSelect is considered during column expansion.
-        final List<SqlIdentifier> explicitTableArgs = getExplicitTableOperands(node);
+        final List<SqlIdentifier> tableArgs = getTableOperands(node);
 
         final SqlNode rewritten = super.performUnconditionalRewrites(node, underFrom);
 
@@ -373,7 +374,7 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
         final SqlOperator operator = call.getOperator();
 
         if (operator instanceof SqlWindowTableFunction) {
-            if (explicitTableArgs.stream().allMatch(Objects::isNull)) {
+            if (tableArgs.stream().allMatch(Objects::isNull)) {
                 return rewritten;
             }
 
@@ -383,13 +384,21 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
                             .collect(Collectors.toList());
 
             for (int i = 0; i < call.operandCount(); i++) {
-                final SqlIdentifier tableArg = explicitTableArgs.get(i);
+                final SqlIdentifier tableArg = tableArgs.get(i);
                 if (tableArg != null) {
                     final SqlNode opReplacement = new ExplicitTableSqlSelect(tableArg, descriptors);
-                    if (call.operand(i).getKind() == SqlKind.ARGUMENT_ASSIGNMENT) {
+                    if (call.operand(i).getKind() == SqlKind.SET_SEMANTICS_TABLE) {
+                        final SqlCall setSemanticsTable = call.operand(i);
+                        setSemanticsTable.setOperand(0, opReplacement);
+                    } else if (call.operand(i).getKind() == SqlKind.ARGUMENT_ASSIGNMENT) {
                         // for TUMBLE(DATA => TABLE t3, ...)
                         final SqlCall assignment = call.operand(i);
-                        assignment.setOperand(0, opReplacement);
+                        if (assignment.operand(0).getKind() == SqlKind.SET_SEMANTICS_TABLE) {
+                            final SqlCall setSemanticsTable = assignment.operand(i);
+                            setSemanticsTable.setOperand(0, opReplacement);
+                        } else {
+                            assignment.setOperand(0, opReplacement);
+                        }
                     } else {
                         // for TUMBLE(TABLE t3, ...)
                         call.setOperand(i, opReplacement);
@@ -410,7 +419,7 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
      * A special {@link SqlSelect} to capture the origin of a {@link SqlKind#EXPLICIT_TABLE} within
      * TVF operands.
      */
-    private static class ExplicitTableSqlSelect extends SqlSelect {
+    static class ExplicitTableSqlSelect extends SqlSelect {
 
         private final List<SqlIdentifier> descriptors;
 
@@ -447,10 +456,11 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
     }
 
     /**
-     * Returns all {@link SqlKind#EXPLICIT_TABLE} operands within TVF operands. A list entry is
-     * {@code null} if the operand is not an {@link SqlKind#EXPLICIT_TABLE}.
+     * Returns all {@link SqlKind#EXPLICIT_TABLE} and {@link SqlKind#SET_SEMANTICS_TABLE} operands
+     * within TVF operands. A list entry is {@code null} if the operand is not an {@link
+     * SqlKind#EXPLICIT_TABLE} or {@link SqlKind#SET_SEMANTICS_TABLE}.
      */
-    private static List<SqlIdentifier> getExplicitTableOperands(SqlNode node) {
+    private static List<SqlIdentifier> getTableOperands(SqlNode node) {
         if (!(node instanceof SqlBasicCall)) {
             return null;
         }
@@ -466,21 +476,28 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
         }
 
         return call.getOperandList().stream()
-                .map(FlinkCalciteSqlValidator::extractExplicitTable)
+                .map(FlinkCalciteSqlValidator::extractTableOperand)
                 .collect(Collectors.toList());
     }
 
-    private static @Nullable SqlIdentifier extractExplicitTable(SqlNode op) {
+    private static @Nullable SqlIdentifier extractTableOperand(SqlNode op) {
         if (op.getKind() == SqlKind.EXPLICIT_TABLE) {
             final SqlBasicCall opCall = (SqlBasicCall) op;
             if (opCall.operandCount() == 1 && opCall.operand(0) instanceof SqlIdentifier) {
                 // for TUMBLE(TABLE t3, ...)
                 return opCall.operand(0);
             }
+        } else if (op.getKind() == SqlKind.SET_SEMANTICS_TABLE) {
+            // for SESSION windows
+            final SqlBasicCall opCall = (SqlBasicCall) op;
+            final SqlCall setSemanticsTable = opCall.operand(0);
+            if (setSemanticsTable.operand(0) instanceof SqlIdentifier) {
+                return setSemanticsTable.operand(0);
+            }
         } else if (op.getKind() == SqlKind.ARGUMENT_ASSIGNMENT) {
             // for TUMBLE(DATA => TABLE t3, ...)
             final SqlBasicCall opCall = (SqlBasicCall) op;
-            return extractExplicitTable(opCall.operand(0));
+            return extractTableOperand(opCall.operand(0));
         }
         return null;
     }
@@ -492,6 +509,13 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
             return opCall.getOperandList().stream()
                     .filter(SqlIdentifier.class::isInstance)
                     .map(SqlIdentifier.class::cast);
+        } else if (op.getKind() == SqlKind.SET_SEMANTICS_TABLE) {
+            // for SESSION windows
+            final SqlBasicCall opCall = (SqlBasicCall) op;
+            return ((SqlNodeList) opCall.operand(1))
+                    .stream()
+                            .filter(SqlIdentifier.class::isInstance)
+                            .map(SqlIdentifier.class::cast);
         } else if (op.getKind() == SqlKind.ARGUMENT_ASSIGNMENT) {
             // for TUMBLE(..., TIMECOL => DESCRIPTOR(col), ...)
             final SqlBasicCall opCall = (SqlBasicCall) op;

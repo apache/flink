@@ -101,7 +101,7 @@ public class FixedLenBytesColumnReader<VECTOR extends WritableColumnVector>
             WritableBytesVector bytesVector = (WritableBytesVector) column;
             for (int i = rowId; i < rowId + num; ++i) {
                 if (!bytesVector.isNullAt(i)) {
-                    byte[] v = dictionary.decodeToBinary(dictionaryIds.getInt(i)).getBytes();
+                    byte[] v = dictionary.decodeToBinary(dictionaryIds.getInt(i)).getBytesUnsafe();
                     bytesVector.appendBytes(i, v, 0, v.length);
                 }
             }

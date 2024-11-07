@@ -20,8 +20,6 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.testutils.CompletedScheduledFuture;
-import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
@@ -30,8 +28,12 @@ import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -57,11 +59,17 @@ class RestartingTest {
         }
     }
 
-    @Test
-    void testTransitionToWaitingForResourcesWhenCancellationComplete() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void testTransitionToSubsequentStateWhenCancellationComplete(boolean forcedRestart)
+            throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
-            Restarting restarting = createRestartingState(ctx);
-            ctx.setExpectWaitingForResources();
+            Restarting restarting = createRestartingState(ctx, forcedRestart);
+            if (forcedRestart) {
+                ctx.setExpectCreatingExecutionGraph();
+            } else {
+                ctx.setExpectWaitingForResources();
+            }
             restarting.onGloballyTerminalState(JobStatus.CANCELED);
         }
     }
@@ -114,15 +122,22 @@ class RestartingTest {
         }
     }
 
-    @Test
-    void testStateDoesNotExposeGloballyTerminalExecutionGraph() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void testStateDoesNotExposeGloballyTerminalExecutionGraph(boolean forcedRestart)
+            throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
             StateTrackingMockExecutionGraph mockExecutionGraph =
                     new StateTrackingMockExecutionGraph();
-            Restarting restarting = createRestartingState(ctx, mockExecutionGraph);
+            Restarting restarting = createRestartingState(ctx, mockExecutionGraph, forcedRestart);
 
             // ideally we'd just delay the state transitions, but the context does not support that
-            ctx.setExpectWaitingForResources();
+            if (forcedRestart) {
+                ctx.setExpectCreatingExecutionGraph();
+            } else {
+                ctx.setExpectWaitingForResources();
+            }
+
             mockExecutionGraph.completeTerminationFuture(JobStatus.CANCELED);
 
             // this is just a sanity check for the test
@@ -134,8 +149,17 @@ class RestartingTest {
         }
     }
 
+    public Restarting createRestartingState(MockRestartingContext ctx, boolean forcedRestart) {
+        return createRestartingState(ctx, new StateTrackingMockExecutionGraph(), forcedRestart);
+    }
+
     public Restarting createRestartingState(
             MockRestartingContext ctx, ExecutionGraph executionGraph) {
+        return createRestartingState(ctx, executionGraph, false);
+    }
+
+    public Restarting createRestartingState(
+            MockRestartingContext ctx, ExecutionGraph executionGraph, boolean forcedRestart) {
         final ExecutionGraphHandler executionGraphHandler =
                 new ExecutionGraphHandler(
                         executionGraph,
@@ -152,12 +176,12 @@ class RestartingTest {
                 operatorCoordinatorHandler,
                 log,
                 Duration.ZERO,
+                forcedRestart,
                 ClassLoader.getSystemClassLoader(),
                 new ArrayList<>());
     }
 
-    public Restarting createRestartingState(MockRestartingContext ctx)
-            throws JobException, JobExecutionException {
+    public Restarting createRestartingState(MockRestartingContext ctx) {
         return createRestartingState(ctx, new StateTrackingMockExecutionGraph());
     }
 
@@ -167,15 +191,22 @@ class RestartingTest {
         private final StateValidator<ExecutingTest.CancellingArguments> cancellingStateValidator =
                 new StateValidator<>("Cancelling");
 
-        private final StateValidator<Void> waitingForResourcesStateValidator =
+        private final StateValidator<ExecutionGraph> waitingForResourcesStateValidator =
                 new StateValidator<>("WaitingForResources");
+
+        private final StateValidator<ExecutionGraph> creatingExecutionGraphStateValidator =
+                new StateValidator<>("CreatingExecutionGraph");
 
         public void setExpectCancelling(Consumer<ExecutingTest.CancellingArguments> asserter) {
             cancellingStateValidator.expectInput(asserter);
         }
 
         public void setExpectWaitingForResources() {
-            waitingForResourcesStateValidator.expectInput((none) -> {});
+            waitingForResourcesStateValidator.expectInput(assertNonNull());
+        }
+
+        public void setExpectCreatingExecutionGraph() {
+            creatingExecutionGraphStateValidator.expectInput(assertNonNull());
         }
 
         @Override
@@ -194,8 +225,14 @@ class RestartingTest {
         public void archiveFailure(RootExceptionHistoryEntry failure) {}
 
         @Override
-        public void goToWaitingForResources(ExecutionGraph previousExecutionGraph) {
-            waitingForResourcesStateValidator.validateInput(null);
+        public void goToWaitingForResources(@Nullable ExecutionGraph previousExecutionGraph) {
+            waitingForResourcesStateValidator.validateInput(previousExecutionGraph);
+            hadStateTransition = true;
+        }
+
+        @Override
+        public void goToCreatingExecutionGraph(@Nullable ExecutionGraph previousExecutionGraph) {
+            creatingExecutionGraphStateValidator.validateInput(previousExecutionGraph);
             hadStateTransition = true;
         }
 
@@ -212,6 +249,7 @@ class RestartingTest {
             super.close();
             cancellingStateValidator.close();
             waitingForResourcesStateValidator.close();
+            creatingExecutionGraphStateValidator.close();
         }
     }
 }

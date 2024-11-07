@@ -20,12 +20,11 @@ package org.apache.flink.table.planner.runtime.utils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple1, Tuple2}
 import org.apache.flink.api.java.typeutils._
-import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.annotation.{DataTypeHint, FunctionHint, InputGroup}
 import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.api.typeutils.Types
 import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
@@ -188,6 +187,23 @@ object UserDefinedFunctionTestUtils {
         .build
     }
 
+  }
+
+  class FakePercentile extends AggregateFunction[Double, Tuple1[Double]] {
+    def accumulate(acc: Tuple1[Double], value: Int, percentage: Double): Unit = acc.f0 += value
+
+    override def createAccumulator: Tuple1[Double] = Tuple1.of(0d)
+
+    override def getValue(acc: Tuple1[Double]): Double = acc.f0
+
+    override def getTypeInference(typeFactory: DataTypeFactory): TypeInference = {
+      TypeInference.newBuilder
+        .typedArguments(DataTypes.INT(), DataTypes.DOUBLE())
+        .accumulatorTypeStrategy(TypeStrategies.explicit(
+          DataTypes.STRUCTURED(classOf[Tuple1[Double]], DataTypes.FIELD("f0", DataTypes.DOUBLE()))))
+        .outputTypeStrategy(TypeStrategies.explicit(DataTypes.DOUBLE()))
+        .build
+    }
   }
 
   // ------------------------------------------------------------------------------------
@@ -471,21 +487,7 @@ object UserDefinedFunctionTestUtils {
   // Utils
   // ------------------------------------------------------------------------------------
 
-  def setJobParameters(env: ExecutionEnvironment, parameters: Map[String, String]): Unit = {
-    val conf = new Configuration()
-    parameters.foreach { case (k, v) => conf.setString(k, v) }
-    env.getConfig.setGlobalJobParameters(conf)
-  }
-
   def setJobParameters(env: StreamExecutionEnvironment, parameters: Map[String, String]): Unit = {
-    val conf = new Configuration()
-    parameters.foreach { case (k, v) => conf.setString(k, v) }
-    env.getConfig.setGlobalJobParameters(conf)
-  }
-
-  def setJobParameters(
-      env: org.apache.flink.streaming.api.environment.StreamExecutionEnvironment,
-      parameters: Map[String, String]): Unit = {
     val conf = new Configuration()
     parameters.foreach { case (k, v) => conf.setString(k, v) }
     env.getConfig.setGlobalJobParameters(conf)

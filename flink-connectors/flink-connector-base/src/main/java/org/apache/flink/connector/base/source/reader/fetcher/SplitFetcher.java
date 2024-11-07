@@ -20,6 +20,7 @@ package org.apache.flink.connector.base.source.reader.fetcher;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.connector.base.source.reader.RecordsBySplits;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
@@ -32,10 +33,12 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.util.ArrayDeque;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -82,6 +85,14 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 
     private final Consumer<Collection<String>> splitFinishedHook;
 
+    /**
+     * A shutdown latch to help make sure the SplitReader is only closed after all the emitted
+     * records have been processed by the main reader thread. This is needed because in some cases,
+     * the records in the <tt>RecordsWithSplitIds</tt> may have not been processed when the split
+     * fetcher shuts down.
+     */
+    private final CountDownLatch recordsProcessedLatch;
+
     SplitFetcher(
             int id,
             FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
@@ -97,6 +108,7 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
         this.shutdownHook = checkNotNull(shutdownHook);
         this.allowUnalignedSourceSplits = allowUnalignedSourceSplits;
         this.splitFinishedHook = splitFinishedHook;
+        this.recordsProcessedLatch = new CountDownLatch(1);
 
         this.fetchTask =
                 new FetchTask<>(
@@ -117,10 +129,25 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
             while (runOnce()) {
                 // nothing to do, everything is inside #runOnce.
             }
+            if (recordsProcessedLatch.getCount() > 0) {
+                // Put an empty synchronization batch to the element queue.
+                // When this batch is recycled, all the records emitted earlier
+                // must have already been processed.
+                elementsQueue.put(
+                        fetcherId(),
+                        new RecordsBySplits<E>(Collections.emptyMap(), Collections.emptySet()) {
+                            @Override
+                            public void recycle() {
+                                super.recycle();
+                                recordsProcessedLatch.countDown();
+                            }
+                        });
+            }
         } catch (Throwable t) {
             errorHandler.accept(t);
         } finally {
             try {
+                recordsProcessedLatch.await();
                 splitReader.close();
             } catch (Exception e) {
                 errorHandler.accept(e);
@@ -308,6 +335,24 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 
     /** Shutdown the split fetcher. */
     public void shutdown() {
+        shutdown(false);
+    }
+
+    /**
+     * Shutdown the split fetcher. When waitingForRecordsProcessed is set to true, the split fetcher
+     * will block waiting for the previously emitted records to be processed before it closes the
+     * encapsulated SplitReader. Otherwise, it will just close the SplitReader.
+     *
+     * <p>This method is package private because it should only be used by the SplitFetcherManager
+     * when closing the idle fetchers.
+     *
+     * @param waitingForRecordsProcessed whether wait for the previously emitted records to be
+     *     processed.
+     */
+    public void shutdown(boolean waitingForRecordsProcessed) {
+        if (!waitingForRecordsProcessed) {
+            recordsProcessedLatch.countDown();
+        }
         lock.lock();
         try {
             if (!closed) {

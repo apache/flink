@@ -19,11 +19,11 @@
 package org.apache.flink.runtime.rest.handler.legacy;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.util.Preconditions;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -33,15 +33,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** Default implementation of {@link ExecutionGraphCache}. */
 public class DefaultExecutionGraphCache implements ExecutionGraphCache {
 
-    private final Time timeout;
+    private final Duration timeout;
 
-    private final Time timeToLive;
+    private final Duration timeToLive;
 
     private final ConcurrentHashMap<JobID, ExecutionGraphEntry> cachedExecutionGraphs;
 
     private volatile boolean running = true;
 
-    public DefaultExecutionGraphCache(Time timeout, Time timeToLive) {
+    public DefaultExecutionGraphCache(Duration timeout, Duration timeToLive) {
         this.timeout = checkNotNull(timeout);
         this.timeToLive = checkNotNull(timeToLive);
 
@@ -86,7 +86,7 @@ public class DefaultExecutionGraphCache implements ExecutionGraphCache {
             }
 
             final ExecutionGraphEntry newEntry =
-                    new ExecutionGraphEntry(currentTime + timeToLive.toMilliseconds());
+                    new ExecutionGraphEntry(currentTime + timeToLive.toMillis());
 
             final boolean successfulUpdate;
 

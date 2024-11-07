@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{ConfigOption, Configuration}
 import org.apache.flink.table.api.{ExplainDetail, TableException, ValidationException}
 import org.apache.flink.table.api.config.{AggregatePhaseStrategy, OptimizerConfigOptions}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMerge}
@@ -1480,7 +1480,10 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
   def testSession_DistinctSplitEnabled(): Unit = {
     // Session window does not support split-distinct optimization
     util.tableEnv.getConfig.getConfiguration
-      .setBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+      .set(
+        OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED
+          .asInstanceOf[ConfigOption[Any]],
+        true)
     val sql =
       """
         |SELECT
@@ -1681,7 +1684,7 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
 
   @TestTemplate
   def testProctimeWindowTVFWithDedupWhenCantMerge(): Unit = {
-    util.verifyRelPlan(
+    util.verifyExecPlan(
       """
         |select c, count(a)
         |from (

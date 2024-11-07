@@ -20,7 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryImpl;
@@ -89,7 +89,7 @@ class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpointStoreTe
                 DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
                         checkpointsInZooKeeper, checkpointStoreUtil),
                 SharedStateRegistry.DEFAULT_FACTORY.create(
-                        Executors.directExecutor(), emptyList(), RestoreMode.DEFAULT),
+                        Executors.directExecutor(), emptyList(), RecoveryClaimMode.DEFAULT),
                 executor);
     }
 

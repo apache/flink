@@ -18,19 +18,27 @@
 
 package org.apache.flink.test.hadoopcompatibility.mapreduce;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.hadoop.mapreduce.HadoopInputFormat;
 import org.apache.flink.api.java.hadoop.mapreduce.HadoopOutputFormat;
 import org.apache.flink.test.hadoopcompatibility.mapreduce.example.WordCount;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.OperatingSystem;
 
+import org.junit.experimental.categories.Category;
 import org.junit.jupiter.api.BeforeEach;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultsByLinesInMemory;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** IT cases for both the {@link HadoopInputFormat} and {@link HadoopOutputFormat}. */
+// This test case has been updated from dataset to a datastream.
+// It is essentially a batch job, but the HadoopInputFormat is an unbounded source.
+// As a result, the test case cannot be set to batch runtime mode and should not run with the
+// adaptive scheduler.
+@Category(FailsWithAdaptiveScheduler.class)
 class HadoopInputOutputITCase extends JavaProgramTestBase {
 
     private String textPath;
@@ -56,7 +64,7 @@ class HadoopInputOutputITCase extends JavaProgramTestBase {
     }
 
     @Override
-    protected void testProgram() throws Exception {
-        WordCount.main(new String[] {textPath, resultPath});
+    protected JobExecutionResult testProgram() throws Exception {
+        return WordCount.run(new String[] {textPath, resultPath});
     }
 }

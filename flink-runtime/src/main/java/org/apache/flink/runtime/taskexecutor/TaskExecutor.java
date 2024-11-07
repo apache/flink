@@ -20,7 +20,6 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.management.jmx.JMXService;
@@ -432,7 +431,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     }
 
     @Override
-    public CompletableFuture<Collection<LogInfo>> requestLogList(Time timeout) {
+    public CompletableFuture<Collection<LogInfo>> requestLogList(Duration timeout) {
         return CompletableFuture.supplyAsync(
                 () -> {
                     final String logDir = taskManagerConfiguration.getTaskManagerLogDir();
@@ -621,7 +620,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     public CompletableFuture<TaskThreadInfoResponse> requestThreadInfoSamples(
             final Collection<ExecutionAttemptID> taskExecutionAttemptIds,
             final ThreadInfoSamplesRequest requestParams,
-            final Time timeout) {
+            final Duration timeout) {
 
         final Collection<Task> tasks = new ArrayList<>();
         for (ExecutionAttemptID executionAttemptId : taskExecutionAttemptIds) {
@@ -658,7 +657,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<Acknowledge> submitTask(
-            TaskDeploymentDescriptor tdd, JobMasterId jobMasterId, Time timeout) {
+            TaskDeploymentDescriptor tdd, JobMasterId jobMasterId, Duration timeout) {
 
         final JobID jobId = tdd.getJobId();
         // todo: consider adding task info
@@ -755,7 +754,13 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                     new RpcTaskOperatorEventGateway(
                             jobManagerConnection.getJobManagerGateway(),
                             executionAttemptID,
-                            (t) -> runAsync(() -> failTask(executionAttemptID, t)));
+                            (t) ->
+                                    runAsync(
+                                            () ->
+                                                    failTask(
+                                                            jobInformation.getJobId(),
+                                                            executionAttemptID,
+                                                            t)));
 
             TaskManagerActions taskManagerActions = jobManagerConnection.getTaskManagerActions();
             CheckpointResponder checkpointResponder = jobManagerConnection.getCheckpointResponder();
@@ -938,7 +943,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<Acknowledge> cancelTask(
-            ExecutionAttemptID executionAttemptID, Time timeout) {
+            ExecutionAttemptID executionAttemptID, Duration timeout) {
         final Task task = taskSlotTable.getTask(executionAttemptID);
 
         if (task != null) {
@@ -971,7 +976,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     public CompletableFuture<Acknowledge> updatePartitions(
             final ExecutionAttemptID executionAttemptID,
             Iterable<PartitionInfo> partitionInfos,
-            Time timeout) {
+            Duration timeout) {
         final Task task = taskSlotTable.getTask(executionAttemptID);
 
         if (task != null) {
@@ -1050,7 +1055,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<Acknowledge> releaseClusterPartitions(
-            Collection<IntermediateDataSetID> dataSetsToRelease, Time timeout) {
+            Collection<IntermediateDataSetID> dataSetsToRelease, Duration timeout) {
         partitionTracker.stopTrackingAndReleaseClusterPartitions(dataSetsToRelease);
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
@@ -1187,7 +1192,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             final ResourceProfile resourceProfile,
             final String targetAddress,
             final ResourceManagerId resourceManagerId,
-            final Time timeout) {
+            final Duration timeout) {
         // TODO: Filter invalid requests from the resource manager by using the
         // instance/registration Id
 
@@ -1307,13 +1312,13 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<Acknowledge> freeSlot(
-            AllocationID allocationId, Throwable cause, Time timeout) {
+            AllocationID allocationId, Throwable cause, Duration timeout) {
         freeSlotInternal(allocationId, cause);
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
     @Override
-    public void freeInactiveSlots(JobID jobId, Time timeout) {
+    public void freeInactiveSlots(JobID jobId, Duration timeout) {
         try (MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
             log.debug("Freeing inactive slots for job {}.", jobId);
 
@@ -1330,7 +1335,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<TransientBlobKey> requestFileUploadByType(
-            FileType fileType, Time timeout) {
+            FileType fileType, Duration timeout) {
         final String filePath;
         switch (fileType) {
             case LOG:
@@ -1377,7 +1382,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<SerializableOptional<String>> requestMetricQueryServiceAddress(
-            Time timeout) {
+            Duration timeout) {
         return CompletableFuture.completedFuture(
                 SerializableOptional.ofNullable(metricQueryServiceAddress));
     }
@@ -1442,7 +1447,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     }
 
     @Override
-    public CompletableFuture<ThreadDumpInfo> requestThreadDump(Time timeout) {
+    public CompletableFuture<ThreadDumpInfo> requestThreadDump(Duration timeout) {
         int stacktraceMaxDepth =
                 taskManagerConfiguration
                         .getConfiguration()
@@ -1592,7 +1597,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                         getResourceID(),
                         taskExecutorRegistrationId,
                         taskSlotTable.createSlotReport(getResourceID()),
-                        Time.fromDuration(taskManagerConfiguration.getRpcTimeout()));
+                        taskManagerConfiguration.getRpcTimeout());
 
         slotReportResponseFuture.whenCompleteAsync(
                 (acknowledge, throwable) -> {
@@ -1732,7 +1737,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                     jobMasterGateway.offerSlots(
                             getResourceID(),
                             reservedSlots,
-                            Time.fromDuration(taskManagerConfiguration.getRpcTimeout()));
+                            taskManagerConfiguration.getRpcTimeout());
 
             acceptedSlotsFuture.whenCompleteAsync(
                     handleAcceptedSlotOffers(
@@ -1972,7 +1977,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         checkNotNull(resourceID);
         checkNotNull(jobMasterGateway);
 
-        TaskManagerActions taskManagerActions = new TaskManagerActionsImpl(jobMasterGateway);
+        TaskManagerActions taskManagerActions =
+                new TaskManagerActionsImpl(job.getJobId(), jobMasterGateway);
 
         CheckpointResponder checkpointResponder = new RpcCheckpointResponder(jobMasterGateway);
         GlobalAggregateManager aggregateManager = new RpcGlobalAggregateManager(jobMasterGateway);
@@ -2096,25 +2102,31 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     //  Internal task methods
     // ------------------------------------------------------------------------
 
-    private void failTask(final ExecutionAttemptID executionAttemptID, final Throwable cause) {
-        final Task task = taskSlotTable.getTask(executionAttemptID);
+    private void failTask(
+            final JobID jobID, final ExecutionAttemptID executionAttemptID, final Throwable cause) {
+        try (MdcUtils.MdcCloseable mdcCloseable =
+                MdcUtils.withContext(MdcUtils.asContextData(jobID))) {
+            final Task task = taskSlotTable.getTask(executionAttemptID);
 
-        if (task != null) {
-            try {
-                task.failExternally(cause);
-            } catch (Throwable t) {
-                log.error("Could not fail task {}.", executionAttemptID, t);
+            if (task != null) {
+                try {
+                    task.failExternally(cause);
+                } catch (Throwable t) {
+                    log.error("Could not fail task {}.", executionAttemptID, t);
+                }
+            } else {
+                log.info(
+                        "Cannot find task to fail for execution {} with exception:",
+                        executionAttemptID,
+                        cause);
             }
-        } else {
-            log.info(
-                    "Cannot find task to fail for execution {} with exception:",
-                    executionAttemptID,
-                    cause);
         }
     }
 
     private void updateTaskExecutionState(
-            final JobMasterGateway jobMasterGateway, final TaskExecutionState taskExecutionState) {
+            final JobID jobID,
+            final JobMasterGateway jobMasterGateway,
+            final TaskExecutionState taskExecutionState) {
         final ExecutionAttemptID executionAttemptID = taskExecutionState.getID();
 
         CompletableFuture<Acknowledge> futureAcknowledge =
@@ -2123,7 +2135,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         futureAcknowledge.whenCompleteAsync(
                 (ack, throwable) -> {
                     if (throwable != null) {
-                        failTask(executionAttemptID, throwable);
+                        failTask(jobID, executionAttemptID, throwable);
                     }
                 },
                 getMainThreadExecutor());
@@ -2152,6 +2164,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             AccumulatorSnapshot accumulatorSnapshot = task.getAccumulatorRegistry().getSnapshot();
 
             updateTaskExecutionState(
+                    task.getJobID(),
                     jobMasterGateway,
                     new TaskExecutionState(
                             task.getExecutionId(),
@@ -2627,9 +2640,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     }
 
     private final class TaskManagerActionsImpl implements TaskManagerActions {
+        private final JobID jobId;
         private final JobMasterGateway jobMasterGateway;
 
-        private TaskManagerActionsImpl(JobMasterGateway jobMasterGateway) {
+        private TaskManagerActionsImpl(JobID jobId, JobMasterGateway jobMasterGateway) {
+            this.jobId = jobId;
             this.jobMasterGateway = checkNotNull(jobMasterGateway);
         }
 
@@ -2647,7 +2662,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
         @Override
         public void failTask(final ExecutionAttemptID executionAttemptID, final Throwable cause) {
-            runAsync(() -> TaskExecutor.this.failTask(executionAttemptID, cause));
+            runAsync(() -> TaskExecutor.this.failTask(jobId, executionAttemptID, cause));
         }
 
         @Override
@@ -2658,7 +2673,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                                 unregisterTaskAndNotifyFinalState(
                                         jobMasterGateway, taskExecutionState.getID()));
             } else {
-                TaskExecutor.this.updateTaskExecutionState(jobMasterGateway, taskExecutionState);
+                TaskExecutor.this.updateTaskExecutionState(
+                        jobId, jobMasterGateway, taskExecutionState);
             }
         }
 

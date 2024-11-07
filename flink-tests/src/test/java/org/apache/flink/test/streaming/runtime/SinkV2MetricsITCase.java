@@ -20,6 +20,7 @@ package org.apache.flink.test.streaming.runtime;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.metrics.Counter;
@@ -28,6 +29,7 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.testutils.InMemoryReporter;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -139,9 +141,8 @@ public class SinkV2MetricsITCase extends TestLogger {
         env.fromSequence(0, numCommittables - 1)
                 .returns(BasicTypeInfo.LONG_TYPE_INFO)
                 .sinkTo(
-                        TestSinkV2.<Long>newBuilder()
-                                .setCommitter(new MetricCommitter(beforeLatch, afterLatch))
-                                .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
+                        (TestSinkV2.<Long>newBuilder()
+                                        .setCommitter(new MetricCommitter(beforeLatch, afterLatch)))
                                 .build())
                 .name(TEST_SINK_NAME);
         JobClient jobClient = env.executeAsync();
@@ -213,6 +214,25 @@ public class SinkV2MetricsITCase extends TestLogger {
                     .isEqualTo((processedRecordsPerSubtask - 1) * MetricWriter.BASE_SEND_TIME);
         }
         assertThat(subtaskWithMetrics, equalTo(numSplits));
+
+        // Test operator I/O metrics are reused by task metrics
+        List<TaskMetricGroup> taskMetricGroups =
+                reporter.findTaskMetricGroups(jobId, TEST_SINK_NAME);
+
+        int subtaskWithTaskMetrics = 0;
+        for (TaskMetricGroup taskMetricGroup : taskMetricGroups) {
+            // there are only 2 splits assigned; so two groups will not update metrics
+            if (taskMetricGroup.getIOMetricGroup().getNumRecordsOutCounter().getCount() == 0) {
+                continue;
+            }
+
+            subtaskWithTaskMetrics++;
+            assertThatCounter(taskMetricGroup.getIOMetricGroup().getNumRecordsOutCounter())
+                    .isEqualTo(processedRecordsPerSubtask);
+            assertThatCounter(taskMetricGroup.getIOMetricGroup().getNumBytesOutCounter())
+                    .isEqualTo(processedRecordsPerSubtask * MetricWriter.RECORD_SIZE_IN_BYTES);
+        }
+        assertThat(subtaskWithTaskMetrics, equalTo(numSplits));
     }
 
     private void assertSinkCommitterMetrics(JobID jobId, Map<String, Long> expected) {
@@ -258,7 +278,7 @@ public class SinkV2MetricsITCase extends TestLogger {
         private long sendTime;
 
         @Override
-        public void init(Sink.InitContext context) {
+        public void init(WriterInitContext context) {
             this.metricGroup = context.metricGroup();
             metricGroup.setCurrentSendTimeGauge(() -> sendTime);
         }

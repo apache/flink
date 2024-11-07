@@ -19,20 +19,20 @@ package org.apache.flink.table.api
 
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.common.typeinfo.Types.STRING
-import org.apache.flink.api.scala._
 import org.apache.flink.configuration.{Configuration, CoreOptions, ExecutionOptions}
 import org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches
-import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
+import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactoryContextImpl}
 import org.apache.flink.table.functions.TestGenericUDF
+import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.module.ModuleEntry
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory._
 import org.apache.flink.table.planner.runtime.stream.sql.FunctionITCase.TestUDF
 import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.SimpleScalarFunction
+import org.apache.flink.table.planner.runtime.utils.StreamingEnvUtil
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
 import org.apache.flink.table.planner.utils.TableTestUtil.{replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
 import org.apache.flink.table.types.DataType
@@ -59,7 +59,7 @@ class TableEnvironmentTest {
   @TempDir
   var tempFolder: Path = _
 
-  val env = new StreamExecutionEnvironment(new LocalStreamEnvironment())
+  val env = new LocalStreamEnvironment()
   val tableEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
   val batchTableEnv = StreamTableEnvironment.create(env, TableTestUtil.BATCH_SETTING)
 
@@ -72,7 +72,9 @@ class TableEnvironmentTest {
 
   @Test
   def testRegisterDataStream(): Unit = {
-    val table = env.fromElements[(Int, Long, String, Boolean)]().toTable(tableEnv, 'a, 'b, 'c, 'd)
+    val table = StreamingEnvUtil
+      .fromElements[(Int, Long, String, Boolean)](env)
+      .toTable(tableEnv, 'a, 'b, 'c, 'd)
     tableEnv.createTemporaryView("MyTable", table)
     val scanTable = tableEnv.from("MyTable")
     val relNode = TableTestUtil.toRelNode(scanTable)
@@ -81,7 +83,11 @@ class TableEnvironmentTest {
     assertEquals(expected, actual)
 
     assertThatThrownBy(
-      () => tableEnv.createTemporaryView("MyTable", env.fromElements[(Int, Long)]()))
+      () =>
+        tableEnv.createTemporaryView(
+          "MyTable",
+          StreamingEnvUtil
+            .fromElements[(Int, Long)](env)))
       .hasMessageContaining(
         "Temporary table '`default_catalog`.`default_database`.`MyTable`' already exists")
       .isInstanceOf[ValidationException]
@@ -89,7 +95,9 @@ class TableEnvironmentTest {
 
   @Test
   def testSimpleQuery(): Unit = {
-    val table = env.fromElements[(Int, Long, String, Boolean)]().toTable(tableEnv, 'a, 'b, 'c, 'd)
+    val table = StreamingEnvUtil
+      .fromElements[(Int, Long, String, Boolean)](env)
+      .toTable(tableEnv, 'a, 'b, 'c, 'd)
     tableEnv.createTemporaryView("MyTable", table)
     val queryTable = tableEnv.sqlQuery("SELECT a, c, d FROM MyTable")
     val relNode = TableTestUtil.toRelNode(queryTable)
@@ -1478,6 +1486,37 @@ class TableEnvironmentTest {
       ResolvedSchema.of(Column.physical("table name", DataTypes.STRING())),
       tableResult3.getResolvedSchema)
     checkData(util.Arrays.asList(Row.of("person")).iterator(), tableResult3.collect())
+  }
+
+  @Test
+  def testExecuteSqlWithEnhancedShowViews(): Unit = {
+    val createCatalogResult =
+      tableEnv.executeSql("CREATE CATALOG catalog1 WITH('type'='generic_in_memory')")
+    assertEquals(ResultKind.SUCCESS, createCatalogResult.getResultKind)
+
+    val createDbResult = tableEnv.executeSql("CREATE database catalog1.db1")
+    assertEquals(ResultKind.SUCCESS, createDbResult.getResultKind)
+
+    val createTableStmt =
+      """
+        |CREATE VIEW catalog1.db1.view1 AS SELECT 1, 'abc'
+      """.stripMargin
+    val tableResult1 = tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val createTableStmt2 =
+      """
+        |CREATE VIEW catalog1.db1.view2 AS SELECT 123
+      """.stripMargin
+    val tableResult2 = tableEnv.executeSql(createTableStmt2)
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+
+    val tableResult3 = tableEnv.executeSql("SHOW VIEWS FROM catalog1.db1 like '%w1'")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    assertEquals(
+      ResolvedSchema.of(Column.physical("view name", DataTypes.STRING())),
+      tableResult3.getResolvedSchema)
+    checkData(util.Arrays.asList(Row.of("view1")).iterator(), tableResult3.collect())
   }
 
   @Test
@@ -2980,9 +3019,11 @@ class TableEnvironmentTest {
     with TemporaryOperationListener {
 
     val tableComment: String = "listener_comment"
+    val modelComment: String = "listener_comment"
     val funcClzName: String = classOf[TestGenericUDF].getName
 
     var numTempTable = 0
+    var numTempModel = 0
     var numTempFunc = 0
 
     override def onCreateTemporaryTable(
@@ -3006,7 +3047,16 @@ class TableEnvironmentTest {
       }
     }
 
+    override def onCreateTemporaryModel(
+        modelPath: ObjectPath,
+        model: CatalogModel): CatalogModel = {
+      numTempModel += 1
+      CatalogModel.of(model.getInputSchema, model.getOutputSchema, model.getOptions, modelComment)
+    }
+
     override def onDropTemporaryTable(tablePath: ObjectPath): Unit = numTempTable -= 1
+
+    override def onDropTemporaryModel(modelPath: ObjectPath): Unit = numTempModel -= 1
 
     override def onCreateTemporaryFunction(
         functionPath: ObjectPath,

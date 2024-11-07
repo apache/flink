@@ -26,11 +26,6 @@ under the License.
 
 This page lists which Java versions Flink supports and what limitations apply (if any).
 
-## Java 8 (deprecated)
-
-Support for Java 8 has been deprecated in 1.15.0.
-It is recommended to migrate to Java 11.
-
 ## Java 11
 
 Support for Java 11 was added in 1.10.0 and is the recommended Java version to run Flink on.
@@ -50,7 +45,8 @@ The following Flink features have not been tested with Java 11:
 
 ## Java 17
 
-Experimental support for Java 17 was added in 1.18.0. ([FLINK-15736](https://issues.apache.org/jira/browse/FLINK-15736))
+Experimental support for Java 17 was added in 1.18. ([FLINK-15736](https://issues.apache.org/jira/browse/FLINK-15736))
+In Flink 1.19, we added support for Java Records. ([FLINK-32380](https://issues.apache.org/jira/browse/FLINK-32380))
 
 ### Untested Flink features
 
@@ -73,5 +69,5 @@ The list of configured arguments must not be shortened, but only extended.
 
 ### Known issues
 
-* Java records are not supported. See [FLINK-32380](https://issues.apache.org/jira/browse/FLINK-32380) for updates.
+* Mandatory Kryo dependency upgrade, [FLIP-371](https://cwiki.apache.org/confluence/display/FLINK/FLIP-317%3A+Upgrade+Kryo+from+2.24.0+to+5.5.0).
 * SIGSEGV in C2 Compiler thread: Early Java 17 builds are affected by a bug where the JVM can fail abruptly. Update your Java 17 installation to resolve the issue. See [JDK-8277529](https://bugs.openjdk.org/browse/JDK-8277529) for details.

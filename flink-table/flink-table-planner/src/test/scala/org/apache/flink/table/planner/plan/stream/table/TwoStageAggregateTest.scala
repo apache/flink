@@ -17,8 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.stream.table
 
-import org.apache.flink.api.common.time.Time
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{AggregatePhaseStrategy, ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}

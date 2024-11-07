@@ -20,7 +20,9 @@ package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.WithConfigurationOpenContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -62,10 +64,16 @@ public class FunctionContext {
     public FunctionContext(
             @Nullable RuntimeContext context,
             @Nullable ClassLoader userClassLoader,
-            @Nullable Configuration jobParameters) {
+            @Nullable OpenContext openContext) {
         this.context = context;
         this.userClassLoader = userClassLoader;
-        this.jobParameters = jobParameters != null ? jobParameters.toMap() : null;
+        if (openContext instanceof WithConfigurationOpenContext) {
+            Configuration configuration =
+                    ((WithConfigurationOpenContext) openContext).getConfiguration();
+            this.jobParameters = configuration.toMap();
+        } else {
+            this.jobParameters = null;
+        }
     }
 
     public FunctionContext(RuntimeContext context) {

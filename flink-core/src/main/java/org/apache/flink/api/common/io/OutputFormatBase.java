@@ -64,7 +64,7 @@ public abstract class OutputFormatBase<OUT, V> extends RichOutputFormat<OUT> {
 
     /** Open the format and initializes the flush system. */
     @Override
-    public final void open(int taskNumber, int numTasks) {
+    public final void open(InitializationContext context) {
         throwable = new AtomicReference<>();
         this.semaphore = new Semaphore(maxConcurrentRequests);
         this.callback =
@@ -86,7 +86,7 @@ public abstract class OutputFormatBase<OUT, V> extends RichOutputFormat<OUT> {
 
     /**
      * Initialize the OutputFormat. This method is called at the end of {@link
-     * OutputFormatBase#open(int, int)}.
+     * OutputFormatBase#open(InitializationContext context)}.
      */
     protected void postOpen() {}
 

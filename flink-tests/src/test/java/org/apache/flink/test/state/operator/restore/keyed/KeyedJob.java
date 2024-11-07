@@ -20,25 +20,28 @@ package org.apache.flink.test.state.operator.restore.keyed;
 
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.CheckpointingMode;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.ParameterTool;
 
 import org.junit.Assert;
 
@@ -67,9 +70,10 @@ public class KeyedJob {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(config);
         env.enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        RestartStrategyUtils.configureNoRestartStrategy(env);
 
-        env.setStateBackend(new MemoryStateBackend());
+        StateBackendUtils.configureHashMapStateBackend(env);
+        CheckpointStorageUtils.configureJobManagerCheckpointStorage(env);
 
         /** Source -> keyBy -> C(Window -> StatefulMap1 -> StatefulMap2) */
         SingleOutputStreamOperator<Tuple2<Integer, Integer>> source =
@@ -94,7 +98,7 @@ public class KeyedJob {
 
     public static SingleOutputStreamOperator<Integer> createWindowFunction(
             ExecutionMode mode, DataStream<Tuple2<Integer, Integer>> input) {
-        return input.keyBy(0)
+        return input.keyBy(x -> (Tuple) Tuple1.of(x.f0), Types.TUPLE(Types.INT))
                 .countWindow(1)
                 .apply(new StatefulWindowFunction(mode))
                 .setParallelism(4)

@@ -32,17 +32,25 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationRequestBody;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
+import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
+import org.apache.flink.streaming.api.operators.collect.CollectCoordinationRequest;
+import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorCoordinator;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.InjectClusterRESTAddress;
 import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpMethod;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.apache.commons.io.FileUtils;
@@ -55,9 +63,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -408,6 +418,63 @@ class WebFrontendITCase {
     }
 
     @Test
+    void testClientCoordinationHandler(
+            @InjectClusterClient ClusterClient<?> clusterClient,
+            @InjectClusterRESTAddress URI restAddress)
+            throws Exception {
+        // this only works if there is no active job at this point
+        assertThat(getRunningJobs(clusterClient).isEmpty());
+
+        // Create a task
+        final JobVertex sender = new JobVertex("Sender");
+        sender.setParallelism(2);
+        sender.setInvokableClass(BlockingInvokable.class);
+
+        String operatorUid = "opId";
+        OperatorID opId = StreamingJobGraphGenerator.generateOperatorID(operatorUid);
+        sender.addOperatorCoordinator(
+                new SerializedValue<>(new CollectSinkOperatorCoordinator.Provider(opId, 10_000)));
+
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(sender);
+
+        clusterClient.submitJob(jobGraph).get();
+
+        // wait for job to show up
+        while (getRunningJobs(clusterClient).isEmpty()) {
+            Thread.sleep(10);
+        }
+
+        // wait for tasks to be properly running
+        BlockingInvokable.latch.await();
+
+        SerializedValue<CoordinationRequest> serializedRequest =
+                new SerializedValue<>(new CollectCoordinationRequest("version", 0L));
+        ClientCoordinationRequestBody requestBody =
+                new ClientCoordinationRequestBody(serializedRequest);
+        String json =
+                postAndGetHttpResponse(
+                        "http://localhost:"
+                                + restAddress.getPort()
+                                + "/jobs/"
+                                + jobGraph.getJobID()
+                                + "/coordinators/"
+                                + operatorUid,
+                        OBJECT_MAPPER.writeValueAsString(requestBody));
+
+        JsonNode parsed = OBJECT_MAPPER.readTree(json);
+        assertThat(parsed.get("serializedCoordinationResult")).isNotNull();
+
+        clusterClient.cancel(jobGraph.getJobID()).get();
+
+        // ensure cancellation is finished
+        while (!getRunningJobs(clusterClient).isEmpty()) {
+            Thread.sleep(20);
+        }
+
+        BlockingInvokable.reset();
+    }
+
+    @Test
     void testCancelYarn(
             @InjectClusterClient ClusterClient<?> clusterClient,
             @InjectClusterRESTAddress URI restAddress)
@@ -474,6 +541,52 @@ class WebFrontendITCase {
             HttpURLConnection connection = (HttpURLConnection) u.openConnection();
             connection.setConnectTimeout(100000);
             connection.connect();
+
+            if (Objects.equals(
+                    HttpResponseStatus.SERVICE_UNAVAILABLE,
+                    HttpResponseStatus.valueOf(connection.getResponseCode()))) {
+                // service not available --> Sleep and retry
+                LOG.debug("Web service currently not available. Retrying the request in a bit.");
+                Thread.sleep(100L);
+            } else {
+                InputStream is;
+
+                if (connection.getResponseCode() >= 400) {
+                    // error!
+                    LOG.warn(
+                            "HTTP Response code when connecting to {} was {}",
+                            url,
+                            connection.getResponseCode());
+                    is = connection.getErrorStream();
+                } else {
+                    is = connection.getInputStream();
+                }
+
+                return IOUtils.toString(is, ConfigConstants.DEFAULT_CHARSET);
+            }
+        }
+
+        throw new TimeoutException(
+                "Could not get HTTP response in time since the service is still unavailable.");
+    }
+
+    private static String postAndGetHttpResponse(String url, String jsonData) throws Exception {
+        final URL u = new URL(url);
+        LOG.info("Accessing URL " + url + " as URL: " + u);
+
+        final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10L));
+
+        while (deadline.hasTimeLeft()) {
+            HttpURLConnection connection = (HttpURLConnection) u.openConnection();
+            connection.setConnectTimeout(100000);
+            connection.setRequestMethod(HttpMethod.POST.name());
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setDoOutput(true);
+
+            try (OutputStream os = connection.getOutputStream()) {
+                byte[] input = jsonData.getBytes(StandardCharsets.UTF_8);
+                os.write(input, 0, input.length);
+            }
 
             if (Objects.equals(
                     HttpResponseStatus.SERVICE_UNAVAILABLE,

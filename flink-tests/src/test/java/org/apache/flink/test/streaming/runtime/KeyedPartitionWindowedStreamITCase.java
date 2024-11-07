@@ -21,13 +21,16 @@ package org.apache.flink.test.streaming.runtime;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.KeyedPartitionWindowedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
 
@@ -95,6 +98,41 @@ class KeyedPartitionWindowedStreamITCase {
                 createExpectedString(1),
                 createExpectedString(2),
                 createExpectedString(3));
+    }
+
+    @Test
+    void testRichMapPartitionFunctionHasOpen() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<Tuple2<String, String>> source = env.fromData(createSource());
+        source.keyBy(
+                        new KeySelector<Tuple2<String, String>, String>() {
+                            @Override
+                            public String getKey(Tuple2<String, String> value) throws Exception {
+                                return value.f0;
+                            }
+                        })
+                .fullWindowPartition()
+                .mapPartition(
+                        new RichMapPartitionFunction<Tuple2<String, String>, String>() {
+
+                            private boolean isOpen = false;
+
+                            @Override
+                            public void open(OpenContext openContext) throws Exception {
+                                super.open(openContext);
+                                isOpen = true;
+                            }
+
+                            @Override
+                            public void mapPartition(
+                                    Iterable<Tuple2<String, String>> values, Collector<String> out)
+                                    throws Exception {
+                                assertThat(isOpen).isTrue();
+                            }
+                        })
+                .sinkTo(new DiscardingSink<>());
+
+        env.execute();
     }
 
     @Test

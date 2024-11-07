@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
@@ -26,12 +25,18 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.function.CheckedSupplier;
 
+import org.assertj.core.util.Lists;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -44,11 +49,19 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests how the {@link DeclarativeSlotPoolBridge} completes slot requests. */
+@ExtendWith(ParameterizedTestExtension.class)
 class DeclarativeSlotPoolBridgeRequestCompletionTest {
 
-    private static final Time TIMEOUT = SlotPoolUtils.TIMEOUT;
+    private static final Duration TIMEOUT = SlotPoolUtils.TIMEOUT;
 
     private TestingResourceManagerGateway resourceManagerGateway;
+
+    @Parameter private boolean slotBatchAllocatable;
+
+    @Parameters(name = "slotBatchAllocatable: {0}")
+    public static List<Boolean> getSlotBatchAllocatableParams() {
+        return Lists.newArrayList(false, true);
+    }
 
     @BeforeEach
     void setUp() {
@@ -56,17 +69,18 @@ class DeclarativeSlotPoolBridgeRequestCompletionTest {
     }
 
     /** Tests that the {@link DeclarativeSlotPoolBridge} completes slots in request order. */
-    @Test
+    @TestTemplate
     void testRequestsAreCompletedInRequestOrder() {
         runSlotRequestCompletionTest(
-                CheckedSupplier.unchecked(this::createAndSetUpSlotPool), slotPool -> {});
+                CheckedSupplier.unchecked(() -> createAndSetUpSlotPool(slotBatchAllocatable)),
+                slotPool -> {});
     }
 
     /**
      * Tests that the {@link DeclarativeSlotPoolBridge} completes stashed slot requests in request
      * order.
      */
-    @Test
+    @TestTemplate
     void testStashOrderMaintainsRequestOrder() {
         runSlotRequestCompletionTest(
                 CheckedSupplier.unchecked(this::createAndSetUpSlotPoolWithoutResourceManager),
@@ -112,17 +126,25 @@ class DeclarativeSlotPoolBridgeRequestCompletionTest {
             final FlinkException testingReleaseException =
                     new FlinkException("Testing release exception");
 
+            DeclarativeSlotPoolBridge slotPoolBridge = (DeclarativeSlotPoolBridge) slotPool;
+
             // check that the slot requests get completed in sequential order
             for (int i = 0; i < slotRequestIds.size(); i++) {
                 final CompletableFuture<PhysicalSlot> slotRequestFuture = slotRequests.get(i);
-                assertThat(slotRequestFuture.getNow(null)).isNotNull();
+                if (slotBatchAllocatable) {
+                    assertThat(slotRequestFuture.getNow(null)).isNull();
+                    assertThat(slotPoolBridge.getFreeSlotsInformation()).hasSize(1);
+                } else {
+                    assertThat(slotRequestFuture.getNow(null)).isNotNull();
+                }
                 slotPool.releaseSlot(slotRequestIds.get(i), testingReleaseException);
             }
         }
     }
 
-    private SlotPool createAndSetUpSlotPool() throws Exception {
+    private SlotPool createAndSetUpSlotPool(boolean slotBatchAllocatable) throws Exception {
         return new DeclarativeSlotPoolBridgeBuilder()
+                .setSlotBatchAllocatable(slotBatchAllocatable)
                 .setResourceManagerGateway(resourceManagerGateway)
                 .buildAndStart();
     }
@@ -133,6 +155,7 @@ class DeclarativeSlotPoolBridgeRequestCompletionTest {
 
     private SlotPool createAndSetUpSlotPoolWithoutResourceManager() throws Exception {
         return new DeclarativeSlotPoolBridgeBuilder()
+                .setSlotBatchAllocatable(slotBatchAllocatable)
                 .setResourceManagerGateway(null)
                 .buildAndStart();
     }

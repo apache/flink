@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -519,7 +518,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     @Override
     public void releaseIdleSlots(long currentTimeMillis) {
         final Collection<AllocatedSlotPool.FreeSlotInfo> freeSlotsInformation =
-                slotPool.getFreeSlotInfoTracker().getFreeSlotsWithIdleSinceInformation();
+                slotPool.getFreeSlotTracker().getFreeSlotsWithIdleSinceInformation();
 
         ResourceCounter excessResources =
                 fulfilledResourceRequirements.subtract(totalResourceRequirements);
@@ -579,10 +578,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
             final CompletableFuture<Acknowledge> freeSlotFuture =
                     slotToReturn
                             .getTaskManagerGateway()
-                            .freeSlot(
-                                    slotToReturn.getAllocationId(),
-                                    cause,
-                                    Time.fromDuration(rpcTimeout));
+                            .freeSlot(slotToReturn.getAllocationId(), cause, rpcTimeout);
 
             freeSlotFuture.whenComplete(
                     (Acknowledge ignored, Throwable throwable) -> {
@@ -599,8 +595,8 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     }
 
     @Override
-    public FreeSlotInfoTracker getFreeSlotInfoTracker() {
-        return slotPool.getFreeSlotInfoTracker();
+    public FreeSlotTracker getFreeSlotTracker() {
+        return slotPool.getFreeSlotTracker();
     }
 
     @Override

@@ -19,83 +19,53 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.internal.TableResultInternal;
-import org.apache.flink.table.functions.SqlLikeUtils;
+import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.operations.utils.ShowLikeOperator;
 
-import java.util.stream.Stream;
+import javax.annotation.Nullable;
 
-import static java.util.Objects.requireNonNull;
-import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
+import java.util.Collection;
 
-/** Operation to describe a SHOW DATABASES statement. */
+/**
+ * Operation to describe a SHOW DATABASES statement. The full syntax for SHOW DATABASES is as
+ * followings:
+ *
+ * <pre>{@code
+ * SHOW DATABASES [ ( FROM | IN ) catalog_name] [ [NOT] (LIKE | ILIKE) &lt;sql_like_pattern&gt; ]
+ * }</pre>
+ */
 @Internal
-public class ShowDatabasesOperation implements ShowOperation {
-
-    private final String catalogName;
-    private final LikeType likeType;
-    private final String likePattern;
-    private final boolean notLike;
-
-    public ShowDatabasesOperation() {
-        // "SHOW DATABASES" command with all options being default
-        this(null, null, null, false);
-    }
-
-    public ShowDatabasesOperation(String likeType, String likePattern, boolean notLike) {
-        this(null, likeType, likePattern, notLike);
-    }
+public class ShowDatabasesOperation extends AbstractShowOperation {
 
     public ShowDatabasesOperation(
-            String catalogName, String likeType, String likePattern, boolean notLike) {
-        this.catalogName = catalogName;
-        if (likeType != null) {
-            this.likeType = LikeType.of(likeType);
-            this.likePattern = requireNonNull(likePattern, "Like pattern must not be null");
-            this.notLike = notLike;
-        } else {
-            this.likeType = null;
-            this.likePattern = null;
-            this.notLike = false;
-        }
+            @Nullable String catalogName,
+            @Nullable String preposition,
+            @Nullable ShowLikeOperator likeOp) {
+        super(catalogName, preposition, likeOp);
+    }
+
+    public ShowDatabasesOperation(@Nullable String catalogName, @Nullable ShowLikeOperator likeOp) {
+        this(catalogName, null, likeOp);
+    }
+
+    public ShowDatabasesOperation(@Nullable String catalogName) {
+        this(catalogName, null, null);
     }
 
     @Override
-    public String asSummaryString() {
-        StringBuilder builder = new StringBuilder();
-        builder.append("SHOW DATABASES");
-        if (catalogName != null) {
-            builder.append(String.format(" FROM/IN %s", catalogName));
-        }
-        if (likeType != null) {
-            if (notLike) {
-                builder.append(String.format(" NOT %s '%s'", likeType.name(), likePattern));
-            } else {
-                builder.append(String.format(" %s '%s'", likeType.name(), likePattern));
-            }
-        }
-        return builder.toString();
+    protected Collection<String> retrieveDataForTableResult(Context ctx) {
+        final CatalogManager catalogManager = ctx.getCatalogManager();
+        final String qualifiedCatalogName = catalogManager.qualifyCatalog(catalogName);
+        return catalogManager.getCatalogOrThrowException(qualifiedCatalogName).listDatabases();
     }
 
     @Override
-    public TableResultInternal execute(Context ctx) {
-        String cName =
-                catalogName == null ? ctx.getCatalogManager().getCurrentCatalog() : catalogName;
-        Stream<String> databases =
-                ctx.getCatalogManager().getCatalogOrThrowException(cName).listDatabases().stream();
+    protected String getOperationName() {
+        return "SHOW DATABASES";
+    }
 
-        if (likeType != null) {
-            databases =
-                    databases.filter(
-                            row -> {
-                                if (likeType == LikeType.ILIKE) {
-                                    return notLike != SqlLikeUtils.ilike(row, likePattern, "\\");
-                                } else if (likeType == LikeType.LIKE) {
-                                    return notLike != SqlLikeUtils.like(row, likePattern, "\\");
-                                }
-                                return false;
-                            });
-        }
-
-        return buildStringArrayResult("database name", databases.sorted().toArray(String[]::new));
+    @Override
+    protected String getColumnName() {
+        return "database name";
     }
 }

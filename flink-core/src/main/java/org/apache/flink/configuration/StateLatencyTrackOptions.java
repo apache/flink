@@ -32,7 +32,7 @@ public class StateLatencyTrackOptions {
             ConfigOptions.key("state.latency-track.keyed-state-enabled")
                     .booleanType()
                     .defaultValue(false)
-                    .withDeprecatedKeys(StateBackendOptions.LATENCY_TRACK_ENABLED.key())
+                    .withDeprecatedKeys("state.backend.latency-track.keyed-state-enabled")
                     .withDescription(
                             "Whether to track latency of keyed state operations, e.g value state put/get/clear.");
 
@@ -41,7 +41,7 @@ public class StateLatencyTrackOptions {
             ConfigOptions.key("state.latency-track.sample-interval")
                     .intType()
                     .defaultValue(100)
-                    .withDeprecatedKeys(StateBackendOptions.LATENCY_TRACK_SAMPLE_INTERVAL.key())
+                    .withDeprecatedKeys("state.backend.latency-track.sample-interval")
                     .withDescription(
                             String.format(
                                     "The sample interval of latency track once '%s' is enabled. "
@@ -53,7 +53,7 @@ public class StateLatencyTrackOptions {
             ConfigOptions.key("state.latency-track.history-size")
                     .intType()
                     .defaultValue(128)
-                    .withDeprecatedKeys(StateBackendOptions.LATENCY_TRACK_HISTORY_SIZE.key())
+                    .withDeprecatedKeys("state.backend.latency-track.history-size")
                     .withDescription(
                             "Defines the number of measured latencies to maintain at each state access operation.");
 
@@ -62,8 +62,7 @@ public class StateLatencyTrackOptions {
             ConfigOptions.key("state.latency-track.state-name-as-variable")
                     .booleanType()
                     .defaultValue(true)
-                    .withDeprecatedKeys(
-                            StateBackendOptions.LATENCY_TRACK_STATE_NAME_AS_VARIABLE.key())
+                    .withDeprecatedKeys("state.backend.latency-track.state-name-as-variable")
                     .withDescription(
                             "Whether to expose state name as a variable if tracking latency.");
 }

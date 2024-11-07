@@ -85,7 +85,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import static org.apache.flink.client.cli.CliFrontendParser.DETACHED_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.YARN_DETACHED_OPTION;
 import static org.apache.flink.configuration.HighAvailabilityOptions.HA_CLUSTER_ID;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -275,7 +274,6 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
         allOptions.addOption(slots);
         allOptions.addOption(dynamicproperties);
         allOptions.addOption(DETACHED_OPTION);
-        allOptions.addOption(YARN_DETACHED_OPTION);
         allOptions.addOption(name);
         allOptions.addOption(applicationId);
         allOptions.addOption(applicationType);
@@ -479,9 +477,7 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
             configuration.set(YarnConfigOptions.APPLICATION_QUEUE, queueName);
         }
 
-        final boolean detached =
-                commandLine.hasOption(YARN_DETACHED_OPTION.getOpt())
-                        || commandLine.hasOption(DETACHED_OPTION.getOpt());
+        final boolean detached = commandLine.hasOption(DETACHED_OPTION.getOpt());
         configuration.set(DeploymentOptions.ATTACHED, !detached);
 
         if (commandLine.hasOption(name.getOpt())) {
@@ -531,8 +527,7 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
     }
 
     private boolean isDetachedOption(Option option) {
-        return option.getOpt().equals(YARN_DETACHED_OPTION.getOpt())
-                || option.getOpt().equals(DETACHED_OPTION.getOpt());
+        return option.getOpt().equals(DETACHED_OPTION.getOpt());
     }
 
     private Configuration applyYarnProperties(Configuration configuration) throws FlinkException {

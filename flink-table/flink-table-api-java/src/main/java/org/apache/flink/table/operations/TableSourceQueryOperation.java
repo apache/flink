@@ -19,9 +19,9 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.legacy.api.TableSchema;
+import org.apache.flink.table.legacy.sources.TableSource;
 
 import java.util.Collections;
 import java.util.HashMap;

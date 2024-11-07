@@ -40,9 +40,8 @@ public class RestOptions {
             key("rest.bind-address")
                     .stringType()
                     .noDefaultValue()
-                    .withFallbackKeys(WebOptions.ADDRESS.key())
-                    .withDeprecatedKeys(
-                            ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS.key())
+                    .withFallbackKeys("web.address")
+                    .withDeprecatedKeys("jobmanager.web.address")
                     .withDescription("The address that the server binds itself.");
 
     /** The port range that the server could bind itself to. */
@@ -52,8 +51,7 @@ public class RestOptions {
                     .stringType()
                     .defaultValue("8081")
                     .withFallbackKeys(REST_PORT_KEY)
-                    .withDeprecatedKeys(
-                            WebOptions.PORT.key(), ConfigConstants.JOB_MANAGER_WEB_PORT_KEY)
+                    .withDeprecatedKeys("web.port", "jobmanager.web.port")
                     .withDescription(
                             "The port that the server binds itself. Accepts a list of ports (“50100,50101”), ranges"
                                     + " (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid"
@@ -98,7 +96,7 @@ public class RestOptions {
             key(REST_PORT_KEY)
                     .intType()
                     .defaultValue(8081)
-                    .withDeprecatedKeys(WebOptions.PORT.key())
+                    .withDeprecatedKeys("web.port")
                     .withDescription(
                             Description.builder()
                                     .text(

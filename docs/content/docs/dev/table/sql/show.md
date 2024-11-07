@@ -548,10 +548,52 @@ Flink SQL> SHOW JARS;
 ## SHOW CATALOGS
 
 ```sql
-SHOW CATALOGS
+SHOW CATALOGS [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]
 ```
 
-Show all catalogs.
+Show all catalogs. Additionally, the output of this statement may be filtered by an optional matching pattern.
+
+**LIKE**
+Show all catalogs with a `LIKE` clause, whose name is similar to the `<sql_like_pattern>`.
+
+The syntax of the SQL pattern in the `LIKE` clause is the same as that of the `MySQL` dialect.
+* `%` matches any number of characters, even zero characters, and `\%` matches one `%` character.
+* `_` matches exactly one character, `\_` matches one `_` character.
+
+**ILIKE**
+The same behavior as `LIKE` but the SQL pattern is case-insensitive.
+
+### SHOW CATALOGS EXAMPLES
+
+Assumes that we have `catalog1` and `catalog2` in the session.
+
+- Show all catalogs.
+
+```sql
+show catalogs;
++-----------------+
+|    catalog name |
++-----------------+
+|        catalog1 |
+|        catalog2 |
+| default_catalog |
++-----------------+
+3 rows in set
+```
+
+- Show all catalogs, which are similar to the given SQL pattern.
+
+```sql
+show catalogs like '%log1';
+-- show catalogs ilike '%log1';
+-- show catalogs ilike '%LOG1';
++--------------+
+| catalog name |
++--------------+
+|     catalog1 |
++--------------+
+1 row in set
+```
 
 ## SHOW CURRENT CATALOG
 
@@ -923,10 +965,17 @@ The same behavior as `LIKE` but the SQL pattern is case-insensitive.
 ## SHOW VIEWS
 
 ```sql
-SHOW VIEWS
+SHOW VIEWS [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE <sql_like_pattern> ]
 ```
 
-Show all views in the current catalog and the current database.
+Show all views for an optionally specified database. If no database is specified then the views are returned from the current database. Additionally, the output of this statement may be filtered by an optional matching pattern.
+
+**LIKE**
+Show all views with given view name and optional `LIKE` clause, whose name is whether similar to the `<sql_like_pattern>`.
+
+The syntax of sql pattern in `LIKE` clause is the same as that of `MySQL` dialect.
+* `%` matches any number of characters, even zero characters, `\%` matches one `%` character.
+* `_` matches exactly one character, `\_` matches one `_` character.
 
 ## SHOW CREATE VIEW
 

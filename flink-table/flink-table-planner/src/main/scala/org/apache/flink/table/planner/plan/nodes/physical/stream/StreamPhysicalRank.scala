@@ -21,7 +21,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecRank
+import org.apache.flink.table.planner.plan.nodes.exec.stream.{StreamExecDeduplicate, StreamExecRank}
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.operators.rank._
@@ -46,8 +46,9 @@ class StreamPhysicalRank(
     rankRange: RankRange,
     rankNumberType: RelDataTypeField,
     outputRankNumber: Boolean,
-    val rankStrategy: RankProcessStrategy)
-  extends Rank(
+    val rankStrategy: RankProcessStrategy,
+    val sortOnRowTime: Boolean
+) extends Rank(
     cluster,
     traitSet,
     inputRel,
@@ -59,7 +60,7 @@ class StreamPhysicalRank(
     outputRankNumber)
   with StreamPhysicalRel {
 
-  override def requireWatermark: Boolean = false
+  override def requireWatermark: Boolean = sortOnRowTime
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new StreamPhysicalRank(
@@ -72,7 +73,9 @@ class StreamPhysicalRank(
       rankRange,
       rankNumberType,
       outputRankNumber,
-      rankStrategy)
+      rankStrategy,
+      sortOnRowTime
+    )
   }
 
   def copy(newStrategy: RankProcessStrategy): StreamPhysicalRank = {
@@ -86,7 +89,9 @@ class StreamPhysicalRank(
       rankRange,
       rankNumberType,
       outputRankNumber,
-      newStrategy)
+      newStrategy,
+      sortOnRowTime
+    )
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -96,24 +101,50 @@ class StreamPhysicalRank(
       .item("rankType", rankType)
       .item("rankRange", rankRange.toString(inputRowType.getFieldNames))
       .item("partitionBy", RelExplainUtil.fieldToString(partitionKey.toArray, inputRowType))
-      .item("orderBy", RelExplainUtil.collationToString(orderKey, inputRowType))
+      .item(
+        "orderBy",
+        (if (sortOnRowTime) {
+           "ROWTIME "
+         } else "") + RelExplainUtil.collationToString(orderKey, inputRowType))
       .item("select", getRowType.getFieldNames.mkString(", "))
+  }
+
+  private def getDeduplicateDescription(isRowtime: Boolean, isLastRow: Boolean): String = {
+    val fieldNames = getRowType.getFieldNames
+    val orderString = if (isRowtime) "ROWTIME" else "PROCTIME"
+    val keep = if (isLastRow) "LastRow" else "FirstRow"
+    s"Deduplicate(keep=[$keep], key=[${partitionKey.toArray.map(fieldNames.get).mkString(", ")}], order=[$orderString])"
   }
 
   override def translateToExecNode(): ExecNode[_] = {
     val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
-    val fieldCollations = orderKey.getFieldCollations
-    new StreamExecRank(
-      unwrapTableConfig(this),
-      rankType,
-      new PartitionSpec(partitionKey.toArray),
-      SortUtil.getSortSpec(fieldCollations),
-      rankRange,
-      rankStrategy,
-      outputRankNumber,
-      generateUpdateBefore,
-      InputProperty.DEFAULT,
-      FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription)
+
+    if (RankUtil.canConvertToDeduplicate(this)) {
+      val keepLastRow = RankUtil.keepLastDeduplicateRow(orderKey)
+
+      new StreamExecDeduplicate(
+        unwrapTableConfig(this),
+        partitionKey.toArray,
+        sortOnRowTime,
+        keepLastRow,
+        generateUpdateBefore,
+        InputProperty.DEFAULT,
+        FlinkTypeFactory.toLogicalRowType(getRowType),
+        getDeduplicateDescription(sortOnRowTime, keepLastRow))
+    } else {
+      new StreamExecRank(
+        unwrapTableConfig(this),
+        rankType,
+        new PartitionSpec(partitionKey.toArray),
+        SortUtil.getSortSpec(orderKey.getFieldCollations),
+        rankRange,
+        rankStrategy,
+        outputRankNumber,
+        generateUpdateBefore,
+        InputProperty.DEFAULT,
+        FlinkTypeFactory.toLogicalRowType(getRowType),
+        getRelDetailedDescription
+      )
+    }
   }
 }

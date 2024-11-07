@@ -21,10 +21,10 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.factories.TableFactoryUtil;
-import org.apache.flink.table.factories.TableSinkFactory;
-import org.apache.flink.table.factories.TableSourceFactory;
-import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.legacy.factories.TableSinkFactory;
+import org.apache.flink.table.legacy.factories.TableSourceFactory;
+import org.apache.flink.table.legacy.sinks.TableSink;
+import org.apache.flink.table.legacy.sources.TableSource;
 
 import java.util.List;
 import java.util.Map;

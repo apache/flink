@@ -243,9 +243,6 @@ Classes to define formats used together with source & sink:
 
 Other important classes:
 
-    - :class:`TimeCharacteristic`:
-      Defines how the system determines time for time-dependent order and operations that depend
-      on time (such as time windows).
     - :class:`TimeDomain`:
       Specifies whether a firing timer is based on event time or processing time.
     - :class:`KeySelector`:
@@ -259,7 +256,7 @@ Other important classes:
     - :class:`OutputTag`:
       Tag with a name and type for identifying side output of an operator
 """
-from pyflink.datastream.checkpoint_config import CheckpointConfig, ExternalizedCheckpointCleanup
+from pyflink.datastream.checkpoint_config import CheckpointConfig
 from pyflink.datastream.externalized_checkpoint_retention import ExternalizedCheckpointRetention
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.datastream.data_stream import DataStream, KeyedStream, WindowedStream, \
@@ -273,15 +270,13 @@ from pyflink.datastream.functions import (MapFunction, CoMapFunction, FlatMapFun
                                           ProcessWindowFunction, BroadcastProcessFunction,
                                           KeyedBroadcastProcessFunction)
 from pyflink.datastream.slot_sharing_group import SlotSharingGroup, MemorySize
-from pyflink.datastream.state_backend import (StateBackend, MemoryStateBackend, FsStateBackend,
-                                              RocksDBStateBackend, CustomStateBackend,
+from pyflink.datastream.state_backend import (StateBackend, CustomStateBackend,
                                               PredefinedOptions, HashMapStateBackend,
                                               EmbeddedRocksDBStateBackend)
 from pyflink.datastream.checkpoint_storage import (CheckpointStorage, JobManagerCheckpointStorage,
                                                    FileSystemCheckpointStorage,
                                                    CustomCheckpointStorage)
 from pyflink.datastream.stream_execution_environment import StreamExecutionEnvironment
-from pyflink.datastream.time_characteristic import TimeCharacteristic
 from pyflink.datastream.time_domain import TimeDomain
 from pyflink.datastream.functions import ProcessFunction
 from pyflink.datastream.timerservice import TimerService
@@ -317,15 +312,11 @@ __all__ = [
     'TimerService',
     'CheckpointingMode',
     'CheckpointConfig',
-    'ExternalizedCheckpointCleanup',
     'ExternalizedCheckpointRetention',
     'StateBackend',
     'HashMapStateBackend',
     'EmbeddedRocksDBStateBackend',
     'CustomStateBackend',
-    'MemoryStateBackend',
-    'RocksDBStateBackend',
-    'FsStateBackend',
     'PredefinedOptions',
     'CheckpointStorage',
     'JobManagerCheckpointStorage',
@@ -340,7 +331,6 @@ __all__ = [
     'MergingWindowAssigner',
     'TriggerResult',
     'Trigger',
-    'TimeCharacteristic',
     'TimeDomain',
     'KeySelector',
     'Partitioner',

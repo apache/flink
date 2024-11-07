@@ -49,7 +49,7 @@ public class SignalHandler {
          */
         @Override
         public void handle(Signal signal) {
-            LOG.info(
+            LOG.warn(
                     "RECEIVED SIGNAL {}: SIG{}. Shutting down as requested.",
                     signal.getNumber(),
                     signal.getName());

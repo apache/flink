@@ -21,13 +21,13 @@ package org.apache.flink.test.example.failing;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
+import org.apache.flink.util.CollectionUtil;
 
-import org.junit.Assert;
-
+import java.time.Duration;
 import java.util.List;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultAsText;
@@ -48,16 +48,7 @@ public class TaskFailureITCase extends JavaProgramTestBaseJUnit4 {
         // test failing version
         try {
             executeTask(new FailingTestMapper(), 1);
-        } catch (RuntimeException e) { // expected for collection execution
-            if (!isCollectionExecution()) {
-                Assert.fail();
-            }
-            // for collection execution, no restarts. So, exception should be appended with 0.
-            assertTrue(findThrowableWithMessage(e, EXCEPTION_STRING + ":0").isPresent());
-        } catch (JobExecutionException e) { // expected for cluster execution
-            if (isCollectionExecution()) {
-                Assert.fail();
-            }
+        } catch (RuntimeException e) { // expected for cluster execution
             // for cluster execution, one restart. So, exception should be appended with 1.
             assertTrue(findThrowableWithMessage(e, EXCEPTION_STRING + ":1").isPresent());
         }
@@ -66,10 +57,17 @@ public class TaskFailureITCase extends JavaProgramTestBaseJUnit4 {
     }
 
     private void executeTask(MapFunction<Long, Long> mapper, int retries) throws Exception {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, retries);
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(0));
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.setParallelism(1);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(retries, 0));
-        List<Long> result = env.generateSequence(1, 9).map(mapper).collect();
+        List<Long> result =
+                CollectionUtil.iteratorToList(
+                        env.fromSequence(1, 9).map(mapper).executeAndCollect());
         compareResultAsText(result, "1\n2\n3\n4\n5\n6\n7\n8\n9");
     }
 

@@ -79,7 +79,7 @@ public class IndexLookupGeneratorFunction<OUT> implements GeneratorFunction<Long
             TypeInformation<OUT> typeInfo, ExecutionConfig config, Iterable<OUT> elements) {
         // must not have null elements and mixed elements
         checkIterable(elements, typeInfo.getTypeClass());
-        this.serializer = typeInfo.createSerializer(config);
+        this.serializer = typeInfo.createSerializer(config.getSerializerConfig());
         trySerialize(elements);
     }
 

@@ -21,7 +21,6 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.runtime.JobException;
@@ -39,6 +38,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -74,7 +74,7 @@ public class ExecutionVertex
 
     final ExecutionHistory executionHistory;
 
-    private final Time timeout;
+    private final Duration timeout;
 
     /** The name in the format "myTask (2/7)", cached to avoid frequent string concatenations. */
     private final String taskNameWithSubtask;
@@ -110,7 +110,7 @@ public class ExecutionVertex
             ExecutionJobVertex jobVertex,
             int subTaskIndex,
             IntermediateResult[] producedDataSets,
-            Time timeout,
+            Duration timeout,
             long createTimestamp,
             int executionHistorySizeLimit,
             int initialAttemptCount) {

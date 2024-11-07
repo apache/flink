@@ -33,9 +33,8 @@ import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.sql.Date;
 import java.sql.Time;
@@ -49,11 +48,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link DataTypePrecisionFixer}. */
-@RunWith(Parameterized.class)
-public class DataTypePrecisionFixerTest {
+class DataTypePrecisionFixerTest {
 
-    @Parameterized.Parameters(name = "{index}: [From: {0}, To: {1}]")
-    public static List<TestSpec> testData() {
+    private static List<TestSpec> testData() {
         return Arrays.asList(
                 TestSpecs.fix(Types.BIG_DEC)
                         .logicalType(new DecimalType(10, 5))
@@ -114,10 +111,9 @@ public class DataTypePrecisionFixerTest {
                                                                 .bridgedTo(Time.class))))));
     }
 
-    @Parameterized.Parameter public TestSpec testSpec;
-
-    @Test
-    public void testPrecisionFixing() {
+    @ParameterizedTest(name = "{index}: [From: {0}, To: {1}]")
+    @MethodSource("testData")
+    void testPrecisionFixing(final TestSpec testSpec) {
         DataType dataType = fromLegacyInfoToDataType(testSpec.typeInfo);
         DataType newDataType = dataType.accept(new DataTypePrecisionFixer(testSpec.logicalType));
         assertThat(newDataType).isEqualTo(testSpec.expectedType);

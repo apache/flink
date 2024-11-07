@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
@@ -440,5 +439,32 @@ class OverAggregateTest extends TableTestBase {
       "FROM MyTable"
 
     util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testNestedOverAgg(): Unit = {
+    util.addTable(s"""
+                     |CREATE TEMPORARY TABLE src (
+                     |  a STRING,
+                     |  b STRING,
+                     |  ts TIMESTAMP_LTZ(3),
+                     |  watermark FOR ts as ts
+                     |) WITH (
+                     |  'connector' = 'values'
+                     |)
+                     |""".stripMargin)
+
+    util.verifyExecPlan(s"""
+                           |SELECT *
+                           |FROM (
+                           | SELECT
+                           |    *, count(*) OVER (PARTITION BY a ORDER BY ts) AS c2
+                           |  FROM (
+                           |    SELECT
+                           |      *, count(*) OVER (PARTITION BY a,b ORDER BY ts) AS c1
+                           |    FROM src
+                           |  )
+                           |)
+                           |""".stripMargin)
   }
 }

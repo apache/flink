@@ -102,7 +102,7 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.ttl.mock.MockStateBackend;
 import org.apache.flink.runtime.taskmanager.AsynchronousException;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
@@ -114,10 +114,9 @@ import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
 import org.apache.flink.runtime.testutils.ExceptionallyDoneFuture;
 import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
@@ -478,7 +477,6 @@ public class StreamTaskTest {
         final StreamConfig cfg = new StreamConfig(new Configuration());
         cfg.setOperatorID(new OperatorID(4711L, 42L));
         cfg.setStreamOperator(new SlowlyDeserializingOperator());
-        cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
         cfg.serializeAllConfigs();
 
         final TaskManagerActions taskManagerActions = spy(new NoOpTaskManagerActions());
@@ -520,7 +518,6 @@ public class StreamTaskTest {
         TestStreamSource<Long, MockSourceFunction> streamSource =
                 new TestStreamSource<>(new MockSourceFunction());
         cfg.setStreamOperator(streamSource);
-        cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         try (ShuffleEnvironment shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build()) {
             Task task =
@@ -561,7 +558,6 @@ public class StreamTaskTest {
         TestStreamSource<Long, MockSourceFunction> streamSource =
                 new TestStreamSource<>(new MockSourceFunction());
         cfg.setStreamOperator(streamSource);
-        cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         try (NettyShuffleEnvironment shuffleEnvironment =
                 new NettyShuffleEnvironmentBuilder().build()) {
@@ -1532,7 +1528,6 @@ public class StreamTaskTest {
 
         FailedSource failedSource = new FailedSource();
         cfg.setStreamOperator(new TestStreamSource<String, FailedSource>(failedSource));
-        cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         try (NettyShuffleEnvironment shuffleEnvironment =
                 new NettyShuffleEnvironmentBuilder().build()) {
@@ -2189,8 +2184,8 @@ public class StreamTaskTest {
             return new TestSpyWrapperStateBackend(createInnerBackend(config));
         }
 
-        protected MemoryStateBackend createInnerBackend(ReadableConfig config) {
-            return new MemoryStateBackend();
+        protected HashMapStateBackend createInnerBackend(ReadableConfig config) {
+            return new HashMapStateBackend();
         }
     }
 
@@ -2320,7 +2315,8 @@ public class StreamTaskTest {
                     closeableRegistry,
                     metricGroup,
                     fraction,
-                    isUsingCustomRawKeyedState) -> {
+                    isUsingCustomRawKeyedState,
+                    isAsyncState) -> {
                 final StreamOperatorStateContext controller =
                         streamTaskStateManager.streamOperatorStateContext(
                                 operatorID,
@@ -2331,7 +2327,8 @@ public class StreamTaskTest {
                                 closeableRegistry,
                                 metricGroup,
                                 fraction,
-                                isUsingCustomRawKeyedState);
+                                isUsingCustomRawKeyedState,
+                                isAsyncState);
 
                 return new StreamOperatorStateContext() {
                     @Override
@@ -2350,17 +2347,29 @@ public class StreamTaskTest {
                     }
 
                     @Override
+                    public TypeSerializer<?> keySerializer() {
+                        return controller.keySerializer();
+                    }
+
+                    @Override
                     public CheckpointableKeyedStateBackend<?> keyedStateBackend() {
                         return controller.keyedStateBackend();
                     }
 
                     @Override
-                    public AsyncKeyedStateBackend asyncKeyedStateBackend() {
+                    public AsyncKeyedStateBackend<?> asyncKeyedStateBackend() {
                         return controller.asyncKeyedStateBackend();
                     }
 
                     @Override
                     public InternalTimeServiceManager<?> internalTimerServiceManager() {
+                        InternalTimeServiceManager<?> timeServiceManager =
+                                controller.internalTimerServiceManager();
+                        return timeServiceManager != null ? spy(timeServiceManager) : null;
+                    }
+
+                    @Override
+                    public InternalTimeServiceManager<?> asyncInternalTimerServiceManager() {
                         InternalTimeServiceManager<?> timeServiceManager =
                                 controller.internalTimerServiceManager();
                         return timeServiceManager != null ? spy(timeServiceManager) : null;

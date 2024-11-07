@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
 
 import java.util.Arrays;
 import java.util.List;
@@ -102,6 +104,31 @@ public class LookupJoinTestPrograms {
                             Row.of(7, 6, 17.58, "2020-10-10 00:00:07"), // new customer
                             Row.of(9, 1, 143.21, "2020-10-10 00:00:08") // updated zip code
                             )
+                    .build();
+
+    static final SourceTestStep ORDERS_CDC =
+            SourceTestStep.newBuilder("orders_cdc_t")
+                    .addOption("filterable-fields", "customer_id")
+                    .addOption("changelog-mode", "I,UA,UB,D")
+                    .addSchema(
+                            "order_id INT",
+                            "customer_id INT",
+                            "total DOUBLE",
+                            "order_time STRING",
+                            "proc_time AS PROCTIME()")
+                    .addSchema("PRIMARY KEY (order_id) NOT ENFORCED")
+                    .producedBeforeRestore(
+                            Row.of(1, 3, 44.44, "2020-10-10 00:00:01"),
+                            Row.of(2, 5, 100.02, "2020-10-10 00:00:02"),
+                            Row.of(4, 2, 92.61, "2020-10-10 00:00:04"),
+                            Row.of(3, 1, 23.89, "2020-10-10 00:00:03"),
+                            Row.of(6, 4, 7.65, "2020-10-10 00:00:06"),
+                            Row.of(5, 2, 12.78, "2020-10-10 00:00:05"))
+                    .producedAfterRestore(
+                            Row.ofKind(RowKind.DELETE, 3, 1, 23.89, "2020-10-10 00:00:03"),
+                            Row.ofKind(RowKind.INSERT, 3, 1, 33.01, "2020-10-10 01:01:06"),
+                            Row.ofKind(RowKind.DELETE, 4, 2, 92.61, "2020-10-10 02:00:04"),
+                            Row.ofKind(RowKind.INSERT, 7, 6, 17.58, "2020-10-10 03:20:07"))
                     .build();
 
     static final List<String> SINK_SCHEMA =
@@ -382,6 +409,50 @@ public class LookupJoinTestPrograms {
                                     + "C.state, "
                                     + "C.zipcode "
                                     + "FROM orders_t as O "
+                                    + "JOIN customers_t FOR SYSTEM_TIME AS OF O.proc_time AS C "
+                                    + "ON O.customer_id = C.id")
+                    .build();
+
+    static final TableTestProgram LOOKUP_JOIN_WITH_TRY_RESOLVE =
+            TableTestProgram.of(
+                            "lookup-join-with-try-resolve",
+                            "validates lookup join with NUD try resolve strategy enabled")
+                    .setupConfig(
+                            OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                            OptimizerConfigOptions.NonDeterministicUpdateStrategy.TRY_RESOLVE)
+                    .setupTableSource(CUSTOMERS)
+                    .setupTableSource(ORDERS_CDC)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            SINK_SCHEMA.stream()
+                                                    .filter(field -> !field.equals("age INT"))
+                                                    .collect(Collectors.toList()))
+                                    // sink's new pk requires determinism on column city
+                                    .addSchema("PRIMARY KEY (order_id, city) NOT ENFORCED")
+                                    .consumedBeforeRestore(
+                                            "+I[1, 44.44, 3, Claire, Austin, Texas, 73301]",
+                                            "+I[2, 100.02, 5, Jake, New York City, New York, 10001]",
+                                            "+I[4, 92.61, 2, Alice, San Francisco, California, 95016]",
+                                            "+I[3, 23.89, 1, Bob, Mountain View, California, 94043]",
+                                            "+I[6, 7.65, 4, Shannon, Boise, Idaho, 83701]",
+                                            "+I[5, 12.78, 2, Alice, San Francisco, California, 95016]")
+                                    .consumedAfterRestore(
+                                            "-D[3, 23.89, 1, Bob, Mountain View, California, 94043]",
+                                            "+I[3, 33.01, 1, Bob, San Jose, California, 94089]",
+                                            "-D[4, 92.61, 2, Alice, San Francisco, California, 95016]",
+                                            "+I[7, 17.58, 6, Joana, Atlanta, Georgia, 30033]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT "
+                                    + "O.order_id, "
+                                    + "O.total, "
+                                    + "C.id, "
+                                    + "C.name, "
+                                    + "C.city, "
+                                    + "C.state, "
+                                    + "C.zipcode "
+                                    + "FROM orders_cdc_t as O "
                                     + "JOIN customers_t FOR SYSTEM_TIME AS OF O.proc_time AS C "
                                     + "ON O.customer_id = C.id")
                     .build();

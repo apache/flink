@@ -17,7 +17,6 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.deployment.application.DetachedApplicationRunner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -30,6 +29,7 @@ import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -50,7 +50,7 @@ public class JarHandlers {
             final Executor executor) {
         final GatewayRetriever<TestingDispatcherGateway> gatewayRetriever =
                 () -> CompletableFuture.completedFuture(restfulGateway);
-        final Time timeout = Time.seconds(10);
+        final Duration timeout = Duration.ofSeconds(10);
         final Map<String, String> responseHeaders = Collections.emptyMap();
 
         uploadHandler =

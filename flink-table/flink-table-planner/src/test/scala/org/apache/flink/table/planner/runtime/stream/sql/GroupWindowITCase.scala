@@ -17,12 +17,11 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.{changelogRow, registerData}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{ConcatDistinctAggFunction, WeightedAvg}
@@ -40,8 +39,8 @@ import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Long => JLong}
 import java.time.{Duration, LocalDateTime, ZoneId, ZoneOffset}
+import java.time.Duration
 import java.util
-import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConversions._
 
@@ -327,7 +326,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
     // wait 10 millisecond for late elements
     tEnv.getConfig.set(TABLE_EXEC_EMIT_ALLOW_LATENESS, Duration.ofMillis(10))
     // emit result without delay after watermark
-    withLateFireDelay(tEnv.getConfig, Time.of(0, TimeUnit.NANOSECONDS))
+    withLateFireDelay(tEnv.getConfig, Duration.ofMillis(0))
     val data = List(
       (1L, 1, "Hi"),
       (2L, 2, "Hello"),
@@ -437,7 +436,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
     // wait 15 second for late elements
     tEnv.getConfig.set(TABLE_EXEC_EMIT_ALLOW_LATENESS, Duration.ofSeconds(15))
     // emit result without delay after watermark
-    withLateFireDelay(tEnv.getConfig, Time.of(0, TimeUnit.NANOSECONDS))
+    withLateFireDelay(tEnv.getConfig, Duration.ofMillis(0))
     val upsertSourceDataId = registerData(upsertSourceCurrencyData)
     tEnv.executeSql(s"""
                        |CREATE TABLE upsert_currency (
@@ -591,8 +590,8 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  private def withLateFireDelay(tableConfig: TableConfig, interval: Time): Unit = {
-    val intervalInMillis = interval.toMilliseconds
+  private def withLateFireDelay(tableConfig: TableConfig, interval: Duration): Unit = {
+    val intervalInMillis = interval.toMillis
     val lateFireDelay: Duration =
       tableConfig.getOptional(TABLE_EXEC_EMIT_LATE_FIRE_DELAY).orElse(null)
     if (lateFireDelay != null && (lateFireDelay.toMillis != intervalInMillis)) {

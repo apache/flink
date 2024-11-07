@@ -20,7 +20,6 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
@@ -60,6 +59,7 @@ import org.junit.rules.TemporaryFolder;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -73,7 +73,7 @@ import static org.junit.Assert.assertThat;
 /** Tests for the {@link MiniDispatcher}. */
 public class MiniDispatcherTest extends TestLogger {
 
-    private static final Time timeout = Time.seconds(10L);
+    private static final Duration timeout = Duration.ofSeconds(10L);
 
     @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -309,7 +309,7 @@ public class MiniDispatcherTest extends TestLogger {
             final DispatcherGateway dispatcherGateway =
                     miniDispatcher.getSelfGateway(DispatcherGateway.class);
 
-            dispatcherGateway.cancelJob(jobGraph.getJobID(), Time.seconds(10L));
+            dispatcherGateway.cancelJob(jobGraph.getJobID(), Duration.ofSeconds(10L));
             testingJobManagerRunner.completeResultFuture(
                     new ExecutionGraphInfo(
                             new ArchivedExecutionGraphBuilder()
@@ -355,7 +355,7 @@ public class MiniDispatcherTest extends TestLogger {
                         null,
                         new DispatcherOperationCaches(),
                         UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
-                        highAvailabilityServices.getJobGraphStore(),
+                        highAvailabilityServices.getExecutionPlanStore(),
                         highAvailabilityServices.getJobResultStore(),
                         testingJobManagerRunnerFactory,
                         testingCleanupRunnerFactory,

@@ -23,7 +23,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
@@ -31,12 +31,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link TumblingWindowAssigner}. */
-public class TumblingWindowAssignerTest {
+class TumblingWindowAssignerTest {
 
     private static final RowData ELEMENT = GenericRowData.of("String");
 
     @Test
-    public void testWindowAssignment() {
+    void testWindowAssignment() {
         TumblingWindowAssigner assigner = TumblingWindowAssigner.of(Duration.ofMillis(5000));
 
         assertThat(assigner.assignWindows(ELEMENT, 0L)).contains(new TimeWindow(0, 5000));
@@ -45,7 +45,7 @@ public class TumblingWindowAssignerTest {
     }
 
     @Test
-    public void testWindowAssignmentWithOffset() {
+    void testWindowAssignmentWithOffset() {
         TumblingWindowAssigner assigner =
                 TumblingWindowAssigner.of(Duration.ofMillis(5000))
                         .withOffset(Duration.ofMillis(100));
@@ -56,7 +56,7 @@ public class TumblingWindowAssignerTest {
     }
 
     @Test
-    public void testInvalidParameters() {
+    void testInvalidParameters() {
         assertThatThrownBy(() -> TumblingWindowAssigner.of(Duration.ofSeconds(-1)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("TumblingWindowAssigner parameters must satisfy size > 0");
@@ -66,7 +66,7 @@ public class TumblingWindowAssignerTest {
     }
 
     @Test
-    public void testProperties() {
+    void testProperties() {
         TumblingWindowAssigner assigner = TumblingWindowAssigner.of(Duration.ofMillis(5000));
 
         assertThat(assigner.isEventTime()).isTrue();

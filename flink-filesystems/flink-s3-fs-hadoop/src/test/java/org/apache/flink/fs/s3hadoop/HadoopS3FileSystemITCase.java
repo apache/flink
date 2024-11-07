@@ -24,12 +24,12 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.fs.hdfs.AbstractHadoopFileSystemITTest;
 import org.apache.flink.testutils.s3.S3TestCredentials;
 
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.BeforeAll;
 
 import java.io.IOException;
 import java.util.UUID;
 
-import static org.junit.Assert.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit tests for the S3 file system support via Hadoop's {@link
@@ -39,10 +39,10 @@ import static org.junit.Assert.assertFalse;
  * href="https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html#ConsistencyModel">consistency
  * guarantees</a> and what the {@link org.apache.hadoop.fs.s3a.S3AFileSystem} offers.
  */
-public class HadoopS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
+class HadoopS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
 
-    @BeforeClass
-    public static void setup() throws IOException {
+    @BeforeAll
+    static void setup() throws IOException {
         // check whether credentials exist
         S3TestCredentials.assumeCredentialsAvailable();
 
@@ -58,6 +58,6 @@ public class HadoopS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
 
         // check for uniqueness of the test directory
         // directory must not yet exist
-        assertFalse(fs.exists(basePath));
+        assertThat(fs.exists(basePath)).isFalse();
     }
 }

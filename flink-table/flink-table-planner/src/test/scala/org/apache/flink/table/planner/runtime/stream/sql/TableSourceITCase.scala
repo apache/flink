@@ -17,10 +17,9 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
-import org.apache.flink.core.testutils.{EachCallbackWrapper, FlinkAssertions}
-import org.apache.flink.core.testutils.FlinkAssertions.{anyCauseMatches, assertThatChainOfCauses}
-import org.apache.flink.table.api.{DataTypes, TableException}
+import org.apache.flink.core.testutils.EachCallbackWrapper
+import org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches
+import org.apache.flink.table.api.{createTypeInformation, TableException}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestingAppendSink, TestingRetractSink}
@@ -129,7 +128,7 @@ class TableSourceITCase extends StreamingTestBase {
   def testProjectWithoutInputRef(): Unit = {
     val result = tEnv.sqlQuery("SELECT COUNT(*) FROM MyTable").toRetractStream[Row]
     val sink = new TestingRetractSink()
-    result.addSink(sink).setParallelism(result.parallelism)
+    result.addSink(sink).setParallelism(result.getParallelism)
     env.execute()
 
     assertThat(sink.getRetractResults.sorted).isEqualTo(Seq("3"))

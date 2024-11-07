@@ -41,4 +41,4 @@ import org.apache.flink.annotation.Experimental;
  * @param <OUT> Type of the value extracted from the state.
  */
 @Experimental
-public interface AggregatingState<IN, OUT> extends MergingState<IN, OUT> {}
+public interface AggregatingState<IN, OUT> extends MergingState<IN, OUT, OUT> {}

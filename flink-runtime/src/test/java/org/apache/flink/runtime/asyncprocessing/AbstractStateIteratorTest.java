@@ -46,7 +46,14 @@ public class AbstractStateIteratorTest {
         TestIteratorStateExecutor stateExecutor = new TestIteratorStateExecutor(100, 3);
         AsyncExecutionController aec =
                 new AsyncExecutionController(
-                        new SyncMailboxExecutor(), (a, b) -> {}, stateExecutor, 1, 100, 1000, 1);
+                        new SyncMailboxExecutor(),
+                        (a, b) -> {},
+                        stateExecutor,
+                        1,
+                        100,
+                        1000,
+                        1,
+                        null);
         stateExecutor.bindAec(aec);
         RecordContext<String> recordContext = aec.buildContext("1", "key1");
         aec.setCurrentContext(recordContext);
@@ -77,7 +84,14 @@ public class AbstractStateIteratorTest {
         TestIteratorStateExecutor stateExecutor = new TestIteratorStateExecutor(100, 3);
         AsyncExecutionController aec =
                 new AsyncExecutionController(
-                        new SyncMailboxExecutor(), (a, b) -> {}, stateExecutor, 1, 100, 1000, 1);
+                        new SyncMailboxExecutor(),
+                        (a, b) -> {},
+                        stateExecutor,
+                        1,
+                        100,
+                        1000,
+                        1,
+                        null);
         stateExecutor.bindAec(aec);
         RecordContext<String> recordContext = aec.buildContext("1", "key1");
         aec.setCurrentContext(recordContext);
@@ -185,6 +199,11 @@ public class AbstractStateIteratorTest {
         @Override
         public StateRequestContainer createStateRequestContainer() {
             return new MockStateRequestContainer();
+        }
+
+        @Override
+        public boolean fullyLoaded() {
+            return false;
         }
 
         @Override

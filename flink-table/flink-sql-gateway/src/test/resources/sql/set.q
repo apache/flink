@@ -36,11 +36,9 @@ set;
 | execution.state-recovery.ignore-unclaimed-state |     false |
 |                                execution.target |    remote |
 |                          jobmanager.rpc.address | localhost |
-|                             pipeline.classpaths |        [] |
-|                                   pipeline.jars |        [] |
 |                                       rest.port |     $VAR_REST_PORT |
 +-------------------------------------------------+-----------+
-9 rows in set
+7 rows in set
 !ok
 
 # set illegal value
@@ -60,9 +58,7 @@ set;
 | execution.state-recovery.ignore-unclaimed-state |     false |
 |                                execution.target |    remote |
 |                          jobmanager.rpc.address | localhost |
-|                             pipeline.classpaths |        [] |
-|                                   pipeline.jars |        [] |
 |                                       rest.port |     $VAR_REST_PORT |
 +-------------------------------------------------+-----------+
-9 rows in set
+7 rows in set
 !ok

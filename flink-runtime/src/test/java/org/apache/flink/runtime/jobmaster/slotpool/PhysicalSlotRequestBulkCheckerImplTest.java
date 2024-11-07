@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -32,6 +31,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -51,7 +51,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Tests for {@link PhysicalSlotRequestBulkCheckerImpl}. */
 class PhysicalSlotRequestBulkCheckerImplTest {
 
-    private static final Time TIMEOUT = Time.milliseconds(50L);
+    private static final Duration TIMEOUT = Duration.ofMillis(50L);
 
     private static ScheduledExecutorService singleThreadScheduledExecutorService;
 
@@ -95,7 +95,7 @@ class PhysicalSlotRequestBulkCheckerImplTest {
                 createPhysicalSlotRequestBulkWithCancellationFuture(
                         cancellationFuture, new SlotRequestId());
         bulkChecker.schedulePendingRequestBulkTimeoutCheck(bulk, TIMEOUT);
-        checkNotCancelledAfter(cancellationFuture, 2 * TIMEOUT.toMilliseconds());
+        checkNotCancelledAfter(cancellationFuture, 2 * TIMEOUT.toMillis());
     }
 
     @Test
@@ -105,7 +105,7 @@ class PhysicalSlotRequestBulkCheckerImplTest {
                 createPhysicalSlotRequestBulkWithCancellationFuture(
                         cancellationFuture, new SlotRequestId());
         bulkChecker.schedulePendingRequestBulkTimeoutCheck(bulk, TIMEOUT);
-        checkNotCancelledAfter(cancellationFuture, 2 * TIMEOUT.toMilliseconds());
+        checkNotCancelledAfter(cancellationFuture, 2 * TIMEOUT.toMillis());
     }
 
     private static void checkNotCancelledAfter(CompletableFuture<?> cancellationFuture, long milli)
@@ -129,7 +129,7 @@ class PhysicalSlotRequestBulkCheckerImplTest {
                 createPhysicalSlotRequestBulkWithCancellationFuture(
                         cancellationFuture, slotRequestId);
         bulkChecker.schedulePendingRequestBulkTimeoutCheck(bulk, TIMEOUT);
-        clock.advanceTime(TIMEOUT.toMilliseconds() + 1L, TimeUnit.MILLISECONDS);
+        clock.advanceTime(TIMEOUT.toMillis() + 1L, TimeUnit.MILLISECONDS);
         assertThat(cancellationFuture.join()).isEqualTo(slotRequestId);
     }
 
@@ -151,7 +151,7 @@ class PhysicalSlotRequestBulkCheckerImplTest {
         final PhysicalSlotRequestBulkWithTimestamp bulk =
                 createPhysicalSlotRequestBulkWithTimestamp(new SlotRequestId());
 
-        clock.advanceTime(TIMEOUT.toMilliseconds() + 1L, TimeUnit.MILLISECONDS);
+        clock.advanceTime(TIMEOUT.toMillis() + 1L, TimeUnit.MILLISECONDS);
         assertThat(checkBulkTimeout(bulk))
                 .isEqualTo(PhysicalSlotRequestBulkCheckerImpl.TimeoutCheckResult.TIMEOUT);
     }

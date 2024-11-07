@@ -121,7 +121,7 @@ public class MiniClusterResource extends ExternalResource {
                         .get(HeartbeatManagerOptions.HEARTBEAT_INTERVAL)
                         .toMillis();
         final long shutdownTimeout =
-                miniClusterResourceConfiguration.getShutdownTimeout().toMilliseconds();
+                miniClusterResourceConfiguration.getShutdownTimeout().toMillis();
         Preconditions.checkState(
                 heartbeatTimeout < shutdownTimeout,
                 "Heartbeat timeout (%d) needs to be lower than the shutdown timeout (%d) in order to ensure reliable job cancellation and resource cleanup.",
@@ -182,7 +182,7 @@ public class MiniClusterResource extends ExternalResource {
 
             try {
                 terminationFuture.get(
-                        miniClusterResourceConfiguration.getShutdownTimeout().toMilliseconds(),
+                        miniClusterResourceConfiguration.getShutdownTimeout().toMillis(),
                         TimeUnit.MILLISECONDS);
             } catch (Exception e) {
                 exception = ExceptionUtils.firstOrSuppressed(e, exception);

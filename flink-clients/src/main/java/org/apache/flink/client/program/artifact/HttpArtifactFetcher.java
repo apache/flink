@@ -39,6 +39,8 @@ class HttpArtifactFetcher extends ArtifactFetcher {
 
     @Override
     File fetch(String uri, Configuration flinkConf, File targetDir) throws IOException {
+        ArtifactUtils.createMissingParents(targetDir);
+
         long start = System.currentTimeMillis();
         URL url = new URL(uri);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();

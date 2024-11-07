@@ -127,14 +127,16 @@ public class HighAvailabilityOptions {
                     .withDescription(
                             "The root path under which Flink stores its entries in ZooKeeper.");
 
-    /** ZooKeeper root path (ZNode) for job graphs. */
+    /** ZooKeeper root path (ZNode) for execution plans. */
     @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
-    public static final ConfigOption<String> HA_ZOOKEEPER_JOBGRAPHS_PATH =
-            key("high-availability.zookeeper.path.jobgraphs")
+    public static final ConfigOption<String> HA_ZOOKEEPER_EXECUTION_PLANS_PATH =
+            key("high-availability.zookeeper.path.execution-plans")
                     .stringType()
-                    .defaultValue("/jobgraphs")
-                    .withDeprecatedKeys("recovery.zookeeper.path.jobgraphs")
-                    .withDescription("ZooKeeper root path (ZNode) for job graphs");
+                    .defaultValue("/execution-plans")
+                    .withDeprecatedKeys(
+                            "recovery.zookeeper.path.jobgraphs",
+                            "high-availability.zookeeper.path.jobgraphs")
+                    .withDescription("ZooKeeper root path (ZNode) for execution plans");
 
     // ------------------------------------------------------------------------
     //  ZooKeeper Client Settings
@@ -172,17 +174,6 @@ public class HighAvailabilityOptions {
                     .withDeprecatedKeys("recovery.zookeeper.client.max-retry-attempts")
                     .withDescription(
                             "Defines the number of connection retries before the client gives up.");
-
-    /** @deprecated Don't use this option anymore. It has no effect on Flink. */
-    @Deprecated
-    @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
-    public static final ConfigOption<String> ZOOKEEPER_RUNNING_JOB_REGISTRY_PATH =
-            key("high-availability.zookeeper.path.running-registry")
-                    .stringType()
-                    .defaultValue("/running_job_registry/")
-                    .withDescription(
-                            "Don't use this option anymore. It has no effect on Flink. The RunningJobRegistry has been "
-                                    + "replaced by the JobResultStore in Flink 1.15.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
     public static final ConfigOption<String> ZOOKEEPER_CLIENT_ACL =
@@ -269,24 +260,6 @@ public class HighAvailabilityOptions {
                                                             + "CuratorFrameworkFactory.Builder.html#simulatedSessionExpirationPercent(int)",
                                                     "simulatedSessionExpirationPercent"))
                                     .build());
-
-    // ------------------------------------------------------------------------
-    //  Deprecated options
-    // ------------------------------------------------------------------------
-
-    /**
-     * The time before a JobManager after a fail over recovers the current jobs.
-     *
-     * @deprecated Don't use this option anymore. It has no effect on Flink.
-     */
-    @Deprecated
-    public static final ConfigOption<String> HA_JOB_DELAY =
-            key("high-availability.job.delay")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDeprecatedKeys("recovery.job.delay")
-                    .withDescription(
-                            "The time before a JobManager after a fail over recovers the current jobs.");
 
     // ------------------------------------------------------------------------
 

@@ -36,25 +36,18 @@ import java.util.Map;
 public class JarPlanRequestBody extends JarRequestBody {
     @VisibleForTesting
     public JarPlanRequestBody() {
-        super(null, null, null, null, null, null);
+        super(null, null, null, null, null);
     }
 
     @JsonCreator
     public JarPlanRequestBody(
             @Nullable @JsonProperty(FIELD_NAME_ENTRY_CLASS) String entryClassName,
-            @Nullable @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS) String programArguments,
             @Nullable @JsonProperty(FIELD_NAME_PROGRAM_ARGUMENTS_LIST)
                     List<String> programArgumentsList,
             @Nullable @JsonProperty(FIELD_NAME_PARALLELISM) Integer parallelism,
             @Nullable @JsonProperty(FIELD_NAME_JOB_ID) JobID jobId,
             @Nullable @JsonProperty(FIELD_NAME_FLINK_CONFIGURATION)
                     Map<String, String> flinkConfiguration) {
-        super(
-                entryClassName,
-                programArguments,
-                programArgumentsList,
-                parallelism,
-                jobId,
-                flinkConfiguration);
+        super(entryClassName, programArgumentsList, parallelism, jobId, flinkConfiguration);
     }
 }

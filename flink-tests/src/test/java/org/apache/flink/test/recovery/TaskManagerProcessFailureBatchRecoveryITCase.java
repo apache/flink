@@ -18,44 +18,26 @@
 
 package org.apache.flink.test.recovery;
 
-import org.apache.flink.api.common.ExecutionMode;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+import org.apache.flink.util.CollectionUtil;
 
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
-import java.util.Arrays;
-import java.util.Collection;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test the recovery of a simple batch program in the case of TaskManager process failure. */
-@ExtendWith(ParameterizedTestExtension.class)
+@ExtendWith(NoOpTestExtension.class)
 public class TaskManagerProcessFailureBatchRecoveryITCase
         extends AbstractTaskManagerProcessFailureRecoveryTest {
-
-    // --------------------------------------------------------------------------------------------
-    //  Parametrization (run pipelined and batch)
-    // --------------------------------------------------------------------------------------------
-
-    private final ExecutionMode executionMode;
-
-    public TaskManagerProcessFailureBatchRecoveryITCase(ExecutionMode executionMode) {
-        this.executionMode = executionMode;
-    }
-
-    @Parameters(name = "executionMode={0}")
-    public static Collection<Object[]> executionMode() {
-        return Arrays.asList(new Object[][] {{ExecutionMode.PIPELINED}, {ExecutionMode.BATCH}});
-    }
-
     // --------------------------------------------------------------------------------------------
     //  Test the program
     // --------------------------------------------------------------------------------------------
@@ -63,17 +45,15 @@ public class TaskManagerProcessFailureBatchRecoveryITCase
     @Override
     public void testTaskManagerFailure(Configuration configuration, final File coordinateDir)
             throws Exception {
-
-        ExecutionEnvironment env =
-                ExecutionEnvironment.createRemoteEnvironment("localhost", 1337, configuration);
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.createRemoteEnvironment(
+                        "localhost", 1337, configuration);
         env.setParallelism(PARALLELISM);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 5000L));
-        env.getConfig().setExecutionMode(executionMode);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         final long numElements = 100000L;
-        final DataSet<Long> result =
-                env.generateSequence(1, numElements)
-
+        final DataStream<Long> result =
+                env.fromSequence(1, numElements)
                         // make sure every mapper is involved (no one is skipped because of lazy
                         // split assignment)
                         .rebalance()
@@ -113,6 +93,8 @@ public class TaskManagerProcessFailureBatchRecoveryITCase
                                         return value;
                                     }
                                 })
+                        .setParallelism(PARALLELISM)
+                        .windowAll(GlobalWindows.createWithEndOfStreamTrigger())
                         .reduce(
                                 new ReduceFunction<Long>() {
                                     @Override
@@ -121,7 +103,10 @@ public class TaskManagerProcessFailureBatchRecoveryITCase
                                     }
                                 });
 
-        long sum = result.collect().get(0);
+        long sum =
+                CollectionUtil.iteratorToList(result.executeAndCollect()).stream()
+                        .mapToLong(x -> x)
+                        .sum();
         assertThat(numElements * (numElements + 1L) / 2L).isEqualTo(sum);
     }
 }

@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 
 import org.junit.jupiter.api.Test;
 
@@ -30,9 +30,9 @@ public class SavepointRestoreSettingsTest {
     @Test
     public void testEqualsWithDifferentRestoreMode() {
         SavepointRestoreSettings claimSettings =
-                SavepointRestoreSettings.forPath("/tmp", false, RestoreMode.CLAIM);
+                SavepointRestoreSettings.forPath("/tmp", false, RecoveryClaimMode.CLAIM);
         SavepointRestoreSettings noClaimSettings =
-                SavepointRestoreSettings.forPath("/tmp", false, RestoreMode.NO_CLAIM);
+                SavepointRestoreSettings.forPath("/tmp", false, RecoveryClaimMode.NO_CLAIM);
         assertNotEquals(claimSettings, noClaimSettings);
     }
 }

@@ -33,10 +33,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** The test of HyperLogLogPlusPlus is inspired from Apache Spark. */
-public class HyperLogLogPlusPlusTest {
+class HyperLogLogPlusPlusTest {
 
     @Test
-    public void testInvalidRelativeSD() {
+    void testInvalidRelativeSD() {
         assertThatThrownBy(() -> new HyperLogLogPlusPlus(0.4))
                 .satisfies(
                         anyCauseMatches(
@@ -45,7 +45,7 @@ public class HyperLogLogPlusPlusTest {
     }
 
     @Test
-    public void testInputAllNulls() {
+    void testInputAllNulls() {
         HyperLogLogPlusPlus hll = new HyperLogLogPlusPlus(0.01);
         HllBuffer buffer = createHllBuffer(hll);
         long estimate = hll.query(buffer);
@@ -53,7 +53,7 @@ public class HyperLogLogPlusPlusTest {
     }
 
     @Test
-    public void testDeterministicCardinalityEstimation() {
+    void testDeterministicCardinalityEstimation() {
         int repeats = 10;
         testCardinalityEstimates(
                 new double[] {0.1, 0.05, 0.025, 0.01, 0.001},
@@ -63,7 +63,7 @@ public class HyperLogLogPlusPlusTest {
     }
 
     @Test
-    public void testMerge() {
+    void testMerge() {
         HyperLogLogPlusPlus hll = new HyperLogLogPlusPlus(0.05);
         HllBuffer buffer1a = createHllBuffer(hll);
         HllBuffer buffer1b = createHllBuffer(hll);
@@ -98,7 +98,7 @@ public class HyperLogLogPlusPlusTest {
     }
 
     @Test
-    public void testRandomCardinalityEstimation() {
+    void testRandomCardinalityEstimation() {
         Random srng = new Random(323981238L);
         Set<Integer> seen = new HashSet<>();
         Function<Integer, Integer> update =
@@ -118,7 +118,7 @@ public class HyperLogLogPlusPlusTest {
     }
 
     @Test
-    public void testPositiveAndNegativeZero() {
+    void testPositiveAndNegativeZero() {
         HyperLogLogPlusPlus hll = new HyperLogLogPlusPlus(0.05);
         HllBuffer buffer = createHllBuffer(hll);
         hll.updateByHashcode(buffer, hashLong(Double.doubleToLongBits(0.0d), DEFAULT_SEED));
@@ -130,7 +130,7 @@ public class HyperLogLogPlusPlusTest {
     }
 
     @Test
-    public void testNaN() {
+    void testNaN() {
         HyperLogLogPlusPlus hll = new HyperLogLogPlusPlus(0.05);
         HllBuffer buffer = createHllBuffer(hll);
         hll.updateByHashcode(buffer, hashLong(Double.doubleToLongBits(Double.NaN), DEFAULT_SEED));

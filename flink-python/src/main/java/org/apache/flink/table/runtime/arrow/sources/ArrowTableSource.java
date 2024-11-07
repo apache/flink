@@ -19,11 +19,11 @@
 package org.apache.flink.table.runtime.arrow.sources;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.legacy.table.sources.StreamTableSource;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.sources.StreamTableSource;
+import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 

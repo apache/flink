@@ -25,7 +25,6 @@ import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.connector.source.DynamicParallelismInference;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.configuration.BatchExecutionOptions;
-import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
@@ -153,7 +152,6 @@ class AdaptiveBatchSchedulerITCase {
 
     private void executeJob(Boolean useSourceParallelismInference) throws Exception {
         final Configuration configuration = createConfiguration();
-        configuration.set(ClusterOptions.FINE_GRAINED_SHUFFLE_MODE_ALL_BLOCKING, true);
 
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.createLocalEnvironment(configuration);

@@ -25,7 +25,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.io.FileOutputFormat;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
@@ -33,7 +32,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.CheckpointType;
-import org.apache.flink.core.execution.RestoreMode;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -66,7 +65,6 @@ import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipCont
 import org.apache.flink.runtime.io.network.partition.ClusterPartitionManager;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -100,6 +98,8 @@ import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcGatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.impl.RpcMetricQueryServiceRetriever;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
@@ -160,7 +160,7 @@ public class MiniCluster implements AutoCloseableAsync {
     /** The configuration for this mini cluster. */
     private final MiniClusterConfiguration miniClusterConfiguration;
 
-    private final Time rpcTimeout;
+    private final Duration rpcTimeout;
 
     @GuardedBy("lock")
     private final List<TaskExecutor> taskManagers;
@@ -973,12 +973,12 @@ public class MiniCluster implements AutoCloseableAsync {
 
     public CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
             JobID jobId,
-            OperatorID operatorId,
+            String operatorUid,
             SerializedValue<CoordinationRequest> serializedRequest) {
         return runDispatcherCommand(
                 dispatcherGateway ->
                         dispatcherGateway.deliverCoordinationRequestToCoordinator(
-                                jobId, operatorId, serializedRequest, rpcTimeout));
+                                jobId, operatorUid, serializedRequest, rpcTimeout));
     }
 
     public CompletableFuture<ResourceOverview> getResourceOverview() {
@@ -1063,41 +1063,51 @@ public class MiniCluster implements AutoCloseableAsync {
         }
     }
 
-    public CompletableFuture<JobSubmissionResult> submitJob(JobGraph jobGraph) {
-        // When MiniCluster uses the local RPC, the provided JobGraph is passed directly to the
+    public CompletableFuture<JobSubmissionResult> submitJob(ExecutionPlan executionPlan) {
+        if (executionPlan instanceof StreamGraph) {
+            try {
+                ((StreamGraph) executionPlan).serializeUserDefinedInstances();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        // When MiniCluster uses the local RPC, the provided ExecutionPlan is passed directly to the
         // Dispatcher. This means that any mutations to the JG can affect the Dispatcher behaviour,
         // so we rather clone it to guard against this.
-        final JobGraph clonedJobGraph = InstantiationUtil.cloneUnchecked(jobGraph);
-        checkRestoreModeForChangelogStateBackend(clonedJobGraph);
+        final ExecutionPlan clonedExecutionPlan = InstantiationUtil.cloneUnchecked(executionPlan);
+        checkRestoreModeForChangelogStateBackend(clonedExecutionPlan);
         final CompletableFuture<DispatcherGateway> dispatcherGatewayFuture =
                 getDispatcherGatewayFuture();
         final CompletableFuture<InetSocketAddress> blobServerAddressFuture =
                 createBlobServerAddress(dispatcherGatewayFuture);
         final CompletableFuture<Void> jarUploadFuture =
-                uploadAndSetJobFiles(blobServerAddressFuture, clonedJobGraph);
+                uploadAndSetJobFiles(blobServerAddressFuture, clonedExecutionPlan);
         final CompletableFuture<Acknowledge> acknowledgeCompletableFuture =
                 jarUploadFuture
                         .thenCombine(
                                 dispatcherGatewayFuture,
                                 (Void ack, DispatcherGateway dispatcherGateway) ->
-                                        dispatcherGateway.submitJob(clonedJobGraph, rpcTimeout))
+                                        dispatcherGateway.submitJob(
+                                                clonedExecutionPlan, rpcTimeout))
                         .thenCompose(Function.identity());
         return acknowledgeCompletableFuture.thenApply(
-                (Acknowledge ignored) -> new JobSubmissionResult(clonedJobGraph.getJobID()));
+                (Acknowledge ignored) -> new JobSubmissionResult(clonedExecutionPlan.getJobID()));
     }
 
     // HACK: temporary hack to make the randomized changelog state backend tests work with forced
     // full snapshots. This option should be removed once changelog state backend supports forced
     // full snapshots
-    private void checkRestoreModeForChangelogStateBackend(JobGraph jobGraph) {
+    private void checkRestoreModeForChangelogStateBackend(ExecutionPlan executionPlan) {
         final SavepointRestoreSettings savepointRestoreSettings =
-                jobGraph.getSavepointRestoreSettings();
+                executionPlan.getSavepointRestoreSettings();
         if (overrideRestoreModeForChangelogStateBackend
-                && savepointRestoreSettings.getRestoreMode() == RestoreMode.NO_CLAIM) {
+                && savepointRestoreSettings.getRecoveryClaimMode() == RecoveryClaimMode.NO_CLAIM) {
             final Configuration conf = new Configuration();
             SavepointRestoreSettings.toConfiguration(savepointRestoreSettings, conf);
-            conf.set(StateRecoveryOptions.RESTORE_MODE, RestoreMode.LEGACY);
-            jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.fromConfiguration(conf));
+            conf.set(StateRecoveryOptions.RESTORE_MODE, RecoveryClaimMode.LEGACY);
+            executionPlan.setSavepointRestoreSettings(
+                    SavepointRestoreSettings.fromConfiguration(conf));
         }
     }
 
@@ -1130,12 +1140,12 @@ public class MiniCluster implements AutoCloseableAsync {
 
     private CompletableFuture<Void> uploadAndSetJobFiles(
             final CompletableFuture<InetSocketAddress> blobServerAddressFuture,
-            final JobGraph job) {
+            final ExecutionPlan executionPlan) {
         return blobServerAddressFuture.thenAccept(
                 blobServerAddress -> {
                     try {
-                        ClientUtils.extractAndUploadJobGraphFiles(
-                                job,
+                        ClientUtils.extractAndUploadExecutionPlanFiles(
+                                executionPlan,
                                 () ->
                                         new BlobClient(
                                                 blobServerAddress,

@@ -49,10 +49,10 @@ comparison:
   - sql: value1 NOT BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
     description: By default (or with the ASYMMETRIC keyword), returns TRUE if value1 is less than value2 or greater than value3. With the SYMMETRIC keyword, returns TRUE if value1 is not inclusively between value2 and value3. When either value2 or value3 is NULL, returns TRUE or UNKNOWN. E.g., 12 NOT BETWEEN 15 AND 12 returns TRUE; 12 NOT BETWEEN SYMMETRIC 15 AND 12 returns FALSE; 12 NOT BETWEEN NULL AND 15 returns UNKNOWN; 12 NOT BETWEEN 15 AND NULL returns TRUE; 12 NOT BETWEEN SYMMETRIC 12 AND NULL returns UNKNOWN.
   - sql: string1 LIKE string2 [ ESCAPE char ]
-    table: string1.like(string2)
-    description: Returns TRUE if string1 matches pattern string2; returns UNKNOWN if string1 or string2 is NULL. An escape character can be defined if necessary. The escape character has not been supported yet.
+    table: string1.like(string2[, char])
+    description: Returns TRUE if string1 matches pattern string2; returns UNKNOWN if string1 or string2 is NULL. An escape character consisting of a single char can be defined if necessary, '\' by default.
   - sql: string1 NOT LIKE string2 [ ESCAPE char ]
-    description: Returns TRUE if string1 does not match pattern string2; returns UNKNOWN if string1 or string2 is NULL. An escape character can be defined if necessary. The escape character has not been supported yet.
+    description: Returns TRUE if string1 does not match pattern string2; returns UNKNOWN if string1 or string2 is NULL. An escape character consisting of a single char can be defined if necessary, '\' by default.
   - sql: string1 SIMILAR TO string2 [ ESCAPE char ]
     table: string1.similar(string2)
     description: Returns TRUE if string1 matches SQL regular expression string2; returns UNKNOWN if string1 or string2 is NULL. An escape character can be defined if necessary. The escape character has not been supported yet.
@@ -238,9 +238,39 @@ arithmetic:
       NUMERIC.hex()
       STRING.hex()
     description: Returns a string representation of an integer NUMERIC value or a STRING in hex format. Returns NULL if the argument is NULL. E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", a string "hello,world" leads to "68656C6C6F2C776F726C64".
+  - sql: UNHEX(expr)
+    table: expr.unhex()
+    description: |
+      Converts hexadecimal string expr to BINARY.
+      
+      If the length of expr is odd, the first character is discarded and the result is left padded with a null byte. 
+      
+      expr <CHAR | VARCHAR>
+      
+      Returns a BINARY. `NULL` if expr is `NULL` or expr contains non-hex characters.
   - sql: TRUNCATE(numeric1, integer2)
     table: NUMERIC1.truncate(INTEGER2)
     description: Returns a numeric of truncated to integer2 decimal places. Returns NULL if numeric1 or integer2 is NULL. If integer2 is 0, the result has no decimal point or fractional part. integer2 can be negative to cause integer2 digits left of the decimal point of the value to become zero. This function can also pass in only one numeric1 parameter and not set integer2 to use. If integer2 is not set, the function truncates as if integer2 were 0. E.g. 42.324.truncate(2) to 42.32. and 42.324.truncate() to 42.0.
+  - sql: PERCENTILE(expr, percentage[, frequency])
+    table: expr.percentile(percentage[, frequency])
+    description: |
+      Returns the exact percentile value of expr at the specified percentage in a group.
+      
+      percentage must be a literal numeric value between `[0.0, 1.0]` or an array of such values. 
+      If a variable expression is passed to this function, the result will be calculated using any one of them.
+      frequency describes how many times expr should be counted, the default value is 1.
+      
+      If no expr lies exactly at the desired percentile, the result is calculated using linear interpolation of the two nearest exprs. 
+      If expr or frequency is `NULL`, or frequency is not positive, the input row will be ignored.
+      
+      NOTE: It is recommended to use this function in a window scenario, as it typically offers better performance. 
+      In a regular group aggregation scenario, users should be aware of the performance overhead caused by a full sort triggered by each record.
+      
+      `value <NUMERIC>, percentage [<NUMERIC NOT NULL> | <ARRAY<NUMERIC NOT NULL> NOT NULL>], frequency <INTEGER_NUMERIC>`
+      `(INTEGER_NUMERIC: TINYINT, SMALLINT, INTEGER, BIGINT)`
+      `(NUMERIC: INTEGER_NUMERIC, FLOAT, DOUBLE, DECIMAL)`
+      
+      Returns a `DOUBLE` if percentage is numeric, or an `ARRAY<DOUBLE>` if percentage is an array. `NULL` if percentage is an empty array.
 
 string:
   - sql: string1 || string2
@@ -260,6 +290,18 @@ string:
   - sql: POSITION(string1 IN string2)
     table: STRING1.position(STRING2)
     description: Returns the position (start from 1) of the first occurrence of STRING1 in STRING2; returns 0 if STRING1 cannot be found in STRING2.
+  - sql: PRINTF(format[, obj]*)
+    table: format.printf(obj...)
+    description: |
+      Returns a formatted string from printf-style format string.
+      
+      The function exploits the java.util.Formatter class with Locale.US.
+      
+      null obj is formated as a string "null".
+      
+      format <CHAR | VARCHAR>, obj <ANY>
+      
+      Returns a STRING representation of the formatted string. `NULL` if format is `NULL` or invalid.
   - sql: TRIM([ BOTH | LEADING | TRAILING ] string1 FROM string2)
     table: |
       STRING1.trim(LEADING, STRING2)
@@ -268,12 +310,34 @@ string:
       STRING1.trim(BOTH)
       STRING1.trim()
     description: Returns a string that removes leading and/or trailing characters STRING2 from STRING1. By default, whitespaces at both sides are removed.
-  - sql: LTRIM(string)
-    table: STRING.ltrim()
-    description: Returns a string that removes the left whitespaces from STRING. E.g., ' This is a test String.'.ltrim() returns "This is a test String.".
-  - sql: RTRIM(string)
-    table: STRING.rtrim()
-    description: Returns a string that removes the right whitespaces from STRING. E.g., 'This is a test String. '.rtrim() returns "This is a test String.".
+  - sql: LTRIM(str[, trimStr])
+    table: str.ltrim([trimStr])
+    description: |
+      Removes any leading characters within trimStr from str. trimStr is set to whitespace by default.
+      
+      E.g., ' This is a test String.'.ltrim() returns "This is a test String.".
+      
+      str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
+      
+      Returns a STRING representation of the trimmed str. `NULL` if any of the arguments are `NULL`.
+  - sql: RTRIM(str[, trimStr])
+    table: str.rtrim([trimStr])
+    description: |
+      Removes any trailing characters within trimStr from str. trimStr is set to whitespace by default.
+      
+      E.g., 'This is a test String. '.rtrim() returns "This is a test String.".
+      
+      str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
+      
+      Returns a STRING representation of the trimmed str. `NULL` if any of the arguments are `NULL`.
+  - sql: BTRIM(str[, trimStr])
+    table: str.btrim([trimStr])
+    description: |
+      Removes any leading and trailing characters within trimStr from str. trimStr is set to whitespace by default.
+      
+      str <CHAR | VARCHAR>, trimStr <CHAR | VARCHAR>
+      
+      Returns a STRING representation of the trimmed str. `NULL` if any of the arguments are `NULL`.
   - sql: REPEAT(string, int)
     table: STRING.repeat(INT)
     description: Returns a string that repeats the base string integer times. E.g., REPEAT('This is a test String.', 2) returns "This is a test String.This is a test String.".
@@ -285,6 +349,30 @@ string:
       STRING1.overlay(STRING2, INT1)
       STRING1.overlay(STRING2, INT1, INT2)
     description: Returns a string that replaces INT2 (STRING2's length by default) characters of STRING1 with STRING2 from position INT1. E.g., 'xxxxxtest'.overlay('xxxx', 6) returns "xxxxxxxxx"; 'xxxxxtest'.overlay('xxxx', 6, 2) returns "xxxxxxxxxst".
+  - sql: STARTSWITH(expr, startExpr)
+    table: expr.startsWith(startExpr)
+    description: |
+      Returns whether expr starts with startExpr. If startExpr is empty, the result is true.
+      
+      expr and startExpr should have same type. 
+      
+      `expr <CHAR | VARCHAR>, startExpr <CHAR | VARCHAR>`
+      
+      `expr <BINARY | VARBINARY>, startExpr <BINARY | VARBINARY>`
+      
+      Returns a `BOOLEAN`. `NULL` if any of the arguments are `NULL`.
+  - sql: ENDSWITH(expr, endExpr)
+    table: expr.endsWith(endExpr)
+    description: |
+      Returns whether expr ends with endExpr. If endExpr is empty, the result is true.
+      
+      expr and endExpr should have same type. 
+      
+      `expr <CHAR | VARCHAR>, endExpr <CHAR | VARCHAR>`
+      
+      `expr <BINARY | VARBINARY>, endExpr <BINARY | VARBINARY>`
+      
+      Returns a `BOOLEAN`. `NULL` if any of the arguments are `NULL`.
   - sql: SUBSTRING(string FROM integer1 [ FOR integer2 ])
     table: |
       STRING.substring(INT1)
@@ -293,6 +381,14 @@ string:
   - sql: REPLACE(string1, string2, string3)
     table: STRING1.replace(STRING2, STRING3)
     description: Returns a new string which replaces all the occurrences of STRING2 with STRING3 (non-overlapping) from STRING1. E.g., 'hello world'.replace('world', 'flink') returns 'hello flink'; 'ababab'.replace('abab', 'z') returns 'zab'.
+  - sql: REGEXP_COUNT(str, regex)
+    table: str.regexpCount(regex)
+    description: |
+      Returns the number of times str matches the regex pattern. regex must be a Java regular expression.
+      
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
+      
+      Returns an `INTEGER` representation of the number of matches. `NULL` if any of the arguments are `NULL` or regex is invalid.
   - sql: REGEXP_EXTRACT(string1, string2[, integer])
     table: STRING1.regexpExtract(STRING2[, INTEGER1])
     description: |
@@ -304,7 +400,44 @@ string:
       not exceed the number of the defined groups.
 
       E.g. REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2)" returns "bar".
+  - sql: REGEXP_EXTRACT_ALL(str, regex[, extractIndex])
+    table: str.regexpExtractAll(regex[, extractIndex])
+    description: |
+      Extracts all the substrings in str that match the regex expression and correspond to the regex group extractIndex.
+      
+      regex may contain multiple groups. extractIndex indicates which regex group to extract and starts from 1, also the default value if not specified. 0 means matching the entire regular expression.
+      
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>, extractIndex <TINYINT | SMALLINT | INTEGER | BIGINT>`
+      
+      Returns an `ARRAY<STRING>` representation of all the matched substrings. `NULL` if any of the arguments are `NULL` or invalid.
+  - sql: REGEXP_INSTR(str, regex)
+    table: str.regexpInstr(regex)
+    description: |
+      Returns the position of the first substring in str that matches regex.
+      
+      Result indexes begin at 1, 0 if there is no match.
+      
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
+      
+      Returns an `INTEGER` representation of the first matched substring index. `NULL` if any of the arguments are `NULL` or regex is invalid.
+  - sql: REGEXP_SUBSTR(str, regex)
+    table: str.regexpSubstr(regex)
+    description: |
+      Returns the first substring in str that matches regex.
+      
+      `str <CHAR | VARCHAR>, regex <CHAR | VARCHAR>`
+      
+      Returns an `STRING` representation of the first matched substring. `NULL` if any of the arguments are `NULL` or regex if invalid or pattern is not found.
+  - sql: TRANSLATE(expr, fromStr, toStr)
+    table: expr.translate(fromStr, toStr)
+    description: |
+      Translate an expr where all characters in fromStr have been replaced with those in toStr.
 
+      If toStr has a shorter length than fromStr, unmatched characters are removed.
+
+      `expr <CHAR | VARCHAR>, fromStr <CHAR | VARCHAR>, toStr <CHAR | VARCHAR>`
+
+      Returns a `STRING` of translated expr.
   - sql: INITCAP(string)
     table: STRING.initCap()
     description: Returns a new form of STRING with the first character of each word converted to uppercase and the rest characters to lowercase. Here a word means a sequences of alphanumeric characters.
@@ -387,6 +520,22 @@ string:
   - sql: SUBSTR(string, integer1[, integer2])
     table: STRING.substr(INTEGER1[, INTEGER2])
     description: Returns a substring of string starting from position integer1 with length integer2 (to the end by default).
+  - sql: JSON_QUOTE(string)
+    table: STRING.JsonQuote()
+    description: Quotes a string as a JSON value by wrapping it with double quote characters, escaping interior quote and special characters ('"', '\', '/', 'b', 'f', 'n', 'r', 't'), and returning the result as a string. If the argument is NULL, the function returns NULL.
+  - sql: JSON_UNQUOTE(string)
+    table: STRING.JsonUnquote()
+    description: Unquotes JSON value, unescapes escaped special characters ('"', '\', '/', 'b', 'f', 'n', 'r', 't', 'u' hex hex hex hex), and returns the result as a string. If the argument is NULL, returns NULL. If the value does not start and end with double quotes or if it starts and ends with double quotes but is not a valid JSON string literal, the value is passed through unmodified.
+  - sql: ELT(index, expr[, exprs]*)
+    table: index.elt(expr, exprs...)
+    description: |
+      Returns the index-th expression. index must be an integer between 1 and the number of expressions.
+      
+      index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <CHAR | VARCHAR>, exprs <CHAR | VARCHAR>
+      
+      index <TINYINT | SMALLINT | INTEGER | BIGINT>, expr <BINARY | VARBINARY>, exprs <BINARY | VARBINARY>
+      
+      The result has the type of the least common type of all expressions. `NULL` if index is `NULL` or out of range.
 
 temporal:
   - sql: DATE string
@@ -1071,8 +1220,10 @@ aggregate:
   - sql: ROW_NUMBER()
     description: Assigns a unique, sequential number to each row, starting with one, according to the ordering of rows within the window partition. ROW_NUMBER and RANK are similar. ROW_NUMBER numbers all rows sequentially (for example 1, 2, 3, 4, 5). RANK provides the same numeric value for ties (for example 1, 2, 2, 4, 5).
   - sql: LEAD(expression [, offset] [, default])
+    table: lead(expression [, offset] [, default])
     description: Returns the value of expression at the offsetth row after the current row in the window. The default value of offset is 1 and the default value of default is NULL.
   - sql: LAG(expression [, offset] [, default])
+    table: lag(expression [, offset] [, default])
     description: Returns the value of expression at the offsetth row before the current row in the window. The default value of offset is 1 and the default value of default is NULL.
   - sql: FIRST_VALUE(expression)
     table: FIELD.firstValue

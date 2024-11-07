@@ -36,7 +36,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.JM_LEGACY_HEAP_OPTIONS;
 import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.JM_PROCESS_MEMORY_OPTIONS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -55,10 +54,7 @@ class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobManagerPr
             new LoggerAuditingExtension(JobManagerFlinkMemoryUtils.class, Level.INFO);
 
     public JobManagerProcessUtilsTest() {
-        super(
-                JM_PROCESS_MEMORY_OPTIONS,
-                JM_LEGACY_HEAP_OPTIONS,
-                JobManagerOptions.TOTAL_PROCESS_MEMORY);
+        super(JM_PROCESS_MEMORY_OPTIONS, JobManagerOptions.TOTAL_PROCESS_MEMORY);
     }
 
     @Test
@@ -234,13 +230,6 @@ class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobManagerPr
     @Override
     protected JobManagerProcessSpec processSpecFromConfig(Configuration config) {
         return JobManagerProcessUtils.processSpecFromConfig(config);
-    }
-
-    @Override
-    protected Configuration getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(
-            Configuration config) {
-        return JobManagerProcessUtils.getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(
-                config, getNewOptionForLegacyHeapOption());
     }
 
     @Override

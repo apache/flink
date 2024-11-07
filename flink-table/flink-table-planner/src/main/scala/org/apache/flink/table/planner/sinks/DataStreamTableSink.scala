@@ -20,8 +20,9 @@ package org.apache.flink.table.planner.sinks
 import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{Table, TableException, TableSchema}
-import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.api.{Table, TableException}
+import org.apache.flink.table.legacy.api.TableSchema
+import org.apache.flink.table.legacy.sinks.TableSink
 
 /**
  * A [[DataStreamTableSink]] specifies how to emit a [[Table]] to an DataStream[T]

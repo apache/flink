@@ -22,18 +22,17 @@ import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
-import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
@@ -41,6 +40,8 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.checkpointing.utils.MigrationTestUtils;
 import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase;
 import org.apache.flink.test.util.MigrationTest;
@@ -93,11 +94,6 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
                 };
 
         Collection<SnapshotSpec> parameters = new LinkedList<>();
-        parameters.addAll(
-                SnapshotSpec.withVersions(
-                        StateBackendLoader.MEMORY_STATE_BACKEND_NAME,
-                        SnapshotType.SAVEPOINT_CANONICAL,
-                        getFlinkVersions.apply(FlinkVersion.v1_8, FlinkVersion.v1_14)));
         parameters.addAll(
                 SnapshotSpec.withVersions(
                         StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
@@ -165,11 +161,11 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
         final int parallelism = 4;
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        RestartStrategyUtils.configureNoRestartStrategy(env);
 
         switch (snapshotSpec.getStateBackendType()) {
             case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME:
-                env.setStateBackend(new EmbeddedRocksDBStateBackend());
+                StateBackendUtils.configureRocksDBStateBackend(env);
 
                 if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
                     // disable changelog backend for now to ensure determinism in test data
@@ -177,11 +173,8 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
                     env.enableChangelogStateBackend(false);
                 }
                 break;
-            case StateBackendLoader.MEMORY_STATE_BACKEND_NAME:
-                env.setStateBackend(new MemoryStateBackend());
-                break;
             case StateBackendLoader.HASHMAP_STATE_BACKEND_NAME:
-                env.setStateBackend(new HashMapStateBackend());
+                StateBackendUtils.configureHashMapStateBackend(env);
                 break;
             default:
                 throw new UnsupportedOperationException();
@@ -220,11 +213,11 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
 
         env.addSource(nonParallelSource)
                 .uid("CheckpointingSource1")
-                .keyBy(0)
+                .keyBy(x -> (Tuple) Tuple1.of(x.f0), Types.TUPLE(Types.LONG))
                 .flatMap(flatMap)
                 .startNewChain()
                 .uid("CheckpointingKeyedStateFlatMap1")
-                .keyBy(0)
+                .keyBy(x -> (Tuple) Tuple1.of(x.f0), Types.TUPLE(Types.LONG))
                 .transform(
                         "timely_stateful_operator",
                         new TypeHint<Tuple2<Long, Long>>() {}.getTypeInfo(),
@@ -234,11 +227,11 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
 
         env.addSource(parallelSource)
                 .uid("CheckpointingSource2")
-                .keyBy(0)
+                .keyBy(x -> (Tuple) Tuple1.of(x.f0), Types.TUPLE(Types.LONG))
                 .flatMap(flatMap)
                 .startNewChain()
                 .uid("CheckpointingKeyedStateFlatMap2")
-                .keyBy(0)
+                .keyBy(x -> (Tuple) Tuple1.of(x.f0), Types.TUPLE(Types.LONG))
                 .transform(
                         "timely_stateful_operator",
                         new TypeHint<Tuple2<Long, Long>>() {}.getTypeInfo(),

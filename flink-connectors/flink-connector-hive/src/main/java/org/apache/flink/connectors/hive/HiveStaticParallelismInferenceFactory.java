@@ -40,12 +40,9 @@ class HiveStaticParallelismInferenceFactory implements HiveParallelismInference.
 
     @Override
     public HiveParallelismInference create() {
-        boolean inferEnabled = flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM);
         HiveOptions.InferMode inferMode =
                 flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MODE);
-        // This logic should be fixed if config option `table.exec.hive.infer-source-parallelism`
-        // is removed.
-        boolean infer = inferEnabled && inferMode == HiveOptions.InferMode.STATIC;
+        boolean infer = inferMode == HiveOptions.InferMode.STATIC;
         int inferMaxParallelism =
                 flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MAX);
         Preconditions.checkArgument(
@@ -55,7 +52,7 @@ class HiveStaticParallelismInferenceFactory implements HiveParallelismInference.
         int parallelism =
                 flinkConf.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM);
         // Keeping the parallelism unset is a prerequisite for dynamic parallelism inference.
-        if (inferEnabled && inferMode == HiveOptions.InferMode.DYNAMIC) {
+        if (inferMode == HiveOptions.InferMode.DYNAMIC) {
             parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
         }
 

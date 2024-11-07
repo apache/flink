@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, TABLE_EXEC_MINIBATCH_ENABLED, TABLE_EXEC_MINIBATCH_SIZE}
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
@@ -69,6 +68,32 @@ class DeduplicateTest extends TableTestBase {
       """.stripMargin
 
     // the rank condition is not 1, so it will not be translate to LastRow, but Rank
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testInvalidChangelogInput(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create temporary table cdc (
+                               | a int,
+                               | b bigint,
+                               | ts timestamp_ltz(3),
+                               | primary key (a) not enforced,
+                               | watermark for ts as ts - interval '5' second
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,UB,D'
+                               |)""".stripMargin)
+    val sql =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT a, ROW_NUMBER() OVER (PARTITION BY b ORDER BY ts DESC) as rank_num
+        |  FROM cdc)
+        |WHERE rank_num = 1
+      """.stripMargin
+
+    // the input is not append-only, it will not be translate to LastRow, but Rank
     util.verifyExecPlan(sql)
   }
 

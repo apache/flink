@@ -19,11 +19,11 @@
 package org.apache.flink.quickstarts.test;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.quickstarts.test.utils.Utils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.util.ParameterTool;
 
 /** End to end test for quickstarts. */
 public class QuickstartExample {

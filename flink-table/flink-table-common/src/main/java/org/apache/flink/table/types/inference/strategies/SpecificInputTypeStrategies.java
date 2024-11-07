@@ -119,6 +119,25 @@ public final class SpecificInputTypeStrategies {
     public static final InputTypeStrategy TEMPORAL_OVERLAPS =
             new TemporalOverlapsInputTypeStrategy();
 
+    /**
+     * Argument type strategy that expects a {@link LogicalTypeFamily#INTEGER_NUMERIC} starting from
+     * 0.
+     */
+    public static final ArgumentTypeStrategy INDEX = new IndexArgumentTypeStrategy();
+
+    /** An {@link ArgumentTypeStrategy} that expects a percentage value between [0.0, 1.0]. */
+    public static ArgumentTypeStrategy percentage(boolean expectedNullability) {
+        return new PercentageArgumentTypeStrategy(expectedNullability);
+    }
+
+    /**
+     * An {@link ArgumentTypeStrategy} that expects an array of percentages with each element
+     * between [0.0, 1.0].
+     */
+    public static ArgumentTypeStrategy percentageArray(boolean expectedNullability) {
+        return new PercentageArrayArgumentTypeStrategy(expectedNullability);
+    }
+
     // --------------------------------------------------------------------------------------------
     // Strategies composed of other strategies
     // --------------------------------------------------------------------------------------------
@@ -147,6 +166,12 @@ public final class SpecificInputTypeStrategies {
 
     /** Type strategy specific for {@link BuiltInFunctionDefinitions#IN}. */
     public static final InputTypeStrategy IN = new SubQueryInputTypeStrategy();
+
+    /**
+     * Type strategy for {@link BuiltInFunctionDefinitions#LAG} and { @link
+     * BuiltInFunctionDefinitions#LEAD}.
+     */
+    public static final InputTypeStrategy LEAD_LAG = new LeadLagInputTypeStrategy();
 
     private SpecificInputTypeStrategies() {
         // no instantiation

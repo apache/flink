@@ -25,11 +25,12 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.RowKind;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,17 +44,22 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
  * Harness tests for {@link RowTimeDeduplicateFunction} and {@link
  * RowTimeMiniBatchDeduplicateFunction}.
  */
-@RunWith(Parameterized.class)
-public class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTestBase {
 
     private final boolean miniBatchEnable;
 
-    public RowTimeDeduplicateFunctionTest(boolean miniBacthEnable) {
+    RowTimeDeduplicateFunctionTest(boolean miniBacthEnable) {
         this.miniBatchEnable = miniBacthEnable;
     }
 
-    @Test
-    public void testRowTimeDeduplicateKeepFirstRow() throws Exception {
+    @Parameters(name = "miniBatchEnable = {0}")
+    private static Collection<Boolean[]> runMode() {
+        return Arrays.asList(new Boolean[] {false}, new Boolean[] {true});
+    }
+
+    @TestTemplate
+    void testRowTimeDeduplicateKeepFirstRow() throws Exception {
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(record(RowKind.INSERT, "key1", 13, 99L));
         expectedOutput.add(record(RowKind.INSERT, "key2", 11, 101L));
@@ -86,8 +92,8 @@ public class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTe
         testRowTimeDeduplicateKeepFirstRow(false, false, expectedOutput);
     }
 
-    @Test
-    public void testRowTimeDeduplicateKeepLastRow() throws Exception {
+    @TestTemplate
+    void testRowTimeDeduplicateKeepLastRow() throws Exception {
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(record(RowKind.INSERT, "key1", 13, 99L));
         expectedOutput.add(record(RowKind.UPDATE_BEFORE, "key1", 13, 99L));
@@ -153,7 +159,7 @@ public class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTe
                     new RowTimeMiniBatchDeduplicateFunction(
                             inputRowType,
                             serializer,
-                            minTtlTime.toMilliseconds(),
+                            minTtlTime.toMillis(),
                             rowTimeIndex,
                             generateUpdateBefore,
                             generateInsert,
@@ -165,7 +171,7 @@ public class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTe
             RowTimeDeduplicateFunction func =
                     new RowTimeDeduplicateFunction(
                             inputRowType,
-                            minTtlTime.toMilliseconds(),
+                            minTtlTime.toMillis(),
                             rowTimeIndex,
                             generateUpdateBefore,
                             generateInsert,
@@ -208,7 +214,7 @@ public class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTe
         testHarness.processWatermark(new Watermark(302));
 
         // test 3: expire the state
-        testHarness.setStateTtlProcessingTime(minTtlTime.toMilliseconds() + 1);
+        testHarness.setStateTtlProcessingTime(minTtlTime.toMillis() + 1);
         testHarness.processElement(insertRecord("key1", 12, 400L));
         testHarness.processElement(insertRecord("key2", 11, 401L));
         testHarness.processWatermark(402);
@@ -233,7 +239,7 @@ public class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTe
                     new RowTimeMiniBatchDeduplicateFunction(
                             inputRowType,
                             serializer,
-                            minTtlTime.toMilliseconds(),
+                            minTtlTime.toMillis(),
                             rowTimeIndex,
                             generateUpdateBefore,
                             generateInsert,
@@ -245,7 +251,7 @@ public class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTe
             RowTimeDeduplicateFunction func =
                     new RowTimeDeduplicateFunction(
                             inputRowType,
-                            minTtlTime.toMilliseconds(),
+                            minTtlTime.toMillis(),
                             rowTimeIndex,
                             generateUpdateBefore,
                             generateInsert,
@@ -287,7 +293,7 @@ public class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTe
         testHarness.processWatermark(new Watermark(302));
 
         // test 3: expire the state
-        testHarness.setStateTtlProcessingTime(minTtlTime.toMilliseconds() + 1);
+        testHarness.setStateTtlProcessingTime(minTtlTime.toMillis() + 1);
         testHarness.processElement(insertRecord("key1", 12, 400L));
         testHarness.processElement(insertRecord("key2", 11, 401L));
         testHarness.processWatermark(402);
@@ -298,10 +304,5 @@ public class RowTimeDeduplicateFunctionTest extends RowTimeDeduplicateFunctionTe
 
         assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, actualOutput);
         testHarness.close();
-    }
-
-    @Parameterized.Parameters(name = "miniBatchEnable = {0}")
-    public static Collection<Boolean[]> runMode() {
-        return Arrays.asList(new Boolean[] {false}, new Boolean[] {true});
     }
 }

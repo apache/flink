@@ -17,12 +17,12 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies
-import org.apache.flink.api.scala._
+import org.apache.flink.configuration.{Configuration, RestartStrategyOptions}
 import org.apache.flink.core.execution.CheckpointingMode
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.{AggregatePhaseStrategy, OptimizerConfigOptions}
+import org.apache.flink.table.api.config.AggregatePhaseStrategy._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.ConcatDistinctAggFunction
@@ -32,12 +32,12 @@ import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWat
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
-import AggregatePhaseStrategy._
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.data.Percentage
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
-import java.time.ZoneId
+import java.time.{Duration, ZoneId}
 import java.util
 
 import scala.collection.JavaConversions._
@@ -140,7 +140,13 @@ class WindowAggregateITCase(
     // enable checkpoint, we are using failing source to force have a complete checkpoint
     // and cover restore path
     env.enableCheckpointing(100, CheckpointingMode.EXACTLY_ONCE)
-    env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0))
+    val configuration = new Configuration()
+    configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay")
+    configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, Int.box(1))
+    configuration.set(
+      RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+      Duration.ofMillis(0))
+    env.configure(configuration, Thread.currentThread.getContextClassLoader)
     FailingCollectionSource.reset()
 
     val insertOnlyDataId = if (useTimestampLtz) {
@@ -1323,6 +1329,71 @@ class WindowAggregateITCase(
     )
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
       .isEqualTo(expected.sorted.mkString("\n"))
+  }
+
+  @TestTemplate
+  def testPercentileOnEventTimeTumbleWindow(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  PERCENTILE(`double`, 0.5) as `swo`,
+        |  PERCENTILE(`double`, 0.5, `int`) as `sw`,
+        |  PERCENTILE(`double`, ARRAY[0.5, 0.2, 0.6]) as `mwo`,
+        |  PERCENTILE(`double`, ARRAY[0.5, 0.2, 0.6], `int`) as `mw`
+        |FROM TABLE(
+        |   TUMBLE(TABLE T1_CDC, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |GROUP BY `name`, window_start, window_end
+      """.stripMargin
+    val outer =
+      s"""
+         |select
+         | `name`,
+         | window_start,
+         | window_end,
+         | `swo`,
+         | `sw`,
+         | `mwo`[1], `mwo`[2], `mwo`[3],
+         | `mw`[1], `mw`[2], `mw`[3]
+         |FROM ($sql)
+    """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(outer).toDataStream.addSink(sink)
+    env.execute()
+
+    val expected_key = List(
+      List("a", "2020-10-10T00:00", "2020-10-10T00:00:05"),
+      List("a", "2020-10-10T00:00:05", "2020-10-10T00:00:10"),
+      List("b", "2020-10-10T00:00:05", "2020-10-10T00:00:10"),
+      List("b", "2020-10-10T00:00:15", "2020-10-10T00:00:20")
+    )
+    // Double.NaN indicates null value
+    val expected_value = List(
+      List(5.0, 22.0, 5.0, 3.2, 8.4, 22.0, 5.0, 22.0),
+      List.fill(8)(Double.NaN),
+      List(4.5, 6.0, 4.5, 3.6, 4.8, 6.0, 3.0, 6.0),
+      List.fill(8)(4.0)
+    )
+    val key_length = expected_key.head.length
+    val ERROR_RATE = Percentage.withPercentage(1e-6)
+
+    val result = sink.getAppendResults.sorted
+    for (i <- result.indices) {
+      val actual = result(i).split(",")
+      for (j <- expected_key(i).indices) {
+        assertThat(actual(j)).isEqualTo(expected_key(i)(j))
+      }
+      for (j <- expected_value(i).indices) {
+        if (!expected_value(i)(j).isNaN) {
+          assertThat(actual(j + key_length).toDouble).isCloseTo(expected_value(i)(j), ERROR_RATE)
+        } else {
+          assertThat(actual(j + key_length)).isEqualTo("null")
+        }
+      }
+    }
   }
 }
 

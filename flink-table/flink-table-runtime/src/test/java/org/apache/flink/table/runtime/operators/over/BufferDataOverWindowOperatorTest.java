@@ -25,6 +25,7 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -46,8 +47,8 @@ import org.apache.flink.table.runtime.operators.over.frame.UnboundedOverWindowFr
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -64,7 +65,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /** Test for {@link BufferDataOverWindowOperator}. */
-public class BufferDataOverWindowOperatorTest {
+class BufferDataOverWindowOperatorTest {
 
     private RowType valueType =
             new RowType(Collections.singletonList(new RowType.RowField("f0", new BigIntType())));
@@ -79,13 +80,13 @@ public class BufferDataOverWindowOperatorTest {
                 }
             };
 
-    @Before
-    public void before() throws Exception {
+    @BeforeEach
+    void before() throws Exception {
         collect = new ArrayList<>();
     }
 
     @Test
-    public void testOffsetWindowFrame() throws Exception {
+    void testOffsetWindowFrame() throws Exception {
         test(
                 new OverWindowFrame[] {
                     new OffsetOverFrame(function, 2L, null),
@@ -105,7 +106,7 @@ public class BufferDataOverWindowOperatorTest {
     }
 
     @Test
-    public void testInsensitiveAndUnbounded() throws Exception {
+    void testInsensitiveAndUnbounded() throws Exception {
         test(
                 new OverWindowFrame[] {
                     new InsensitiveOverFrame(function),
@@ -125,7 +126,7 @@ public class BufferDataOverWindowOperatorTest {
     }
 
     @Test
-    public void testPreceding() throws Exception {
+    void testPreceding() throws Exception {
         test(
                 new OverWindowFrame[] {
                     new RowUnboundedPrecedingOverFrame(function, 1),
@@ -145,7 +146,7 @@ public class BufferDataOverWindowOperatorTest {
     }
 
     @Test
-    public void testFollowing() throws Exception {
+    void testFollowing() throws Exception {
         test(
                 new OverWindowFrame[] {
                     new RowUnboundedFollowingOverFrame(valueType, function, -1),
@@ -165,7 +166,7 @@ public class BufferDataOverWindowOperatorTest {
     }
 
     @Test
-    public void testSliding() throws Exception {
+    void testSliding() throws Exception {
         test(
                 new OverWindowFrame[] {
                     new RowSlidingOverFrame(inputType, valueType, function, -1, 1),
@@ -204,25 +205,30 @@ public class BufferDataOverWindowOperatorTest {
                 .thenReturn(0.99);
         when(streamConfig.getOperatorID()).thenReturn(new OperatorID());
         operator =
-                new BufferDataOverWindowOperator(frames, comparator, true) {
+                new BufferDataOverWindowOperator(
+                        new StreamOperatorParameters<>(
+                                task,
+                                streamConfig,
+                                new NonBufferOverWindowOperatorTest.ConsumerOutput(
+                                        r ->
+                                                collect.add(
+                                                        GenericRowData.of(
+                                                                r.getInt(0),
+                                                                r.getLong(1),
+                                                                r.getLong(2),
+                                                                r.getLong(3),
+                                                                r.getLong(4)))),
+                                TestProcessingTimeService::new,
+                                null,
+                                null),
+                        frames,
+                        comparator,
+                        true) {
                     @Override
                     public StreamingRuntimeContext getRuntimeContext() {
                         return mock(StreamingRuntimeContext.class);
                     }
                 };
-        operator.setProcessingTimeService(new TestProcessingTimeService());
-        operator.setup(
-                task,
-                streamConfig,
-                new NonBufferOverWindowOperatorTest.ConsumerOutput(
-                        r ->
-                                collect.add(
-                                        GenericRowData.of(
-                                                r.getInt(0),
-                                                r.getLong(1),
-                                                r.getLong(2),
-                                                r.getLong(3),
-                                                r.getLong(4)))));
         operator.open();
 
         addRow(0, 1L, 4L); /* 1 **/

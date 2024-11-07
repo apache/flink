@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.zookeeper;
 
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.util.ParameterTool;
 
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.server.ServerConfig;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.server.ZooKeeperServer;

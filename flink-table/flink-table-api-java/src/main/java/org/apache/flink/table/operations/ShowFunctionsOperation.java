@@ -19,21 +19,26 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.functions.FunctionIdentifier;
-import org.apache.flink.table.functions.SqlLikeUtils;
+import org.apache.flink.table.operations.utils.ShowLikeOperator;
+
+import javax.annotation.Nullable;
 
 import java.util.Arrays;
-
-import static java.util.Objects.requireNonNull;
-import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
+import java.util.Collection;
+import java.util.stream.Collectors;
 
 /**
- * Operation to describe a SHOW FUNCTIONS [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT]
- * (LIKE | ILIKE) &lt;sql_like_pattern&gt; ] statement.
+ * Operation to describe a SHOW FUNCTIONS statement. The full syntax for SHOW FUNCTIONS is as
+ * followings:
+ *
+ * <pre>{@code
+ * SHOW [USER] FUNCTIONS [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] (LIKE | ILIKE)
+ * &lt;sql_like_pattern&gt; ] statement
+ * }</pre>
  */
 @Internal
-public class ShowFunctionsOperation implements ShowOperation {
+public class ShowFunctionsOperation extends AbstractShowOperation {
 
     /**
      * Represent scope of function.
@@ -50,161 +55,71 @@ public class ShowFunctionsOperation implements ShowOperation {
     }
 
     private final FunctionScope functionScope;
-    private final String preposition;
-    private final String catalogName;
-    private final String databaseName;
-    // different like type such as like, ilike
-    private final LikeType likeType;
-    private final String likePattern;
-    private final boolean notLike;
+    private final @Nullable String databaseName;
 
-    public ShowFunctionsOperation() {
+    public ShowFunctionsOperation(@Nullable String catalogName, @Nullable String databaseName) {
         // "SHOW FUNCTIONS" default is ALL scope
-        this.functionScope = FunctionScope.ALL;
-        this.preposition = null;
-        this.catalogName = null;
-        this.databaseName = null;
-        this.likeType = null;
-        this.likePattern = null;
-        this.notLike = false;
-    }
-
-    public ShowFunctionsOperation(
-            FunctionScope functionScope, String likeType, String likePattern, boolean notLike) {
-        this.functionScope = functionScope;
-        this.preposition = null;
-        this.catalogName = null;
-        this.databaseName = null;
-        if (likeType != null) {
-            this.likeType = LikeType.of(likeType);
-            this.likePattern = requireNonNull(likePattern, "Like pattern must not be null");
-            this.notLike = notLike;
-        } else {
-            this.likeType = null;
-            this.likePattern = null;
-            this.notLike = false;
-        }
+        this(FunctionScope.ALL, catalogName, databaseName, null);
     }
 
     public ShowFunctionsOperation(
             FunctionScope functionScope,
-            String preposition,
-            String catalogName,
-            String databaseName,
-            String likeType,
-            String likePattern,
-            boolean notLike) {
+            @Nullable String catalogName,
+            @Nullable String databaseName,
+            @Nullable ShowLikeOperator likeOp) {
+        this(functionScope, null, catalogName, databaseName, likeOp);
+    }
+
+    public ShowFunctionsOperation(
+            FunctionScope functionScope,
+            @Nullable String preposition,
+            @Nullable String catalogName,
+            @Nullable String databaseName,
+            @Nullable ShowLikeOperator likeOp) {
+        super(catalogName, preposition, likeOp);
         this.functionScope = functionScope;
-        this.preposition = preposition;
-        this.catalogName = catalogName;
         this.databaseName = databaseName;
-        if (likeType != null) {
-            this.likeType = LikeType.of(likeType);
-            this.likePattern = requireNonNull(likePattern, "Like pattern must not be null");
-            this.notLike = notLike;
-        } else {
-            this.likeType = null;
-            this.likePattern = null;
-            this.notLike = false;
+    }
+
+    @Override
+    protected Collection<String> retrieveDataForTableResult(Context ctx) {
+        switch (functionScope) {
+            case USER:
+                if (preposition == null) {
+                    return Arrays.asList(ctx.getFunctionCatalog().getUserDefinedFunctions());
+                }
+                return ctx.getFunctionCatalog().getUserDefinedFunctions(catalogName, databaseName)
+                        .stream()
+                        .map(FunctionIdentifier::getFunctionName)
+                        .collect(Collectors.toList());
+            case ALL:
+                if (preposition == null) {
+                    return Arrays.asList(ctx.getFunctionCatalog().getFunctions());
+                }
+                return Arrays.asList(
+                        ctx.getFunctionCatalog().getFunctions(catalogName, databaseName));
+            default:
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "SHOW FUNCTIONS with %s scope is not supported.", databaseName));
         }
     }
 
     @Override
-    public String asSummaryString() {
-        StringBuilder builder = new StringBuilder();
-        if (functionScope == FunctionScope.ALL) {
-            builder.append("SHOW FUNCTIONS");
-        } else {
-            builder.append(String.format("SHOW %s FUNCTIONS", functionScope));
-        }
-        if (preposition != null) {
-            builder.append(String.format(" %s %s.%s", preposition, catalogName, databaseName));
-        }
-        if (isWithLike()) {
-            if (isNotLike()) {
-                builder.append(String.format(" NOT %s '%s'", likeType.name(), likePattern));
-            } else {
-                builder.append(String.format(" %s '%s'", likeType.name(), likePattern));
-            }
-        }
-        return builder.toString();
-    }
-
-    public FunctionScope getFunctionScope() {
-        return functionScope;
-    }
-
-    public boolean isLike() {
-        return likeType == LikeType.LIKE;
-    }
-
-    public boolean isWithLike() {
-        return likeType != null;
-    }
-
-    public boolean isNotLike() {
-        return notLike;
+    protected String getOperationName() {
+        return functionScope == FunctionScope.ALL ? "SHOW FUNCTIONS" : "SHOW USER FUNCTIONS";
     }
 
     @Override
-    public TableResultInternal execute(Context ctx) {
-        final String[] functionNames;
-        if (preposition == null) {
-            // it's to show current_catalog.current_database
-            switch (functionScope) {
-                case USER:
-                    functionNames = ctx.getFunctionCatalog().getUserDefinedFunctions();
-                    break;
-                case ALL:
-                    functionNames = ctx.getFunctionCatalog().getFunctions();
-                    break;
-                default:
-                    throw new UnsupportedOperationException(
-                            String.format(
-                                    "SHOW FUNCTIONS with %s scope is not supported.",
-                                    functionScope));
-            }
-        } else {
-            switch (functionScope) {
-                case USER:
-                    functionNames =
-                            ctx.getFunctionCatalog()
-                                    .getUserDefinedFunctions(catalogName, databaseName).stream()
-                                    .map(FunctionIdentifier::getFunctionName)
-                                    .toArray(String[]::new);
-                    break;
-                case ALL:
-                    functionNames =
-                            ctx.getFunctionCatalog().getFunctions(catalogName, databaseName);
-                    break;
-                default:
-                    throw new UnsupportedOperationException(
-                            String.format(
-                                    "SHOW FUNCTIONS with %s scope is not supported.",
-                                    functionScope));
-            }
-        }
+    protected String getColumnName() {
+        return "function name";
+    }
 
-        String[] rows;
-        if (isWithLike()) {
-            rows =
-                    Arrays.stream(functionNames)
-                            .filter(
-                                    row -> {
-                                        if (likeType == LikeType.ILIKE) {
-                                            return isNotLike()
-                                                    != SqlLikeUtils.ilike(row, likePattern, "\\");
-                                        } else {
-                                            return isNotLike()
-                                                    != SqlLikeUtils.like(row, likePattern, "\\");
-                                        }
-                                    })
-                            .sorted()
-                            .toArray(String[]::new);
-        } else {
-            rows = Arrays.stream(functionNames).sorted().toArray(String[]::new);
+    @Override
+    public String getPrepositionSummaryString() {
+        if (databaseName == null) {
+            return super.getPrepositionSummaryString();
         }
-
-        return buildStringArrayResult("function name", rows);
+        return super.getPrepositionSummaryString() + "." + databaseName;
     }
 }

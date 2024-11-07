@@ -41,10 +41,11 @@ public class DeclarativeSlotPoolBridgeBuilder {
 
     private JobID jobId = new JobID();
     private Duration batchSlotTimeout = JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue();
-    private Duration idleSlotTimeout = TestingUtils.infiniteTime().toDuration();
+    private Duration idleSlotTimeout = TestingUtils.infiniteDuration();
     private Clock clock = SystemClock.getInstance();
     private Duration slotRequestMaxInterval = SLOT_REQUEST_MAX_INTERVAL.defaultValue();
     private ComponentMainThreadExecutor mainThreadExecutor = forMainThread();
+    private boolean slotBatchAllocatable = false;
 
     @Nullable
     private ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
@@ -96,16 +97,22 @@ public class DeclarativeSlotPoolBridgeBuilder {
         return this;
     }
 
+    public DeclarativeSlotPoolBridgeBuilder setSlotBatchAllocatable(boolean slotBatchAllocatable) {
+        this.slotBatchAllocatable = slotBatchAllocatable;
+        return this;
+    }
+
     public DeclarativeSlotPoolBridge build() {
         return new DeclarativeSlotPoolBridge(
                 jobId,
                 new DefaultDeclarativeSlotPoolFactory(),
                 clock,
-                TestingUtils.infiniteTime().toDuration(),
+                TestingUtils.infiniteDuration(),
                 idleSlotTimeout,
                 batchSlotTimeout,
                 requestSlotMatchingStrategy,
                 slotRequestMaxInterval,
+                slotBatchAllocatable,
                 mainThreadExecutor);
     }
 
@@ -115,11 +122,12 @@ public class DeclarativeSlotPoolBridgeBuilder {
                         jobId,
                         new DefaultDeclarativeSlotPoolFactory(),
                         clock,
-                        TestingUtils.infiniteTime().toDuration(),
+                        TestingUtils.infiniteDuration(),
                         idleSlotTimeout,
                         batchSlotTimeout,
                         requestSlotMatchingStrategy,
                         slotRequestMaxInterval,
+                        slotBatchAllocatable,
                         mainThreadExecutor);
 
         slotPool.start(JobMasterId.generate(), "foobar");

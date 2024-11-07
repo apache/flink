@@ -82,15 +82,23 @@ class CompiledPlanITCase extends JsonPlanTestBase {
         CompiledPlan compiledPlan =
                 tableEnv.compilePlanSql("INSERT INTO MySink SELECT * FROM MyTable");
         String expected = TableTestUtil.readFromResource("/jsonplan/testGetJsonPlan.out");
-        assertThat(
-                        TableTestUtil.replaceExecNodeId(
-                                TableTestUtil.replaceFlinkVersion(
-                                        TableTestUtil.getFormattedJson(
-                                                compiledPlan.asJsonString()))))
-                .isEqualTo(
-                        TableTestUtil.replaceExecNodeId(
-                                TableTestUtil.replaceFlinkVersion(
-                                        TableTestUtil.getFormattedJson(expected))));
+        assertThat(getPreparedToCompareCompiledPlan(compiledPlan.asJsonString()))
+                .isEqualTo(getPreparedToCompareCompiledPlan(expected));
+    }
+
+    @Test
+    void testSourceTableWithHints() {
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql(
+                        "INSERT INTO MySink SELECT * FROM MyTable"
+                                // OPTIONS hints here do not play any significant role
+                                // we just have to be sure that these options are present in
+                                // compiled plan
+                                + " /*+ OPTIONS('bounded'='true', 'scan.parallelism'='2') */");
+
+        String expected = TableTestUtil.readFromResource("/jsonplan/testGetJsonPlanWithHints.out");
+        assertThat(getPreparedToCompareCompiledPlan(compiledPlan.asJsonString()))
+                .isEqualTo(expected);
     }
 
     @Test
@@ -416,5 +424,9 @@ class CompiledPlanITCase extends JsonPlanTestBase {
     private File createSourceSinkTables() throws IOException {
         createTestCsvSourceTable("src", DATA, COLUMNS_DEFINITION);
         return createTestCsvSinkTable("sink", COLUMNS_DEFINITION);
+    }
+
+    private String getPreparedToCompareCompiledPlan(final String planAsString) {
+        return TableTestUtil.replaceExecNodeId(TableTestUtil.replaceFlinkVersion(planAsString));
     }
 }

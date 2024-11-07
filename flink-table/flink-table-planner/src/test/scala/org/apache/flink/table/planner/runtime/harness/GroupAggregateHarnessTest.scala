@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.harness
 
-import org.apache.flink.api.scala._
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, OneInputStreamOperatorTestHarness}
 import org.apache.flink.table.api.{EnvironmentSettings, _}
@@ -27,6 +26,7 @@ import org.apache.flink.table.api.config.AggregatePhaseStrategy
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, TABLE_EXEC_MINIBATCH_ENABLED, TABLE_EXEC_MINIBATCH_SIZE}
 import org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY
 import org.apache.flink.table.data.RowData
+import org.apache.flink.table.planner.runtime.utils.StreamingEnvUtil
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.CountNullNonNull
@@ -312,7 +312,9 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
   private def createAggregation()
       : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], Array[LogicalType]) = {
     val data = new mutable.MutableList[(String, String, Long)]
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t = StreamingEnvUtil
+      .fromCollection(env, data)
+      .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T", t)
 
     val sql =
@@ -334,7 +336,9 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
     tEnv.getConfig.set(TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, AggregatePhaseStrategy.TWO_PHASE)
 
     val data = new mutable.MutableList[(String, String, Long)]
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t = StreamingEnvUtil
+      .fromCollection(env, data)
+      .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T", t)
 
     val sql =
@@ -358,7 +362,9 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
   private def createAggregationWithDistinct()
       : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], Array[LogicalType]) = {
     val data = new mutable.MutableList[(String, String, Long)]
-    val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    val t = StreamingEnvUtil
+      .fromCollection(env, data)
+      .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T", t)
     tEnv.createTemporarySystemFunction("CntNullNonNull", new CountNullNonNull)
 

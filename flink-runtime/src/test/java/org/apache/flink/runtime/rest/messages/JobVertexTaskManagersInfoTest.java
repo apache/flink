@@ -69,7 +69,6 @@ class JobVertexTaskManagersInfoTest
         }
         taskManagersInfoList.add(
                 new TaskManagersInfo(
-                        "host1",
                         "host1:123",
                         ExecutionState.CANCELING,
                         1L,

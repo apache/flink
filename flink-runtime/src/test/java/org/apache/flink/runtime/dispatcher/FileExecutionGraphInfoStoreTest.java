@@ -20,7 +20,6 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
@@ -49,6 +48,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -161,7 +161,7 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
     public void testExecutionGraphExpiration() throws Exception {
         final File rootDir = temporaryFolder.newFolder();
 
-        final Time expirationTime = Time.milliseconds(1L);
+        final Duration expirationTime = Duration.ofMillis(1L);
 
         final ManuallyTriggeredScheduledExecutor scheduledExecutor =
                 new ManuallyTriggeredScheduledExecutor();
@@ -188,7 +188,7 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
             // there should one execution graph
             assertThat(executionGraphInfoStore.size(), Matchers.equalTo(1));
 
-            manualTicker.advanceTime(expirationTime.toMilliseconds(), TimeUnit.MILLISECONDS);
+            manualTicker.advanceTime(expirationTime.toMillis(), TimeUnit.MILLISECONDS);
 
             // this should trigger the cleanup after expiration
             scheduledExecutor.triggerScheduledTasks();
@@ -244,7 +244,7 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
         try (final FileExecutionGraphInfoStore executionGraphInfoStore =
                 new FileExecutionGraphInfoStore(
                         rootDir,
-                        Time.hours(1L),
+                        Duration.ofHours(1L),
                         Integer.MAX_VALUE,
                         100L << 10,
                         new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()),
@@ -309,7 +309,7 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
         try (final FileExecutionGraphInfoStore executionGraphInfoStore =
                 new FileExecutionGraphInfoStore(
                         rootDir,
-                        Time.hours(1L),
+                        Duration.ofHours(1L),
                         maxCapacity,
                         10000L,
                         new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor()),

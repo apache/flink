@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job.checkpoints;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.DefaultCheckpointStatsTracker;
@@ -58,7 +57,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOf
 /** Test class for {@link AbstractCheckpointStatsHandler}. */
 class AbstractCheckpointStatsHandlerTest {
 
-    private static final Time TIMEOUT = Time.seconds(10);
+    private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
     private static final JobID JOB_ID = new JobID();
 
@@ -237,7 +236,7 @@ class AbstractCheckpointStatsHandlerTest {
 
         protected RecordingCheckpointStatsHandler(
                 GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-                Time timeout,
+                Duration timeout,
                 Map<String, String> responseHeaders,
                 MessageHeaders<EmptyRequestBody, CheckpointingStatistics, JobMessageParameters>
                         messageHeaders,
@@ -276,7 +275,7 @@ class AbstractCheckpointStatsHandlerTest {
 
         protected ThrowingCheckpointStatsHandler(
                 GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-                Time timeout,
+                Duration timeout,
                 Map<String, String> responseHeaders,
                 MessageHeaders<EmptyRequestBody, CheckpointingStatistics, JobMessageParameters>
                         messageHeaders,

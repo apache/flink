@@ -137,16 +137,6 @@ public class SqlClient {
         }
 
         boolean hasSqlFile = options.getSqlFile() != null;
-        boolean hasUpdateStatement = options.getUpdateStatement() != null;
-        if (hasSqlFile && hasUpdateStatement) {
-            throw new IllegalArgumentException(
-                    String.format(
-                            "Please use either option %s or %s. The option %s is deprecated and it's suggested to use %s instead.",
-                            CliOptionsParser.OPTION_FILE,
-                            CliOptionsParser.OPTION_UPDATE,
-                            CliOptionsParser.OPTION_UPDATE.getOpt(),
-                            CliOptionsParser.OPTION_FILE.getOpt()));
-        }
 
         try (CliClient cli = new CliClient(terminalFactory, executor, historyFilePath)) {
             if (options.getInitFile() != null) {
@@ -165,7 +155,7 @@ public class SqlClient {
                 }
             }
 
-            if (!hasSqlFile && !hasUpdateStatement) {
+            if (!hasSqlFile) {
                 cli.executeInInteractiveMode();
             } else {
                 cli.executeInNonInteractiveMode(readExecutionContent());
@@ -332,11 +322,7 @@ public class SqlClient {
     }
 
     private String readExecutionContent() {
-        if (options.getSqlFile() != null) {
-            return readFromURL(options.getSqlFile());
-        } else {
-            return options.getUpdateStatement().trim();
-        }
+        return readFromURL(options.getSqlFile());
     }
 
     private String readFromURL(URL file) {

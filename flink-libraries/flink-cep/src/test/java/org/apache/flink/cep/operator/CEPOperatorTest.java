@@ -39,10 +39,10 @@ import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.time.TimerService;
 import org.apache.flink.cep.utils.CepOperatorTestUtilities;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.mock.Whitebox;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
+import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
@@ -204,8 +204,8 @@ public class CEPOperatorTest extends TestLogger {
     public void testKeyedCEPOperatorCheckpointingWithRocksDB() throws Exception {
 
         String rocksDbPath = tempFolder.newFolder().getAbsolutePath();
-        RocksDBStateBackend rocksDBStateBackend =
-                new RocksDBStateBackend(new MemoryStateBackend(), TernaryBoolean.FALSE);
+        EmbeddedRocksDBStateBackend rocksDBStateBackend =
+                new EmbeddedRocksDBStateBackend(TernaryBoolean.FALSE);
         rocksDBStateBackend.setDbStoragePath(rocksDbPath);
 
         OneInputStreamOperatorTestHarness<Event, Map<String, List<Event>>> harness =
@@ -213,6 +213,7 @@ public class CEPOperatorTest extends TestLogger {
 
         try {
             harness.setStateBackend(rocksDBStateBackend);
+            harness.setCheckpointStorage(new JobManagerCheckpointStorage());
 
             harness.open();
 
@@ -229,7 +230,7 @@ public class CEPOperatorTest extends TestLogger {
 
             harness = getCepTestHarness(false);
 
-            rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
+            rocksDBStateBackend = new EmbeddedRocksDBStateBackend();
             rocksDBStateBackend.setDbStoragePath(rocksDbPath);
             harness.setStateBackend(rocksDBStateBackend);
 
@@ -252,7 +253,7 @@ public class CEPOperatorTest extends TestLogger {
 
             harness = getCepTestHarness(false);
 
-            rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
+            rocksDBStateBackend = new EmbeddedRocksDBStateBackend();
             rocksDBStateBackend.setDbStoragePath(rocksDbPath);
             harness.setStateBackend(rocksDBStateBackend);
             harness.setup();
@@ -316,11 +317,11 @@ public class CEPOperatorTest extends TestLogger {
 
         try {
             String rocksDbPath = tempFolder.newFolder().getAbsolutePath();
-            RocksDBStateBackend rocksDBStateBackend =
-                    new RocksDBStateBackend(new MemoryStateBackend());
+            EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend();
             rocksDBStateBackend.setDbStoragePath(rocksDbPath);
 
             harness.setStateBackend(rocksDBStateBackend);
+            harness.setCheckpointStorage(new JobManagerCheckpointStorage());
             harness.setup(
                     new KryoSerializer<>(
                             (Class<Map<String, List<Event>>>) (Object) Map.class,
@@ -417,8 +418,8 @@ public class CEPOperatorTest extends TestLogger {
     public void testKeyedCEPOperatorNFAUpdateWithRocksDB() throws Exception {
 
         String rocksDbPath = tempFolder.newFolder().getAbsolutePath();
-        RocksDBStateBackend rocksDBStateBackend =
-                new RocksDBStateBackend(new MemoryStateBackend(), TernaryBoolean.FALSE);
+        EmbeddedRocksDBStateBackend rocksDBStateBackend =
+                new EmbeddedRocksDBStateBackend(TernaryBoolean.FALSE);
         rocksDBStateBackend.setDbStoragePath(rocksDbPath);
 
         CepOperator<Event, Integer, Map<String, List<Event>>> operator =
@@ -428,6 +429,7 @@ public class CEPOperatorTest extends TestLogger {
 
         try {
             harness.setStateBackend(rocksDBStateBackend);
+            harness.setCheckpointStorage(new JobManagerCheckpointStorage());
 
             harness.open();
 
@@ -444,7 +446,7 @@ public class CEPOperatorTest extends TestLogger {
             operator = CepOperatorTestUtilities.getKeyedCepOperator(true, new SimpleNFAFactory());
             harness = CepOperatorTestUtilities.getCepTestHarness(operator);
 
-            rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
+            rocksDBStateBackend = new EmbeddedRocksDBStateBackend();
             rocksDBStateBackend.setDbStoragePath(rocksDbPath);
             harness.setStateBackend(rocksDBStateBackend);
             harness.setup();
@@ -458,7 +460,7 @@ public class CEPOperatorTest extends TestLogger {
             operator = CepOperatorTestUtilities.getKeyedCepOperator(true, new SimpleNFAFactory());
             harness = CepOperatorTestUtilities.getCepTestHarness(operator);
 
-            rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
+            rocksDBStateBackend = new EmbeddedRocksDBStateBackend();
             rocksDBStateBackend.setDbStoragePath(rocksDbPath);
             harness.setStateBackend(rocksDBStateBackend);
             harness.setup();
@@ -522,7 +524,7 @@ public class CEPOperatorTest extends TestLogger {
     public void testKeyedCEPOperatorNFAUpdateTimesWithRocksDB() throws Exception {
 
         String rocksDbPath = tempFolder.newFolder().getAbsolutePath();
-        RocksDBStateBackend rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
+        EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend();
         rocksDBStateBackend.setDbStoragePath(rocksDbPath);
 
         CepOperator<Event, Integer, Map<String, List<Event>>> operator =
@@ -532,6 +534,7 @@ public class CEPOperatorTest extends TestLogger {
 
         try {
             harness.setStateBackend(rocksDBStateBackend);
+            harness.setCheckpointStorage(new JobManagerCheckpointStorage());
 
             harness.open();
 
@@ -928,7 +931,7 @@ public class CEPOperatorTest extends TestLogger {
     @Test
     public void testCEPOperatorSerializationWRocksDB() throws Exception {
         String rocksDbPath = tempFolder.newFolder().getAbsolutePath();
-        RocksDBStateBackend rocksDBStateBackend = new RocksDBStateBackend(new MemoryStateBackend());
+        EmbeddedRocksDBStateBackend rocksDBStateBackend = new EmbeddedRocksDBStateBackend();
         rocksDBStateBackend.setDbStoragePath(rocksDbPath);
 
         final Event startEvent1 = new Event(40, "start", 1.0);
@@ -988,6 +991,7 @@ public class CEPOperatorTest extends TestLogger {
 
         try {
             harness.setStateBackend(rocksDBStateBackend);
+            harness.setCheckpointStorage(new JobManagerCheckpointStorage());
             harness.open();
 
             harness.processWatermark(0L);

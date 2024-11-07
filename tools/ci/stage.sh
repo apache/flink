@@ -36,24 +36,19 @@ flink-state-backends/flink-statebackend-rocksdb,\
 flink-state-backends/flink-statebackend-forst,\
 flink-clients,\
 flink-core,\
-flink-java,\
-flink-optimizer,\
 flink-rpc,\
 flink-rpc/flink-rpc-core,\
 flink-rpc/flink-rpc-akka,\
 flink-rpc/flink-rpc-akka-loader,\
 flink-runtime,\
 flink-runtime-web,\
-flink-scala,\
 flink-streaming-java,\
-flink-streaming-scala,\
 flink-metrics,\
 flink-metrics/flink-metrics-core,\
 flink-external-resources,\
 flink-external-resources/flink-external-resource-gpu,\
 flink-libraries,\
 flink-libraries/flink-cep,\
-flink-libraries/flink-cep-scala,\
 flink-libraries/flink-state-processing-api,\
 flink-queryable-state,\
 flink-queryable-state/flink-queryable-state-runtime,\
@@ -85,7 +80,6 @@ flink-table/flink-table-test-utils,\
 "
 
 MODULES_CONNECTORS="\
-flink-contrib/flink-connector-wikiedits,\
 flink-filesystems,\
 flink-filesystems/flink-azure-fs-hadoop,\
 flink-filesystems/flink-fs-hadoop-shaded,\
@@ -124,6 +118,7 @@ flink-metrics/flink-metrics-prometheus,\
 flink-metrics/flink-metrics-statsd,\
 flink-metrics/flink-metrics-datadog,\
 flink-metrics/flink-metrics-slf4j,\
+flink-metrics/flink-metrics-otel,\
 flink-connectors/flink-connector-base,\
 "
 

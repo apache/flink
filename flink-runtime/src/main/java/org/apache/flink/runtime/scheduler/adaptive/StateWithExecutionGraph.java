@@ -141,7 +141,8 @@ abstract class StateWithExecutionGraph implements State {
         return executionGraph;
     }
 
-    JobID getJobId() {
+    @Override
+    public JobID getJobId() {
         return executionGraph.getJobID();
     }
 

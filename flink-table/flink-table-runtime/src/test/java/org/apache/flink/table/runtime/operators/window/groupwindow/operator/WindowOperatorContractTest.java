@@ -41,8 +41,8 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
-import org.junit.Test;
-import org.mockito.Matchers;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import java.time.ZoneId;
@@ -53,9 +53,9 @@ import java.util.Collections;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -67,12 +67,12 @@ import static org.mockito.Mockito.when;
  *
  * <p>These tests document the implicit contract that exists between the windowing components.
  */
-public class WindowOperatorContractTest {
+class WindowOperatorContractTest {
 
     private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
 
     @Test
-    public void testAssignerIsInvokedOncePerElement() throws Exception {
+    void testAssignerIsInvokedOncePerElement() throws Exception {
         GroupWindowAssigner<TimeWindow> mockAssigner = mockTimeWindowAssigner();
         Trigger<TimeWindow> mockTrigger = mockTrigger();
         NamespaceAggsHandleFunction<TimeWindow> mockAggregate = mockAggsHandleFunction();
@@ -95,7 +95,7 @@ public class WindowOperatorContractTest {
     }
 
     @Test
-    public void testAssignerWithMultipleWindowsForAggregate() throws Exception {
+    void testAssignerWithMultipleWindowsForAggregate() throws Exception {
         GroupWindowAssigner<TimeWindow> mockAssigner = mockTimeWindowAssigner();
         Trigger<TimeWindow> mockTrigger = mockTrigger();
         NamespaceAggsHandleFunction<TimeWindow> mockAggregate = mockAggsHandleFunction();
@@ -118,7 +118,7 @@ public class WindowOperatorContractTest {
     }
 
     @Test
-    public void testAssignerWithMultipleWindowsForTableAggregate() throws Exception {
+    void testAssignerWithMultipleWindowsForTableAggregate() throws Exception {
         GroupWindowAssigner<TimeWindow> mockAssigner = mockTimeWindowAssigner();
         Trigger<TimeWindow> mockTrigger = mockTrigger();
         NamespaceTableAggsHandleFunction<TimeWindow> mockAggregate = mockTableAggsHandleFunction();
@@ -141,7 +141,7 @@ public class WindowOperatorContractTest {
     }
 
     @Test
-    public void testOnElementCalledPerWindow() throws Exception {
+    void testOnElementCalledPerWindow() throws Exception {
 
         GroupWindowAssigner<TimeWindow> mockAssigner = mockTimeWindowAssigner();
         Trigger<TimeWindow> mockTrigger = mockTrigger();
@@ -163,7 +163,7 @@ public class WindowOperatorContractTest {
     }
 
     @Test
-    public void testMergeWindowsIsCalled() throws Exception {
+    void testMergeWindowsIsCalled() throws Exception {
         MergingWindowAssigner<TimeWindow> mockAssigner = mockMergingAssigner();
         Trigger<TimeWindow> mockTrigger = mockTrigger();
         NamespaceAggsHandleFunction<TimeWindow> mockAggregate = mockAggsHandleFunction();
@@ -269,10 +269,10 @@ public class WindowOperatorContractTest {
         @SuppressWarnings("unchecked")
         Trigger<W> mockTrigger = mock(Trigger.class);
 
-        when(mockTrigger.onElement(Matchers.<RowData>any(), anyLong(), Matchers.any()))
+        when(mockTrigger.onElement(ArgumentMatchers.any(), anyLong(), ArgumentMatchers.any()))
                 .thenReturn(false);
-        when(mockTrigger.onEventTime(anyLong(), Matchers.any())).thenReturn(false);
-        when(mockTrigger.onProcessingTime(anyLong(), Matchers.any())).thenReturn(false);
+        when(mockTrigger.onEventTime(anyLong(), ArgumentMatchers.any())).thenReturn(false);
+        when(mockTrigger.onProcessingTime(anyLong(), ArgumentMatchers.any())).thenReturn(false);
 
         return mockTrigger;
     }
@@ -314,7 +314,7 @@ public class WindowOperatorContractTest {
     // ------------------------------------------------------------------------------------
 
     private static <T> void shouldFireOnElement(Trigger<TimeWindow> mockTrigger) throws Exception {
-        when(mockTrigger.onElement(Matchers.<T>anyObject(), anyLong(), anyTimeWindow()))
+        when(mockTrigger.onElement(ArgumentMatchers.any(), anyLong(), anyTimeWindow()))
                 .thenReturn(true);
     }
 }
