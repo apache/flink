@@ -45,12 +45,13 @@ import org.apache.flink.table.legacy.sinks.TableSink
 import org.apache.flink.table.legacy.sources._
 import org.apache.flink.table.legacy.sources.tsextractors.ExistingField
 import org.apache.flink.table.planner._
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.hint.OptionsHintTest.IS_BOUNDED
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.sinks.CsvBatchTableSinkFactory
-import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, PreserveWatermarks}
+import org.apache.flink.table.sources.wmstrategies.PreserveWatermarks
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.table.utils.TableSchemaUtils.getPhysicalSchema
@@ -137,6 +138,29 @@ object TestTableSourceSinks {
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(tableName, sink)
 
     path
+  }
+
+  /**
+   * Used for stream/TableScanITCase#testTableSourceWithoutTimeAttribute or
+   * batch/TableScanITCase#testTableSourceWithoutTimeAttribute
+   */
+  def createWithoutTimeAttributesTableSource(tEnv: TableEnvironment, tableName: String): Unit = {
+    val data = Seq(
+      Row.of("Mary", Long.box(1L), Int.box(1)),
+      Row.of("Bob", Long.box(2L), Int.box(3))
+    )
+    val dataId = TestValuesTableFactory.registerData(data)
+    tEnv.executeSql(s"""
+                       | create table $tableName (
+                       |  `name` string,
+                       |  `id` bigint,
+                       |  `value` int
+                       |) with (
+                       |  'connector' = 'values',
+                       |  'bounded' = 'true',
+                       |  'data-id' = '$dataId'
+                       | )
+                       |""".stripMargin)
   }
 
   lazy val getPersonCsvPath = {
@@ -549,124 +573,6 @@ class TestDataTypeTableSource(tableSchema: TableSchema, values: Seq[Row])
   override def getTableSchema: TableSchema = tableSchema
 }
 
-class TestDataTypeTableSourceFactory extends TableSourceFactory[Row] {
-
-  override def createTableSource(properties: JMap[String, String]): TableSource[Row] = {
-    val descriptorProperties = new DescriptorProperties
-    descriptorProperties.putProperties(properties)
-    val tableSchema = getPhysicalSchema(descriptorProperties.getTableSchema(Schema.SCHEMA))
-    val serializedRows = descriptorProperties.getOptionalString("data").orElse(null)
-    val data = if (serializedRows != null) {
-      EncodingUtils.decodeStringToObject(serializedRows, classOf[List[Row]])
-    } else {
-      Seq.empty[Row]
-    }
-    new TestDataTypeTableSource(tableSchema, data)
-  }
-
-  override def requiredContext(): JMap[String, String] = {
-    val context = new util.HashMap[String, String]()
-    context.put(CONNECTOR_TYPE, "TestDataTypeTableSource")
-    context
-  }
-
-  override def supportedProperties(): JList[String] = {
-    val supported = new util.ArrayList[String]()
-    supported.add("*")
-    supported
-  }
-}
-
-object TestDataTypeTableSource {
-  def createTemporaryTable(
-      tEnv: TableEnvironment,
-      schema: TableSchema,
-      tableName: String,
-      data: Seq[Row]): Unit = {
-    val source = new TestDataTypeTableSource(schema, data)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, source)
-  }
-}
-
-class TestDataTypeTableSourceWithTime(
-    tableSchema: TableSchema,
-    values: Seq[Row],
-    rowtime: String = null)
-  extends InputFormatTableSource[Row]
-  with DefinedRowtimeAttributes {
-
-  override def getInputFormat: InputFormat[Row, _ <: InputSplit] = {
-    new CollectionInputFormat[Row](
-      values.asJava,
-      fromDataTypeToTypeInfo(getProducedDataType)
-        .createSerializer(new SerializerConfigImpl)
-        .asInstanceOf[TypeSerializer[Row]])
-  }
-
-  override def getReturnType: TypeInformation[Row] =
-    throw new RuntimeException("Should not invoke this deprecated method.")
-
-  override def getProducedDataType: DataType = tableSchema.toRowDataType
-
-  override def getTableSchema: TableSchema = tableSchema
-
-  override def getRowtimeAttributeDescriptors: JList[RowtimeAttributeDescriptor] = {
-    // return a RowtimeAttributeDescriptor if rowtime attribute is defined
-    if (rowtime != null) {
-      Collections.singletonList(
-        new RowtimeAttributeDescriptor(
-          rowtime,
-          new ExistingField(rowtime),
-          new AscendingTimestamps))
-    } else {
-      Collections.EMPTY_LIST.asInstanceOf[JList[RowtimeAttributeDescriptor]]
-    }
-  }
-}
-
-class TestDataTypeTableSourceWithTimeFactory extends TableSourceFactory[Row] {
-
-  override def createTableSource(properties: JMap[String, String]): TableSource[Row] = {
-    val descriptorProperties = new DescriptorProperties
-    descriptorProperties.putProperties(properties)
-    val tableSchema = getPhysicalSchema(descriptorProperties.getTableSchema(Schema.SCHEMA))
-
-    val serializedRows = descriptorProperties.getOptionalString("data").orElse(null)
-    val data = if (serializedRows != null) {
-      EncodingUtils.decodeStringToObject(serializedRows, classOf[List[Row]])
-    } else {
-      Seq.empty[Row]
-    }
-
-    val rowTime = descriptorProperties.getOptionalString("rowtime").orElse(null)
-    new TestDataTypeTableSourceWithTime(tableSchema, data, rowTime)
-  }
-
-  override def requiredContext(): JMap[String, String] = {
-    val context = new util.HashMap[String, String]()
-    context.put(CONNECTOR_TYPE, "TestDataTypeTableSourceWithTime")
-    context
-  }
-
-  override def supportedProperties(): JList[String] = {
-    val supported = new util.ArrayList[String]()
-    supported.add("*")
-    supported
-  }
-}
-
-object TestDataTypeTableSourceWithTime {
-  def createTemporaryTable(
-      tEnv: TableEnvironment,
-      schema: TableSchema,
-      tableName: String,
-      data: Seq[Row],
-      rowTime: String): Unit = {
-    val source = new TestDataTypeTableSourceWithTime(schema, data, rowTime)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, source)
-  }
-}
-
 class TestStreamTableSource(tableSchema: TableSchema, values: Seq[Row])
   extends StreamTableSource[Row] {
 
@@ -890,69 +796,6 @@ object TestPartitionableSourceFactory {
           new CatalogPartitionImpl(Map[String, String](), ""),
           true))
 
-  }
-}
-
-/**
- * Used for stream/TableScanITCase#testTableSourceWithoutTimeAttribute or
- * batch/TableScanITCase#testTableSourceWithoutTimeAttribute
- */
-class WithoutTimeAttributesTableSource(bounded: Boolean) extends StreamTableSource[Row] {
-
-  override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
-    val data = Seq(
-      Row.of("Mary", new JLong(1L), new JInt(1)),
-      Row.of("Bob", new JLong(2L), new JInt(3))
-    )
-    val dataStream =
-      execEnv
-        .fromData(data.asJava)
-        .returns(fromDataTypeToTypeInfo(getProducedDataType).asInstanceOf[RowTypeInfo])
-    dataStream.getTransformation.setMaxParallelism(1)
-    dataStream
-  }
-
-  override def isBounded: Boolean = bounded
-
-  override def getProducedDataType: DataType = {
-    WithoutTimeAttributesTableSource.tableSchema.toRowDataType
-  }
-
-  override def getTableSchema: TableSchema = WithoutTimeAttributesTableSource.tableSchema
-}
-
-object WithoutTimeAttributesTableSource {
-  lazy val tableSchema = TableSchema
-    .builder()
-    .field("name", DataTypes.STRING())
-    .field("id", DataTypes.BIGINT())
-    .field("value", DataTypes.INT())
-    .build()
-
-  def createTemporaryTable(tEnv: TableEnvironment, tableName: String): Unit = {
-    val source = new WithoutTimeAttributesTableSource(true)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, source)
-  }
-}
-
-class WithoutTimeAttributesTableSourceFactory extends TableSourceFactory[Row] {
-  override def createTableSource(properties: JMap[String, String]): TableSource[Row] = {
-    val dp = new DescriptorProperties
-    dp.putProperties(properties)
-    val isBounded = dp.getOptionalBoolean("is-bounded").orElse(false)
-    new WithoutTimeAttributesTableSource(isBounded)
-  }
-
-  override def requiredContext(): JMap[String, String] = {
-    val context = new util.HashMap[String, String]()
-    context.put(CONNECTOR_TYPE, "WithoutTimeAttributesTableSource")
-    context
-  }
-
-  override def supportedProperties(): JList[String] = {
-    val properties = new util.ArrayList[String]()
-    properties.add("*")
-    properties
   }
 }
 

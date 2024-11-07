@@ -20,14 +20,14 @@ package org.apache.flink.table.planner.runtime.stream.sql
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.legacy.api.{TableSchema, Types}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.planner.utils.{TestPreserveWMTableSource, WithoutTimeAttributesTableSource}
+import org.apache.flink.table.planner.utils.TestPreserveWMTableSource
+import org.apache.flink.table.planner.utils.TestTableSourceSinks.createWithoutTimeAttributesTableSource
 import org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
@@ -42,7 +42,7 @@ class TableScanITCase extends StreamingTestBase {
   @Test
   def testTableSourceWithoutTimeAttribute(): Unit = {
     val tableName = "MyTable"
-    WithoutTimeAttributesTableSource.createTemporaryTable(tEnv, tableName)
+    createWithoutTimeAttributesTableSource(tEnv, tableName)
     val sqlQuery = s"SELECT * from $tableName"
     val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
