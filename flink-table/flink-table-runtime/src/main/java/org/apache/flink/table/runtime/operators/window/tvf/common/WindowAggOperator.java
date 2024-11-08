@@ -145,7 +145,9 @@ public final class WindowAggOperator<K, W> extends TableStreamOperator<RowData>
         internalTimerService =
                 getInternalTimerService(
                         "window-timers", windowProcessor.createWindowSerializer(), this);
-
+        // Restore the watermark of timerService to prevent expired data from being treated as
+        // not expired when flushWindowBuffer is executed.
+        internalTimerService.initializeWatermark(currentWatermark);
         windowProcessor.open(
                 new WindowProcessorSyncStateContext<>(
                         getContainingTask(),

@@ -162,6 +162,113 @@ class SlicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
     }
 
     @TestTemplate
+    public void testEventTimeHoppingWindowWithExpiredSliceAndRestore() throws Exception {
+        final SliceAssigner assigner =
+                SliceAssigners.hopping(
+                        2, shiftTimeZone, Duration.ofSeconds(3), Duration.ofSeconds(1));
+        final SlicingSumAndCountAggsFunction aggsFunction =
+                new SlicingSumAndCountAggsFunction(assigner);
+        OneInputStreamOperator<RowData, RowData> operator =
+                buildWindowOperator(assigner, aggsFunction, 1);
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
+
+        testHarness.setup(OUT_SERIALIZER);
+        testHarness.open();
+
+        // 1. process elements
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+        testHarness.processElement(insertRecord("key1", 1, fromEpochMillis(1020L)));
+        testHarness.processElement(insertRecord("key1", 1, fromEpochMillis(1001L)));
+        testHarness.processElement(insertRecord("key1", 1, fromEpochMillis(1999L)));
+
+        testHarness.processWatermark(new Watermark(2001));
+        expectedOutput.add(insertRecord("key1", 3L, 3L, localMills(-1000L), localMills(2000L)));
+        expectedOutput.add(new Watermark(2001));
+        ASSERTER.assertOutputEqualsSorted(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+
+        // 2. do a snapshot, close and restore again
+        testHarness.prepareSnapshotPreBarrier(0L);
+        OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
+        testHarness.close();
+
+        assertThat(aggsFunction.closeCalled.get()).as("Close was not called.").isGreaterThan(0);
+
+        expectedOutput.clear();
+        testHarness = createTestHarness(operator);
+        testHarness.setup(OUT_SERIALIZER);
+        testHarness.initializeState(snapshot);
+        testHarness.open();
+
+        // 3. process elements
+        // Expired slice but belong to other window.
+        testHarness.processElement(insertRecord("key2", 1, fromEpochMillis(1500L)));
+
+        testHarness.processElement(insertRecord("key2", 1, fromEpochMillis(2998L)));
+        testHarness.processElement(insertRecord("key2", 1, fromEpochMillis(2999L)));
+        testHarness.processElement(insertRecord("key2", 1, fromEpochMillis(2000L)));
+
+        testHarness.processWatermark(new Watermark(2999));
+        expectedOutput.add(insertRecord("key1", 3L, 3L, localMills(0L), localMills(3000L)));
+        expectedOutput.add(insertRecord("key2", 4L, 4L, localMills(0L), localMills(3000L)));
+        expectedOutput.add(new Watermark(2999));
+        ASSERTER.assertOutputEqualsSorted(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+
+        testHarness.close();
+    }
+
+    @TestTemplate
+    public void testEventTimeHoppingWindowWithExpiredSliceAndNoRestore() throws Exception {
+        final SliceAssigner assigner =
+                SliceAssigners.hopping(
+                        2, shiftTimeZone, Duration.ofSeconds(3), Duration.ofSeconds(1));
+        final SlicingSumAndCountAggsFunction aggsFunction =
+                new SlicingSumAndCountAggsFunction(assigner);
+        OneInputStreamOperator<RowData, RowData> operator =
+                buildWindowOperator(assigner, aggsFunction, 1);
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
+
+        testHarness.setup(OUT_SERIALIZER);
+        testHarness.open();
+
+        // 1. process elements
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+        testHarness.processElement(insertRecord("key1", 1, fromEpochMillis(1020L)));
+        testHarness.processElement(insertRecord("key1", 1, fromEpochMillis(1001L)));
+        testHarness.processElement(insertRecord("key1", 1, fromEpochMillis(1999L)));
+
+        testHarness.processWatermark(new Watermark(2001));
+        expectedOutput.add(insertRecord("key1", 3L, 3L, localMills(-1000L), localMills(2000L)));
+        expectedOutput.add(new Watermark(2001));
+        ASSERTER.assertOutputEqualsSorted(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+
+        // 2. process elements
+        // Expired slice but belong to other window.
+        testHarness.processElement(insertRecord("key2", 1, fromEpochMillis(1500L)));
+
+        testHarness.processElement(insertRecord("key2", 1, fromEpochMillis(2998L)));
+        testHarness.processElement(insertRecord("key2", 1, fromEpochMillis(2999L)));
+        testHarness.processElement(insertRecord("key2", 1, fromEpochMillis(2000L)));
+
+        testHarness.processWatermark(new Watermark(2999));
+        expectedOutput.add(insertRecord("key1", 3L, 3L, localMills(0L), localMills(3000L)));
+        expectedOutput.add(insertRecord("key2", 4L, 4L, localMills(0L), localMills(3000L)));
+        expectedOutput.add(new Watermark(2999));
+        ASSERTER.assertOutputEqualsSorted(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+
+        testHarness.close();
+    }
+
+    @TestTemplate
     void testProcessingTimeHoppingWindows() throws Exception {
         final SliceAssigner assigner =
                 SliceAssigners.hopping(-1, shiftTimeZone, Duration.ofHours(3), Duration.ofHours(1));
