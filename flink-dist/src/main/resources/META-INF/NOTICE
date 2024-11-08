@@ -9,7 +9,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.google.code.findbugs:jsr305:1.3.9
 - com.twitter:chill-java:0.7.6
 - com.ververica:frocksdbjni:8.10.0-ververica-beta-1.0
-- com.ververica:forstjni:0.1.2-beta
+- com.ververica:forstjni:0.1.3-beta
 - commons-cli:commons-cli:1.5.0
 - commons-collections:commons-collections:3.2.2
 - commons-io:commons-io:2.15.1
