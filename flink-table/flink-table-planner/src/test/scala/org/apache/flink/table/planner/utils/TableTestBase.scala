@@ -1349,6 +1349,7 @@ case class StreamTableTestUtil(
       sourceRel.getCluster,
       sourceRel.getTraitSet,
       sourceRel,
+      Collections.emptyList(),
       rowtimeFieldIdx,
       expr
     )
