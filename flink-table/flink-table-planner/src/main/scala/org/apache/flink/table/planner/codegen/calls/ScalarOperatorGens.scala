@@ -38,7 +38,7 @@ import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.LogicalTypeFamily.DATETIME
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldTypes
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldTypes, getPrecision, getScale}
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
 import org.apache.flink.table.utils.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.flink.util.Preconditions.checkArgument
@@ -107,6 +107,8 @@ object ScalarOperatorGens {
     // use it as is during calculation.
     def castToDec(t: LogicalType): String => String = t match {
       case _: DecimalType => (operandTerm: String) => s"$operandTerm"
+      case _: TinyIntType | _: SmallIntType | _: IntType | _: BigIntType =>
+        numericCasting(ctx, t, new DecimalType(getPrecision(t), getScale(t)))
       case _ => numericCasting(ctx, t, resultType)
     }
     val methods =
