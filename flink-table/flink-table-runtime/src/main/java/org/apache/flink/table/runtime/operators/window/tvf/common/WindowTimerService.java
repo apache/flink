@@ -43,6 +43,9 @@ public interface WindowTimerService<W> {
     /** Returns the current event-time watermark. */
     long currentWatermark();
 
+    /** Initialize watermark after restore. */
+    void initializeWatermark(long watermark);
+
     /**
      * Registers a window timer to be fired when processing time passes the window. The window you
      * pass here will be provided when the timer fires.

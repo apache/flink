@@ -225,6 +225,11 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
     }
 
     @Override
+    public void initializeWatermark(long watermark) {
+        this.currentWatermark = watermark;
+    }
+
+    @Override
     public void registerProcessingTimeTimer(N namespace, long time) {
         InternalTimer<K, N> oldHead = processingTimeTimersQueue.peek();
         if (processingTimeTimersQueue.add(

@@ -118,6 +118,9 @@ public abstract class AbstractWindowAggProcessor<W> implements WindowProcessor<W
     public void initializeWatermark(long watermark) {
         if (isEventTime) {
             currentProgress = watermark;
+            // Restore the watermark of timerService to prevent expired data from being treated as
+            // not expired when flushWindowBuffer is executed.
+            windowTimerService.initializeWatermark(watermark);
         }
     }
 

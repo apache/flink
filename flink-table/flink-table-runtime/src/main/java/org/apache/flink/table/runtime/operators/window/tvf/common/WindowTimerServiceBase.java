@@ -48,4 +48,9 @@ public abstract class WindowTimerServiceBase<W> implements WindowTimerService<W>
     public long currentWatermark() {
         return internalTimerService.currentWatermark();
     }
+
+    @Override
+    public void initializeWatermark(long watermark) {
+        internalTimerService.initializeWatermark(watermark);
+    }
 }
