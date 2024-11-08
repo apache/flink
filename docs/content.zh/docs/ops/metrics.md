@@ -1318,6 +1318,11 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
       <td>Gauge</td>
     </tr>
     <tr>
+      <td>lastCheckpointMetadataSize</td>
+      <td>上次检查点 _metadata 文件的大小（字节）.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
       <td>lastCheckpointExternalPath</td>
       <td>The path where the last external checkpoint was stored.</td>
       <td>Gauge</td>

@@ -44,6 +44,9 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
     /** Total checkpoint state size over all subtasks. */
     private final long stateSize;
 
+    /** The persisted metadata file size. */
+    private final long metadataSize;
+
     private final long processedData;
 
     private final long persistedData;
@@ -67,6 +70,7 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
             Map<JobVertexID, TaskStateStats> taskStats,
             int numAcknowledgedSubtasks,
             long stateSize,
+            long metadataSize,
             long processedData,
             long persistedData,
             boolean unalignedCheckpoint,
@@ -81,6 +85,7 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
                 numAcknowledgedSubtasks,
                 stateSize,
                 stateSize,
+                metadataSize,
                 processedData,
                 persistedData,
                 unalignedCheckpoint,
@@ -100,6 +105,7 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
      * @param checkpointedSize Total persisted data size over all subtasks during the sync and async
      *     phases of this checkpoint.
      * @param stateSize Total checkpoint state size over all subtasks.
+     * @param metadataSize The metadata file size
      * @param processedData Processed data during the checkpoint.
      * @param persistedData Persisted data during the checkpoint.
      * @param unalignedCheckpoint Whether the checkpoint is unaligned.
@@ -115,6 +121,7 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
             int numAcknowledgedSubtasks,
             long checkpointedSize,
             long stateSize,
+            long metadataSize,
             long processedData,
             long persistedData,
             boolean unalignedCheckpoint,
@@ -128,6 +135,7 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
         this.checkpointedSize = checkpointedSize;
         checkArgument(stateSize >= 0, "Negative state size");
         this.stateSize = stateSize;
+        this.metadataSize = metadataSize;
         this.processedData = processedData;
         this.persistedData = persistedData;
         this.unalignedCheckpoint = unalignedCheckpoint;
@@ -153,6 +161,11 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
     @Override
     public long getCheckpointedSize() {
         return checkpointedSize;
+    }
+
+    @Override
+    public long getMetadataSize() {
+        return metadataSize;
     }
 
     @Override

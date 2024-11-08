@@ -1308,6 +1308,11 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
       <td>Gauge</td>
     </tr>
     <tr>
+      <td>lastCheckpointMetadataSize</td>
+      <td>The metadata file size of the last checkpoint (in bytes).</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
       <td>lastCheckpointExternalPath</td>
       <td>The path where the last external checkpoint was stored.</td>
       <td>Gauge</td>

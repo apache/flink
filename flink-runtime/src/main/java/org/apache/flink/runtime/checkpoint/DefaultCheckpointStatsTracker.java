@@ -256,6 +256,7 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
                             .setAttribute("checkpointId", checkpointStats.getCheckpointId())
                             .setAttribute("fullSize", checkpointStats.getStateSize())
                             .setAttribute("checkpointedSize", checkpointStats.getCheckpointedSize())
+                            .setAttribute("metadataSize", checkpointStats.getMetadataSize())
                             .setAttribute("checkpointStatus", checkpointStats.getStatus().name())
                             .setAttribute(
                                     "isUnaligned",
@@ -423,6 +424,10 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
     static final String LATEST_COMPLETED_CHECKPOINT_FULL_SIZE_METRIC = "lastCheckpointFullSize";
 
     @VisibleForTesting
+    static final String LATEST_COMPLETED_CHECKPOINT_METADATA_SIZE_METRIC =
+            "lastCheckpointMetadataSize";
+
+    @VisibleForTesting
     static final String LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC = "lastCheckpointDuration";
 
     @VisibleForTesting
@@ -463,6 +468,9 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
         metricGroup.gauge(
                 LATEST_COMPLETED_CHECKPOINT_FULL_SIZE_METRIC,
                 new LatestCompletedCheckpointFullSizeGauge());
+        metricGroup.gauge(
+                LATEST_COMPLETED_CHECKPOINT_METADATA_SIZE_METRIC,
+                new LatestCompletedCheckpointMetadataSizeGauge());
         metricGroup.gauge(
                 LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC,
                 new LatestCompletedCheckpointDurationGauge());
@@ -537,6 +545,18 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
             CompletedCheckpointStats completed = latestCompletedCheckpoint;
             if (completed != null) {
                 return completed.getStateSize();
+            } else {
+                return -1L;
+            }
+        }
+    }
+
+    private class LatestCompletedCheckpointMetadataSizeGauge implements Gauge<Long> {
+        @Override
+        public Long getValue() {
+            CompletedCheckpointStats completed = latestCompletedCheckpoint;
+            if (completed != null) {
+                return completed.getMetadataSize();
             } else {
                 return -1L;
             }
