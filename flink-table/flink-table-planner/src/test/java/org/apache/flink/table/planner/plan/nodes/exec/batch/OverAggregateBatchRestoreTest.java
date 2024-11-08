@@ -26,7 +26,6 @@ import java.util.Arrays;
 import java.util.List;
 
 /** Batch Compiled Plan tests for {@link BatchExecOverAggregate}. */
-// @Disabled
 public class OverAggregateBatchRestoreTest extends BatchRestoreTestBase {
 
     public OverAggregateBatchRestoreTest() {
@@ -36,9 +35,8 @@ public class OverAggregateBatchRestoreTest extends BatchRestoreTestBase {
     @Override
     public List<TableTestProgram> programs() {
         return Arrays.asList(
-                // These tests fail due to FLINK-25802
-                // OverAggregateTestPrograms.OVER_AGGREGATE_TIME_BOUNDED_PARTITIONED_ROWS,
-                // OverAggregateTestPrograms.OVER_AGGREGATE_TIME_BOUNDED_NON_PARTITIONED_ROWS
+                OverAggregateTestPrograms.OVER_AGGREGATE_TIME_BOUNDED_PARTITIONED_ROWS,
+                OverAggregateTestPrograms.OVER_AGGREGATE_TIME_BOUNDED_NON_PARTITIONED_ROWS,
                 OverAggregateTestPrograms.OVER_AGGREGATE_UNBOUNDED_PARTITIONED_ROWS,
                 OverAggregateTestPrograms.OVER_AGGREGATE_ROW_BOUNDED_PARTITIONED_PRECEDING_ROWS);
     }
