@@ -69,6 +69,12 @@ public final class SliceAssigners {
         return new TumblingSliceAssigner(rowtimeIndex, shiftTimeZone, size.toMillis(), 0);
     }
 
+    public static TumblingSliceAssigner tumbling(
+            int rowtimeIndex, ZoneId shiftTimeZone, Duration size, Duration offset) {
+        return new TumblingSliceAssigner(
+                rowtimeIndex, shiftTimeZone, size.toMillis(), offset.toMillis());
+    }
+
     /**
      * Creates a hopping window {@link SliceAssigner} that assigns elements to slices of hopping
      * windows.
@@ -194,6 +200,11 @@ public final class SliceAssigners {
         }
 
         @Override
+        public long getWindowOffset() {
+            return offset;
+        }
+
+        @Override
         public String getDescription() {
             return String.format("TumblingWindow(size=%dms, offset=%dms)", size, offset);
         }
@@ -267,6 +278,11 @@ public final class SliceAssigners {
         @Override
         public long getSliceEndInterval() {
             return sliceSize;
+        }
+
+        @Override
+        public long getWindowOffset() {
+            return offset;
         }
 
         @Override
@@ -395,6 +411,11 @@ public final class SliceAssigners {
         }
 
         @Override
+        public long getWindowOffset() {
+            return offset;
+        }
+
+        @Override
         public void mergeSlices(long sliceEnd, MergeCallback<Long, Iterable<Long>> callback)
                 throws Exception {
             prepareReusableMergedList(sliceEnd);
@@ -498,6 +519,11 @@ public final class SliceAssigners {
         @Override
         public long getSliceEndInterval() {
             return innerAssigner.getSliceEndInterval();
+        }
+
+        @Override
+        public long getWindowOffset() {
+            return innerAssigner.getWindowOffset();
         }
 
         @Override
@@ -625,6 +651,11 @@ public final class SliceAssigners {
         @Override
         public long getSliceEndInterval() {
             return innerAssigner.getSliceEndInterval();
+        }
+
+        @Override
+        public long getWindowOffset() {
+            return 0;
         }
 
         @Override
