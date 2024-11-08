@@ -47,7 +47,8 @@ class StreamPhysicalLookupJoin(
     joinInfo: JoinInfo,
     joinType: JoinRelType,
     lookupHint: Option[RelHint],
-    upsertMaterialize: Boolean)
+    upsertMaterialize: Boolean,
+    dynamicOptionsOnTemporalTable: util.Map[String, String])
   extends CommonPhysicalLookupJoin(
     cluster,
     traitSet,
@@ -72,7 +73,8 @@ class StreamPhysicalLookupJoin(
       joinInfo,
       joinType,
       lookupHint,
-      upsertMaterialize
+      upsertMaterialize,
+      dynamicOptionsOnTemporalTable
     )
   }
 
@@ -86,7 +88,8 @@ class StreamPhysicalLookupJoin(
       joinInfo,
       joinType,
       lookupHint,
-      upsertMaterialize
+      upsertMaterialize,
+      dynamicOptionsOnTemporalTable
     )
   }
 
@@ -104,7 +107,7 @@ class StreamPhysicalLookupJoin(
       JoinTypeUtil.getFlinkJoinType(joinType),
       finalPreFilterCondition.orNull,
       finalRemainingCondition.orNull,
-      new TemporalTableSourceSpec(temporalTable),
+      new TemporalTableSourceSpec(temporalTable, dynamicOptionsOnTemporalTable),
       allLookupKeys.map(item => (Int.box(item._1), item._2)).asJava,
       projectionOnTemporalTable,
       filterOnTemporalTable,

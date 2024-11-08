@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 import org.apache.flink.table.catalog.ContextResolvedTable
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink
@@ -85,6 +86,7 @@ class StreamPhysicalSink(
     val tableSinkSpec =
       new DynamicTableSinkSpec(
         contextResolvedTable,
+        FlinkHints.getHintedOptions(hints),
         util.Arrays.asList(abilitySpecs: _*),
         targetColumns)
     tableSinkSpec.setTableSink(tableSink)

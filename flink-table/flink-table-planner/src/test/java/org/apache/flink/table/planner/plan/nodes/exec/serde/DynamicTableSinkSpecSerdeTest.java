@@ -103,6 +103,7 @@ class DynamicTableSinkSpecSerdeTest {
                                         "MyTable"),
                                 new ResolvedCatalogTable(catalogTable1, resolvedSchema1)),
                         null,
+                        null,
                         null);
 
         Map<String, String> options2 = new HashMap<>();
@@ -133,6 +134,7 @@ class DynamicTableSinkSpecSerdeTest {
                                         CatalogManagerMocks.DEFAULT_DATABASE,
                                         "MyTable"),
                                 new ResolvedCatalogTable(catalogTable2, resolvedSchema2)),
+                        Collections.singletonMap("path", "/tmp/hint"),
                         Arrays.asList(
                                 new OverwriteSpec(true),
                                 new PartitioningSpec(
@@ -170,6 +172,7 @@ class DynamicTableSinkSpecSerdeTest {
                                         CatalogManagerMocks.DEFAULT_DATABASE,
                                         "MyTable"),
                                 new ResolvedCatalogTable(catalogTable3, resolvedSchema3)),
+                        Collections.emptyMap(),
                         Collections.singletonList(
                                 new WritingMetadataSpec(
                                         Collections.singletonList("m"),
@@ -200,6 +203,7 @@ class DynamicTableSinkSpecSerdeTest {
                                 spec.getContextResolvedTable().getIdentifier(),
                                 catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get(),
                                 spec.getContextResolvedTable().getResolvedTable()),
+                        spec.getDynamicOptions(),
                         spec.getSinkAbilities(),
                         null);
 
@@ -262,6 +266,7 @@ class DynamicTableSinkSpecSerdeTest {
                                 identifier,
                                 catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get(),
                                 planResolvedCatalogTable),
+                        null,
                         Collections.emptyList(),
                         null);
 

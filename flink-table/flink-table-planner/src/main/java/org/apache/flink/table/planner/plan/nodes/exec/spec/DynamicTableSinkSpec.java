@@ -35,6 +35,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import javax.annotation.Nullable;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -44,12 +45,10 @@ import java.util.Objects;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class DynamicTableSinkSpec extends DynamicTableSpecBase {
 
-    public static final String FIELD_NAME_CATALOG_TABLE = "table";
     public static final String FIELD_NAME_SINK_ABILITIES = "abilities";
 
     public static final String FIELD_NAME_TARGET_COLUMNS = "targetColumns";
 
-    private final ContextResolvedTable contextResolvedTable;
     private final @Nullable List<SinkAbilitySpec> sinkAbilities;
 
     private final @Nullable int[][] targetColumns;
@@ -59,16 +58,12 @@ public class DynamicTableSinkSpec extends DynamicTableSpecBase {
     @JsonCreator
     public DynamicTableSinkSpec(
             @JsonProperty(FIELD_NAME_CATALOG_TABLE) ContextResolvedTable contextResolvedTable,
+            @Nullable @JsonProperty(FIELD_NAME_DYNAMIC_OPTIONS) Map<String, String> dynamicOptions,
             @Nullable @JsonProperty(FIELD_NAME_SINK_ABILITIES) List<SinkAbilitySpec> sinkAbilities,
             @Nullable @JsonProperty(FIELD_NAME_TARGET_COLUMNS) int[][] targetColumns) {
-        this.contextResolvedTable = contextResolvedTable;
+        super(contextResolvedTable, dynamicOptions);
         this.sinkAbilities = sinkAbilities;
         this.targetColumns = targetColumns;
-    }
-
-    @JsonGetter(FIELD_NAME_CATALOG_TABLE)
-    public ContextResolvedTable getContextResolvedTable() {
-        return contextResolvedTable;
     }
 
     @JsonGetter(FIELD_NAME_SINK_ABILITIES)
@@ -120,6 +115,7 @@ public class DynamicTableSinkSpec extends DynamicTableSpecBase {
         }
         DynamicTableSinkSpec that = (DynamicTableSinkSpec) o;
         return Objects.equals(contextResolvedTable, that.contextResolvedTable)
+                && Objects.equals(dynamicOptions, that.dynamicOptions)
                 && Objects.equals(sinkAbilities, that.sinkAbilities)
                 && Objects.equals(tableSink, that.tableSink)
                 && Objects.equals(targetColumns, that.targetColumns);
@@ -127,7 +123,8 @@ public class DynamicTableSinkSpec extends DynamicTableSpecBase {
 
     @Override
     public int hashCode() {
-        return Objects.hash(contextResolvedTable, sinkAbilities, targetColumns, tableSink);
+        return Objects.hash(
+                contextResolvedTable, dynamicOptions, sinkAbilities, targetColumns, tableSink);
     }
 
     @Override
@@ -135,6 +132,8 @@ public class DynamicTableSinkSpec extends DynamicTableSpecBase {
         return "DynamicTableSinkSpec{"
                 + "contextResolvedTable="
                 + contextResolvedTable
+                + ", dynamicOptions="
+                + dynamicOptions
                 + ", sinkAbilities="
                 + sinkAbilities
                 + ", targetColumns="

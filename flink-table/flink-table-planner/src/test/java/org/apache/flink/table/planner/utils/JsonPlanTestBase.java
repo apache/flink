@@ -28,6 +28,7 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.internal.CompiledPlanUtils;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.types.Row;
@@ -96,6 +97,14 @@ public abstract class JsonPlanTestBase {
                         PlanReference.fromJsonString(
                                 jsonPlanTransformer.apply(compiledPlan.asJsonString())));
         return newCompiledPlan.execute();
+    }
+
+    protected ExecNodeGraph compileSqlAndLoadPlan(String sql) {
+        CompiledPlan compiledPlan = tableEnv.compilePlanSql(sql);
+        checkTransformationUids(compiledPlan);
+        CompiledPlan newCompiledPlan =
+                tableEnv.loadPlan(PlanReference.fromJsonString(compiledPlan.asJsonString()));
+        return CompiledPlanUtils.unwrap(newCompiledPlan).getExecNodeGraph();
     }
 
     protected void checkTransformationUids(CompiledPlan compiledPlan) {

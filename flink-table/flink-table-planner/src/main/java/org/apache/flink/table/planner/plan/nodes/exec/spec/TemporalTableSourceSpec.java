@@ -37,6 +37,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
+import java.util.Map;
 
 /**
  * TemporalTableSpec describes how the right tale of lookupJoin ser/des.
@@ -57,7 +58,8 @@ public class TemporalTableSourceSpec {
 
     @JsonIgnore private RelOptTable temporalTable;
 
-    public TemporalTableSourceSpec(RelOptTable temporalTable) {
+    public TemporalTableSourceSpec(
+            RelOptTable temporalTable, @Nullable Map<String, String> extraOptions) {
         this.temporalTable = temporalTable;
         if (temporalTable instanceof TableSourceTable) {
             TableSourceTable tableSourceTable = (TableSourceTable) temporalTable;
@@ -65,6 +67,7 @@ public class TemporalTableSourceSpec {
             this.tableSourceSpec =
                     new DynamicTableSourceSpec(
                             tableSourceTable.contextResolvedTable(),
+                            extraOptions,
                             Arrays.asList(tableSourceTable.abilitySpecs()));
         }
     }

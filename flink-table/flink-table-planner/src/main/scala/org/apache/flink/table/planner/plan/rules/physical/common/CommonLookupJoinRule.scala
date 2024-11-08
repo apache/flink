@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.common
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.connector.source.LookupTableSource
 import org.apache.flink.table.legacy.sources.LookupableTableSource
+import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.common.{CommonPhysicalLegacyTableSourceScan, CommonPhysicalLookupJoin, CommonPhysicalTableSourceScan}
 import org.apache.flink.table.planner.plan.rules.common.CommonTemporalTableJoinRule
@@ -112,7 +113,8 @@ trait CommonLookupJoinRule extends CommonTemporalTableJoinRule {
       join: FlinkLogicalJoin,
       input: FlinkLogicalRel,
       temporalTable: RelOptTable,
-      calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin
+      calcProgram: Option[RexProgram],
+      dynamicOptionsOnTemporalTable: util.Map[String, String]): CommonPhysicalLookupJoin
 }
 
 abstract class BaseSnapshotOnTableScanRule(description: String)
@@ -134,10 +136,12 @@ abstract class BaseSnapshotOnTableScanRule(description: String)
   override def onMatch(call: RelOptRuleCall): Unit = {
     val join = call.rel[FlinkLogicalJoin](0)
     val input = call.rel[FlinkLogicalRel](1)
-    val tableScan = call.rel[RelNode](3)
+    val tableScan = call.rel[TableScan](3)
 
     validateJoin(join)
-    val temporalJoin = transform(join, input, tableScan.getTable, None)
+    val dynamicOptionsOnTemporalTable = FlinkHints.getHintedOptions(tableScan.getHints)
+    val temporalJoin =
+      transform(join, input, tableScan.getTable, None, dynamicOptionsOnTemporalTable)
     call.transformTo(temporalJoin)
   }
 
@@ -166,10 +170,16 @@ abstract class BaseSnapshotOnCalcTableScanRule(description: String)
     val join = call.rel[FlinkLogicalJoin](0)
     val input = call.rel[FlinkLogicalRel](1)
     val calc = call.rel[FlinkLogicalCalc](3)
-    val tableScan = call.rel[RelNode](4)
+    val tableScan = call.rel[TableScan](4)
 
     validateJoin(join)
-    val temporalJoin = transform(join, input, tableScan.getTable, Some(calc.getProgram))
+    val dynamicOptionsOnTemporalTable = FlinkHints.getHintedOptions(tableScan.getHints)
+    val temporalJoin = transform(
+      join,
+      input,
+      tableScan.getTable,
+      Some(calc.getProgram),
+      dynamicOptionsOnTemporalTable)
     call.transformTo(temporalJoin)
   }
 

@@ -2680,7 +2680,8 @@ class FlinkRelMdHandlerTestBase {
       batchScan.getTable,
       None,
       JoinInfo.of(ImmutableIntList.of(0), ImmutableIntList.of(0)),
-      JoinRelType.INNER
+      JoinRelType.INNER,
+      Collections.emptyMap()
     )
     val streamSourceOp = new TableSourceQueryOperation[RowData](temporalTableSource, false)
     val streamScan = relBuilder.queryOperation(streamSourceOp).build().asInstanceOf[TableScan]
@@ -2693,7 +2694,8 @@ class FlinkRelMdHandlerTestBase {
       JoinInfo.of(ImmutableIntList.of(0), ImmutableIntList.of(0)),
       JoinRelType.INNER,
       Option.empty[RelHint],
-      false
+      false,
+      Collections.emptyMap()
     )
     (batchLookupJoin, streamLookupJoin)
   }

@@ -205,7 +205,7 @@ class InputPriorityConflictResolverTest {
         BatchExecTableSourceScan scan =
                 new BatchExecTableSourceScan(
                         new Configuration(),
-                        new DynamicTableSourceSpec(null, null),
+                        new DynamicTableSourceSpec(null, null, null),
                         InputProperty.DEFAULT,
                         RowType.of(new IntType(), new IntType(), new IntType()),
                         "DynamicFilteringTableSourceScan");

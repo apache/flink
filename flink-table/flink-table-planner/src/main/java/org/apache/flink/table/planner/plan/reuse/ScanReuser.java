@@ -26,6 +26,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
+import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.plan.abilities.source.ProjectPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.ReadingMetadataSpec;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
@@ -35,6 +36,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalT
 import org.apache.flink.table.planner.plan.rules.logical.PushProjectIntoTableSourceScanRule;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexBuilder;
@@ -205,8 +207,20 @@ public class ScanReuser {
             }
 
             // 2.4 Create a new ScanTableSource. ScanTableSource can not be pushed down twice.
+            List<Map<String, String>> deduplicatedDynamicOptions =
+                    reusableNodes.stream()
+                            .map(scan -> FlinkHints.getHintedOptions(scan.getHints()))
+                            .distinct()
+                            .collect(Collectors.toList());
+            // We have ensured that only table scans with same hints can be reused.
+            // See more at ScanReuserUtils#getDigest
+            Preconditions.checkState(deduplicatedDynamicOptions.size() == 1);
+
             DynamicTableSourceSpec tableSourceSpec =
-                    new DynamicTableSourceSpec(pickTable.contextResolvedTable(), specs);
+                    new DynamicTableSourceSpec(
+                            pickTable.contextResolvedTable(),
+                            deduplicatedDynamicOptions.get(0),
+                            specs);
             ScanTableSource newTableSource =
                     tableSourceSpec.getScanTableSource(flinkContext, flinkTypeFactory);
 

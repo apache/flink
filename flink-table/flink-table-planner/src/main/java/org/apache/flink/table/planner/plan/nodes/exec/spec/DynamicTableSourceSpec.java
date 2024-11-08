@@ -42,6 +42,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import javax.annotation.Nullable;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -51,10 +52,8 @@ import java.util.Objects;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class DynamicTableSourceSpec extends DynamicTableSpecBase {
 
-    public static final String FIELD_NAME_CATALOG_TABLE = "table";
     public static final String FIELD_NAME_SOURCE_ABILITIES = "abilities";
 
-    private final ContextResolvedTable contextResolvedTable;
     private final @Nullable List<SourceAbilitySpec> sourceAbilities;
 
     private DynamicTableSource tableSource;
@@ -62,9 +61,10 @@ public class DynamicTableSourceSpec extends DynamicTableSpecBase {
     @JsonCreator
     public DynamicTableSourceSpec(
             @JsonProperty(FIELD_NAME_CATALOG_TABLE) ContextResolvedTable contextResolvedTable,
+            @Nullable @JsonProperty(FIELD_NAME_DYNAMIC_OPTIONS) Map<String, String> dynamicOptions,
             @Nullable @JsonProperty(FIELD_NAME_SOURCE_ABILITIES)
                     List<SourceAbilitySpec> sourceAbilities) {
-        this.contextResolvedTable = contextResolvedTable;
+        super(contextResolvedTable, dynamicOptions);
         this.sourceAbilities = sourceAbilities;
     }
 
@@ -143,11 +143,6 @@ public class DynamicTableSourceSpec extends DynamicTableSpecBase {
         }
     }
 
-    @JsonGetter(FIELD_NAME_CATALOG_TABLE)
-    public ContextResolvedTable getContextResolvedTable() {
-        return contextResolvedTable;
-    }
-
     @JsonGetter(FIELD_NAME_SOURCE_ABILITIES)
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     @Nullable
@@ -169,13 +164,14 @@ public class DynamicTableSourceSpec extends DynamicTableSpecBase {
         }
         DynamicTableSourceSpec that = (DynamicTableSourceSpec) o;
         return Objects.equals(contextResolvedTable, that.contextResolvedTable)
+                && Objects.equals(dynamicOptions, that.dynamicOptions)
                 && Objects.equals(sourceAbilities, that.sourceAbilities)
                 && Objects.equals(tableSource, that.tableSource);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(contextResolvedTable, sourceAbilities, tableSource);
+        return Objects.hash(contextResolvedTable, dynamicOptions, sourceAbilities, tableSource);
     }
 
     @Override
@@ -183,6 +179,8 @@ public class DynamicTableSourceSpec extends DynamicTableSpecBase {
         return "DynamicTableSourceSpec{"
                 + "contextResolvedTable="
                 + contextResolvedTable
+                + ", dynamicOptions="
+                + dynamicOptions
                 + ", sourceAbilities="
                 + sourceAbilities
                 + ", tableSource="

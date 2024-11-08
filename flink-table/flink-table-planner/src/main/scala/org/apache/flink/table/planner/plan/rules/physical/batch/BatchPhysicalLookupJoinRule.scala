@@ -27,6 +27,8 @@ import org.apache.flink.table.planner.plan.rules.physical.common.{BaseSnapshotOn
 import org.apache.calcite.plan.{RelOptRule, RelOptTable}
 import org.apache.calcite.rex.RexProgram
 
+import java.util
+
 /**
  * Rules that convert [[FlinkLogicalJoin]] on a [[FlinkLogicalSnapshot]] into
  * [[BatchPhysicalLookupJoin]].
@@ -47,8 +49,9 @@ object BatchPhysicalLookupJoinRule {
         join: FlinkLogicalJoin,
         input: FlinkLogicalRel,
         temporalTable: RelOptTable,
-        calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin = {
-      doTransform(join, input, temporalTable, calcProgram)
+        calcProgram: Option[RexProgram],
+        dynamicOptionsOnTemporalTable: util.Map[String, String]): CommonPhysicalLookupJoin = {
+      doTransform(join, input, temporalTable, calcProgram, dynamicOptionsOnTemporalTable)
     }
   }
 
@@ -59,8 +62,9 @@ object BatchPhysicalLookupJoinRule {
         join: FlinkLogicalJoin,
         input: FlinkLogicalRel,
         temporalTable: RelOptTable,
-        calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin = {
-      doTransform(join, input, temporalTable, calcProgram)
+        calcProgram: Option[RexProgram],
+        dynamicOptionsOnTemporalTable: util.Map[String, String]): CommonPhysicalLookupJoin = {
+      doTransform(join, input, temporalTable, calcProgram, dynamicOptionsOnTemporalTable)
     }
 
   }
@@ -69,7 +73,8 @@ object BatchPhysicalLookupJoinRule {
       join: FlinkLogicalJoin,
       input: FlinkLogicalRel,
       temporalTable: RelOptTable,
-      calcProgram: Option[RexProgram]): BatchPhysicalLookupJoin = {
+      calcProgram: Option[RexProgram],
+      dynamicOptionsOnTemporalTable: util.Map[String, String]): BatchPhysicalLookupJoin = {
     val joinInfo = join.analyzeCondition
     val cluster = join.getCluster
 
@@ -83,6 +88,7 @@ object BatchPhysicalLookupJoinRule {
       temporalTable,
       calcProgram,
       joinInfo,
-      join.getJoinType)
+      join.getJoinType,
+      dynamicOptionsOnTemporalTable)
   }
 }
