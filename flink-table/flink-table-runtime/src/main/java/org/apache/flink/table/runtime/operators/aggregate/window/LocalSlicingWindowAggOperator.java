@@ -123,7 +123,11 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
                 windowBuffer.advanceProgress(currentWatermark);
                 nextTriggerWatermark =
                         getNextTriggerWatermark(
-                                currentWatermark, windowInterval, shiftTimezone, useDayLightSaving);
+                                currentWatermark,
+                                windowInterval,
+                                sliceAssigner.getWindowOffset(),
+                                shiftTimezone,
+                                useDayLightSaving);
             }
         }
         super.processWatermark(mark);
