@@ -1,13 +1,12 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to you under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,8 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.common;
 
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecOverAggregate;
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
@@ -29,7 +29,7 @@ import static org.apache.flink.table.api.config.TableConfigOptions.LOCAL_TIME_ZO
 /** {@link TableTestProgram} definitions for testing {@link StreamExecOverAggregate}. */
 public class OverAggregateTestPrograms {
 
-    private static final Row[] DATA = {
+    private static final Row[] DATA_WITH_OUT_OF_ORDER_RECORDS = {
         Row.of(10L, 1L, 1, "Hello"),
         Row.of(15L, 1L, 15, "Hello"),
         Row.of(16L, 1L, 16, "Hello"),
@@ -63,7 +63,7 @@ public class OverAggregateTestPrograms {
         Row.of(19L, 1L, 15, "Hello")
     };
 
-    private static final Row[] AFTER_DATA = {
+    private static final Row[] AFTER_DATA_WITH_OUT_OF_ORDER_RECORDS = {
         Row.of(150L, 8L, 8, "Hello World"),
         Row.of(149L, 8L, 8, "Hello World"),
         Row.of(148L, 8L, 8, "Hello World"),
@@ -71,7 +71,7 @@ public class OverAggregateTestPrograms {
         Row.of(202L, 20L, 20, "Hello World")
     };
 
-    private static final SourceTestStep SOURCE =
+    private static final SourceTestStep SOURCE_WITH_OUT_OF_ORDER_RECORDS =
             SourceTestStep.newBuilder("MyTable")
                     .addSchema(
                             "ts bigint",
@@ -80,11 +80,11 @@ public class OverAggregateTestPrograms {
                             "c string",
                             "rowtime as TO_TIMESTAMP(FROM_UNIXTIME(ts))",
                             "watermark for rowtime as rowtime")
-                    .producedBeforeRestore(DATA)
-                    .producedAfterRestore(AFTER_DATA)
+                    .producedBeforeRestore(DATA_WITH_OUT_OF_ORDER_RECORDS)
+                    .producedAfterRestore(AFTER_DATA_WITH_OUT_OF_ORDER_RECORDS)
                     .build();
 
-    private static final String[] BEFORE_RESTORE_DATA = {
+    private static final String[] BEFORE_RESTORE_DATA_WITH_OUT_OF_ORDER_RECORDS = {
         "+I[Hello, 10, 1970-01-01T00:00:10, 1, 0, 1, 1]",
         "+I[Hello, 15, 1970-01-01T00:00:15, 15, 0, 2, 2]",
         "+I[Hello, 16, 1970-01-01T00:00:16, 16, 0, 3, 3]",
@@ -104,7 +104,7 @@ public class OverAggregateTestPrograms {
         "+I[Hello World, 150, 1970-01-01T00:02:30, 8, 2, 2, 15]",
         "+I[Hello World, 200, 1970-01-01T00:03:20, 20, 1, 1, 20]"
     };
-    private static final String[] AFTER_RESTORE_OUTPUT = {
+    private static final String[] AFTER_RESTORE_OUTPUT_WITH_OUT_OF_ORDER_RECORDS = {
         "+I[Hello, 13, 1970-01-01T00:00:13, 1, 0, 1, 1]",
         "+I[Hello, 19, 1970-01-01T00:00:19, 15, 0, 2, 2]",
         "+I[Hello, 33, 1970-01-01T00:00:33, 1, 1, 1, 17]",
@@ -113,23 +113,25 @@ public class OverAggregateTestPrograms {
         "+I[Hello World, 202, 1970-01-01T00:03:22, 20, 2, 2, 40]"
     };
 
-    static final TableTestProgram OVER_AGGREGATE_TIME_BOUNDED_PARTITIONED_ROWS =
+    public static final TableTestProgram OVER_AGGREGATE_TIME_BOUNDED_PARTITIONED_ROWS_WITH_OUT_OF_ORDER_RECORDS =
             getTableTestProgram(
-                    "over-aggregate-bounded-partitioned-rows",
+                    "over-aggregate-bounded-partitioned-rows-with-out-of-order-records",
                     "validates over aggregate node with time range and partitioning",
                     "PARTITION BY c ORDER BY rowtime RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW",
-                    BEFORE_RESTORE_DATA,
-                    AFTER_RESTORE_OUTPUT);
+                    SOURCE_WITH_OUT_OF_ORDER_RECORDS,
+                    BEFORE_RESTORE_DATA_WITH_OUT_OF_ORDER_RECORDS,
+                    AFTER_RESTORE_OUTPUT_WITH_OUT_OF_ORDER_RECORDS);
 
-    static final TableTestProgram OVER_AGGREGATE_TIME_BOUNDED_NON_PARTITIONED_ROWS =
+    public static final TableTestProgram OVER_AGGREGATE_TIME_BOUNDED_NON_PARTITIONED_ROWS_WITH_OUT_OF_ORDER_RECORDS =
             getTableTestProgram(
-                    "over-aggregate-bounded-non-partitioned-rows",
+                    "over-aggregate-bounded-non-partitioned-rows-with-out-of-order-records",
                     "validates over aggregate node with time range and no partitioning",
                     "ORDER BY rowtime RANGE BETWEEN INTERVAL '10' SECOND PRECEDING AND CURRENT ROW",
-                    BEFORE_RESTORE_DATA,
-                    AFTER_RESTORE_OUTPUT);
+                    SOURCE_WITH_OUT_OF_ORDER_RECORDS,
+                    BEFORE_RESTORE_DATA_WITH_OUT_OF_ORDER_RECORDS,
+                    AFTER_RESTORE_OUTPUT_WITH_OUT_OF_ORDER_RECORDS);
 
-    private static final String[] BEFORE_RESTORE_DATA_UNBOUNDED = {
+    private static final String[] BEFORE_RESTORE_DATA_UNBOUNDED_WITH_OUT_OF_ORDER_RECORDS = {
         "+I[Hello, 10, 1970-01-01T00:00:10, 1, 0, 1, 1]",
         "+I[Hello, 15, 1970-01-01T00:00:15, 15, 0, 2, 2]",
         "+I[Hello, 16, 1970-01-01T00:00:16, 16, 0, 3, 3]",
@@ -148,21 +150,22 @@ public class OverAggregateTestPrograms {
         "+I[Hello World, 200, 1970-01-01T00:03:20, 20, 5, 5, 49]"
     };
 
-    private static final String[] AFTER_RESTORE_DATA_UNBOUNDED = {
+    private static final String[] AFTER_RESTORE_DATA_UNBOUNDED_WITH_OUT_OF_ORDER_RECORDS = {
         "+I[Hello World, 150, 1970-01-01T00:02:30, 8, 6, 6, 57]",
         "+I[Hello World, 151, 1970-01-01T00:02:31, 8, 7, 7, 65]",
         "+I[Hello World, 202, 1970-01-01T00:03:22, 20, 8, 8, 85]"
     };
 
-    static final TableTestProgram OVER_AGGREGATE_UNBOUNDED_PARTITIONED_ROWS =
+    public static final TableTestProgram OVER_AGGREGATE_UNBOUNDED_PARTITIONED_ROWS_WITH_OUT_OF_ORDER_RECORDS =
             getTableTestProgram(
-                    "over-aggregate-unbounded-partitioned-rows",
+                    "over-aggregate-unbounded-partitioned-rows-with-out-of-order-records",
                     "validates over aggregate node with no bounds and partitioning",
                     "PARTITION BY c ORDER BY rowtime RANGE UNBOUNDED PRECEDING",
-                    BEFORE_RESTORE_DATA_UNBOUNDED,
-                    AFTER_RESTORE_DATA_UNBOUNDED);
+                    SOURCE_WITH_OUT_OF_ORDER_RECORDS,
+                    BEFORE_RESTORE_DATA_UNBOUNDED_WITH_OUT_OF_ORDER_RECORDS,
+                    AFTER_RESTORE_DATA_UNBOUNDED_WITH_OUT_OF_ORDER_RECORDS);
 
-    private static final String[] BEFORE_RESTORE_DATA_PRECEDING_ROWS = {
+    private static final String[] BEFORE_RESTORE_DATA_PRECEDING_ROWS_WITH_OUT_OF_ORDER_RECORDS = {
         "+I[Hello, 10, 1970-01-01T00:00:10, 1, 0, 1, 1]",
         "+I[Hello, 15, 1970-01-01T00:00:15, 15, 0, 2, 2]",
         "+I[Hello, 16, 1970-01-01T00:00:16, 16, 0, 3, 3]",
@@ -182,22 +185,24 @@ public class OverAggregateTestPrograms {
         "+I[Hello World, 200, 1970-01-01T00:03:20, 20, 5, 5, 49]"
     };
 
-    private static final String[] AFTER_RESTORE_DATA_PRECEDING_ROWS = {
+    private static final String[] AFTER_RESTORE_DATA_PRECEDING_ROWS_WITH_OUT_OF_ORDER_RECORDS = {
         "+I[Hello World, 202, 1970-01-01T00:03:22, 20, 6, 6, 69]"
     };
 
-    static final TableTestProgram OVER_AGGREGATE_ROW_BOUNDED_PARTITIONED_PRECEDING_ROWS =
+    public static final TableTestProgram OVER_AGGREGATE_ROW_BOUNDED_PARTITIONED_PRECEDING_ROWS_WITH_OUT_OF_ORDER_RECORDS =
             getTableTestProgram(
-                    "over-aggregate-bounded-partitioned-preceding-rows",
+                    "over-aggregate-bounded-partitioned-preceding-rows-with-out-of-order-records",
                     "validates over aggregate node partitioned and bounded by prior rows",
                     "PARTITION BY c ORDER BY rowtime ROWS BETWEEN 5 preceding AND CURRENT ROW",
-                    BEFORE_RESTORE_DATA_PRECEDING_ROWS,
-                    AFTER_RESTORE_DATA_PRECEDING_ROWS);
+                    SOURCE_WITH_OUT_OF_ORDER_RECORDS,
+                    BEFORE_RESTORE_DATA_PRECEDING_ROWS_WITH_OUT_OF_ORDER_RECORDS,
+                    AFTER_RESTORE_DATA_PRECEDING_ROWS_WITH_OUT_OF_ORDER_RECORDS);
 
     private static TableTestProgram getTableTestProgram(
             final String id,
             final String description,
             final String windowSql,
+            final SourceTestStep source,
             final String[] beforeRows,
             final String[] afterRows) {
         final String sql =
@@ -215,7 +220,7 @@ public class OverAggregateTestPrograms {
                 .setupConfig(LOCAL_TIME_ZONE, "UTC")
                 .setupTemporarySystemFunction(
                         "LTCNT", JavaUserDefinedAggFunctions.LargerThanCount.class)
-                .setupTableSource(SOURCE)
+                .setupTableSource(source)
                 .setupTableSink(
                         SinkTestStep.newBuilder("MySink")
                                 .addSchema(
