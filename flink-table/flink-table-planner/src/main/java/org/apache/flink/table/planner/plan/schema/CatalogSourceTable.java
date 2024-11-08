@@ -45,6 +45,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.type.RelDataType;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -176,6 +177,7 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
                 factory,
                 schemaTable.getContextResolvedTable().getIdentifier(),
                 catalogTable,
+                Collections.emptyMap(),
                 context.getTableConfig(),
                 context.getClassLoader(),
                 schemaTable.isTemporary());
