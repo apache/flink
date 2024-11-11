@@ -61,6 +61,12 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
+		<dependency>
+			<groupId>com.ververica</groupId>
+			<artifactId>frocksdbjni</artifactId>
+			<version>8.10.0-ververica-beta-1.0</version>
+		</dependency>
+
 		<!-- ===================================================
 						Dependencies for the Web Server
 			=================================================== -->
