@@ -19,7 +19,6 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.legacy.api.TableSchema;
 
 /**
  * A common parent that describes the <i>resolved</i> metadata of a table or view in a catalog.
@@ -44,15 +43,4 @@ public interface ResolvedCatalogBaseTable<T extends CatalogBaseTable> extends Ca
      * and {@link ResolvedSchema#toPhysicalRowDataType()}.
      */
     ResolvedSchema getResolvedSchema();
-
-    /**
-     * @deprecated This method returns the deprecated {@link TableSchema} class. The old class was a
-     *     hybrid of resolved and unresolved schema information. It has been replaced by the new
-     *     {@link ResolvedSchema} which is resolved by the framework and accessible via {@link
-     *     #getResolvedSchema()}.
-     */
-    @Deprecated
-    default TableSchema getSchema() {
-        return TableSchema.fromResolvedSchema(getResolvedSchema());
-    }
 }
