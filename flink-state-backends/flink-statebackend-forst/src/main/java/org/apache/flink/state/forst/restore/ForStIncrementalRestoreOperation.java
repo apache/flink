@@ -42,7 +42,6 @@ import org.apache.flink.state.forst.ForStOperationUtils;
 import org.apache.flink.state.forst.ForStResourceContainer;
 import org.apache.flink.state.forst.ForStStateDataTransfer;
 import org.apache.flink.state.forst.StateHandleTransferSpec;
-import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
 import org.apache.flink.util.StateMigrationException;
 import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.function.RunnableWithException;
@@ -55,7 +54,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -105,7 +103,7 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
             StateSerializerProvider<K> keySerializerProvider,
             ForStResourceContainer optionsContainer,
             Path forstBasePath,
-            File instanceRocksDBPath,
+            Path instanceRocksDBPath,
             DBOptions dbOptions,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             ForStNativeMetricOptions nativeMetricOptions,
@@ -221,10 +219,10 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
         // TODO: Now not support rescale, so now ignore otherSpecs. Before implement transfer
         // otherSpecs, we may need reconsider the implementation of ForStFlinkFileSystem.
 
-        FileSystem forStFs =
-                optionsContainer.getRemoteForStPath() != null
-                        ? ForStFlinkFileSystem.get(optionsContainer.getRemoteForStPath().toUri())
-                        : FileSystem.getLocalFileSystem();
+        FileSystem forStFs = optionsContainer.getFileSystem();
+        if (forStFs == null) {
+            forStFs = FileSystem.getLocalFileSystem();
+        }
 
         try (ForStStateDataTransfer transfer =
                 new ForStStateDataTransfer(ForStStateDataTransfer.DEFAULT_THREAD_NUM, forStFs)) {

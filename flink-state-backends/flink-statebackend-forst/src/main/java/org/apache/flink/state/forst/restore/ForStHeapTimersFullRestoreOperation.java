@@ -19,6 +19,7 @@
 package org.apache.flink.state.forst.restore;
 
 import org.apache.flink.core.fs.ICloseableRegistry;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
@@ -53,7 +54,6 @@ import org.forstdb.RocksDBException;
 import javax.annotation.Nonnull;
 
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
@@ -85,7 +85,7 @@ public class ForStHeapTimersFullRestoreOperation<K> implements ForStRestoreOpera
             LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             HeapPriorityQueueSetFactory priorityQueueFactory,
             StateSerializerProvider<K> keySerializerProvider,
-            File instanceRocksDBPath,
+            Path instanceRocksDBPath,
             DBOptions dbOptions,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             ForStNativeMetricOptions nativeMetricOptions,

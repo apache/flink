@@ -40,8 +40,6 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -60,11 +58,7 @@ public class ForStFlinkFileSystem extends FileSystem {
 
     private static final long SST_FILE_SIZE = 1024 * 1024 * 64;
 
-    private static final Map<String, String> remoteLocalMapping = new ConcurrentHashMap<>();
     private static final Function<String, Boolean> miscFileFilter = s -> !s.endsWith(".sst");
-    private static Path cacheBase = null;
-    private static long cacheCapacity = Long.MAX_VALUE;
-    private static long cacheReservedSize = 0;
 
     private final FileSystem localFS;
     private final FileSystem delegateFS;
@@ -87,19 +81,6 @@ public class ForStFlinkFileSystem extends FileSystem {
     }
 
     /**
-     * Configure cache for ForStFlinkFileSystem.
-     *
-     * @param path the cache base path.
-     * @param cacheCap the cache capacity.
-     * @param reserveSize the cache reserved size.
-     */
-    public static void configureCache(Path path, long cacheCap, long reserveSize) {
-        cacheBase = path;
-        cacheCapacity = cacheCap;
-        cacheReservedSize = reserveSize;
-    }
-
-    /**
      * Returns a reference to the {@link FileSystem} instance for accessing the file system
      * identified by the given {@link URI}.
      *
@@ -108,14 +89,20 @@ public class ForStFlinkFileSystem extends FileSystem {
      *     identified by the given {@link URI}.
      * @throws IOException thrown if a reference to the file system instance could not be obtained.
      */
-    public static FileSystem get(URI uri) throws IOException {
-        String localBase = remoteLocalMapping.get(uri.toString());
-        Preconditions.checkNotNull(localBase, "localBase is null, remote uri:" + uri);
+    public static ForStFlinkFileSystem get(URI uri) throws IOException {
         return new ForStFlinkFileSystem(
-                FileSystem.get(uri), uri.toString(), localBase, getFileBasedCache());
+                FileSystem.get(uri), uri.toString(), System.getProperty("java.io.tmpdir"), null);
     }
 
-    private static FileBasedCache getFileBasedCache() throws IOException {
+    public static ForStFlinkFileSystem get(URI uri, Path localBase, FileBasedCache fileBasedCache)
+            throws IOException {
+        Preconditions.checkNotNull(localBase, "localBase is null, remote uri: %s.", uri);
+        return new ForStFlinkFileSystem(
+                FileSystem.get(uri), uri.toString(), localBase.toString(), fileBasedCache);
+    }
+
+    public static FileBasedCache getFileBasedCache(
+            Path cacheBase, long cacheCapacity, long cacheReservedSize) throws IOException {
         if (cacheBase == null || cacheCapacity <= 0 && cacheReservedSize <= 0) {
             return null;
         }
@@ -137,25 +124,6 @@ public class ForStFlinkFileSystem extends FileSystem {
         }
         return new FileBasedCache(
                 Integer.MAX_VALUE, cacheLimitPolicy, cacheBase.getFileSystem(), cacheBase);
-    }
-
-    /**
-     * Setup local base path for corresponding remote base path.
-     *
-     * @param remoteBasePath the remote base path.
-     * @param localBasePath the local base path.
-     */
-    public static void setupLocalBasePath(String remoteBasePath, String localBasePath) {
-        remoteLocalMapping.put(remoteBasePath, localBasePath);
-    }
-
-    /**
-     * Unregister local base path for corresponding remote base path.
-     *
-     * @param remoteBasePath the remote base path.
-     */
-    public static void unregisterLocalBasePath(String remoteBasePath) {
-        remoteLocalMapping.remove(remoteBasePath);
     }
 
     /**
