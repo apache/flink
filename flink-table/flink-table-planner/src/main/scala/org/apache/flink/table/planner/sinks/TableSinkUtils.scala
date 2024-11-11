@@ -22,7 +22,7 @@ import org.apache.flink.api.java.typeutils.{GenericTypeInfo, PojoTypeInfo, Tuple
 import org.apache.flink.legacy.table.sinks.{RetractStreamTableSink, StreamTableSink, UpsertStreamTableSink}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.typeutils.CaseClassTypeInfo
-import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
+import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier, ResolvedCatalogTable}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.legacy.api.{TableSchema, Types}
 import org.apache.flink.table.legacy.sinks.{OverwritableTableSink, PartitionableTableSink, TableSink}
@@ -256,28 +256,32 @@ object TableSinkUtils {
    *   the logical type of query
    */
   def validateLogicalPhysicalTypesCompatible(
-      catalogTable: CatalogTable,
+      resolvedCatalogTable: ResolvedCatalogTable,
       sink: TableSink[_],
       queryLogicalType: RowType): Unit = {
-    // there may be generated columns in DDL, only get the physical part of DDL
-    val logicalSchema = TableSchemaUtils.getPhysicalSchema(catalogTable.getSchema)
     // infer the physical schema from TableSink#getConsumedDataType
     val physicalSchema = TableSinkUtils.inferSinkPhysicalSchema(queryLogicalType, sink)
+
+    // there may be generated columns in DDL, only count the physical part of DDL
+    val physicalSchemaColumns =
+      resolvedCatalogTable.getResolvedSchema.getColumns.filter(_.isPhysical).toList
+    val physicalSchemaDataTypes = physicalSchemaColumns.map(_.getDataType)
+
     // check for valid type info
-    if (logicalSchema.getFieldCount != physicalSchema.getFieldCount) {
+    if (physicalSchemaColumns.size != physicalSchema.getFieldCount) {
       throw new ValidationException(
         "The field count of logical schema of the table does" +
           " not match with the field count of physical schema\n. " +
-          s"The logical schema: [${logicalSchema.getFieldDataTypes.mkString(",")}]\n" +
+          s"The logical schema: [${physicalSchemaDataTypes.mkString(",")}]\n" +
           s"The physical schema: [${physicalSchema.getFieldDataTypes.mkString(",")}].")
     }
 
-    for (i <- 0 until logicalSchema.getFieldCount) {
+    for (i <- 0 until physicalSchemaColumns.size) {
       val logicalFieldType = DataTypeUtils.transform(
-        logicalSchema.getFieldDataTypes()(i),
+        physicalSchemaDataTypes(i),
         toNullable
       ) // ignore nullabilities
-      val logicalFieldName = logicalSchema.getFieldNames()(i)
+      val logicalFieldName = physicalSchemaColumns(i).getName
       val physicalFieldType = DataTypeUtils.transform(
         physicalSchema.getFieldDataTypes()(i),
         toNullable

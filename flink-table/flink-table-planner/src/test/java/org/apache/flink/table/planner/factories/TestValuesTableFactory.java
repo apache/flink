@@ -40,6 +40,7 @@ import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.legacy.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.legacy.io.CollectionInputFormat;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -694,12 +695,14 @@ public final class TestValuesTableFactory
                         .map(this::parseChangelogMode)
                         .orElse(null);
 
-        final DataType consumedType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
+        final DataType consumedType =
+                context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType();
 
         final int[] primaryKeyIndices =
-                TableSchemaUtils.getPrimaryKeyIndices(context.getCatalogTable().getSchema());
-        TableSchema tableSchema =
-                TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
+                TableSchemaUtils.getPrimaryKeyIndices(
+                        context.getCatalogTable().getResolvedSchema());
+        Schema tableSchema =
+                TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getResolvedSchema());
 
         boolean requireBucketCount = helper.getOptions().get(SINK_BUCKET_COUNT_REQUIRED);
         if (sinkClass.equals("DEFAULT")) {
@@ -2009,7 +2012,7 @@ public final class TestValuesTableFactory
         private final Integer parallelism;
         private final ChangelogMode changelogModeEnforced;
         private final int rowtimeIndex;
-        private final TableSchema tableSchema;
+        private final Schema tableSchema;
         private final boolean requireBucketCount;
 
         private TestValuesTableSink(
@@ -2023,7 +2026,7 @@ public final class TestValuesTableFactory
                 @Nullable Integer parallelism,
                 @Nullable ChangelogMode changelogModeEnforced,
                 int rowtimeIndex,
-                TableSchema tableSchema,
+                Schema tableSchema,
                 boolean requireBucketCount) {
             this.consumedDataType = consumedDataType;
             this.primaryKeyIndices = primaryKeyIndices;
@@ -2152,7 +2155,7 @@ public final class TestValuesTableFactory
                                     primaryKeyIndices,
                                     Arrays.stream(targetColumns).mapToInt(a -> a[0]).toArray(),
                                     expectedNum,
-                                    tableSchema.getFieldCount());
+                                    tableSchema.getColumns().size());
                 } else {
                     checkArgument(
                             expectedNum == -1,

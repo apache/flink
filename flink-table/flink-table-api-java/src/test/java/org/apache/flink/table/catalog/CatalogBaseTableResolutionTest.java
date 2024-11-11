@@ -171,8 +171,6 @@ class CatalogBaseTableResolutionTest {
                 resolveCatalogBaseTable(ResolvedCatalogTable.class, table);
 
         assertThat(resolvedTable.getResolvedSchema()).isEqualTo(RESOLVED_TABLE_SCHEMA);
-
-        assertThat(resolvedTable.getSchema()).isEqualTo(LEGACY_TABLE_SCHEMA);
     }
 
     @Test

@@ -66,7 +66,7 @@ class LegacyCatalogSourceTable[T](
   extends FlinkPreparingTableBase(relOptSchema, rowType, names, schemaTable.getStatistic) {
 
   lazy val columnExprs: Map[String, String] = {
-    catalogTable.getSchema.getTableColumns.flatMap {
+    catalogTable.getUnresolvedSchema.getColumns.flatMap {
       case computedColumn: ComputedColumn =>
         Some((computedColumn.getName, computedColumn.getExpression))
       case _ =>
