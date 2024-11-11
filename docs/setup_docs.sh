@@ -43,7 +43,7 @@ rm -rf tmp
 mkdir tmp
 cd tmp
 
-integrate_connector_docs aws v4.3
+integrate_connector_docs aws v5.0
 integrate_connector_docs cassandra v3.2
 integrate_connector_docs elasticsearch v3.0
 integrate_connector_docs gcp-pubsub v3.1
