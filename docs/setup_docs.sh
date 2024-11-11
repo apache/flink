@@ -52,7 +52,7 @@ if [ "$SKIP_INTEGRATE_CONNECTOR_DOCS" = false ]; then
   cd tmp
 
   integrate_connector_docs elasticsearch v3.0
-  integrate_connector_docs aws v4.2
+  integrate_connector_docs aws v5.0
   integrate_connector_docs cassandra v3.1
   integrate_connector_docs pulsar v4.0
   integrate_connector_docs jdbc v3.1
