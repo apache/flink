@@ -39,7 +39,6 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
-import org.apache.flink.runtime.state.DoneFuture;
 import org.apache.flink.runtime.state.HeapPriorityQueuesManager;
 import org.apache.flink.runtime.state.InternalKeyContext;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
@@ -48,10 +47,10 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
-import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.SavepointResources;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
@@ -64,6 +63,7 @@ import org.apache.flink.state.forst.ForStDBWriteBatchWrapper;
 import org.apache.flink.state.forst.ForStNativeMetricMonitor;
 import org.apache.flink.state.forst.ForStOperationUtils;
 import org.apache.flink.state.forst.ForStResourceContainer;
+import org.apache.flink.state.forst.snapshot.ForStSnapshotStrategyBase;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
@@ -101,6 +101,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static org.apache.flink.runtime.state.SnapshotExecutionType.ASYNCHRONOUS;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -212,7 +213,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
      * retrieve the column family that is used for a state and also for sanity checks when
      * restoring.
      */
-    private final LinkedHashMap<String, ForStDbKvStateInfo> kvStateInformation;
+    private final LinkedHashMap<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation;
 
     private final HeapPriorityQueuesManager heapPriorityQueuesManager;
 
@@ -234,7 +235,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
      * The checkpoint snapshot strategy, e.g., if we use full or incremental checkpoints, local
      * state, and so on.
      */
-    // private final RocksDBSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy;
+    private final ForStSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy;
 
     /** The native metrics monitor. */
     private final ForStNativeMetricMonitor nativeMetricMonitor;
@@ -271,13 +272,13 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
             TtlTimeProvider ttlTimeProvider,
             LatencyTrackingStateConfig latencyTrackingStateConfig,
             RocksDB db,
-            LinkedHashMap<String, ForStDbKvStateInfo> kvStateInformation,
+            LinkedHashMap<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation,
             Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             int keyGroupPrefixBytes,
             CloseableRegistry cancelStreamRegistry,
             StreamCompressionDecorator keyGroupCompressionDecorator,
             ResourceGuard rocksDBResourceGuard,
-            // RocksDBSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy,
+            ForStSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy,
             ForStDBWriteBatchWrapper writeBatchWrapper,
             ColumnFamilyHandle defaultColumnFamilyHandle,
             ForStNativeMetricMonitor nativeMetricMonitor,
@@ -317,7 +318,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
         this.writeBatchSize = writeBatchSize;
         this.db = db;
         this.rocksDBResourceGuard = rocksDBResourceGuard;
-        // this.checkpointSnapshotStrategy = checkpointSnapshotStrategy;
+        this.checkpointSnapshotStrategy = checkpointSnapshotStrategy;
         this.writeBatchWrapper = writeBatchWrapper;
         this.defaultColumnFamily = defaultColumnFamilyHandle;
         this.nativeMetricMonitor = nativeMetricMonitor;
@@ -338,7 +339,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
     @SuppressWarnings("unchecked")
     @Override
     public <N> Stream<K> getKeys(String state, N namespace) {
-        ForStDbKvStateInfo columnInfo = kvStateInformation.get(state);
+        ForStOperationUtils.ForStKvStateInfo columnInfo = kvStateInformation.get(state);
         if (columnInfo == null
                 || !(columnInfo.metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo)) {
             return Stream.empty();
@@ -385,7 +386,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
 
     @Override
     public <N> Stream<Tuple2<K, N>> getKeysAndNamespaces(String state) {
-        ForStDbKvStateInfo columnInfo = kvStateInformation.get(state);
+        ForStOperationUtils.ForStKvStateInfo columnInfo = kvStateInformation.get(state);
         if (columnInfo == null
                 || !(columnInfo.metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo)) {
             return Stream.empty();
@@ -423,7 +424,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
 
     @VisibleForTesting
     ColumnFamilyHandle getColumnFamilyHandle(String state) {
-        ForStDbKvStateInfo columnInfo = kvStateInformation.get(state);
+        ForStOperationUtils.ForStKvStateInfo columnInfo = kvStateInformation.get(state);
         return columnInfo != null ? columnInfo.columnFamilyHandle : null;
     }
 
@@ -479,7 +480,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
             IOUtils.closeQuietly(defaultColumnFamily);
 
             // ... continue with the ones created by Flink...
-            for (ForStDbKvStateInfo kvStateInfo : kvStateInformation.values()) {
+            for (ForStOperationUtils.ForStKvStateInfo kvStateInfo : kvStateInformation.values()) {
                 ForStOperationUtils.addColumnFamilyOptionsToCloseLater(
                         columnFamilyOptions, kvStateInfo.columnFamilyHandle);
                 IOUtils.closeQuietly(kvStateInfo.columnFamilyHandle);
@@ -496,8 +497,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
 
             cleanInstanceBasePath();
         }
-        // todo: rebase after checkpoint pr merged
-        // IOUtils.closeQuietly(checkpointSnapshotStrategy);
+        IOUtils.closeQuietly(checkpointSnapshotStrategy);
         this.disposed = true;
     }
 
@@ -588,8 +588,15 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
             @Nonnull CheckpointOptions checkpointOptions)
             throws Exception {
 
-        // TODO: implement snapshot on sync keyed state backend later, skip now.
-        return DoneFuture.of(SnapshotResult.empty());
+        // flush everything into db before taking a snapshot
+        writeBatchWrapper.flush();
+
+        return new SnapshotStrategyRunner<>(
+                        checkpointSnapshotStrategy.getDescription(),
+                        checkpointSnapshotStrategy,
+                        cancelStreamRegistry,
+                        ASYNCHRONOUS)
+                .snapshot(checkpointId, timestamp, streamFactory, checkpointOptions);
     }
 
     @Nonnull
@@ -600,12 +607,16 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
 
     @Override
     public void notifyCheckpointComplete(long completedCheckpointId) throws Exception {
-        // TODO: maybe do some thing when implement checkpoint
+        if (checkpointSnapshotStrategy != null) {
+            checkpointSnapshotStrategy.notifyCheckpointComplete(completedCheckpointId);
+        }
     }
 
     @Override
     public void notifyCheckpointAborted(long checkpointId) throws Exception {
-        // TODO: maybe do some thing when implement checkpoint
+        if (checkpointSnapshotStrategy != null) {
+            checkpointSnapshotStrategy.notifyCheckpointAborted(checkpointId);
+        }
     }
 
     /**
@@ -626,11 +637,12 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
                             boolean allowFutureMetadataUpdates)
                             throws Exception {
 
-        ForStDbKvStateInfo oldStateInfo = kvStateInformation.get(stateDesc.getName());
+        ForStOperationUtils.ForStKvStateInfo oldStateInfo =
+                kvStateInformation.get(stateDesc.getName());
 
         TypeSerializer<SV> stateSerializer = stateDesc.getSerializer();
 
-        ForStDbKvStateInfo newRocksStateInfo;
+        ForStOperationUtils.ForStKvStateInfo newRocksStateInfo;
         RegisteredKeyValueStateBackendMetaInfo<N, SV> newMetaInfo;
         if (oldStateInfo != null) {
             @SuppressWarnings("unchecked")
@@ -650,7 +662,8 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
                             : newMetaInfo;
 
             newRocksStateInfo =
-                    new ForStDbKvStateInfo(oldStateInfo.columnFamilyHandle, newMetaInfo);
+                    new ForStOperationUtils.ForStKvStateInfo(
+                            oldStateInfo.columnFamilyHandle, newMetaInfo);
             kvStateInformation.put(stateDesc.getName(), newRocksStateInfo);
         } else {
             newMetaInfo =
@@ -915,7 +928,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
     public int numKeyValueStateEntries() {
         int count = 0;
 
-        for (ForStDbKvStateInfo metaInfo : kvStateInformation.values()) {
+        for (ForStOperationUtils.ForStKvStateInfo metaInfo : kvStateInformation.values()) {
             // TODO maybe filterOrTransform only for k/v states
             try (ForStIteratorWrapper rocksIterator =
                     ForStOperationUtils.getForStIterator(
@@ -941,23 +954,6 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
     @Override
     public boolean isSafeToReuseKVState() {
         return true;
-    }
-
-    /** Rocks DB specific information about the k/v states. */
-    public static class ForStDbKvStateInfo implements AutoCloseable {
-        public final ColumnFamilyHandle columnFamilyHandle;
-        public final RegisteredStateMetaInfoBase metaInfo;
-
-        public ForStDbKvStateInfo(
-                ColumnFamilyHandle columnFamilyHandle, RegisteredStateMetaInfoBase metaInfo) {
-            this.columnFamilyHandle = columnFamilyHandle;
-            this.metaInfo = metaInfo;
-        }
-
-        @Override
-        public void close() throws Exception {
-            this.columnFamilyHandle.close();
-        }
     }
 
     @Nonnegative

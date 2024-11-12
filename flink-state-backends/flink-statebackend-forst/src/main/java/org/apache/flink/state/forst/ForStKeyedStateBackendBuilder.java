@@ -47,6 +47,7 @@ import org.apache.flink.state.forst.restore.ForStNoneRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStRestoreResult;
 import org.apache.flink.state.forst.snapshot.ForStIncrementalSnapshotStrategy;
+import org.apache.flink.state.forst.snapshot.ForStNativeFullSnapshotStrategy;
 import org.apache.flink.state.forst.snapshot.ForStSnapshotStrategyBase;
 import org.apache.flink.state.forst.sync.ForStPriorityQueueConfig;
 import org.apache.flink.util.CollectionUtil;
@@ -171,7 +172,7 @@ public class ForStKeyedStateBackendBuilder<K>
 
         CloseableRegistry cancelStreamRegistryForBackend = new CloseableRegistry();
 
-        LinkedHashMap<String, ForStKeyedStateBackend.ForStKvStateInfo> kvStateInformation =
+        LinkedHashMap<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation =
                 new LinkedHashMap<>();
         LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates =
                 new LinkedHashMap<>();
@@ -293,7 +294,7 @@ public class ForStKeyedStateBackendBuilder<K>
     }
 
     private ForStRestoreOperation getForStRestoreOperation(
-            LinkedHashMap<String, ForStKeyedStateBackend.ForStKvStateInfo> kvStateInformation,
+            LinkedHashMap<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation,
             LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates) {
         // Currently, ForStDB does not support mixing local-dir and remote-dir, and ForStDB will
         // concatenates the dfs directory with the local directory as working dir when using flink
@@ -363,9 +364,7 @@ public class ForStKeyedStateBackendBuilder<K>
             @Nonnull RocksDB db,
             @Nonnull ResourceGuard forstResourceGuard,
             @Nonnull TypeSerializer<K> keySerializer,
-            @Nonnull
-                    LinkedHashMap<String, ForStKeyedStateBackend.ForStKvStateInfo>
-                            kvStateInformation,
+            @Nonnull LinkedHashMap<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation,
             @Nonnull KeyGroupRange keyGroupRange,
             @Nonnegative int keyGroupPrefixBytes,
             @Nonnull UUID backendUID,
@@ -375,31 +374,36 @@ public class ForStKeyedStateBackendBuilder<K>
             long lastCompletedCheckpointId)
             throws IOException {
 
-        ForStSnapshotStrategyBase<K, ?> snapshotStrategy;
-
         ForStFlinkFileSystem forStFs = optionsContainer.getFileSystem();
         ForStStateDataTransfer stateTransfer =
                 new ForStStateDataTransfer(ForStStateDataTransfer.DEFAULT_THREAD_NUM, forStFs);
 
         if (enableIncrementalCheckpointing) {
-            snapshotStrategy =
-                    new ForStIncrementalSnapshotStrategy<>(
-                            db,
-                            forstResourceGuard,
-                            optionsContainer,
-                            keySerializer,
-                            kvStateInformation,
-                            keyGroupRange,
-                            keyGroupPrefixBytes,
-                            backendUID,
-                            uploadedStateHandles,
-                            stateTransfer,
-                            lastCompletedCheckpointId);
+            return new ForStIncrementalSnapshotStrategy<>(
+                    db,
+                    forstResourceGuard,
+                    optionsContainer,
+                    keySerializer,
+                    kvStateInformation,
+                    keyGroupRange,
+                    keyGroupPrefixBytes,
+                    backendUID,
+                    uploadedStateHandles,
+                    stateTransfer,
+                    lastCompletedCheckpointId);
 
         } else {
-            throw new UnsupportedOperationException("Not implemented yet for ForStStateBackend");
+            return new ForStNativeFullSnapshotStrategy<>(
+                    db,
+                    forstResourceGuard,
+                    optionsContainer,
+                    keySerializer,
+                    kvStateInformation,
+                    keyGroupRange,
+                    keyGroupPrefixBytes,
+                    backendUID,
+                    stateTransfer);
         }
-        return snapshotStrategy;
     }
 
     private HeapPriorityQueueSetFactory createHeapQueueFactory() {

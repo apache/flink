@@ -520,6 +520,11 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         return optionsFactory;
     }
 
+    /** Both ForStSyncKeyedStateBackend and ForStKeyedStateBackend support no claim mode. */
+    public boolean supportsNoClaimRestoreMode() {
+        return true;
+    }
+
     // ------------------------------------------------------------------------
     //  Parameters
     // ------------------------------------------------------------------------

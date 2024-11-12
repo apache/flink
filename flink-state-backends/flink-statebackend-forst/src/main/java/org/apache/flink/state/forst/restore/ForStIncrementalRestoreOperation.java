@@ -36,7 +36,6 @@ import org.apache.flink.runtime.state.StateBackend.CustomInitializationMetrics;
 import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
-import org.apache.flink.state.forst.ForStKeyedStateBackend.ForStKvStateInfo;
 import org.apache.flink.state.forst.ForStNativeMetricOptions;
 import org.apache.flink.state.forst.ForStOperationUtils;
 import org.apache.flink.state.forst.ForStResourceContainer;
@@ -99,7 +98,7 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
             KeyGroupRange keyGroupRange,
             CloseableRegistry cancelStreamRegistry,
             ClassLoader userCodeClassLoader,
-            Map<String, ForStKvStateInfo> kvStateInformation,
+            Map<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation,
             StateSerializerProvider<K> keySerializerProvider,
             ForStResourceContainer optionsContainer,
             Path forstBasePath,
