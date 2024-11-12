@@ -106,18 +106,6 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
     }
 
     @Test
-    void testDecideParallelismWithMaxSubpartitionLimitation() {
-        BlockingResultInfo resultInfo1 =
-                new TestingBlockingResultInfo(false, false, 1L, 1024, 1024);
-        BlockingResultInfo resultInfo2 = new TestingBlockingResultInfo(false, false, 1L, 512, 512);
-
-        int parallelism =
-                createDeciderAndDecideParallelism(
-                        1, 100, BYTE_256_MB, Arrays.asList(resultInfo1, resultInfo2));
-        assertThat(parallelism).isEqualTo(32);
-    }
-
-    @Test
     void testAllEdgesAllToAll() {
         AllToAllBlockingResultInfo resultInfo1 =
                 createAllToAllBlockingResultInfo(
@@ -295,21 +283,20 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                 parallelismAndInputInfos.getJobVertexInputInfos().get(resultInfo1.getResultId()),
                 Arrays.asList(
                         new IndexRange(0, 1),
-                        new IndexRange(2, 4),
-                        new IndexRange(5, 6),
-                        new IndexRange(7, 9)));
-        checkPointwiseJobVertexInputInfo(
+                        new IndexRange(2, 5),
+                        new IndexRange(6, 7),
+                        new IndexRange(8, 9)));
+        checkJobVertexInputInfo(
                 parallelismAndInputInfos.getJobVertexInputInfos().get(resultInfo2.getResultId()),
                 Arrays.asList(
-                        new IndexRange(0, 0),
-                        new IndexRange(0, 0),
-                        new IndexRange(1, 1),
-                        new IndexRange(1, 1)),
-                Arrays.asList(
-                        new IndexRange(0, 1),
-                        new IndexRange(2, 4),
-                        new IndexRange(0, 1),
-                        new IndexRange(2, 4)));
+                        Map.of(new IndexRange(0, 0), new IndexRange(0, 1)),
+                        Map.of(new IndexRange(0, 0), new IndexRange(2, 3)),
+                        Map.of(
+                                new IndexRange(0, 0),
+                                new IndexRange(4, 4),
+                                new IndexRange(1, 1),
+                                new IndexRange(0, 1)),
+                        Map.of(new IndexRange(1, 1), new IndexRange(2, 4))));
     }
 
     @Test
@@ -335,7 +322,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
         checkAllToAllJobVertexInputInfo(
                 Iterables.getOnlyElement(
                         parallelismAndInputInfos.getJobVertexInputInfos().values()),
-                Arrays.asList(new IndexRange(0, 2), new IndexRange(3, 5), new IndexRange(6, 9)));
+                Arrays.asList(new IndexRange(0, 2), new IndexRange(3, 6), new IndexRange(7, 9)));
     }
 
     @Test
@@ -383,40 +370,13 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
     }
 
     @Test
-    void testEvenlyDistributeDataWithMaxSubpartitionLimitation() {
-        long[] subpartitionBytes = new long[1024];
-        Arrays.fill(subpartitionBytes, 1L);
-        AllToAllBlockingResultInfo resultInfo =
-                new AllToAllBlockingResultInfo(
-                        new IntermediateDataSetID(), 1024, 1024, false, false);
-        for (int i = 0; i < 1024; ++i) {
-            resultInfo.recordPartitionInfo(i, new ResultPartitionBytes(subpartitionBytes));
-        }
-
-        ParallelismAndInputInfos parallelismAndInputInfos =
-                createDeciderAndDecideParallelismAndInputInfos(
-                        1, 100, BYTE_256_MB, Collections.singletonList(resultInfo));
-
-        assertThat(parallelismAndInputInfos.getParallelism()).isEqualTo(32);
-        List<IndexRange> subpartitionRanges = new ArrayList<>();
-        for (int i = 0; i < 32; ++i) {
-            subpartitionRanges.add(new IndexRange(i * 32, (i + 1) * 32 - 1));
-        }
-        checkAllToAllJobVertexInputInfo(
-                Iterables.getOnlyElement(
-                        parallelismAndInputInfos.getJobVertexInputInfos().values()),
-                new IndexRange(0, 1023),
-                subpartitionRanges);
-    }
-
-    @Test
     void testComputeSourceParallelismUpperBound() {
         Configuration configuration = new Configuration();
         configuration.set(
                 BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM,
                 DEFAULT_SOURCE_PARALLELISM);
         VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider =
-                DefaultVertexParallelismAndInputInfosDecider.from(MAX_PARALLELISM, configuration);
+                createDefaultVertexParallelismAndInputInfosDecider(MAX_PARALLELISM, configuration);
         assertThat(
                         vertexParallelismAndInputInfosDecider.computeSourceParallelismUpperBound(
                                 new JobVertexID(), VERTEX_MAX_PARALLELISM))
@@ -427,7 +387,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
     void testComputeSourceParallelismUpperBoundFallback() {
         Configuration configuration = new Configuration();
         VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider =
-                DefaultVertexParallelismAndInputInfosDecider.from(MAX_PARALLELISM, configuration);
+                createDefaultVertexParallelismAndInputInfosDecider(MAX_PARALLELISM, configuration);
         assertThat(
                         vertexParallelismAndInputInfosDecider.computeSourceParallelismUpperBound(
                                 new JobVertexID(), VERTEX_MAX_PARALLELISM))
@@ -441,7 +401,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                 BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM,
                 VERTEX_MAX_PARALLELISM * 2);
         VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider =
-                DefaultVertexParallelismAndInputInfosDecider.from(MAX_PARALLELISM, configuration);
+                createDefaultVertexParallelismAndInputInfosDecider(MAX_PARALLELISM, configuration);
         assertThat(
                         vertexParallelismAndInputInfosDecider.computeSourceParallelismUpperBound(
                                 new JobVertexID(), VERTEX_MAX_PARALLELISM))
@@ -467,16 +427,13 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                 .containsExactlyInAnyOrderElementsOf(executionVertexInputInfos);
     }
 
-    private static void checkPointwiseJobVertexInputInfo(
+    private static void checkJobVertexInputInfo(
             JobVertexInputInfo jobVertexInputInfo,
-            List<IndexRange> partitionRanges,
-            List<IndexRange> subpartitionRanges) {
-        assertThat(partitionRanges).hasSameSizeAs(subpartitionRanges);
+            List<Map<IndexRange, IndexRange>> consumedSubpartitionGroups) {
         List<ExecutionVertexInputInfo> executionVertexInputInfos = new ArrayList<>();
-        for (int i = 0; i < subpartitionRanges.size(); ++i) {
+        for (int i = 0; i < consumedSubpartitionGroups.size(); ++i) {
             executionVertexInputInfos.add(
-                    new ExecutionVertexInputInfo(
-                            i, partitionRanges.get(i), subpartitionRanges.get(i)));
+                    new ExecutionVertexInputInfo(i, consumedSubpartitionGroups.get(i)));
         }
         assertThat(jobVertexInputInfo.getExecutionVertexInputInfos())
                 .containsExactlyInAnyOrderElementsOf(executionVertexInputInfos);
@@ -504,7 +461,20 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                 BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM,
                 defaultSourceParallelism);
 
-        return DefaultVertexParallelismAndInputInfosDecider.from(maxParallelism, configuration);
+        return createDefaultVertexParallelismAndInputInfosDecider(maxParallelism, configuration);
+    }
+
+    static DefaultVertexParallelismAndInputInfosDecider
+            createDefaultVertexParallelismAndInputInfosDecider(
+                    int maxParallelism, Configuration configuration) {
+        return DefaultVertexParallelismAndInputInfosDecider.from(
+                maxParallelism,
+                BatchExecutionOptionsInternal.ADAPTIVE_SKEWED_OPTIMIZATION_SKEWED_FACTOR
+                        .defaultValue(),
+                BatchExecutionOptionsInternal.ADAPTIVE_SKEWED_OPTIMIZATION_SKEWED_THRESHOLD
+                        .defaultValue()
+                        .getBytes(),
+                configuration);
     }
 
     private static int createDeciderAndDecideParallelism(List<BlockingResultInfo> consumedResults) {
