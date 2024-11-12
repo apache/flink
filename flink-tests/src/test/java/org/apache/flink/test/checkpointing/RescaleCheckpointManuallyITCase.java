@@ -267,17 +267,28 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
                 env.addSource(
                                 new NotifyingDefiniteKeySource(
                                         numberKeys, numberElements, failAfterEmission) {
+
+                                    String lastCheckpointPath = null;
+
+                                    /**
+                                     * This wait method waits at least two checkpoint finished to
+                                     * make sure the latest checkpoint contains all the source data.
+                                     */
                                     @Override
-                                    public void waitCheckpointCompleted() throws Exception {
+                                    public boolean waitCheckpointCompleted() throws Exception {
                                         Optional<String> mostRecentCompletedCheckpointPath =
                                                 getLatestCompletedCheckpointPath(
                                                         jobID.get(), miniClusterRef.get());
-                                        while (!mostRecentCompletedCheckpointPath.isPresent()) {
-                                            Thread.sleep(50);
-                                            mostRecentCompletedCheckpointPath =
-                                                    getLatestCompletedCheckpointPath(
-                                                            jobID.get(), miniClusterRef.get());
+                                        if (mostRecentCompletedCheckpointPath.isPresent()) {
+                                            if (lastCheckpointPath == null) {
+                                                lastCheckpointPath =
+                                                        mostRecentCompletedCheckpointPath.get();
+                                            } else if (!lastCheckpointPath.equals(
+                                                    mostRecentCompletedCheckpointPath.get())) {
+                                                return true;
+                                            }
                                         }
+                                        return false;
                                     }
                                 })
                         .keyBy(
@@ -315,7 +326,9 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
             this.failAfterEmission = failAfterEmission;
         }
 
-        public void waitCheckpointCompleted() throws Exception {}
+        public boolean waitCheckpointCompleted() throws Exception {
+            return true;
+        }
 
         @Override
         public void run(SourceContext<Integer> ctx) throws Exception {
@@ -334,7 +347,18 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
                         counter++;
                     }
                 } else {
-                    waitCheckpointCompleted();
+                    boolean newCheckpoint = false;
+                    long waited = 0L;
+                    // maximum wait 5min
+                    while (!newCheckpoint && waited < 30000L) {
+                        synchronized (ctx.getCheckpointLock()) {
+                            newCheckpoint = waitCheckpointCompleted();
+                        }
+                        if (!newCheckpoint) {
+                            waited += 10L;
+                            Thread.sleep(10L);
+                        }
+                    }
                     if (failAfterEmission) {
                         throw new FlinkRuntimeException(
                                 "Make job fail artificially, to retain completed checkpoint.");
