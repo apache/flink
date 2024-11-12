@@ -28,7 +28,9 @@ import org.apache.flink.runtime.executiongraph.ParallelismAndInputInfos;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+
 import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -268,21 +270,20 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                 parallelismAndInputInfos.getJobVertexInputInfos().get(resultInfo1.getResultId()),
                 Arrays.asList(
                         new IndexRange(0, 1),
-                        new IndexRange(2, 4),
-                        new IndexRange(5, 6),
-                        new IndexRange(7, 9)));
-        checkPointwiseJobVertexInputInfo(
+                        new IndexRange(2, 5),
+                        new IndexRange(6, 7),
+                        new IndexRange(8, 9)));
+        checkJobVertexInputInfo(
                 parallelismAndInputInfos.getJobVertexInputInfos().get(resultInfo2.getResultId()),
                 Arrays.asList(
-                        new IndexRange(0, 0),
-                        new IndexRange(0, 0),
-                        new IndexRange(1, 1),
-                        new IndexRange(1, 1)),
-                Arrays.asList(
-                        new IndexRange(0, 1),
-                        new IndexRange(2, 4),
-                        new IndexRange(0, 1),
-                        new IndexRange(2, 4)));
+                        Map.of(new IndexRange(0, 0), new IndexRange(0, 1)),
+                        Map.of(new IndexRange(0, 0), new IndexRange(2, 3)),
+                        Map.of(
+                                new IndexRange(0, 0),
+                                new IndexRange(4, 4),
+                                new IndexRange(1, 1),
+                                new IndexRange(0, 1)),
+                        Map.of(new IndexRange(1, 1), new IndexRange(2, 4))));
     }
 
     @Test
@@ -308,7 +309,7 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
         checkAllToAllJobVertexInputInfo(
                 Iterables.getOnlyElement(
                         parallelismAndInputInfos.getJobVertexInputInfos().values()),
-                Arrays.asList(new IndexRange(0, 2), new IndexRange(3, 5), new IndexRange(6, 9)));
+                Arrays.asList(new IndexRange(0, 2), new IndexRange(3, 6), new IndexRange(7, 9)));
     }
 
     @Test
@@ -439,16 +440,13 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
                 .containsExactlyInAnyOrderElementsOf(executionVertexInputInfos);
     }
 
-    private static void checkPointwiseJobVertexInputInfo(
+    private static void checkJobVertexInputInfo(
             JobVertexInputInfo jobVertexInputInfo,
-            List<IndexRange> partitionRanges,
-            List<IndexRange> subpartitionRanges) {
-        assertThat(partitionRanges).hasSameSizeAs(subpartitionRanges);
+            List<Map<IndexRange, IndexRange>> consumedSubpartitionGroups) {
         List<ExecutionVertexInputInfo> executionVertexInputInfos = new ArrayList<>();
-        for (int i = 0; i < subpartitionRanges.size(); ++i) {
+        for (int i = 0; i < consumedSubpartitionGroups.size(); ++i) {
             executionVertexInputInfos.add(
-                    new ExecutionVertexInputInfo(
-                            i, partitionRanges.get(i), subpartitionRanges.get(i)));
+                    new ExecutionVertexInputInfo(i, consumedSubpartitionGroups.get(i)));
         }
         assertThat(jobVertexInputInfo.getExecutionVertexInputInfos())
                 .containsExactlyInAnyOrderElementsOf(executionVertexInputInfos);
