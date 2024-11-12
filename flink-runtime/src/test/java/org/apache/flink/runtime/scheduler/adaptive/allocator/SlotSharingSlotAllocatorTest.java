@@ -37,7 +37,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -47,6 +46,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.runtime.scheduler.adaptive.allocator.TestingSlot.getSlots;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link SlotSharingSlotAllocator}. */
@@ -459,13 +459,5 @@ class SlotSharingSlotAllocatorTest {
         assertThat(allocated.get(allocation1)).contains(vertex1.getJobVertexID());
         assertThat(allocated.get(allocation1)).contains(vertex2.getJobVertexID());
         assertThat(allocated.get(allocation2)).contains(vertex3.getJobVertexID());
-    }
-
-    private static Collection<SlotInfo> getSlots(int count) {
-        final Collection<SlotInfo> slotInfo = new ArrayList<>();
-        for (int i = 0; i < count; i++) {
-            slotInfo.add(new TestingSlot());
-        }
-        return slotInfo;
     }
 }
