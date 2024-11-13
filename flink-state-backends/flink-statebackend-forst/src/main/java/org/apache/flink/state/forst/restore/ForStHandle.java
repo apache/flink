@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.forst.restore;
 
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
@@ -36,7 +37,6 @@ import org.forstdb.RocksDB;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -62,13 +62,13 @@ class ForStHandle implements AutoCloseable {
 
     protected ForStHandle(
             Map<String, ForStKvStateInfo> kvStateInformation,
-            File instanceRocksDBPath,
+            Path instanceRocksDBPath,
             DBOptions dbOptions,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             ForStNativeMetricOptions nativeMetricOptions,
             MetricGroup metricGroup) {
         this.kvStateInformation = kvStateInformation;
-        this.dbPath = instanceRocksDBPath.getAbsolutePath();
+        this.dbPath = instanceRocksDBPath.getPath();
         this.dbOptions = dbOptions;
         this.columnFamilyOptionsFactory = columnFamilyOptionsFactory;
         this.nativeMetricOptions = nativeMetricOptions;

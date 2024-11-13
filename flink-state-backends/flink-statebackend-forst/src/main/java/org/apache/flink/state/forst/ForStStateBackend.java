@@ -329,8 +329,10 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                         "op_%s_attempt_%s",
                         fileCompatibleIdentifier, env.getTaskInfo().getAttemptNumber());
 
-        File localBasePath =
-                new File(new File(getNextStoragePath(), jobId.toHexString()), opChildPath);
+        Path localBasePath =
+                new Path(
+                        new File(new File(getNextStoragePath(), jobId.toHexString()), opChildPath)
+                                .getAbsolutePath());
         Path remoteBasePath =
                 remoteForStDirectory != null
                         ? new Path(new Path(remoteForStDirectory, jobId.toHexString()), opChildPath)
@@ -391,15 +393,17 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
         lazyInitializeForJob(env, fileCompatibleIdentifier);
 
-        File instanceBasePath =
-                new File(
-                        getNextStoragePath(),
-                        "job_"
-                                + jobId
-                                + "_op_"
-                                + fileCompatibleIdentifier
-                                + "_uuid_"
-                                + UUID.randomUUID());
+        Path instanceBasePath =
+                new Path(
+                        new File(
+                                        getNextStoragePath(),
+                                        "job_"
+                                                + jobId
+                                                + "_op_"
+                                                + fileCompatibleIdentifier
+                                                + "_uuid_"
+                                                + UUID.randomUUID())
+                                .getAbsolutePath());
 
         LocalRecoveryConfig localRecoveryConfig =
                 env.getTaskStateManager().createLocalRecoveryConfig();
@@ -671,14 +675,14 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
     }
 
     @VisibleForTesting
-    ForStResourceContainer createOptionsAndResourceContainer(@Nullable File localBasePath) {
+    ForStResourceContainer createOptionsAndResourceContainer(@Nullable Path localBasePath) {
         return createOptionsAndResourceContainer(null, localBasePath, null, false);
     }
 
     @VisibleForTesting
     private ForStResourceContainer createOptionsAndResourceContainer(
             @Nullable OpaqueMemoryResource<ForStSharedResources> sharedResources,
-            @Nullable File localBasePath,
+            @Nullable Path localBasePath,
             @Nullable Path remoteBasePath,
             boolean enableStatistics) {
 
