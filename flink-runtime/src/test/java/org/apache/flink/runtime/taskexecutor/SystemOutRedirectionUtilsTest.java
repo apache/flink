@@ -25,7 +25,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.ByteArrayOutputStream;
@@ -77,26 +76,42 @@ class SystemOutRedirectionUtilsTest {
         assertThat(errStream.toString()).isEqualTo(logContext);
     }
 
-    @ParameterizedTest
-    @EnumSource(
-            value = SystemOutMode.class,
-            names = {"IGNORE", "LOG"})
-    void testSystemOutAndErrAreRedirected(SystemOutMode systemOutMode) {
+    @Test
+    void testSystemOutAndErrAreRedirectedToLog() {
         ByteArrayOutputStream outStream = new ByteArrayOutputStream();
         ByteArrayOutputStream errStream = new ByteArrayOutputStream();
         System.setOut(new PrintStream(outStream));
         System.setErr(new PrintStream(errStream));
 
         Configuration conf = new Configuration();
-        conf.set(TASK_MANAGER_SYSTEM_OUT_MODE, systemOutMode);
+        conf.set(TASK_MANAGER_SYSTEM_OUT_MODE, SystemOutMode.LOG);
         SystemOutRedirectionUtils.redirectSystemOutAndError(conf);
 
         String logContext = "This is log context!";
         System.out.print(logContext);
-        assertThat(outStream.toByteArray()).isEmpty();
+        assertThat(outStream.toString()).isEqualTo(SystemOutRedirectionUtils.OUT_TO_LOG_TIPS);
 
         System.err.print(logContext);
-        assertThat(errStream.toByteArray()).isEmpty();
+        assertThat(errStream.toString()).isEqualTo(SystemOutRedirectionUtils.ERR_TO_LOG_TIPS);
+    }
+
+    @Test
+    void testSystemOutAndErrAreRedirectedToIgnore() {
+        ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+        ByteArrayOutputStream errStream = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(outStream));
+        System.setErr(new PrintStream(errStream));
+
+        Configuration conf = new Configuration();
+        conf.set(TASK_MANAGER_SYSTEM_OUT_MODE, SystemOutMode.IGNORE);
+        SystemOutRedirectionUtils.redirectSystemOutAndError(conf);
+
+        String logContext = "This is log context!";
+        System.out.print(logContext);
+        assertThat(outStream.toString()).isEqualTo(SystemOutRedirectionUtils.OUT_IGNORE_TIPS);
+
+        System.err.print(logContext);
+        assertThat(errStream.toString()).isEqualTo(SystemOutRedirectionUtils.ERR_IGNORE_TIPS);
     }
 
     @ParameterizedTest
