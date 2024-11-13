@@ -29,7 +29,9 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
+import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -45,11 +47,15 @@ import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil;
+import org.apache.flink.table.planner.plan.utils.SortUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
+import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
+import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.over.AbstractRowTimeUnboundedPrecedingOver;
+import org.apache.flink.table.runtime.operators.over.NonTimeUnboundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.ProcTimeRangeBoundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.ProcTimeRowsBoundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.ProcTimeUnboundedPrecedingFunction;
@@ -58,6 +64,7 @@ import org.apache.flink.table.runtime.operators.over.RowTimeRangeUnboundedPreced
 import org.apache.flink.table.runtime.operators.over.RowTimeRowsBoundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.RowTimeRowsUnboundedPrecedingFunction;
 import org.apache.flink.table.runtime.operators.over.RowTimeUnboundedPrecedingOverFunctionV2;
+import org.apache.flink.table.runtime.operators.over.TimeAttribute;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.StateConfigUtil;
@@ -183,15 +190,15 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
 
         final int orderKey = orderKeys[0];
         final LogicalType orderKeyType = inputRowType.getFields().get(orderKey).getType();
-        // check time field && identify window rowtime attribute
-        final int rowTimeIdx;
+        // check time field && identify window time attribute
+        TimeAttribute timeAttribute;
         if (isRowtimeAttribute(orderKeyType)) {
-            rowTimeIdx = orderKey;
+            timeAttribute = TimeAttribute.ROW_TIME;
         } else if (isProctimeAttribute(orderKeyType)) {
-            rowTimeIdx = -1;
+            timeAttribute = TimeAttribute.PROC_TIME;
         } else {
-            throw new TableException(
-                    "OVER windows' ordering in stream mode must be defined on a time attribute.");
+            timeAttribute = TimeAttribute.NON_TIME;
+            LOG.info("Non-time attribute window detected");
         }
 
         final List<RexLiteral> constants = overSpec.getConstants();
@@ -221,8 +228,9 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                             constants,
                             aggInputRowType,
                             inputRowType,
-                            rowTimeIdx,
                             group.isRows(),
+                            orderKeys,
+                            timeAttribute,
                             config,
                             planner.createRelBuilder(),
                             planner.getTypeFactory());
@@ -245,8 +253,9 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                             constants,
                             aggInputRowType,
                             inputRowType,
-                            rowTimeIdx,
                             group.isRows(),
+                            orderKeys,
+                            timeAttribute,
                             precedingOffset,
                             config,
                             planner.createRelBuilder(),
@@ -287,8 +296,9 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
      * @param constants the constants in aggregates parameters, such as sum(1)
      * @param aggInputRowType physical type of the input row which consists of input and constants.
      * @param inputRowType physical type of the input row which only consists of input.
-     * @param rowTimeIdx the index of the rowtime field or None in case of processing time.
      * @param isRowsClause it is a tag that indicates whether the OVER clause is ROWS clause
+     * @param orderKeys the order by key to sort on
+     * @param timeAttribute indicates the type of time attribute the OVER clause is based on
      */
     private KeyedProcessFunction<RowData, RowData, RowData> createUnboundedOverProcessFunction(
             CodeGeneratorContext ctx,
@@ -296,11 +306,17 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             List<RexLiteral> constants,
             RowType aggInputRowType,
             RowType inputRowType,
-            int rowTimeIdx,
             boolean isRowsClause,
+            int[] orderKeys,
+            TimeAttribute timeAttribute,
             ExecNodeConfig config,
             RelBuilder relBuilder,
             FlinkTypeFactory typeFactory) {
+        boolean[] needRetractions = new boolean[aggCalls.size()];
+        if (timeAttribute.equals(TimeAttribute.NON_TIME)) {
+            Arrays.fill(needRetractions, true);
+        }
+
         AggregateInfoList aggInfoList =
                 AggregateUtil.transformToStreamAggregateInfoList(
                         typeFactory,
@@ -308,74 +324,106 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                         // inputSchema.relDataType
                         aggInputRowType,
                         JavaScalaConversionUtil.toScala(aggCalls),
-                        new boolean[aggCalls.size()],
-                        false, // needRetraction
+                        needRetractions,
+                        false, // needInputCount
                         true, // isStateBackendDataViews
                         true); // needDistinctInfo
 
         LogicalType[] fieldTypes = inputRowType.getChildren().toArray(new LogicalType[0]);
-        AggsHandlerCodeGenerator generator =
+
+        AggsHandlerCodeGenerator aggsGenerator =
                 new AggsHandlerCodeGenerator(
                         ctx,
                         relBuilder,
                         JavaScalaConversionUtil.toScala(Arrays.asList(fieldTypes)),
                         false); // copyInputField
 
-        GeneratedAggsHandleFunction genAggsHandler =
-                generator
+        aggsGenerator =
+                aggsGenerator
                         .needAccumulate()
                         // over agg code gen must pass the constants
-                        .withConstants(JavaScalaConversionUtil.toScala(constants))
-                        .generateAggsHandler("UnboundedOverAggregateHelper", aggInfoList);
+                        .withConstants(JavaScalaConversionUtil.toScala(constants));
+
+        if (timeAttribute.equals(TimeAttribute.NON_TIME)) {
+            aggsGenerator.needRetract();
+        }
+
+        GeneratedAggsHandleFunction genAggsHandler =
+                aggsGenerator.generateAggsHandler("UnboundedOverAggregateHelper", aggInfoList);
 
         LogicalType[] flattenAccTypes =
                 Arrays.stream(aggInfoList.getAccTypes())
                         .map(LogicalTypeDataTypeConverter::fromDataTypeToLogicalType)
                         .toArray(LogicalType[]::new);
 
-        if (rowTimeIdx >= 0) {
-            switch (unboundedOverVersion) {
-                // Currently there is no migration path between first and second versions.
-                case AbstractRowTimeUnboundedPrecedingOver.FIRST_OVER_VERSION:
-                    if (isRowsClause) {
-                        // ROWS unbounded over process function
-                        return new RowTimeRowsUnboundedPrecedingFunction<>(
+        switch (timeAttribute) {
+            case ROW_TIME:
+                final int rowTimeIdx = orderKeys[0];
+                switch (unboundedOverVersion) {
+                    // Currently there is no migration path between first and second versions.
+                    case AbstractRowTimeUnboundedPrecedingOver.FIRST_OVER_VERSION:
+                        if (isRowsClause) {
+                            // ROWS unbounded over process function
+                            return new RowTimeRowsUnboundedPrecedingFunction<>(
+                                    config.getStateRetentionTime(),
+                                    TableConfigUtils.getMaxIdleStateRetentionTime(config),
+                                    genAggsHandler,
+                                    flattenAccTypes,
+                                    fieldTypes,
+                                    rowTimeIdx);
+                        } else {
+                            // RANGE unbounded over process function
+                            return new RowTimeRangeUnboundedPrecedingFunction<>(
+                                    config.getStateRetentionTime(),
+                                    TableConfigUtils.getMaxIdleStateRetentionTime(config),
+                                    genAggsHandler,
+                                    flattenAccTypes,
+                                    fieldTypes,
+                                    rowTimeIdx);
+                        }
+                    case RowTimeUnboundedPrecedingOverFunctionV2.SECOND_OVER_VERSION:
+                        return new RowTimeUnboundedPrecedingOverFunctionV2<>(
+                                isRowsClause,
                                 config.getStateRetentionTime(),
                                 TableConfigUtils.getMaxIdleStateRetentionTime(config),
                                 genAggsHandler,
                                 flattenAccTypes,
                                 fieldTypes,
                                 rowTimeIdx);
-                    } else {
-                        // RANGE unbounded over process function
-                        return new RowTimeRangeUnboundedPrecedingFunction<>(
-                                config.getStateRetentionTime(),
-                                TableConfigUtils.getMaxIdleStateRetentionTime(config),
-                                genAggsHandler,
-                                flattenAccTypes,
-                                fieldTypes,
-                                rowTimeIdx);
-                    }
-                case RowTimeUnboundedPrecedingOverFunctionV2.SECOND_OVER_VERSION:
-                    return new RowTimeUnboundedPrecedingOverFunctionV2<>(
-                            isRowsClause,
-                            config.getStateRetentionTime(),
-                            TableConfigUtils.getMaxIdleStateRetentionTime(config),
-                            genAggsHandler,
-                            flattenAccTypes,
-                            fieldTypes,
-                            rowTimeIdx);
-                default:
-                    throw new UnsupportedOperationException(
-                            "Unsupported unbounded over version: "
-                                    + unboundedOverVersion
-                                    + ". Valid versions are 1 and 2.");
-            }
-        } else {
-            return new ProcTimeUnboundedPrecedingFunction<>(
-                    StateConfigUtil.createTtlConfig(config.getStateRetentionTime()),
-                    genAggsHandler,
-                    flattenAccTypes);
+                    default:
+                        throw new UnsupportedOperationException(
+                                "Unsupported unbounded over version: "
+                                        + unboundedOverVersion
+                                        + ". Valid versions are 1 and 2.");
+                }
+            case PROC_TIME:
+                return new ProcTimeUnboundedPrecedingFunction<>(
+                        StateConfigUtil.createTtlConfig(config.getStateRetentionTime()),
+                        genAggsHandler,
+                        flattenAccTypes);
+            case NON_TIME:
+                final GeneratedRecordEqualiser generatedEqualiser =
+                        new EqualiserCodeGenerator(inputRowType, ctx.classLoader())
+                                .generateRecordEqualiser("FirstMatchingRowEqualiser");
+
+                final GeneratedRecordComparator genRecordComparator =
+                        ComparatorCodeGenerator.gen(
+                                config,
+                                ctx.classLoader(),
+                                "SortComparator",
+                                inputRowType,
+                                SortUtil.getAscendingSortSpec(orderKeys));
+
+                return new NonTimeUnboundedPrecedingFunction<>(
+                        config.getStateRetentionTime(),
+                        TableConfigUtils.getMaxIdleStateRetentionTime(config),
+                        genAggsHandler,
+                        generatedEqualiser,
+                        genRecordComparator,
+                        flattenAccTypes,
+                        fieldTypes);
+            default:
+                throw new TableException("Unsupported unbounded operation");
         }
     }
 
@@ -388,8 +436,9 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
      * @param constants the constants in aggregates parameters, such as sum(1)
      * @param aggInputType physical type of the input row which consists of input and constants.
      * @param inputType physical type of the input row which only consists of input.
-     * @param rowTimeIdx the index of the rowtime field or None in case of processing time.
      * @param isRowsClause it is a tag that indicates whether the OVER clause is ROWS clause
+     * @param orderKeys the order by key to sort on
+     * @param timeAttribute indicates the type of time attribute the OVER clause is based on
      */
     private KeyedProcessFunction<RowData, RowData, RowData> createBoundedOverProcessFunction(
             CodeGeneratorContext ctx,
@@ -397,8 +446,9 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             List<RexLiteral> constants,
             RowType aggInputType,
             RowType inputType,
-            int rowTimeIdx,
             boolean isRowsClause,
+            int[] orderKeys,
+            TimeAttribute timeAttribute,
             long precedingOffset,
             ExecNodeConfig config,
             RelBuilder relBuilder,
@@ -439,33 +489,44 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                         .map(LogicalTypeDataTypeConverter::fromDataTypeToLogicalType)
                         .toArray(LogicalType[]::new);
 
-        if (rowTimeIdx >= 0) {
-            if (isRowsClause) {
-                return new RowTimeRowsBoundedPrecedingFunction<>(
-                        config.getStateRetentionTime(),
-                        TableConfigUtils.getMaxIdleStateRetentionTime(config),
-                        genAggsHandler,
-                        flattenAccTypes,
-                        fieldTypes,
-                        precedingOffset,
-                        rowTimeIdx);
-            } else {
-                return new RowTimeRangeBoundedPrecedingFunction<>(
-                        genAggsHandler, flattenAccTypes, fieldTypes, precedingOffset, rowTimeIdx);
-            }
-        } else {
-            if (isRowsClause) {
-                return new ProcTimeRowsBoundedPrecedingFunction<>(
-                        config.getStateRetentionTime(),
-                        TableConfigUtils.getMaxIdleStateRetentionTime(config),
-                        genAggsHandler,
-                        flattenAccTypes,
-                        fieldTypes,
-                        precedingOffset);
-            } else {
-                return new ProcTimeRangeBoundedPrecedingFunction<>(
-                        genAggsHandler, flattenAccTypes, fieldTypes, precedingOffset);
-            }
+        switch (timeAttribute) {
+            case ROW_TIME:
+                final int rowTimeIdx = orderKeys[0];
+                if (isRowsClause) {
+                    return new RowTimeRowsBoundedPrecedingFunction<>(
+                            config.getStateRetentionTime(),
+                            TableConfigUtils.getMaxIdleStateRetentionTime(config),
+                            genAggsHandler,
+                            flattenAccTypes,
+                            fieldTypes,
+                            precedingOffset,
+                            rowTimeIdx);
+                } else {
+                    return new RowTimeRangeBoundedPrecedingFunction<>(
+                            genAggsHandler,
+                            flattenAccTypes,
+                            fieldTypes,
+                            precedingOffset,
+                            rowTimeIdx);
+                }
+            case PROC_TIME:
+                if (isRowsClause) {
+                    return new ProcTimeRowsBoundedPrecedingFunction<>(
+                            config.getStateRetentionTime(),
+                            TableConfigUtils.getMaxIdleStateRetentionTime(config),
+                            genAggsHandler,
+                            flattenAccTypes,
+                            fieldTypes,
+                            precedingOffset);
+                } else {
+                    return new ProcTimeRangeBoundedPrecedingFunction<>(
+                            genAggsHandler, flattenAccTypes, fieldTypes, precedingOffset);
+                }
+            case NON_TIME:
+                throw new TableException(
+                        "Non-time attribute sort is not supported for bounded over aggregate");
+            default:
+                throw new TableException("Unsupported bounded operation");
         }
     }
 }
