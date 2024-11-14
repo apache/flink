@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackendBuilder;
@@ -105,10 +106,10 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
     private final ForStResourceContainer optionsContainer;
 
     /** Path where this configured instance stores its data directory. */
-    private final File instanceBasePath;
+    private final Path instanceBasePath;
 
     /** Path where this configured instance stores its RocksDB database. */
-    private final File instanceForStDBPath;
+    private final Path instanceForStDBPath;
 
     private final MetricGroup metricGroup;
     private final StateBackend.CustomInitializationMetrics customInitializationMetrics;
@@ -136,7 +137,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
     public ForStSyncKeyedStateBackendBuilder(
             String operatorIdentifier,
             ClassLoader userCodeClassLoader,
-            File instanceBasePath,
+            Path instanceBasePath,
             ForStResourceContainer optionsContainer,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             TaskKvStateRegistry kvStateRegistry,
@@ -186,7 +187,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
     ForStSyncKeyedStateBackendBuilder(
             String operatorIdentifier,
             ClassLoader userCodeClassLoader,
-            File instanceBasePath,
+            Path instanceBasePath,
             ForStResourceContainer optionsContainer,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             TaskKvStateRegistry kvStateRegistry,
@@ -240,8 +241,8 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
         return this;
     }
 
-    public static File getInstanceRocksDBPath(File instanceBasePath) {
-        return new File(instanceBasePath, DB_INSTANCE_DIR_STRING);
+    public static Path getInstanceRocksDBPath(Path instanceBasePath) {
+        return new Path(instanceBasePath, DB_INSTANCE_DIR_STRING);
     }
 
     private static void checkAndCreateDirectory(File directory) throws IOException {
@@ -353,7 +354,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
             kvStateInformation.clear();
 
             try {
-                FileUtils.deleteDirectory(instanceBasePath);
+                FileUtils.deleteDirectory(new File(instanceBasePath.getPath()));
             } catch (Exception ex) {
                 logger.warn("Failed to delete base path for RocksDB: " + instanceBasePath, ex);
             }
@@ -456,11 +457,12 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
     }
 
     private void prepareDirectories() throws IOException {
-        checkAndCreateDirectory(instanceBasePath);
-        if (instanceForStDBPath.exists()) {
+        File baseFile = new File(instanceBasePath.getPath());
+        checkAndCreateDirectory(baseFile);
+        if (new File(instanceForStDBPath.getPath()).exists()) {
             // Clear the base directory when the backend is created
             // in case something crashed and the backend never reached dispose()
-            FileUtils.deleteDirectory(instanceBasePath);
+            FileUtils.deleteDirectory(baseFile);
         }
     }
 }

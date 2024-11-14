@@ -20,6 +20,7 @@ package org.apache.flink.state.forst;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.metrics.MetricGroup;
@@ -62,7 +63,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -301,10 +301,10 @@ public class ForStKeyedStateBackendBuilder<K>
         // working dir. We will implement this in ForStDB later, but before that, we achieved this
         // by setting the dbPath to "/" when the dfs directory existed.
         // TODO: use localForStPath as dbPath after ForSt Support mixing local-dir and remote-dir
-        File instanceForStPath =
+        Path instanceForStPath =
                 optionsContainer.getRemoteForStPath() == null
                         ? optionsContainer.getLocalForStPath()
-                        : new File("/");
+                        : new Path("/");
 
         if (CollectionUtil.isEmptyOrAllElementsNull(restoreStateHandles)) {
             return new ForStNoneRestoreOperation(
@@ -377,12 +377,7 @@ public class ForStKeyedStateBackendBuilder<K>
 
         ForStSnapshotStrategyBase<K, ?> snapshotStrategy;
 
-        ForStFlinkFileSystem forStFs =
-                optionsContainer.getRemoteForStPath() != null
-                        ? (ForStFlinkFileSystem)
-                                ForStFlinkFileSystem.get(
-                                        optionsContainer.getRemoteForStPath().toUri())
-                        : null;
+        ForStFlinkFileSystem forStFs = optionsContainer.getFileSystem();
         ForStStateDataTransfer stateTransfer =
                 new ForStStateDataTransfer(ForStStateDataTransfer.DEFAULT_THREAD_NUM, forStFs);
 

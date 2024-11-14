@@ -71,7 +71,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -522,7 +521,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
     }
 
     @VisibleForTesting
-    File getLocalBasePath() {
+    Path getLocalBasePath() {
         return optionsContainer.getLocalBasePath();
     }
 

@@ -76,16 +76,16 @@ public class ForStFlinkFileSystemTest {
 
     @Test
     void testReadAndWriteWithByteBuffer() throws Exception {
-        ForStFlinkFileSystem.setupLocalBasePath(tempDir.toString(), tempDir.toString());
         ForStFlinkFileSystem fileSystem =
-                (ForStFlinkFileSystem) ForStFlinkFileSystem.get(new URI(tempDir.toString()));
-        fileSystem.setupLocalBasePath(tempDir.toString(), tempDir.toString());
+                ForStFlinkFileSystem.get(
+                        new URI(tempDir.toString()),
+                        new org.apache.flink.core.fs.Path(tempDir.toString()),
+                        null);
         testReadAndWriteWithByteBuffer(fileSystem);
     }
 
     @TestTemplate
     void testPositionedRead() throws Exception {
-        ForStFlinkFileSystem.setupLocalBasePath(tempDir.toString(), tempDir.toString());
         ForStFlinkFileSystem fileSystem =
                 new ForStFlinkFileSystem(
                         new ByteBufferReadableLocalFileSystem(),
@@ -165,7 +165,6 @@ public class ForStFlinkFileSystemTest {
 
     @TestTemplate
     void testReadExceedingFileSize() throws Exception {
-        ForStFlinkFileSystem.setupLocalBasePath(tempDir.toString(), tempDir.toString());
         ForStFlinkFileSystem fileSystem =
                 new ForStFlinkFileSystem(
                         new ByteBufferReadableLocalFileSystem(),
@@ -192,7 +191,6 @@ public class ForStFlinkFileSystemTest {
                 new org.apache.flink.core.fs.Path(tempDir.toString() + "/remote");
         org.apache.flink.core.fs.Path localPath =
                 new org.apache.flink.core.fs.Path(tempDir.toString() + "/local");
-        ForStFlinkFileSystem.setupLocalBasePath(remotePath.toString(), localPath.toString());
         ForStFlinkFileSystem fileSystem =
                 new ForStFlinkFileSystem(
                         new ByteBufferReadableLocalFileSystem(),
@@ -223,7 +221,6 @@ public class ForStFlinkFileSystemTest {
                 new org.apache.flink.core.fs.Path(tempDir.toString() + "/local");
         org.apache.flink.core.fs.Path cachePath =
                 new org.apache.flink.core.fs.Path(tempDir.toString() + "/tmp-cache");
-        ForStFlinkFileSystem.setupLocalBasePath(remotePath.toString(), localPath.toString());
         BundledCacheLimitPolicy cacheLimitPolicy =
                 new BundledCacheLimitPolicy(
                         new SpaceBasedCacheLimitPolicy(new File(cachePath.toString()), 0, 0),

@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeutils.base.MapSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.ICloseableRegistry;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -180,7 +181,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
     private final ForStResourceContainer optionsContainer;
 
     /** Path where this configured instance stores its data directory. */
-    private final File instanceBasePath;
+    private final Path instanceBasePath;
 
     /**
      * Protects access to RocksDB in other threads, like the checkpointing thread from parallel call
@@ -261,7 +262,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
 
     public ForStSyncKeyedStateBackend(
             ClassLoader userCodeClassLoader,
-            File instanceBasePath,
+            Path instanceBasePath,
             ForStResourceContainer optionsContainer,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             TaskKvStateRegistry kvStateRegistry,
@@ -530,7 +531,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
                 instanceBasePath);
 
         try {
-            FileUtils.deleteDirectory(instanceBasePath);
+            FileUtils.deleteDirectory(new File(instanceBasePath.getPath()));
         } catch (IOException ex) {
             LOG.warn("Could not delete RocksDB working directory: {}", instanceBasePath, ex);
         }
@@ -905,7 +906,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
     }
 
     /** Only visible for testing, DO NOT USE. */
-    File getInstanceBasePath() {
+    Path getInstanceBasePath() {
         return instanceBasePath;
     }
 
