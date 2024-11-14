@@ -174,6 +174,6 @@ public enum FlinkSqlConformance implements SqlConformance {
 
     @Override
     public boolean isValueAllowed() {
-        return SqlConformanceEnum.DEFAULT.isValueAllowed();
+        return true;
     }
 }
