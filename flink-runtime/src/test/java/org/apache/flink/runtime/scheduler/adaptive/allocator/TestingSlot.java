@@ -55,7 +55,7 @@ public class TestingSlot implements PhysicalSlot {
         this(allocationId, resourceProfile, new LocalTaskManagerLocation());
     }
 
-    private TestingSlot(
+    public TestingSlot(
             AllocationID allocationId,
             ResourceProfile resourceProfile,
             TaskManagerLocation taskManagerLocation) {
