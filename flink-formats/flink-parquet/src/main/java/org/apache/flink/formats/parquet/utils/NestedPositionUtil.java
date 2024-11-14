@@ -50,9 +50,8 @@ public class NestedPositionUtil {
         int nullValuesCount = 0;
         BooleanArrayList nullRowFlags = new BooleanArrayList(0);
         for (int i = 0; i < fieldDefinitionLevels.length; i++) {
-            // If row has array type field, the field repetition level's count will bigger than the
-            // actual row value count, so we need to skip those value that bigger than row's
-            // repetition level.
+            // If a row's last field is an array, the repetition levels for the array's items will be
+            // larger than the parent row's repetition level, so we need to skip those values.
             if (fieldRepetitionLevels[i] > rowRepetitionLevel) {
                 continue;
             }
