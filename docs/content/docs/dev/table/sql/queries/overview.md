@@ -439,6 +439,8 @@ Starting Flink 2.0 there is C-style escape available
 | \xh, \xhh (h = 0–9, A–F)          | 	hexadecimal byte value                           |
 | \uxxxx, \Uxxxxxxxx (x = 0–9, A–F) | 	16 or 32-bit hexadecimal Unicode character value |
 
+Example: `SELECT e'\u0061\x61\141' AS c` or `SELECT E'\u0061\x61\141' AS c`;
+
 {{< top >}}
 
 ## Operations
