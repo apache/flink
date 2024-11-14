@@ -109,7 +109,7 @@ public class DefaultSlotAssigner implements SlotAssigner {
      * @return The ordered task manager that orders by the number of free slots descending.
      */
     private Iterator<TaskManagerLocation> getSortedTaskExecutors(
-            Map<TaskManagerLocation, ? extends Set<? extends SlotInfo>> slotsPerTaskExecutor) {
+            Map<TaskManagerLocation, Set<PhysicalSlot>> slotsPerTaskExecutor) {
         final Comparator<TaskManagerLocation> taskExecutorComparator =
                 (leftTml, rightTml) ->
                         Integer.compare(

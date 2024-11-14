@@ -30,6 +30,9 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.WeightLoadable;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
@@ -62,7 +65,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     private final boolean localRecoveryEnabled;
     private final @Nullable String executionTarget;
     private final boolean minimalTaskManagerPreferred;
-    private final SlotSharingResolver slotSharingResolver = DefaultSlotSharingResolver.INSTANCE;
+    private final SlotSharingResolver slotSharingResolver;
     private final SlotMatchingResolver slotMatchingResolver;
 
     private SlotSharingSlotAllocator(
@@ -79,6 +82,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
         this.localRecoveryEnabled = localRecoveryEnabled;
         this.executionTarget = executionTarget;
         this.minimalTaskManagerPreferred = minimalTaskManagerPreferred;
+        this.slotSharingResolver = getSlotSharingResolver(taskManagerLoadBalanceMode);
         this.slotMatchingResolver = getSlotMatchingResolver(taskManagerLoadBalanceMode);
     }
 
@@ -175,6 +179,23 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                         });
     }
 
+    private SlotSharingResolver getSlotSharingResolver(
+            TaskManagerOptions.TaskManagerLoadBalanceMode taskManagerLoadBalanceMode) {
+        switch (taskManagerLoadBalanceMode) {
+            case NONE:
+            case MIN_RESOURCES:
+            case SLOTS:
+                return DefaultSlotSharingResolver.INSTANCE;
+            case TASKS:
+                return TaskBalancedSlotSharingResolver.INSTANCE;
+            default:
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "Unsupported task manager load balance mode: %s when initializing slot sharing resolver.",
+                                taskManagerLoadBalanceMode));
+        }
+    }
+
     private SlotMatchingResolver getSlotMatchingResolver(
             TaskManagerOptions.TaskManagerLoadBalanceMode taskManagerLoadBalanceMode) {
         switch (taskManagerLoadBalanceMode) {
@@ -183,10 +204,12 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                 return SimpleSlotMatchingResolver.INSTANCE;
             case SLOTS:
                 return SlotsBalancedSlotMatchingResolver.INSTANCE;
+            case TASKS:
+                return TasksBalancedSlotMatchingResolver.INSTANCE;
             default:
                 throw new UnsupportedOperationException(
                         String.format(
-                                "Unsupported task manager load mode: %s",
+                                "Unsupported task manager load balance mode: %s when initializing slot matching resolver",
                                 taskManagerLoadBalanceMode));
         }
     }
@@ -324,7 +347,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     }
 
     /** The execution slot sharing group for adaptive scheduler. */
-    public static class ExecutionSlotSharingGroup {
+    public static class ExecutionSlotSharingGroup implements WeightLoadable {
         private final String id;
         private final SlotSharingGroup slotSharingGroup;
         private final Set<ExecutionVertexID> containedExecutionVertices;
@@ -355,6 +378,12 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
 
         public Collection<ExecutionVertexID> getContainedExecutionVertices() {
             return containedExecutionVertices;
+        }
+
+        @Nonnull
+        @Override
+        public LoadingWeight getLoading() {
+            return new DefaultLoadingWeight(containedExecutionVertices.size());
         }
     }
 
