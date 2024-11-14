@@ -35,7 +35,7 @@ import java.util.Set;
  * the same SlotSharingGroup, tend to be put evenly in each ExecutionSlotSharingGroup. Co-location
  * constraints will be respected.
  */
-class TaskBalancedPreferredSlotSharingStrategy extends AbstractSlotSharingStrategy {
+public class TaskBalancedPreferredSlotSharingStrategy extends AbstractSlotSharingStrategy {
 
     public static final Logger LOG =
             LoggerFactory.getLogger(TaskBalancedPreferredSlotSharingStrategy.class);
@@ -57,7 +57,7 @@ class TaskBalancedPreferredSlotSharingStrategy extends AbstractSlotSharingStrate
                 .build();
     }
 
-    static class Factory implements SlotSharingStrategy.Factory {
+    public static class Factory implements SlotSharingStrategy.Factory {
 
         public TaskBalancedPreferredSlotSharingStrategy create(
                 final SchedulingTopology topology,
