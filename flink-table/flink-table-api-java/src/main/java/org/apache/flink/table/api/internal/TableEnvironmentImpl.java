@@ -1069,11 +1069,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
         Pipeline pipeline = generatePipelineFromQueryOperation(operation, transformations);
         try {
+            ClassLoader userClassLoader = Thread.currentThread().getContextClassLoader();
+            Thread.currentThread().setContextClassLoader(resourceManager.getUserClassLoader());
             JobClient jobClient = execEnv.executeAsync(pipeline);
             ResultProvider resultProvider = sinkOperation.getSelectResultProvider();
             // We must reset resultProvider as we might to reuse it between different jobs.
             resultProvider.reset();
             resultProvider.setJobClient(jobClient);
+            Thread.currentThread().setContextClassLoader(userClassLoader);
             return TableResultImpl.builder()
                     .jobClient(jobClient)
                     .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
