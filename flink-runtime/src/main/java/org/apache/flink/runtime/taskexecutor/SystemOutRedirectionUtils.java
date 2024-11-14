@@ -47,8 +47,10 @@ public class SystemOutRedirectionUtils {
             "Tips: System.err is redirected to LOG.error as configured."
                     + " View the log file and search [SystemOutRedirectionUtils] for output.\n";
 
-    static final String OUT_IGNORE_TIPS = "Tips: System.out will be directly ignored as configured.\n";
-    static final String ERR_IGNORE_TIPS = "Tips: System.err will be directly ignored as configured.\n";
+    static final String OUT_IGNORE_TIPS =
+            "Tips: System.out will be directly ignored as configured.\n";
+    static final String ERR_IGNORE_TIPS =
+            "Tips: System.err will be directly ignored as configured.\n";
 
     /**
      * Redirect {@link System#out} and {@link System#err} based on {@link
