@@ -22,6 +22,8 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -131,6 +133,38 @@ abstract class AbstractSlotMatchingResolverTest {
                 IntStream.range(0, executionVertices)
                         .mapToObj(ignored -> new ExecutionVertexID(new JobVertexID(), 0))
                         .collect(Collectors.toSet()));
+    }
+}
+
+/** Test for {@link TasksBalancedSlotMatchingResolver}. */
+class TasksBalancedSlotMatchingResolverTest extends AbstractSlotMatchingResolverTest {
+
+    @Override
+    protected SlotMatchingResolver createSlotMatchingResolver() {
+        return TasksBalancedSlotMatchingResolver.INSTANCE;
+    }
+
+    @Override
+    protected void assertAssignments(Collection<SlotAssignment> assignments) {
+        Map<TaskManagerLocation, Set<SlotAssignment>> assignmentsPerTm =
+                getAssignmentsPerTaskManager(assignments);
+        assertThat(assignmentsPerTm)
+                .allSatisfy(
+                        (taskManagerLocation, slotAssignments) -> {
+                            assertThat(
+                                            slotAssignments.stream()
+                                                    .map(
+                                                            s ->
+                                                                    s.getTargetAs(
+                                                                                    ExecutionSlotSharingGroup
+                                                                                            .class)
+                                                                            .getLoading())
+                                                    .reduce(
+                                                            DefaultLoadingWeight.EMPTY,
+                                                            LoadingWeight::merge)
+                                                    .getLoading())
+                                    .isGreaterThanOrEqualTo(9f);
+                        });
     }
 }
 
