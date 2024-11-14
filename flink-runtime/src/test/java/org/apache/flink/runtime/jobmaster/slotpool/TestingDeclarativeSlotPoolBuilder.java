@@ -86,6 +86,9 @@ public class TestingDeclarativeSlotPoolBuilder {
     private Supplier<Map<ResourceID, LoadingWeight>> taskExecutorsLoadingWeightSupplier =
             HashMap::new;
 
+    private Supplier<TaskExecutorsLoadInformation> taskExecutorsLoadInformationSupplier =
+            () -> TaskExecutorsLoadInformation.EMPTY;
+
     public TestingDeclarativeSlotPoolBuilder setIncreaseResourceRequirementsByConsumer(
             Consumer<ResourceCounter> increaseResourceRequirementsByConsumer) {
         this.increaseResourceRequirementsByConsumer = increaseResourceRequirementsByConsumer;
@@ -143,6 +146,12 @@ public class TestingDeclarativeSlotPoolBuilder {
     public TestingDeclarativeSlotPoolBuilder setGetFreeSlotTrackerSupplier(
             Supplier<FreeSlotTracker> getFreeSlotTrackerSupplier) {
         this.getFreeSlotTrackerSupplier = getFreeSlotTrackerSupplier;
+        return this;
+    }
+
+    public TestingDeclarativeSlotPoolBuilder setTaskExecutorsLoadInformationSupplier(
+            Supplier<TaskExecutorsLoadInformation> taskExecutorsLoadInformationSupplier) {
+        this.taskExecutorsLoadInformationSupplier = taskExecutorsLoadInformationSupplier;
         return this;
     }
 
@@ -213,6 +222,6 @@ public class TestingDeclarativeSlotPoolBuilder {
                 containsFreeSlotFunction,
                 returnIdleSlotsConsumer,
                 setResourceRequirementsConsumer,
-                taskExecutorsLoadingWeightSupplier);
+                taskExecutorsLoadInformationSupplier);
     }
 }

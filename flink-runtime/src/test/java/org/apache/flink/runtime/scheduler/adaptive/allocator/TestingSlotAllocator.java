@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
+import org.apache.flink.runtime.jobmaster.slotpool.TaskExecutorsLoadInformation;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.function.TriFunction;
@@ -28,6 +30,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /** Testing implementation of {@link SlotAllocator}. */
 public class TestingSlotAllocator implements SlotAllocator {
@@ -85,7 +88,8 @@ public class TestingSlotAllocator implements SlotAllocator {
     @Override
     public Optional<JobSchedulingPlan> determineParallelismAndCalculateAssignment(
             JobInformation jobInformation,
-            Collection<? extends SlotInfo> slots,
+            Collection<PhysicalSlot> slots,
+            TaskExecutorsLoadInformation taskExecutorsLoadInformation,
             JobAllocationsInformation jobAllocationsInformation) {
         return determineParallelismAndCalculateAssignmentFunction.apply(
                 jobInformation, slots, jobAllocationsInformation);
@@ -174,7 +178,12 @@ public class TestingSlotAllocator implements SlotAllocator {
                         (jobInformation, slotInfos, jobAllocationsInformation) -> {
                             capturedAllocations.add(jobAllocationsInformation);
                             return slotAllocator.determineParallelismAndCalculateAssignment(
-                                    jobInformation, slotInfos, jobAllocationsInformation);
+                                    jobInformation,
+                                    slotInfos.stream()
+                                            .map(s -> (PhysicalSlot) s)
+                                            .collect(Collectors.toList()),
+                                    TaskExecutorsLoadInformation.EMPTY,
+                                    jobAllocationsInformation);
                         })
                 .build();
     }

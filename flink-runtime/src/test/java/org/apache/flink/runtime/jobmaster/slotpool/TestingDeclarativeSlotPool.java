@@ -34,7 +34,6 @@ import org.apache.flink.util.function.TriFunction;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
-import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -90,7 +89,7 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
 
     private final Consumer<ResourceCounter> setResourceRequirementsConsumer;
 
-    private final Supplier<Map<ResourceID, LoadingWeight>> taskExecutorsLoadingWeightSupplier;
+    private final Supplier<TaskExecutorsLoadInformation> taskExecutorsLoadInformationSupplier;
 
     TestingDeclarativeSlotPool(
             Consumer<ResourceCounter> increaseResourceRequirementsByConsumer,
@@ -122,7 +121,7 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
             Function<AllocationID, Boolean> containsFreeSlotFunction,
             LongConsumer releaseIdleSlotsConsumer,
             Consumer<ResourceCounter> setResourceRequirementsConsumer,
-            Supplier<Map<ResourceID, LoadingWeight>> taskExecutorsLoadingWeightSupplier) {
+            Supplier<TaskExecutorsLoadInformation> taskExecutorsLoadInformationSupplier) {
         this.increaseResourceRequirementsByConsumer = increaseResourceRequirementsByConsumer;
         this.decreaseResourceRequirementsByConsumer = decreaseResourceRequirementsByConsumer;
         this.getResourceRequirementsSupplier = getResourceRequirementsSupplier;
@@ -139,7 +138,7 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
         this.containsFreeSlotFunction = containsFreeSlotFunction;
         this.releaseIdleSlotsConsumer = releaseIdleSlotsConsumer;
         this.setResourceRequirementsConsumer = setResourceRequirementsConsumer;
-        this.taskExecutorsLoadingWeightSupplier = taskExecutorsLoadingWeightSupplier;
+        this.taskExecutorsLoadInformationSupplier = taskExecutorsLoadInformationSupplier;
     }
 
     @Override
@@ -198,8 +197,8 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
     }
 
     @Override
-    public Map<ResourceID, LoadingWeight> getTaskExecutorsLoadingWeight() {
-        return taskExecutorsLoadingWeightSupplier.get();
+    public TaskExecutorsLoadInformation getTaskExecutorsLoadInformation() {
+        return taskExecutorsLoadInformationSupplier.get();
     }
 
     @Override

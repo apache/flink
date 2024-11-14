@@ -38,9 +38,10 @@ public class TestingSlot implements PhysicalSlot {
     private final AllocationID allocationId;
     private final ResourceProfile resourceProfile;
     private final TaskManagerLocation taskManagerLocation;
+    private final LoadingWeight loadingWeight;
 
     public TestingSlot() {
-        this(new AllocationID(), ResourceProfile.ANY);
+        this(new AllocationID());
     }
 
     public TestingSlot(AllocationID allocationId) {
@@ -59,13 +60,20 @@ public class TestingSlot implements PhysicalSlot {
         this(allocationId, resourceProfile, new LocalTaskManagerLocation());
     }
 
-    private TestingSlot(
-            AllocationID allocationId,
+    public TestingSlot(
+            AllocationID allocationID, ResourceProfile resourceProfile, TaskManagerLocation tml) {
+        this(allocationID, resourceProfile, DefaultLoadingWeight.EMPTY, tml);
+    }
+
+    public TestingSlot(
+            AllocationID allocationID,
             ResourceProfile resourceProfile,
-            TaskManagerLocation taskManagerLocation) {
-        this.allocationId = allocationId;
+            LoadingWeight loadingWeight,
+            TaskManagerLocation tml) {
+        this.allocationId = allocationID;
         this.resourceProfile = resourceProfile;
-        this.taskManagerLocation = taskManagerLocation;
+        this.loadingWeight = loadingWeight;
+        this.taskManagerLocation = tml;
     }
 
     @Override
@@ -106,7 +114,7 @@ public class TestingSlot implements PhysicalSlot {
     @Nonnull
     @Override
     public LoadingWeight getLoading() {
-        return new DefaultLoadingWeight(0f);
+        return loadingWeight;
     }
 
     public static Collection<PhysicalSlot> getSlots(int count) {

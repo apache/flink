@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
@@ -26,11 +27,15 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
+import org.apache.flink.runtime.jobmaster.slotpool.TaskExecutorsLoadInformation;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment;
 import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.WeightLoadable;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.util.ResourceCounter;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -60,6 +65,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     private final boolean localRecoveryEnabled;
     private final @Nullable String executionTarget;
     private final boolean minimalTaskManagerPreferred;
+    private final TaskManagerOptions.TaskManagerLoadBalanceMode taskManagerLoadBalanceMode;
 
     private SlotSharingSlotAllocator(
             ReserveSlotFunction reserveSlot,
@@ -67,13 +73,15 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
             IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction,
             boolean localRecoveryEnabled,
             @Nullable String executionTarget,
-            boolean minimalTaskManagerPreferred) {
+            boolean minimalTaskManagerPreferred,
+            TaskManagerOptions.TaskManagerLoadBalanceMode taskManagerLoadBalanceMode) {
         this.reserveSlotFunction = reserveSlot;
         this.freeSlotFunction = freeSlotFunction;
         this.isSlotAvailableAndFreeFunction = isSlotAvailableAndFreeFunction;
         this.localRecoveryEnabled = localRecoveryEnabled;
         this.executionTarget = executionTarget;
         this.minimalTaskManagerPreferred = minimalTaskManagerPreferred;
+        this.taskManagerLoadBalanceMode = taskManagerLoadBalanceMode;
     }
 
     public static SlotSharingSlotAllocator createSlotSharingSlotAllocator(
@@ -82,14 +90,16 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
             IsSlotAvailableAndFreeFunction isSlotAvailableAndFreeFunction,
             boolean localRecoveryEnabled,
             @Nullable String executionTarget,
-            boolean minimalTaskManagerPreferred) {
+            boolean minimalTaskManagerPreferred,
+            TaskManagerOptions.TaskManagerLoadBalanceMode taskManagerLoadBalanceMode) {
         return new SlotSharingSlotAllocator(
                 reserveSlot,
                 freeSlotFunction,
                 isSlotAvailableAndFreeFunction,
                 localRecoveryEnabled,
                 executionTarget,
-                minimalTaskManagerPreferred);
+                minimalTaskManagerPreferred,
+                taskManagerLoadBalanceMode);
     }
 
     @Override
@@ -144,7 +154,8 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     @Override
     public Optional<JobSchedulingPlan> determineParallelismAndCalculateAssignment(
             JobInformation jobInformation,
-            Collection<? extends SlotInfo> slots,
+            Collection<PhysicalSlot> slots,
+            TaskExecutorsLoadInformation taskExecutorsLoadInformation,
             JobAllocationsInformation jobAllocationsInformation) {
         return determineParallelism(jobInformation, slots)
                 .map(
@@ -153,15 +164,34 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                                     localRecoveryEnabled && !jobAllocationsInformation.isEmpty()
                                             ? new StateLocalitySlotAssigner()
                                             : new DefaultSlotAssigner(
-                                                    executionTarget, minimalTaskManagerPreferred);
+                                                    executionTarget,
+                                                    minimalTaskManagerPreferred,
+                                                    getRequestSlotMatchingStrategy(
+                                                            taskManagerLoadBalanceMode));
                             return new JobSchedulingPlan(
                                     parallelism,
                                     slotAssigner.assignSlots(
                                             jobInformation,
                                             slots,
                                             parallelism,
+                                            taskExecutorsLoadInformation,
                                             jobAllocationsInformation));
                         });
+    }
+
+    private RequestSlotMatchingStrategy getRequestSlotMatchingStrategy(
+            TaskManagerOptions.TaskManagerLoadBalanceMode taskManagerLoadBalanceMode) {
+        switch (taskManagerLoadBalanceMode) {
+            case NONE:
+                return SimpleRequestSlotMatchingStrategy.INSTANCE;
+            case TASKS:
+                return TasksBalancedRequestSlotMatchingStrategy.INSTANCE;
+            default:
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "Unsupported task manager load mode: %s",
+                                taskManagerLoadBalanceMode));
+        }
     }
 
     /**
@@ -246,7 +276,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
             final Map<ExecutionVertexID, LogicalSlot> assignedSlots = new HashMap<>();
 
             for (SlotAssignment assignment : jobSchedulingPlan.getSlotAssignments()) {
-                final SharedSlot sharedSlot = reserveSharedSlot(assignment.getSlotInfo());
+                final SharedSlot sharedSlot = reserveSharedSlot(assignment);
                 for (ExecutionVertexID executionVertexId :
                         assignment
                                 .getTargetAs(ExecutionSlotSharingGroup.class)
@@ -282,12 +312,15 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
         return true;
     }
 
-    private SharedSlot reserveSharedSlot(SlotInfo slotInfo) {
+    private SharedSlot reserveSharedSlot(SlotAssignment slotAssignment) {
+        final SlotInfo slotInfo = slotAssignment.getSlotInfo();
+        final ExecutionSlotSharingGroup requestedGroup =
+                slotAssignment.getTargetAs(ExecutionSlotSharingGroup.class);
         final PhysicalSlot physicalSlot =
                 reserveSlotFunction.reserveSlot(
                         slotInfo.getAllocationId(),
                         ResourceProfile.UNKNOWN,
-                        DefaultLoadingWeight.EMPTY);
+                        requestedGroup.getLoading());
 
         return new SharedSlot(
                 new SlotRequestId(),
@@ -298,7 +331,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                                 slotInfo.getAllocationId(), null, System.currentTimeMillis()));
     }
 
-    static class ExecutionSlotSharingGroup {
+    static class ExecutionSlotSharingGroup implements WeightLoadable {
         private final String id;
         private final Set<ExecutionVertexID> containedExecutionVertices;
 
@@ -308,7 +341,8 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
 
         public ExecutionSlotSharingGroup(
                 Set<ExecutionVertexID> containedExecutionVertices, String id) {
-            this.containedExecutionVertices = containedExecutionVertices;
+            this.containedExecutionVertices =
+                    Preconditions.checkNotNull(containedExecutionVertices);
             this.id = id;
         }
 
@@ -318,6 +352,12 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
 
         public Collection<ExecutionVertexID> getContainedExecutionVertices() {
             return containedExecutionVertices;
+        }
+
+        @Nonnull
+        @Override
+        public LoadingWeight getLoading() {
+            return new DefaultLoadingWeight(containedExecutionVertices.size());
         }
     }
 

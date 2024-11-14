@@ -205,7 +205,16 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
     }
 
     @Override
-    public Map<ResourceID, LoadingWeight> getTaskExecutorsLoadingWeight() {
+    public TaskExecutorsLoadInformation getTaskExecutorsLoadInformation() {
+        return new TaskExecutorsLoadInformation() {
+            @Override
+            public Map<ResourceID, LoadingWeight> getTaskExecutorsLoadingWeight() {
+                return DefaultAllocatedSlotPool.this.getTaskExecutorsLoadingWeight();
+            }
+        };
+    }
+
+    private Map<ResourceID, LoadingWeight> getTaskExecutorsLoadingWeight() {
         final Map<ResourceID, LoadingWeight> result = new HashMap<>(slotsPerTaskExecutor.size());
         Collection<AllocatedSlot> allocatedSlots = registeredSlots.values();
         for (AllocatedSlot allocatedSlot : allocatedSlots) {
