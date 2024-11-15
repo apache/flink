@@ -85,6 +85,9 @@ import java.util.Objects;
  * }</pre>
  *
  * @param <T> element type
+ *
+ *     <p>{@code ListView(TypeInformation<?> elementType)} method was deprecated and then removed.
+ *     Please use a {@link DataTypeHint} instead.
  */
 @PublicEvolving
 public class ListView<T> implements DataView {
