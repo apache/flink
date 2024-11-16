@@ -232,6 +232,10 @@ public class IntermediateResult {
         return intermediateDataSet.isBroadcast();
     }
 
+    public boolean isForward() {
+        return intermediateDataSet.isForward();
+    }
+
     public int getConnectionIndex() {
         return connectionIndex;
     }
