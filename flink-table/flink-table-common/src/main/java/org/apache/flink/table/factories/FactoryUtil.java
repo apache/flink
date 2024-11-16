@@ -372,8 +372,6 @@ public final class FactoryUtil {
             Map<String, String> options,
             ReadableConfig configuration,
             ClassLoader classLoader) {
-        // No matching legacy factory found, try using the new stack
-
         final DefaultCatalogContext discoveryContext =
                 new DefaultCatalogContext(catalogName, options, configuration, classLoader);
         try {
