@@ -163,8 +163,9 @@ class AdaptiveBatchSchedulerTest {
                 sink,
                 map,
                 DistributionPattern.POINTWISE,
-                ResultPartitionType.BLOCKING);
-        map.getProducedDataSets().get(0).getConsumers().get(0).setForward(true);
+                ResultPartitionType.BLOCKING,
+                false,
+                true);
 
         SchedulerBase scheduler =
                 createScheduler(
