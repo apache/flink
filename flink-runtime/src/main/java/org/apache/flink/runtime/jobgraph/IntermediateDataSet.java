@@ -50,6 +50,8 @@ public class IntermediateDataSet implements java.io.Serializable {
 
     private boolean isBroadcast;
 
+    private boolean isForward;
+
     // --------------------------------------------------------------------------------------------
 
     public IntermediateDataSet(
@@ -77,6 +79,10 @@ public class IntermediateDataSet implements java.io.Serializable {
         return isBroadcast;
     }
 
+    public boolean isForward() {
+        return isForward;
+    }
+
     public DistributionPattern getDistributionPattern() {
         return distributionPattern;
     }
@@ -94,25 +100,30 @@ public class IntermediateDataSet implements java.io.Serializable {
         if (consumers.isEmpty() && distributionPattern == null) {
             distributionPattern = edge.getDistributionPattern();
             isBroadcast = edge.isBroadcast();
+            isForward = edge.isForward();
         } else {
             checkState(
                     distributionPattern == edge.getDistributionPattern(),
                     "Incompatible distribution pattern.");
             checkState(isBroadcast == edge.isBroadcast(), "Incompatible broadcast type.");
+            checkState(isForward == edge.isForward(), "Incompatible forward type.");
         }
         consumers.add(edge);
     }
 
-    public void configure(DistributionPattern distributionPattern, boolean isBroadcast) {
+    public void configure(
+            DistributionPattern distributionPattern, boolean isBroadcast, boolean isForward) {
         checkState(consumers.isEmpty(), "The output job edges have already been added.");
         if (this.distributionPattern == null) {
             this.distributionPattern = distributionPattern;
             this.isBroadcast = isBroadcast;
+            this.isForward = isForward;
         } else {
             checkState(
                     this.distributionPattern == distributionPattern,
                     "Incompatible distribution pattern.");
             checkState(this.isBroadcast == isBroadcast, "Incompatible broadcast type.");
+            checkState(this.isForward == isForward, "Incompatible forward type.");
         }
     }
 
