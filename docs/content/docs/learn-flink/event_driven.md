@@ -141,12 +141,12 @@ public void processElement(
     long eventTime = fare.getEventTime();
     TimerService timerService = ctx.timerService();
 
-    if (eventTime <= timerService.currentWatermark()) {
+    // Round up eventTime to the end of the window containing this event.
+    long endOfWindow = (eventTime - (eventTime % durationMsec) + durationMsec - 1);
+
+    if (endOfWindow <= timerService.currentWatermark()) {
         // This event is late; its window has already been triggered.
     } else {
-        // Round up eventTime to the end of the window containing this event.
-        long endOfWindow = (eventTime - (eventTime % durationMsec) + durationMsec - 1);
-
         // Schedule a callback for when the window has been completed.
         timerService.registerEventTimeTimer(endOfWindow);
 
@@ -236,7 +236,7 @@ Shown above is a static `OutputTag<TaxiFare>` that can be referenced both when e
 late events in the `processElement` method of the `PseudoWindow`:
 
 ```java
-if (eventTime <= timerService.currentWatermark()) {
+if (endOfWindow <= timerService.currentWatermark()) {
     // This event is late; its window has already been triggered.
     ctx.output(lateFares, fare);
 } else {
