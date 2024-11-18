@@ -40,15 +40,21 @@ public class SystemOutRedirectionUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(SystemOutRedirectionUtils.class);
 
+    @VisibleForTesting
     static final String OUT_TO_LOG_TIPS =
             "Tips: System.out is redirected to LOG.info as configured."
                     + " View the log file and search [SystemOutRedirectionUtils] for output.\n";
+
+    @VisibleForTesting
     static final String ERR_TO_LOG_TIPS =
             "Tips: System.err is redirected to LOG.error as configured."
                     + " View the log file and search [SystemOutRedirectionUtils] for output.\n";
 
+    @VisibleForTesting
     static final String OUT_IGNORE_TIPS =
             "Tips: System.out will be directly ignored as configured.\n";
+
+    @VisibleForTesting
     static final String ERR_IGNORE_TIPS =
             "Tips: System.err will be directly ignored as configured.\n";
 

@@ -25,17 +25,20 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.stream.Stream;
 
 import static org.apache.flink.configuration.TaskManagerOptions.TASK_MANAGER_SYSTEM_OUT_MODE;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Test for {@link SystemOutRedirectionUtils} */
+/** Test for {@link SystemOutRedirectionUtils}. */
 class SystemOutRedirectionUtilsTest {
 
     private PrintStream originalOut;
@@ -43,6 +46,18 @@ class SystemOutRedirectionUtilsTest {
 
     private Queue<String> outCollector;
     private Queue<String> errCollector;
+
+    static Stream<Arguments> parameters() {
+        return Stream.of(
+                Arguments.of(
+                        SystemOutMode.LOG,
+                        SystemOutRedirectionUtils.OUT_TO_LOG_TIPS,
+                        SystemOutRedirectionUtils.ERR_TO_LOG_TIPS),
+                Arguments.of(
+                        SystemOutMode.IGNORE,
+                        SystemOutRedirectionUtils.OUT_IGNORE_TIPS,
+                        SystemOutRedirectionUtils.ERR_IGNORE_TIPS));
+    }
 
     @BeforeEach
     void beforeEach() {
@@ -76,42 +91,25 @@ class SystemOutRedirectionUtilsTest {
         assertThat(errStream.toString()).isEqualTo(logContext);
     }
 
-    @Test
-    void testSystemOutAndErrAreRedirectedToLog() {
+    @ParameterizedTest(name = "systemOutMode = {0}, outTips = {1}, errTips = {2}")
+    @MethodSource("parameters")
+    void testSystemOutAndErrAreRedirected(
+            SystemOutMode systemOutMode, String outTips, String errTips) {
         ByteArrayOutputStream outStream = new ByteArrayOutputStream();
         ByteArrayOutputStream errStream = new ByteArrayOutputStream();
         System.setOut(new PrintStream(outStream));
         System.setErr(new PrintStream(errStream));
 
         Configuration conf = new Configuration();
-        conf.set(TASK_MANAGER_SYSTEM_OUT_MODE, SystemOutMode.LOG);
+        conf.set(TASK_MANAGER_SYSTEM_OUT_MODE, systemOutMode);
         SystemOutRedirectionUtils.redirectSystemOutAndError(conf);
 
         String logContext = "This is log context!";
         System.out.print(logContext);
-        assertThat(outStream.toString()).isEqualTo(SystemOutRedirectionUtils.OUT_TO_LOG_TIPS);
+        assertThat(outStream.toString()).isEqualTo(outTips);
 
         System.err.print(logContext);
-        assertThat(errStream.toString()).isEqualTo(SystemOutRedirectionUtils.ERR_TO_LOG_TIPS);
-    }
-
-    @Test
-    void testSystemOutAndErrAreRedirectedToIgnore() {
-        ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-        ByteArrayOutputStream errStream = new ByteArrayOutputStream();
-        System.setOut(new PrintStream(outStream));
-        System.setErr(new PrintStream(errStream));
-
-        Configuration conf = new Configuration();
-        conf.set(TASK_MANAGER_SYSTEM_OUT_MODE, SystemOutMode.IGNORE);
-        SystemOutRedirectionUtils.redirectSystemOutAndError(conf);
-
-        String logContext = "This is log context!";
-        System.out.print(logContext);
-        assertThat(outStream.toString()).isEqualTo(SystemOutRedirectionUtils.OUT_IGNORE_TIPS);
-
-        System.err.print(logContext);
-        assertThat(errStream.toString()).isEqualTo(SystemOutRedirectionUtils.ERR_IGNORE_TIPS);
+        assertThat(errStream.toString()).isEqualTo(errTips);
     }
 
     @ParameterizedTest
