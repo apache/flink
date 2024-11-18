@@ -433,7 +433,6 @@ class TypeInferenceExtractorTest {
 
                 // scalar function that takes any input
                 TestSpec.forScalarFunction(InputGroupScalarFunction.class)
-                        .expectNamedArguments("o")
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
                                         new String[] {"o"},
@@ -557,6 +556,7 @@ class TypeInferenceExtractorTest {
                 TestSpec.forScalarFunction(
                                 "Scalar function with arguments hints all missing name",
                                 ArgumentHintMissingNameScalarFunction.class)
+                        .expectNamedArguments("arg0", "arg1")
                         .expectTypedArguments(DataTypes.STRING(), DataTypes.INT()),
                 TestSpec.forScalarFunction(
                                 "Scalar function with arguments hints all missing partial name",
@@ -695,7 +695,6 @@ class TypeInferenceExtractorTest {
                                 InputTypeStrategies.sequence(
                                         InputTypeStrategies.explicit(DataTypes.BIGINT())),
                                 TypeStrategies.explicit(DataTypes.INT())),
-
                 // no arguments
                 TestSpec.forProcedure(ZeroArgProcedure.class)
                         .expectNamedArguments()
@@ -704,7 +703,6 @@ class TypeInferenceExtractorTest {
                                 InputTypeStrategies.sequence(
                                         new String[0], new ArgumentTypeStrategy[0]),
                                 TypeStrategies.explicit(DataTypes.INT())),
-
                 // test primitive arguments extraction
                 TestSpec.forProcedure(MixedArgProcedure.class)
                         .expectNamedArguments("i", "d")
@@ -719,7 +717,6 @@ class TypeInferenceExtractorTest {
                                             InputTypeStrategies.explicit(DataTypes.DOUBLE())
                                         }),
                                 TypeStrategies.explicit(DataTypes.INT())),
-
                 // test overloaded arguments extraction
                 TestSpec.forProcedure(OverloadedProcedure.class)
                         .expectOutputMapping(
@@ -739,7 +736,6 @@ class TypeInferenceExtractorTest {
                                         }),
                                 TypeStrategies.explicit(
                                         DataTypes.BIGINT().notNull().bridgedTo(long.class))),
-
                 // test varying arguments extraction
                 TestSpec.forProcedure(VarArgProcedure.class)
                         .expectOutputMapping(
@@ -752,7 +748,6 @@ class TypeInferenceExtractorTest {
                                                     DataTypes.INT().notNull().bridgedTo(int.class))
                                         }),
                                 TypeStrategies.explicit(DataTypes.STRING())),
-
                 // test varying arguments extraction with byte
                 TestSpec.forProcedure(VarArgWithByteProcedure.class)
                         .expectOutputMapping(
@@ -765,7 +760,6 @@ class TypeInferenceExtractorTest {
                                                             .bridgedTo(byte.class))
                                         }),
                                 TypeStrategies.explicit(DataTypes.STRING())),
-
                 // output hint with input extraction
                 TestSpec.forProcedure(ExtractWithOutputHintProcedure.class)
                         .expectNamedArguments("i")
@@ -777,7 +771,6 @@ class TypeInferenceExtractorTest {
                                             InputTypeStrategies.explicit(DataTypes.INT())
                                         }),
                                 TypeStrategies.explicit(DataTypes.INT())),
-
                 // output extraction with input hints
                 TestSpec.forProcedure(ExtractWithInputHintProcedure.class)
                         .expectNamedArguments("i", "b")
@@ -794,17 +787,14 @@ class TypeInferenceExtractorTest {
                 // named arguments with overloaded function
                 // expected no named argument for overloaded function
                 TestSpec.forProcedure(NamedArgumentsProcedure.class),
-
-                // scalar function that takes any input
+                // procedure function that takes any input
                 TestSpec.forProcedure(InputGroupProcedure.class)
-                        .expectNamedArguments("o")
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
                                         new String[] {"o"},
                                         new ArgumentTypeStrategy[] {InputTypeStrategies.ANY}),
                                 TypeStrategies.explicit(DataTypes.STRING())),
-
-                // scalar function that takes any input as vararg
+                // procedure function that takes any input as vararg
                 TestSpec.forProcedure(VarArgInputGroupProcedure.class)
                         .expectOutputMapping(
                                 InputTypeStrategies.varyingSequence(
