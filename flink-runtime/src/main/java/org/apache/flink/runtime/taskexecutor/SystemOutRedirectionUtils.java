@@ -43,20 +43,22 @@ public class SystemOutRedirectionUtils {
     @VisibleForTesting
     static final String OUT_TO_LOG_TIPS =
             "Tips: System.out is redirected to LOG.info as configured."
-                    + " View the log file and search [SystemOutRedirectionUtils] for output.\n";
+                    + " View the log file and search [SystemOutRedirectionUtils] for output."
+                    + System.lineSeparator();
 
     @VisibleForTesting
     static final String ERR_TO_LOG_TIPS =
             "Tips: System.err is redirected to LOG.error as configured."
-                    + " View the log file and search [SystemOutRedirectionUtils] for output.\n";
+                    + " View the log file and search [SystemOutRedirectionUtils] for output."
+                    + System.lineSeparator();
 
     @VisibleForTesting
     static final String OUT_IGNORE_TIPS =
-            "Tips: System.out will be directly ignored as configured.\n";
+            "Tips: System.out will be directly ignored as configured." + System.lineSeparator();
 
     @VisibleForTesting
     static final String ERR_IGNORE_TIPS =
-            "Tips: System.err will be directly ignored as configured.\n";
+            "Tips: System.err will be directly ignored as configured." + System.lineSeparator();
 
     /**
      * Redirect {@link System#out} and {@link System#err} based on {@link
