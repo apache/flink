@@ -40,6 +40,26 @@ public class SystemOutRedirectionUtils {
 
     private static final Logger LOG = LoggerFactory.getLogger(SystemOutRedirectionUtils.class);
 
+    @VisibleForTesting
+    static final String OUT_TO_LOG_TIPS =
+            "Tips: System.out is redirected to LOG.info as configured."
+                    + " View the log file and search [SystemOutRedirectionUtils] for output."
+                    + System.lineSeparator();
+
+    @VisibleForTesting
+    static final String ERR_TO_LOG_TIPS =
+            "Tips: System.err is redirected to LOG.error as configured."
+                    + " View the log file and search [SystemOutRedirectionUtils] for output."
+                    + System.lineSeparator();
+
+    @VisibleForTesting
+    static final String OUT_IGNORE_TIPS =
+            "Tips: System.out will be directly ignored as configured." + System.lineSeparator();
+
+    @VisibleForTesting
+    static final String ERR_IGNORE_TIPS =
+            "Tips: System.err will be directly ignored as configured." + System.lineSeparator();
+
     /**
      * Redirect {@link System#out} and {@link System#err} based on {@link
      * TaskManagerOptions#TASK_MANAGER_SYSTEM_OUT_MODE} related options.
@@ -48,11 +68,15 @@ public class SystemOutRedirectionUtils {
         SystemOutMode systemOutMode = conf.get(TASK_MANAGER_SYSTEM_OUT_MODE);
         switch (systemOutMode) {
             case LOG:
+                System.out.print(OUT_TO_LOG_TIPS);
+                System.err.print(ERR_TO_LOG_TIPS);
                 redirectToCurrentLog(
                         conf.get(TASK_MANAGER_SYSTEM_OUT_LOG_CACHE_SIZE).getBytes(),
                         conf.get(TASK_MANAGER_SYSTEM_OUT_LOG_THREAD_NAME));
                 break;
             case IGNORE:
+                System.out.print(OUT_IGNORE_TIPS);
+                System.err.print(ERR_IGNORE_TIPS);
                 ignoreSystemOutAndError();
                 break;
             case DEFAULT:
