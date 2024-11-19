@@ -163,13 +163,10 @@ table usable in subsequent queries.
 In general, the results of a query with the following format produces a versioned table:
 
 ```sql
-SELECT [column_list]
-FROM (
-   SELECT [column_list],
-     ROW_NUMBER() OVER ([PARTITION BY col1[, col2...]]
-       ORDER BY time_attr DESC) AS rownum
-   FROM table_name)
-WHERE rownum = 1
+SELECT [column_list],
+    ROW_NUMBER() OVER ([PARTITION BY col1[, col2...]] ORDER BY time_attr [asc|desc]) AS rownum
+FROM table_name)
+QUALIFY rownum = 1
 ```
 
 **Parameter Specification:**

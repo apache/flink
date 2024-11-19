@@ -32,13 +32,10 @@ Flink uses `ROW_NUMBER()` to remove duplicates, just like the way of Top-N query
 The following shows the syntax of the Deduplication statement:
 
 ```sql
-SELECT [column_list]
-FROM (
-   SELECT [column_list],
-     ROW_NUMBER() OVER ([PARTITION BY col1[, col2...]]
-       ORDER BY time_attr [asc|desc]) AS rownum
-   FROM table_name)
-WHERE rownum = 1
+SELECT [column_list],
+  ROW_NUMBER() OVER ([PARTITION BY col1[, col2...]] ORDER BY time_attr [asc|desc]) AS rownum
+  FROM table_name)
+  QUALIFY rownum = 1
 ```
 
 **Parameter Specification:**
