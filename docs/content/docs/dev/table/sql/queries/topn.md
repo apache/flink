@@ -35,7 +35,7 @@ The following shows the syntax of the Top-N statement:
 ```sql
 SELECT [column_list],
     ROW_NUMBER() OVER ([PARTITION BY col1[, col2...]] ORDER BY time_attr [asc|desc]) AS rownum
-FROM table_name)
+FROM table_name
 QUALIFY rownum <= N
 [WHERE conditions]
 ```

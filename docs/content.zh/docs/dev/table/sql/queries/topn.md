@@ -34,7 +34,7 @@ Flink 使用 `OVER` 窗口子句和过滤条件的组合来表达一个 Top-N �
 ```sql
 SELECT [column_list],
     ROW_NUMBER() OVER ([PARTITION BY col1[, col2...]] ORDER BY time_attr [asc|desc]) AS rownum
-FROM table_name)
+FROM table_name
 QUALIFY rownum <= N
 [WHERE conditions]
 ```
