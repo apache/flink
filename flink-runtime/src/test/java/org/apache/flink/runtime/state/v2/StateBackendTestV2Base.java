@@ -409,6 +409,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
         }
     }
 
+    @TestTemplate
     void testValueStateWorkWithTtl() throws Exception {
         TestAsyncFrameworkExceptionHandler testExceptionHandler =
                 new TestAsyncFrameworkExceptionHandler();

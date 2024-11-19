@@ -22,7 +22,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
-import org.apache.flink.state.forst.ForStKeyedStateBackend.ForStKvStateInfo;
 import org.apache.flink.state.forst.ForStNativeMetricMonitor;
 import org.apache.flink.state.forst.ForStNativeMetricOptions;
 import org.apache.flink.state.forst.ForStOperationUtils;
@@ -49,7 +48,7 @@ class ForStHandle implements AutoCloseable {
 
     private final Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory;
     private final DBOptions dbOptions;
-    private final Map<String, ForStKvStateInfo> kvStateInformation;
+    private final Map<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation;
     private final String dbPath;
     private List<ColumnFamilyHandle> columnFamilyHandles;
     private List<ColumnFamilyDescriptor> columnFamilyDescriptors;
@@ -61,7 +60,7 @@ class ForStHandle implements AutoCloseable {
     @Nullable private ForStNativeMetricMonitor nativeMetricMonitor;
 
     protected ForStHandle(
-            Map<String, ForStKvStateInfo> kvStateInformation,
+            Map<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation,
             Path instanceRocksDBPath,
             DBOptions dbOptions,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
@@ -114,10 +113,10 @@ class ForStHandle implements AutoCloseable {
                         : null;
     }
 
-    ForStKvStateInfo getOrRegisterStateColumnFamilyHandle(
+    ForStOperationUtils.ForStKvStateInfo getOrRegisterStateColumnFamilyHandle(
             ColumnFamilyHandle columnFamilyHandle, StateMetaInfoSnapshot stateMetaInfoSnapshot) {
 
-        ForStKvStateInfo registeredStateMetaInfoEntry =
+        ForStOperationUtils.ForStKvStateInfo registeredStateMetaInfoEntry =
                 kvStateInformation.get(stateMetaInfoSnapshot.getName());
 
         if (null == registeredStateMetaInfoEntry) {
@@ -131,7 +130,7 @@ class ForStHandle implements AutoCloseable {
                                 stateMetaInfo, db, columnFamilyOptionsFactory);
             } else {
                 registeredStateMetaInfoEntry =
-                        new ForStKvStateInfo(columnFamilyHandle, stateMetaInfo);
+                        new ForStOperationUtils.ForStKvStateInfo(columnFamilyHandle, stateMetaInfo);
             }
 
             ForStOperationUtils.registerKvStateInformation(

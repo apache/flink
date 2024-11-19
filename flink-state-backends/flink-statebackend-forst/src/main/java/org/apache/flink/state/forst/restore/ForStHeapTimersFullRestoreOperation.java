@@ -42,8 +42,8 @@ import org.apache.flink.runtime.state.restore.KeyGroupEntry;
 import org.apache.flink.runtime.state.restore.SavepointRestoreResult;
 import org.apache.flink.runtime.state.restore.ThrowingIterator;
 import org.apache.flink.state.forst.ForStDBWriteBatchWrapper;
-import org.apache.flink.state.forst.ForStKeyedStateBackend;
 import org.apache.flink.state.forst.ForStNativeMetricOptions;
+import org.apache.flink.state.forst.ForStOperationUtils;
 import org.apache.flink.util.StateMigrationException;
 
 import org.forstdb.ColumnFamilyHandle;
@@ -81,7 +81,7 @@ public class ForStHeapTimersFullRestoreOperation<K> implements ForStRestoreOpera
             KeyGroupRange keyGroupRange,
             int numberOfKeyGroups,
             ClassLoader userCodeClassLoader,
-            Map<String, ForStKeyedStateBackend.ForStKvStateInfo> kvStateInformation,
+            Map<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation,
             LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             HeapPriorityQueueSetFactory priorityQueueFactory,
             StateSerializerProvider<K> keySerializerProvider,
@@ -155,7 +155,7 @@ public class ForStHeapTimersFullRestoreOperation<K> implements ForStRestoreOpera
                                                         restoredMetaInfo)));
                 restoredPQStates.put(i, queueWrapper);
             } else {
-                ForStKeyedStateBackend.ForStKvStateInfo registeredStateCFHandle =
+                ForStOperationUtils.ForStKvStateInfo registeredStateCFHandle =
                         this.rocksHandle.getOrRegisterStateColumnFamilyHandle(
                                 null, restoredMetaInfo);
                 columnFamilyHandles.put(i, registeredStateCFHandle.columnFamilyHandle);
