@@ -332,7 +332,8 @@ public class FixedFetcherSizeSourceReader<E, T, SplitT extends SourceSplit, Spli
         super(
                 new FixedSizeSplitFetcherManager<>(
                         config.get(SourceConfig.NUM_FETCHERS),
-                        splitFetcherSupplier),
+                        splitFetcherSupplier,
+                        config),
                 recordEmitter,
                 config,
                 context);
