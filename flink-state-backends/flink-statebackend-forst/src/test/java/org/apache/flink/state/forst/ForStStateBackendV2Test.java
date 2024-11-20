@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.flink.state.forst.ForStConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
 import static org.apache.flink.state.forst.ForStOptions.LOCAL_DIRECTORIES;
 import static org.apache.flink.state.forst.ForStOptions.REMOTE_DIRECTORY;
 
@@ -90,9 +91,13 @@ class ForStStateBackendV2Test extends StateBackendTestV2Base<ForStStateBackend> 
         Configuration config = new Configuration();
         if (hasLocalDir) {
             config.set(LOCAL_DIRECTORIES, tempFolderForForStLocal.toString());
+            config.set(USE_INGEST_DB_RESTORE_MODE, true);
         }
         if (hasRemoteDir) {
             config.set(REMOTE_DIRECTORY, tempFolderForForstRemote.toString());
+            // Async state + remote + ingestDB is not supported, because ingestDB needs to link
+            // files.
+            config.set(USE_INGEST_DB_RESTORE_MODE, false);
         }
         return backend.configure(config, Thread.currentThread().getContextClassLoader());
     }
