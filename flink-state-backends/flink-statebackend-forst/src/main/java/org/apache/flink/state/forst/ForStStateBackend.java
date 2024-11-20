@@ -46,6 +46,7 @@ import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.forstdb.NativeLibraryLoader;
@@ -72,6 +73,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static org.apache.flink.configuration.description.TextElement.text;
+import static org.apache.flink.state.forst.ForStConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD;
+import static org.apache.flink.state.forst.ForStConfigurableOptions.USE_DELETE_FILES_IN_RANGE_DURING_RESCALING;
+import static org.apache.flink.state.forst.ForStConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * A {@link org.apache.flink.runtime.state.StateBackend} that stores its state in a ForSt instance.
@@ -88,6 +93,8 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
     private static final long serialVersionUID = 1L;
 
     private static final Logger LOG = LoggerFactory.getLogger(ForStStateBackend.class);
+
+    private static final double UNDEFINED_OVERLAP_FRACTION_THRESHOLD = -1;
 
     /** The number of (re)tries for loading the ForSt JNI library. */
     private static final int FORST_LIB_LOADING_ATTEMPTS = 3;
@@ -147,6 +154,24 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
      */
     private final ForStPriorityQueueConfig priorityQueueConfig;
 
+    /**
+     * The threshold of the overlap fraction between the handle's key-group range and target
+     * key-group range.
+     */
+    private final double overlapFractionThreshold;
+
+    /**
+     * Whether we use the optimized Ingest/Clip DB method for rescaling RocksDB incremental
+     * checkpoints.
+     */
+    private final TernaryBoolean useIngestDbRestoreMode;
+
+    /**
+     * Whether to leverage deleteFilesInRange API to clean up useless rocksdb files during
+     * rescaling.
+     */
+    private final TernaryBoolean rescalingUseDeleteFilesInRange;
+
     // ------------------------------------------------------------------------
 
     /** Creates a new {@code ForStStateBackend} for storing state. */
@@ -155,6 +180,9 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         this.memoryConfiguration = new ForStMemoryConfiguration();
         this.priorityQueueConfig = new ForStPriorityQueueConfig();
         this.forStMemoryFactory = ForStMemoryFactory.DEFAULT;
+        this.overlapFractionThreshold = UNDEFINED_OVERLAP_FRACTION_THRESHOLD;
+        this.useIngestDbRestoreMode = TernaryBoolean.UNDEFINED;
+        this.rescalingUseDeleteFilesInRange = TernaryBoolean.UNDEFINED;
     }
 
     /**
@@ -224,6 +252,26 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         latencyTrackingConfigBuilder = original.latencyTrackingConfigBuilder.configure(config);
 
         this.forStMemoryFactory = original.forStMemoryFactory;
+
+        // configure overlap fraction threshold
+        overlapFractionThreshold =
+                original.overlapFractionThreshold == UNDEFINED_OVERLAP_FRACTION_THRESHOLD
+                        ? config.get(RESTORE_OVERLAP_FRACTION_THRESHOLD)
+                        : original.overlapFractionThreshold;
+
+        checkArgument(
+                overlapFractionThreshold >= 0 && this.overlapFractionThreshold <= 1,
+                "Overlap fraction threshold of restoring should be between 0 and 1");
+
+        useIngestDbRestoreMode =
+                TernaryBoolean.mergeTernaryBooleanWithConfig(
+                        original.useIngestDbRestoreMode, USE_INGEST_DB_RESTORE_MODE, config);
+
+        rescalingUseDeleteFilesInRange =
+                TernaryBoolean.mergeTernaryBooleanWithConfig(
+                        original.rescalingUseDeleteFilesInRange,
+                        USE_DELETE_FILES_IN_RANGE_DURING_RESCALING,
+                        config);
     }
 
     // ------------------------------------------------------------------------
@@ -374,7 +422,18 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                         // TODO: remove after support more snapshot strategy
                         .setEnableIncrementalCheckpointing(true)
                         .setNativeMetricOptions(
-                                resourceContainer.getMemoryWatcherOptions(nativeMetricOptions));
+                                resourceContainer.getMemoryWatcherOptions(nativeMetricOptions))
+                        .setOverlapFractionThreshold(
+                                overlapFractionThreshold == UNDEFINED_OVERLAP_FRACTION_THRESHOLD
+                                        ? RESTORE_OVERLAP_FRACTION_THRESHOLD.defaultValue()
+                                        : overlapFractionThreshold)
+                        .setUseIngestDbRestoreMode(
+                                useIngestDbRestoreMode.getOrDefault(
+                                        USE_INGEST_DB_RESTORE_MODE.defaultValue()))
+                        .setRescalingUseDeleteFilesInRange(
+                                rescalingUseDeleteFilesInRange.getOrDefault(
+                                        USE_DELETE_FILES_IN_RANGE_DURING_RESCALING.defaultValue()));
+
         return builder.build();
     }
 
@@ -454,7 +513,17 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                                 keyGroupCompressionDecorator,
                                 parameters.getCancelStreamRegistry())
                         .setNativeMetricOptions(
-                                resourceContainer.getMemoryWatcherOptions(nativeMetricOptions));
+                                resourceContainer.getMemoryWatcherOptions(nativeMetricOptions))
+                        .setOverlapFractionThreshold(
+                                overlapFractionThreshold == UNDEFINED_OVERLAP_FRACTION_THRESHOLD
+                                        ? RESTORE_OVERLAP_FRACTION_THRESHOLD.defaultValue()
+                                        : overlapFractionThreshold)
+                        .setUseIngestDbRestoreMode(
+                                useIngestDbRestoreMode.getOrDefault(
+                                        USE_INGEST_DB_RESTORE_MODE.defaultValue()))
+                        .setRescalingUseDeleteFilesInRange(
+                                rescalingUseDeleteFilesInRange.getOrDefault(
+                                        USE_DELETE_FILES_IN_RANGE_DURING_RESCALING.defaultValue()));
         return builder.build();
     }
 

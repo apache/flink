@@ -33,6 +33,7 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -44,9 +45,12 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryImpl;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.TestTaskStateManager;
@@ -66,6 +70,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.RunnableFuture;
 
 import static java.util.Arrays.asList;
@@ -136,7 +141,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
     }
 
     protected <K> AsyncKeyedStateBackend<K> createAsyncKeyedBackend(
-            TypeSerializer<K> keySerializer, int numberOfKeyGroups, Environment env)
+            TypeSerializer<K> keySerializer, KeyGroupRange keyGroupRange, Environment env)
             throws Exception {
 
         env.setCheckpointStorageAccess(getCheckpointStorageAccess());
@@ -148,8 +153,8 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                                 new JobID(),
                                 "test_op",
                                 keySerializer,
-                                numberOfKeyGroups,
-                                new KeyGroupRange(0, numberOfKeyGroups - 1),
+                                keyGroupRange.getNumberOfKeyGroups(),
+                                keyGroupRange,
                                 env.getTaskKvStateRegistry(),
                                 TtlTimeProvider.DEFAULT,
                                 getMetricGroup(),
@@ -165,7 +170,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
 
     protected <K> AsyncKeyedStateBackend<K> restoreAsyncKeyedBackend(
             TypeSerializer<K> keySerializer,
-            int numberOfKeyGroups,
+            KeyGroupRange keyGroupRange,
             List<KeyedStateHandle> state,
             Environment env)
             throws Exception {
@@ -177,8 +182,8 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                                 new JobID(),
                                 "test_op",
                                 keySerializer,
-                                numberOfKeyGroups,
-                                new KeyGroupRange(0, numberOfKeyGroups - 1),
+                                keyGroupRange.getNumberOfKeyGroups(),
+                                keyGroupRange,
                                 env.getTaskKvStateRegistry(),
                                 TtlTimeProvider.DEFAULT,
                                 getMetricGroup(),
@@ -212,7 +217,11 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
         KeyedStateHandle stateHandle;
 
         try {
-            backend = createAsyncKeyedBackend(IntSerializer.INSTANCE, jobMaxParallelism, env);
+            backend =
+                    createAsyncKeyedBackend(
+                            IntSerializer.INSTANCE,
+                            new KeyGroupRange(0, jobMaxParallelism - 1),
+                            env);
             aec =
                     new AsyncExecutionController<>(
                             new SyncMailboxExecutor(),
@@ -299,7 +308,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
             backend =
                     restoreAsyncKeyedBackend(
                             IntSerializer.INSTANCE,
-                            jobMaxParallelism,
+                            new KeyGroupRange(0, jobMaxParallelism - 1),
                             Collections.singletonList(stateHandle),
                             env);
             aec =
@@ -346,6 +355,151 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
     }
 
     @TestTemplate
+    void testAsyncStateBackendScaleUp() throws Exception {
+        testKeyGroupSnapshotRestore(2, 5, 10);
+    }
+
+    @TestTemplate
+    void testAsyncStateBackendScaleDown() throws Exception {
+        testKeyGroupSnapshotRestore(4, 3, 10);
+    }
+
+    private void testKeyGroupSnapshotRestore(
+            int sourceParallelism, int targetParallelism, int maxParallelism) throws Exception {
+
+        int aecBatchSize = 1;
+        long aecBufferTimeout = 1;
+        int aecMaxInFlightRecords = 1000;
+        Random random = new Random();
+        List<ValueStateDescriptor<Integer>> stateDescriptors = new ArrayList<>(maxParallelism);
+        List<Integer> keyInKeyGroups = new ArrayList<>(maxParallelism);
+        List<Integer> expectedValue = new ArrayList<>(maxParallelism);
+        for (int i = 0; i < maxParallelism; ++i) {
+            // all states have different name to mock that all the parallelisms of one operator have
+            // different states.
+            stateDescriptors.add(
+                    new ValueStateDescriptor<>("state" + i, BasicTypeInfo.INT_TYPE_INFO));
+        }
+
+        CheckpointStreamFactory streamFactory = createStreamFactory();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
+        AsyncExecutionController<Integer> aec;
+
+        TestAsyncFrameworkExceptionHandler testExceptionHandler =
+                new TestAsyncFrameworkExceptionHandler();
+
+        List<KeyedStateHandle> snapshots = new ArrayList<>(sourceParallelism);
+        for (int i = 0; i < sourceParallelism; ++i) {
+            KeyGroupRange range =
+                    KeyGroupRange.of(
+                            maxParallelism * i / sourceParallelism,
+                            maxParallelism * (i + 1) / sourceParallelism - 1);
+            AsyncKeyedStateBackend<Integer> backend =
+                    createAsyncKeyedBackend(IntSerializer.INSTANCE, range, env);
+            aec =
+                    new AsyncExecutionController<>(
+                            new SyncMailboxExecutor(),
+                            testExceptionHandler,
+                            backend.createStateExecutor(),
+                            maxParallelism,
+                            aecBatchSize,
+                            aecBufferTimeout,
+                            aecMaxInFlightRecords,
+                            null);
+            backend.setup(aec);
+
+            try {
+                for (int j = range.getStartKeyGroup(); j <= range.getEndKeyGroup(); ++j) {
+                    ValueState<Integer> state =
+                            backend.getOrCreateKeyedState(
+                                    VoidNamespace.INSTANCE,
+                                    VoidNamespaceSerializer.INSTANCE,
+                                    stateDescriptors.get(j));
+                    int keyInKeyGroup =
+                            getKeyInKeyGroup(random, maxParallelism, KeyGroupRange.of(j, j));
+                    RecordContext recordContext = aec.buildContext(keyInKeyGroup, keyInKeyGroup);
+                    ;
+                    recordContext.retain();
+                    aec.setCurrentContext(recordContext);
+                    keyInKeyGroups.add(keyInKeyGroup);
+                    state.update(keyInKeyGroup);
+                    expectedValue.add(keyInKeyGroup);
+                    recordContext.release();
+                }
+
+                // snapshot
+                snapshots.add(
+                        runSnapshot(
+                                backend.snapshot(
+                                        0,
+                                        0,
+                                        streamFactory,
+                                        CheckpointOptions.forCheckpointWithDefaultLocation()),
+                                sharedStateRegistry));
+            } finally {
+                IOUtils.closeQuietly(backend);
+                backend.dispose();
+            }
+        }
+
+        // redistribute the stateHandle
+        List<KeyGroupRange> keyGroupRangesRestore = new ArrayList<>();
+        for (int i = 0; i < targetParallelism; ++i) {
+            keyGroupRangesRestore.add(
+                    KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(
+                            maxParallelism, targetParallelism, i));
+        }
+        List<List<KeyedStateHandle>> keyGroupStatesAfterDistribute =
+                new ArrayList<>(targetParallelism);
+        for (int i = 0; i < targetParallelism; ++i) {
+            List<KeyedStateHandle> keyedStateHandles = new ArrayList<>();
+            StateAssignmentOperation.extractIntersectingState(
+                    snapshots, keyGroupRangesRestore.get(i), keyedStateHandles);
+            keyGroupStatesAfterDistribute.add(keyedStateHandles);
+        }
+        // restore and verify
+        for (int i = 0; i < targetParallelism; ++i) {
+            AsyncKeyedStateBackend<Integer> backend =
+                    restoreAsyncKeyedBackend(
+                            IntSerializer.INSTANCE,
+                            keyGroupRangesRestore.get(i),
+                            keyGroupStatesAfterDistribute.get(i),
+                            env);
+            aec =
+                    new AsyncExecutionController<>(
+                            new SyncMailboxExecutor(),
+                            testExceptionHandler,
+                            backend.createStateExecutor(),
+                            maxParallelism,
+                            aecBatchSize,
+                            aecBufferTimeout,
+                            aecMaxInFlightRecords,
+                            null);
+            backend.setup(aec);
+
+            try {
+                KeyGroupRange range = keyGroupRangesRestore.get(i);
+                for (int j = range.getStartKeyGroup(); j <= range.getEndKeyGroup(); ++j) {
+                    ValueState<Integer> state =
+                            backend.getOrCreateKeyedState(
+                                    VoidNamespace.INSTANCE,
+                                    VoidNamespaceSerializer.INSTANCE,
+                                    stateDescriptors.get(j));
+                    RecordContext recordContext =
+                            aec.buildContext(keyInKeyGroups.get(j), keyInKeyGroups.get(j));
+                    recordContext.retain();
+                    aec.setCurrentContext(recordContext);
+                    assertThat(state.value()).isEqualTo(expectedValue.get(j));
+                    recordContext.release();
+                }
+            } finally {
+                IOUtils.closeQuietly(backend);
+                backend.dispose();
+            }
+        }
+    }
+
+    @TestTemplate
     void testKeyGroupedInternalPriorityQueue() throws Exception {
         testKeyGroupedInternalPriorityQueue(false);
     }
@@ -358,7 +512,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
     void testKeyGroupedInternalPriorityQueue(boolean addAll) throws Exception {
         String fieldName = "key-grouped-priority-queue";
         AsyncKeyedStateBackend<Integer> backend =
-                createAsyncKeyedBackend(IntSerializer.INSTANCE, 128, env);
+                createAsyncKeyedBackend(IntSerializer.INSTANCE, new KeyGroupRange(0, 127), env);
         try {
             KeyGroupedInternalPriorityQueue<TestType> priorityQueue =
                     backend.create(fieldName, new TestType.V1TestTypeSerializer());
@@ -414,7 +568,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
         TestAsyncFrameworkExceptionHandler testExceptionHandler =
                 new TestAsyncFrameworkExceptionHandler();
         AsyncKeyedStateBackend<Long> backend =
-                createAsyncKeyedBackend(LongSerializer.INSTANCE, 128, env);
+                createAsyncKeyedBackend(LongSerializer.INSTANCE, new KeyGroupRange(0, 127), env);
         AsyncExecutionController<Long> aec =
                 new AsyncExecutionController<>(
                         new SyncMailboxExecutor(),
@@ -466,6 +620,34 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
             IOUtils.closeQuietly(backend);
             backend.dispose();
         }
+    }
+
+    /** Returns an Integer key in specified keyGroupRange. */
+    private int getKeyInKeyGroup(Random random, int maxParallelism, KeyGroupRange keyGroupRange) {
+        int keyInKG = random.nextInt();
+        int kg = KeyGroupRangeAssignment.assignToKeyGroup(keyInKG, maxParallelism);
+        while (!keyGroupRange.contains(kg)) {
+            keyInKG = random.nextInt();
+            kg = KeyGroupRangeAssignment.assignToKeyGroup(keyInKG, maxParallelism);
+        }
+        return keyInKG;
+    }
+
+    private static KeyedStateHandle runSnapshot(
+            RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotRunnableFuture,
+            SharedStateRegistry sharedStateRegistry)
+            throws Exception {
+
+        if (!snapshotRunnableFuture.isDone()) {
+            snapshotRunnableFuture.run();
+        }
+
+        SnapshotResult<KeyedStateHandle> snapshotResult = snapshotRunnableFuture.get();
+        KeyedStateHandle jobManagerOwnedSnapshot = snapshotResult.getJobManagerOwnedSnapshot();
+        if (jobManagerOwnedSnapshot != null) {
+            jobManagerOwnedSnapshot.registerSharedStates(sharedStateRegistry, 0L);
+        }
+        return jobManagerOwnedSnapshot;
     }
 
     static class TestAsyncFrameworkExceptionHandler

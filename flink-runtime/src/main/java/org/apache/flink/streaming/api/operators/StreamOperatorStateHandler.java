@@ -193,10 +193,12 @@ public class StreamOperatorStateHandler {
             boolean isUsingCustomRawKeyedState,
             boolean useAsyncState)
             throws CheckpointException {
-        KeyGroupRange keyGroupRange =
-                null != keyedStateBackend
-                        ? keyedStateBackend.getKeyGroupRange()
-                        : KeyGroupRange.EMPTY_KEY_GROUP_RANGE;
+        KeyGroupRange keyGroupRange = KeyGroupRange.EMPTY_KEY_GROUP_RANGE;
+        if (keyedStateBackend != null) {
+            keyGroupRange = keyedStateBackend.getKeyGroupRange();
+        } else if (asyncKeyedStateBackend != null) {
+            keyGroupRange = asyncKeyedStateBackend.getKeyGroupRange();
+        }
 
         OperatorSnapshotFutures snapshotInProgress = new OperatorSnapshotFutures();
 
