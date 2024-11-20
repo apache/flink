@@ -94,7 +94,8 @@ class ForStStateBackendTestV2 extends StateBackendTestV2Base<ForStStateBackend> 
         if (hasRemoteDir) {
             config.set(REMOTE_DIRECTORY, tempFolderForForstRemote.toString());
         }
-        backend.configure(config, Thread.currentThread().getContextClassLoader());
-        return new ForStStateBackend();
+        // Async state + remote + ingestDB is not supported, because ingestDB needs to link files.
+        // config.set(USE_INGEST_DB_RESTORE_MODE, true);
+        return backend.configure(config, Thread.currentThread().getContextClassLoader());
     }
 }
