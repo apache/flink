@@ -161,6 +161,9 @@ cdef class CloudPickleCoderImpl(FieldCoderImpl):
 cdef class PickleCoderImpl(FieldCoderImpl):
     pass
 
+cdef class FuryCoderImpl(FieldCoderImpl):
+    pass
+
 cdef class GenericArrayCoderImpl(FieldCoderImpl):
     cdef FieldCoderImpl _elem_coder
 

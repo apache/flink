@@ -23,8 +23,10 @@ from abc import abstractmethod
 from pyflink.common import Row, RowKind, Configuration
 from pyflink.common.typeinfo import (RowTypeInfo, TupleTypeInfo, Types, BasicArrayTypeInfo,
                                      PrimitiveArrayTypeInfo, MapTypeInfo, ListTypeInfo,
-                                     ObjectArrayTypeInfo, ExternalTypeInfo, TypeInformation)
+                                     ObjectArrayTypeInfo, ExternalTypeInfo, FuryBytesTypeInfo, TypeInformation)
+from pyflink.common.fury_singleton import instance
 from pyflink.java_gateway import get_gateway
+
 
 
 class ResultTypeQueryable(object):
@@ -53,6 +55,8 @@ def create_java_properties(config: Configuration):
 def convert_to_python_obj(data, type_info):
     if type_info == Types.PICKLED_BYTE_ARRAY():
         return pickle.loads(data)
+    elif type_info == Types.PICKLED_BYTE_ARRAY():
+        return instance.deserialize(data)
     elif isinstance(type_info, ExternalTypeInfo):
         return convert_to_python_obj(data, type_info._type_info)
     else:
@@ -84,6 +88,9 @@ def pickled_bytes_to_python_obj(data, type_info):
             else:
                 fields.append(pickled_bytes_to_python_obj(field_data, field_type))
         return tuple(fields)
+    elif isinstance(type_info, FuryBytesTypeInfo):
+        #TODO 实现多种类型采用fury转换
+        pass
     else:
         data = pickle.loads(data)
         if type_info == Types.SQL_TIME():

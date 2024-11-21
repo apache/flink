@@ -70,6 +70,13 @@ under the License.
 			<!-- managed version -->
 		</dependency>
 
+		<!-- for fury serializer -->
+		<dependency>
+			<groupId>org.apache.fury</groupId>
+			<artifactId>fury-core</artifactId>
+			<version>${fury.version}</version>
+		</dependency>
+
 		<!-- The common collections are needed for some hash tables used in the collection execution -->
 		<dependency>
 			<groupId>commons-collections</groupId>

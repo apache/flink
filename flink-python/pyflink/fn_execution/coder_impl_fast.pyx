@@ -36,7 +36,11 @@ from pyflink.datastream.window import CountWindow, TimeWindow, GlobalWindow
 from pyflink.fn_execution.formats.avro import FlinkAvroDecoder, FlinkAvroDatumReader, \
     FlinkAvroBufferWrapper, FlinkAvroEncoder, FlinkAvroDatumWriter
 from pyflink.fn_execution.ResettableIO import ResettableIO
+from pyflink.fn_execution.stream_fast import LengthPrefixInputStream, LengthPrefixOutputStream, \
+    InputStream, OutputStream
 from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas
+from pyflink.common.fury_singleton import instance
+
 
 ROW_KIND_BIT_SIZE = 2
 
@@ -766,6 +770,19 @@ cdef class CloudPickleCoderImpl(FieldCoderImpl):
         pickled_bytes = in_stream.read_bytes()
         return cloudpickle.loads(pickled_bytes)
 
+cdef class FuryCoderImpl(FieldCoderImpl):
+
+    cpdef encode_to_stream(self, value, OutputStream out_stream):
+        cdef bytes fury_bytes
+        fury = instance
+        fury_bytes = fury.serialize(value)
+        out_stream.write_bytes(fury_bytes, len(fury_bytes))
+
+    cpdef decode_from_stream(self, InputStream in_stream, size_t size):
+        fury = instance
+        cdef bytes fury_bytes
+        fury_bytes = in_stream.read_bytes()
+        return fury.deserialize(fury_bytes)
 
 cdef class PickleCoderImpl(FieldCoderImpl):
     """
@@ -930,7 +947,7 @@ cdef class DataViewFilterCoderImpl(FieldCoderImpl):
     """
     def __init__(self, udf_data_view_specs):
         self._udf_data_view_specs = udf_data_view_specs
-        self._pickle_coder = PickleCoderImpl()
+        self._pickle_coder = FuryCoderImpl()
 
     cpdef encode_to_stream(self, value, OutputStream out_stream):
         self._pickle_coder.encode_to_stream(self._filter_data_views(value), out_stream)

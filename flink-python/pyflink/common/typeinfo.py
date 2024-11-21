@@ -23,6 +23,7 @@ from typing import List, Union
 
 from py4j.java_gateway import JavaClass, JavaObject
 
+from pyflink.fn_execution.embedded.java_utils import JTypes
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['TypeInformation', 'Types']
@@ -339,6 +340,18 @@ class ObjectArrayTypeInfo(TypeInformation):
     def __repr__(self):
         return "ObjectArrayTypeInfo<%s>" % self._element_type
 
+
+class FuryBytesTypeInfo(TypeInformation):
+
+    def get_java_type_info(self) -> JavaObject:
+        if not self._j_typeinfo:
+            self._j_typeinfo = get_gateway().jvm.org.apache.flink.streaming.api.typeinfo.python\
+                .FuryByteArrayTypeInfo
+    def __eq__(self, o: object) -> bool:
+        return isinstance(o, FuryBytesTypeInfo)
+
+    def __repr__(self):
+        return "FuryByteArrayTypeInfo"
 
 class PickledBytesTypeInfo(TypeInformation):
     """
@@ -897,6 +910,10 @@ class Types(object):
         return PickledBytesTypeInfo()
 
     @staticmethod
+    def FURY_BYTE_ARRAY() -> TypeInformation:
+        return FuryBytesTypeInfo()
+
+    @staticmethod
     def ROW(field_types: List[TypeInformation]):
         """
         Returns type information for Row with fields of the given types. A row itself must not be
@@ -1024,6 +1041,8 @@ def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
         return Types.PRIMITIVE_ARRAY(Types.BOOLEAN())
     elif _is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO):
         return Types.PRIMITIVE_ARRAY(Types.BYTE())
+    elif _is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.Fury_BYTE_ARRAY_TYPE_INFO):
+        return Types.PRIMITIVE_ARRAY(Types.BYTE())
     elif _is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO):
         return Types.PRIMITIVE_ARRAY(Types.SHORT())
     elif _is_instance_of(j_type_info, JPrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO):
@@ -1067,6 +1086,12 @@ def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
         .PICKLED_BYTE_ARRAY_TYPE_INFO
     if _is_instance_of(j_type_info, JPickledBytesTypeInfo):
         return Types.PICKLED_BYTE_ARRAY()
+
+    JFuryBytesTypeInfo = gateway.jvm \
+        .org.apache.flink.streaming.api.typeinfo.python.FuryByteArrayTypeInfo \
+        .Fury_BYTE_ARRAY_TYPE_INFO
+    if _is_instance_of(j_type_info, JFuryBytesTypeInfo):
+        return Types.FURY_BYTE_ARRAY()
 
     JRowTypeInfo = gateway.jvm.org.apache.flink.api.java.typeutils.RowTypeInfo
     if _is_instance_of(j_type_info, JRowTypeInfo):

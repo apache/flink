@@ -35,11 +35,13 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.ShortSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
+import org.apache.flink.api.common.typeutils.base.array.FuryBytePrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.IntPrimitiveArraySerializer;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.streaming.api.typeinfo.python.FuryByteArrayTypeInfo;
 import org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.util.DataFormatConverters;
@@ -90,6 +92,9 @@ class PythonTypeUtilsTest {
         typeInformationTypeNameMap.put(
                 PickledByteArrayTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO,
                 FlinkFnApi.TypeInfo.TypeName.PICKLED_BYTES);
+        typeInformationTypeNameMap.put(
+                FuryByteArrayTypeInfo.FURY_BYTE_ARRAY_TYPE_INFO,
+                FlinkFnApi.TypeInfo.TypeName.FURY_BYTES);
         typeInformationTypeNameMap.put(
                 BasicTypeInfo.BOOLEAN_TYPE_INFO, FlinkFnApi.TypeInfo.TypeName.BOOLEAN);
         typeInformationTypeNameMap.put(SqlTimeTypeInfo.DATE, FlinkFnApi.TypeInfo.TypeName.SQL_DATE);
@@ -178,6 +183,9 @@ class PythonTypeUtilsTest {
         typeInformationTypeSerializerMap.put(
                 PickledByteArrayTypeInfo.PICKLED_BYTE_ARRAY_TYPE_INFO,
                 BytePrimitiveArraySerializer.INSTANCE);
+        typeInformationTypeSerializerMap.put(
+                FuryByteArrayTypeInfo.FURY_BYTE_ARRAY_TYPE_INFO,
+                FuryBytePrimitiveArraySerializer.INSTANCE);
         typeInformationTypeSerializerMap.put(
                 BasicTypeInfo.BOOLEAN_TYPE_INFO, BooleanSerializer.INSTANCE);
         typeInformationTypeSerializerMap.put(SqlTimeTypeInfo.DATE, DateSerializer.INSTANCE);
