@@ -48,7 +48,6 @@ import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
-import java.util.stream.Collectors;
 
 import static java.util.Collections.singletonMap;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -379,17 +378,37 @@ class DefaultCheckpointStatsTrackerTest {
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                         singletonMap(jobVertexID, 1));
 
-        pending.reportSubtaskStats(jobVertexID, createSubtaskStats(0));
+        pending.reportSubtaskStats(jobVertexID, createSubtaskStats(0, false));
 
         // Complete checkpoint => new snapshot
         tracker.reportCompletedCheckpoint(pending.toCompletedCheckpointStats(null));
 
         assertThat(reportedSpans.size()).isEqualTo(1);
-        assertThat(
-                        reportedSpans.stream()
-                                .map(span -> span.getAttributes().get("checkpointId"))
-                                .collect(Collectors.toList()))
-                .containsExactly(42L);
+        Span reportedSpan = Iterables.getOnlyElement(reportedSpans);
+        assertThat(reportedSpan.getAttributes().get("checkpointId")).isEqualTo(42L);
+        assertThat(reportedSpan.getAttributes().get("checkpointType")).isEqualTo("Checkpoint");
+        assertThat(reportedSpan.getAttributes().get("isUnaligned")).isEqualTo("false");
+
+        reportedSpans.clear();
+
+        pending =
+                tracker.reportPendingCheckpoint(
+                        43,
+                        1,
+                        CheckpointProperties.forCheckpoint(
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        singletonMap(jobVertexID, 1));
+
+        pending.reportSubtaskStats(jobVertexID, createSubtaskStats(0, true));
+
+        // Complete checkpoint => new snapshot
+        tracker.reportCompletedCheckpoint(pending.toCompletedCheckpointStats(null));
+
+        assertThat(reportedSpans.size()).isEqualTo(1);
+        reportedSpan = Iterables.getOnlyElement(reportedSpans);
+        assertThat(reportedSpan.getAttributes().get("checkpointId")).isEqualTo(43L);
+        assertThat(reportedSpan.getAttributes().get("checkpointType")).isEqualTo("Checkpoint");
+        assertThat(reportedSpan.getAttributes().get("isUnaligned")).isEqualTo("true");
     }
 
     @Test
@@ -763,7 +782,11 @@ class DefaultCheckpointStatsTrackerTest {
     // ------------------------------------------------------------------------
 
     private SubtaskStateStats createSubtaskStats(int index) {
-        return new SubtaskStateStats(index, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, true);
+        return createSubtaskStats(index, false);
+    }
+
+    private SubtaskStateStats createSubtaskStats(int index, boolean unaligned) {
+        return new SubtaskStateStats(index, 0, 0, 0, 0, 0, 0, 0, 0, 0, unaligned, true);
     }
 
     private void reportRestoredCheckpoint(
