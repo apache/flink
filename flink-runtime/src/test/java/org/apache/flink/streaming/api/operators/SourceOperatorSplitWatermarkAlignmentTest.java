@@ -48,10 +48,13 @@ import org.apache.flink.streaming.util.MockStreamConfig;
 
 import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -176,8 +179,49 @@ class SourceOperatorSplitWatermarkAlignmentTest {
         assertThat(dataOutput.getEvents()).doNotHave(new AnyWatermark());
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testSingleSplitWatermarkAlignmentAndIdleness(boolean usePerSplitOutputs) throws Exception {
+        long idleTimeout = 100;
+        MockSourceReader sourceReader =
+                new MockSourceReader(
+                        WaitingForSplits.DO_NOT_WAIT_FOR_SPLITS, false, usePerSplitOutputs);
+        TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
+        processingTimeService.setCurrentTime(1);
+        SourceOperator<Integer, MockSourceSplit> operator =
+                createAndOpenSourceOperatorWithIdleness(
+                        sourceReader, processingTimeService, idleTimeout);
+
+        MockSourceSplit split0 = new MockSourceSplit(0, 0, 10);
+        int maxAllowedWatermark = 4;
+        int maxEmittedWatermark = maxAllowedWatermark + 1;
+        // enough records should emit from split0 to make the mainSplit or perSplit is idle,
+        // then split0 gets blocked and record (maxEmittedWatermark + 100) is never emitted from
+        // split0
+        split0.addRecord(1)
+                .addRecord(1)
+                .addRecord(1)
+                .addRecord(1)
+                .addRecord(maxEmittedWatermark)
+                .addRecord(maxEmittedWatermark + 100);
+
+        operator.handleOperatorEvent(
+                new AddSplitEvent<>(
+                        Collections.singletonList(split0), new MockSourceSplitSerializer()));
+        CollectingDataOutput<Integer> dataOutput = new CollectingDataOutput<>();
+
+        operator.handleOperatorEvent(
+                new WatermarkAlignmentEvent(maxAllowedWatermark)); // blocks split0
+
+        for (int i = 0; i < 10; i++) {
+            operator.emitNext(dataOutput);
+            processingTimeService.advance(idleTimeout);
+        }
+        assertThat(dataOutput.getEvents()).doesNotContain(WatermarkStatus.IDLE);
+    }
+
     @Test
-    void testSplitWatermarkAlignmentAndIdleness() throws Exception {
+    void testMultiSplitWatermarkAlignmentAndIdleness() throws Exception {
         long idleTimeout = 100;
         MockSourceReader sourceReader =
                 new MockSourceReader(WaitingForSplits.DO_NOT_WAIT_FOR_SPLITS, false, true);
