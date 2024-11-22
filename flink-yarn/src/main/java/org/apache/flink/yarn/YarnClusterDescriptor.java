@@ -534,7 +534,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                     flinkConfiguration
                             .getOptional(PipelineOptions.JARS)
                             .orElse(Collections.emptyList());
-            Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
+            Preconditions.checkArgument(
+                    pipelineJars.size() <= 1, "Should only have at most one jar.");
         }
 
         try {
