@@ -115,11 +115,9 @@ public class ArtifactFetchManager {
      * @return result with the fetched artifacts
      * @throws Exception
      */
-    public Result fetchArtifacts(String jobUri, @Nullable List<String> additionalUris)
+    public Result fetchArtifacts(@Nullable String jobUri, @Nullable List<String> additionalUris)
             throws Exception {
-        checkArgument(jobUri != null && !jobUri.trim().isEmpty(), "The jobUri is required.");
-
-        File jobJar = fetchArtifact(jobUri);
+        File jobJar = jobUri == null ? null : fetchArtifact(jobUri);
         List<File> additionalArtifacts =
                 additionalUris == null
                         ? Collections.emptyList()
