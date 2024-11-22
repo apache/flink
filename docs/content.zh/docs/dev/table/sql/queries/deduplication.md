@@ -32,10 +32,9 @@ Flink 使用 `ROW_NUMBER()` 去除重复数据，就像 Top-N 查询一样。其
 下面的例子展示了去重语句的语法：
 
 ```sql
-SELECT [column_list],
-  ROW_NUMBER() OVER ([PARTITION BY col1[, col2...]] ORDER BY time_attr [asc|desc]) AS rownum
-  FROM table_name
-  QUALIFY rownum = 1
+SELECT [column_list]
+FROM table_name
+QUALIFY ROW_NUMBER() OVER ([PARTITION BY col1[, col2...]] ORDER BY time_attr [asc|desc]) = 1
 ```
 
 **参数说明：**
