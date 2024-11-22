@@ -198,9 +198,6 @@ class ArtifactFetchManagerTest {
     @Test
     void testMissingRequiredFetchArgs() {
         ArtifactFetchManager fetchMgr = new ArtifactFetchManager(configuration);
-        assertThatThrownBy(() -> fetchMgr.fetchArtifacts(null, null))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("The jobUri is required.");
 
         assertThatThrownBy(() -> fetchMgr.fetchArtifacts(null))
                 .isInstanceOf(IllegalArgumentException.class)
