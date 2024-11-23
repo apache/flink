@@ -98,7 +98,7 @@ public class DefaultSchedulerBuilder {
     private ShuffleMaster<?> shuffleMaster = ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER;
     private JobMasterPartitionTracker partitionTracker = NoOpJobMasterPartitionTracker.INSTANCE;
     private SchedulingStrategyFactory schedulingStrategyFactory =
-            new PipelinedRegionSchedulingStrategy.Factory();
+            new PipelinedRegionSchedulingStrategy.Factory(false);
     private FailoverStrategy.Factory failoverStrategyFactory =
             new RestartPipelinedRegionFailoverStrategy.Factory();
     private RestartBackoffTimeStrategy restartBackoffTimeStrategy =

@@ -745,7 +745,7 @@ class OperatorCoordinatorSchedulerTest {
             ScheduledExecutorService executorService) {
 
         return new DefaultSchedulerBuilder(jobGraph, mainThreadExecutor, executorService)
-                .setSchedulingStrategyFactory(new PipelinedRegionSchedulingStrategy.Factory())
+                .setSchedulingStrategyFactory(new PipelinedRegionSchedulingStrategy.Factory(false))
                 .setRestartBackoffTimeStrategy(new TestRestartBackoffTimeStrategy(true, 0))
                 .setExecutionSlotAllocatorFactory(
                         new TestExecutionSlotAllocatorFactory(taskManagerGateway));

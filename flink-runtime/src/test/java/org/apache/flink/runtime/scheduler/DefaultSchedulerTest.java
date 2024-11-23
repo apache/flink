@@ -1145,7 +1145,7 @@ public class DefaultSchedulerTest {
                 createScheduler(
                         jobGraph,
                         ComponentMainThreadExecutorServiceAdapter.forMainThread(),
-                        new PipelinedRegionSchedulingStrategy.Factory(),
+                        new PipelinedRegionSchedulingStrategy.Factory(false),
                         new RestartAllFailoverStrategy.Factory());
         scheduler.startScheduling();
 
@@ -1191,7 +1191,7 @@ public class DefaultSchedulerTest {
                 createScheduler(
                         jobGraph,
                         ComponentMainThreadExecutorServiceAdapter.forMainThread(),
-                        new PipelinedRegionSchedulingStrategy.Factory(),
+                        new PipelinedRegionSchedulingStrategy.Factory(false),
                         new RestartAllFailoverStrategy.Factory());
         scheduler.startScheduling();
 
@@ -1465,7 +1465,7 @@ public class DefaultSchedulerTest {
                 createScheduler(
                         jobGraph,
                         ComponentMainThreadExecutorServiceAdapter.forMainThread(),
-                        new PipelinedRegionSchedulingStrategy.Factory(),
+                        new PipelinedRegionSchedulingStrategy.Factory(false),
                         failoverStrategyFactory,
                         delayExecutor);
         scheduler.startScheduling();
@@ -2184,7 +2184,7 @@ public class DefaultSchedulerTest {
                         taskRestartExecutor)
                 .setLogger(LOG)
                 .setJobMasterConfiguration(configuration)
-                .setSchedulingStrategyFactory(new PipelinedRegionSchedulingStrategy.Factory())
+                .setSchedulingStrategyFactory(new PipelinedRegionSchedulingStrategy.Factory(false))
                 .setFailoverStrategyFactory(new RestartPipelinedRegionFailoverStrategy.Factory())
                 .setRestartBackoffTimeStrategy(testRestartBackoffTimeStrategy)
                 .setExecutionOperations(testExecutionOperations)

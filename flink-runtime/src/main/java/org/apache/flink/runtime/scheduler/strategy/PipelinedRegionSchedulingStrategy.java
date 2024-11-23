@@ -46,6 +46,8 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
 
     private final SchedulingTopology schedulingTopology;
 
+    private final boolean greedy;
+
     /** External consumer regions of each ConsumedPartitionGroup. */
     private final Map<ConsumedPartitionGroup, Set<SchedulingPipelinedRegion>>
             partitionGroupConsumerRegions = new IdentityHashMap<>();
@@ -64,12 +66,21 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
     private final Set<SchedulingPipelinedRegion> scheduledRegions =
             Collections.newSetFromMap(new IdentityHashMap<>());
 
+    @VisibleForTesting
     public PipelinedRegionSchedulingStrategy(
             final SchedulerOperations schedulerOperations,
             final SchedulingTopology schedulingTopology) {
+        this(schedulerOperations, schedulingTopology, false);
+    }
+
+    public PipelinedRegionSchedulingStrategy(
+            final SchedulerOperations schedulerOperations,
+            final SchedulingTopology schedulingTopology,
+            final boolean greedy) {
 
         this.schedulerOperations = checkNotNull(schedulerOperations);
         this.schedulingTopology = checkNotNull(schedulingTopology);
+        this.greedy = greedy;
 
         init();
     }
@@ -228,9 +239,27 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
             nextRegions = addSchedulableAndGetNextRegions(nextRegions, regionsToSchedule);
         }
         // schedule regions in topological order.
-        SchedulingStrategyUtils.sortPipelinedRegionsInTopologicalOrder(
-                        schedulingTopology, regionsToSchedule)
-                .forEach(this::scheduleRegion);
+        final List<SchedulingPipelinedRegion> orderedRegionsToSchedule =
+                SchedulingStrategyUtils.sortPipelinedRegionsInTopologicalOrder(
+                        schedulingTopology, regionsToSchedule);
+        if (greedy) {
+            maybeScheduleRegionsGreedily(orderedRegionsToSchedule);
+        } else {
+            orderedRegionsToSchedule.forEach(this::scheduleRegion);
+        }
+    }
+
+    private void maybeScheduleRegionsGreedily(
+            List<SchedulingPipelinedRegion> orderedRegionsToSchedule) {
+        List<ExecutionVertexID> executionVertexIDs = new ArrayList<>();
+        for (SchedulingPipelinedRegion region : orderedRegionsToSchedule) {
+            checkState(
+                    areRegionVerticesAllInCreatedState(region),
+                    "BUG: trying to schedule a region which is not in CREATED state");
+            executionVertexIDs.addAll(regionVerticesSorted.get(region));
+        }
+        scheduledRegions.addAll(orderedRegionsToSchedule);
+        schedulerOperations.allocateSlotsAndDeploy(executionVertexIDs);
     }
 
     private Set<SchedulingPipelinedRegion> addSchedulableAndGetNextRegions(
@@ -388,11 +417,19 @@ public class PipelinedRegionSchedulingStrategy implements SchedulingStrategy {
 
     /** The factory for creating {@link PipelinedRegionSchedulingStrategy}. */
     public static class Factory implements SchedulingStrategyFactory {
+
+        private final boolean greedy;
+
+        public Factory(final boolean greedy) {
+            this.greedy = greedy;
+        }
+
         @Override
         public SchedulingStrategy createInstance(
                 final SchedulerOperations schedulerOperations,
                 final SchedulingTopology schedulingTopology) {
-            return new PipelinedRegionSchedulingStrategy(schedulerOperations, schedulingTopology);
+            return new PipelinedRegionSchedulingStrategy(
+                    schedulerOperations, schedulingTopology, greedy);
         }
     }
 }
