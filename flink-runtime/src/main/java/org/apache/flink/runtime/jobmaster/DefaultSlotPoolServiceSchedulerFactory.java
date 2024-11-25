@@ -200,10 +200,7 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                 schedulerNGFactory = new AdaptiveSchedulerFactory();
                 slotPoolServiceFactory =
                         new DeclarativeSlotPoolServiceFactory(
-                                SystemClock.getInstance(),
-                                slotIdleTimeout,
-                                rpcTimeout,
-                                slotRequestMaxInterval);
+                                SystemClock.getInstance(), slotIdleTimeout, rpcTimeout);
                 break;
             case AdaptiveBatch:
                 schedulerNGFactory = new AdaptiveBatchSchedulerFactory();

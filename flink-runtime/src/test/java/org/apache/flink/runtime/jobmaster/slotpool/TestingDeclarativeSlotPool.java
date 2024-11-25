@@ -135,18 +135,25 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
     }
 
     @Override
-    public void increaseResourceRequirementsBy(ResourceCounter increment) {
+    public void increaseResourceRequirementsBy(
+            ResourceCounter increment, boolean autoDeclareResourceRequirements) {
         increaseResourceRequirementsByConsumer.accept(increment);
     }
 
     @Override
-    public void decreaseResourceRequirementsBy(ResourceCounter decrement) {
+    public void decreaseResourceRequirementsBy(
+            ResourceCounter decrement, boolean autoDeclareResourceRequirements) {
         decreaseResourceRequirementsByConsumer.accept(decrement);
     }
 
     @Override
     public void setResourceRequirements(ResourceCounter resourceRequirements) {
         setResourceRequirementsConsumer.accept(resourceRequirements);
+    }
+
+    @Override
+    public void declareResourceRequirements() {
+        // Nothing to do.
     }
 
     @Override
@@ -201,7 +208,9 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
 
     @Override
     public PhysicalSlot reserveFreeSlot(
-            AllocationID allocationId, ResourceProfile requiredSlotProfile) {
+            AllocationID allocationId,
+            ResourceProfile requiredSlotProfile,
+            boolean syncRequirements) {
         return reserveFreeSlotFunction.apply(allocationId, requiredSlotProfile);
     }
 

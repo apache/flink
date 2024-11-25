@@ -60,28 +60,16 @@ abstract class AbstractDeclarativeSlotPoolBridgeTest {
     private static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[] {SimpleRequestSlotMatchingStrategy.INSTANCE, Duration.ZERO, false},
-                new Object[] {SimpleRequestSlotMatchingStrategy.INSTANCE, Duration.ZERO, true},
                 new Object[] {
                     SimpleRequestSlotMatchingStrategy.INSTANCE, Duration.ofMillis(20), false
-                },
-                new Object[] {
-                    SimpleRequestSlotMatchingStrategy.INSTANCE, Duration.ofMillis(20), true
                 },
                 new Object[] {
                     PreferredAllocationRequestSlotMatchingStrategy.INSTANCE, Duration.ZERO, false
                 },
                 new Object[] {
-                    PreferredAllocationRequestSlotMatchingStrategy.INSTANCE, Duration.ZERO, true
-                },
-                new Object[] {
                     PreferredAllocationRequestSlotMatchingStrategy.INSTANCE,
                     Duration.ofMillis(20),
                     false
-                },
-                new Object[] {
-                    PreferredAllocationRequestSlotMatchingStrategy.INSTANCE,
-                    Duration.ofMillis(20),
-                    true
                 });
     }
 

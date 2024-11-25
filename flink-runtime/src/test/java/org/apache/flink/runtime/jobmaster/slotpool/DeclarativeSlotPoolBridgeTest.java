@@ -81,7 +81,7 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
                     declarativeSlotPoolBridge.requestNewAllocatedSlot(
                             slotRequestId, ResourceProfile.UNKNOWN, null);
 
-            tryWaitSlotRequestIsDone(declarativeSlotPoolBridge);
+            declarativeSlotPoolBridge.tryWaitSlotRequestIsDone();
 
             declarativeSlotPoolBridge.newSlotsAreAvailable(Collections.singleton(allocatedSlot));
 
@@ -110,7 +110,7 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
                                     componentMainThreadExecutor)
                             .get();
 
-            tryWaitSlotRequestIsDone(declarativeSlotPoolBridge);
+            declarativeSlotPoolBridge.tryWaitSlotRequestIsDone();
 
             componentMainThreadExecutor.execute(
                     () ->
@@ -151,7 +151,7 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
             declarativeSlotPoolBridge.allocateAvailableSlot(
                     slotRequestId, expectedAllocationId, allocatedSlot.getResourceProfile());
 
-            tryWaitSlotRequestIsDone(declarativeSlotPoolBridge);
+            declarativeSlotPoolBridge.tryWaitSlotRequestIsDone();
 
             declarativeSlotPoolBridge.releaseSlot(slotRequestId, null);
 
@@ -189,7 +189,7 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
                                     })
                             .collect(Collectors.toList());
 
-            tryWaitSlotRequestIsDone(declarativeSlotPoolBridge);
+            declarativeSlotPoolBridge.tryWaitSlotRequestIsDone();
 
             declarativeSlotPoolBridge.close();
 
@@ -210,7 +210,7 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
                     declarativeSlotPoolBridge.requestNewAllocatedSlot(
                             new SlotRequestId(), ResourceProfile.UNKNOWN, RPC_TIMEOUT);
 
-            tryWaitSlotRequestIsDone(declarativeSlotPoolBridge);
+            declarativeSlotPoolBridge.tryWaitSlotRequestIsDone();
 
             final LocalTaskManagerLocation localTaskManagerLocation =
                     new LocalTaskManagerLocation();
@@ -289,7 +289,7 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
                                 new SlotRequestId(), ResourceProfile.UNKNOWN, null));
             }
 
-            tryWaitSlotRequestIsDone(slotPoolBridge);
+            slotPoolBridge.tryWaitSlotRequestIsDone();
 
             for (int i = 0; i < requestSlotNum; i++) {
                 final PhysicalSlot slot = createAllocatedSlot(new AllocationID());
@@ -321,15 +321,6 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
         freeSlotsInformation.add(slot);
         availableSlotsIds.add(slot.getAllocationId());
         declarativeSlotPoolBridge.newSlotsAreAvailable(Collections.singleton(slot));
-    }
-
-    private void tryWaitSlotRequestIsDone(DeclarativeSlotPoolBridge declarativeSlotPoolBridge) {
-        if (declarativeSlotPoolBridge.getDeclarativeSlotPool()
-                instanceof DefaultDeclarativeSlotPool) {
-            final DefaultDeclarativeSlotPool slotPool =
-                    (DefaultDeclarativeSlotPool) declarativeSlotPoolBridge.getDeclarativeSlotPool();
-            slotPool.tryWaitSlotRequestIsDone();
-        }
     }
 
     private DeclarativeSlotPoolBridge createDeclarativeSlotPoolBridge(

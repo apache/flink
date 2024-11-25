@@ -363,7 +363,6 @@ class DeclarativeSlotPoolServiceTest {
                         SystemClock.getInstance(),
                         Duration.ofSeconds(20L),
                         Duration.ofSeconds(20L),
-                        Duration.ZERO,
                         mainThreadExecutor);
 
         declarativeSlotPoolService.start(jobMasterId, address);

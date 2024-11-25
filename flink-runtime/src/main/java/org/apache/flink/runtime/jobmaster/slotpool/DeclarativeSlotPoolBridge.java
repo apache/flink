@@ -50,6 +50,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
@@ -71,6 +72,10 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
     private boolean isJobRestarting = false;
 
     private final boolean slotBatchAllocatable;
+    // For slots(resources) requests by batch.
+    private final Duration slotRequestMaxInterval;
+    @Nullable private ScheduledFuture<?> increaseSlotRequestFuture;
+    @Nullable private ScheduledFuture<?> decreaseSlotRequestFuture;
 
     public DeclarativeSlotPoolBridge(
             JobID jobId,
@@ -89,7 +94,6 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
                 clock,
                 idleSlotTimeout,
                 rpcTimeout,
-                slotRequestMaxInterval,
                 componentMainThreadExecutor);
 
         this.idleSlotTimeout = idleSlotTimeout;
@@ -99,6 +103,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
                 "Using the request slot matching strategy: {}",
                 requestSlotMatchingStrategy.getClass().getSimpleName());
         this.requestSlotMatchingStrategy = requestSlotMatchingStrategy;
+        this.slotRequestMaxInterval = slotRequestMaxInterval;
         this.slotBatchAllocatable = slotBatchAllocatable;
 
         this.isBatchSlotRequestTimeoutCheckDisabled = false;
@@ -131,6 +136,9 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
     protected void onClose() {
         final FlinkException cause = new FlinkException("Closing slot pool");
         cancelPendingRequests(request -> true, cause);
+        getDeclarativeSlotPool().declareResourceRequirements();
+        tryCancelFuture(increaseSlotRequestFuture);
+        tryCancelFuture(decreaseSlotRequestFuture);
     }
 
     /**
@@ -196,12 +204,12 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
             }
         }
 
-        getDeclarativeSlotPool().decreaseResourceRequirementsBy(decreasedResourceRequirements);
+        decreaseResourceRequirements(decreasedResourceRequirements);
     }
 
     @Override
     protected void onReleaseTaskManager(ResourceCounter previouslyFulfilledRequirement) {
-        getDeclarativeSlotPool().decreaseResourceRequirementsBy(previouslyFulfilledRequirement);
+        decreaseResourceRequirements(previouslyFulfilledRequirement);
     }
 
     @VisibleForTesting
@@ -211,14 +219,13 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         }
 
         if (slotBatchAllocatable) {
-            newSlotsAvailableForSlotBatchAllocatable(newSlots);
+            allocateSlotsByBatch(newSlots);
         } else {
-            newSlotsAvailableForDirectlyAllocatable(newSlots);
+            allocateSlotsDirectly(newSlots);
         }
     }
 
-    private void newSlotsAvailableForSlotBatchAllocatable(
-            Collection<? extends PhysicalSlot> newSlots) {
+    private void allocateSlotsByBatch(Collection<? extends PhysicalSlot> newSlots) {
         log.debug("Received new available slots: {}", newSlots);
 
         final FreeSlotTracker freeSlotInfoTracker = getDeclarativeSlotPool().getFreeSlotTracker();
@@ -253,8 +260,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         }
     }
 
-    private void newSlotsAvailableForDirectlyAllocatable(
-            Collection<? extends PhysicalSlot> newSlots) {
+    private void allocateSlotsDirectly(Collection<? extends PhysicalSlot> newSlots) {
         final Collection<RequestSlotMatchingStrategy.RequestSlotMatch> requestSlotMatches =
                 requestSlotMatchingStrategy.matchRequestsAndSlots(
                         newSlots, pendingRequests.values());
@@ -278,6 +284,8 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
                     slot.getAllocationId(),
                     pendingRequest.getResourceProfile());
         }
+        // Call here to sync additional latest request adjustment at declarative slot pool side.
+        getDeclarativeSlotPool().declareResourceRequirements();
 
         // we have to first reserve all matching slots before fulfilling the requests
         // otherwise it can happen that the scheduler reserves one of the new slots
@@ -296,13 +304,15 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         return getDeclarativeSlotPool().getFreeSlotTracker().getFreeSlotsInformation();
     }
 
-    private void reserveFreeSlot(
+    private PhysicalSlot reserveFreeSlot(
             SlotRequestId slotRequestId,
             AllocationID allocationId,
             ResourceProfile resourceProfile) {
         log.debug("Reserve slot {} for slot request id {}", allocationId, slotRequestId);
-        getDeclarativeSlotPool().reserveFreeSlot(allocationId, resourceProfile);
+        final PhysicalSlot slot =
+                getDeclarativeSlotPool().reserveFreeSlot(allocationId, resourceProfile, false);
         fulfilledRequests.put(slotRequestId, allocationId);
+        return slot;
     }
 
     @Override
@@ -327,13 +337,12 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
             SlotRequestId slotRequestId,
             AllocationID allocationId,
             ResourceProfile requiredSlotProfile) {
-        getDeclarativeSlotPool()
-                .increaseResourceRequirementsBy(
-                        ResourceCounter.withResource(requiredSlotProfile, 1));
-        final PhysicalSlot physicalSlot =
-                getDeclarativeSlotPool().reserveFreeSlot(allocationId, requiredSlotProfile);
-        fulfilledRequests.put(slotRequestId, allocationId);
+        increaseResourceRequirements(ResourceCounter.withResource(requiredSlotProfile, 1));
 
+        PhysicalSlot physicalSlot =
+                reserveFreeSlot(slotRequestId, allocationId, requiredSlotProfile);
+        // Call here to sync additional latest request adjustment at declarative slot pool side.
+        getDeclarativeSlotPool().declareResourceRequirements();
         return physicalSlot;
     }
 
@@ -411,14 +420,13 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
     private void internalRequestNewAllocatedSlot(PendingRequest pendingRequest) {
         pendingRequests.put(pendingRequest.getSlotRequestId(), pendingRequest);
 
-        getDeclarativeSlotPool()
-                .increaseResourceRequirementsBy(
-                        ResourceCounter.withResource(pendingRequest.getResourceProfile(), 1));
+        increaseResourceRequirements(
+                ResourceCounter.withResource(pendingRequest.getResourceProfile(), 1));
     }
 
     @Override
     protected void onFailAllocation(ResourceCounter previouslyFulfilledRequirements) {
-        getDeclarativeSlotPool().decreaseResourceRequirementsBy(previouslyFulfilledRequirements);
+        decreaseResourceRequirements(previouslyFulfilledRequirements);
     }
 
     @Override
@@ -429,9 +437,8 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         final PendingRequest pendingRequest = pendingRequests.remove(slotRequestId);
 
         if (pendingRequest != null) {
-            getDeclarativeSlotPool()
-                    .decreaseResourceRequirementsBy(
-                            ResourceCounter.withResource(pendingRequest.getResourceProfile(), 1));
+            decreaseResourceRequirements(
+                    ResourceCounter.withResource(pendingRequest.getResourceProfile(), 1));
             pendingRequest.failRequest(
                     new FlinkException(
                             String.format(
@@ -445,8 +452,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
                 ResourceCounter previouslyFulfilledRequirement =
                         getDeclarativeSlotPool()
                                 .freeReservedSlot(allocationId, cause, getRelativeTimeMillis());
-                getDeclarativeSlotPool()
-                        .decreaseResourceRequirementsBy(previouslyFulfilledRequirement);
+                decreaseResourceRequirements(previouslyFulfilledRequirement);
             } else {
                 log.debug(
                         "Could not find slot which has fulfilled slot request {}. Ignoring the release operation.",
@@ -461,6 +467,57 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         assertRunningInMainThread();
 
         failPendingRequests(acquiredResources);
+    }
+
+    private void increaseResourceRequirements(ResourceCounter increment) {
+        getDeclarativeSlotPool().increaseResourceRequirementsBy(increment, false);
+        if (slotRequestMaxInterval.toMillis() <= 0L) {
+            getDeclarativeSlotPool().declareResourceRequirements();
+            return;
+        }
+
+        tryCancelFuture(increaseSlotRequestFuture);
+
+        increaseSlotRequestFuture =
+                componentMainThreadExecutor.schedule(
+                        () -> {
+                            if (slotBatchAllocatable) {
+                                log.info(
+                                        "Trigger slot requests allocation when exceeding slot request max interval: {}",
+                                        slotRequestMaxInterval);
+                                allocateSlotsByBatch(Collections.emptyList());
+                            }
+                            getDeclarativeSlotPool().declareResourceRequirements();
+                        },
+                        slotRequestMaxInterval.toMillis(),
+                        TimeUnit.MILLISECONDS);
+    }
+
+    private void decreaseResourceRequirements(ResourceCounter decrement) {
+        getDeclarativeSlotPool().decreaseResourceRequirementsBy(decrement, false);
+        if (slotRequestMaxInterval.toMillis() <= 0L) {
+            getDeclarativeSlotPool().declareResourceRequirements();
+            return;
+        }
+
+        tryCancelFuture(decreaseSlotRequestFuture);
+
+        decreaseSlotRequestFuture =
+                componentMainThreadExecutor.schedule(
+                        () -> {
+                            log.info(
+                                    "Trigger declaring the slot decrease requests when exceeding slot request max interval: {}",
+                                    slotRequestMaxInterval);
+                            getDeclarativeSlotPool().declareResourceRequirements();
+                        },
+                        slotRequestMaxInterval.toMillis(),
+                        TimeUnit.MILLISECONDS);
+    }
+
+    private void tryCancelFuture(ScheduledFuture<?> future) {
+        if (future != null && !future.isDone() && !future.isCancelled()) {
+            future.cancel(true);
+        }
     }
 
     private void failPendingRequests(Collection<ResourceRequirement> acquiredResources) {
@@ -609,5 +666,23 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
     @VisibleForTesting
     boolean isBatchSlotRequestTimeoutCheckEnabled() {
         return !isBatchSlotRequestTimeoutCheckDisabled;
+    }
+
+    @VisibleForTesting
+    void tryWaitSlotRequestIsDone() {
+        if (slotRequestMaxInterval.toMillis() <= 0L) {
+            return;
+        }
+
+        try {
+            if (increaseSlotRequestFuture != null) {
+                increaseSlotRequestFuture.get();
+            }
+            if (decreaseSlotRequestFuture != null) {
+                decreaseSlotRequestFuture.get();
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }
