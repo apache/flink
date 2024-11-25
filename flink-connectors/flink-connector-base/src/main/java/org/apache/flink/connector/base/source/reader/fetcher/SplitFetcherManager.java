@@ -269,11 +269,16 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
         // fetcher threads blocking on putting batches into the element queue.
         executors.submit(
                 () -> {
-                    while (fetchersToShutDown.get() > 0
-                            && System.currentTimeMillis() - startTime < timeoutMs) {
-                        elementsQueue
-                                .getAvailabilityFuture()
-                                .thenRun(() -> elementsQueue.poll().recycle());
+                    try {
+                        while (fetchersToShutDown.get() > 0
+                                && System.currentTimeMillis() - startTime < timeoutMs) {
+                            elementsQueue
+                                    .getAvailabilityFuture()
+                                    .thenRun(() -> elementsQueue.poll().recycle())
+                                    .get();
+                        }
+                    } catch (Exception e) {
+                        LOG.warn("Failed to drain the element queue.", e);
                     }
                 });
         executors.shutdown();
