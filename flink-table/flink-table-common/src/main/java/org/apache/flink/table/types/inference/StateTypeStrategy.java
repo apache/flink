@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.types.inference;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /** Strategy for inferring a function call's intermediate result data type (i.e. state entry). */
+@PublicEvolving
 public interface StateTypeStrategy extends TypeStrategy {
     // marker interface which will be filled with additional contracts in the future
 }
