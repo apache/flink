@@ -86,11 +86,11 @@ import java.util.Objects;
  *
  * }</pre>
  *
+ * <p>{@code MapView(TypeInformation<?> keyType, TypeInformation<?> valueType)} method was
+ * deprecated and removed. Please use a {@link DataTypeHint} instead.
+ *
  * @param <K> key type
  * @param <V> value type
- *
- * {@code MapView(TypeInformation<?> keyType, TypeInformation<?> valueType)} method was
- * deprecated and removed. Please use a {@link DataTypeHint} instead.
  */
 @PublicEvolving
 public class MapView<K, V> implements DataView {
