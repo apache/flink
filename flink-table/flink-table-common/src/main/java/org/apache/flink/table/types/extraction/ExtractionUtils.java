@@ -766,7 +766,7 @@ public final class ExtractionUtils {
                                 parameter -> {
                                     ArgumentHint argumentHint =
                                             parameter.getAnnotation(ArgumentHint.class);
-                                    if (argumentHint != null && argumentHint.name() != "") {
+                                    if (argumentHint != null && !argumentHint.name().isEmpty()) {
                                         return argumentHint.name();
                                     } else {
                                         return parameter.getName();
@@ -783,7 +783,7 @@ public final class ExtractionUtils {
             getClassReader(executable.getDeclaringClass()).accept(extractor, 0);
 
             final List<String> extractedNames = extractor.getParameterNames();
-            if (extractedNames.size() == 0) {
+            if (extractedNames.isEmpty()) {
                 return null;
             }
             // remove "this" and additional local variables
