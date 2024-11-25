@@ -1311,6 +1311,7 @@ SqlSelect SqlSelect() :
     final SqlNodeList groupBy;
     final SqlNode having;
     final SqlNodeList windowDecls;
+    final SqlNode qualify;
     final List<SqlNode> hints = new ArrayList<SqlNode>();
     final Span s;
 }
@@ -1337,6 +1338,7 @@ SqlSelect SqlSelect() :
         ( groupBy = GroupBy() | { groupBy = null; } )
         ( having = Having() | { having = null; } )
         ( windowDecls = Window() | { windowDecls = null; } )
+        ( qualify = Qualify() | { qualify = null; } )
     |
         E() {
             fromClause = null;
@@ -1344,13 +1346,14 @@ SqlSelect SqlSelect() :
             groupBy = null;
             having = null;
             windowDecls = null;
+            qualify = null;
         }
     )
     {
         return new SqlSelect(s.end(this), keywordList,
             new SqlNodeList(selectList, Span.of(selectList).pos()),
-            fromClause, where, groupBy, having, windowDecls, null, null, null,
-            new SqlNodeList(hints, getPos()));
+            fromClause, where, groupBy, having, windowDecls, qualify,
+            null, null, null, new SqlNodeList(hints, getPos()));
     }
 }
 
@@ -2773,6 +2776,15 @@ SqlNode WindowRange() :
     )
 }
 
+/** Parses a QUALIFY clause for SELECT. */
+SqlNode Qualify() :
+{
+    SqlNode e;
+}
+{
+    <QUALIFY> e = Expression(ExprContext.ACCEPT_SUB_QUERY) { return e; }
+}
+
 /**
  * Parses an ORDER BY clause.
  */
@@ -4033,6 +4045,7 @@ SqlNode AtomicRowExpression() :
 }
 {
     (
+        LOOKAHEAD(2)
         e = LiteralOrIntervalExpression()
     |
         e = DynamicParam()
@@ -4629,6 +4642,28 @@ SqlLiteral DateTimeLiteral() :
     }
 }
 
+/** Parses a Date/Time constructor function, for example "DATE(1969, 7, 21)"
+ * or "DATETIME(d, t)". Enabled in some libraries (e.g. BigQuery). */
+SqlNode DateTimeConstructorCall() :
+{
+    final SqlFunctionCategory funcType = SqlFunctionCategory.TIMEDATE;
+    final SqlIdentifier qualifiedName;
+    final Span s;
+    final SqlLiteral quantifier;
+    final List<? extends SqlNode> args;
+}
+{
+    (<DATE> | <TIME> | <DATETIME> | <TIMESTAMP>) {
+        s = span();
+        qualifiedName = new SqlIdentifier(unquotedIdentifier(), getPos());
+    }
+    args = FunctionParameterList(ExprContext.ACCEPT_SUB_QUERY) {
+        quantifier = (SqlLiteral) args.get(0);
+        args.remove(0);
+        return createCall(qualifiedName, s.end(this), funcType, quantifier, args);
+    }
+}
+
 /** Parses a MULTISET constructor */
 SqlNode MultisetConstructor() :
 {
@@ -5047,13 +5082,42 @@ SqlIntervalQualifier IntervalQualifierStart() :
  * registered as abbreviations in your time frame set.
  */
 SqlIntervalQualifier TimeUnitOrName() : {
-    final Span span;
-    final String w;
-    final TimeUnit unit;
     final SqlIdentifier unitName;
+    final SqlIntervalQualifier intervalQualifier;
 }
 {
+    // When we see a time unit that is also a non-reserved keyword, such as
+    // NANOSECOND, there is a choice between using the TimeUnit enum
+    // (TimeUnit.NANOSECOND) or the name. The following LOOKAHEAD directive
+    // tells the parser that we prefer the former.
+    //
+    // Reserved keywords, such as SECOND, cannot be identifiers, and are
+    // therefore not ambiguous.
     LOOKAHEAD(2)
+    intervalQualifier = TimeUnit() {
+        return intervalQualifier;
+    }
+|   unitName = SimpleIdentifier() {
+        return new SqlIntervalQualifier(unitName.getSimple(),
+            unitName.getParserPosition());
+    }
+}
+
+/** Parses a built-in time unit (e.g. "YEAR")
+ * and returns a {@link SqlIntervalQualifier}.
+ *
+ * <p>Includes {@code WEEK} and {@code WEEK(SUNDAY)} through
+  {@code WEEK(SATURDAY)}.
+ *
+ * <p>Does not include SQL_TSI_DAY, SQL_TSI_FRAC_SECOND etc. These will be
+ * parsed as identifiers and can be resolved in the validator if they are
+ * registered as abbreviations in your time frame set.
+ */
+SqlIntervalQualifier TimeUnit() : {
+    final Span span;
+    final String w;
+}
+{
     <NANOSECOND> { return new SqlIntervalQualifier(TimeUnit.NANOSECOND, null, getPos()); }
 |   <MICROSECOND> { return new SqlIntervalQualifier(TimeUnit.MICROSECOND, null, getPos()); }
 |   <MILLISECOND> { return new SqlIntervalQualifier(TimeUnit.MILLISECOND, null, getPos()); }
@@ -5067,6 +5131,8 @@ SqlIntervalQualifier TimeUnitOrName() : {
 |   <ISOYEAR> { return new SqlIntervalQualifier(TimeUnit.ISOYEAR, null, getPos()); }
 |   <WEEK> { span = span(); }
     (
+        // There is a choice between "WEEK(weekday)" and "WEEK". We prefer
+        // the former, and the parser will look ahead for '('.
         LOOKAHEAD(2)
         <LPAREN> w = weekdayName() <RPAREN> {
             return new SqlIntervalQualifier(w, span.end(this));
@@ -5081,10 +5147,6 @@ SqlIntervalQualifier TimeUnitOrName() : {
 |   <DECADE> { return new SqlIntervalQualifier(TimeUnit.DECADE, null, getPos()); }
 |   <CENTURY> { return new SqlIntervalQualifier(TimeUnit.CENTURY, null, getPos()); }
 |   <MILLENNIUM> { return new SqlIntervalQualifier(TimeUnit.MILLENNIUM, null, getPos()); }
-|   unitName = SimpleIdentifier() {
-        return new SqlIntervalQualifier(unitName.getSimple(),
-            unitName.getParserPosition());
-    }
 }
 
 String weekdayName() :
@@ -6086,9 +6148,15 @@ SqlNode BuiltinFunctionCall() :
             return SqlStdOperatorTable.TRIM.createCall(s.end(this), args);
         }
     |
+        node = DateTimeConstructorCall() { return node; }
+    |
+        node = DateDiffFunctionCall() { return node; }
+    |
         node = DateTruncFunctionCall() { return node; }
     |
         node = TimestampAddFunctionCall() { return node; }
+    |
+        node = DatetimeDiffFunctionCall() { return node; }
     |
         node = TimestampDiffFunctionCall() { return node; }
     |
@@ -6604,6 +6672,28 @@ SqlCall JsonArrayAggFunctionCall() :
 }
 
 /**
+ * Parses a call to BigQuery's DATE_DIFF.
+ */
+SqlCall DateDiffFunctionCall() :
+{
+    final List<SqlNode> args = new ArrayList<SqlNode>();
+    final Span s;
+    final SqlIntervalQualifier unit;
+}
+{
+    <DATE_DIFF> { s = span(); }
+    <LPAREN>
+    AddExpression(args, ExprContext.ACCEPT_SUB_QUERY)
+    <COMMA>
+    AddExpression(args, ExprContext.ACCEPT_SUB_QUERY)
+    <COMMA>
+    unit = TimeUnitOrName() { args.add(unit); }
+    <RPAREN> {
+        return SqlLibraryOperators.DATE_DIFF.createCall(s.end(this), args);
+    }
+}
+
+/**
  * Parses a call to TIMESTAMPADD.
  */
 SqlCall TimestampAddFunctionCall() :
@@ -6677,6 +6767,28 @@ SqlCall TimestampDiff3FunctionCall() :
 }
 
 /**
+ * Parses BigQuery's built-in DATETIME_DIFF() function.
+ */
+SqlCall DatetimeDiffFunctionCall() :
+{
+    final List<SqlNode> args = new ArrayList<SqlNode>();
+    final Span s;
+    final SqlIntervalQualifier unit;
+}
+{
+    <DATETIME_DIFF> { s = span(); }
+    <LPAREN>
+    AddExpression(args, ExprContext.ACCEPT_SUB_QUERY)
+    <COMMA>
+    AddExpression(args, ExprContext.ACCEPT_SUB_QUERY)
+    <COMMA>
+    unit = TimeUnitOrName() { args.add(unit); }
+    <RPAREN> {
+        return SqlLibraryOperators.DATETIME_DIFF.createCall(s.end(this), args);
+    }
+}
+
+/**
  * Parses a call to DATE_TRUNC.
  */
 SqlCall DateTruncFunctionCall() :
@@ -6694,7 +6806,8 @@ SqlCall DateTruncFunctionCall() :
     // the BigQuery variant, e.g. "DATE_TRUNC(d, YEAR)",
     // and the Redshift variant, e.g. "DATE_TRUNC('year', DATE '2008-09-08')".
     (
-        unit = TimeUnitOrName() { args.add(unit); }
+        LOOKAHEAD(2)
+        unit = TimeUnit() { args.add(unit); }
     |
         AddExpression(args, ExprContext.ACCEPT_SUB_QUERY)
     )
@@ -7253,6 +7366,18 @@ SqlNode JdbcFunctionCall() :
     }
     (
         LOOKAHEAD(1)
+        call = DateDiffFunctionCall() {
+            name = call.getOperator().getName();
+            args = new SqlNodeList(call.getOperandList(), getPos());
+        }
+    |
+        LOOKAHEAD(1)
+        call = DatetimeDiffFunctionCall() {
+            name = call.getOperator().getName();
+            args = new SqlNodeList(call.getOperandList(), getPos());
+        }
+    |
+        LOOKAHEAD(1)
         call = TimestampAddFunctionCall() {
             name = call.getOperator().getName();
             args = new SqlNodeList(call.getOperandList(), getPos());
@@ -7658,8 +7783,10 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < DATE: "DATE" >
 |   < DATE_TRUNC: "DATE_TRUNC" >
 |   < DATETIME: "DATETIME" >
+|   < DATETIME_DIFF: "DATETIME_DIFF" >
 |   < DATETIME_INTERVAL_CODE: "DATETIME_INTERVAL_CODE" >
 |   < DATETIME_INTERVAL_PRECISION: "DATETIME_INTERVAL_PRECISION" >
+|   < DATE_DIFF: "DATE_DIFF" >
 |   < DAY: "DAY" >
 |   < DAYS: "DAYS" >
 |   < DEALLOCATE: "DEALLOCATE" >
@@ -7958,6 +8085,7 @@ SqlPostfixOperator PostfixRowOperator() :
 |   < PRIVILEGES: "PRIVILEGES" >
 |   < PROCEDURE: "PROCEDURE" >
 |   < PUBLIC: "PUBLIC" >
+|   < QUALIFY: "QUALIFY" >
 |   < QUARTER: "QUARTER" >
 |   < QUARTERS: "QUARTERS" >
 |   < RANGE: "RANGE" >
