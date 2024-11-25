@@ -426,18 +426,17 @@ public final class FactoryUtil {
                             MODULE_TYPE.key(), options.get(MODULE_TYPE.key())));
         }
 
-        final DefaultModuleContext discoveryContext = new DefaultModuleContext(
-                options,
-                configuration,
-                classLoader);
+        final DefaultModuleContext discoveryContext =
+                new DefaultModuleContext(options, configuration, classLoader);
         try {
-            final ModuleFactory factory = discoverFactory(
-                    ((ModuleFactory.Context) discoveryContext).getClassLoader(),
-                    ModuleFactory.class,
-                    moduleName);
+            final ModuleFactory factory =
+                    discoverFactory(
+                            ((ModuleFactory.Context) discoveryContext).getClassLoader(),
+                            ModuleFactory.class,
+                            moduleName);
 
-            final DefaultModuleContext context = new DefaultModuleContext(options, configuration,
-                    classLoader);
+            final DefaultModuleContext context =
+                    new DefaultModuleContext(options, configuration, classLoader);
             return factory.createModule(context);
         } catch (Throwable t) {
             throw new ValidationException(
