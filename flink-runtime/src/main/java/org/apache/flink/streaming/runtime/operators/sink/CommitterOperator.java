@@ -37,7 +37,6 @@ import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.runtime.operators.sink.committables.CheckpointCommittableManager;
 import org.apache.flink.streaming.runtime.operators.sink.committables.CommittableCollector;
@@ -123,7 +122,8 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
     public void initializeState(StateInitializationContext context) throws Exception {
         super.initializeState(context);
         OptionalLong checkpointId = context.getRestoredCheckpointId();
-        CommitterInitContext initContext = createInitContext(checkpointId);
+        CommitterInitContext initContext =
+                new CommitterInitContextImpl(getRuntimeContext(), metricGroup, checkpointId);
         committer = committerSupplier.apply(initContext);
         committableCollectorState =
                 new SimpleVersionedListState<>(
@@ -212,28 +212,5 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
     @Override
     public void close() throws Exception {
         closeAll(committer, super::close);
-    }
-
-    private CommitterInitContext createInitContext(OptionalLong restoredCheckpointId) {
-        return new CommitterInitContextImp(getRuntimeContext(), metricGroup, restoredCheckpointId);
-    }
-
-    private static class CommitterInitContextImp extends InitContextBase
-            implements CommitterInitContext {
-
-        private final SinkCommitterMetricGroup metricGroup;
-
-        public CommitterInitContextImp(
-                StreamingRuntimeContext runtimeContext,
-                SinkCommitterMetricGroup metricGroup,
-                OptionalLong restoredCheckpointId) {
-            super(runtimeContext, restoredCheckpointId);
-            this.metricGroup = checkNotNull(metricGroup);
-        }
-
-        @Override
-        public SinkCommitterMetricGroup metricGroup() {
-            return metricGroup;
-        }
     }
 }

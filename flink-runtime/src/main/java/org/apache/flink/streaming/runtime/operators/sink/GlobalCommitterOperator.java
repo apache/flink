@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.api.connector.sink2.CommitterInitContext;
 import org.apache.flink.configuration.SinkOptions;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
@@ -40,6 +41,7 @@ import org.apache.flink.streaming.runtime.operators.sink.committables.Committabl
 import org.apache.flink.streaming.runtime.operators.sink.committables.CommittableCollectorSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.util.function.SerializableFunction;
 import org.apache.flink.util.function.SerializableSupplier;
 
 import javax.annotation.Nullable;
@@ -48,6 +50,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.OptionalLong;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -101,7 +104,7 @@ public class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamO
             new ListStateDescriptor<>(
                     "streaming_committer_raw_states", BytePrimitiveArraySerializer.INSTANCE);
 
-    private final SerializableSupplier<Committer<CommT>> committerFactory;
+    private final SerializableFunction<CommitterInitContext, Committer<CommT>> committerFactory;
     private final SerializableSupplier<SimpleVersionedSerializer<CommT>>
             committableSerializerFactory;
     /**
@@ -122,7 +125,7 @@ public class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamO
     private List<GlobalCommT> sinkV1State = new ArrayList<>();
 
     public GlobalCommitterOperator(
-            SerializableSupplier<Committer<CommT>> committerFactory,
+            SerializableFunction<CommitterInitContext, Committer<CommT>> committerFactory,
             SerializableSupplier<SimpleVersionedSerializer<CommT>> committableSerializerFactory,
             boolean commitOnInput) {
         this.committerFactory = checkNotNull(committerFactory);
@@ -136,7 +139,6 @@ public class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamO
             StreamConfig config,
             Output<StreamRecord<Void>> output) {
         super.setup(containingTask, config, output);
-        committer = committerFactory.get();
         metricGroup = InternalSinkCommitterMetricGroup.wrap(metrics);
         committableCollector = CommittableCollector.of(metricGroup);
         committableSerializer = committableSerializerFactory.get();
@@ -156,6 +158,11 @@ public class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamO
     @Override
     public void initializeState(StateInitializationContext context) throws Exception {
         super.initializeState(context);
+        OptionalLong restoredCheckpointId = context.getRestoredCheckpointId();
+        committer =
+                committerFactory.apply(
+                        new CommitterInitContextImpl(
+                                getRuntimeContext(), metricGroup, restoredCheckpointId));
         globalCommitterState =
                 new SimpleVersionedListState<>(
                         context.getOperatorStateStore()
@@ -170,8 +177,8 @@ public class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamO
                                 committableCollector.merge(cc.getCommittableCollector());
                             });
             // try to re-commit recovered transactions as quickly as possible
-            if (context.getRestoredCheckpointId().isPresent()) {
-                commit(context.getRestoredCheckpointId().getAsLong());
+            if (restoredCheckpointId.isPresent()) {
+                commit(restoredCheckpointId.getAsLong());
             }
         }
     }

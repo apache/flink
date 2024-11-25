@@ -21,12 +21,14 @@ package org.apache.flink.streaming.api.transformations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.api.connector.sink2.CommitterInitContext;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.StandardSinkTopologies;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.util.function.SerializableFunction;
 import org.apache.flink.util.function.SerializableSupplier;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
@@ -45,12 +47,12 @@ import java.util.List;
 public class GlobalCommitterTransform<CommT> extends TransformationWithLineage<Void> {
 
     private final DataStream<CommittableMessage<CommT>> inputStream;
-    private final SerializableSupplier<Committer<CommT>> committerFactory;
+    private final SerializableFunction<CommitterInitContext, Committer<CommT>> committerFactory;
     private final SerializableSupplier<SimpleVersionedSerializer<CommT>> committableSerializer;
 
     public GlobalCommitterTransform(
             DataStream<CommittableMessage<CommT>> inputStream,
-            SerializableSupplier<Committer<CommT>> committerFactory,
+            SerializableFunction<CommitterInitContext, Committer<CommT>> committerFactory,
             SerializableSupplier<SimpleVersionedSerializer<CommT>> committableSerializer) {
         super(StandardSinkTopologies.GLOBAL_COMMITTER_TRANSFORMATION_NAME, Types.VOID, 1, true);
         this.inputStream = inputStream;
@@ -78,7 +80,7 @@ public class GlobalCommitterTransform<CommT> extends TransformationWithLineage<V
         return inputStream;
     }
 
-    public SerializableSupplier<Committer<CommT>> getCommitterFactory() {
+    public SerializableFunction<CommitterInitContext, Committer<CommT>> getCommitterFactory() {
         return committerFactory;
     }
 

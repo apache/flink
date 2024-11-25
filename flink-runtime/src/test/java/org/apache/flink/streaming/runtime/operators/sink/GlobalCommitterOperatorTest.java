@@ -176,7 +176,7 @@ class GlobalCommitterOperatorTest {
             Committer<Integer> committer, boolean commitOnInput) throws Exception {
         return new OneInputStreamOperatorTestHarness<>(
                 new GlobalCommitterOperator<>(
-                        () -> committer, IntegerSerializer::new, commitOnInput));
+                        ctx -> committer, IntegerSerializer::new, commitOnInput));
     }
 
     private static class MockCommitter implements Committer<Integer> {
