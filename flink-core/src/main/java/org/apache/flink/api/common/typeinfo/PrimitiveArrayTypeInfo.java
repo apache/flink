@@ -231,6 +231,12 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> implements Ato
         return obj instanceof PrimitiveArrayTypeInfo;
     }
 
+    @PublicEvolving
+    public static <X> PrimitiveArrayTypeInfo<X> getInfoFor(Class<X> type){
+        return getInfoFor(type, false);
+    }
+
+
     // --------------------------------------------------------------------------------------------
 
     /**
@@ -243,7 +249,6 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> implements Ato
      * @throws InvalidTypesException Thrown, if the given class does not represent an array.
      */
     @SuppressWarnings("unchecked")
-    @PublicEvolving
     public static <X> PrimitiveArrayTypeInfo<X> getInfoFor(Class<X> type, boolean isFurySerialize) {
         if (!type.isArray()) {
             throw new InvalidTypesException("The given class is no array.");
