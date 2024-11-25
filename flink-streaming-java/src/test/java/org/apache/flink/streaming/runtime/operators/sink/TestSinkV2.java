@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessageTypeInfo;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
+import org.apache.flink.streaming.api.connector.sink2.StandardSinkTopologies;
 import org.apache.flink.streaming.api.connector.sink2.SupportsPostCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.SupportsPreCommitTopology;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -241,7 +242,8 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
 
         @Override
         public void addPostCommitTopology(DataStream<CommittableMessage<String>> committables) {
-            // We do not need to do anything for tests
+            StandardSinkTopologies.addGlobalCommitter(
+                    committables, this::createCommitter, this::getCommittableSerializer);
         }
     }
 
