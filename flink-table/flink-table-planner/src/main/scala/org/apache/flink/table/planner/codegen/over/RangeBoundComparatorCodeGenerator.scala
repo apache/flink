@@ -22,11 +22,14 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils, ExprCodeGenerator, GenerateUtils}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{newName, ROW_DATA}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.runtime.generated.{GeneratedRecordComparator, RecordComparator}
-import org.apache.flink.table.types.logical.{BigIntType, IntType, LogicalType, LogicalTypeRoot, RowType}
+import org.apache.flink.table.types.logical._
 
 import org.apache.calcite.avatica.util.DateTimeUtils
-import org.apache.calcite.rex.{RexInputRef, RexWindowBound}
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rex.{RexBuilder, RexInputRef, RexNode, RexWindowBound}
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{GREATER_THAN, GREATER_THAN_OR_EQUAL, MINUS}
 import org.apache.calcite.tools.RelBuilder
 
@@ -94,6 +97,8 @@ class RangeBoundComparatorCodeGenerator(
       if (boundCompareZero >= 0) "return -1;" else "return 1;"
     }
 
+    val (internalComparatorCode, internalComparatorMemberCode) =
+      getComparatorCode(inputExpr.resultTerm, currentExpr.resultTerm, ctx)
     val comparatorCode =
       j"""
         ${ctx.reuseLocalVariableCode()}
@@ -104,7 +109,7 @@ class RangeBoundComparatorCodeGenerator(
         } else if (${inputExpr.nullTerm} || ${currentExpr.nullTerm}) {
            $oneIsNull
         } else {
-           ${getComparatorCode(inputExpr.resultTerm, currentExpr.resultTerm, ctx)}
+           $internalComparatorCode
         }
      """.stripMargin
 
@@ -114,6 +119,7 @@ class RangeBoundComparatorCodeGenerator(
 
         private final Object[] references;
         ${ctx.reuseMemberCode()}
+        $internalComparatorMemberCode
 
         public $className(Object[] references) {
           this.references = references;
@@ -134,7 +140,7 @@ class RangeBoundComparatorCodeGenerator(
   private def getComparatorCode(
       inputValue: String,
       currentValue: String,
-      parentCtx: CodeGeneratorContext): String = {
+      parentCtx: CodeGeneratorContext): (String, String) = {
     val (realBoundValue, realKeyType) = keyType.getTypeRoot match {
       case LogicalTypeRoot.DATE =>
         // The constant about time is expressed based millisecond unit in calcite, but
@@ -147,17 +153,52 @@ class RangeBoundComparatorCodeGenerator(
     }
 
     val typeFactory = relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-    val relKeyType = typeFactory.createFieldTypeFromLogicalType(realKeyType)
+    val relKeyType: RelDataType = typeFactory.createFieldTypeFromLogicalType(realKeyType)
+    val stringRelKeyType: RelDataType =
+      typeFactory.createFieldTypeFromLogicalType(new VarCharType(VarCharType.MAX_LENGTH))
 
     // minus between inputValue and currentValue
     val ctx = new CodeGeneratorContext(tableConfig, classLoader, parentCtx)
     val exprCodeGenerator = new ExprCodeGenerator(ctx, false)
-    val minusCall = if (keyOrder) {
-      relBuilder.call(MINUS, new RexInputRef(0, relKeyType), new RexInputRef(1, relKeyType))
-    } else {
-      relBuilder.call(MINUS, new RexInputRef(1, relKeyType), new RexInputRef(0, relKeyType))
+
+    val inputType = typeFactory.createFieldTypeFromLogicalType(new TimestampType(3))
+
+    val rexBuilder = new RexBuilder(typeFactory)
+    val inputRef: RexNode = new RexInputRef(0, inputType)
+    val input1: RexNode =
+      rexBuilder.makeCall(
+        SqlStdOperatorTable.MULTIPLY,
+        rexBuilder.makeBigintLiteral(new BigDecimal(DateTimeUtils.MILLIS_PER_SECOND)),
+        rexBuilder.makeCall(
+          FlinkSqlOperatorTable.UNIX_TIMESTAMP,
+          rexBuilder.makeCall(
+            stringRelKeyType,
+            SqlStdOperatorTable.CAST,
+            java.util.Collections.singletonList(inputRef)))
+      )
+
+    val inputRef2: RexNode = new RexInputRef(1, inputType)
+    val input2: RexNode = {
+      rexBuilder.makeCall(
+        SqlStdOperatorTable.MULTIPLY,
+        rexBuilder.makeBigintLiteral(new BigDecimal(DateTimeUtils.MILLIS_PER_SECOND)),
+        rexBuilder.makeCall(
+          FlinkSqlOperatorTable.UNIX_TIMESTAMP,
+          rexBuilder.makeCall(
+            stringRelKeyType,
+            SqlStdOperatorTable.CAST,
+            java.util.Collections.singletonList(inputRef2)))
+      )
     }
-    exprCodeGenerator.bindInput(realKeyType, inputValue).bindSecondInput(realKeyType, currentValue)
+
+    val minusCall = if (keyOrder) {
+      relBuilder.call(MINUS, input1, input2)
+    } else {
+      relBuilder.call(MINUS, input2, input1)
+    }
+    exprCodeGenerator
+      .bindInput(new TimestampType(3), inputValue)
+      .bindSecondInput(new TimestampType(3), currentValue)
     val literal = relBuilder.literal(realBoundValue)
 
     // In order to avoid the loss of precision in long cast to int.
@@ -169,7 +210,8 @@ class RangeBoundComparatorCodeGenerator(
 
     val comExpr = exprCodeGenerator.generateExpression(comCall)
 
-    j"""
+    (
+      j"""
        ${ctx.reuseMemberCode()}
        ${ctx.reuseLocalVariableCode()}
        ${ctx.reuseInputUnboxingCode()}
@@ -179,6 +221,7 @@ class RangeBoundComparatorCodeGenerator(
        } else {
          return -1;
        }
-     """.stripMargin
+     """.stripMargin,
+      ctx.reuseMemberCode())
   }
 }

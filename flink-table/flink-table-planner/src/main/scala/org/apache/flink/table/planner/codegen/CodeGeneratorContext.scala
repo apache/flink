@@ -723,7 +723,7 @@ class CodeGeneratorContext(
   def addReusableSessionTimeZone(): String = {
     val zoneID = TimeZone.getTimeZone(TableConfigUtils.getLocalTimeZone(tableConfig)).getID
     val stmt =
-      s"""private static final java.util.TimeZone $DEFAULT_TIMEZONE_TERM =
+      s"""java.util.TimeZone $DEFAULT_TIMEZONE_TERM =
          |                 java.util.TimeZone.getTimeZone("$zoneID");""".stripMargin
     addReusableMember(stmt)
     DEFAULT_TIMEZONE_TERM
