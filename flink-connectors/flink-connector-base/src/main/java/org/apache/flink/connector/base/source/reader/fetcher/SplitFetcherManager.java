@@ -278,7 +278,7 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
                                     .get();
                         }
                     } catch (Exception e) {
-                        LOG.warn("Failed to drain the element queue.", e);
+                        LOG.warn("Failed to drain the element queue.");
                     }
                 });
         executors.shutdown();
