@@ -61,6 +61,7 @@ import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.metadata
 import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.pickScanWithWatermark;
 import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.projectedFields;
 import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.reusableWithoutAdjust;
+import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.sortMetadataKeys;
 
 /**
  * Reuse sources.
@@ -165,7 +166,7 @@ public class ScanReuser {
             }
 
             int[][] allProjectFields = allProjectFieldSet.toArray(new int[0][]);
-            List<String> allMetaKeys = new ArrayList<>(allMetaKeySet);
+            List<String> allMetaKeys = sortMetadataKeys(allMetaKeySet, pickTable.tableSource());
 
             // 2. Create new source.
             List<SourceAbilitySpec> specs = abilitySpecsWithoutEscaped(pickTable);
