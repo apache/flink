@@ -16,28 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.planner.plan.nodes.exec.common.RankTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchRestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
 
-/** Restore tests for {@link StreamExecRank}. */
-public class RankRestoreTest extends RestoreTestBase {
+/** Batch Compiled Plan tests for {@link BatchExecRank}. */
+public class RankBatchRestoreTest extends BatchRestoreTestBase {
 
-    public RankRestoreTest() {
-        super(StreamExecRank.class);
+    public RankBatchRestoreTest() {
+        super(BatchExecRank.class);
     }
 
     @Override
     public List<TableTestProgram> programs() {
         return Arrays.asList(
                 RankTestPrograms.RANK_TEST_APPEND_FAST_STRATEGY,
-                RankTestPrograms.RANK_TEST_RETRACT_STRATEGY,
+                // org.apache.flink.table.api.TableException: Querying a table in batch mode is
+                // currently only possible for INSERT-only table sources. But the source for table
+                // 'default_catalog.default_database.MyTable' produces other changelog messages than
+                // just INSERT.
+                // RankTestPrograms.RANK_TEST_RETRACT_STRATEGY,
                 RankTestPrograms.RANK_TEST_UPDATE_FAST_STRATEGY,
-                RankTestPrograms.RANK_N_TEST);
+                RankTestPrograms.RANK_N_TEST,
+                RankTestPrograms.RANK_2_TEST);
     }
 }
