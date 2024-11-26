@@ -61,7 +61,7 @@ if [ "$SKIP_INTEGRATE_CONNECTOR_DOCS" = false ]; then
   integrate_connector_docs mongodb v1.2
   integrate_connector_docs opensearch v1.2
   integrate_connector_docs kafka v3.3
-  integrate_connector_docs hbase v3.0
+  integrate_connector_docs hbase v4.0
   integrate_connector_docs prometheus v1.0
 
   cd ..
