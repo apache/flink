@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
@@ -44,10 +45,21 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
 
     private final SlotPool slotPool;
 
+    private final boolean alwaysProvideNewPhysicalSlots;
+
+    @VisibleForTesting
     public PhysicalSlotProviderImpl(
             SlotSelectionStrategy slotSelectionStrategy, SlotPool slotPool) {
+        this(slotSelectionStrategy, slotPool, false);
+    }
+
+    public PhysicalSlotProviderImpl(
+            SlotSelectionStrategy slotSelectionStrategy,
+            SlotPool slotPool,
+            boolean alwaysProvideNewPhysicalSlots) {
         this.slotSelectionStrategy = checkNotNull(slotSelectionStrategy);
         this.slotPool = checkNotNull(slotPool);
+        this.alwaysProvideNewPhysicalSlots = alwaysProvideNewPhysicalSlots;
     }
 
     @Override
@@ -72,8 +84,15 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
                                 Collectors.toMap(
                                         PhysicalSlotRequest::getSlotRequestId,
                                         Function.identity()));
-        Map<SlotRequestId, Optional<PhysicalSlot>> availablePhysicalSlots =
-                tryAllocateFromAvailable(physicalSlotRequestsById.values());
+        Map<SlotRequestId, Optional<PhysicalSlot>> availablePhysicalSlots;
+        if (alwaysProvideNewPhysicalSlots) {
+            availablePhysicalSlots =
+                    physicalSlotRequestsById.entrySet().stream()
+                            .collect(
+                                    Collectors.toMap(Map.Entry::getKey, entry -> Optional.empty()));
+        } else {
+            availablePhysicalSlots = tryAllocateFromAvailable(physicalSlotRequestsById.values());
+        }
 
         return availablePhysicalSlots.entrySet().stream()
                 .collect(

@@ -96,8 +96,12 @@ public class DefaultSchedulerComponents {
         final PhysicalSlotRequestBulkChecker bulkChecker =
                 PhysicalSlotRequestBulkCheckerImpl.createFromSlotPool(
                         slotPool, SystemClock.getInstance());
+        // TODO: The variable will be set as true when jobType is STREAMING and enabled balanced
+        // tasks scheduling.
+        final boolean alwaysProvideNewSlots = false;
         final PhysicalSlotProvider physicalSlotProvider =
-                new PhysicalSlotProviderImpl(slotSelectionStrategy, slotPool);
+                new PhysicalSlotProviderImpl(
+                        slotSelectionStrategy, slotPool, alwaysProvideNewSlots);
         final ExecutionSlotAllocatorFactory allocatorFactory =
                 new SlotSharingExecutionSlotAllocatorFactory(
                         physicalSlotProvider,
