@@ -31,16 +31,22 @@ import java.lang.annotation.Target;
  * <p>An {@code ArgumentHint} can be used to provide hints about the name, optionality, and data
  * type of argument.
  *
- * <p>It combines the functionality of {@link FunctionHint#argumentNames()} and {@link DataTypeHint}
- * annotations to conveniently group argument-related information together in function declarations.
+ * <p>{@code @ArgumentHint(name = "in1", type = @DataTypeHint("STRING"), isOptional = false)} is a
+ * scalar argument with the data type STRING, named "in1", and cannot be omitted when calling.
  *
- * <p>{@code @ArgumentHint(name = "in1", type = @DataTypeHint("STRING"), isOptional = false} is an
- * argument with the type String, named in1, and cannot be omitted when calling.
+ * @see FunctionHint
  */
 @PublicEvolving
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD, ElementType.PARAMETER})
 public @interface ArgumentHint {
+
+    /**
+     * The kind of the argument.
+     *
+     * <p>Only applies to {@code ProcessTableFunction}s (PTFs). Others can only take scalar values.
+     */
+    ArgumentTrait[] value() default {ArgumentTrait.SCALAR};
 
     /**
      * The name of the argument.

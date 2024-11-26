@@ -1599,7 +1599,7 @@ public class FunctionITCase extends StreamingTestBase {
     public static class NamedArgumentsScalarFunction extends ScalarFunction {
         @FunctionHint(
                 output = @DataTypeHint("STRING"),
-                argument = {
+                arguments = {
                     @ArgumentHint(name = "in1", type = @DataTypeHint("int")),
                     @ArgumentHint(name = "in2", type = @DataTypeHint("int"))
                 })
@@ -1612,7 +1612,7 @@ public class FunctionITCase extends StreamingTestBase {
     public static class NamedArgumentsWithOverloadedScalarFunction extends ScalarFunction {
         @FunctionHint(
                 output = @DataTypeHint("STRING"),
-                argument = {
+                arguments = {
                     @ArgumentHint(name = "in1", type = @DataTypeHint("int")),
                     @ArgumentHint(name = "in2", type = @DataTypeHint("int"))
                 })
@@ -1622,7 +1622,7 @@ public class FunctionITCase extends StreamingTestBase {
 
         @FunctionHint(
                 output = @DataTypeHint("STRING"),
-                argument = {
+                arguments = {
                     @ArgumentHint(name = "in1", type = @DataTypeHint("string")),
                     @ArgumentHint(name = "in2", type = @DataTypeHint("string"))
                 })
@@ -1635,7 +1635,7 @@ public class FunctionITCase extends StreamingTestBase {
     public static class NamedArgumentsScalarFunctionWithOptionalArguments extends ScalarFunction {
         @FunctionHint(
                 output = @DataTypeHint("STRING"),
-                argument = {
+                arguments = {
                     @ArgumentHint(name = "in1", type = @DataTypeHint("STRING"), isOptional = true),
                     @ArgumentHint(name = "in2", type = @DataTypeHint("STRING"), isOptional = true)
                 })
@@ -1775,7 +1775,7 @@ public class FunctionITCase extends StreamingTestBase {
     public static class NamedArgumentsTableFunctionWithOptionalArguments
             extends TableFunction<Object> {
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "in1", isOptional = true),
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "in2", isOptional = true)
                 },
@@ -1940,7 +1940,7 @@ public class FunctionITCase extends StreamingTestBase {
 
         @FunctionHint(
                 output = @DataTypeHint("STRING"),
-                argument = {
+                arguments = {
                     @ArgumentHint(name = "in1", type = @DataTypeHint("STRING"), isOptional = true),
                     @ArgumentHint(name = "in2", type = @DataTypeHint("STRING"), isOptional = true)
                 },

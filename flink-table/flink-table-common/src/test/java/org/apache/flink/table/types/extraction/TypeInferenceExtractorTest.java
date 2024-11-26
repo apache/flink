@@ -20,6 +20,7 @@ package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.InputGroup;
@@ -627,7 +628,11 @@ class TypeInferenceExtractorTest {
                                             InputTypeStrategies.explicit(DataTypes.STRING()),
                                             InputTypeStrategies.explicit(DataTypes.INT())
                                         }),
-                                TypeStrategies.explicit(DataTypes.STRING())));
+                                TypeStrategies.explicit(DataTypes.STRING())),
+                TestSpec.forScalarFunction(FunctionHintTableArgScalarFunction.class)
+                        .expectErrorMessage("Only scalar arguments are supported yet."),
+                TestSpec.forScalarFunction(ArgumentHintTableArgScalarFunction.class)
+                        .expectErrorMessage("Only scalar arguments are supported yet."));
     }
 
     private static Stream<TestSpec> procedureSpecs() {
@@ -1758,7 +1763,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentHintOnMethodProcedure implements Procedure {
         @ProcedureHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1", isOptional = true),
                     @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2", isOptional = true)
                 })
@@ -1768,7 +1773,7 @@ class TypeInferenceExtractorTest {
     }
 
     @ProcedureHint(
-            argument = {
+            arguments = {
                 @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1", isOptional = true),
                 @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2", isOptional = true)
             })
@@ -1786,29 +1791,19 @@ class TypeInferenceExtractorTest {
                                 name = "parameter_f1",
                                 isOptional = true)
                         String f1,
-                @ArgumentHint(
-                                type = @DataTypeHint("INT"),
-                                name = "parameter_f2",
-                                isOptional = false)
-                        int f2) {
+                @ArgumentHint(type = @DataTypeHint("INT"), name = "parameter_f2") int f2) {
             return null;
         }
     }
 
     @ProcedureHint(
-            argument = {
-                @ArgumentHint(
-                        type = @DataTypeHint("STRING"),
-                        name = "global_f1",
-                        isOptional = false),
-                @ArgumentHint(
-                        type = @DataTypeHint("INTEGER"),
-                        name = "global_f2",
-                        isOptional = false)
+            arguments = {
+                @ArgumentHint(type = @DataTypeHint("STRING"), name = "global_f1"),
+                @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "global_f2")
             })
     private static class ArgumentHintOnClassAndMethodProcedure implements Procedure {
         @ProcedureHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(
                             type = @DataTypeHint("STRING"),
                             name = "local_f1",
@@ -1825,7 +1820,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentHintOnMethodAndParameterProcedure implements Procedure {
         @ProcedureHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(
                             type = @DataTypeHint("STRING"),
                             name = "local_f1",
@@ -1852,19 +1847,13 @@ class TypeInferenceExtractorTest {
     }
 
     @ProcedureHint(
-            argument = {
-                @ArgumentHint(
-                        type = @DataTypeHint("STRING"),
-                        name = "global_f1",
-                        isOptional = false),
-                @ArgumentHint(
-                        type = @DataTypeHint("INTEGER"),
-                        name = "global_f2",
-                        isOptional = false)
+            arguments = {
+                @ArgumentHint(type = @DataTypeHint("STRING"), name = "global_f1"),
+                @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "global_f2")
             })
     private static class ArgumentHintOnClassAndMethodAndParameterProcedure implements Procedure {
         @ProcedureHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(
                             type = @DataTypeHint("STRING"),
                             name = "local_f1",
@@ -1888,7 +1877,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentHintNotNullWithOptionalProcedure implements Procedure {
         @ProcedureHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1", isOptional = true),
                     @ArgumentHint(
                             type = @DataTypeHint("INTEGER NOT NULL"),
@@ -1902,7 +1891,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentHintNameConflictProcedure implements Procedure {
         @ProcedureHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1", isOptional = true),
                     @ArgumentHint(
                             type = @DataTypeHint("INTEGER NOT NULL"),
@@ -1917,7 +1906,7 @@ class TypeInferenceExtractorTest {
     private static class ArgumentHintOptionalOnPrimitiveParameterConflictProcedure
             implements Procedure {
         @ProcedureHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1", isOptional = true),
                     @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2", isOptional = true)
                 })
@@ -1964,7 +1953,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentHintScalarFunction extends ScalarFunction {
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
                     @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
                 })
@@ -1974,7 +1963,7 @@ class TypeInferenceExtractorTest {
     }
 
     private static class ArgumentHintMissingTypeScalarFunction extends ScalarFunction {
-        @FunctionHint(argument = {@ArgumentHint(name = "f1"), @ArgumentHint(name = "f2")})
+        @FunctionHint(arguments = {@ArgumentHint(name = "f1"), @ArgumentHint(name = "f2")})
         public String eval(String f1, Integer f2) {
             return "";
         }
@@ -1982,7 +1971,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentHintMissingNameScalarFunction extends ScalarFunction {
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING")),
                     @ArgumentHint(type = @DataTypeHint("INTEGER"))
                 })
@@ -1993,7 +1982,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentHintMissingPartialNameScalarFunction extends ScalarFunction {
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "in1"),
                     @ArgumentHint(type = @DataTypeHint("INTEGER"))
                 })
@@ -2004,7 +1993,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentHintNameConflictScalarFunction extends ScalarFunction {
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(name = "in1", type = @DataTypeHint("STRING")),
                     @ArgumentHint(name = "in1", type = @DataTypeHint("INTEGER"))
                 })
@@ -2023,7 +2012,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentsAndInputsScalarFunction extends ScalarFunction {
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
                     @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
                 },
@@ -2044,13 +2033,13 @@ class TypeInferenceExtractorTest {
     }
 
     @FunctionHint(
-            argument = {
+            arguments = {
                 @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
                 @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
             })
     private static class InvalidFunctionHintOnClassAndMethod extends ScalarFunction {
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
                     @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
                 },
@@ -2061,13 +2050,13 @@ class TypeInferenceExtractorTest {
     }
 
     @FunctionHint(
-            argument = {
+            arguments = {
                 @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1", isOptional = true),
                 @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2", isOptional = true)
             })
     private static class ValidFunctionHintOnClassAndMethod extends ScalarFunction {
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
                     @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
                 })
@@ -2077,12 +2066,12 @@ class TypeInferenceExtractorTest {
     }
 
     @FunctionHint(
-            argument = {
+            arguments = {
                 @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
                 @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
             })
     @FunctionHint(
-            argument = {
+            arguments = {
                 @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f1"),
                 @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
             })
@@ -2094,7 +2083,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentsHintScalarFunctionWithOverloadedFunction extends ScalarFunction {
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
                     @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
                 })
@@ -2103,7 +2092,7 @@ class TypeInferenceExtractorTest {
         }
 
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f2")
                 })
@@ -2114,7 +2103,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentHintNotNullTypeWithOptionalsScalarFunction extends ScalarFunction {
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(
                             type = @DataTypeHint("STRING NOT NULL"),
                             name = "f1",
@@ -2128,12 +2117,34 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentHintVariableLengthScalarFunction extends ScalarFunction {
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
                     @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
                 },
                 isVarArgs = true)
         public String eval(String f1, Integer... f2) {
+            return "";
+        }
+    }
+
+    @FunctionHint(
+            arguments = {
+                @ArgumentHint(
+                        value = ArgumentTrait.TABLE_AS_ROW,
+                        type = @DataTypeHint("ROW<i INT>"))
+            })
+    private static class FunctionHintTableArgScalarFunction extends ScalarFunction {
+        public String eval(Row table) {
+            return "";
+        }
+    }
+
+    private static class ArgumentHintTableArgScalarFunction extends ScalarFunction {
+        public String eval(
+                @ArgumentHint(
+                                value = ArgumentTrait.TABLE_AS_ROW,
+                                type = @DataTypeHint("ROW<i INT>"))
+                        Row table) {
             return "";
         }
     }

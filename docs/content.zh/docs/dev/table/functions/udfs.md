@@ -661,8 +661,10 @@ public static class NamedParameterClass extends ScalarFunction {
     
   // 使用 @ArgumentHint 注解指定参数的名称，参数类型，以及该参数是否是必需的参数
   @FunctionHint(
-          argument = {@ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
-                  @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))}
+    arguments = {
+      @ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
+      @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))
+    }
   )
   public String eval(String s1, Integer s2) {
     return s1 + ", " + s2;
@@ -679,8 +681,10 @@ class NamedParameterClass extends ScalarFunction {
 
   // 使用 @ArgumentHint 注解指定参数的名称，参数类型，以及是否是必需的参数
   @FunctionHint(
-    argument = Array(new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
-                  new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER")))
+    arguments = Array(
+      new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
+      new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER"))
+    )
   )
   def eval(s1: String, s2: Int): String = {
     s1 + ", " + s2
@@ -700,8 +704,10 @@ import org.apache.flink.table.functions.ScalarFunction;
 
 // 使用 @ArgumentHint 注解指定参数的名称，参数类型，以及是否是必需的参数
 @FunctionHint(
-        argument = {@ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
-                @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))}
+  arguments = {
+    @ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
+    @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))
+  }
 )
 public static class NamedParameterClass extends ScalarFunction {
     
@@ -718,8 +724,10 @@ import org.apache.flink.table.functions.ScalarFunction;
 
 // 使用 @ArgumentHint 注解指定参数的名称，参数类型，以及是否是必需的参数
 @FunctionHint(
-  argument = Array(new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
-    new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER")))
+  arguments = Array(
+    new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
+    new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER"))
+  )
 )
 class NamedParameterClass extends ScalarFunction {
 
