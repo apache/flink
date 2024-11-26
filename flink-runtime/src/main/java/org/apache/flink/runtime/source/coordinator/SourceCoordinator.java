@@ -178,6 +178,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                     "Skip distributing maxAllowedWatermark of group={} for source {} - no subtasks.",
                     watermarkAlignmentParams.getWatermarkGroup(),
                     operatorName);
+            return;
         }
         checkState(
                 watermarkAlignmentParams != WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);
