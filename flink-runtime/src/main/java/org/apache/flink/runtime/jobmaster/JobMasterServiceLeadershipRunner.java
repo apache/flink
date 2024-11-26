@@ -330,7 +330,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     }
 
     @GuardedBy("lock")
-    private void createNewJobMasterServiceProcess(UUID leaderSessionId) throws FlinkException {
+    private void createNewJobMasterServiceProcess(UUID leaderSessionId) {
         Preconditions.checkState(jobMasterServiceProcess.closeAsync().isDone());
 
         LOG.info(
