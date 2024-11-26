@@ -233,6 +233,14 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- Need to manually pin since upgrading hadoop-aws runs into https://github.com/apache/flink/pull/23844#issuecomment-1871212810 -->
+		<dependency>
+			<groupId>org.wildfly.openssl</groupId>
+			<artifactId>wildfly-openssl</artifactId>
+			<version>1.0.10.Final</version>
+			<scope>runtime</scope>
+		</dependency>
+
 		<!-- flink-runtime and curator dependencies are needed for the HAJobRunOnMinioS3StoreITCase -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
