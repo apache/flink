@@ -16,35 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.planner.plan.nodes.exec.common.OverAggregateTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchRestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
 
-/** Restore tests for {@link StreamExecOverAggregate}. */
-public class OverAggregateRestoreTest extends RestoreTestBase {
+/** Batch Compiled Plan tests for {@link BatchExecOverAggregate}. */
+public class OverAggregateBatchRestoreTest extends BatchRestoreTestBase {
 
-    public OverAggregateRestoreTest() {
-        super(StreamExecOverAggregate.class);
+    public OverAggregateBatchRestoreTest() {
+        super(BatchExecOverAggregate.class);
     }
 
     @Override
     public List<TableTestProgram> programs() {
         return Arrays.asList(
-                OverAggregateTestPrograms
-                        .OVER_AGGREGATE_TIME_BOUNDED_PARTITIONED_ROWS_WITH_OUT_OF_ORDER_RECORDS,
-                OverAggregateTestPrograms
-                        .OVER_AGGREGATE_TIME_BOUNDED_NON_PARTITIONED_ROWS_WITH_OUT_OF_ORDER_RECORDS,
-                OverAggregateTestPrograms
-                        .OVER_AGGREGATE_UNBOUNDED_PARTITIONED_ROWS_WITH_OUT_OF_ORDER_RECORDS,
-                OverAggregateTestPrograms
-                        .OVER_AGGREGATE_ROW_BOUNDED_PARTITIONED_PRECEDING_ROWS_WITH_OUT_OF_ORDER_RECORDS,
-                OverAggregateTestPrograms.OVER_AGGREGATE_TIME_BOUNDED_PARTITIONED_ROWS,
-                OverAggregateTestPrograms.OVER_AGGREGATE_TIME_BOUNDED_NON_PARTITIONED_ROWS,
+                // These tests fail due to FLINK-25802
+                // OverAggregateTestPrograms.OVER_AGGREGATE_TIME_BOUNDED_PARTITIONED_ROWS,
+                // OverAggregateTestPrograms.OVER_AGGREGATE_TIME_BOUNDED_NON_PARTITIONED_ROWS
                 OverAggregateTestPrograms.OVER_AGGREGATE_UNBOUNDED_PARTITIONED_ROWS,
                 OverAggregateTestPrograms.OVER_AGGREGATE_ROW_BOUNDED_PARTITIONED_PRECEDING_ROWS);
     }

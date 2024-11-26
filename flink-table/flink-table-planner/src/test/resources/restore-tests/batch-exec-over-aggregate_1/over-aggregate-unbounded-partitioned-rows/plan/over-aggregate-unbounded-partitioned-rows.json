@@ -2,7 +2,7 @@
   "flinkVersion" : "2.0",
   "nodes" : [ {
     "id" : 1,
-    "type" : "stream-exec-table-source-scan_1",
+    "type" : "batch-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MyTable`",
@@ -60,10 +60,25 @@
     },
     "outputType" : "ROW<`ts` BIGINT, `a` BIGINT, `b` INT, `c` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[ts, a, b, c])",
+    "dynamicFilteringDataListenerID" : "b14f2022-7674-4bdd-b7b5-b20cf2a016b6",
     "inputProperties" : [ ]
   }, {
     "id" : 2,
-    "type" : "stream-exec-calc_1",
+    "type" : "batch-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 3 ]
+      },
+      "damBehavior" : "BLOCKING",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`ts` BIGINT, `a` BIGINT, `b` INT, `c` VARCHAR(2147483647)>",
+    "description" : "Exchange(distribution=[hash[c]])",
+    "requiredExchangeMode" : "UNDEFINED"
+  }, {
+    "id" : 3,
+    "type" : "batch-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
@@ -94,84 +109,6 @@
         "type" : "VARCHAR(2147483647)"
       } ],
       "type" : "TIMESTAMP(3)"
-    } ],
-    "condition" : null,
-    "inputProperties" : [ {
-      "requiredDistribution" : {
-        "type" : "UNKNOWN"
-      },
-      "damBehavior" : "PIPELINED",
-      "priority" : 0
-    } ],
-    "outputType" : "ROW<`ts` BIGINT, `a` BIGINT, `b` INT, `c` VARCHAR(2147483647), `rowtime` TIMESTAMP(3)>",
-    "description" : "Calc(select=[ts, a, b, c, TO_TIMESTAMP(FROM_UNIXTIME(ts)) AS rowtime])"
-  }, {
-    "id" : 3,
-    "type" : "stream-exec-watermark-assigner_1",
-    "watermarkExpr" : {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 4,
-      "type" : "TIMESTAMP(3)"
-    },
-    "rowtimeFieldIndex" : 4,
-    "inputProperties" : [ {
-      "requiredDistribution" : {
-        "type" : "UNKNOWN"
-      },
-      "damBehavior" : "PIPELINED",
-      "priority" : 0
-    } ],
-    "outputType" : {
-      "type" : "ROW",
-      "fields" : [ {
-        "name" : "ts",
-        "fieldType" : "BIGINT"
-      }, {
-        "name" : "a",
-        "fieldType" : "BIGINT"
-      }, {
-        "name" : "b",
-        "fieldType" : "INT"
-      }, {
-        "name" : "c",
-        "fieldType" : "VARCHAR(2147483647)"
-      }, {
-        "name" : "rowtime",
-        "fieldType" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "precision" : 3,
-          "kind" : "ROWTIME"
-        }
-      } ]
-    },
-    "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])"
-  }, {
-    "id" : 4,
-    "type" : "stream-exec-calc_1",
-    "projection" : [ {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 0,
-      "type" : "BIGINT"
-    }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 1,
-      "type" : "BIGINT"
-    }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 2,
-      "type" : "INT"
-    }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 3,
-      "type" : "VARCHAR(2147483647)"
-    }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 4,
-      "type" : {
-        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-        "precision" : 3,
-        "kind" : "ROWTIME"
-      }
     }, {
       "kind" : "LITERAL",
       "value" : 4,
@@ -185,74 +122,80 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "fields" : [ {
-        "name" : "ts",
-        "fieldType" : "BIGINT"
-      }, {
-        "name" : "a",
-        "fieldType" : "BIGINT"
-      }, {
-        "name" : "b",
-        "fieldType" : "INT"
-      }, {
-        "name" : "c",
-        "fieldType" : "VARCHAR(2147483647)"
-      }, {
-        "name" : "rowtime",
-        "fieldType" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "precision" : 3,
-          "kind" : "ROWTIME"
-        }
-      }, {
-        "name" : "$5",
-        "fieldType" : "BIGINT NOT NULL"
-      } ]
-    },
-    "description" : "Calc(select=[ts, a, b, c, rowtime, 4 AS $5])"
+    "outputType" : "ROW<`ts` BIGINT, `a` BIGINT, `b` INT, `c` VARCHAR(2147483647), `rowtime` TIMESTAMP(3), `$5` BIGINT NOT NULL>",
+    "description" : "Calc(select=[ts, a, b, c, TO_TIMESTAMP(FROM_UNIXTIME(ts)) AS rowtime, 4 AS $5])"
   }, {
-    "id" : 5,
-    "type" : "stream-exec-exchange_1",
+    "id" : 8,
+    "type" : "batch-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
-        "type" : "HASH",
-        "keys" : [ 3 ]
+        "type" : "KEEP_INPUT_AS_IS",
+        "inputDistribution" : {
+          "type" : "HASH",
+          "keys" : [ 3 ]
+        },
+        "isStrict" : false
       },
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
+    "outputType" : "ROW<`ts` BIGINT, `a` BIGINT, `b` INT, `c` VARCHAR(2147483647), `rowtime` TIMESTAMP(3), `$5` BIGINT NOT NULL>",
+    "description" : "Exchange(distribution=[keep_input_as_is[hash[c]]])",
+    "requiredExchangeMode" : "UNDEFINED"
+  }, {
+    "id" : 4,
+    "type" : "batch-exec-sort_1",
+    "configuration" : {
+      "table.exec.resource.sort.memory" : "128 mb",
+      "table.exec.sort.async-merge-enabled" : "true",
+      "table.exec.sort.max-num-file-handles" : "128",
+      "table.exec.spill-compression.block-size" : "64 kb",
+      "table.exec.spill-compression.enabled" : "true"
+    },
+    "sortSpec" : {
       "fields" : [ {
-        "name" : "ts",
-        "fieldType" : "BIGINT"
+        "index" : 3,
+        "isAscending" : true,
+        "nullIsLast" : false
       }, {
-        "name" : "a",
-        "fieldType" : "BIGINT"
-      }, {
-        "name" : "b",
-        "fieldType" : "INT"
-      }, {
-        "name" : "c",
-        "fieldType" : "VARCHAR(2147483647)"
-      }, {
-        "name" : "rowtime",
-        "fieldType" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "precision" : 3,
-          "kind" : "ROWTIME"
-        }
-      }, {
-        "name" : "$5",
-        "fieldType" : "BIGINT NOT NULL"
+        "index" : 4,
+        "isAscending" : true,
+        "nullIsLast" : false
       } ]
     },
-    "description" : "Exchange(distribution=[hash[c]])"
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "END_INPUT",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`ts` BIGINT, `a` BIGINT, `b` INT, `c` VARCHAR(2147483647), `rowtime` TIMESTAMP(3), `$5` BIGINT NOT NULL>",
+    "description" : "Sort(orderBy=[c ASC, rowtime ASC])"
   }, {
-    "id" : 6,
-    "type" : "stream-exec-over-aggregate_1",
+    "id" : 9,
+    "type" : "batch-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "KEEP_INPUT_AS_IS",
+        "inputDistribution" : {
+          "type" : "HASH",
+          "keys" : [ 3 ]
+        },
+        "isStrict" : true
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`ts` BIGINT, `a` BIGINT, `b` INT, `c` VARCHAR(2147483647), `rowtime` TIMESTAMP(3), `$5` BIGINT NOT NULL>",
+    "description" : "Exchange(distribution=[forward])",
+    "requiredExchangeMode" : "UNDEFINED"
+  }, {
+    "id" : 5,
+    "type" : "batch-exec-over-aggregate_1",
+    "configuration" : {
+      "table.exec.resource.external-buffer-memory" : "10 mb"
+    },
     "overSpec" : {
       "partition" : {
         "fields" : [ 3 ]
@@ -267,13 +210,7 @@
         },
         "isRows" : false,
         "lowerBound" : {
-          "kind" : "BOUNDED_WINDOW",
-          "isPreceding" : true,
-          "offset" : {
-            "kind" : "INPUT_REF",
-            "inputIndex" : 6,
-            "type" : "INTERVAL SECOND(6) NOT NULL"
-          }
+          "kind" : "UNBOUNDED_PRECEDING"
         },
         "upperBound" : {
           "kind" : "CURRENT_ROW"
@@ -308,59 +245,22 @@
           "type" : "BIGINT NOT NULL"
         } ]
       } ],
-      "constants" : [ {
-        "kind" : "LITERAL",
-        "value" : "10000",
-        "type" : "INTERVAL SECOND(6) NOT NULL"
-      } ],
+      "constants" : [ ],
       "originalInputFields" : 6
     },
     "inputProperties" : [ {
       "requiredDistribution" : {
-        "type" : "UNKNOWN"
+        "type" : "HASH",
+        "keys" : [ 3 ]
       },
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "fields" : [ {
-        "name" : "ts",
-        "fieldType" : "BIGINT"
-      }, {
-        "name" : "a",
-        "fieldType" : "BIGINT"
-      }, {
-        "name" : "b",
-        "fieldType" : "INT"
-      }, {
-        "name" : "c",
-        "fieldType" : "VARCHAR(2147483647)"
-      }, {
-        "name" : "rowtime",
-        "fieldType" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "precision" : 3,
-          "kind" : "ROWTIME"
-        }
-      }, {
-        "name" : "$5",
-        "fieldType" : "BIGINT NOT NULL"
-      }, {
-        "name" : "w0$o0",
-        "fieldType" : "BIGINT"
-      }, {
-        "name" : "w0$o1",
-        "fieldType" : "BIGINT NOT NULL"
-      }, {
-        "name" : "w0$o2",
-        "fieldType" : "BIGINT NOT NULL"
-      } ]
-    },
-    "description" : "OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANG BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[ts, a, b, c, rowtime, $5, LTCNT(a, $5) AS w0$o0, COUNT(a) AS w0$o1, $SUM0(a) AS w0$o2])"
+    "outputType" : "ROW<`ts` BIGINT, `a` BIGINT, `b` INT, `c` VARCHAR(2147483647), `rowtime` TIMESTAMP(3), `$5` BIGINT NOT NULL, `w0$o0` BIGINT, `w0$o1` BIGINT NOT NULL, `w0$o2` BIGINT NOT NULL>",
+    "description" : "OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window#0=[LTCNT(a, $5) AS w0$o0, COUNT(a) AS w0$o1, $SUM0(a) AS w0$o2 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[ts, a, b, c, rowtime, $5, w0$o0, w0$o1, w0$o2])"
   }, {
-    "id" : 7,
-    "type" : "stream-exec-calc_1",
+    "id" : 6,
+    "type" : "batch-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 3,
@@ -372,11 +272,7 @@
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 4,
-      "type" : {
-        "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-        "precision" : 3,
-        "kind" : "ROWTIME"
-      }
+      "type" : "TIMESTAMP(3)"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
@@ -426,45 +322,14 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "fields" : [ {
-        "name" : "c",
-        "fieldType" : "VARCHAR(2147483647)"
-      }, {
-        "name" : "ts",
-        "fieldType" : "BIGINT"
-      }, {
-        "name" : "rowtime",
-        "fieldType" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "precision" : 3,
-          "kind" : "ROWTIME"
-        }
-      }, {
-        "name" : "b",
-        "fieldType" : "INT"
-      }, {
-        "name" : "EXPR$4",
-        "fieldType" : "BIGINT"
-      }, {
-        "name" : "EXPR$5",
-        "fieldType" : "BIGINT NOT NULL"
-      }, {
-        "name" : "EXPR$6",
-        "fieldType" : "BIGINT"
-      } ]
-    },
+    "outputType" : "ROW<`c` VARCHAR(2147483647), `ts` BIGINT, `rowtime` TIMESTAMP(3), `b` INT, `EXPR$4` BIGINT, `EXPR$5` BIGINT NOT NULL, `EXPR$6` BIGINT>",
     "description" : "Calc(select=[c, ts, rowtime, b, w0$o0 AS EXPR$4, w0$o1 AS EXPR$5, CASE((w0$o1 > 0), w0$o2, null:BIGINT) AS EXPR$6])"
   }, {
-    "id" : 8,
-    "type" : "stream-exec-sink_1",
+    "id" : 7,
+    "type" : "batch-exec-sink_1",
     "configuration" : {
-      "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",
-      "table.exec.sink.rowtime-inserter" : "ENABLED",
-      "table.exec.sink.type-length-enforcer" : "IGNORE",
-      "table.exec.sink.upsert-materialize" : "AUTO"
+      "table.exec.sink.type-length-enforcer" : "IGNORE"
     },
     "dynamicTableSink" : {
       "table" : {
@@ -499,43 +364,14 @@
         }
       }
     },
-    "inputChangelogMode" : [ "INSERT" ],
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
       },
-      "damBehavior" : "PIPELINED",
+      "damBehavior" : "BLOCKING",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "fields" : [ {
-        "name" : "c",
-        "fieldType" : "VARCHAR(2147483647)"
-      }, {
-        "name" : "ts",
-        "fieldType" : "BIGINT"
-      }, {
-        "name" : "rowtime",
-        "fieldType" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "precision" : 3,
-          "kind" : "ROWTIME"
-        }
-      }, {
-        "name" : "b",
-        "fieldType" : "INT"
-      }, {
-        "name" : "EXPR$4",
-        "fieldType" : "BIGINT"
-      }, {
-        "name" : "EXPR$5",
-        "fieldType" : "BIGINT NOT NULL"
-      }, {
-        "name" : "EXPR$6",
-        "fieldType" : "BIGINT"
-      } ]
-    },
+    "outputType" : "ROW<`c` VARCHAR(2147483647), `ts` BIGINT, `rowtime` TIMESTAMP(3), `b` INT, `EXPR$4` BIGINT, `EXPR$5` BIGINT NOT NULL, `EXPR$6` BIGINT>",
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[c, ts, rowtime, b, EXPR$4, EXPR$5, EXPR$6])"
   } ],
   "edges" : [ {
@@ -554,6 +390,13 @@
     "shuffleMode" : "PIPELINED"
   }, {
     "source" : 3,
+    "target" : 8,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 8,
     "target" : 4,
     "shuffle" : {
       "type" : "FORWARD"
@@ -561,6 +404,13 @@
     "shuffleMode" : "PIPELINED"
   }, {
     "source" : 4,
+    "target" : 9,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 9,
     "target" : 5,
     "shuffle" : {
       "type" : "FORWARD"
@@ -576,13 +426,6 @@
   }, {
     "source" : 6,
     "target" : 7,
-    "shuffle" : {
-      "type" : "FORWARD"
-    },
-    "shuffleMode" : "PIPELINED"
-  }, {
-    "source" : 7,
-    "target" : 8,
     "shuffle" : {
       "type" : "FORWARD"
     },
