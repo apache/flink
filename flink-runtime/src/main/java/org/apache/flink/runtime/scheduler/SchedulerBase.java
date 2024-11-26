@@ -89,6 +89,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
+import org.apache.flink.runtime.scheduler.adaptivebatch.ExecutionPlanSchedulingContext;
 import org.apache.flink.runtime.scheduler.exceptionhistory.FailureHandlingResultSnapshot;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.metrics.DeploymentStateTimeMetrics;
@@ -194,7 +195,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
             final ComponentMainThreadExecutor mainThreadExecutor,
             final JobStatusListener jobStatusListener,
             final ExecutionGraphFactory executionGraphFactory,
-            final VertexParallelismStore vertexParallelismStore)
+            final VertexParallelismStore vertexParallelismStore,
+            ExecutionPlanSchedulingContext executionPlanSchedulingContext)
             throws Exception {
 
         this.log = checkNotNull(log);
@@ -240,7 +242,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                         initializationTimestamp,
                         mainThreadExecutor,
                         jobStatusListener,
-                        vertexParallelismStore);
+                        vertexParallelismStore,
+                        executionPlanSchedulingContext);
 
         this.schedulingTopology = executionGraph.getSchedulingTopology();
 
@@ -391,7 +394,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
             long initializationTimestamp,
             ComponentMainThreadExecutor mainThreadExecutor,
             JobStatusListener jobStatusListener,
-            VertexParallelismStore vertexParallelismStore)
+            VertexParallelismStore vertexParallelismStore,
+            ExecutionPlanSchedulingContext executionPlanSchedulingContext)
             throws Exception {
 
         final ExecutionGraph newExecutionGraph =
@@ -408,6 +412,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                         vertexParallelismStore,
                         deploymentStateTimeMetrics,
                         getMarkPartitionFinishedStrategy(),
+                        executionPlanSchedulingContext,
                         log);
 
         newExecutionGraph.setInternalTaskFailuresListener(

@@ -39,12 +39,14 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.TestUtils;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.scheduler.adaptivebatch.NonAdaptiveExecutionPlanSchedulingContext;
 import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.testutils.TestingUtils;
@@ -67,7 +69,9 @@ import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
@@ -116,6 +120,7 @@ class DefaultExecutionGraphFactoryTest {
                                                 jobGraphWithNewOperator),
                                         (execution, previousState, newState) -> {},
                                         rp -> false,
+                                        NonAdaptiveExecutionPlanSchedulingContext.INSTANCE,
                                         log))
                 .withFailMessage(
                         "Expected ExecutionGraph creation to fail because of non restored state.")
@@ -145,6 +150,7 @@ class DefaultExecutionGraphFactoryTest {
                 SchedulerBase.computeVertexParallelismStore(jobGraphWithNewOperator),
                 (execution, previousState, newState) -> {},
                 rp -> false,
+                NonAdaptiveExecutionPlanSchedulingContext.INSTANCE,
                 log);
 
         final CompletedCheckpoint savepoint = completedCheckpointStore.getLatestCheckpoint();
@@ -183,11 +189,23 @@ class DefaultExecutionGraphFactoryTest {
                         TaskDeploymentDescriptorFactory.PartitionLocationConstraint.CAN_BE_UNKNOWN,
                         0L,
                         new DefaultVertexAttemptNumberStore(),
-                        vertexId ->
-                                new DefaultVertexParallelismInfo(
-                                        1, 1337, integer -> Optional.empty()),
+                        new VertexParallelismStore() {
+                            @Override
+                            public VertexParallelismInformation getParallelismInfo(
+                                    JobVertexID vertexId) {
+                                return new DefaultVertexParallelismInfo(
+                                        1, 1337, integer -> Optional.empty());
+                            }
+
+                            @Override
+                            public Map<JobVertexID, VertexParallelismInformation>
+                                    getAllParallelismInfo() {
+                                return Collections.emptyMap();
+                            }
+                        },
                         (execution, previousState, newState) -> {},
                         rp -> false,
+                        NonAdaptiveExecutionPlanSchedulingContext.INSTANCE,
                         log);
 
         checkpointStatsTracker.reportRestoredCheckpoint(

@@ -52,6 +52,11 @@ public class IntermediateDataSet implements java.io.Serializable {
 
     private boolean isForward;
 
+    /** The number of job edges that need to be created. */
+    private int numJobEdgesToCreate;
+
+    private boolean waitingJobEdgesToCreate;
+
     // --------------------------------------------------------------------------------------------
 
     public IntermediateDataSet(
@@ -73,6 +78,10 @@ public class IntermediateDataSet implements java.io.Serializable {
 
     public List<JobEdge> getConsumers() {
         return this.consumers;
+    }
+
+    public boolean isAllConsumerVerticesCreated() {
+        return !waitingJobEdgesToCreate || numJobEdgesToCreate == consumers.size();
     }
 
     public boolean isBroadcast() {
@@ -125,6 +134,11 @@ public class IntermediateDataSet implements java.io.Serializable {
             checkState(this.isBroadcast == isBroadcast, "Incompatible broadcast type.");
             checkState(this.isForward == isForward, "Incompatible forward type.");
         }
+    }
+
+    public void increaseNumJobEdgesToCreate() {
+        waitingJobEdgesToCreate = true;
+        this.numJobEdgesToCreate++;
     }
 
     // --------------------------------------------------------------------------------------------
