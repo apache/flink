@@ -22,11 +22,12 @@ import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContex
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.apache.calcite.plan.hep.HepMatchOrder
+import org.apache.calcite.rel.rules.{CoreRules, JoinPushExpressionsRule}
 import org.apache.calcite.tools.RuleSets
 import org.junit.jupiter.api.{BeforeEach, Test}
 
-/** Tests for [[FlinkJoinPushExpressionsRule]]. */
-class FlinkJoinPushExpressionsRuleTest extends TableTestBase {
+/** Tests for [[JoinPushExpressionsRule]]. */
+class JoinPushExpressionsRuleTest extends TableTestBase {
 
   private val util = batchTestUtil()
 
@@ -43,7 +44,7 @@ class FlinkJoinPushExpressionsRuleTest extends TableTestBase {
           FlinkRewriteSubQueryRule.FILTER,
           FlinkSubQueryRemoveRule.FILTER,
           JoinConditionTypeCoerceRule.INSTANCE,
-          FlinkJoinPushExpressionsRule.INSTANCE
+          CoreRules.JOIN_PUSH_EXPRESSIONS
         ))
         .build()
     )
