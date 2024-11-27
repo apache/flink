@@ -21,6 +21,7 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.util.UUID;
 
@@ -34,7 +35,10 @@ public class StandaloneLeaderElection implements LeaderElection {
     private final Object lock = new Object();
 
     private final UUID sessionID;
-    @Nullable private LeaderContender leaderContender;
+
+    @GuardedBy("lock")
+    @Nullable
+    private LeaderContender leaderContender;
 
     public StandaloneLeaderElection(UUID sessionID) {
         this.sessionID = sessionID;
