@@ -315,6 +315,7 @@ message TypeInfo {
     LOCAL_TIME = 25;
     LOCAL_DATETIME = 26;
     LOCAL_ZONED_TIMESTAMP = 27;
+    FURY_BYTES = 28;
   }
 
   message MapTypeInfo {

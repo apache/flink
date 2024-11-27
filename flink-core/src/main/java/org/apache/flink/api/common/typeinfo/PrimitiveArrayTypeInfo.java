@@ -33,6 +33,7 @@ import org.apache.flink.api.common.typeutils.base.array.DoublePrimitiveArrayComp
 import org.apache.flink.api.common.typeutils.base.array.DoublePrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.FloatPrimitiveArrayComparator;
 import org.apache.flink.api.common.typeutils.base.array.FloatPrimitiveArraySerializer;
+import org.apache.flink.api.common.typeutils.base.array.FuryBytePrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.IntPrimitiveArrayComparator;
 import org.apache.flink.api.common.typeutils.base.array.IntPrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArrayComparator;
@@ -68,6 +69,11 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> implements Ato
             new PrimitiveArrayTypeInfo<>(
                     byte[].class,
                     BytePrimitiveArraySerializer.INSTANCE,
+                    BytePrimitiveArrayComparator.class);
+    public static final PrimitiveArrayTypeInfo<byte[]> FURY_BYTE_PRIMITIVE_ARRAY_TYPE_INFO =
+            new PrimitiveArrayTypeInfo<>(
+                    byte[].class,
+                    FuryBytePrimitiveArraySerializer.INSTANCE,
                     BytePrimitiveArrayComparator.class);
     public static final PrimitiveArrayTypeInfo<short[]> SHORT_PRIMITIVE_ARRAY_TYPE_INFO =
             new PrimitiveArrayTypeInfo<>(
@@ -225,6 +231,11 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> implements Ato
         return obj instanceof PrimitiveArrayTypeInfo;
     }
 
+    @PublicEvolving
+    public static <X> PrimitiveArrayTypeInfo<X> getInfoFor(Class<X> type) {
+        return getInfoFor(type, false);
+    }
+
     // --------------------------------------------------------------------------------------------
 
     /**
@@ -237,10 +248,21 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> implements Ato
      * @throws InvalidTypesException Thrown, if the given class does not represent an array.
      */
     @SuppressWarnings("unchecked")
-    @PublicEvolving
-    public static <X> PrimitiveArrayTypeInfo<X> getInfoFor(Class<X> type) {
+    public static <X> PrimitiveArrayTypeInfo<X> getInfoFor(Class<X> type, boolean isFurySerialize) {
         if (!type.isArray()) {
             throw new InvalidTypesException("The given class is no array.");
+        }
+
+        Class<byte[]> tClass = byte[].class;
+
+        String bytesClassName = tClass.getCanonicalName();
+        String typeName = type.getCanonicalName();
+        if (bytesClassName.equals(typeName)) {
+            if (isFurySerialize) {
+                return (PrimitiveArrayTypeInfo<X>) FURY_BYTE_PRIMITIVE_ARRAY_TYPE_INFO;
+            } else {
+                return (PrimitiveArrayTypeInfo<X>) BYTE_PRIMITIVE_ARRAY_TYPE_INFO;
+            }
         }
 
         // basic type arrays

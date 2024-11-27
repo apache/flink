@@ -23,7 +23,8 @@ requires = [
     "wheel",
     "apache-beam==2.38.0",
     "cython==0.29.24",
-    "fastavro>=1.1.0,<1.4.8"
+    "fastavro>=1.1.0,<1.4.8",
+    "pyfury==0.4.1"
 ]
 
 [tool.cibuildwheel]

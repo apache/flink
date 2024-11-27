@@ -745,12 +745,29 @@ public class TypeExtractor {
         return (TypeInformation<T>) createTypeInfo((Type) type);
     }
 
-    public static TypeInformation<?> createTypeInfo(Type t) {
-        TypeInformation<?> ti = new TypeExtractor().privateCreateTypeInfo(t);
+    /**
+     * 是否开启fury序列化
+     *
+     * @param t
+     * @param isFurySerialize true对bytes类型开启fury序列化
+     * @return
+     */
+    public static TypeInformation<?> createTypeInfo(Type t, boolean isFurySerialize) {
+        TypeInformation<?> ti = new TypeExtractor().privateCreateTypeInfo(t, isFurySerialize);
         if (ti == null) {
             throw new InvalidTypesException("Could not extract type information.");
         }
         return ti;
+    }
+
+    /**
+     * 默认采用fury序列化
+     *
+     * @param t
+     * @return
+     */
+    public static TypeInformation<?> createTypeInfo(Type t) {
+        return createTypeInfo(t, false);
     }
 
     /**
@@ -796,10 +813,10 @@ public class TypeExtractor {
 
     // ----------------------------------- private methods ----------------------------------------
 
-    private TypeInformation<?> privateCreateTypeInfo(Type t) {
+    private TypeInformation<?> privateCreateTypeInfo(Type t, boolean isFurySerialize) {
         List<Type> typeHierarchy = new ArrayList<>();
         typeHierarchy.add(t);
-        return createTypeInfoWithTypeHierarchy(typeHierarchy, t, null, null);
+        return createTypeInfoWithTypeHierarchy(typeHierarchy, t, null, null, isFurySerialize);
     }
 
     // for (Rich)Functions
@@ -828,7 +845,7 @@ public class TypeExtractor {
         }
 
         // get info from hierarchy
-        return createTypeInfoWithTypeHierarchy(typeHierarchy, returnType, in1Type, in2Type);
+        return createTypeInfoWithTypeHierarchy(typeHierarchy, returnType, in1Type, in2Type, false);
     }
 
     // for LambdaFunctions
@@ -837,7 +854,7 @@ public class TypeExtractor {
         List<Type> typeHierarchy = new ArrayList<>();
 
         // get info from hierarchy
-        return createTypeInfoWithTypeHierarchy(typeHierarchy, returnType, in1Type, in2Type);
+        return createTypeInfoWithTypeHierarchy(typeHierarchy, returnType, in1Type, in2Type, false);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -845,7 +862,8 @@ public class TypeExtractor {
             List<Type> typeHierarchy,
             Type t,
             TypeInformation<IN1> in1Type,
-            TypeInformation<IN2> in2Type) {
+            TypeInformation<IN2> in2Type,
+            boolean isFurySerialize) {
 
         // check if type information can be created using a type factory
         final TypeInformation<OUT> typeFromFactory =
@@ -916,7 +934,8 @@ public class TypeExtractor {
             Type typeVar = materializeTypeVariable(typeHierarchy, (TypeVariable<?>) t);
 
             if (!(typeVar instanceof TypeVariable)) {
-                return createTypeInfoWithTypeHierarchy(typeHierarchy, typeVar, in1Type, in2Type);
+                return createTypeInfoWithTypeHierarchy(
+                        typeHierarchy, typeVar, in1Type, in2Type, isFurySerialize);
             }
             // try to derive the type info of the TypeVariable from the immediate base child input
             // as a last attempt
@@ -962,7 +981,8 @@ public class TypeExtractor {
                                 typeHierarchy,
                                 genericArray.getGenericComponentType(),
                                 in1Type,
-                                in2Type);
+                                in2Type,
+                                isFurySerialize);
 
                 Class<?> componentClass = componentInfo.getTypeClass();
                 Class<OUT> classArray =
@@ -975,11 +995,16 @@ public class TypeExtractor {
         // objects with generics are treated as Class first
         else if (t instanceof ParameterizedType) {
             return privateGetForClass(
-                    typeToClass(t), typeHierarchy, (ParameterizedType) t, in1Type, in2Type);
+                    typeToClass(t),
+                    typeHierarchy,
+                    (ParameterizedType) t,
+                    in1Type,
+                    in2Type,
+                    isFurySerialize);
         }
         // no tuple, no TypeVariable, no generic type
         else if (t instanceof Class) {
-            return privateGetForClass((Class<OUT>) t, typeHierarchy);
+            return privateGetForClass((Class<OUT>) t, typeHierarchy, isFurySerialize);
         }
 
         throw new InvalidTypesException("Type Information could not be created.");
@@ -996,7 +1021,7 @@ public class TypeExtractor {
         // variable could be resolved
         if (!(matReturnTypeVar instanceof TypeVariable)) {
             return createTypeInfoWithTypeHierarchy(
-                    returnTypeHierarchy, matReturnTypeVar, in1TypeInfo, in2TypeInfo);
+                    returnTypeHierarchy, matReturnTypeVar, in1TypeInfo, in2TypeInfo, false);
         } else {
             returnTypeVar = (TypeVariable<?>) matReturnTypeVar;
         }
@@ -1271,7 +1296,7 @@ public class TypeExtractor {
                 try {
                     subTypesInfo[i] =
                             createTypeInfoWithTypeHierarchy(
-                                    subTypeHierarchy, subtypes[i], in1Type, in2Type);
+                                    subTypeHierarchy, subtypes[i], in1Type, in2Type, false);
                 } catch (InvalidTypesException e) {
                     if (lenient) {
                         subTypesInfo[i] = null;
@@ -1831,13 +1856,18 @@ public class TypeExtractor {
      * @return TypeInformation that describes the passed Class
      */
     public static <X> TypeInformation<X> getForClass(Class<X> clazz) {
-        final List<Type> typeHierarchy = new ArrayList<>();
-        typeHierarchy.add(clazz);
-        return new TypeExtractor().privateGetForClass(clazz, typeHierarchy);
+        return getForClass(clazz, false);
     }
 
-    private <X> TypeInformation<X> privateGetForClass(Class<X> clazz, List<Type> typeHierarchy) {
-        return privateGetForClass(clazz, typeHierarchy, null, null, null);
+    public static <X> TypeInformation<X> getForClass(Class<X> clazz, boolean isFurySerialize) {
+        final List<Type> typeHierarchy = new ArrayList<>();
+        typeHierarchy.add(clazz);
+        return new TypeExtractor().privateGetForClass(clazz, typeHierarchy, isFurySerialize);
+    }
+
+    private <X> TypeInformation<X> privateGetForClass(
+            Class<X> clazz, List<Type> typeHierarchy, boolean isFurySerialize) {
+        return privateGetForClass(clazz, typeHierarchy, null, null, null, isFurySerialize);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -1846,7 +1876,8 @@ public class TypeExtractor {
             List<Type> typeHierarchy,
             ParameterizedType parameterizedType,
             TypeInformation<IN1> in1Type,
-            TypeInformation<IN2> in2Type) {
+            TypeInformation<IN2> in2Type,
+            boolean isFurySerialize) {
         checkNotNull(clazz);
 
         // check if type information can be produced using a factory
@@ -1876,7 +1907,7 @@ public class TypeExtractor {
 
             // primitive arrays: int[], byte[], ...
             PrimitiveArrayTypeInfo<OUT> primitiveArrayInfo =
-                    PrimitiveArrayTypeInfo.getInfoFor(clazz);
+                    PrimitiveArrayTypeInfo.getInfoFor(clazz, isFurySerialize);
             if (primitiveArrayInfo != null) {
                 return primitiveArrayInfo;
             }
@@ -1891,7 +1922,11 @@ public class TypeExtractor {
             else {
                 TypeInformation<?> componentTypeInfo =
                         createTypeInfoWithTypeHierarchy(
-                                typeHierarchy, clazz.getComponentType(), in1Type, in2Type);
+                                typeHierarchy,
+                                clazz.getComponentType(),
+                                in1Type,
+                                in2Type,
+                                isFurySerialize);
 
                 return ObjectArrayTypeInfo.getInfoFor(clazz, componentTypeInfo);
             }
@@ -2101,7 +2136,7 @@ public class TypeExtractor {
                     fieldTypeHierarchy.add(fieldType);
                     typeInfo =
                             createTypeInfoWithTypeHierarchy(
-                                    fieldTypeHierarchy, fieldType, in1Type, in2Type);
+                                    fieldTypeHierarchy, fieldType, in1Type, in2Type, false);
                 }
                 if (typeInfo instanceof GenericTypeInfo) {
                     LOG.info(
@@ -2243,11 +2278,19 @@ public class TypeExtractor {
     }
 
     public static <X> TypeInformation<X> getForObject(X value) {
-        return new TypeExtractor().privateGetForObject(value);
+        return getForObject(value, false);
+    }
+
+    public static <X> TypeInformation<X> getForObject(X value, boolean isFurySerialize) {
+        return new TypeExtractor().privateGetForObject(value, isFurySerialize);
+    }
+
+    private <X> TypeInformation<X> privateGetForObject(X value) {
+        return privateGetForObject(value, false);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private <X> TypeInformation<X> privateGetForObject(X value) {
+    private <X> TypeInformation<X> privateGetForObject(X value, boolean isFurySerialize) {
         checkNotNull(value);
 
         // check if type information can be produced using a factory
@@ -2296,7 +2339,8 @@ public class TypeExtractor {
                                     + i
                                     + "] is null. "
                                     + "Should define RowTypeInfo explicitly.");
-                    return privateGetForClass((Class<X>) value.getClass(), new ArrayList<>());
+                    return privateGetForClass(
+                            (Class<X>) value.getClass(), new ArrayList<>(), isFurySerialize);
                 }
             }
             TypeInformation<?>[] typeArray = new TypeInformation<?>[arity];
@@ -2305,7 +2349,8 @@ public class TypeExtractor {
             }
             return (TypeInformation<X>) new RowTypeInfo(typeArray);
         } else {
-            return privateGetForClass((Class<X>) value.getClass(), new ArrayList<>());
+            return privateGetForClass(
+                    (Class<X>) value.getClass(), new ArrayList<>(), isFurySerialize);
         }
     }
 

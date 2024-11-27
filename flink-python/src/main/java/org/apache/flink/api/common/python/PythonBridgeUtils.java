@@ -350,6 +350,13 @@ public final class PythonBridgeUtils {
             for (int i = 0; i < bytes.length; i++) {
                 objects[i] = bytes[i];
             }
+        } else if (PrimitiveArrayTypeInfo.FURY_BYTE_PRIMITIVE_ARRAY_TYPE_INFO.equals(
+                arrayTypeInfo)) {
+            byte[] bytes = (byte[]) array;
+            objects = new Object[bytes.length];
+            for (int i = 0; i < bytes.length; i++) {
+                objects[i] = bytes[i];
+            }
         } else if (PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO.equals(arrayTypeInfo)) {
             short[] shorts = (short[]) array;
             objects = new Object[shorts.length];
