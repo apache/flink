@@ -33,6 +33,7 @@ import org.apache.fury.memory.MemoryUtils;
 import java.io.IOException;
 import java.util.Arrays;
 
+/** fury Primitive byte array serializer. */
 @Internal
 public class FuryBytePrimitiveArraySerializer extends TypeSerializerSingleton<byte[]> {
 

@@ -24,9 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.FuryBytePrimitiveArraySerializer;
 
-/**
- * fury serialized byte array type
- */
+/** fury serialized byte array type. */
 @Internal
 public class FuryByteArrayTypeInfo extends TypeInformation<byte[]> {
 

@@ -232,10 +232,9 @@ public class PrimitiveArrayTypeInfo<T> extends TypeInformation<T> implements Ato
     }
 
     @PublicEvolving
-    public static <X> PrimitiveArrayTypeInfo<X> getInfoFor(Class<X> type){
+    public static <X> PrimitiveArrayTypeInfo<X> getInfoFor(Class<X> type) {
         return getInfoFor(type, false);
     }
-
 
     // --------------------------------------------------------------------------------------------
 
