@@ -18,12 +18,15 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.util.TimeUtils;
+
+import javax.annotation.Nonnull;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -708,6 +711,10 @@ public class TaskManagerOptions {
                                                     code(TaskManagerLoadBalanceMode.SLOTS.name()),
                                                     code("TaskManagers")),
                                             text(
+                                                    "The %s mode tries to schedule evenly all tasks based on its' number across all available %s.",
+                                                    code(TaskManagerLoadBalanceMode.TASKS.name()),
+                                                    code("TaskManagers")),
+                                            text(
                                                     "The %s mode is the default mode without any specified strategy.",
                                                     code(TaskManagerLoadBalanceMode.NONE.name())))
                                     .build());
@@ -753,7 +760,18 @@ public class TaskManagerOptions {
     /** Type of {@link TaskManagerOptions#TASK_MANAGER_LOAD_BALANCE_MODE}. */
     public enum TaskManagerLoadBalanceMode {
         NONE,
-        SLOTS
+        SLOTS,
+        TASKS;
+
+        /**
+         * The method is mainly to load the {@link
+         * TaskManagerOptions#TASK_MANAGER_LOAD_BALANCE_MODE} from {@link Configuration}.
+         */
+        @Internal
+        public static TaskManagerLoadBalanceMode loadFromConfiguration(
+                @Nonnull Configuration configuration) {
+            return configuration.get(TaskManagerOptions.TASK_MANAGER_LOAD_BALANCE_MODE);
+        }
     }
 
     // ------------------------------------------------------------------------
