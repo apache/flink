@@ -39,6 +39,7 @@ import static org.apache.flink.table.factories.TestManagedTableFactory.ENRICHED_
 import static org.apache.flink.table.factories.TestManagedTableFactory.ENRICHED_VALUE;
 import static org.apache.flink.table.factories.TestManagedTableFactory.MANAGED_TABLES;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
@@ -98,6 +99,55 @@ class TableEnvironmentTest {
         assertThat(catalogTable.getUnresolvedSchema()).isEqualTo(schema);
         assertThat(catalogTable.getOptions())
                 .contains(entry("connector", "fake"), entry("a", "Test"));
+    }
+
+    @Test
+    void testCreateTableIfNotExistsFromDescriptor() throws Exception {
+        final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
+        final String catalog = tEnv.getCurrentCatalog();
+        final String database = tEnv.getCurrentDatabase();
+
+        final Schema schema = Schema.newBuilder().column("f0", DataTypes.INT()).build();
+        tEnv.createTable(
+                "T",
+                TableDescriptor.forConnector("fake").schema(schema).option("a", "Test").build(),
+                true);
+
+        final ObjectPath objectPath = new ObjectPath(database, "T");
+        assertThat(
+                        tEnv.getCatalog(catalog)
+                                .orElseThrow(AssertionError::new)
+                                .tableExists(objectPath))
+                .isTrue();
+
+        final CatalogBaseTable catalogTable =
+                tEnv.getCatalog(catalog).orElseThrow(AssertionError::new).getTable(objectPath);
+        assertThat(catalogTable).isInstanceOf(CatalogTable.class);
+        assertThat(catalogTable.getUnresolvedSchema()).isEqualTo(schema);
+        assertThat(catalogTable.getOptions())
+                .contains(entry("connector", "fake"), entry("a", "Test"));
+
+        assertThatNoException()
+                .isThrownBy(
+                        () ->
+                                tEnv.createTable(
+                                        "T",
+                                        TableDescriptor.forConnector("fake")
+                                                .schema(schema)
+                                                .option("a", "Test")
+                                                .build(),
+                                        true));
+
+        assertThatThrownBy(
+                        () ->
+                                tEnv.createTable(
+                                        "T",
+                                        TableDescriptor.forConnector("fake")
+                                                .schema(schema)
+                                                .option("a", "Test")
+                                                .build(),
+                                        false))
+                .isInstanceOf(ValidationException.class);
     }
 
     @Test

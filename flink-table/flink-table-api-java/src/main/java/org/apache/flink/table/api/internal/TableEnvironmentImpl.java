@@ -495,12 +495,17 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public void createTable(String path, TableDescriptor descriptor) {
+        this.createTable(path, descriptor, false);
+    }
+
+    @Override
+    public void createTable(String path, TableDescriptor descriptor, boolean ignoreIfExists) {
         Preconditions.checkNotNull(path, "Path must not be null.");
         Preconditions.checkNotNull(descriptor, "Table descriptor must not be null.");
 
         final ObjectIdentifier tableIdentifier =
                 catalogManager.qualifyIdentifier(getParser().parseIdentifier(path));
-        catalogManager.createTable(descriptor.toCatalogTable(), tableIdentifier, false);
+        catalogManager.createTable(descriptor.toCatalogTable(), tableIdentifier, ignoreIfExists);
     }
 
     @Override
