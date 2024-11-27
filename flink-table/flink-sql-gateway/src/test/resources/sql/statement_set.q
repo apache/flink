@@ -163,7 +163,7 @@ SELECT * FROM StreamingTable2;
 EXPLAIN STATEMENT SET BEGIN
 END;
 !output
-org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 2, column 1.
+org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 0, column 1.
 Was expecting one of:
     "INSERT" ...
     "UPSERT" ...
@@ -172,7 +172,7 @@ Was expecting one of:
 EXECUTE STATEMENT SET BEGIN
 END;
 !output
-org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 2, column 1.
+org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 0, column 1.
 Was expecting one of:
     "INSERT" ...
     "UPSERT" ...
@@ -298,7 +298,7 @@ Empty set
 EXPLAIN STATEMENT SET BEGIN
 END;
 !output
-org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 2, column 1.
+org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 0, column 1.
 Was expecting one of:
     "INSERT" ...
     "UPSERT" ...
@@ -307,7 +307,7 @@ Was expecting one of:
 EXECUTE STATEMENT SET BEGIN
 END;
 !output
-org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 2, column 1.
+org.apache.flink.sql.parser.impl.ParseException: Encountered "END" at line 0, column 1.
 Was expecting one of:
     "INSERT" ...
     "UPSERT" ...
