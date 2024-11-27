@@ -275,8 +275,7 @@ public class ScanReuserUtils {
 
     public static List<String> sortMetadataKeys(
             Set<String> allUsedMetadataKeys, DynamicTableSource source) {
-        List<String> allOrderedMetadataKeysFromTable =
-                new ArrayList<>(extractMetadataMap(source).keySet());
+        Set<String> allOrderedMetadataKeysFromTable = extractMetadataMap(source).keySet();
 
         return allOrderedMetadataKeysFromTable.stream()
                 .filter(allUsedMetadataKeys::contains)
