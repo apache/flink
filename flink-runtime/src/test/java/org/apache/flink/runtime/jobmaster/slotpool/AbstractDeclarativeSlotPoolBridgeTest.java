@@ -24,8 +24,10 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.clock.SystemClock;
@@ -64,10 +66,14 @@ abstract class AbstractDeclarativeSlotPoolBridgeTest {
                     SimpleRequestSlotMatchingStrategy.INSTANCE, Duration.ofMillis(20), false
                 },
                 new Object[] {
-                    PreferredAllocationRequestSlotMatchingStrategy.INSTANCE, Duration.ZERO, false
+                    PreferredAllocationRequestSlotMatchingStrategy.create(
+                            SimpleRequestSlotMatchingStrategy.INSTANCE),
+                    Duration.ZERO,
+                    false
                 },
                 new Object[] {
-                    PreferredAllocationRequestSlotMatchingStrategy.INSTANCE,
+                    PreferredAllocationRequestSlotMatchingStrategy.create(
+                            SimpleRequestSlotMatchingStrategy.INSTANCE),
                     Duration.ofMillis(20),
                     false
                 });
@@ -97,7 +103,8 @@ abstract class AbstractDeclarativeSlotPoolBridgeTest {
                 componentMainThreadExecutor);
     }
 
-    static PhysicalSlot createAllocatedSlot(AllocationID allocationID) {
+    static PhysicalSlot createAllocatedSlot(
+            AllocationID allocationID, LoadingWeight loadingWeight) {
         return new AllocatedSlot(
                 allocationID,
                 new LocalTaskManagerLocation(),
@@ -105,6 +112,24 @@ abstract class AbstractDeclarativeSlotPoolBridgeTest {
                 ResourceProfile.ANY,
                 new RpcTaskManagerGateway(
                         new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway(),
-                        JobMasterId.generate()));
+                        JobMasterId.generate()),
+                loadingWeight);
+    }
+
+    /** Requirement listener for testing. */
+    static class RequirementListener {
+        private ResourceCounter requirements = ResourceCounter.empty();
+
+        void increaseRequirements(ResourceCounter inc) {
+            this.requirements = requirements.add(inc);
+        }
+
+        void decreaseRequirements(ResourceCounter dec) {
+            this.requirements = requirements.subtract(dec);
+        }
+
+        ResourceCounter getRequirements() {
+            return requirements;
+        }
     }
 }

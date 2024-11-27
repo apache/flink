@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
@@ -66,8 +67,8 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
                         .setDecreaseResourceRequirementsByConsumer(
                                 requirementListener::decreaseRequirements)
                         .setReserveFreeSlotFunction(
-                                (allocationId, resourceProfile) ->
-                                        createAllocatedSlot(allocationId))
+                                (allocationId, resourceProfile, loadingWeight) ->
+                                        createAllocatedSlot(allocationId, loadingWeight))
                         .setFreeReservedSlotFunction(
                                 (allocationID, throwable, aLong) ->
                                         ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1))
@@ -95,7 +96,9 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
 
         // requesting the allocation of a new slot should increase the requirements
         declarativeSlotPoolBridge.requestNewAllocatedSlot(
-                new SlotRequestId(), ResourceProfile.UNKNOWN, Duration.ofMinutes(5));
+                new SlotRequestId(),
+                ResourceProfile.UNKNOWN.toEmptyLoadable(),
+                Duration.ofMinutes(5));
 
         declarativeSlotPoolBridge.tryWaitSlotRequestIsDone();
 
@@ -118,7 +121,7 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
                                 () ->
                                         declarativeSlotPoolBridge.requestNewAllocatedSlot(
                                                 new SlotRequestId(),
-                                                ResourceProfile.UNKNOWN,
+                                                ResourceProfile.UNKNOWN.toEmptyLoadable(),
                                                 Duration.ofMillis(
                                                         slotRequestMaxInterval.toMillis() * 2)),
                                 mainThreadExecutor)
@@ -146,7 +149,8 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
         declarativeSlotPoolBridge.start(JOB_MASTER_ID, "localhost");
 
         // notifications about new slots should not affect requirements
-        final PhysicalSlot newSlot = createAllocatedSlot(new AllocationID());
+        final PhysicalSlot newSlot =
+                createAllocatedSlot(new AllocationID(), DefaultLoadingWeight.EMPTY);
         declarativeSlotPoolBridge.newSlotsAreAvailable(Collections.singleton(newSlot));
         assertThat(requirementListener.getRequirements().getResourceCount(ResourceProfile.UNKNOWN))
                 .isZero();
@@ -156,13 +160,16 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
     void testRequirementsIncreasedOnSlotReservation() throws Exception {
         declarativeSlotPoolBridge.start(JOB_MASTER_ID, "localhost");
 
-        final PhysicalSlot newSlot = createAllocatedSlot(new AllocationID());
+        final PhysicalSlot newSlot =
+                createAllocatedSlot(new AllocationID(), DefaultLoadingWeight.EMPTY);
         declarativeSlotPoolBridge.newSlotsAreAvailable(Collections.singleton(newSlot));
 
         // allocating (==reserving) an available (==free) slot should increase the requirements
         final SlotRequestId slotRequestId = new SlotRequestId();
         declarativeSlotPoolBridge.allocateAvailableSlot(
-                slotRequestId, newSlot.getAllocationId(), ResourceProfile.UNKNOWN);
+                slotRequestId,
+                newSlot.getAllocationId(),
+                ResourceProfile.UNKNOWN.toEmptyLoadable());
 
         declarativeSlotPoolBridge.tryWaitSlotRequestIsDone();
 
@@ -174,12 +181,15 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
     void testRequirementsDecreasedOnSlotFreeing() throws Exception {
         declarativeSlotPoolBridge.start(JOB_MASTER_ID, "localhost");
 
-        final PhysicalSlot newSlot = createAllocatedSlot(new AllocationID());
+        final PhysicalSlot newSlot =
+                createAllocatedSlot(new AllocationID(), DefaultLoadingWeight.EMPTY);
         declarativeSlotPoolBridge.newSlotsAreAvailable(Collections.singleton(newSlot));
 
         final SlotRequestId slotRequestId = new SlotRequestId();
         declarativeSlotPoolBridge.allocateAvailableSlot(
-                slotRequestId, newSlot.getAllocationId(), ResourceProfile.UNKNOWN);
+                slotRequestId,
+                newSlot.getAllocationId(),
+                ResourceProfile.UNKNOWN.toEmptyLoadable());
 
         declarativeSlotPoolBridge.tryWaitSlotRequestIsDone();
 
@@ -194,11 +204,14 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
     void testRequirementsDecreasedOnSlotAllocationFailure() throws Exception {
         declarativeSlotPoolBridge.start(JOB_MASTER_ID, "localhost");
 
-        final PhysicalSlot newSlot = createAllocatedSlot(new AllocationID());
+        final PhysicalSlot newSlot =
+                createAllocatedSlot(new AllocationID(), DefaultLoadingWeight.EMPTY);
         declarativeSlotPoolBridge.newSlotsAreAvailable(Collections.singleton(newSlot));
 
         declarativeSlotPoolBridge.allocateAvailableSlot(
-                new SlotRequestId(), newSlot.getAllocationId(), ResourceProfile.UNKNOWN);
+                new SlotRequestId(),
+                newSlot.getAllocationId(),
+                ResourceProfile.UNKNOWN.toEmptyLoadable());
 
         declarativeSlotPoolBridge.tryWaitSlotRequestIsDone();
 
@@ -209,23 +222,5 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
                 new RuntimeException("Test exception"));
         assertThat(requirementListener.getRequirements().getResourceCount(ResourceProfile.UNKNOWN))
                 .isZero();
-    }
-
-    /** Requirement listener for testing. */
-    private static final class RequirementListener {
-
-        private ResourceCounter requirements = ResourceCounter.empty();
-
-        private void increaseRequirements(ResourceCounter requirements) {
-            this.requirements = this.requirements.add(requirements);
-        }
-
-        private void decreaseRequirements(ResourceCounter requirements) {
-            this.requirements = this.requirements.subtract(requirements);
-        }
-
-        public ResourceCounter getRequirements() {
-            return requirements;
-        }
     }
 }

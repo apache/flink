@@ -26,6 +26,8 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.slots.DefaultRequirementMatcher;
 import org.apache.flink.runtime.slots.RequirementMatcher;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -327,7 +329,8 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
                 taskManagerLocation,
                 slotOffer.getSlotIndex(),
                 slotOffer.getResourceProfile(),
-                taskManagerGateway);
+                taskManagerGateway,
+                DefaultLoadingWeight.EMPTY);
     }
 
     private void increaseAvailableResources(ResourceCounter acceptedResources) {
@@ -346,8 +349,9 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     public PhysicalSlot reserveFreeSlot(
             AllocationID allocationId,
             ResourceProfile requiredSlotProfile,
+            LoadingWeight loadingWeight,
             boolean syncRequirements) {
-        final AllocatedSlot allocatedSlot = slotPool.reserveFreeSlot(allocationId);
+        final AllocatedSlot allocatedSlot = slotPool.reserveFreeSlot(allocationId, loadingWeight);
 
         Preconditions.checkState(
                 allocatedSlot.getResourceProfile().isMatching(requiredSlotProfile),
@@ -587,6 +591,11 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     @Override
     public Collection<? extends SlotInfo> getAllSlotsInformation() {
         return slotPool.getAllSlotsInformation();
+    }
+
+    @Override
+    public Map<ResourceID, LoadingWeight> getTaskExecutorsLoadingWeight() {
+        return slotPool.getTaskExecutorsLoadingWeight();
     }
 
     @Override
