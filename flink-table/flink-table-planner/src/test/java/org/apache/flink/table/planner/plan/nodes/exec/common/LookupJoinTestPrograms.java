@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.test.program.SinkTestStep;
@@ -142,7 +142,7 @@ public class LookupJoinTestPrograms {
                     "state STRING",
                     "zipcode INT");
 
-    static final TableTestProgram LOOKUP_JOIN_PROJECT_PUSHDOWN =
+    public static final TableTestProgram LOOKUP_JOIN_PROJECT_PUSHDOWN =
             TableTestProgram.of(
                             "lookup-join-project-pushdown",
                             "validates lookup join with project pushdown")
@@ -179,7 +179,7 @@ public class LookupJoinTestPrograms {
                                     + "ON O.customer_id = C.id")
                     .build();
 
-    static final TableTestProgram LOOKUP_JOIN_FILTER_PUSHDOWN =
+    public static final TableTestProgram LOOKUP_JOIN_FILTER_PUSHDOWN =
             TableTestProgram.of(
                             "lookup-join-filter-pushdown",
                             "validates lookup join with filter pushdown")
@@ -211,7 +211,7 @@ public class LookupJoinTestPrograms {
                                     + "ON O.customer_id = C.id AND C.age > 30")
                     .build();
 
-    static final TableTestProgram LOOKUP_JOIN_PRE_FILTER =
+    public static final TableTestProgram LOOKUP_JOIN_PRE_FILTER =
             TableTestProgram.of("lookup-join-pre-filter", "validates lookup join with pre filter")
                     .setupTableSource(CUSTOMERS)
                     .setupTableSource(ORDERS)
@@ -244,7 +244,7 @@ public class LookupJoinTestPrograms {
                                     + "ON O.customer_id = C.id AND C.age > 30 AND O.total > 15.3")
                     .build();
 
-    static final TableTestProgram LOOKUP_JOIN_POST_FILTER =
+    public static final TableTestProgram LOOKUP_JOIN_POST_FILTER =
             TableTestProgram.of("lookup-join-post-filter", "validates lookup join with post filter")
                     .setupTableSource(CUSTOMERS)
                     .setupTableSource(ORDERS)
@@ -277,7 +277,7 @@ public class LookupJoinTestPrograms {
                                     + "ON O.customer_id = C.id AND CAST(O.total AS INT) < C.age")
                     .build();
 
-    static final TableTestProgram LOOKUP_JOIN_PRE_POST_FILTER =
+    public static final TableTestProgram LOOKUP_JOIN_PRE_POST_FILTER =
             TableTestProgram.of(
                             "lookup-join-pre-post-filter",
                             "validates lookup join with pre and post filters")
@@ -312,7 +312,7 @@ public class LookupJoinTestPrograms {
                                     + "ON O.customer_id = C.id AND O.total > 15.3 AND CAST(O.total AS INT) < C.age")
                     .build();
 
-    static final TableTestProgram LOOKUP_JOIN_LEFT_JOIN =
+    public static final TableTestProgram LOOKUP_JOIN_LEFT_JOIN =
             TableTestProgram.of("lookup-join-left-join", "validates lookup join with left join")
                     .setupTableSource(CUSTOMERS)
                     .setupTableSource(ORDERS)
@@ -345,7 +345,7 @@ public class LookupJoinTestPrograms {
                                     + "ON O.customer_id = C.id AND C.age > 30 AND O.customer_id <> 3")
                     .build();
 
-    static final TableTestProgram LOOKUP_JOIN_ASYNC_HINT =
+    public static final TableTestProgram LOOKUP_JOIN_ASYNC_HINT =
             TableTestProgram.of("lookup-join-async-hint", "validates lookup join with async hint")
                     .setupTableSource(CUSTOMERS_ASYNC)
                     .setupTableSource(ORDERS)
@@ -379,7 +379,7 @@ public class LookupJoinTestPrograms {
                                     + "ON O.customer_id = C.id")
                     .build();
 
-    static final TableTestProgram LOOKUP_JOIN_RETRY_HINT =
+    public static final TableTestProgram LOOKUP_JOIN_RETRY_HINT =
             TableTestProgram.of("lookup-join-retry-hint", "validates lookup join with retry hint")
                     .setupTableSource(CUSTOMERS)
                     .setupTableSource(ORDERS)
@@ -413,7 +413,7 @@ public class LookupJoinTestPrograms {
                                     + "ON O.customer_id = C.id")
                     .build();
 
-    static final TableTestProgram LOOKUP_JOIN_WITH_TRY_RESOLVE =
+    public static final TableTestProgram LOOKUP_JOIN_WITH_TRY_RESOLVE =
             TableTestProgram.of(
                             "lookup-join-with-try-resolve",
                             "validates lookup join with NUD try resolve strategy enabled")

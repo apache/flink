@@ -35,6 +35,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExpand;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashAggregate;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLimit;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLookupJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMatch;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNestedLoopJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecOverAggregate;
@@ -184,6 +185,7 @@ public final class ExecNodeMetadataUtil {
                     add(BatchExecSortAggregate.class);
                     add(BatchExecSortLimit.class);
                     add(BatchExecWindowTableFunction.class);
+                    add(BatchExecLookupJoin.class);
                     add(BatchExecMatch.class);
                     add(BatchExecOverAggregate.class);
                     add(BatchExecRank.class);

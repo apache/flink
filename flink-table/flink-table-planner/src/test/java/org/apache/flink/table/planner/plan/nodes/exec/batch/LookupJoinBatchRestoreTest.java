@@ -16,33 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.planner.plan.nodes.exec.common.LookupJoinTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchRestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
 
-/** Restore tests for {@link StreamExecLookupJoin}. */
-public class LookupJoinRestoreTest extends RestoreTestBase {
+/** Batch Compiled Plan tests for {@link BatchExecLookupJoin}. */
+public class LookupJoinBatchRestoreTest extends BatchRestoreTestBase {
 
-    public LookupJoinRestoreTest() {
-        super(StreamExecLookupJoin.class);
+    public LookupJoinBatchRestoreTest() {
+        super(BatchExecLookupJoin.class);
     }
 
     @Override
     public List<TableTestProgram> programs() {
         return Arrays.asList(
-                LookupJoinTestPrograms.LOOKUP_JOIN_PROJECT_PUSHDOWN,
                 LookupJoinTestPrograms.LOOKUP_JOIN_FILTER_PUSHDOWN,
                 LookupJoinTestPrograms.LOOKUP_JOIN_LEFT_JOIN,
-                LookupJoinTestPrograms.LOOKUP_JOIN_PRE_FILTER,
-                LookupJoinTestPrograms.LOOKUP_JOIN_POST_FILTER,
-                LookupJoinTestPrograms.LOOKUP_JOIN_PRE_POST_FILTER,
-                LookupJoinTestPrograms.LOOKUP_JOIN_ASYNC_HINT,
-                LookupJoinTestPrograms.LOOKUP_JOIN_RETRY_HINT,
-                LookupJoinTestPrograms.LOOKUP_JOIN_WITH_TRY_RESOLVE);
+                LookupJoinTestPrograms.LOOKUP_JOIN_PRE_FILTER);
     }
 }
