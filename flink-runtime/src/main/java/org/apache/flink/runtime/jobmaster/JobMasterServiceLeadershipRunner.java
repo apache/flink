@@ -257,28 +257,34 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                         unused ->
                                 jobResultStore
                                         .hasJobResultEntryAsync(getJobID())
-                                        .thenAccept(
+                                        .thenCompose(
                                                 hasJobResult -> {
                                                     if (hasJobResult) {
-                                                        handleJobAlreadyDoneIfValidLeader(
+                                                        return handleJobAlreadyDoneIfValidLeader(
                                                                 leaderSessionId);
                                                     } else {
-                                                        createNewJobMasterServiceProcessIfValidLeader(
+                                                        return createNewJobMasterServiceProcessIfValidLeader(
                                                                 leaderSessionId);
                                                     }
                                                 }));
         handleAsyncOperationError(sequentialOperation, "Could not start the job manager.");
     }
 
-    private void handleJobAlreadyDoneIfValidLeader(UUID leaderSessionId) {
-        runIfValidLeader(
+    private CompletableFuture<Void> handleJobAlreadyDoneIfValidLeader(UUID leaderSessionId) {
+        return runIfValidLeader(
                 leaderSessionId, () -> jobAlreadyDone(leaderSessionId), "check completed job");
     }
 
-    private void createNewJobMasterServiceProcessIfValidLeader(UUID leaderSessionId) {
-        runIfValidLeader(
+    private CompletableFuture<Void> createNewJobMasterServiceProcessIfValidLeader(
+            UUID leaderSessionId) {
+        return runIfValidLeader(
                 leaderSessionId,
                 () ->
+                        // the heavy lifting of the JobMasterServiceProcess instantiation is still
+                        // done asynchronously (see
+                        // DefaultJobMasterServiceFactory#createJobMasterService executing the logic
+                        // on the leaderOperation thread in the DefaultLeaderElectionService should
+                        // be, therefore, fine
                         ThrowingRunnable.unchecked(
                                         () -> createNewJobMasterServiceProcess(leaderSessionId))
                                 .run(),
@@ -336,15 +342,18 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     private void confirmLeadership(
             UUID leaderSessionId, CompletableFuture<String> leaderAddressFuture) {
         FutureUtils.assertNoException(
-                leaderAddressFuture.thenAccept(
+                leaderAddressFuture.thenCompose(
                         address ->
-                                runIfStateRunning(
-                                        () -> {
-                                            LOG.debug("Confirm leadership {}.", leaderSessionId);
-                                            leaderElection.confirmLeadership(
-                                                    leaderSessionId, address);
-                                        },
-                                        "confirming leadership")));
+                                callIfRunning(
+                                                () -> {
+                                                    LOG.debug(
+                                                            "Confirm leadership {}.",
+                                                            leaderSessionId);
+                                                    return leaderElection.confirmLeadershipAsync(
+                                                            leaderSessionId, address);
+                                                },
+                                                "confirming leadership")
+                                        .orElse(FutureUtils.completedVoidFuture())));
     }
 
     private void forwardResultFuture(
@@ -478,32 +487,37 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
         return state == State.RUNNING;
     }
 
-    private void runIfValidLeader(
+    private CompletableFuture<Void> runIfValidLeader(
             UUID expectedLeaderId, Runnable action, Runnable noLeaderFallback) {
         synchronized (lock) {
-            if (isValidLeader(expectedLeaderId)) {
-                action.run();
+            if (isRunning() && leaderElection != null) {
+                return leaderElection
+                        .hasLeadershipAsync(expectedLeaderId)
+                        .thenAccept(
+                                hasLeadership -> {
+                                    synchronized (lock) {
+                                        if (isRunning() && hasLeadership) {
+                                            action.run();
+                                        } else {
+                                            noLeaderFallback.run();
+                                        }
+                                    }
+                                });
             } else {
                 noLeaderFallback.run();
+                return FutureUtils.completedVoidFuture();
             }
         }
     }
 
-    private void runIfValidLeader(
+    private CompletableFuture<Void> runIfValidLeader(
             UUID expectedLeaderId, Runnable action, String noLeaderFallbackCommandDescription) {
-        runIfValidLeader(
+        return runIfValidLeader(
                 expectedLeaderId,
                 action,
                 () ->
                         printLogIfNotValidLeader(
                                 noLeaderFallbackCommandDescription, expectedLeaderId));
-    }
-
-    @GuardedBy("lock")
-    private boolean isValidLeader(UUID expectedLeaderId) {
-        return isRunning()
-                && leaderElection != null
-                && leaderElection.hasLeadership(expectedLeaderId);
     }
 
     private <T> void forwardIfValidLeader(
