@@ -542,7 +542,7 @@ public class KubernetesConfigOptions {
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Enables uploading 'local://' schemed artifacts to DFS before the the application cluster deployment.");
+                            "Enables uploading 'local://' schemed artifacts to DFS before the application cluster deployment.");
 
     public static final ConfigOption<Boolean> LOCAL_UPLOAD_OVERWRITE =
             ConfigOptions.key("kubernetes.artifacts.local-upload-overwrite")
