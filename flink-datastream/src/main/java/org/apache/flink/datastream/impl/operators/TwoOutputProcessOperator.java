@@ -92,6 +92,7 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
                         operatorContext,
                         operatorStateStore);
         this.nonPartitionedContext = getNonPartitionedContext();
+        this.userFunction.open();
     }
 
     @Override
@@ -149,5 +150,11 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
             setTimestamp(timestamp);
             output.collect(outputTag, reuse.replace(record));
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        super.close();
+        userFunction.close();
     }
 }

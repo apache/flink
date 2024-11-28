@@ -76,6 +76,7 @@ public class ProcessOperator<IN, OUT>
                         getOperatorStateBackend());
         outputCollector = getOutputCollector();
         nonPartitionedContext = getNonPartitionedContext();
+        userFunction.open();
     }
 
     @Override
@@ -104,5 +105,11 @@ public class ProcessOperator<IN, OUT>
     protected NonPartitionedContext<OUT> getNonPartitionedContext() {
         return new DefaultNonPartitionedContext<>(
                 context, partitionedContext, outputCollector, false, null);
+    }
+
+    @Override
+    public void close() throws Exception {
+        super.close();
+        userFunction.close();
     }
 }

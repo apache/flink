@@ -80,6 +80,7 @@ public class TwoInputBroadcastProcessOperator<IN1, IN2, OUT>
                         operatorContext,
                         getOperatorStateBackend());
         this.nonPartitionedContext = getNonPartitionedContext();
+        this.userFunction.open();
     }
 
     @Override
@@ -121,5 +122,11 @@ public class TwoInputBroadcastProcessOperator<IN1, IN2, OUT>
 
     protected ProcessingTimeManager getProcessingTimeManager() {
         return UnsupportedProcessingTimeManager.INSTANCE;
+    }
+
+    @Override
+    public void close() throws Exception {
+        super.close();
+        userFunction.close();
     }
 }
