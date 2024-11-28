@@ -55,6 +55,8 @@ class DefaultNonPartitionedContextTest {
                         1,
                         2,
                         "mock-task",
+                        0,
+                        0,
                         operatorRuntimeContext.getMetricGroup());
 
         DefaultNonPartitionedContext<Integer> nonPartitionedContext =
@@ -105,6 +107,8 @@ class DefaultNonPartitionedContextTest {
                         1,
                         2,
                         "mock-task",
+                        0,
+                        0,
                         operatorRuntimeContext.getMetricGroup());
         DefaultNonPartitionedContext<Integer> nonPartitionedContext =
                 new DefaultNonPartitionedContext<>(
