@@ -51,7 +51,10 @@ public enum SqlGatewayRestAPIVersion
     V2(false, true),
 
     // V3 introduces materialized table related APIs
-    V3(true, true);
+    V3(false, true),
+
+    // V4 supports to deploy script to application cluster
+    V4(true, true);
 
     private final boolean isDefaultVersion;
 
