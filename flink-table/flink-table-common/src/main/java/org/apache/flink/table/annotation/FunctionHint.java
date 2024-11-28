@@ -19,6 +19,9 @@
 package org.apache.flink.table.annotation;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.ProcessTableFunction;
+import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.types.inference.TypeInference;
 
@@ -175,12 +178,39 @@ public @interface FunctionHint {
     ArgumentHint[] arguments() default {};
 
     /**
-     * Explicitly defines the intermediate result type that a function uses as accumulator.
+     * Explicitly defines the intermediate result type (i.e. state entry) that an aggregating
+     * function uses as its accumulator. The entry is managed by the framework (usually via Flink's
+     * managed state).
      *
      * <p>By default, an explicit accumulator type is undefined and the reflection-based extraction
      * is used.
+     *
+     * <p>This parameter is primarily intended for aggregating functions (i.e. {@link
+     * AggregateFunction} and {@link TableAggregateFunction}). It is recommended to use {@link
+     * #state()} for {@link ProcessTableFunction}.
      */
     DataTypeHint accumulator() default @DataTypeHint();
+
+    /**
+     * Explicitly lists the intermediate results (i.e. state entries) of a function that is managed
+     * by the framework (i.e. Flink managed state). Including their names and data types.
+     *
+     * <p>State hints are primarily intended for {@link ProcessTableFunction}. A PTF supports
+     * multiple state entries at the beginning of an eval()/onTimer() method (after an optional
+     * context parameter).
+     *
+     * <p>Aggregating functions (i.e. {@link AggregateFunction} and {@link TableAggregateFunction})
+     * support a single state entry at the beginning of an accumulate()/retract() method (i.e. the
+     * accumulator).
+     *
+     * <p>By default, explicit state is undefined and the reflection-based extraction is used where
+     * {@link StateHint} is present.
+     *
+     * <p>Using both {@link #accumulator()} and this parameter is not allowed. Specifying the list
+     * of state entries manually disables the entire reflection-based extraction around {@link
+     * StateHint} and accumulators for aggregating functions.
+     */
+    StateHint[] state() default {};
 
     /**
      * Explicitly defines the result type that a function uses as output.

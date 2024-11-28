@@ -65,6 +65,9 @@ final class FunctionTemplate {
      * types.
      */
     static FunctionTemplate fromAnnotation(DataTypeFactory typeFactory, FunctionHint hint) {
+        if (hint.state().length > 0) {
+            throw extractionError("State hints are not supported yet.");
+        }
         return new FunctionTemplate(
                 createSignatureTemplate(
                         typeFactory,
