@@ -485,12 +485,19 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public void createTemporaryTable(String path, TableDescriptor descriptor) {
+        this.createTemporaryTable(path, descriptor, false);
+    }
+
+    @Override
+    public void createTemporaryTable(
+            String path, TableDescriptor descriptor, boolean ignoreIfExists) {
         Preconditions.checkNotNull(path, "Path must not be null.");
         Preconditions.checkNotNull(descriptor, "Table descriptor must not be null.");
 
         final ObjectIdentifier tableIdentifier =
                 catalogManager.qualifyIdentifier(getParser().parseIdentifier(path));
-        catalogManager.createTemporaryTable(descriptor.toCatalogTable(), tableIdentifier, false);
+        catalogManager.createTemporaryTable(
+                descriptor.toCatalogTable(), tableIdentifier, ignoreIfExists);
     }
 
     @Override
