@@ -60,6 +60,8 @@ class DefaultTwoOutputNonPartitionedContextTest {
                         1,
                         2,
                         "mock-task",
+                        0,
+                        0,
                         operatorRuntimeContext.getMetricGroup());
         DefaultTwoOutputNonPartitionedContext<Integer, Long> nonPartitionedContext =
                 new DefaultTwoOutputNonPartitionedContext<>(
@@ -118,6 +120,8 @@ class DefaultTwoOutputNonPartitionedContextTest {
                         1,
                         2,
                         "mock-task",
+                        0,
+                        0,
                         operatorRuntimeContext.getMetricGroup());
         DefaultTwoOutputNonPartitionedContext<Integer, Long> nonPartitionedContext =
                 new DefaultTwoOutputNonPartitionedContext<>(
