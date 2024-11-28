@@ -20,6 +20,7 @@ package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.catalog.DataTypeFactory;
@@ -40,16 +41,17 @@ import org.apache.flink.util.Collector;
  * <h1>Table Semantics and Virtual Processors</h1>
  *
  * <p>PTFs can produce a new table by consuming tables as arguments. For scalability, input tables
- * are distributed into virtual processors. Each virtual processor executes a PTF instance and has
- * access only to a share of the entire table. The argument declaration decides about the size of
- * the share and co-location of data. Conceptually, tables can be processed either "as row" (i.e.
- * with row semantics) or "as set" (i.e. with set semantics).
+ * are distributed across so-called "virtual processors". A virtual processor, as defined by the SQL
+ * standard, executes a PTF instance and has access only to a portion of the entire table. The
+ * argument declaration decides about the size of the portion and co-location of data. Conceptually,
+ * tables can be processed either "as row" (i.e. with row semantics) or "as set" (i.e. with set
+ * semantics).
  *
  * <h2>Table Argument with Row Semantics</h2>
  *
  * <p>A PTF that takes a table with row semantics assumes that there is no correlation between rows
  * and each row can be processed independently. The framework is free in how to distribute rows
- * among virtual processors and each virtual processor has access only to the currently processed
+ * across virtual processors and each virtual processor has access only to the currently processed
  * row.
  *
  * <h2>Table Argument with Set Semantics</h2>
@@ -57,10 +59,14 @@ import org.apache.flink.util.Collector;
  * <p>A PTF that takes a table with set semantics assumes that there is a correlation between rows.
  * When calling the function, the PARTITION BY clause defines the columns for correlation. The
  * framework ensures that all rows belonging to same set are co-located. A PTF instance is able to
- * access all rows belonging to the same set. In other words: The virtual processor is scoped under
- * a key context.
+ * access all rows belonging to the same set. In other words: The virtual processor is scoped by a
+ * key context.
  *
- * <h1>Basic Implementation</h1>
+ * <p>It is also possible not to provide a key ({@link ArgumentTrait#OPTIONAL_PARTITION_BY}), in
+ * which case only one virtual processor handles the entire table, thereby losing scalability
+ * benefits.
+ *
+ * <h1>Implementation</h1>
  *
  * <p>The behavior of a {@link ProcessTableFunction} can be defined by implementing a custom
  * evaluation method. The evaluation method must be declared publicly, not static, and named <code>

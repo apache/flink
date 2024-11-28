@@ -469,7 +469,8 @@ abstract class BaseMappingExtractor {
                             }
                             final ArgumentTrait[] traits = h.value();
                             if (traits.length != 1 || traits[0] != ArgumentTrait.SCALAR) {
-                                throw extractionError("Only scalar arguments are supported so far.");
+                                throw extractionError(
+                                        "Only scalar arguments are supported so far.");
                             }
                             return h.isOptional();
                         })
