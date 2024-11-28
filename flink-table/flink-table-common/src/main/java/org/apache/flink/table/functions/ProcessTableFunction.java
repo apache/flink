@@ -227,6 +227,7 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
      * Context that can be added as a first argument to the eval() method for additional information
      * about the input tables and other services provided by the framework.
      */
+    @PublicEvolving
     public interface Context {
 
         /**

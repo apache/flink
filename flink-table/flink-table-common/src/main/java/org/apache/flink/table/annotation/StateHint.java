@@ -55,7 +55,7 @@ import java.lang.annotation.Target;
 public @interface StateHint {
 
     /**
-     * The name of the state entry.
+     * The name of the state entry. It must be unique among other state entries.
      *
      * <p>This can be used to provide a descriptive name for the state entry. The name can be used
      * for referencing the entry during clean up.

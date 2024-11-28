@@ -631,9 +631,9 @@ class TypeInferenceExtractorTest {
                                         }),
                                 TypeStrategies.explicit(DataTypes.STRING())),
                 TestSpec.forScalarFunction(FunctionHintTableArgScalarFunction.class)
-                        .expectErrorMessage("Only scalar arguments are supported yet."),
+                        .expectErrorMessage("Only scalar arguments are supported so far."),
                 TestSpec.forScalarFunction(ArgumentHintTableArgScalarFunction.class)
-                        .expectErrorMessage("Only scalar arguments are supported yet."),
+                        .expectErrorMessage("Only scalar arguments are supported so far."),
                 TestSpec.forScalarFunction(StateHintScalarFunction.class)
                         .expectErrorMessage("State hints are not supported yet."));
     }

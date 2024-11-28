@@ -224,7 +224,7 @@ final class FunctionTemplate {
                                                 && traits[0] == ArgumentTrait.SCALAR;
                                     });
             if (!allScalar) {
-                throw extractionError("Only scalar arguments are supported yet.");
+                throw extractionError("Only scalar arguments are supported so far.");
             }
 
             argumentHintNames = new String[argumentHints.length];

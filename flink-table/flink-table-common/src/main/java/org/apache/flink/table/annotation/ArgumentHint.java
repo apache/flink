@@ -50,7 +50,7 @@ public @interface ArgumentHint {
     ArgumentTrait[] value() default {ArgumentTrait.SCALAR};
 
     /**
-     * The name of the argument.
+     * The name of the argument. It must be unique among other arguments.
      *
      * <p>This can be used to provide a descriptive name for the argument.
      */

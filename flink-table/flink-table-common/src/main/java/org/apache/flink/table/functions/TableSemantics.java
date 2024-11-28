@@ -30,7 +30,7 @@ import java.util.Optional;
 /**
  * Provides call information about the table that has been passed to a table argument.
  *
- * <p>This class if only available for table arguments (i.e. arguments of a {@link
+ * <p>This class is only available for table arguments (i.e. arguments of a {@link
  * ProcessTableFunction} that are annotated with {@code @ArgumentHint(TABLE_AS_SET)} or
  * {@code @ArgumentHint(TABLE_AS_ROW)}).
  */
