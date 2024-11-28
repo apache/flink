@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.PartitionedContext;
+import org.apache.flink.datastream.api.context.TwoOutputNonPartitionedContext;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
 import org.apache.flink.datastream.api.function.ProcessFunction;
 import org.apache.flink.datastream.api.function.TwoInputBroadcastStreamProcessFunction;
@@ -51,7 +52,7 @@ public class ProcessFunctionTest {
         OneInputStreamProcessFunction<Integer, Integer> processFunction =
                 new OneInputStreamProcessFunction<>() {
                     @Override
-                    public void open() throws Exception {
+                    public void open(NonPartitionedContext<Integer> ctx) throws Exception {
                         openInvoked.set(true);
                     }
 
@@ -86,7 +87,7 @@ public class ProcessFunctionTest {
                 new TwoInputBroadcastStreamProcessFunction<>() {
 
                     @Override
-                    public void open() throws Exception {
+                    public void open(NonPartitionedContext<Integer> ctx) throws Exception {
                         openInvoked.set(true);
                     }
 
@@ -126,7 +127,7 @@ public class ProcessFunctionTest {
                 new TwoInputNonBroadcastStreamProcessFunction<>() {
 
                     @Override
-                    public void open() throws Exception {
+                    public void open(NonPartitionedContext<Integer> ctx) throws Exception {
                         openInvoked.set(true);
                     }
 
@@ -167,7 +168,8 @@ public class ProcessFunctionTest {
                 new TwoOutputStreamProcessFunction<>() {
 
                     @Override
-                    public void open() throws Exception {
+                    public void open(TwoOutputNonPartitionedContext<Integer, Integer> ctx)
+                            throws Exception {
                         openInvoked.set(true);
                     }
 

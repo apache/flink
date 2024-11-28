@@ -92,7 +92,7 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
                         operatorContext,
                         operatorStateStore);
         this.nonPartitionedContext = getNonPartitionedContext();
-        this.userFunction.open();
+        this.userFunction.open(this.nonPartitionedContext);
     }
 
     @Override

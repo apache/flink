@@ -83,7 +83,7 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
                         operatorContext,
                         operatorStateBackend);
         this.nonPartitionedContext = getNonPartitionedContext();
-        this.userFunction.open();
+        this.userFunction.open(this.nonPartitionedContext);
     }
 
     @Override
