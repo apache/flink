@@ -52,7 +52,7 @@ class TableEnvironmentTest {
         final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
         final Schema schema = Schema.newBuilder().column("f0", DataTypes.INT()).build();
 
-        assertTemporaryCreateTableFromDescriptor(tEnv, schema);
+        assertTemporaryCreateTableFromDescriptor(tEnv, schema, false);
     }
 
     @Test
@@ -60,7 +60,7 @@ class TableEnvironmentTest {
         final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
         final Schema schema = Schema.newBuilder().column("f0", DataTypes.INT()).build();
 
-        assertTemporaryCreateTableFromDescriptor(tEnv, schema);
+        assertTemporaryCreateTableFromDescriptor(tEnv, schema, true);
         assertThatNoException()
                 .isThrownBy(
                         () ->
@@ -90,7 +90,7 @@ class TableEnvironmentTest {
     void testCreateTableFromDescriptor() throws Exception {
         final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
         final Schema schema = Schema.newBuilder().column("f0", DataTypes.INT()).build();
-        assertCreateTableFromDescriptor(tEnv, schema);
+        assertCreateTableFromDescriptor(tEnv, schema, false);
     }
 
     @Test
@@ -98,7 +98,7 @@ class TableEnvironmentTest {
         final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
         final Schema schema = Schema.newBuilder().column("f0", DataTypes.INT()).build();
 
-        assertCreateTableFromDescriptor(tEnv, schema);
+        assertCreateTableFromDescriptor(tEnv, schema, true);
         assertThatNoException()
                 .isThrownBy(
                         () ->
@@ -171,14 +171,25 @@ class TableEnvironmentTest {
         innerTestManagedTableFromDescriptor(true, true);
     }
 
-    private static void assertCreateTableFromDescriptor(TableEnvironmentMock tEnv, Schema schema)
+    private static void assertCreateTableFromDescriptor(
+            TableEnvironmentMock tEnv, Schema schema, boolean ignoreIfExists)
             throws org.apache.flink.table.catalog.exceptions.TableNotExistException {
         final String catalog = tEnv.getCurrentCatalog();
         final String database = tEnv.getCurrentDatabase();
-        tEnv.createTable(
-                "T",
-                TableDescriptor.forConnector("fake").schema(schema).option("a", "Test").build(),
-                true);
+
+        if (ignoreIfExists) {
+            tEnv.createTable(
+                    "T",
+                    TableDescriptor.forConnector("fake").schema(schema).option("a", "Test").build(),
+                    true);
+        } else {
+            tEnv.createTable(
+                    "T",
+                    TableDescriptor.forConnector("fake")
+                            .schema(schema)
+                            .option("a", "Test")
+                            .build());
+        }
 
         final ObjectPath objectPath = new ObjectPath(database, "T");
         assertThat(
@@ -196,13 +207,23 @@ class TableEnvironmentTest {
     }
 
     private static void assertTemporaryCreateTableFromDescriptor(
-            TableEnvironmentMock tEnv, Schema schema) {
+            TableEnvironmentMock tEnv, Schema schema, boolean ignoreIfExists) {
         final String catalog = tEnv.getCurrentCatalog();
         final String database = tEnv.getCurrentDatabase();
 
-        tEnv.createTemporaryTable(
-                "T",
-                TableDescriptor.forConnector("fake").schema(schema).option("a", "Test").build());
+        if (ignoreIfExists) {
+            tEnv.createTemporaryTable(
+                    "T",
+                    TableDescriptor.forConnector("fake").schema(schema).option("a", "Test").build(),
+                    true);
+        } else {
+            tEnv.createTemporaryTable(
+                    "T",
+                    TableDescriptor.forConnector("fake")
+                            .schema(schema)
+                            .option("a", "Test")
+                            .build());
+        }
 
         assertThat(
                         tEnv.getCatalog(catalog)

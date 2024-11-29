@@ -405,7 +405,8 @@ class TableEnvironment(object):
         """
         return self._j_tenv.dropTemporaryFunction(path)
 
-    def create_temporary_table(self, path: str, descriptor: TableDescriptor, ignoreIfExists: Optional[bool] = False):
+    def create_temporary_table(self, path: str, descriptor: TableDescriptor,
+                               ignoreIfExists: Optional[bool] = False):
         """
         Registers the given :class:`~pyflink.table.TableDescriptor` as a temporary catalog table.
 
@@ -436,7 +437,8 @@ class TableEnvironment(object):
         """
         self._j_tenv.createTemporaryTable(path, descriptor._j_table_descriptor, ignoreIfExists)
 
-    def create_table(self, path: str, descriptor: TableDescriptor, ignoreIfExists: Optional[bool] = False):
+    def create_table(self, path: str, descriptor: TableDescriptor,
+                     ignoreIfExists: Optional[bool] = False):
         """
         Registers the given :class:`~pyflink.table.TableDescriptor` as a catalog table.
 
@@ -461,6 +463,7 @@ class TableEnvironment(object):
         :param descriptor: Template for creating a CatalogTable instance.
         :param ignoreIfExists: If a table exists under the given path and this flag is set,
                                no operation is executed. An exception is thrown otherwise.
+
         .. versionadded:: 1.14.0
         """
         self._j_tenv.createTable(path, descriptor._j_table_descriptor, ignoreIfExists)

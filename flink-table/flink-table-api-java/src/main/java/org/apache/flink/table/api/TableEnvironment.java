@@ -737,13 +737,14 @@ public interface TableEnvironment {
      *     .build())
      *   .option(DataGenOptions.ROWS_PER_SECOND, 10)
      *   .option("fields.f0.kind", "random")
-     *   .build());
+     *   .build(),
+     *  true);
      * }</pre>
      *
      * @param path The path under which the table will be registered. See also the {@link
      *     TableEnvironment} class description for the format of the path.
      * @param descriptor Template for creating a {@link CatalogTable} instance.
-     * @param ignoreIfExists If a table exists under the given path and this flag is set, no *
+     * @param ignoreIfExists If a table exists under the given path and this flag is set, no
      *     operation is executed. An exception is thrown otherwise.
      */
     void createTemporaryTable(String path, TableDescriptor descriptor, boolean ignoreIfExists);
@@ -782,7 +783,7 @@ public interface TableEnvironment {
      * in the catalog.
      *
      * <p>If the table should not be permanently stored in a catalog, use {@link
-     * #createTemporaryTable(String, TableDescriptor)} instead.
+     * #createTemporaryTable(String, TableDescriptor, boolean)} instead.
      *
      * <p>Examples:
      *
@@ -793,7 +794,8 @@ public interface TableEnvironment {
      *     .build())
      *   .option(DataGenOptions.ROWS_PER_SECOND, 10)
      *   .option("fields.f0.kind", "random")
-     *   .build());
+     *   .build(),
+     *  true);
      * }</pre>
      *
      * @param path The path under which the table will be registered. See also the {@link
