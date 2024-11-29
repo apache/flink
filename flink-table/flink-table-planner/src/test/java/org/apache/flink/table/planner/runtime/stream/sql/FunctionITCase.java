@@ -1036,6 +1036,28 @@ public class FunctionITCase extends StreamingTestBase {
     }
 
     @Test
+    void testDynamicCatalogTableFunctionWithoutTableWrapper() throws Exception {
+        final Row[] sinkData =
+                new Row[] {Row.of("Test is a string"), Row.of("42"), Row.of((String) null)};
+
+        TestCollectionTableFactory.reset();
+
+        tEnv().executeSql("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
+
+        tEnv().createFunction("DynamicTableFunction", DynamicTableFunction.class);
+        tEnv().executeSql(
+                        "INSERT INTO SinkTable "
+                                + "SELECT T1.s FROM DynamicTableFunction('Test') AS T1(s) "
+                                + "UNION ALL "
+                                + "SELECT CAST(T2.i AS STRING) FROM DynamicTableFunction(42) AS T2(i)"
+                                + "UNION ALL "
+                                + "SELECT CAST(T3.i AS STRING) FROM DynamicTableFunction(CAST(NULL AS INT)) AS T3(i)")
+                .await();
+
+        assertThat(TestCollectionTableFactory.getResult()).containsExactlyInAnyOrder(sinkData);
+    }
+
+    @Test
     void testDynamicCatalogTableFunction() throws Exception {
         final Row[] sinkData =
                 new Row[] {Row.of("Test is a string"), Row.of("42"), Row.of((String) null)};
