@@ -36,7 +36,6 @@ import java.io.IOException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Map;
-import java.util.stream.IntStream;
 
 /** Test for {@link OrcColumnarRowSplitReader}. */
 class OrcColumnarRowSplitReaderNoHiveTest extends OrcColumnarRowSplitReaderTest {
@@ -100,12 +99,13 @@ class OrcColumnarRowSplitReaderNoHiveTest extends OrcColumnarRowSplitReaderTest 
     protected OrcColumnarRowSplitReader createReader(
             int[] selectedFields,
             DataType[] fullTypes,
+            String[] fullNames,
             Map<String, Object> partitionSpec,
             FileInputSplit split)
             throws IOException {
         return OrcNoHiveSplitReaderUtil.genPartColumnarRowReader(
                 new Configuration(),
-                IntStream.range(0, fullTypes.length).mapToObj(i -> "f" + i).toArray(String[]::new),
+                fullNames,
                 fullTypes,
                 partitionSpec,
                 selectedFields,
