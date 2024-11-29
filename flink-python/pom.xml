@@ -377,6 +377,12 @@ under the License.
 			<artifactId>commons-lang3</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>com.fasterxml.jackson.datatype</groupId>
+			<artifactId>jackson-datatype-jdk8</artifactId>
+			<version>2.15.3</version>
+		</dependency>
+
 	</dependencies>
 
 	<dependencyManagement>
