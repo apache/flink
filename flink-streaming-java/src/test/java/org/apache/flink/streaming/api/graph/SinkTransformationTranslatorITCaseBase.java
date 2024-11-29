@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.io.SimpleVersionedSerializerTypeSerializerProxy;
+import org.apache.flink.streaming.api.datastream.CustomSinkOperatorUidHashes;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -31,37 +32,35 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.CommitterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFactory;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.assertj.core.api.Assertions;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.function.Predicate;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.not;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for {@link org.apache.flink.streaming.api.transformations.SinkTransformation}.
  *
  * <p>ATTENTION: This test is extremely brittle. Do NOT remove, add or re-order test cases.
  */
-@RunWith(Parameterized.class)
-public abstract class SinkTransformationTranslatorITCaseBase<SinkT> extends TestLogger {
+@ExtendWith(ParameterizedTestExtension.class)
+abstract class SinkTransformationTranslatorITCaseBase<SinkT> {
 
-    @Parameterized.Parameters(name = "Execution Mode: {0}")
-    public static Collection<Object> data() {
+    @Parameters(name = "Execution Mode: {0}")
+    private static Collection<Object> data() {
         return Arrays.asList(RuntimeExecutionMode.STREAMING, RuntimeExecutionMode.BATCH);
     }
 
-    @Parameterized.Parameter() public RuntimeExecutionMode runtimeExecutionMode;
+    @Parameter protected RuntimeExecutionMode runtimeExecutionMode;
 
     static final String NAME = "FileSink";
     static final String SLOT_SHARE_GROUP = "FileGroup";
@@ -72,16 +71,21 @@ public abstract class SinkTransformationTranslatorITCaseBase<SinkT> extends Test
 
     abstract SinkT sinkWithCommitter();
 
+    abstract SinkT sinkWithGlobalCommitter();
+
     abstract DataStreamSink<Integer> sinkTo(DataStream<Integer> stream, SinkT sink);
 
-    @Test
-    public void generateWriterTopology() {
+    abstract DataStreamSink<Integer> sinkTo(
+            DataStream<Integer> stream, SinkT sink, CustomSinkOperatorUidHashes hashes);
+
+    @TestTemplate
+    void generateWriterTopology() {
         final StreamGraph streamGraph = buildGraph(simpleSink(), runtimeExecutionMode);
 
         final StreamNode sourceNode = findNodeName(streamGraph, node -> node.contains("Source"));
         final StreamNode writerNode = findWriter(streamGraph);
 
-        assertThat(streamGraph.getStreamNodes().size(), equalTo(2));
+        assertThat(streamGraph.getStreamNodes()).hasSize(2);
 
         validateTopology(
                 sourceNode,
@@ -92,8 +96,8 @@ public abstract class SinkTransformationTranslatorITCaseBase<SinkT> extends Test
                 -1);
     }
 
-    @Test
-    public void generateWriterCommitterTopology() {
+    @TestTemplate
+    void generateWriterCommitterTopology() {
 
         final StreamGraph streamGraph = buildGraph(sinkWithCommitter(), runtimeExecutionMode);
 
@@ -111,7 +115,7 @@ public abstract class SinkTransformationTranslatorITCaseBase<SinkT> extends Test
         final StreamNode committerNode =
                 findNodeName(streamGraph, name -> name.contains("Committer"));
 
-        assertThat(streamGraph.getStreamNodes().size(), equalTo(3));
+        assertThat(streamGraph.getStreamNodes()).hasSize(3);
         assertNoUnalignedOutput(writerNode);
 
         validateTopology(
@@ -123,11 +127,67 @@ public abstract class SinkTransformationTranslatorITCaseBase<SinkT> extends Test
                 -1);
     }
 
-    @Test
-    public void testParallelismConfigured() {
+    @TestTemplate
+    void testParallelismConfigured() {
         testParallelismConfiguredInternal(true);
 
         testParallelismConfiguredInternal(false);
+    }
+
+    @TestTemplate
+    void testSettingOperatorUidHash() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final DataStreamSource<Integer> src = env.fromData(1, 2);
+        final String writerHash = "f6b178ce445dc3ffaa06bad27a51fead";
+        final String committerHash = "68ac8ae79eae4e3135a54f9689c4aa10";
+        final String globalCommitterHash = "77e6aa6eeb1643b3765e1e4a7a672f37";
+        final CustomSinkOperatorUidHashes operatorsUidHashes =
+                CustomSinkOperatorUidHashes.builder()
+                        .setWriterUidHash(writerHash)
+                        .setCommitterUidHash(committerHash)
+                        .setGlobalCommitterUidHash(globalCommitterHash)
+                        .build();
+        sinkTo(src, sinkWithGlobalCommitter(), operatorsUidHashes).name(NAME);
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+
+        assertThat(findWriter(streamGraph).getUserHash()).isEqualTo(writerHash);
+        assertThat(findCommitter(streamGraph).getUserHash()).isEqualTo(committerHash);
+        assertThat(findGlobalCommitter(streamGraph).getUserHash()).isEqualTo(globalCommitterHash);
+    }
+
+    /**
+     * When ever you need to change something in this test case please think about possible state
+     * upgrade problems introduced by your changes.
+     */
+    @TestTemplate
+    void testSettingOperatorUids() {
+        final String sinkUid = "f6b178ce445dc3ffaa06bad27a51fead";
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final DataStreamSource<Integer> src = env.fromData(1, 2);
+        sinkTo(src, sinkWithGlobalCommitter()).name(NAME).uid(sinkUid);
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+        assertThat(findWriter(streamGraph).getTransformationUID()).isEqualTo(sinkUid);
+        assertThat(findCommitter(streamGraph).getTransformationUID())
+                .isEqualTo(String.format("Sink Committer: %s", sinkUid));
+        assertThat(findGlobalCommitter(streamGraph).getTransformationUID())
+                .isEqualTo(String.format("Sink %s Global Committer", sinkUid));
+    }
+
+    @Test
+    void testSettingOperatorNames() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final DataStreamSource<Integer> src = env.fromData(1, 2);
+        sinkTo(src, sinkWithGlobalCommitter()).name(NAME);
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+        assertThat(findWriter(streamGraph).getOperatorName())
+                .isEqualTo(String.format("%s: Writer", NAME));
+        assertThat(findCommitter(streamGraph).getOperatorName())
+                .isEqualTo(String.format("%s: Committer", NAME));
+        assertThat(findGlobalCommitter(streamGraph).getOperatorName())
+                .isEqualTo(String.format("%s: Global Committer", NAME));
     }
 
     private void testParallelismConfiguredInternal(boolean setSinkParallelism) {
@@ -137,8 +197,8 @@ public abstract class SinkTransformationTranslatorITCaseBase<SinkT> extends Test
         final StreamNode writerNode = findWriter(streamGraph);
         final StreamNode committerNode = findCommitter(streamGraph);
 
-        assertThat(writerNode.isParallelismConfigured(), equalTo(setSinkParallelism));
-        assertThat(committerNode.isParallelismConfigured(), equalTo(setSinkParallelism));
+        assertThat(writerNode.isParallelismConfigured()).isEqualTo(setSinkParallelism);
+        assertThat(committerNode.isParallelismConfigured()).isEqualTo(setSinkParallelism);
     }
 
     StreamNode findWriter(StreamGraph streamGraph) {
@@ -156,8 +216,8 @@ public abstract class SinkTransformationTranslatorITCaseBase<SinkT> extends Test
         return findNodeName(streamGraph, name -> name.contains("Global Committer"));
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void throwExceptionWithoutSettingUid() {
+    @TestTemplate
+    void throwExceptionWithoutSettingUid() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         final Configuration config = new Configuration();
@@ -166,11 +226,11 @@ public abstract class SinkTransformationTranslatorITCaseBase<SinkT> extends Test
         // disable auto generating uid
         env.getConfig().disableAutoGeneratedUIDs();
         sinkTo(env.fromElements(1, 2), simpleSink());
-        env.getStreamGraph();
+        assertThatThrownBy(env::getStreamGraph).isInstanceOf(IllegalStateException.class);
     }
 
-    @Test
-    public void disableOperatorChain() {
+    @TestTemplate
+    void disableOperatorChain() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         final DataStreamSource<Integer> src = env.fromElements(1, 2);
@@ -181,9 +241,10 @@ public abstract class SinkTransformationTranslatorITCaseBase<SinkT> extends Test
         final StreamNode writer = findWriter(streamGraph);
         final StreamNode committer = findCommitter(streamGraph);
 
-        assertThat(writer.getOperatorFactory().getChainingStrategy(), is(ChainingStrategy.NEVER));
-        assertThat(
-                committer.getOperatorFactory().getChainingStrategy(), is(ChainingStrategy.NEVER));
+        assertThat(writer.getOperatorFactory().getChainingStrategy())
+                .isEqualTo(ChainingStrategy.NEVER);
+        assertThat(committer.getOperatorFactory().getChainingStrategy())
+                .isEqualTo(ChainingStrategy.NEVER);
     }
 
     void validateTopology(
@@ -196,27 +257,28 @@ public abstract class SinkTransformationTranslatorITCaseBase<SinkT> extends Test
 
         // verify src node
         final StreamEdge srcOutEdge = src.getOutEdges().get(0);
-        assertThat(srcOutEdge.getTargetId(), equalTo(dest.getId()));
-        assertThat(src.getTypeSerializerOut(), instanceOf(srcOutTypeInfo));
+        assertThat(srcOutEdge.getTargetId()).isEqualTo(dest.getId());
+        assertThat(src.getTypeSerializerOut()).isInstanceOf(srcOutTypeInfo);
 
         // verify dest node input
         final StreamEdge destInputEdge = dest.getInEdges().get(0);
-        assertThat(destInputEdge.getSourceId(), equalTo(src.getId()));
-        assertThat(dest.getTypeSerializersIn()[0], instanceOf(srcOutTypeInfo));
+        assertThat(destInputEdge.getTargetId()).isEqualTo(dest.getId());
+        assertThat(dest.getTypeSerializersIn()[0]).isInstanceOf(srcOutTypeInfo);
 
         // make sure 2 sink operators have different names/uid
-        assertThat(dest.getOperatorName(), not(equalTo(src.getOperatorName())));
-        assertThat(dest.getTransformationUID(), not(equalTo(src.getTransformationUID())));
+        assertThat(dest.getOperatorName()).isNotEqualTo(src.getOperatorName());
+        assertThat(dest.getTransformationUID()).isNotEqualTo(src.getTransformationUID());
 
-        assertThat(dest.getOperatorFactory(), instanceOf(operatorFactoryClass));
-        assertThat(dest.getParallelism(), equalTo(expectedParallelism));
-        assertThat(dest.getMaxParallelism(), equalTo(expectedMaxParallelism));
-        assertThat(dest.getOperatorFactory().getChainingStrategy(), is(ChainingStrategy.ALWAYS));
-        assertThat(dest.getSlotSharingGroup(), equalTo(SLOT_SHARE_GROUP));
+        assertThat(dest.getOperatorFactory()).isInstanceOf(operatorFactoryClass);
+        assertThat(dest.getParallelism()).isEqualTo(expectedParallelism);
+        assertThat(dest.getMaxParallelism()).isEqualTo(expectedMaxParallelism);
+        assertThat(dest.getOperatorFactory().getChainingStrategy())
+                .isEqualTo(ChainingStrategy.ALWAYS);
+        assertThat(dest.getSlotSharingGroup()).isEqualTo(SLOT_SHARE_GROUP);
     }
 
     protected static void assertNoUnalignedOutput(StreamNode src) {
-        Assertions.assertThat(src.getOutEdges()).allMatch(e -> !e.supportsUnalignedCheckpoints());
+        assertThat(src.getOutEdges()).allMatch(e -> !e.supportsUnalignedCheckpoints());
     }
 
     StreamGraph buildGraph(SinkT sink, RuntimeExecutionMode runtimeExecutionMode) {
