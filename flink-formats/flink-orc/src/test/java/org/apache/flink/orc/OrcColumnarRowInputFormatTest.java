@@ -204,20 +204,26 @@ class OrcColumnarRowInputFormatTest {
 
         RowType tableType =
                 RowType.of(
-                        /* 0 */ DataTypes.INT().getLogicalType(),
-                        /* 1 */ DataTypes.INT().getLogicalType(), // part-1
-                        /* 2 */ DataTypes.STRING().getLogicalType(),
-                        /* 3 */ DataTypes.BIGINT().getLogicalType(), // part-2
-                        /* 4 */ DataTypes.STRING().getLogicalType(),
-                        /* 5 */ DataTypes.STRING().getLogicalType(), // part-3
-                        /* 6 */ DataTypes.STRING().getLogicalType(),
-                        /* 7 */ DataTypes.INT().getLogicalType(),
-                        /* 8 */ DataTypes.DECIMAL(10, 5).getLogicalType(), // part-4
-                        /* 9 */ DataTypes.STRING().getLogicalType(),
-                        /* 11*/ DataTypes.INT().getLogicalType(),
-                        /* 12*/ DataTypes.INT().getLogicalType(),
-                        /* 13*/ DataTypes.STRING().getLogicalType(), // part-5
-                        /* 14*/ DataTypes.INT().getLogicalType());
+                        new LogicalType[] {
+                            /* 0 */ DataTypes.INT().getLogicalType(),
+                            /* 1 */ DataTypes.INT().getLogicalType(), // part-1
+                            /* 2 */ DataTypes.STRING().getLogicalType(),
+                            /* 3 */ DataTypes.BIGINT().getLogicalType(), // part-2
+                            /* 4 */ DataTypes.STRING().getLogicalType(),
+                            /* 5 */ DataTypes.STRING().getLogicalType(), // part-3
+                            /* 6 */ DataTypes.STRING().getLogicalType(),
+                            /* 7 */ DataTypes.INT().getLogicalType(),
+                            /* 8 */ DataTypes.DECIMAL(10, 5).getLogicalType(), // part-4
+                            /* 9 */ DataTypes.STRING().getLogicalType(),
+                            /* 10*/ DataTypes.INT().getLogicalType(),
+                            /* 11*/ DataTypes.INT().getLogicalType(),
+                            /* 12*/ DataTypes.STRING().getLogicalType(), // part-5
+                            /* 13*/ DataTypes.INT().getLogicalType()
+                        },
+                        new String[] {
+                            "_col0", "f1", "_col1", "f3", "_col2", "f5", "_col3", "_col4", "f8",
+                            "_col5", "_col6", "_col7", "f13", "_col8"
+                        });
 
         int[] projectedFields = {8, 1, 3, 0, 5, 2};
 
