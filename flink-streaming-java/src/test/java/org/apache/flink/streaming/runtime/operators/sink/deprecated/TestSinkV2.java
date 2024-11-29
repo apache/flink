@@ -28,6 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.io.SimpleVersionedSerializerAdapter;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
+import org.apache.flink.streaming.api.connector.sink2.StandardSinkTopologies;
 import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.util.Preconditions;
@@ -215,7 +216,8 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
 
         @Override
         public void addPostCommitTopology(DataStream<CommittableMessage<String>> committables) {
-            // We do not need to do anything for tests
+            StandardSinkTopologies.addGlobalCommitter(
+                    committables, DefaultCommitter::new, this::getCommittableSerializer);
         }
     }
 
