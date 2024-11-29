@@ -52,8 +52,22 @@ class SinkV2TransformationTranslatorITCase
     }
 
     @Override
+    Sink<Integer> sinkWithGlobalCommitter() {
+        return TestSinkV2.<Integer>newBuilder()
+                .setDefaultCommitter()
+                .setWithPostCommitTopology(true)
+                .build();
+    }
+
+    @Override
     DataStreamSink<Integer> sinkTo(DataStream<Integer> stream, Sink<Integer> sink) {
         return stream.sinkTo(sink);
+    }
+
+    @Override
+    DataStreamSink<Integer> sinkTo(
+            DataStream<Integer> stream, Sink<Integer> sink, CustomSinkOperatorUidHashes hashes) {
+        return stream.sinkTo(sink, hashes);
     }
 
     @TestTemplate
