@@ -19,6 +19,9 @@
 package org.apache.flink.table.annotation;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.ProcessTableFunction;
+import org.apache.flink.table.functions.TableAggregateFunction;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -26,47 +29,41 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * A hint that provides additional information about an argument.
+ * A hint that declares an intermediate result (i.e. state entry) that is managed by the framework
+ * (i.e. Flink managed state).
  *
- * <p>An {@code ArgumentHint} can be used to provide hints about the name, optionality, and data
- * type of argument.
+ * <p>State hints are primarily intended for {@link ProcessTableFunction}. A PTF supports multiple
+ * state entries at the beginning of an eval()/onTimer() method (after an optional context
+ * parameter).
  *
- * <p>For example, {@code @ArgumentHint(name = "in1", type = @DataTypeHint("STRING"), isOptional =
- * false)} is a scalar argument with the data type STRING, named "in1", and cannot be omitted when
- * calling.
+ * <p>Aggregating functions (i.e. {@link AggregateFunction} and {@link TableAggregateFunction})
+ * support a single state entry at the beginning of an accumulate()/retract() method (i.e. the
+ * accumulator).
+ *
+ * <p>For example, {@code @StateHint(name = "count", type = @DataTypeHint("BIGINT"))} is a state
+ * entry with the data type BIGINT named "count".
+ *
+ * <p>Note: Usually, a state entry is partitioned by a key and can not be accessed globally. The
+ * partitioning (or whether it is only a single partition) is defined by the corresponding function
+ * call.
  *
  * @see FunctionHint
  */
 @PublicEvolving
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD, ElementType.PARAMETER})
-public @interface ArgumentHint {
+@Target({ElementType.TYPE, ElementType.METHOD, ElementType.PARAMETER})
+public @interface StateHint {
 
     /**
-     * The kind of the argument.
+     * The name of the state entry. It must be unique among other state entries.
      *
-     * <p>Only applies to {@code ProcessTableFunction}s (PTFs). Others can only take scalar values.
-     */
-    ArgumentTrait[] value() default {ArgumentTrait.SCALAR};
-
-    /**
-     * The name of the argument. It must be unique among other arguments.
-     *
-     * <p>This can be used to provide a descriptive name for the argument.
+     * <p>This can be used to provide a descriptive name for the state entry. The name can be used
+     * for referencing the entry during clean up.
      */
     String name() default "";
 
     /**
-     * Specifies whether the argument is optional or required.
-     *
-     * <p>If set to {@code true}, the argument is considered optional.And if the user does not
-     * specify this parameter when calling, 'null' will be passed in. By default, an argument is
-     * considered required.
-     */
-    boolean isOptional() default false;
-
-    /**
-     * The data type hint for the argument.
+     * The data type hint for the state entry.
      *
      * <p>This can be used to provide additional information about the expected data type of the
      * argument. The {@link DataTypeHint} annotation can be used to specify the data type explicitly

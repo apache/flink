@@ -19,6 +19,7 @@
 package org.apache.flink.table.annotation;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
 
 import java.util.Arrays;
@@ -43,31 +44,38 @@ public enum ArgumentTrait {
 
     /**
      * An argument that accepts a table "as row" (i.e. with row semantics). This trait only applies
-     * to {@code ProcessTableFunction} (PTF).
+     * to {@link ProcessTableFunction} (PTF).
      *
-     * <p>For scalability, input tables are distributed into virtual processors. Each virtual
-     * processor executes a PTF instance and has access only to a share of the entire table. The
-     * argument declaration decides about the size of the share and co-location of data.
+     * <p>For scalability, input tables are distributed across so-called "virtual processors". A
+     * virtual processor, as defined by the SQL standard, executes a PTF instance and has access
+     * only to a portion of the entire table. The argument declaration decides about the size of the
+     * portion and co-location of data. Conceptually, tables can be processed either "as row" (i.e.
+     * with row semantics) or "as set" (i.e. with set semantics).
      *
      * <p>A table with row semantics assumes that there is no correlation between rows and each row
-     * can be processed independently. The framework is free in how to distribute rows among virtual
-     * processors and each virtual processor has access only to the currently processed row.
+     * can be processed independently. The framework is free in how to distribute rows across
+     * virtual processors and each virtual processor has access only to the currently processed row.
      */
     TABLE_AS_ROW(StaticArgumentTrait.TABLE_AS_ROW),
 
     /**
      * An argument that accepts a table "as set" (i.e. with set semantics). This trait only applies
-     * to {@code ProcessTableFunction} (PTF).
+     * to {@link ProcessTableFunction} (PTF).
      *
-     * <p>For scalability, input tables are distributed into virtual processors. Each virtual
-     * processor executes a PTF instance and has access only to a share of the entire table. The
-     * argument declaration decides about the size of the share and co-location of data.
+     * <p>For scalability, input tables are distributed across so-called "virtual processors". A
+     * virtual processor, as defined by the SQL standard, executes a PTF instance and has access
+     * only to a portion of the entire table. The argument declaration decides about the size of the
+     * portion and co-location of data. Conceptually, tables can be processed either "as row" (i.e.
+     * with row semantics) or "as set" (i.e. with set semantics).
      *
      * <p>A table with set semantics assumes that there is a correlation between rows. When calling
      * the function, the PARTITION BY clause defines the columns for correlation. The framework
      * ensures that all rows belonging to same set are co-located. A PTF instance is able to access
-     * all rows belonging to the same set. In other words: The virtual processor is scoped under a
-     * key context.
+     * all rows belonging to the same set. In other words: The virtual processor is scoped by a key
+     * context.
+     *
+     * <p>It is also possible not to provide a key ({@link #OPTIONAL_PARTITION_BY}), in which case
+     * only one virtual processor handles the entire table, thereby losing scalability benefits.
      */
     TABLE_AS_SET(StaticArgumentTrait.TABLE_AS_SET),
 

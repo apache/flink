@@ -25,6 +25,7 @@ import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.annotation.ProcedureHint;
+import org.apache.flink.table.annotation.StateHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.RowData;
@@ -630,9 +631,11 @@ class TypeInferenceExtractorTest {
                                         }),
                                 TypeStrategies.explicit(DataTypes.STRING())),
                 TestSpec.forScalarFunction(FunctionHintTableArgScalarFunction.class)
-                        .expectErrorMessage("Only scalar arguments are supported yet."),
+                        .expectErrorMessage("Only scalar arguments are supported so far."),
                 TestSpec.forScalarFunction(ArgumentHintTableArgScalarFunction.class)
-                        .expectErrorMessage("Only scalar arguments are supported yet."));
+                        .expectErrorMessage("Only scalar arguments are supported so far."),
+                TestSpec.forScalarFunction(StateHintScalarFunction.class)
+                        .expectErrorMessage("State hints are not supported yet."));
     }
 
     private static Stream<TestSpec> procedureSpecs() {
@@ -2145,6 +2148,13 @@ class TypeInferenceExtractorTest {
                                 value = ArgumentTrait.TABLE_AS_ROW,
                                 type = @DataTypeHint("ROW<i INT>"))
                         Row table) {
+            return "";
+        }
+    }
+
+    @FunctionHint(state = @StateHint(name = "state", type = @DataTypeHint("INT")))
+    private static class StateHintScalarFunction extends ScalarFunction {
+        public String eval() {
             return "";
         }
     }

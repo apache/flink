@@ -65,6 +65,9 @@ final class FunctionTemplate {
      * types.
      */
     static FunctionTemplate fromAnnotation(DataTypeFactory typeFactory, FunctionHint hint) {
+        if (hint.state().length > 0) {
+            throw extractionError("State hints are not supported yet.");
+        }
         return new FunctionTemplate(
                 createSignatureTemplate(
                         typeFactory,
@@ -221,7 +224,7 @@ final class FunctionTemplate {
                                                 && traits[0] == ArgumentTrait.SCALAR;
                                     });
             if (!allScalar) {
-                throw extractionError("Only scalar arguments are supported yet.");
+                throw extractionError("Only scalar arguments are supported so far.");
             }
 
             argumentHintNames = new String[argumentHints.length];
