@@ -19,7 +19,7 @@ import atexit
 import os
 import sys
 import tempfile
-from typing import Union, List, Tuple, Iterable
+from typing import Union, List, Tuple, Iterable, Optional
 
 from py4j.java_gateway import get_java_class, get_method
 
@@ -405,7 +405,8 @@ class TableEnvironment(object):
         """
         return self._j_tenv.dropTemporaryFunction(path)
 
-    def create_temporary_table(self, path: str, descriptor: TableDescriptor):
+    def create_temporary_table(self, path: str, descriptor: TableDescriptor,
+                               ignoreIfExists: Optional[bool] = False):
         """
         Registers the given :class:`~pyflink.table.TableDescriptor` as a temporary catalog table.
 
@@ -424,16 +425,20 @@ class TableEnvironment(object):
             ...         .build())
             ...     .option("rows-per-second", 10)
             ...     .option("fields.f0.kind", "random")
-            ...     .build())
+            ...     .build(),
+            ...  True)
 
         :param path: The path under which the table will be registered.
         :param descriptor: Template for creating a CatalogTable instance.
+        :param ignoreIfExists: If a table exists under the given path and this flag is set,
+                               no operation is executed. An exception is thrown otherwise.
 
         .. versionadded:: 1.14.0
         """
-        self._j_tenv.createTemporaryTable(path, descriptor._j_table_descriptor)
+        self._j_tenv.createTemporaryTable(path, descriptor._j_table_descriptor, ignoreIfExists)
 
-    def create_table(self, path: str, descriptor: TableDescriptor):
+    def create_table(self, path: str, descriptor: TableDescriptor,
+                     ignoreIfExists: Optional[bool] = False):
         """
         Registers the given :class:`~pyflink.table.TableDescriptor` as a catalog table.
 
@@ -451,14 +456,17 @@ class TableEnvironment(object):
             ...                   .build())
             ...     .option("rows-per-second", 10)
             ...     .option("fields.f0.kind", "random")
-            ...     .build())
+            ...     .build(),
+            ...  True)
 
         :param path: The path under which the table will be registered.
         :param descriptor: Template for creating a CatalogTable instance.
+        :param ignoreIfExists: If a table exists under the given path and this flag is set,
+                               no operation is executed. An exception is thrown otherwise.
 
         .. versionadded:: 1.14.0
         """
-        self._j_tenv.createTable(path, descriptor._j_table_descriptor)
+        self._j_tenv.createTable(path, descriptor._j_table_descriptor, ignoreIfExists)
 
     def from_path(self, path: str) -> Table:
         """
