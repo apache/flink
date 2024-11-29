@@ -138,8 +138,12 @@ public class OpenTelemetryTestBase {
     }
 
     public static List<String> extractMetricNames(JsonNode json) {
-        return json.findPath("resourceMetrics").findPath("scopeMetrics").findPath("metrics")
-                .findValues("name").stream()
+        return json
+                .findPath("resourceMetrics")
+                .findPath("scopeMetrics")
+                .findPath("metrics")
+                .findValues("name")
+                .stream()
                 .map(JsonNode::asText)
                 .collect(Collectors.toList());
     }

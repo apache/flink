@@ -37,6 +37,7 @@ public class ProcTimeDeduplicateKeepLastRowFunction
     private final boolean generateInsert;
     private final boolean inputIsInsertOnly;
     private final boolean isStateTtlEnabled;
+
     /** The code generated equaliser used to equal RowData. */
     private final GeneratedRecordEqualiser genRecordEqualiser;
 

@@ -133,6 +133,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Disabled
     @Test
     void testStringAgg() {}
+
     // END
 
     @Test

@@ -5723,7 +5723,9 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         return true;
     }
 
-    /** @return true if state backend is safe to reuse state. */
+    /**
+     * @return true if state backend is safe to reuse state.
+     */
     protected boolean isSafeToReuseKVState() {
         return false;
     }

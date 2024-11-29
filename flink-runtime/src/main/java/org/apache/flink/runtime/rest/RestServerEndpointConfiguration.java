@@ -79,7 +79,9 @@ public final class RestServerEndpointConfiguration {
         this.responseHeaders = Collections.unmodifiableMap(requireNonNull(responseHeaders));
     }
 
-    /** @see RestOptions#ADDRESS */
+    /**
+     * @see RestOptions#ADDRESS
+     */
     public String getRestAddress() {
         return restAddress;
     }

@@ -162,7 +162,9 @@ public final class CallExpression implements ResolvedExpression {
         this(false, functionIdentifier, functionDefinition, args, dataType);
     }
 
-    /** @deprecated Use {@link #anonymous(FunctionDefinition, List, DataType)} instead. */
+    /**
+     * @deprecated Use {@link #anonymous(FunctionDefinition, List, DataType)} instead.
+     */
     @Deprecated
     public CallExpression(
             FunctionDefinition functionDefinition,

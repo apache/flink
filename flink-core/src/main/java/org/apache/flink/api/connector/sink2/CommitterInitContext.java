@@ -24,6 +24,8 @@ import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 /** The interface exposes some runtime info for creating a {@link Committer}. */
 @Public
 public interface CommitterInitContext extends InitContext {
-    /** @return The metric group this committer belongs to. */
+    /**
+     * @return The metric group this committer belongs to.
+     */
     SinkCommitterMetricGroup metricGroup();
 }

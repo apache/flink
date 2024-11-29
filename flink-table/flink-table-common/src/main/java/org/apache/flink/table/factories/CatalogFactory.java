@@ -115,14 +115,18 @@ public interface CatalogFactory extends TableFactory, Factory {
     // Default implementations for legacy {@link TableFactory} stack.
     // --------------------------------------------------------------------------------------------
 
-    /** @deprecated Implement the {@link Factory} based stack instead. */
+    /**
+     * @deprecated Implement the {@link Factory} based stack instead.
+     */
     @Deprecated
     default Map<String, String> requiredContext() {
         // Default implementation for catalogs implementing the new {@link Factory} stack instead.
         return null;
     }
 
-    /** @deprecated Implement the {@link Factory} based stack instead. */
+    /**
+     * @deprecated Implement the {@link Factory} based stack instead.
+     */
     @Deprecated
     default List<String> supportedProperties() {
         // Default implementation for catalogs implementing the new {@link Factory} stack instead.

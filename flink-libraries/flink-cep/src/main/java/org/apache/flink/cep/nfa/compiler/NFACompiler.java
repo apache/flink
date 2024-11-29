@@ -1019,7 +1019,9 @@ public class NFACompiler {
             return takeCondition;
         }
 
-        /** @return An true function extended with stop(until) condition if necessary. */
+        /**
+         * @return An true function extended with stop(until) condition if necessary.
+         */
         @SuppressWarnings("unchecked")
         private IterativeCondition<T> getTrueFunction() {
             IterativeCondition<T> trueCondition = BooleanConditions.trueFunction();

@@ -167,7 +167,9 @@ public abstract class AbstractPagedInputView implements DataInputView {
         this.positionInSegment = this.headerLength;
     }
 
-    /** @return header length. */
+    /**
+     * @return header length.
+     */
     public int getHeaderLength() {
         return headerLength;
     }

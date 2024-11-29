@@ -136,7 +136,8 @@ public class RoundRobinOperatorStateRepartitioner
 
     private Map<String, List<Tuple2<StreamStateHandle, OperatorStateHandle.StateMetaInfo>>>
             collectUnionStates(List<List<OperatorStateHandle>> parallelSubtaskStates) {
-        return collectStates(parallelSubtaskStates, OperatorStateHandle.Mode.UNION).entrySet()
+        return collectStates(parallelSubtaskStates, OperatorStateHandle.Mode.UNION)
+                .entrySet()
                 .stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().entries));
     }
@@ -144,7 +145,8 @@ public class RoundRobinOperatorStateRepartitioner
     private Map<String, List<Tuple2<StreamStateHandle, OperatorStateHandle.StateMetaInfo>>>
             collectPartlyFinishedBroadcastStates(
                     List<List<OperatorStateHandle>> parallelSubtaskStates) {
-        return collectStates(parallelSubtaskStates, OperatorStateHandle.Mode.BROADCAST).entrySet()
+        return collectStates(parallelSubtaskStates, OperatorStateHandle.Mode.BROADCAST)
+                .entrySet()
                 .stream()
                 .filter(e -> e.getValue().isPartiallyReported())
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().entries));

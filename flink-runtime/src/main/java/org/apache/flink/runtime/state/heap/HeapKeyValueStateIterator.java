@@ -67,13 +67,16 @@ public final class HeapKeyValueStateIterator implements KeyValueStateIterator {
 
     /** Iterator over the key groups of the corresponding key group range. */
     private final Iterator<Integer> keyGroupIterator;
+
     /** The current value of the keyGroupIterator. */
     private int currentKeyGroup;
 
     /** Iterator over all states present in the snapshots. */
     private Iterator<StateUID> statesIterator;
+
     /** The current value of the statesIterator. */
     private StateUID currentState;
+
     /**
      * An iterator over the values of the current state. It can be one of three:
      *
@@ -85,6 +88,7 @@ public final class HeapKeyValueStateIterator implements KeyValueStateIterator {
      * </ul>
      */
     private SingleStateIterator currentStateIterator;
+
     /** Helpers for serializing state into the unified format. */
     private final DataOutputSerializer valueOut = new DataOutputSerializer(64);
 

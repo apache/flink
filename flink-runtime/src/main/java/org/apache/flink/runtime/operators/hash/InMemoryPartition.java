@@ -139,7 +139,9 @@ public class InMemoryPartition<T> {
         this.partitionNumber = number;
     }
 
-    /** @return number of segments owned by partition */
+    /**
+     * @return number of segments owned by partition
+     */
     public int getBlockCount() {
         return this.partitionPages.size();
     }
@@ -190,7 +192,9 @@ public class InMemoryPartition<T> {
         return result;
     }
 
-    /** @return true if garbage exists in partition */
+    /**
+     * @return true if garbage exists in partition
+     */
     public boolean isCompacted() {
         return this.compacted;
     }

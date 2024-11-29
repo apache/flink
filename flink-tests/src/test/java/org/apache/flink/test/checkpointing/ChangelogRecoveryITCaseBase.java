@@ -235,7 +235,9 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
     }
 
     public static Set<StateHandleID> getAllStateHandleId(JobID jobID, MiniCluster miniCluster)
-            throws IOException, FlinkJobNotFoundException, ExecutionException,
+            throws IOException,
+                    FlinkJobNotFoundException,
+                    ExecutionException,
                     InterruptedException {
         Optional<String> mostRecentCompletedCheckpointPath =
                 getLatestCompletedCheckpointPath(jobID, miniCluster);

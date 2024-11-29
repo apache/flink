@@ -152,7 +152,9 @@ public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEn
     private static @Nullable File getUserApplicationJar(
             final File userLibDir, final Configuration configuration) {
         final List<File> pipelineJars =
-                configuration.getOptional(PipelineOptions.JARS).orElse(Collections.emptyList())
+                configuration
+                        .getOptional(PipelineOptions.JARS)
+                        .orElse(Collections.emptyList())
                         .stream()
                         .map(uri -> new File(userLibDir, new Path(uri).getName()))
                         .collect(Collectors.toList());

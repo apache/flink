@@ -744,7 +744,9 @@ public final class DataTypes {
         return new FieldsDataType(new RowType(logicalFields), fieldDataTypes);
     }
 
-    /** @see #ROW(Field...) */
+    /**
+     * @see #ROW(Field...)
+     */
     public static DataType ROW(List<Field> fields) {
         return ROW(fields.toArray(new Field[0]));
     }

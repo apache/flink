@@ -177,7 +177,8 @@ class NonReusingHashJoinIteratorITCase {
             iterator.open();
 
             //noinspection StatementWithEmptyBody
-            while (iterator.callWithNextKey(matcher, collector)) ;
+            while (iterator.callWithNextKey(matcher, collector))
+                ;
 
             iterator.close();
 
@@ -283,7 +284,8 @@ class NonReusingHashJoinIteratorITCase {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(matcher, collector)) ;
+            while (iterator.callWithNextKey(matcher, collector))
+                ;
 
             iterator.close();
 
@@ -349,7 +351,8 @@ class NonReusingHashJoinIteratorITCase {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(matcher, collector)) ;
+            while (iterator.callWithNextKey(matcher, collector))
+                ;
 
             iterator.close();
 
@@ -455,7 +458,8 @@ class NonReusingHashJoinIteratorITCase {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(matcher, collector)) ;
+            while (iterator.callWithNextKey(matcher, collector))
+                ;
 
             iterator.close();
 
@@ -516,7 +520,8 @@ class NonReusingHashJoinIteratorITCase {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(matcher, collector)) ;
+            while (iterator.callWithNextKey(matcher, collector))
+                ;
 
             iterator.close();
 
@@ -578,7 +583,8 @@ class NonReusingHashJoinIteratorITCase {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(matcher, collector)) ;
+            while (iterator.callWithNextKey(matcher, collector))
+                ;
 
             iterator.close();
 
@@ -645,7 +651,8 @@ class NonReusingHashJoinIteratorITCase {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(matcher, collector)) ;
+            while (iterator.callWithNextKey(matcher, collector))
+                ;
 
             iterator.close();
 
@@ -711,7 +718,8 @@ class NonReusingHashJoinIteratorITCase {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(matcher, collector)) ;
+            while (iterator.callWithNextKey(matcher, collector))
+                ;
 
             iterator.close();
 
@@ -777,7 +785,8 @@ class NonReusingHashJoinIteratorITCase {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(matcher, collector)) ;
+            while (iterator.callWithNextKey(matcher, collector))
+                ;
 
             iterator.close();
 
@@ -843,7 +852,8 @@ class NonReusingHashJoinIteratorITCase {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(matcher, collector)) ;
+            while (iterator.callWithNextKey(matcher, collector))
+                ;
 
             iterator.close();
 
@@ -909,7 +919,8 @@ class NonReusingHashJoinIteratorITCase {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(matcher, collector)) ;
+            while (iterator.callWithNextKey(matcher, collector))
+                ;
 
             iterator.close();
 
@@ -975,7 +986,8 @@ class NonReusingHashJoinIteratorITCase {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(matcher, collector)) ;
+            while (iterator.callWithNextKey(matcher, collector))
+                ;
 
             iterator.close();
 

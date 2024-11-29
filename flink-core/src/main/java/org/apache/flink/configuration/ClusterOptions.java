@@ -214,7 +214,9 @@ public class ClusterOptions {
         }
     }
 
-    /** @see ClusterOptions#UNCAUGHT_EXCEPTION_HANDLING */
+    /**
+     * @see ClusterOptions#UNCAUGHT_EXCEPTION_HANDLING
+     */
     public enum UncaughtExceptionHandleMode {
         LOG,
         FAIL

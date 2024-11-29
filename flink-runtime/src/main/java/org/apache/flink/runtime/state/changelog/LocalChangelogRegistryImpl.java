@@ -38,6 +38,7 @@ import java.util.concurrent.RejectedExecutionException;
 @Internal
 public class LocalChangelogRegistryImpl implements LocalChangelogRegistry {
     private static final Logger LOG = LoggerFactory.getLogger(LocalChangelogRegistry.class);
+
     /**
      * All registered handles. (PhysicalStateHandleID, (handle, checkpointID)) represents a handle
      * and the latest checkpoint that refer to this handle.

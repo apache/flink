@@ -32,7 +32,9 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface JobShuffleContext {
 
-    /** @return the corresponding {@link JobID}. */
+    /**
+     * @return the corresponding {@link JobID}.
+     */
     JobID getJobId();
 
     /**

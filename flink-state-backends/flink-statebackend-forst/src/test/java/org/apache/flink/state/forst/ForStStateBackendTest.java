@@ -93,7 +93,9 @@ class ForStStateBackendTest extends StateBackendTestBase<ForStStateBackend> {
         return true;
     }
 
-    /** @return true if state backend is safe to reuse state. */
+    /**
+     * @return true if state backend is safe to reuse state.
+     */
     @Override
     protected boolean isSafeToReuseKVState() {
         return true;

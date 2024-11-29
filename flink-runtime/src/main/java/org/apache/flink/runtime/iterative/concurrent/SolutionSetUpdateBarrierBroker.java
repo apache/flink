@@ -32,7 +32,9 @@ public class SolutionSetUpdateBarrierBroker extends Broker<SolutionSetUpdateBarr
 
     private SolutionSetUpdateBarrierBroker() {}
 
-    /** @return singleton instance */
+    /**
+     * @return singleton instance
+     */
     public static Broker<SolutionSetUpdateBarrier> instance() {
         return INSTANCE;
     }

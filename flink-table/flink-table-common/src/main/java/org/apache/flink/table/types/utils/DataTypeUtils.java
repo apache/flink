@@ -292,7 +292,9 @@ public final class DataTypeUtils {
         return flattenToNames(dataType, Collections.emptyList());
     }
 
-    /** @see DataTypeUtils#flattenToNames(DataType) */
+    /**
+     * @see DataTypeUtils#flattenToNames(DataType)
+     */
     public static List<String> flattenToNames(DataType dataType, List<String> existingNames) {
         final LogicalType type = dataType.getLogicalType();
         if (type.is(DISTINCT_TYPE)) {

@@ -225,7 +225,9 @@ public class DeclarationRewriter implements CodeRewriter {
                 return visitChildren(ctx);
             }
 
-            /** @return new name. */
+            /**
+             * @return new name.
+             */
             private String extractLocalVariable(
                     JavaParser.VariableDeclaratorIdContext decId,
                     JavaParser.TypeTypeContext typeType,

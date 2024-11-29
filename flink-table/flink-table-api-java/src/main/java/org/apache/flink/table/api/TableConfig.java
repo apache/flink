@@ -439,7 +439,9 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
         return getMinIdleStateRetentionTime() * 3 / 2;
     }
 
-    /** @return The duration until state which was not updated will be retained. */
+    /**
+     * @return The duration until state which was not updated will be retained.
+     */
     public Duration getIdleStateRetention() {
         return configuration.get(ExecutionConfigOptions.IDLE_STATE_RETENTION);
     }

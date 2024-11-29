@@ -376,9 +376,11 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                 assertThat(expectedResults)
                         .containsExactlyInAnyOrder(
                                 Stream.concat(
-                                                sinkTestStep.getExpectedBeforeRestoreAsStrings()
+                                                sinkTestStep
+                                                        .getExpectedBeforeRestoreAsStrings()
                                                         .stream(),
-                                                sinkTestStep.getExpectedAfterRestoreAsStrings()
+                                                sinkTestStep
+                                                        .getExpectedAfterRestoreAsStrings()
                                                         .stream())
                                         .toArray(String[]::new));
             }

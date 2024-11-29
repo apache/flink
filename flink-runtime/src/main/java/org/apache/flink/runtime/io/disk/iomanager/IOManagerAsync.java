@@ -540,5 +540,6 @@ public class IOManagerAsync extends IOManager implements UncaughtExceptionHandle
                 }
             } // end while alive
         }
-    }; // end writer thread
+    }
+    ; // end writer thread
 }

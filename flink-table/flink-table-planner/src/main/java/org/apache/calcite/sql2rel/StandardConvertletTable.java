@@ -773,6 +773,7 @@ public class StandardConvertletTable extends ReflectiveConvertletTable {
         requireNonNull(returnType, () -> "Unable to get type of " + call);
         return cx.getRexBuilder().makeCall(returnType, fun, exprs);
     }
+
     // END FLINK MODIFICATION
 
     public RexNode convertSequenceValue(
@@ -1017,7 +1018,7 @@ public class StandardConvertletTable extends ReflectiveConvertletTable {
                         }
                     }
                 }
-                // fall through
+            // fall through
             case LEAST_RESTRICTIVE:
                 return cx.getTypeFactory().leastRestrictive(types);
             default:
@@ -1894,8 +1895,8 @@ public class StandardConvertletTable extends ReflectiveConvertletTable {
             final TimeUnit unit = first(timeFrame.unit(), TimeUnit.EPOCH);
             final RexNode interval2Sub;
             switch (unit) {
-                    // Fractional second units are converted to seconds using their associated
-                    // multiplier.
+                // Fractional second units are converted to seconds using their associated
+                // multiplier.
                 case MICROSECOND:
                 case NANOSECOND:
                     interval2Sub =

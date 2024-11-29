@@ -90,6 +90,7 @@ public class ConfigOptionsDocGenerator {
                             + ">[a-zA-Z]*)(?:Options|Config|Parameters))(?:\\.java)?");
 
     private static final Formatter formatter = new HtmlFormatter();
+
     /**
      * This method generates html tables from set of classes containing {@link ConfigOption
      * ConfigOptions}.

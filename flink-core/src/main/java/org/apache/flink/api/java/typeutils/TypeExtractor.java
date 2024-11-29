@@ -1763,7 +1763,9 @@ public class TypeExtractor {
         return (TypeInfoFactory<OUT>) InstantiationUtil.instantiate(factoryClass);
     }
 
-    /** @return number of items with equal type or same raw type */
+    /**
+     * @return number of items with equal type or same raw type
+     */
     private static int countTypeInHierarchy(List<Type> typeHierarchy, Type type) {
         int count = 0;
         for (Type t : typeHierarchy) {

@@ -161,6 +161,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     protected final Executor ioExecutor;
 
     private final CompletableFuture<Void> startedFuture;
+
     /** The heartbeat manager with task managers. */
     private HeartbeatManager<TaskExecutorHeartbeatPayload, Void> taskManagerHeartbeatManager;
 

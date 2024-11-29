@@ -86,6 +86,7 @@ public final class ScopeFormats {
     public JobManagerOperatorScopeFormat getJmOperatorFormat() {
         return jmOperatorFormat;
     }
+
     // ------------------------------------------------------------------------
     //  Parsing from Config
     // ------------------------------------------------------------------------

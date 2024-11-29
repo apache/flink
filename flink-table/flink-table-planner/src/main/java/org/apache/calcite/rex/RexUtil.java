@@ -3144,7 +3144,7 @@ public class RexUtil {
             final boolean[] update = {false};
             final List<RexNode> clonedOperands;
             switch (call.getKind()) {
-                    // Flatten AND/OR operands.
+                // Flatten AND/OR operands.
                 case OR:
                     clonedOperands = visitList(call.operands, update);
                     if (update[0]) {
@@ -3167,7 +3167,7 @@ public class RexUtil {
                         return sargRef(
                                 rexBuilder, ref, sarg, literal.getType(), RexUnknownAs.UNKNOWN);
                     }
-                    // Sarg is complex (therefore useful); fall through
+                // Sarg is complex (therefore useful); fall through
                 default:
                     return super.visitCall(call);
             }

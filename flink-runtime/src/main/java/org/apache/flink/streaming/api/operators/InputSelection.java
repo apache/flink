@@ -40,7 +40,9 @@ public final class InputSelection implements Serializable {
 
     private final long inputMask;
 
-    /** @param inputMask -1 to mark if all inputs are selected. */
+    /**
+     * @param inputMask -1 to mark if all inputs are selected.
+     */
     private InputSelection(long inputMask) {
         this.inputMask = inputMask;
     }

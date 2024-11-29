@@ -46,7 +46,9 @@ public interface TimestampedInputSplit extends InputSplit, Comparable<Timestampe
      */
     void setSplitState(Serializable state);
 
-    /** @return the state of the split. */
+    /**
+     * @return the state of the split.
+     */
     Serializable getSplitState();
 
     /** Sets the state of the split to {@code null}. */
@@ -54,6 +56,8 @@ public interface TimestampedInputSplit extends InputSplit, Comparable<Timestampe
         this.setSplitState(null);
     }
 
-    /** @return The modification time of the file this split belongs to. */
+    /**
+     * @return The modification time of the file this split belongs to.
+     */
     long getModificationTime();
 }

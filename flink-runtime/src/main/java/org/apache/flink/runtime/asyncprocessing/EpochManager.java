@@ -162,6 +162,7 @@ public class EpochManager {
     public static class Epoch {
         /** The id of this epoch for easy debugging. */
         long id;
+
         /** The number of records that are still ongoing in this epoch. */
         int ongoingRecordCount;
 

@@ -39,6 +39,7 @@ public class PausableRelativeClock implements RelativeClock, TimerGauge.StartSto
 
     private long accumulativeBlockedNanoTime;
     private long currentBlockedNanoTimeStart;
+
     /** How many times this clock has been paused. */
     private long pausedCounter;
 
@@ -58,7 +59,9 @@ public class PausableRelativeClock implements RelativeClock, TimerGauge.StartSto
         return now - getBlockedTime(now);
     }
 
-    /** @return how long this {@link PausableRelativeClock} has been paused so far. */
+    /**
+     * @return how long this {@link PausableRelativeClock} has been paused so far.
+     */
     private long getBlockedTime(long now) {
         long blockedTime = accumulativeBlockedNanoTime;
         if (pausedCounter != 0) {

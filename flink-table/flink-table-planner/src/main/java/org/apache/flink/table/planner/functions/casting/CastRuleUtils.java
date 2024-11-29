@@ -135,7 +135,7 @@ final class CastRuleUtils {
 
     static String box(String term, LogicalType type) {
         switch (type.getTypeRoot()) {
-                // ordered by type root definition
+            // ordered by type root definition
             case BOOLEAN:
                 return staticCall(Boolean.class, "valueOf", term);
             case TINYINT:

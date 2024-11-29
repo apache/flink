@@ -188,6 +188,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private InternalSourceReaderMetricGroup sourceMetricGroup;
 
     private long currentMaxDesiredWatermark = Watermark.MAX_WATERMARK.getTimestamp();
+
     /** Can be not completed only in {@link OperatingMode#WAITING_FOR_ALIGNMENT} mode. */
     private CompletableFuture<Void> waitingForAlignmentFuture =
             CompletableFuture.completedFuture(null);
