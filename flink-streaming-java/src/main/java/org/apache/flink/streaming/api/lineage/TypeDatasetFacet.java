@@ -18,30 +18,15 @@
 
 package org.apache.flink.streaming.api.lineage;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 
-import java.util.ArrayList;
-import java.util.List;
+import javax.annotation.Nonnull;
 
-/** Default implementation for {@link LineageVertex}. */
-@Internal
-public class DefaultLineageVertex implements LineageVertex {
-    private List<LineageDataset> lineageDatasets;
+/** Facet definition to contain type information of source and sink. */
+@PublicEvolving
+public interface TypeDatasetFacet extends LineageDatasetFacet {
 
-    public DefaultLineageVertex() {
-        this.lineageDatasets = new ArrayList<>();
-    }
-
-    public DefaultLineageVertex(List<LineageDataset> lineageDatasets) {
-        this.lineageDatasets = lineageDatasets;
-    }
-
-    public void addLineageDataset(LineageDataset lineageDataset) {
-        this.lineageDatasets.add(lineageDataset);
-    }
-
-    @Override
-    public List<LineageDataset> datasets() {
-        return lineageDatasets;
-    }
+    @Nonnull
+    TypeInformation getTypeInformation();
 }
