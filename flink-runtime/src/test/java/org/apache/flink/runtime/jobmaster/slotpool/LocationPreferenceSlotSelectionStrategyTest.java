@@ -25,6 +25,7 @@ import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfileTestingUtils;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -53,6 +54,7 @@ class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionStrategyT
                 SlotProfile.priorAllocation(
                         resourceProfile,
                         biggerResourceProfile,
+                        DefaultLoadingWeight.EMPTY,
                         Collections.emptyList(),
                         Collections.emptyList(),
                         Collections.emptySet());
@@ -78,6 +80,7 @@ class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionStrategyT
                 SlotProfile.priorAllocation(
                         resourceProfile,
                         evenBiggerResourceProfile,
+                        DefaultLoadingWeight.EMPTY,
                         Collections.emptyList(),
                         Collections.emptyList(),
                         Collections.emptySet());
@@ -158,6 +161,7 @@ class LocationPreferenceSlotSelectionStrategyTest extends SlotSelectionStrategyT
                 SlotProfile.priorAllocation(
                         resourceProfile,
                         resourceProfile,
+                        DefaultLoadingWeight.EMPTY,
                         Collections.singletonList(tml3),
                         Collections.singletonList(aid3),
                         blacklisted);

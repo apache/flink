@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.testutils.TestingUtils;
@@ -58,7 +59,8 @@ class DeclarativeSlotPoolBridgePreferredAllocationsTest {
                         TestingUtils.infiniteDuration(),
                         TestingUtils.infiniteDuration(),
                         TestingUtils.infiniteDuration(),
-                        PreferredAllocationRequestSlotMatchingStrategy.INSTANCE,
+                        PreferredAllocationRequestSlotMatchingStrategy.create(
+                                SimpleRequestSlotMatchingStrategy.INSTANCE),
                         Duration.ZERO,
                         deferSlotAllocation,
                         forMainThread());
@@ -100,6 +102,10 @@ class DeclarativeSlotPoolBridgePreferredAllocationsTest {
             DeclarativeSlotPoolBridge declarativeSlotPoolBridge,
             Set<AllocationID> preferredAllocations) {
         return declarativeSlotPoolBridge.requestNewAllocatedSlot(
-                new SlotRequestId(), ResourceProfile.UNKNOWN, preferredAllocations, null);
+                new SlotRequestId(),
+                ResourceProfile.UNKNOWN,
+                DefaultLoadingWeight.EMPTY,
+                preferredAllocations,
+                null);
     }
 }
