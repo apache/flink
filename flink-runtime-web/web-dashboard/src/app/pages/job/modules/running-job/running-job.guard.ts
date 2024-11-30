@@ -17,7 +17,7 @@
  */
 
 import { Injectable } from '@angular/core';
-import { ActivatedRouteSnapshot, CanActivate, Router, RouterStateSnapshot, UrlTree } from '@angular/router';
+import { ActivatedRouteSnapshot, Router, RouterStateSnapshot, UrlTree } from '@angular/router';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
@@ -26,7 +26,7 @@ import { JobService } from '@flink-runtime-web/services';
 @Injectable({
   providedIn: 'root'
 })
-export class RunningJobGuard implements CanActivate {
+export class RunningJobGuard  {
   constructor(private readonly jobService: JobService, private router: Router) {}
 
   canActivate(
