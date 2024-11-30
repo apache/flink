@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 import { registerLocaleData } from '@angular/common';
-import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
+import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import en from '@angular/common/locales/en';
 import { APP_INITIALIZER, enableProdMode, importProvidersFrom, Injector } from '@angular/core';
 import { bootstrapApplication } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { Router, RouterModule } from '@angular/router';
+import { provideRouter, Router, withHashLocation } from '@angular/router';
 
 import { APP_ICONS } from '@flink-runtime-web/app-icons';
 import { AppComponent } from '@flink-runtime-web/app.component';
@@ -80,13 +80,9 @@ bootstrapApplication(AppComponent, {
       deps: [StatusService, Injector],
       multi: true
     },
-    importProvidersFrom(HttpClientModule),
+    provideHttpClient(withInterceptorsFromDi()),
     importProvidersFrom(BrowserAnimationsModule),
     importProvidersFrom(NzNotificationModule),
-    importProvidersFrom(
-      RouterModule.forRoot([...APP_ROUTES], {
-        useHash: true
-      })
-    )
+    provideRouter(APP_ROUTES, withHashLocation())
   ]
 }).catch(err => console.error(err));

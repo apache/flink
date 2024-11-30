@@ -25,7 +25,7 @@ import { StatusService } from '@flink-runtime-web/services';
 @Injectable({
   providedIn: 'root'
 })
-export class ClusterConfigGuard  {
+export class ClusterConfigGuard {
   constructor(private statusService: StatusService, private router: Router) {}
 
   canActivate(
