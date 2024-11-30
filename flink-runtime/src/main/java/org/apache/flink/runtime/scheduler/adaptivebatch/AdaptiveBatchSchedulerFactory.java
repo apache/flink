@@ -52,7 +52,6 @@ import org.apache.flink.runtime.jobmaster.event.FileSystemJobEventStore;
 import org.apache.flink.runtime.jobmaster.event.JobEventManager;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
-import org.apache.flink.runtime.jobmaster.slotpool.RequestSlotMatchingStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
@@ -93,6 +92,7 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.ONLY_FINISHED_PRODUCERS;
 import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.UNFINISHED_PRODUCERS;
+import static org.apache.flink.runtime.jobmaster.slotpool.RequestSlotMatchingStrategy.NoOpRequestSlotMatchingStrategy;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** Factory for {@link AdaptiveBatchScheduler}. */
@@ -357,7 +357,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
         final PhysicalSlotProvider physicalSlotProvider =
                 new PhysicalSlotProviderImpl(
                         slotSelectionStrategy,
-                        RequestSlotMatchingStrategy.NoOpRequestSlotMatchingStrategy.INSTANCE,
+                        NoOpRequestSlotMatchingStrategy.INSTANCE,
                         slotPool,
                         false);
 

@@ -20,6 +20,7 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
@@ -27,6 +28,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulkChecker;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequestBulkCheckerImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.RequestSlotMatchingStrategy;
+import org.apache.flink.runtime.jobmaster.slotpool.RequestSlotMatchingStrategy.NoOpRequestSlotMatchingStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
@@ -37,6 +39,9 @@ import org.apache.flink.util.clock.SystemClock;
 import java.time.Duration;
 import java.util.function.Consumer;
 
+import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadBalanceMode;
+import static org.apache.flink.runtime.jobmaster.DefaultSlotPoolServiceSchedulerFactory.getRequestSlotMatchingStrategy;
+import static org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy.NoOpSlotSelectionStrategy;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -91,26 +96,40 @@ public class DefaultSchedulerComponents {
             final SlotPool slotPool,
             final Duration slotRequestTimeout) {
 
+        final TaskManagerLoadBalanceMode taskManagerLoadBalanceMode =
+                jobMasterConfiguration.get(TaskManagerOptions.TASK_MANAGER_LOAD_BALANCE_MODE);
+        final boolean slotBatchAllocatable =
+                jobType == JobType.STREAMING
+                        && taskManagerLoadBalanceMode == TaskManagerLoadBalanceMode.TASKS;
         final SlotSelectionStrategy slotSelectionStrategy =
-                SlotSelectionStrategyUtils.selectSlotSelectionStrategy(
-                        jobType, jobMasterConfiguration);
+                slotBatchAllocatable
+                        ? NoOpSlotSelectionStrategy.INSTANCE
+                        : SlotSelectionStrategyUtils.selectSlotSelectionStrategy(
+                                jobType, jobMasterConfiguration);
+        final RequestSlotMatchingStrategy requestSlotMatchingStrategy =
+                slotBatchAllocatable
+                        ? getRequestSlotMatchingStrategy(jobMasterConfiguration, jobType)
+                        : NoOpRequestSlotMatchingStrategy.INSTANCE;
         final PhysicalSlotRequestBulkChecker bulkChecker =
                 PhysicalSlotRequestBulkCheckerImpl.createFromSlotPool(
                         slotPool, SystemClock.getInstance());
         final PhysicalSlotProvider physicalSlotProvider =
                 new PhysicalSlotProviderImpl(
                         slotSelectionStrategy,
-                        RequestSlotMatchingStrategy.NoOpRequestSlotMatchingStrategy.INSTANCE,
+                        requestSlotMatchingStrategy,
                         slotPool,
-                        false);
+                        slotBatchAllocatable);
         final ExecutionSlotAllocatorFactory allocatorFactory =
                 new SlotSharingExecutionSlotAllocatorFactory(
                         physicalSlotProvider,
                         jobType == JobType.STREAMING,
                         bulkChecker,
-                        slotRequestTimeout);
+                        slotRequestTimeout,
+                        slotBatchAllocatable
+                                ? new TaskBalancedPreferredSlotSharingStrategy.Factory()
+                                : new LocalInputPreferredSlotSharingStrategy.Factory());
         return new DefaultSchedulerComponents(
-                new PipelinedRegionSchedulingStrategy.Factory(false),
+                new PipelinedRegionSchedulingStrategy.Factory(slotBatchAllocatable),
                 bulkChecker::start,
                 allocatorFactory);
     }

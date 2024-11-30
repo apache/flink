@@ -71,7 +71,8 @@ public interface SlotSelectionStrategy {
     }
 
     /** The no actions implementation of {@link SlotSelectionStrategy}. */
-    class NoOpSlotSelectionStrategy implements SlotSelectionStrategy {
+    enum NoOpSlotSelectionStrategy implements SlotSelectionStrategy {
+        INSTANCE;
 
         @Override
         public Optional<SlotInfoAndLocality> selectBestSlotForProfile(

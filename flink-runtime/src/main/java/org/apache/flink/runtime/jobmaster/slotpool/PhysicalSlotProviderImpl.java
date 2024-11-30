@@ -37,6 +37,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.jobmaster.slotpool.RequestSlotMatchingStrategy.NoOpRequestSlotMatchingStrategy;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** The provider serves physical slot requests. */
@@ -54,11 +55,7 @@ public class PhysicalSlotProviderImpl implements PhysicalSlotProvider {
     @VisibleForTesting
     public PhysicalSlotProviderImpl(
             SlotSelectionStrategy slotSelectionStrategy, SlotPool slotPool) {
-        this(
-                slotSelectionStrategy,
-                RequestSlotMatchingStrategy.NoOpRequestSlotMatchingStrategy.INSTANCE,
-                slotPool,
-                false);
+        this(slotSelectionStrategy, NoOpRequestSlotMatchingStrategy.INSTANCE, slotPool, false);
     }
 
     public PhysicalSlotProviderImpl(
