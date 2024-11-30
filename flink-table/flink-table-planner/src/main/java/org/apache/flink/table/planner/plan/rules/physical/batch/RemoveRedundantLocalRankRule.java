@@ -87,6 +87,7 @@ public class RemoveRedundantLocalRankRule
                                                                                                                                         .BATCH_PHYSICAL()
                                                                                                                                         .getInterface())
                                                                                                                         .noInputs()))))
+                        .withDescription("RemoveRedundantLocalRankRule")
                         .as(RemoveRedundantLocalRankRuleConfig.class);
 
         @Override
