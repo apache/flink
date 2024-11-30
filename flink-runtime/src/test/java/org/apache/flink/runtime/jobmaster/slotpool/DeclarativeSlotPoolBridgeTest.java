@@ -28,6 +28,7 @@ import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -49,6 +50,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Tests for the {@link DeclarativeSlotPoolBridge}. */
 @ExtendWith(ParameterizedTestExtension.class)
 class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTest {
+    private RequirementListener requirementListener;
+
+    @BeforeEach
+    void setup() {
+        requirementListener =
+                new RequirementListener(componentMainThreadExecutor, slotRequestMaxInterval);
+    }
 
     @TestTemplate
     void testSlotOffer() throws Exception {
@@ -71,17 +79,23 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
                                                                         Collections.singleton(
                                                                                 allocatedSlot
                                                                                         .getAllocationId()))
-                                                        .build()));
+                                                        .build())
+                                .setContainsFreeSlotFunction(ignoredId -> true)
+                                .setIncreaseResourceRequirementsByConsumer(
+                                        requirementListener::increaseRequirements)
+                                .setDecreaseResourceRequirementsByConsumer(
+                                        requirementListener::decreaseRequirements));
         try (DeclarativeSlotPoolBridge declarativeSlotPoolBridge =
-                createDeclarativeSlotPoolBridge(declarativeSlotPoolFactory)) {
+                createDeclarativeSlotPoolBridge(
+                        declarativeSlotPoolFactory, componentMainThreadExecutor)) {
 
             declarativeSlotPoolBridge.start(JOB_MASTER_ID, "localhost");
 
             CompletableFuture<PhysicalSlot> slotAllocationFuture =
                     declarativeSlotPoolBridge.requestNewAllocatedSlot(
-                            slotRequestId, ResourceProfile.UNKNOWN, null);
+                            slotRequestId, ResourceProfile.UNKNOWN.toEmptyLoadable(), null);
 
-            tryWaitSlotRequestIsDone(declarativeSlotPoolBridge);
+            requirementListener.tryWaitSlotRequestIsDone();
 
             declarativeSlotPoolBridge.newSlotsAreAvailable(Collections.singleton(allocatedSlot));
 
@@ -105,7 +119,7 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
                                     () ->
                                             declarativeSlotPoolBridge.requestNewAllocatedSlot(
                                                     slotRequestId,
-                                                    ResourceProfile.UNKNOWN,
+                                                    ResourceProfile.UNKNOWN.toEmptyLoadable(),
                                                     Duration.ofMinutes(5)),
                                     componentMainThreadExecutor)
                             .get();
@@ -130,7 +144,7 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
         final TestingDeclarativeSlotPoolBuilder builder =
                 TestingDeclarativeSlotPool.builder()
                         .setReserveFreeSlotFunction(
-                                (allocationId, resourceProfile) -> {
+                                (allocationId, resourceProfile, loadingWeight) -> {
                                     assertThat(allocationId).isSameAs(expectedAllocationId);
                                     return allocatedSlot;
                                 })
@@ -149,7 +163,9 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
             final SlotRequestId slotRequestId = new SlotRequestId();
 
             declarativeSlotPoolBridge.allocateAvailableSlot(
-                    slotRequestId, expectedAllocationId, allocatedSlot.getResourceProfile());
+                    slotRequestId,
+                    expectedAllocationId,
+                    allocatedSlot.getResourceProfile().toEmptyLoadable());
 
             tryWaitSlotRequestIsDone(declarativeSlotPoolBridge);
 
@@ -176,7 +192,7 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
                                         final CompletableFuture<PhysicalSlot> slotFuture =
                                                 declarativeSlotPoolBridge.requestNewAllocatedSlot(
                                                         slotRequestId,
-                                                        ResourceProfile.UNKNOWN,
+                                                        ResourceProfile.UNKNOWN.toEmptyLoadable(),
                                                         RPC_TIMEOUT);
                                         slotFuture.whenComplete(
                                                 (physicalSlot, throwable) -> {
@@ -208,7 +224,9 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
 
             final CompletableFuture<PhysicalSlot> slotFuture =
                     declarativeSlotPoolBridge.requestNewAllocatedSlot(
-                            new SlotRequestId(), ResourceProfile.UNKNOWN, RPC_TIMEOUT);
+                            new SlotRequestId(),
+                            ResourceProfile.UNKNOWN.toEmptyLoadable(),
+                            RPC_TIMEOUT);
 
             tryWaitSlotRequestIsDone(declarativeSlotPoolBridge);
 
@@ -286,7 +304,9 @@ class DeclarativeSlotPoolBridgeTest extends AbstractDeclarativeSlotPoolBridgeTes
             for (int i = 0; i < requestSlotNum; i++) {
                 futures.add(
                         slotPoolBridge.requestNewAllocatedSlot(
-                                new SlotRequestId(), ResourceProfile.UNKNOWN, null));
+                                new SlotRequestId(),
+                                ResourceProfile.UNKNOWN.toEmptyLoadable(),
+                                null));
             }
 
             tryWaitSlotRequestIsDone(slotPoolBridge);

@@ -48,6 +48,7 @@ import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.LoadableResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -601,7 +602,7 @@ class JobMasterTest {
         public Optional<PhysicalSlot> allocateAvailableSlot(
                 @Nonnull SlotRequestId slotRequestId,
                 @Nonnull AllocationID allocationID,
-                @Nonnull ResourceProfile requirementProfile) {
+                @Nonnull LoadableResourceProfile loadableResourceProfile) {
             throw new UnsupportedOperationException(
                     "TestingSlotPool does not support this operation.");
         }
@@ -610,7 +611,7 @@ class JobMasterTest {
         @Override
         public CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
                 @Nonnull SlotRequestId slotRequestId,
-                @Nonnull ResourceProfile resourceProfile,
+                @Nonnull LoadableResourceProfile loadableResourceProfile,
                 @Nonnull Collection<AllocationID> preferredAllocations,
                 @Nullable Duration timeout) {
             return new CompletableFuture<>();
@@ -620,7 +621,7 @@ class JobMasterTest {
         @Override
         public CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
                 @Nonnull SlotRequestId slotRequestId,
-                @Nonnull ResourceProfile resourceProfile,
+                @Nonnull LoadableResourceProfile resourceProfile,
                 @Nonnull Collection<AllocationID> preferredAllocations) {
             return new CompletableFuture<>();
         }
