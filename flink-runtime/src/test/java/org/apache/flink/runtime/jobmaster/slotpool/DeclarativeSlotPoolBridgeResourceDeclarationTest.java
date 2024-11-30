@@ -31,17 +31,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import javax.annotation.Nonnull;
-
 import java.time.Duration;
 import java.util.Collections;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -99,7 +93,8 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
 
         // requesting the allocation of a new slot should increase the requirements
         declarativeSlotPoolBridge.requestNewAllocatedSlot(
-                new SlotRequestId(), ResourceProfile.UNKNOWN, Duration.ofMinutes(5));
+                PhysicalSlotRequestUtils.normalRequest(ResourceProfile.UNKNOWN),
+                Duration.ofMinutes(5));
 
         requirementListener.tryWaitSlotRequestIsDone();
 
@@ -125,8 +120,8 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
                     CompletableFuture.supplyAsync(
                                     () ->
                                             declarativeSlotPoolBridge.requestNewAllocatedSlot(
-                                                    new SlotRequestId(),
-                                                    ResourceProfile.UNKNOWN,
+                                                    PhysicalSlotRequestUtils.normalRequest(
+                                                            ResourceProfile.UNKNOWN),
                                                     Duration.ofMillis(
                                                             slotRequestMaxInterval.toMillis() * 2)),
                                     mainThreadExecutor)
@@ -174,7 +169,8 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
         // allocating (==reserving) an available (==free) slot should increase the requirements
         final SlotRequestId slotRequestId = new SlotRequestId();
         declarativeSlotPoolBridge.allocateAvailableSlot(
-                slotRequestId, newSlot.getAllocationId(), ResourceProfile.UNKNOWN);
+                newSlot.getAllocationId(),
+                PhysicalSlotRequestUtils.normalRequest(slotRequestId, ResourceProfile.UNKNOWN));
 
         requirementListener.tryWaitSlotRequestIsDone();
 
@@ -191,7 +187,8 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
 
         final SlotRequestId slotRequestId = new SlotRequestId();
         declarativeSlotPoolBridge.allocateAvailableSlot(
-                slotRequestId, newSlot.getAllocationId(), ResourceProfile.UNKNOWN);
+                newSlot.getAllocationId(),
+                PhysicalSlotRequestUtils.normalRequest(slotRequestId, ResourceProfile.UNKNOWN));
 
         requirementListener.tryWaitSlotRequestIsDone();
 
@@ -210,7 +207,8 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
         declarativeSlotPoolBridge.newSlotsAreAvailable(Collections.singleton(newSlot));
 
         declarativeSlotPoolBridge.allocateAvailableSlot(
-                new SlotRequestId(), newSlot.getAllocationId(), ResourceProfile.UNKNOWN);
+                newSlot.getAllocationId(),
+                PhysicalSlotRequestUtils.normalRequest(ResourceProfile.UNKNOWN));
 
         requirementListener.tryWaitSlotRequestIsDone();
 
@@ -221,69 +219,5 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
                 new RuntimeException("Test exception"));
         assertThat(requirementListener.getRequirements().getResourceCount(ResourceProfile.UNKNOWN))
                 .isZero();
-    }
-
-    /** Requirement listener for testing. */
-    private static final class RequirementListener {
-
-        ComponentMainThreadExecutor componentMainThreadExecutor;
-        Duration slotRequestMaxInterval;
-        ScheduledFuture<?> slotRequestFuture;
-
-        RequirementListener(
-                ComponentMainThreadExecutor componentMainThreadExecutor,
-                @Nonnull Duration slotRequestMaxInterval) {
-            this.componentMainThreadExecutor = componentMainThreadExecutor;
-            this.slotRequestMaxInterval = slotRequestMaxInterval;
-        }
-
-        private ResourceCounter requirements = ResourceCounter.empty();
-
-        private void increaseRequirements(ResourceCounter requirements) {
-            if (slotRequestMaxInterval.toMillis() <= 0L) {
-                this.requirements = this.requirements.add(requirements);
-                return;
-            }
-
-            if (!slotSlotRequestFutureAssignable()) {
-                slotRequestFuture.cancel(true);
-            }
-            slotRequestFuture =
-                    componentMainThreadExecutor.schedule(
-                            () -> this.checkSlotRequestMaxInterval(requirements),
-                            slotRequestMaxInterval.toMillis(),
-                            TimeUnit.MILLISECONDS);
-        }
-
-        private void decreaseRequirements(ResourceCounter requirements) {
-            this.requirements = this.requirements.subtract(requirements);
-        }
-
-        public ResourceCounter getRequirements() {
-            return requirements;
-        }
-
-        public void tryWaitSlotRequestIsDone() {
-            if (Objects.nonNull(slotRequestFuture)) {
-                try {
-                    slotRequestFuture.get();
-                } catch (InterruptedException | ExecutionException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        }
-
-        private boolean slotSlotRequestFutureAssignable() {
-            return slotRequestFuture == null
-                    || slotRequestFuture.isDone()
-                    || slotRequestFuture.isCancelled();
-        }
-
-        private void checkSlotRequestMaxInterval(ResourceCounter requirements) {
-            if (slotRequestMaxInterval.toMillis() <= 0L) {
-                return;
-            }
-            this.requirements = this.requirements.add(requirements);
-        }
     }
 }

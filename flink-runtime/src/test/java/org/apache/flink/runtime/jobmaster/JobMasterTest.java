@@ -87,6 +87,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.FreeSlotTracker;
 import org.apache.flink.runtime.jobmaster.slotpool.FreeSlotTrackerTestUtils;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
+import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequest;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolServiceFactory;
@@ -609,29 +610,20 @@ class JobMasterTest {
 
         @Override
         public Optional<PhysicalSlot> allocateAvailableSlot(
-                @Nonnull SlotRequestId slotRequestId,
-                @Nonnull AllocationID allocationID,
-                @Nonnull ResourceProfile requirementProfile) {
+                AllocationID allocationID, PhysicalSlotRequest physicalSlotRequest) {
             throw new UnsupportedOperationException(
                     "TestingSlotPool does not support this operation.");
         }
 
-        @Nonnull
         @Override
         public CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
-                @Nonnull SlotRequestId slotRequestId,
-                @Nonnull ResourceProfile resourceProfile,
-                @Nonnull Collection<AllocationID> preferredAllocations,
-                @Nullable Duration timeout) {
+                PhysicalSlotRequest physicalSlotRequest, Duration timeout) {
             return new CompletableFuture<>();
         }
 
-        @Nonnull
         @Override
         public CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
-                @Nonnull SlotRequestId slotRequestId,
-                @Nonnull ResourceProfile resourceProfile,
-                @Nonnull Collection<AllocationID> preferredAllocations) {
+                PhysicalSlotRequest physicalSlotRequest) {
             return new CompletableFuture<>();
         }
 
