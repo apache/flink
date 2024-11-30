@@ -136,7 +136,7 @@ class DefaultSlotPoolServiceSchedulerFactoryTest {
         assertThat(
                         DefaultSlotPoolServiceSchedulerFactory.getRequestSlotMatchingStrategy(
                                 configuration, jobType))
-                .isSameAs(expected);
+                .isEqualTo(expected);
     }
 
     private static Stream<Arguments> testGetRequestSlotMatchingStrategy() {
@@ -147,7 +147,8 @@ class DefaultSlotPoolServiceSchedulerFactoryTest {
                 Arguments.of(
                         true,
                         JobType.STREAMING,
-                        PreferredAllocationRequestSlotMatchingStrategy.INSTANCE));
+                        PreferredAllocationRequestSlotMatchingStrategy.create(
+                                SimpleRequestSlotMatchingStrategy.INSTANCE)));
     }
 
     private String saveAdaptiveSchedulerTestPropertyValue() {

@@ -103,8 +103,8 @@ class DeclarativeSlotPoolBridgeRequestCompletionTest {
                             .map(
                                     slotRequestId ->
                                             slotPool.requestNewAllocatedSlot(
-                                                    slotRequestId,
-                                                    ResourceProfile.UNKNOWN,
+                                                    PhysicalSlotRequestUtils.normalRequest(
+                                                            slotRequestId, ResourceProfile.UNKNOWN),
                                                     TIMEOUT))
                             .collect(Collectors.toList());
 

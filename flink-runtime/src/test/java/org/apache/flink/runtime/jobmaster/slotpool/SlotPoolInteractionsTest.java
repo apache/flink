@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutor;
-import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 
 import org.junit.jupiter.api.Test;
@@ -58,8 +57,8 @@ class SlotPoolInteractionsTest {
                     testMainThreadExecutor.execute(
                             () ->
                                     pool.requestNewAllocatedSlot(
-                                            new SlotRequestId(),
-                                            ResourceProfile.UNKNOWN,
+                                            PhysicalSlotRequestUtils.normalRequest(
+                                                    ResourceProfile.UNKNOWN),
                                             fastTimeout));
 
             assertThatThrownBy(future::get)
@@ -78,8 +77,8 @@ class SlotPoolInteractionsTest {
                     testMainThreadExecutor.execute(
                             () ->
                                     pool.requestNewAllocatedSlot(
-                                            new SlotRequestId(),
-                                            ResourceProfile.UNKNOWN,
+                                            PhysicalSlotRequestUtils.normalRequest(
+                                                    ResourceProfile.UNKNOWN),
                                             fastTimeout));
 
             assertThatThrownBy(future::get)
@@ -101,8 +100,8 @@ class SlotPoolInteractionsTest {
                     testMainThreadExecutor.execute(
                             () ->
                                     pool.requestNewAllocatedSlot(
-                                            new SlotRequestId(),
-                                            ResourceProfile.UNKNOWN,
+                                            PhysicalSlotRequestUtils.normalRequest(
+                                                    ResourceProfile.UNKNOWN),
                                             fastTimeout));
 
             assertThatThrownBy(future::get)
