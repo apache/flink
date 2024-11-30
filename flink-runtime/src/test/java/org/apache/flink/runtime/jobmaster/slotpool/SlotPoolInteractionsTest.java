@@ -59,7 +59,7 @@ class SlotPoolInteractionsTest {
                             () ->
                                     pool.requestNewAllocatedSlot(
                                             new SlotRequestId(),
-                                            ResourceProfile.UNKNOWN,
+                                            ResourceProfile.UNKNOWN.toEmptyLoadable(),
                                             fastTimeout));
 
             assertThatThrownBy(future::get)
@@ -79,7 +79,7 @@ class SlotPoolInteractionsTest {
                             () ->
                                     pool.requestNewAllocatedSlot(
                                             new SlotRequestId(),
-                                            ResourceProfile.UNKNOWN,
+                                            ResourceProfile.UNKNOWN.toEmptyLoadable(),
                                             fastTimeout));
 
             assertThatThrownBy(future::get)
@@ -102,7 +102,7 @@ class SlotPoolInteractionsTest {
                             () ->
                                     pool.requestNewAllocatedSlot(
                                             new SlotRequestId(),
-                                            ResourceProfile.UNKNOWN,
+                                            ResourceProfile.UNKNOWN.toEmptyLoadable(),
                                             fastTimeout));
 
             assertThatThrownBy(future::get)

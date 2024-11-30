@@ -30,6 +30,7 @@ import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
@@ -335,7 +336,8 @@ class DeclarativeSlotPoolServiceTest {
                     slotOffers);
 
             // slot1 is reserved, slot2 is free.
-            slotPool.reserveFreeSlot(slotOffer1.getAllocationId(), resourceProfile);
+            slotPool.reserveFreeSlot(
+                    slotOffer1.getAllocationId(), resourceProfile, DefaultLoadingWeight.EMPTY);
 
             slotPoolService.releaseFreeSlotsOnTaskManager(
                     taskManagerLocation.getResourceID(), new FlinkException("Test cause"));

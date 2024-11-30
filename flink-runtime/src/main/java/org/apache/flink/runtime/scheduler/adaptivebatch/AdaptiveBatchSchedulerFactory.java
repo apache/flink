@@ -52,6 +52,7 @@ import org.apache.flink.runtime.jobmaster.event.FileSystemJobEventStore;
 import org.apache.flink.runtime.jobmaster.event.JobEventManager;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
+import org.apache.flink.runtime.jobmaster.slotpool.RequestSlotMatchingStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
@@ -354,7 +355,11 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                 SlotSelectionStrategyUtils.selectSlotSelectionStrategy(
                         JobType.BATCH, configuration);
         final PhysicalSlotProvider physicalSlotProvider =
-                new PhysicalSlotProviderImpl(slotSelectionStrategy, slotPool);
+                new PhysicalSlotProviderImpl(
+                        slotSelectionStrategy,
+                        RequestSlotMatchingStrategy.NoOpRequestSlotMatchingStrategy.INSTANCE,
+                        slotPool,
+                        false);
 
         return new SimpleExecutionSlotAllocator.Factory(physicalSlotProvider, false);
     }

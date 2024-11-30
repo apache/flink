@@ -54,10 +54,11 @@ class SlotSharingSlotAllocatorTest {
 
     private static final FreeSlotFunction TEST_FREE_SLOT_FUNCTION = (a, c, t) -> {};
     private static final ReserveSlotFunction TEST_RESERVE_SLOT_FUNCTION =
-            (allocationId, resourceProfile) ->
+            (allocationId, resourceProfile, loadingWeight) ->
                     TestingPhysicalSlot.builder()
                             .withAllocationID(allocationId)
                             .withResourceProfile(resourceProfile)
+                            .withLoadingWeight(loadingWeight)
                             .build();
     private static final IsSlotAvailableAndFreeFunction TEST_IS_SLOT_FREE_FUNCTION =
             ignored -> true;
@@ -434,7 +435,7 @@ class SlotSharingSlotAllocatorTest {
 
         JobSchedulingPlan schedulingPlan =
                 SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
-                                (allocationId, resourceProfile) ->
+                                (allocationId, resourceProfile, loadingWeight) ->
                                         TestingPhysicalSlot.builder().build(),
                                 (allocationID, cause, ts) -> {},
                                 id -> false,

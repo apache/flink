@@ -23,10 +23,13 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /** An implementing for the {@link PhysicalSlot} interface for testing purposes. */
@@ -44,6 +47,8 @@ public class TestingPhysicalSlot implements PhysicalSlot {
 
     @Nullable private Payload payload;
 
+    @Nonnull private LoadingWeight loadingWeight;
+
     TestingPhysicalSlot(ResourceProfile resourceProfile, AllocationID allocationId) {
         this(
                 allocationId,
@@ -59,11 +64,28 @@ public class TestingPhysicalSlot implements PhysicalSlot {
             int physicalSlotNumber,
             TaskManagerGateway taskManagerGateway,
             ResourceProfile resourceProfile) {
+        this(
+                allocationId,
+                taskManagerLocation,
+                physicalSlotNumber,
+                taskManagerGateway,
+                resourceProfile,
+                DefaultLoadingWeight.EMPTY);
+    }
+
+    TestingPhysicalSlot(
+            AllocationID allocationId,
+            TaskManagerLocation taskManagerLocation,
+            int physicalSlotNumber,
+            TaskManagerGateway taskManagerGateway,
+            ResourceProfile resourceProfile,
+            LoadingWeight loadingWeight) {
         this.allocationId = Preconditions.checkNotNull(allocationId);
         this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
         this.physicalSlotNumber = physicalSlotNumber;
         this.taskManagerGateway = Preconditions.checkNotNull(taskManagerGateway);
         this.resourceProfile = resourceProfile;
+        this.loadingWeight = Preconditions.checkNotNull(loadingWeight);
     }
 
     @Override
@@ -117,6 +139,16 @@ public class TestingPhysicalSlot implements PhysicalSlot {
         }
     }
 
+    public void setLoading(LoadingWeight loadingWeight) {
+        this.loadingWeight = Preconditions.checkNotNull(loadingWeight);
+    }
+
+    @Nonnull
+    @Override
+    public LoadingWeight getLoading() {
+        return loadingWeight;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -129,6 +161,7 @@ public class TestingPhysicalSlot implements PhysicalSlot {
         private int physicalSlotNumber = 0;
         private TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
         private ResourceProfile resourceProfile = ResourceProfile.ANY;
+        private LoadingWeight loadingWeight = DefaultLoadingWeight.EMPTY;
 
         private Builder() {}
 
@@ -157,13 +190,19 @@ public class TestingPhysicalSlot implements PhysicalSlot {
             return this;
         }
 
+        public Builder withLoadingWeight(LoadingWeight loadingWeight) {
+            this.loadingWeight = loadingWeight;
+            return this;
+        }
+
         public TestingPhysicalSlot build() {
             return new TestingPhysicalSlot(
                     allocationID,
                     taskManagerLocation,
                     physicalSlotNumber,
                     taskManagerGateway,
-                    resourceProfile);
+                    resourceProfile,
+                    loadingWeight);
         }
     }
 }

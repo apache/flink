@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -33,6 +34,8 @@ import org.apache.flink.util.function.TriFunction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -64,8 +67,8 @@ public class TestingDeclarativeSlotPoolBuilder {
             (ignoredA, ignoredB) -> ResourceCounter.empty();
     private BiFunction<AllocationID, Exception, ResourceCounter> releaseSlotFunction =
             (ignoredA, ignoredB) -> ResourceCounter.empty();
-    private BiFunction<AllocationID, ResourceProfile, PhysicalSlot> reserveFreeSlotFunction =
-            (ignoredA, ignoredB) -> null;
+    private TriFunction<AllocationID, ResourceProfile, LoadingWeight, PhysicalSlot>
+            reserveFreeSlotFunction = (ignoredA, ignoredB, ignoredC) -> null;
     private TriFunction<AllocationID, Throwable, Long, ResourceCounter> freeReservedSlotFunction =
             (ignoredA, ignoredB, ignoredC) -> ResourceCounter.empty();
     private Function<ResourceID, Boolean> containsSlotsFunction = ignored -> false;
@@ -80,6 +83,8 @@ public class TestingDeclarativeSlotPoolBuilder {
                     Collection<SlotOffer>>
             registerSlotsFunction =
                     (slotOffers, ignoredB, ignoredC, ignoredD) -> new ArrayList<>(slotOffers);
+    private Supplier<Map<ResourceID, LoadingWeight>> taskExecutorsLoadingWeightSupplier =
+            HashMap::new;
 
     public TestingDeclarativeSlotPoolBuilder setIncreaseResourceRequirementsByConsumer(
             Consumer<ResourceCounter> increaseResourceRequirementsByConsumer) {
@@ -160,7 +165,7 @@ public class TestingDeclarativeSlotPoolBuilder {
     }
 
     public TestingDeclarativeSlotPoolBuilder setReserveFreeSlotFunction(
-            BiFunction<AllocationID, ResourceProfile, PhysicalSlot>
+            TriFunction<AllocationID, ResourceProfile, LoadingWeight, PhysicalSlot>
                     allocateFreeSlotForResourceFunction) {
         this.reserveFreeSlotFunction = allocateFreeSlotForResourceFunction;
         return this;
@@ -207,6 +212,7 @@ public class TestingDeclarativeSlotPoolBuilder {
                 containsSlotsFunction,
                 containsFreeSlotFunction,
                 returnIdleSlotsConsumer,
-                setResourceRequirementsConsumer);
+                setResourceRequirementsConsumer,
+                taskExecutorsLoadingWeightSupplier);
     }
 }
