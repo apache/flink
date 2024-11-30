@@ -21,8 +21,12 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+
+import javax.annotation.Nonnull;
 
 import java.util.Collection;
 import java.util.stream.Collectors;
@@ -97,6 +101,12 @@ public class TestingSlot implements PhysicalSlot {
     @Override
     public boolean tryAssignPayload(Payload payload) {
         throw new UnsupportedOperationException();
+    }
+
+    @Nonnull
+    @Override
+    public LoadingWeight getLoading() {
+        return new DefaultLoadingWeight(0f);
     }
 
     public static Collection<PhysicalSlot> getSlots(int count) {
