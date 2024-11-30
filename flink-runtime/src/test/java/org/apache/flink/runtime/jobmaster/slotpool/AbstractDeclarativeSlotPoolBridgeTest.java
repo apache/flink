@@ -68,18 +68,26 @@ abstract class AbstractDeclarativeSlotPoolBridgeTest {
                     SimpleRequestSlotMatchingStrategy.INSTANCE, Duration.ofMillis(20), true
                 },
                 new Object[] {
-                    PreferredAllocationRequestSlotMatchingStrategy.INSTANCE, Duration.ZERO, false
+                    PreferredAllocationRequestSlotMatchingStrategy.create(
+                            SimpleRequestSlotMatchingStrategy.INSTANCE),
+                    Duration.ZERO,
+                    false
                 },
                 new Object[] {
-                    PreferredAllocationRequestSlotMatchingStrategy.INSTANCE, Duration.ZERO, true
+                    PreferredAllocationRequestSlotMatchingStrategy.create(
+                            SimpleRequestSlotMatchingStrategy.INSTANCE),
+                    Duration.ZERO,
+                    true
                 },
                 new Object[] {
-                    PreferredAllocationRequestSlotMatchingStrategy.INSTANCE,
+                    PreferredAllocationRequestSlotMatchingStrategy.create(
+                            SimpleRequestSlotMatchingStrategy.INSTANCE),
                     Duration.ofMillis(20),
                     false
                 },
                 new Object[] {
-                    PreferredAllocationRequestSlotMatchingStrategy.INSTANCE,
+                    PreferredAllocationRequestSlotMatchingStrategy.create(
+                            SimpleRequestSlotMatchingStrategy.INSTANCE),
                     Duration.ofMillis(20),
                     true
                 });
