@@ -173,7 +173,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private final List<SplitT> splitsToInitializeOutput = new ArrayList<>();
 
-    private int numSplits;
     private final Map<String, Long> splitCurrentWatermarks = new HashMap<>();
     private final Set<String> currentlyPausedSplits = new HashSet<>();
 
@@ -615,7 +614,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private void handleAddSplitsEvent(AddSplitEvent<SplitT> event) {
         try {
             List<SplitT> newSplits = event.splits(splitSerializer);
-            numSplits += newSplits.size();
             if (operatingMode == OperatingMode.OUTPUT_NOT_INITIALIZED) {
                 // For splits arrived before the main output is initialized, store them into the
                 // pending list. Outputs of these splits will be created once the main output is
@@ -656,9 +654,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     @Override
     public void updateCurrentSplitWatermark(String splitId, long watermark) {
         splitCurrentWatermarks.put(splitId, watermark);
-        if (numSplits > 1
-                && watermark > currentMaxDesiredWatermark
-                && !currentlyPausedSplits.contains(splitId)) {
+        if (watermark > currentMaxDesiredWatermark && !currentlyPausedSplits.contains(splitId)) {
             pauseOrResumeSplits(Collections.singletonList(splitId), Collections.emptyList());
             currentlyPausedSplits.add(splitId);
         }
@@ -676,11 +672,6 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
      * <p>Note: This takes effect only if there are multiple splits, otherwise it does nothing.
      */
     private void checkSplitWatermarkAlignment() {
-        if (numSplits <= 1) {
-            // A single split can't overtake any other splits assigned to this operator instance.
-            // It is sufficient for the source to stop processing.
-            return;
-        }
         Collection<String> splitsToPause = new ArrayList<>();
         Collection<String> splitsToResume = new ArrayList<>();
         splitCurrentWatermarks.forEach(
@@ -717,12 +708,14 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             if (shouldWaitForAlignment()) {
                 operatingMode = OperatingMode.WAITING_FOR_ALIGNMENT;
                 waitingForAlignmentFuture = new CompletableFuture<>();
+                mainInputActivityClock.pause();
             }
         } else if (operatingMode == OperatingMode.WAITING_FOR_ALIGNMENT) {
             checkState(!waitingForAlignmentFuture.isDone());
             if (!shouldWaitForAlignment()) {
                 operatingMode = OperatingMode.READING;
                 waitingForAlignmentFuture.complete(null);
+                mainInputActivityClock.unPause();
             }
         }
     }
