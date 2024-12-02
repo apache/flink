@@ -1546,6 +1546,7 @@ public class FunctionITCase extends StreamingTestBase {
     void testUsingAddJarWithCheckpointing() throws Exception {
         env().enableCheckpointing(100);
         tEnv().executeSql(String.format("ADD JAR '%s'", jarPath));
+        ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
         testUserDefinedFunctionByUsingJar(
                 env ->
                         env.executeSql(
@@ -1553,6 +1554,7 @@ public class FunctionITCase extends StreamingTestBase {
                                         "create function lowerUdf as '%s' LANGUAGE JAVA",
                                         udfClassName)),
                 "drop function lowerUdf");
+        assertThat(contextClassLoader.equals(Thread.currentThread().getContextClassLoader()));
     }
 
     @Test
