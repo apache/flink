@@ -31,6 +31,10 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion.V1;
+import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion.getHigherVersions;
 
 /** Message headers for configuring a session. */
 public class ConfigureSessionHeaders
@@ -87,7 +91,7 @@ public class ConfigureSessionHeaders
 
     @Override
     public Collection<? extends RestAPIVersion<?>> getSupportedAPIVersions() {
-        return Arrays.asList(SqlGatewayRestAPIVersion.V2, SqlGatewayRestAPIVersion.V3);
+        return getHigherVersions(V1);
     }
 
     public static ConfigureSessionHeaders getInstance() {

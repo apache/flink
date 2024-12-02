@@ -142,4 +142,13 @@ public enum SqlGatewayRestAPIVersion
 
         return versions.get(0);
     }
+
+    /** Get higher versions comparing to the input version. */
+    public static List<SqlGatewayRestAPIVersion> getHigherVersions(
+            SqlGatewayRestAPIVersion version) {
+        return Arrays.stream(SqlGatewayRestAPIVersion.values())
+                .filter(SqlGatewayRestAPIVersion::isStableVersion)
+                .filter(v -> v.compareTo(version) > 0)
+                .collect(Collectors.toList());
+    }
 }

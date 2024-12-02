@@ -81,7 +81,7 @@ public class CompleteStatementHeaders
 
     @Override
     public Collection<? extends RestAPIVersion<?>> getSupportedAPIVersions() {
-        return Arrays.asList(SqlGatewayRestAPIVersion.V2, SqlGatewayRestAPIVersion.V3);
+        return SqlGatewayRestAPIVersion.getHigherVersions(SqlGatewayRestAPIVersion.V1);
     }
 
     public static CompleteStatementHeaders getInstance() {
