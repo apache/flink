@@ -33,6 +33,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPool;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.DefaultSlotSharingStrategy;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.JobAllocationsInformation;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -77,7 +78,8 @@ public class LocalRecoveryTest extends AdaptiveSchedulerTestBase {
                                 slotPool,
                                 localRecoveryEnabled,
                                 executionTarget,
-                                minimalTaskManagerPreferred),
+                                minimalTaskManagerPreferred,
+                                DefaultSlotSharingStrategy.INSTANCE),
                         capturedAllocations);
 
         scheduler =
