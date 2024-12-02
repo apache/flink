@@ -273,7 +273,7 @@ public class ScanReuserUtils {
                 : meta.getMetadataKeys();
     }
 
-    public static List<String> sortMetadataKeys(
+    public static List<String> enforceMetadataKeyOrder(
             Set<String> allUsedMetadataKeys, DynamicTableSource source) {
         Set<String> allOrderedMetadataKeysFromTable = extractMetadataMap(source).keySet();
 
