@@ -66,7 +66,9 @@ public class TestingLeaderElection implements LeaderElection {
 
     @Override
     public synchronized void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
-        if (confirmationFuture != null && !confirmationFuture.isDone()) {
+        if (leaderSessionID.equals(this.issuedLeaderSessionId)
+                && confirmationFuture != null
+                && !confirmationFuture.isDone()) {
             confirmationFuture.complete(LeaderInformation.known(leaderSessionID, leaderAddress));
         }
     }
