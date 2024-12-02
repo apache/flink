@@ -34,6 +34,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -93,17 +94,23 @@ abstract class AbstractSlotSharingStrategy
     /**
      * The vertices are topologically sorted since {@link DefaultExecutionTopology#getVertices} are
      * topologically sorted.
+     *
+     * @param topology The job topology.
+     * @param executionVertexIdentifierMapper The vertex identifier mapper function to convert a
+     *     execution vertex to a target identifier.
+     * @return The vertices identifiers in topologically order.
+     * @param <T> The type of the execution vertex identifier.
      */
     @Nonnull
-    static LinkedHashMap<JobVertexID, List<SchedulingExecutionVertex>> getExecutionVertices(
-            SchedulingTopology topology) {
-        final LinkedHashMap<JobVertexID, List<SchedulingExecutionVertex>> vertices =
-                new LinkedHashMap<>();
+    static <T> LinkedHashMap<JobVertexID, List<T>> getExecutionVertices(
+            SchedulingTopology topology,
+            Function<SchedulingExecutionVertex, T> executionVertexIdentifierMapper) {
+        final LinkedHashMap<JobVertexID, List<T>> vertices = new LinkedHashMap<>();
         for (SchedulingExecutionVertex executionVertex : topology.getVertices()) {
-            final List<SchedulingExecutionVertex> executionVertexGroup =
+            final List<T> executionVertexGroup =
                     vertices.computeIfAbsent(
                             executionVertex.getId().getJobVertexId(), k -> new ArrayList<>());
-            executionVertexGroup.add(executionVertex);
+            executionVertexGroup.add(executionVertexIdentifierMapper.apply(executionVertex));
         }
         return vertices;
     }
