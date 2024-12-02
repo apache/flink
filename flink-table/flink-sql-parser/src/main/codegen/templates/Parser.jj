@@ -2171,12 +2171,20 @@ SqlNode TableRef3(ExprContext exprContext, boolean lateral) :
 {
     (
         LOOKAHEAD(2)
-        tableName = CompoundTableIdentifier()
-        ( tableRef = TableHints(tableName) | { tableRef = tableName; } )
-        [ tableRef = ExtendTable(tableRef) ]
-        tableRef = Over(tableRef)
-        [ tableRef = Snapshot(tableRef) ]
-        [ tableRef = MatchRecognize(tableRef) ]
+        tableName = CompoundTableIdentifier() { s = span(); }
+        (
+            // Table call syntax like FROM a.b() instead of FROM TABLE(a.b())
+            // Three tokens needed to disambiguate EXTEND syntax from CALCITE-493.
+            // Example: "FROM EventLog(lastGCTime TIME)".
+            LOOKAHEAD(3)
+            tableRef = ImplicitTableFunctionCallArgs(tableName)
+        |
+            ( tableRef = TableHints(tableName) | { tableRef = tableName; } )
+            [ tableRef = ExtendTable(tableRef) ]
+            tableRef = Over(tableRef)
+            [ tableRef = Snapshot(tableRef) ]
+            [ tableRef = MatchRecognize(tableRef) ]
+        )
     |
         LOOKAHEAD(2)
         [ <LATERAL> { lateral = true; } ]
@@ -2382,6 +2390,38 @@ void AddCompoundIdentifierType(List<SqlNode> list, List<SqlNode> extendList) :
             extendList.add(type.withNullable(nullable, getPos()));
         }
         list.add(name);
+    }
+}
+
+SqlNode ImplicitTableFunctionCallArgs(SqlIdentifier name) :
+{
+    final List<SqlNode> tableFuncArgs = new ArrayList<SqlNode>();
+    final SqlNode call;
+    final Span s;
+}
+{
+    // Table call syntax like FROM a.b() instead of FROM TABLE(a.b())
+    // We've already parsed the name, so we don't use NamedRoutineCall.
+    { s = span(); }
+    <LPAREN>
+    [
+        AddArg0(tableFuncArgs, ExprContext.ACCEPT_CURSOR)
+        (
+            <COMMA> {
+                // a comma-list can't appear where only a query is expected
+                checkNonQueryExpression(ExprContext.ACCEPT_CURSOR);
+            }
+            AddArg(tableFuncArgs, ExprContext.ACCEPT_CURSOR)
+        )*
+    ]
+    <RPAREN>
+    {
+        final SqlParserPos pos = s.end(this);
+        call = createCall(name, pos,
+            SqlFunctionCategory.USER_DEFINED_TABLE_FUNCTION, null,
+            tableFuncArgs);
+        return SqlStdOperatorTable.COLLECTION_TABLE.createCall(pos,
+            call);
     }
 }
 

@@ -26,6 +26,7 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParserFixture;
 import org.apache.calcite.sql.parser.SqlParserTest;
+import org.apache.calcite.sql.validate.SqlConformanceEnum;
 import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -3425,6 +3426,13 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "INNER JOIN (SELECT *\n"
                         + "FROM UNNEST(`ITEM`.`RELATED`) AS `I` (`RELS`)) AS `RELATIONS` ON TRUE";
         sql(sql1).ok(expected1);
+    }
+
+    @Test
+    void testOuterApplyFunctionFails() {
+        final String sql = "select * from dept outer apply ramp(deptno)^)^";
+        sql(sql).withConformance(SqlConformanceEnum.SQL_SERVER_2008)
+                .fails("(?s).*Encountered \"\\)\" at .*");
     }
 
     /** Matcher that invokes the #validate() of the {@link ExtendedSqlNode} instance. * */
