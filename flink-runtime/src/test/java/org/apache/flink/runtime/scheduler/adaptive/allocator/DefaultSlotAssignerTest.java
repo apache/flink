@@ -77,7 +77,10 @@ class DefaultSlotAssignerTest {
     @TestTemplate
     void testPickSlotsIfNeeded() {
         final DefaultSlotAssigner slotAssigner =
-                new DefaultSlotAssigner(APPLICATION_MODE_EXECUTION_TARGET, true);
+                new DefaultSlotAssigner(
+                        APPLICATION_MODE_EXECUTION_TARGET,
+                        true,
+                        DefaultSlotSharingResolver.INSTANCE);
         final Set<TaskManagerLocation> keptTaskExecutors =
                 slotAssigner.pickSlotsIfNeeded(parallelism, freeSlots).stream()
                         .map(SlotInfo::getTaskManagerLocation)
