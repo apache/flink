@@ -30,12 +30,12 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
-/** Default implementation of KeyedStateStoreV2. */
-public class DefaultKeyedStateStoreV2 implements KeyedStateStoreV2 {
+/** Default implementation of KeyedStateStore. */
+public class DefaultKeyedStateStore implements KeyedStateStore {
 
     private final AsyncKeyedStateBackend<?> asyncKeyedStateBackend;
 
-    public DefaultKeyedStateStoreV2(@Nonnull AsyncKeyedStateBackend asyncKeyedStateBackend) {
+    public DefaultKeyedStateStore(@Nonnull AsyncKeyedStateBackend asyncKeyedStateBackend) {
         this.asyncKeyedStateBackend = Preconditions.checkNotNull(asyncKeyedStateBackend);
     }
 

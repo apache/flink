@@ -54,8 +54,6 @@ import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
-import org.apache.flink.runtime.state.v2.DefaultKeyedStateStoreV2;
-import org.apache.flink.runtime.state.v2.KeyedStateStoreV2;
 import org.apache.flink.util.CloseableIterable;
 import org.apache.flink.util.IOUtils;
 
@@ -87,7 +85,7 @@ public class StreamOperatorStateHandler {
 
     @Nullable private final AsyncKeyedStateBackend<?> asyncKeyedStateBackend;
 
-    @Nullable private final KeyedStateStoreV2 keyedStateStoreV2;
+    @Nullable private final org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStoreV2;
 
     /** Backend for keyed state. This might be empty if we're not on a keyed stream. */
     @Nullable private final CheckpointableKeyedStateBackend<?> keyedStateBackend;
@@ -126,7 +124,8 @@ public class StreamOperatorStateHandler {
         this.asyncKeyedStateBackend = context.asyncKeyedStateBackend();
         this.keyedStateStoreV2 =
                 asyncKeyedStateBackend != null
-                        ? new DefaultKeyedStateStoreV2(asyncKeyedStateBackend)
+                        ? new org.apache.flink.runtime.state.v2.DefaultKeyedStateStore(
+                                asyncKeyedStateBackend)
                         : null;
     }
 
@@ -487,7 +486,7 @@ public class StreamOperatorStateHandler {
         return Optional.ofNullable(keyedStateStore);
     }
 
-    public Optional<KeyedStateStoreV2> getKeyedStateStoreV2() {
+    public Optional<org.apache.flink.runtime.state.v2.KeyedStateStore> getKeyedStateStoreV2() {
         return Optional.ofNullable(keyedStateStoreV2);
     }
 

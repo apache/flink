@@ -30,7 +30,7 @@ import javax.annotation.Nonnull;
 
 /** This interface contains methods for registering {@link State}. */
 @Internal
-public interface KeyedStateStoreV2 {
+public interface KeyedStateStore {
 
     /**
      * Gets a handle to the system's {@link ValueState}. The key/value state is only accessible if
