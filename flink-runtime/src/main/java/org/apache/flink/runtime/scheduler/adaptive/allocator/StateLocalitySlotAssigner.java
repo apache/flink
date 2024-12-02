@@ -20,7 +20,6 @@ package org.apache.flink.runtime.scheduler.adaptive.allocator;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.JobAllocationsInformation.VertexAllocationInformation;
@@ -43,7 +42,6 @@ import java.util.stream.Collectors;
 
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
-import static org.apache.flink.runtime.scheduler.adaptive.allocator.DefaultSlotAssigner.createExecutionSlotSharingGroups;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** A {@link SlotAssigner} that assigns slots based on the number of local key groups. */
@@ -89,6 +87,12 @@ public class StateLocalitySlotAssigner implements SlotAssigner {
         }
     }
 
+    private final SlotSharingStrategy slotSharingStrategy;
+
+    StateLocalitySlotAssigner(SlotSharingStrategy slotSharingStrategy) {
+        this.slotSharingStrategy = slotSharingStrategy;
+    }
+
     @Override
     public Collection<SlotAssignment> assignSlots(
             JobInformation jobInformation,
@@ -101,10 +105,10 @@ public class StateLocalitySlotAssigner implements SlotAssigner {
                 freeSlots.size(),
                 jobInformation.getSlotSharingGroups().size());
 
-        final List<ExecutionSlotSharingGroup> allGroups = new ArrayList<>();
-        for (SlotSharingGroup slotSharingGroup : jobInformation.getSlotSharingGroups()) {
-            allGroups.addAll(createExecutionSlotSharingGroups(vertexParallelism, slotSharingGroup));
-        }
+        final List<ExecutionSlotSharingGroup> allGroups =
+                slotSharingStrategy.getExecutionSlotSharingGroups(
+                        jobInformation, vertexParallelism);
+
         final Map<JobVertexID, Integer> parallelism = getParallelism(allGroups);
         final PriorityQueue<AllocationScore> scores =
                 calculateScores(jobInformation, previousAllocations, allGroups, parallelism);

@@ -18,24 +18,23 @@
 
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
-import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator.ExecutionSlotSharingGroup;
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /** Simple {@link SlotAssigner} that treats all slots and slot sharing groups equally. */
 public class DefaultSlotAssigner implements SlotAssigner {
+
+    private final SlotSharingStrategy slotSharingStrategy;
+
+    DefaultSlotAssigner(SlotSharingStrategy slotSharingStrategy) {
+        this.slotSharingStrategy = slotSharingStrategy;
+    }
 
     @Override
     public Collection<SlotAssignment> assignSlots(
@@ -43,10 +42,9 @@ public class DefaultSlotAssigner implements SlotAssigner {
             Collection<? extends SlotInfo> freeSlots,
             VertexParallelism vertexParallelism,
             JobAllocationsInformation previousAllocations) {
-        List<ExecutionSlotSharingGroup> allGroups = new ArrayList<>();
-        for (SlotSharingGroup slotSharingGroup : jobInformation.getSlotSharingGroups()) {
-            allGroups.addAll(createExecutionSlotSharingGroups(vertexParallelism, slotSharingGroup));
-        }
+        final List<ExecutionSlotSharingGroup> allGroups =
+                slotSharingStrategy.getExecutionSlotSharingGroups(
+                        jobInformation, vertexParallelism);
 
         Iterator<? extends SlotInfo> iterator = freeSlots.iterator();
         Collection<SlotAssignment> assignments = new ArrayList<>();
@@ -54,24 +52,5 @@ public class DefaultSlotAssigner implements SlotAssigner {
             assignments.add(new SlotAssignment(iterator.next(), group));
         }
         return assignments;
-    }
-
-    static List<ExecutionSlotSharingGroup> createExecutionSlotSharingGroups(
-            VertexParallelism vertexParallelism, SlotSharingGroup slotSharingGroup) {
-        final Map<Integer, Set<ExecutionVertexID>> sharedSlotToVertexAssignment = new HashMap<>();
-        slotSharingGroup
-                .getJobVertexIds()
-                .forEach(
-                        jobVertexId -> {
-                            int parallelism = vertexParallelism.getParallelism(jobVertexId);
-                            for (int subtaskIdx = 0; subtaskIdx < parallelism; subtaskIdx++) {
-                                sharedSlotToVertexAssignment
-                                        .computeIfAbsent(subtaskIdx, ignored -> new HashSet<>())
-                                        .add(new ExecutionVertexID(jobVertexId, subtaskIdx));
-                            }
-                        });
-        return sharedSlotToVertexAssignment.values().stream()
-                .map(ExecutionSlotSharingGroup::new)
-                .collect(Collectors.toList());
     }
 }
