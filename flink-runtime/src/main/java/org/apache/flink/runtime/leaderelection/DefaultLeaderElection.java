@@ -78,7 +78,8 @@ class DefaultLeaderElection implements LeaderElection {
 
         /**
          * Confirms the leadership with the {@code leaderSessionID} and {@code leaderAddress} for
-         * the {@link LeaderContender} that is associated with the {@code componentId}.
+         * the {@link LeaderContender} that is associated with the {@code componentId}. The
+         * information is only propagated to the HA backend if the leadership is still acquired.
          */
         abstract void confirmLeadership(
                 String componentId, UUID leaderSessionID, String leaderAddress);
