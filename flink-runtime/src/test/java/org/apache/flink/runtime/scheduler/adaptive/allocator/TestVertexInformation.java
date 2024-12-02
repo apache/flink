@@ -18,14 +18,34 @@
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupImpl;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 
-class TestVertexInformation implements JobInformation.VertexInformation {
+import javax.annotation.Nullable;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class TestVertexInformation implements JobInformation.VertexInformation {
 
     private final JobVertexID jobVertexId;
     private final int minParallelism;
     private final int parallelism;
     private final SlotSharingGroup slotSharingGroup;
+    @Nullable private final TestingCoLocationGroup coLocationGroup;
+
+    public TestVertexInformation(int parallelism, SlotSharingGroup slotSharingGroup) {
+        this(new JobVertexID(), 1, parallelism, slotSharingGroup);
+    }
+
+    public TestVertexInformation(
+            int parallelism,
+            SlotSharingGroup slotSharingGroup,
+            TestingCoLocationGroup coLocationGroup) {
+        this(new JobVertexID(), 1, parallelism, slotSharingGroup, coLocationGroup);
+    }
 
     TestVertexInformation(
             JobVertexID jobVertexId, int parallelism, SlotSharingGroup slotSharingGroup) {
@@ -37,11 +57,24 @@ class TestVertexInformation implements JobInformation.VertexInformation {
             int minParallelism,
             int parallelism,
             SlotSharingGroup slotSharingGroup) {
+        this(jobVertexId, minParallelism, parallelism, slotSharingGroup, null);
+    }
+
+    TestVertexInformation(
+            JobVertexID jobVertexId,
+            int minParallelism,
+            int parallelism,
+            SlotSharingGroup slotSharingGroup,
+            @Nullable TestingCoLocationGroup coLocationGroup) {
         this.jobVertexId = jobVertexId;
         this.minParallelism = minParallelism;
         this.parallelism = parallelism;
         this.slotSharingGroup = slotSharingGroup;
-        slotSharingGroup.addVertexToGroup(jobVertexId);
+        this.slotSharingGroup.addVertexToGroup(jobVertexId);
+        this.coLocationGroup = coLocationGroup;
+        if (this.coLocationGroup != null) {
+            this.coLocationGroup.addVertex(jobVertexId);
+        }
     }
 
     @Override
@@ -67,5 +100,32 @@ class TestVertexInformation implements JobInformation.VertexInformation {
     @Override
     public SlotSharingGroup getSlotSharingGroup() {
         return slotSharingGroup;
+    }
+
+    @Nullable
+    @Override
+    public TestingCoLocationGroup getCoLocationGroup() {
+        return coLocationGroup;
+    }
+
+    /** Testing util class. */
+    public static class TestingCoLocationGroup extends CoLocationGroupImpl {
+        private final List<JobVertexID> verticesIDs = new ArrayList<>();
+
+        public TestingCoLocationGroup(JobVertexID... verticesIDs) {
+            super();
+            if (verticesIDs != null && verticesIDs.length > 0) {
+                this.verticesIDs.addAll(Arrays.stream(verticesIDs).collect(Collectors.toList()));
+            }
+        }
+
+        public void addVertex(JobVertexID vertexID) {
+            this.verticesIDs.add(vertexID);
+        }
+
+        @Override
+        public List<JobVertexID> getVertexIds() {
+            return verticesIDs;
+        }
     }
 }
