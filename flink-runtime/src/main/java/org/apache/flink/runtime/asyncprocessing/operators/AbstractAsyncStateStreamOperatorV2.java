@@ -90,29 +90,32 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
         final long asyncBufferTimeout = getExecutionConfig().getAsyncStateBufferTimeout();
         int maxParallelism = getExecutionConfig().getMaxParallelism();
 
-        AsyncKeyedStateBackend asyncKeyedStateBackend = stateHandler.getAsyncKeyedStateBackend();
-        if (asyncKeyedStateBackend != null) {
-            this.asyncExecutionController =
-                    new AsyncExecutionController(
-                            environment.getMainMailboxExecutor(),
-                            this::handleAsyncStateException,
-                            asyncKeyedStateBackend.createStateExecutor(),
-                            maxParallelism,
-                            asyncBufferSize,
-                            asyncBufferTimeout,
-                            inFlightRecordsLimit,
-                            asyncKeyedStateBackend);
-            asyncKeyedStateBackend.setup(asyncExecutionController);
-            if (asyncKeyedStateBackend instanceof AsyncKeyedStateBackendAdaptor) {
-                LOG.warn(
-                        "A normal KeyedStateBackend({}) is used when enabling the async state "
-                                + "processing. Parallel asynchronous processing does not work. "
-                                + "All state access will be processed synchronously.",
-                        stateHandler.getKeyedStateBackend());
+        if (isAsyncStateProcessingEnabled()) {
+            AsyncKeyedStateBackend asyncKeyedStateBackend =
+                    stateHandler.getAsyncKeyedStateBackend();
+            if (asyncKeyedStateBackend != null) {
+                this.asyncExecutionController =
+                        new AsyncExecutionController(
+                                environment.getMainMailboxExecutor(),
+                                this::handleAsyncStateException,
+                                asyncKeyedStateBackend.createStateExecutor(),
+                                maxParallelism,
+                                asyncBufferSize,
+                                asyncBufferTimeout,
+                                inFlightRecordsLimit,
+                                asyncKeyedStateBackend);
+                asyncKeyedStateBackend.setup(asyncExecutionController);
+                if (asyncKeyedStateBackend instanceof AsyncKeyedStateBackendAdaptor) {
+                    LOG.warn(
+                            "A normal KeyedStateBackend({}) is used when enabling the async state "
+                                    + "processing. Parallel asynchronous processing does not work. "
+                                    + "All state access will be processed synchronously.",
+                            stateHandler.getKeyedStateBackend());
+                }
+            } else if (stateHandler.getKeyedStateBackend() != null) {
+                throw new UnsupportedOperationException(
+                        "Current State Backend doesn't support async access, AsyncExecutionController could not work");
             }
-        } else if (stateHandler.getKeyedStateBackend() != null) {
-            throw new UnsupportedOperationException(
-                    "Current State Backend doesn't support async access, AsyncExecutionController could not work");
         }
     }
 
