@@ -61,7 +61,6 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
-import org.apache.flink.runtime.state.v2.DefaultKeyedStateStoreV2;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -504,7 +503,9 @@ class StreamingRuntimeContextTest {
             operator.getRuntimeContext().setKeyedStateStore(keyedStateStore);
         } else {
             operator.getRuntimeContext()
-                    .setKeyedStateStoreV2(new DefaultKeyedStateStoreV2(asyncKeyedStateBackend));
+                    .setKeyedStateStoreV2(
+                            new org.apache.flink.runtime.state.v2.DefaultKeyedStateStore(
+                                    asyncKeyedStateBackend));
         }
 
         return operator;
