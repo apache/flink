@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.rank;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,7 +37,8 @@ class AppendOnlyTopNFunctionTest extends TopNFunctionTestBase {
             RankType rankType,
             RankRange rankRange,
             boolean generateUpdateBefore,
-            boolean outputRankNumber) {
+            boolean outputRankNumber,
+            boolean enableAsyncState) {
         return new AppendOnlyTopNFunction(
                 ttlConfig,
                 inputRowType,
@@ -50,7 +51,12 @@ class AppendOnlyTopNFunctionTest extends TopNFunctionTestBase {
                 cacheSize);
     }
 
-    @Test
+    @Override
+    boolean supportedAsyncState() {
+        return false;
+    }
+
+    @TestTemplate
     void testVariableRankRange() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new VariableRankRange(1), true, false);
