@@ -356,8 +356,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
         FutureUtils.assertNoException(
                 leaderAddressFuture.thenAccept(
                         address ->
-                                runIfValidLeader(
-                                        leaderSessionId,
+                                runIfStateRunning(
                                         () -> {
                                             LOG.debug("Confirm leadership {}.", leaderSessionId);
                                             leaderElection.confirmLeadership(

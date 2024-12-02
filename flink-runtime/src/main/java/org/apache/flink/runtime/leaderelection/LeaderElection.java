@@ -33,6 +33,8 @@ public interface LeaderElection extends AutoCloseable {
      * Confirms that the {@link LeaderContender} has accepted the leadership identified by the given
      * leader session id. It also publishes the leader address under which the leader is reachable.
      *
+     * <p>The data is only confirmed if the leadership is still acquired.
+     *
      * <p>The intention of this method is to establish an order between setting the new leader
      * session ID in the {@link LeaderContender} and publishing the new leader session ID and the
      * related leader address to the leader retrieval services.

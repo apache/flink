@@ -177,12 +177,9 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
                 newDispatcherLeaderProcess
                         .getLeaderAddressFuture()
                         .thenAccept(
-                                leaderAddress -> {
-                                    if (leaderElection.hasLeadership(leaderSessionID)) {
+                                leaderAddress ->
                                         leaderElection.confirmLeadership(
-                                                leaderSessionID, leaderAddress);
-                                    }
-                                }));
+                                                leaderSessionID, leaderAddress)));
     }
 
     @Override
