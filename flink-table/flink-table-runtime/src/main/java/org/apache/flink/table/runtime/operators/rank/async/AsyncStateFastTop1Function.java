@@ -16,20 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.rank;
+package org.apache.flink.table.runtime.operators.rank.async;
 
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessingOperator;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.operators.rank.AppendOnlyTopNFunction;
+import org.apache.flink.table.runtime.operators.rank.FastTop1Function;
+import org.apache.flink.table.runtime.operators.rank.RankRange;
+import org.apache.flink.table.runtime.operators.rank.RankType;
+import org.apache.flink.table.runtime.operators.rank.UpdatableTopNFunction;
 import org.apache.flink.table.runtime.operators.rank.utils.FastTop1Helper;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
@@ -38,10 +48,11 @@ import org.apache.flink.util.Collector;
  * A more concise implementation for {@link AppendOnlyTopNFunction} and {@link
  * UpdatableTopNFunction} when only Top-1 is desired. This function can handle updating stream
  * because the RankProcessStrategy is inferred as UpdateFastStrategy, i.e., 1) the upsert key of
- * input stream contains partition key; 2) the sort field is updated monotonically under the upsert
- * key (See more at {@code FlinkRelMdModifiedMonotonicity}).
+ * input steam contains partition key; 2) the sort field is updated monotonely under the upsert key.
+ *
+ * <p>Different with {@link FastTop1Function}, this function is used with async state api.
  */
-public class FastTop1Function extends AbstractSyncStateTopNFunction
+public class AsyncStateFastTop1Function extends AbstractAsyncStateTopNFunction
         implements CheckpointedFunction {
 
     private static final long serialVersionUID = 1L;
@@ -52,9 +63,9 @@ public class FastTop1Function extends AbstractSyncStateTopNFunction
     // a value state stores the latest record
     private transient ValueState<RowData> dataState;
 
-    private transient FastTop1Helper helper;
+    private transient AsyncStateFastTop1Helper helper;
 
-    public FastTop1Function(
+    public AsyncStateFastTop1Function(
             StateTtlConfig ttlConfig,
             InternalTypeInfo<RowData> inputRowType,
             GeneratedRecordComparator generatedSortKeyComparator,
@@ -87,34 +98,44 @@ public class FastTop1Function extends AbstractSyncStateTopNFunction
         if (ttlConfig.isEnabled()) {
             valueStateDescriptor.enableTimeToLive(ttlConfig);
         }
-        dataState = getRuntimeContext().getState(valueStateDescriptor);
+        dataState =
+                ((StreamingRuntimeContext) getRuntimeContext()).getValueState(valueStateDescriptor);
 
-        helper = new SyncStateFastTop1Helper();
+        helper = new AsyncStateFastTop1Helper();
 
         // metrics
         helper.registerMetric();
     }
 
     @Override
-    public void processElement(RowData input, Context ctx, Collector<RowData> out)
+    public void processElement(
+            RowData input,
+            KeyedProcessFunction<RowData, RowData, RowData>.Context ctx,
+            Collector<RowData> out)
             throws Exception {
         helper.accRequestCount();
 
         // load state under current key if necessary
         RowData currentKey = (RowData) keyContext.getCurrentKey();
-        RowData prevRow = helper.getPrevRowFromCache(currentKey);
-        if (prevRow == null) {
-            prevRow = dataState.value();
+
+        RowData prevRowFromCache = helper.getPrevRowFromCache(currentKey);
+        StateFuture<RowData> prevRowFuture;
+        if (prevRowFromCache == null) {
+            prevRowFuture = dataState.asyncValue();
         } else {
             helper.accHitCount();
+            prevRowFuture = StateFutureUtils.completedFuture(prevRowFromCache);
         }
 
-        // first row under current key.
-        if (prevRow == null) {
-            helper.processAsFirstRow(input, currentKey, out);
-        } else {
-            helper.processWithPrevRow(input, currentKey, prevRow, out);
-        }
+        prevRowFuture.thenAccept(
+                prevRow -> {
+                    // first row under current key.
+                    if (prevRow == null) {
+                        helper.processAsFirstRow(input, currentKey, out);
+                    } else {
+                        helper.processWithPrevRow(input, currentKey, prevRow, out);
+                    }
+                });
     }
 
     @Override
@@ -127,20 +148,24 @@ public class FastTop1Function extends AbstractSyncStateTopNFunction
         // nothing to do
     }
 
-    private class SyncStateFastTop1Helper extends FastTop1Helper {
-
-        public SyncStateFastTop1Helper() {
+    private class AsyncStateFastTop1Helper extends FastTop1Helper {
+        public AsyncStateFastTop1Helper() {
             super(
-                    FastTop1Function.this,
+                    AsyncStateFastTop1Function.this,
                     inputRowSer,
                     cacheSize,
-                    FastTop1Function.this.getDefaultTopNSize());
+                    AsyncStateFastTop1Function.this.getDefaultTopNSize());
         }
 
         @Override
         public void flushBufferToState(RowData currentKey, RowData value) throws Exception {
-            keyContext.setCurrentKey(currentKey);
-            FastTop1Function.this.dataState.update(value);
+            ((AsyncStateProcessingOperator) keyContext)
+                    .asyncProcessWithKey(
+                            currentKey,
+                            () -> {
+                                // no need to wait this async request to end
+                                AsyncStateFastTop1Function.this.dataState.asyncUpdate(value);
+                            });
         }
     }
 }
