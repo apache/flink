@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator.ExecutionSlotSharingGroup;
@@ -38,7 +37,6 @@ import java.util.stream.Collectors;
 
 import static java.util.function.Function.identity;
 import static org.apache.flink.runtime.scheduler.adaptive.allocator.AllocatorUtil.checkMinimumRequiredSlots;
-import static org.apache.flink.runtime.scheduler.adaptive.allocator.AllocatorUtil.createExecutionSlotSharingGroups;
 
 /**
  * Simple {@link SlotAssigner} that treats all slots and slot sharing groups equally. Specifically,
@@ -53,10 +51,15 @@ public class DefaultSlotAssigner implements SlotAssigner {
 
     private final @Nullable String executionTarget;
     private final boolean minimalTaskManagerPreferred;
+    private final SlotSharingResolver slotSharingResolver;
 
-    DefaultSlotAssigner(@Nullable String executionTarget, boolean minimalTaskManagerPreferred) {
+    DefaultSlotAssigner(
+            @Nullable String executionTarget,
+            boolean minimalTaskManagerPreferred,
+            SlotSharingResolver slotSharingResolver) {
         this.executionTarget = executionTarget;
         this.minimalTaskManagerPreferred = minimalTaskManagerPreferred;
+        this.slotSharingResolver = slotSharingResolver;
     }
 
     @Override
@@ -67,10 +70,9 @@ public class DefaultSlotAssigner implements SlotAssigner {
             JobAllocationsInformation previousAllocations) {
         checkMinimumRequiredSlots(jobInformation, freeSlots);
 
-        final List<ExecutionSlotSharingGroup> allGroups = new ArrayList<>();
-        for (SlotSharingGroup slotSharingGroup : jobInformation.getSlotSharingGroups()) {
-            allGroups.addAll(createExecutionSlotSharingGroups(vertexParallelism, slotSharingGroup));
-        }
+        final Collection<ExecutionSlotSharingGroup> allGroups =
+                slotSharingResolver.getExecutionSlotSharingGroups(
+                        jobInformation, vertexParallelism);
 
         final Collection<? extends SlotInfo> pickedSlots =
                 pickSlotsIfNeeded(allGroups.size(), freeSlots);

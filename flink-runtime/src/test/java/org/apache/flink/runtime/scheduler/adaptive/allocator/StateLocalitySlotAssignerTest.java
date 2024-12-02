@@ -225,7 +225,7 @@ class StateLocalitySlotAssignerTest {
             VertexInformation vertexInformation,
             List<AllocationID> allocationIDs,
             List<VertexAllocationInformation> allocations) {
-        return new StateLocalitySlotAssigner()
+        return new StateLocalitySlotAssigner(DefaultSlotSharingResolver.INSTANCE)
                 .assignSlots(
                         new TestJobInformation(singletonList(vertexInformation)),
                         allocationIDs.stream().map(TestingSlot::new).collect(Collectors.toList()),
