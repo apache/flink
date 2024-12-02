@@ -29,7 +29,6 @@ import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-import java.util.Arrays;
 import java.util.Collection;
 
 /** Message headers for completing a statement. */

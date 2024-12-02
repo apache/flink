@@ -25,13 +25,10 @@ import org.apache.flink.table.gateway.rest.header.SqlGatewayMessageHeaders;
 import org.apache.flink.table.gateway.rest.message.session.ConfigureSessionRequestBody;
 import org.apache.flink.table.gateway.rest.message.session.SessionHandleIdPathParameter;
 import org.apache.flink.table.gateway.rest.message.session.SessionMessageParameters;
-import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion.V1;
 import static org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion.getHigherVersions;
