@@ -19,6 +19,7 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -78,6 +79,20 @@ public class FunctionContext {
 
     public FunctionContext(RuntimeContext context) {
         this(context, null, null);
+    }
+
+    /**
+     * Get the {@link TaskInfo} for this parallel subtask.
+     *
+     * @return task info for this parallel subtask.
+     */
+    public TaskInfo getTaskInfo() {
+        if (context == null) {
+            throw new TableException(
+                    "Calls to FunctionContext.getTaskInfo are not available "
+                            + "at the current location.");
+        }
+        return context.getTaskInfo();
     }
 
     /**
