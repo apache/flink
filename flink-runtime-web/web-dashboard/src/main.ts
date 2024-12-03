@@ -29,7 +29,7 @@ import { Configuration } from '@flink-runtime-web/interfaces';
 import { APP_ROUTES } from '@flink-runtime-web/routes';
 import { StatusService } from '@flink-runtime-web/services';
 import { NzConfig, provideNzConfig } from 'ng-zorro-antd/core/config';
-import { en_US, NZ_I18N, provideNzI18n } from 'ng-zorro-antd/i18n';
+import { en_US, provideNzI18n } from 'ng-zorro-antd/i18n';
 import { provideNzIcons } from 'ng-zorro-antd/icon';
 import { NzNotificationModule } from 'ng-zorro-antd/notification';
 
@@ -57,10 +57,6 @@ const ngZorroConfig: NzConfig = {
 
 bootstrapApplication(AppComponent, {
   providers: [
-    {
-      provide: NZ_I18N,
-      useValue: en_US
-    },
     {
       provide: HTTP_INTERCEPTORS,
       useClass: AppInterceptor,
