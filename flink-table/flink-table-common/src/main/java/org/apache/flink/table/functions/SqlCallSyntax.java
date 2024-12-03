@@ -71,6 +71,12 @@ public interface SqlCallSyntax {
             };
 
     /**
+     * Function syntax for functions without parameters (e.g., CURRENT_DATE, LOCALTIMESTAMP,
+     * LOCALTIME, CURRENT_TIMESTAMP, CURRENT_TIME).
+     */
+    SqlCallSyntax NO_PARENTHESIS = (sqlName, operands) -> sqlName;
+
+    /**
      * Function syntax for handling DISTINCT aggregates. Special case. It does not have a syntax
      * itself, but modifies the syntax of the nested call.
      */

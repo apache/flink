@@ -349,9 +349,11 @@ public class ExpressionSerializationTest {
                         .withField("f0", DataTypes.TIMESTAMP())
                         .withField("f1", DataTypes.TIMESTAMP())
                         .expectStr("TIMESTAMPDIFF(DAY, `f0`, `f1`)"),
-                TestSpec.forExpr(Expressions.currentDate()).expectStr("CURRENT_DATE()"),
-                TestSpec.forExpr(Expressions.currentTime()).expectStr("CURRENT_TIME()"),
-                TestSpec.forExpr(Expressions.currentTimestamp()).expectStr("CURRENT_TIMESTAMP()"),
+                TestSpec.forExpr(Expressions.currentDate()).expectStr("CURRENT_DATE"),
+                TestSpec.forExpr(Expressions.currentTime()).expectStr("CURRENT_TIME"),
+                TestSpec.forExpr(Expressions.currentTimestamp()).expectStr("CURRENT_TIMESTAMP"),
+                TestSpec.forExpr(Expressions.localTimestamp()).expectStr("LOCALTIMESTAMP"),
+                TestSpec.forExpr(Expressions.localTime()).expectStr("LOCALTIME"),
                 TestSpec.forExpr(Expressions.dateFormat($("f0"), lit("yyyy-MM-dd")))
                         .withField("f0", DataTypes.TIMESTAMP(3))
                         .expectStr("DATE_FORMAT(`f0`, 'yyyy-MM-dd')"),
