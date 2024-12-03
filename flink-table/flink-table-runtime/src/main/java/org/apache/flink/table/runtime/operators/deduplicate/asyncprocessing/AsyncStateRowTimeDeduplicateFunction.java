@@ -16,17 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.deduplicate;
+package org.apache.flink.table.runtime.operators.deduplicate.asyncprocessing;
 
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.deduplicate.RowTimeDeduplicateFunction;
 import org.apache.flink.table.runtime.operators.deduplicate.utils.RowTimeDeduplicateFunctionHelper;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
 
-/** This function is used to deduplicate on keys and keeps only first or last row on row time. */
-public class RowTimeDeduplicateFunction
-        extends SyncStateDeduplicateFunctionBase<RowData, RowData, RowData, RowData> {
+/**
+ * This function is used to deduplicate on keys and keeps only first or last row on row time.
+ *
+ * <p>Different with {@link RowTimeDeduplicateFunction}, this function is based on async state api.
+ */
+public class AsyncStateRowTimeDeduplicateFunction
+        extends AsyncStateDeduplicateFunctionBase<RowData, RowData, RowData, RowData> {
 
     private static final long serialVersionUID = 1L;
 
@@ -35,9 +40,9 @@ public class RowTimeDeduplicateFunction
     private final int rowtimeIndex;
     private final boolean keepLastRow;
 
-    private transient SyncStateRowTimeDeduplicateFunctionHelper helper;
+    private transient RowTimeDeduplicateFunctionHelper helper;
 
-    public RowTimeDeduplicateFunction(
+    public AsyncStateRowTimeDeduplicateFunction(
             InternalTypeInfo<RowData> typeInfo,
             long minRetentionTime,
             int rowtimeIndex,
@@ -55,26 +60,26 @@ public class RowTimeDeduplicateFunction
     public void open(OpenContext openContext) throws Exception {
         super.open(openContext);
 
-        helper = new SyncStateRowTimeDeduplicateFunctionHelper();
+        helper = new AsyncStateRowTimeDeduplicateFunctionHelper();
     }
 
     @Override
     public void processElement(RowData input, Context ctx, Collector<RowData> out)
             throws Exception {
-        RowData prevRow = state.value();
-        helper.deduplicateOnRowTime(input, prevRow, out);
+        state.asyncValue().thenAccept(prevRow -> helper.deduplicateOnRowTime(input, prevRow, out));
     }
 
-    private class SyncStateRowTimeDeduplicateFunctionHelper
+    private class AsyncStateRowTimeDeduplicateFunctionHelper
             extends RowTimeDeduplicateFunctionHelper {
 
-        public SyncStateRowTimeDeduplicateFunctionHelper() {
+        public AsyncStateRowTimeDeduplicateFunctionHelper() {
             super(generateUpdateBefore, generateInsert, rowtimeIndex, keepLastRow);
         }
 
         @Override
         protected void updateState(RowData currentRow) throws Exception {
-            state.update(currentRow);
+            // no need to wait this async request to end
+            state.asyncUpdate(currentRow);
         }
     }
 }

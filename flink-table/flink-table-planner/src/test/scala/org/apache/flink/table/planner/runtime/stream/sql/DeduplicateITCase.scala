@@ -17,29 +17,31 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.common.eventtime.{AscendingTimestampsWatermarks, TimestampAssigner, TimestampAssignerSupplier, WatermarkGenerator, WatermarkGeneratorSupplier, WatermarkStrategy}
+import org.apache.flink.api.common.eventtime._
 import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
-import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOn}
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.utils.LegacyRowExtension
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assumptions.assumeThat
-import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.{ExtendWith, RegisterExtension}
+
+import java.util
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
+class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncState: Boolean)
   extends StreamingWithMiniBatchTestBase(miniBatch, mode) {
 
   @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
@@ -54,6 +56,14 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   rowtimeTestData.+=((3, 5L, "Comment#2"))
   rowtimeTestData.+=((3, 4L, "Comment#2"))
   rowtimeTestData.+=((4, 4L, "Comment#3"))
+
+  @BeforeEach
+  override def before(): Unit = {
+    super.before()
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED,
+      Boolean.box(enableAsyncState))
+  }
 
   @TestTemplate
   def testFirstRowOnProctime(): Unit = {
@@ -423,5 +433,19 @@ class RowtimeExtractor extends WatermarkStrategy[(Int, Long, String)] {
   override def createTimestampAssigner(
       context: TimestampAssignerSupplier.Context): TimestampAssigner[(Int, Long, String)] = {
     (e: (Int, Long, String), _: Long) => e._2
+  }
+}
+
+object DeduplicateITCase {
+
+  @Parameters(name = "{0}, StateBackend={1}, EnableAsyncState={2}")
+  def parameters(): util.Collection[Array[java.lang.Object]] = {
+    Seq[Array[AnyRef]](
+      Array(MiniBatchOff, HEAP_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOff, ROCKSDB_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOn, HEAP_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOn, ROCKSDB_BACKEND, Boolean.box(false)),
+      Array(MiniBatchOff, HEAP_BACKEND, Boolean.box(true))
+    )
   }
 }
