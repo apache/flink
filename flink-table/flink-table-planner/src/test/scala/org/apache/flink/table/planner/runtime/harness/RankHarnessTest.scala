@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.runtime.utils.{JavaUserDefinedTableFunctio
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord
+import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 import org.apache.flink.types.RowKind._
@@ -468,7 +469,10 @@ class RankHarnessTest(mode: StateBackendMode, enableAsyncState: Boolean)
     testHarness.close()
   }
 
-  def prepareTop1Tester(query: String, operatorNameIdentifier: String)
+  def prepareRankTester(
+      query: String,
+      operatorNameIdentifier: String,
+      operatorOutputLogicalTypes: Array[LogicalType])
       : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], RowDataHarnessAssertor) = {
     val sourceDDL =
       s"""
@@ -486,11 +490,7 @@ class RankHarnessTest(mode: StateBackendMode, enableAsyncState: Boolean)
 
     val testHarness =
       createHarnessTester(t1.toRetractStream[Row], operatorNameIdentifier)
-    val assertor = new RowDataHarnessAssertor(
-      Array(
-        DataTypes.STRING().getLogicalType,
-        DataTypes.BIGINT().getLogicalType,
-        DataTypes.BIGINT().getLogicalType))
+    val assertor = new RowDataHarnessAssertor(operatorOutputLogicalTypes)
 
     (testHarness, assertor)
   }
@@ -500,7 +500,7 @@ class RankHarnessTest(mode: StateBackendMode, enableAsyncState: Boolean)
     tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(1))
     val query =
       """
-        |SELECT a, b, rn
+        |SELECT a, b
         |FROM
         |(
         |    SELECT a, b,
@@ -510,7 +510,11 @@ class RankHarnessTest(mode: StateBackendMode, enableAsyncState: Boolean)
         |WHERE rn <= 1
       """.stripMargin
     val (testHarness, assertor) =
-      prepareTop1Tester(query, "Rank(strategy=[AppendFastStrategy")
+      prepareRankTester(
+        query,
+        "Rank(strategy=[AppendFastStrategy",
+        Array(DataTypes.STRING().getLogicalType, DataTypes.BIGINT().getLogicalType)
+      )
 
     if (enableAsyncState) {
       assertThat(isAsyncStateOperator(testHarness)).isTrue
@@ -541,7 +545,7 @@ class RankHarnessTest(mode: StateBackendMode, enableAsyncState: Boolean)
     tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(1))
     val query =
       """
-        |SELECT a, b, rn
+        |SELECT a, b
         |FROM
         |(
         |    SELECT a, b,
@@ -553,7 +557,11 @@ class RankHarnessTest(mode: StateBackendMode, enableAsyncState: Boolean)
         |WHERE rn <= 1
       """.stripMargin
     val (testHarness, assertor) =
-      prepareTop1Tester(query, "Rank(strategy=[UpdateFastStrategy")
+      prepareRankTester(
+        query,
+        "Rank(strategy=[UpdateFastStrategy",
+        Array(DataTypes.STRING().getLogicalType, DataTypes.BIGINT().getLogicalType)
+      )
 
     if (enableAsyncState) {
       assertThat(isAsyncStateOperator(testHarness)).isTrue
@@ -576,6 +584,143 @@ class RankHarnessTest(mode: StateBackendMode, enableAsyncState: Boolean)
     expectedOutput.add(binaryRecord(UPDATE_BEFORE, "a", 3L: JLong))
     expectedOutput.add(binaryRecord(UPDATE_AFTER, "a", 4L: JLong))
 
+    assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
+
+    testHarness.close()
+  }
+
+  @TestTemplate
+  def testAppendOnlyTopNWithRowNumber(): Unit = {
+    tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(1))
+    val query =
+      """
+        |SELECT a, b, rn
+        |FROM
+        |(
+        |    SELECT a, b,
+        |        ROW_NUMBER() OVER (PARTITION BY a ORDER BY b DESC) AS rn
+        |    FROM T
+        |) t1
+        |WHERE rn <= 3
+      """.stripMargin
+    val (testHarness, assertor) =
+      prepareRankTester(
+        query,
+        "Rank(strategy=[AppendFastStrategy",
+        Array(
+          DataTypes.STRING().getLogicalType,
+          DataTypes.BIGINT().getLogicalType,
+          DataTypes.BIGINT().getLogicalType)
+      )
+
+    if (enableAsyncState) {
+      assertThat(isAsyncStateOperator(testHarness)).isTrue
+    } else {
+      assertThat(isAsyncStateOperator(testHarness)).isFalse
+    }
+
+    testHarness.open()
+
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+
+    // a,2 - top1
+    testHarness.processElement(binaryRecord(INSERT, "a", 2L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "a", 2L: JLong, 1L: JLong))
+
+    // a,2 - top1
+    // a,1 - top2
+    testHarness.processElement(binaryRecord(INSERT, "a", 1L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "a", 1L: JLong, 2L: JLong))
+
+    // a,3 - top1
+    // a,2 - top2
+    // a,1 - top3
+    testHarness.processElement(binaryRecord(INSERT, "a", 3L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "a", 2L: JLong, 1L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "a", 3L: JLong, 1L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "a", 1L: JLong, 2L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "a", 2L: JLong, 2L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "a", 1L: JLong, 3L: JLong))
+
+    // a,3 - top1
+    // a,2 - top2
+    // a,1 - top3
+    testHarness.processElement(binaryRecord(INSERT, "a", 0L: JLong))
+
+    // a,3 - top1
+    // a,3 - top2
+    // a,2 - top3
+    testHarness.processElement(binaryRecord(INSERT, "a", 3L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "a", 2L: JLong, 2L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "a", 3L: JLong, 2L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "a", 1L: JLong, 3L: JLong))
+    expectedOutput.add(binaryRecord(UPDATE_AFTER, "a", 2L: JLong, 3L: JLong))
+
+    val result = dropWatermarks(testHarness.getOutput.toArray)
+    assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
+
+    testHarness.close()
+  }
+
+  @TestTemplate
+  def testAppendOnlyTopNWithoutRowNumber(): Unit = {
+    tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(1))
+    val query =
+      """
+        |SELECT a, b
+        |FROM
+        |(
+        |    SELECT a, b,
+        |        ROW_NUMBER() OVER (PARTITION BY a ORDER BY b DESC) AS rn
+        |    FROM T
+        |) t1
+        |WHERE rn <= 3
+      """.stripMargin
+    val (testHarness, assertor) =
+      prepareRankTester(
+        query,
+        "Rank(strategy=[AppendFastStrategy",
+        Array(DataTypes.STRING().getLogicalType, DataTypes.BIGINT().getLogicalType)
+      )
+
+    if (enableAsyncState) {
+      assertThat(isAsyncStateOperator(testHarness)).isTrue
+    } else {
+      assertThat(isAsyncStateOperator(testHarness)).isFalse
+    }
+
+    testHarness.open()
+
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+
+    // a,2 - top1
+    testHarness.processElement(binaryRecord(INSERT, "a", 2L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "a", 2L: JLong))
+
+    // a,2 - top1
+    // a,1 - top2
+    testHarness.processElement(binaryRecord(INSERT, "a", 1L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "a", 1L: JLong))
+
+    // a,3 - top1
+    // a,2 - top2
+    // a,1 - top3
+    testHarness.processElement(binaryRecord(INSERT, "a", 3L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "a", 3L: JLong))
+
+    // a,3 - top1
+    // a,2 - top2
+    // a,1 - top3
+    testHarness.processElement(binaryRecord(INSERT, "a", 0L: JLong))
+
+    // a,3 - top1
+    // a,3 - top2
+    // a,2 - top3
+    testHarness.processElement(binaryRecord(INSERT, "a", 3L: JLong))
+    expectedOutput.add(binaryRecord(DELETE, "a", 1L: JLong))
+    expectedOutput.add(binaryRecord(INSERT, "a", 3L: JLong))
+
+    val result = dropWatermarks(testHarness.getOutput.toArray)
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
 
     testHarness.close()
