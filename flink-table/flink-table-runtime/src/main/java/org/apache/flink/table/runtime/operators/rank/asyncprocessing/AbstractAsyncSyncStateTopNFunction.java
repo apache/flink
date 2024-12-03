@@ -18,7 +18,14 @@
 
 package org.apache.flink.table.runtime.operators.rank.asyncprocessing;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.api.common.state.v2.ValueState;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.core.state.StateFutureUtils;
+import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -27,12 +34,16 @@ import org.apache.flink.table.runtime.operators.rank.RankRange;
 import org.apache.flink.table.runtime.operators.rank.RankType;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
+import java.util.Objects;
+
 /**
  * Base class for TopN Function with async state api.
  *
  * <p>Currently, only constant rank end is supported in async state rank.
  */
 public abstract class AbstractAsyncSyncStateTopNFunction extends AbstractTopNFunction {
+
+    private ValueState<Long> rankEndState;
 
     public AbstractAsyncSyncStateTopNFunction(
             StateTtlConfig ttlConfig,
@@ -52,9 +63,52 @@ public abstract class AbstractAsyncSyncStateTopNFunction extends AbstractTopNFun
                 rankRange,
                 generateUpdateBefore,
                 outputRankNumber);
+    }
+
+    @Override
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
+
         if (!isConstantRankEnd) {
-            throw new UnsupportedOperationException(
-                    "Variable rank end is not supported in rank with async state api.");
+            ValueStateDescriptor<Long> rankStateDesc =
+                    new ValueStateDescriptor<>("rankEnd", Types.LONG);
+            if (ttlConfig.isEnabled()) {
+                rankStateDesc.enableTimeToLive(ttlConfig);
+            }
+            rankEndState =
+                    ((StreamingRuntimeContext) getRuntimeContext()).getValueState(rankStateDesc);
+        }
+    }
+
+    /**
+     * Initialize rank end.
+     *
+     * @param row input record
+     * @return rank end
+     */
+    protected StateFuture<Long> initRankEnd(RowData row) throws Exception {
+        if (isConstantRankEnd) {
+            return StateFutureUtils.completedFuture(Objects.requireNonNull(constantRankEnd));
+        } else {
+            return rankEndState
+                    .asyncValue()
+                    .thenApply(
+                            rankEndInState -> {
+                                long curRankEnd = rankEndFetcher.apply(row);
+                                if (rankEndInState == null) {
+                                    // no need to wait this future
+                                    rankEndState.asyncUpdate(curRankEnd);
+                                    return curRankEnd;
+                                } else {
+                                    if (rankEndInState != curRankEnd) {
+                                        // increment the invalid counter when the current rank end
+                                        // not equal to previous
+                                        // rank end
+                                        invalidCounter.inc();
+                                    }
+                                    return rankEndInState;
+                                }
+                            });
         }
     }
 }

@@ -38,7 +38,10 @@ import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.Comparator;
+import java.util.Objects;
 import java.util.function.Function;
 
 /**
@@ -76,9 +79,15 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
 
     protected KeyContext keyContext;
     protected final boolean isConstantRankEnd;
-    private final long rankStart;
+    protected final long rankStart;
+
+    // constant rank end
+    // if rank end is variable, this var is null
+    @Nullable protected final Long constantRankEnd;
+
+    // variable rank end index
     private final int rankEndIndex;
-    protected long rankEnd;
+    // variable rank end fetcher
     protected transient Function<RowData, Long> rankEndFetcher;
 
     protected Counter invalidCounter;
@@ -118,15 +127,14 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
             ConstantRankRange constantRankRange = (ConstantRankRange) rankRange;
             isConstantRankEnd = true;
             rankStart = constantRankRange.getRankStart();
-            rankEnd = constantRankRange.getRankEnd();
             rankEndIndex = -1;
+            constantRankEnd = constantRankRange.getRankEnd();
         } else if (rankRange instanceof VariableRankRange) {
             VariableRankRange variableRankRange = (VariableRankRange) rankRange;
             rankEndIndex = variableRankRange.getRankEndIndex();
             isConstantRankEnd = false;
             rankStart = -1;
-            rankEnd = -1;
-
+            constantRankEnd = null;
         } else {
             LOG.error(WITHOUT_RANK_END_UNSUPPORTED_MSG);
             throw new UnsupportedOperationException(WITHOUT_RANK_END_UNSUPPORTED_MSG);
@@ -180,7 +188,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
      * @return default topN size
      */
     protected long getDefaultTopNSize() {
-        return isConstantRankEnd ? rankEnd : DEFAULT_TOPN_SIZE;
+        return isConstantRankEnd ? Objects.requireNonNull(constantRankEnd) : DEFAULT_TOPN_SIZE;
     }
 
     /**
@@ -213,8 +221,9 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
                 .<Long, Gauge<Long>>gauge("topn.cache.size", () -> heapSize);
     }
 
-    protected void collectInsert(Collector<RowData> out, RowData inputRow, long rank) {
-        if (isInRankRange(rank)) {
+    protected void collectInsert(
+            Collector<RowData> out, RowData inputRow, long rank, long rankEnd) {
+        if (isInRankRange(rank, rankEnd)) {
             out.collect(createOutputRow(inputRow, rank, RowKind.INSERT));
         }
     }
@@ -224,8 +233,9 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
         out.collect(inputRow);
     }
 
-    protected void collectDelete(Collector<RowData> out, RowData inputRow, long rank) {
-        if (isInRankRange(rank)) {
+    protected void collectDelete(
+            Collector<RowData> out, RowData inputRow, long rank, long rankEnd) {
+        if (isInRankRange(rank, rankEnd)) {
             out.collect(createOutputRow(inputRow, rank, RowKind.DELETE));
         }
     }
@@ -235,8 +245,9 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
         out.collect(inputRow);
     }
 
-    protected void collectUpdateAfter(Collector<RowData> out, RowData inputRow, long rank) {
-        if (isInRankRange(rank)) {
+    protected void collectUpdateAfter(
+            Collector<RowData> out, RowData inputRow, long rank, long rankEnd) {
+        if (isInRankRange(rank, rankEnd)) {
             out.collect(createOutputRow(inputRow, rank, RowKind.UPDATE_AFTER));
         }
     }
@@ -246,8 +257,9 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
         out.collect(inputRow);
     }
 
-    protected void collectUpdateBefore(Collector<RowData> out, RowData inputRow, long rank) {
-        if (generateUpdateBefore && isInRankRange(rank)) {
+    protected void collectUpdateBefore(
+            Collector<RowData> out, RowData inputRow, long rank, long rankEnd) {
+        if (generateUpdateBefore && isInRankRange(rank, rankEnd)) {
             out.collect(createOutputRow(inputRow, rank, RowKind.UPDATE_BEFORE));
         }
     }
@@ -259,11 +271,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
         }
     }
 
-    protected boolean isInRankEnd(long rank) {
-        return rank <= rankEnd;
-    }
-
-    protected boolean isInRankRange(long rank) {
+    protected boolean isInRankRange(long rank, long rankEnd) {
         return rank <= rankEnd && rank >= rankStart;
     }
 
@@ -323,24 +331,27 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
             this.keyContext = topNFunction.keyContext;
         }
 
-        protected void collectInsert(Collector<RowData> out, RowData inputRow, long rank) {
-            topNFunction.collectInsert(out, inputRow, rank);
+        protected void collectInsert(
+                Collector<RowData> out, RowData inputRow, long rank, long rankEnd) {
+            topNFunction.collectInsert(out, inputRow, rank, rankEnd);
         }
 
         protected void collectInsert(Collector<RowData> out, RowData inputRow) {
             topNFunction.collectInsert(out, inputRow);
         }
 
-        protected void collectUpdateAfter(Collector<RowData> out, RowData inputRow, long rank) {
-            topNFunction.collectUpdateAfter(out, inputRow, rank);
+        protected void collectUpdateAfter(
+                Collector<RowData> out, RowData inputRow, long rank, long rankEnd) {
+            topNFunction.collectUpdateAfter(out, inputRow, rank, rankEnd);
         }
 
         protected void collectUpdateAfter(Collector<RowData> out, RowData inputRow) {
             topNFunction.collectUpdateAfter(out, inputRow);
         }
 
-        protected void collectUpdateBefore(Collector<RowData> out, RowData inputRow, long rank) {
-            topNFunction.collectUpdateBefore(out, inputRow, rank);
+        protected void collectUpdateBefore(
+                Collector<RowData> out, RowData inputRow, long rank, long rankEnd) {
+            topNFunction.collectUpdateBefore(out, inputRow, rank, rankEnd);
         }
 
         protected void collectUpdateBefore(Collector<RowData> out, RowData inputRow) {
