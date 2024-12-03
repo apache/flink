@@ -67,7 +67,7 @@ public class SqlDriver {
                     .desc("SQL script file path.")
                     .build();
 
-    public static final Option OPTION_SQL_STATEMENTS =
+    public static final Option OPTION_SQL_SCRIPT =
             Option.builder().longOpt("script").numberOfArgs(1).desc("Script content.").build();
 
     private static final String RUNNER_CLASS_NAME =
@@ -146,7 +146,7 @@ public class SqlDriver {
     static Options getSqlDriverOptions() {
         Options options = new Options();
         options.addOption(OPTION_SQL_FILE);
-        options.addOption(OPTION_SQL_STATEMENTS);
+        options.addOption(OPTION_SQL_SCRIPT);
         return options;
     }
 
@@ -161,11 +161,11 @@ public class SqlDriver {
             String content = getContent(line.getOptionValue(OPTION_SQL_FILE.getLongOpt()));
             if (content == null) {
                 return Preconditions.checkNotNull(
-                        line.getOptionValue(OPTION_SQL_STATEMENTS.getLongOpt()),
+                        line.getOptionValue(OPTION_SQL_SCRIPT.getLongOpt()),
                         "Please set script or script path either.");
             } else {
                 Preconditions.checkArgument(
-                        line.getOptionValue(OPTION_SQL_STATEMENTS.getLongOpt()) == null,
+                        line.getOptionValue(OPTION_SQL_SCRIPT.getLongOpt()) == null,
                         "Don't set script or script path together.");
                 return content;
             }
