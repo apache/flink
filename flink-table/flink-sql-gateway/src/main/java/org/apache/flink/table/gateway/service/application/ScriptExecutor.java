@@ -35,7 +35,7 @@ import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** Parser to split the statements. */
+/** Executor to execute the statements. */
 public class ScriptExecutor {
 
     final SessionContext context;
