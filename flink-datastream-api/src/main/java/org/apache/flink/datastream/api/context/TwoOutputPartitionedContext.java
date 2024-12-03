@@ -16,27 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.datastream.api.function;
+package org.apache.flink.datastream.api.context;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.datastream.api.common.Collector;
-import org.apache.flink.datastream.api.context.TwoOutputPartitionedContext;
 
-/** A function to be applied to all partitions with two outputs. */
-@FunctionalInterface
+/** A special {@link BasePartitionedContext} used in two output process functions. */
 @Experimental
-public interface TwoOutputApplyPartitionFunction<OUT1, OUT2> extends Function {
-    /**
-     * The actual method to be applied to each partition.
-     *
-     * @param firstOutput to emit record to first output.
-     * @param secondOutput to emit record to second output.
-     * @param ctx runtime context in which this function is executed.
-     */
-    void apply(
-            Collector<OUT1> firstOutput,
-            Collector<OUT2> secondOutput,
-            TwoOutputPartitionedContext ctx)
-            throws Exception;
+public interface TwoOutputPartitionedContext<OUT1, OUT2> extends BasePartitionedContext {
+    TwoOutputNonPartitionedContext<OUT1, OUT2> getNonPartitionedContext();
 }

@@ -59,23 +59,22 @@ class DefaultNonPartitionedContextTest {
                         0,
                         operatorRuntimeContext.getMetricGroup());
 
+        DefaultPartitionedContext<Integer> partitionedContext =
+                new DefaultPartitionedContext<>(
+                        runtimeContext,
+                        Optional::empty,
+                        (r, k) -> {
+                            cf.complete(null);
+                            r.run();
+                            cf.complete(null);
+                        },
+                        UnsupportedProcessingTimeManager.INSTANCE,
+                        ContextTestUtils.createStreamingRuntimeContext(),
+                        new MockOperatorStateStore());
         DefaultNonPartitionedContext<Integer> nonPartitionedContext =
                 new DefaultNonPartitionedContext<>(
-                        runtimeContext,
-                        new DefaultPartitionedContext(
-                                runtimeContext,
-                                Optional::empty,
-                                (r, k) -> {
-                                    cf.complete(null);
-                                    r.run();
-                                    cf.complete(null);
-                                },
-                                UnsupportedProcessingTimeManager.INSTANCE,
-                                ContextTestUtils.createStreamingRuntimeContext(),
-                                new MockOperatorStateStore()),
-                        collector,
-                        false,
-                        null);
+                        runtimeContext, partitionedContext, collector, false, null);
+        partitionedContext.setNonPartitionedContext(nonPartitionedContext);
         nonPartitionedContext.applyToAllPartitions(
                 (out, ctx) -> {
                     counter.incrementAndGet();
@@ -114,24 +113,23 @@ class DefaultNonPartitionedContextTest {
                         0,
                         0,
                         operatorRuntimeContext.getMetricGroup());
+        DefaultPartitionedContext<Integer> partitionedContext =
+                new DefaultPartitionedContext<>(
+                        runtimeContext,
+                        currentKey::get,
+                        (r, k) -> {
+                            Integer oldKey = currentKey.get();
+                            currentKey.set((Integer) k);
+                            r.run();
+                            currentKey.set(oldKey);
+                        },
+                        UnsupportedProcessingTimeManager.INSTANCE,
+                        ContextTestUtils.createStreamingRuntimeContext(),
+                        new MockOperatorStateStore());
         DefaultNonPartitionedContext<Integer> nonPartitionedContext =
                 new DefaultNonPartitionedContext<>(
-                        runtimeContext,
-                        new DefaultPartitionedContext(
-                                runtimeContext,
-                                currentKey::get,
-                                (r, k) -> {
-                                    Integer oldKey = currentKey.get();
-                                    currentKey.set((Integer) k);
-                                    r.run();
-                                    currentKey.set(oldKey);
-                                },
-                                UnsupportedProcessingTimeManager.INSTANCE,
-                                ContextTestUtils.createStreamingRuntimeContext(),
-                                new MockOperatorStateStore()),
-                        collector,
-                        true,
-                        allKeys);
+                        runtimeContext, partitionedContext, collector, true, allKeys);
+        partitionedContext.setNonPartitionedContext(nonPartitionedContext);
         nonPartitionedContext.applyToAllPartitions(
                 (out, ctx) -> {
                     counter.incrementAndGet();

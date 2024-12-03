@@ -18,30 +18,30 @@
 
 package org.apache.flink.datastream.impl.context;
 
-import org.apache.flink.datastream.api.context.NonPartitionedContext;
-import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
 import org.apache.flink.datastream.api.context.RuntimeContext;
+import org.apache.flink.datastream.api.context.TwoOutputNonPartitionedContext;
+import org.apache.flink.datastream.api.context.TwoOutputPartitionedContext;
 import org.apache.flink.runtime.state.v2.OperatorStateStore;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
-/** The default implementation of {@link PartitionedContext}. */
-public class DefaultPartitionedContext<OUT> extends AbstractPartitionedContext
-        implements PartitionedContext<OUT> {
+/** The default implementation of {@link TwoOutputPartitionedContext}. */
+public class DefaultTwoOutputPartitionedContext<OUT1, OUT2> extends AbstractPartitionedContext
+        implements TwoOutputPartitionedContext<OUT1, OUT2> {
 
     /**
-     * The {@link DefaultNonPartitionedContext} and {@link DefaultPartitionedContext} create a
-     * circular reference, so the {@code nonPartitionedContext} field of {@link
-     * DefaultPartitionedContext} should be set in a separate method, {@link
-     * DefaultPartitionedContext#setNonPartitionedContext(NonPartitionedContext)}, rather than in
-     * the constructor.
+     * The {@link DefaultTwoOutputNonPartitionedContext} and {@link
+     * DefaultTwoOutputPartitionedContext} create a circular reference, so the {@code
+     * nonPartitionedContext} field of {@link DefaultTwoOutputPartitionedContext} should be set in a
+     * separate method, {@link DefaultTwoOutputPartitionedContext#setNonPartitionedContext}, rather
+     * than in the constructor.
      */
-    private NonPartitionedContext<OUT> nonPartitionedContext;
+    protected TwoOutputNonPartitionedContext<OUT1, OUT2> nonPartitionedContext;
 
-    public DefaultPartitionedContext(
+    public DefaultTwoOutputPartitionedContext(
             RuntimeContext context,
             Supplier<Object> currentKeySupplier,
             BiConsumer<Runnable, Object> processorWithKey,
@@ -57,12 +57,13 @@ public class DefaultPartitionedContext<OUT> extends AbstractPartitionedContext
                 operatorStateStore);
     }
 
-    public void setNonPartitionedContext(NonPartitionedContext<OUT> nonPartitionedContext) {
+    public void setNonPartitionedContext(
+            TwoOutputNonPartitionedContext<OUT1, OUT2> nonPartitionedContext) {
         this.nonPartitionedContext = nonPartitionedContext;
     }
 
     @Override
-    public NonPartitionedContext<OUT> getNonPartitionedContext() {
+    public TwoOutputNonPartitionedContext<OUT1, OUT2> getNonPartitionedContext() {
         return nonPartitionedContext;
     }
 }
