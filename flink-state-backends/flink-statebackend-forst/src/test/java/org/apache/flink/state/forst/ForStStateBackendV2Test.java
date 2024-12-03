@@ -43,7 +43,7 @@ import static org.apache.flink.state.forst.ForStOptions.REMOTE_DIRECTORY;
 
 /** Tests for the async keyed state backend part of {@link ForStStateBackend}. */
 @ExtendWith(ParameterizedTestExtension.class)
-class ForStStateBackendTestV2 extends StateBackendTestV2Base<ForStStateBackend> {
+class ForStStateBackendV2Test extends StateBackendTestV2Base<ForStStateBackend> {
 
     @TempDir private static java.nio.file.Path tempFolder;
     @TempDir private static java.nio.file.Path tempFolderForForStLocal;
@@ -94,7 +94,6 @@ class ForStStateBackendTestV2 extends StateBackendTestV2Base<ForStStateBackend> 
         if (hasRemoteDir) {
             config.set(REMOTE_DIRECTORY, tempFolderForForstRemote.toString());
         }
-        backend.configure(config, Thread.currentThread().getContextClassLoader());
-        return new ForStStateBackend();
+        return backend.configure(config, Thread.currentThread().getContextClassLoader());
     }
 }
