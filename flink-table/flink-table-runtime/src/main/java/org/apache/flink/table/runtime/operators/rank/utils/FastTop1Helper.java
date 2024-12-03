@@ -88,7 +88,8 @@ public abstract class FastTop1Helper extends AbstractTopNFunction.AbstractTopNHe
     public void processAsFirstRow(RowData input, RowData currentKey, Collector<RowData> out) {
         kvCache.put(currentKey, inputRowSer.copy(input));
         if (outputRankNumber) {
-            collectInsert(out, input, 1);
+            // the rank end of top-1 is always 1L
+            collectInsert(out, input, 1, 1);
         } else {
             collectInsert(out, input);
         }
@@ -106,8 +107,9 @@ public abstract class FastTop1Helper extends AbstractTopNFunction.AbstractTopNHe
             // Note: partition key is unique key if only top-1 is desired,
             //  thus emitting UB and UA here
             if (outputRankNumber) {
-                collectUpdateBefore(out, prevRow, 1);
-                collectUpdateAfter(out, input, 1);
+                // the rank end of top-1 is always 1L
+                collectUpdateBefore(out, prevRow, 1, 1);
+                collectUpdateAfter(out, input, 1, 1);
             } else {
                 collectUpdateBefore(out, prevRow);
                 collectUpdateAfter(out, input);
