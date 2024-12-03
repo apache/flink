@@ -69,7 +69,11 @@ class DefaultTwoOutputNonPartitionedContextTest {
                         new DefaultPartitionedContext(
                                 runtimeContext,
                                 Optional::empty,
-                                (key) -> cf.complete(null),
+                                (r, k) -> {
+                                    cf.complete(null);
+                                    r.run();
+                                    cf.complete(null);
+                                },
                                 UnsupportedProcessingTimeManager.INSTANCE,
                                 ContextTestUtils.createStreamingRuntimeContext(),
                                 new MockOperatorStateStore()),
@@ -129,7 +133,12 @@ class DefaultTwoOutputNonPartitionedContextTest {
                         new DefaultPartitionedContext(
                                 runtimeContext,
                                 currentKey::get,
-                                (key) -> currentKey.set((Integer) key),
+                                (r, k) -> {
+                                    Integer oldKey = currentKey.get();
+                                    currentKey.set((Integer) k);
+                                    r.run();
+                                    currentKey.set(oldKey);
+                                },
                                 UnsupportedProcessingTimeManager.INSTANCE,
                                 ContextTestUtils.createStreamingRuntimeContext(),
                                 new MockOperatorStateStore()),
