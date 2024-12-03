@@ -67,7 +67,7 @@ public class SqlDriver {
                     .desc("SQL script file path. It supports to fetch files from the DFS or HTTP.")
                     .build();
 
-    public static final Option OPTION_SQL_STATEMENTS =
+    public static final Option OPTION_SQL_SCRIPT =
             Option.builder().longOpt("script").numberOfArgs(1).desc("Script content.").build();
 
     private static final String RUNNER_CLASS_NAME =
@@ -146,7 +146,7 @@ public class SqlDriver {
     static Options getSqlDriverOptions() {
         Options options = new Options();
         options.addOption(OPTION_SQL_FILE);
-        options.addOption(OPTION_SQL_STATEMENTS);
+        options.addOption(OPTION_SQL_SCRIPT);
         return options;
     }
 

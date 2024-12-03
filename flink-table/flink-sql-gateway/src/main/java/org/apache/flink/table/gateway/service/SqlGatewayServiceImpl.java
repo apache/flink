@@ -19,6 +19,9 @@
 package org.apache.flink.table.gateway.service;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
+import org.apache.flink.client.deployment.application.ApplicationConfiguration;
+import org.apache.flink.client.deployment.application.cli.ApplicationClusterDeployer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -42,12 +45,15 @@ import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.session.Session;
 import org.apache.flink.table.gateway.service.session.SessionManager;
+import org.apache.flink.table.runtime.application.SqlDriver;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -327,6 +333,41 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
         } catch (Throwable t) {
             LOG.error("Failed to refresh MaterializedTable.", t);
             throw new SqlGatewayException("Failed to refresh MaterializedTable.", t);
+        }
+    }
+
+    @Override
+    public <ClusterID> ClusterID deployScript(
+            SessionHandle sessionHandle,
+            @Nullable Path scriptPath,
+            @Nullable String script,
+            Configuration executionConfig)
+            throws SqlGatewayException {
+        Session session = sessionManager.getSession(sessionHandle);
+        if (scriptPath == null && script == null) {
+            throw new IllegalArgumentException("Please specify script path or script.");
+        }
+        Configuration mergedConfig = Configuration.fromMap(session.getSessionConfig());
+        mergedConfig.addAll(executionConfig);
+
+        List<String> arguments = new ArrayList<>();
+        if (scriptPath != null) {
+            arguments.add("--" + SqlDriver.OPTION_SQL_FILE.getLongOpt());
+            arguments.add(scriptPath.toString());
+        }
+        if (script != null) {
+            arguments.add("--" + SqlDriver.OPTION_SQL_SCRIPT.getLongOpt());
+            arguments.add(script);
+        }
+
+        ApplicationConfiguration applicationConfiguration =
+                new ApplicationConfiguration(
+                        arguments.toArray(new String[0]), SqlDriver.class.getName());
+        try {
+            return new ApplicationClusterDeployer(new DefaultClusterClientServiceLoader())
+                    .run(mergedConfig, applicationConfiguration);
+        } catch (Exception e) {
+            throw new SqlGatewayException(e);
         }
     }
 

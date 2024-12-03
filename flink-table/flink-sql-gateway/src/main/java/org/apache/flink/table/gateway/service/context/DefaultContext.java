@@ -25,6 +25,7 @@ import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
 import org.apache.flink.client.cli.ProgramOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptionsInternal;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginUtils;
@@ -142,6 +143,7 @@ public class DefaultContext {
         // 2. load the global configuration
         Configuration configuration = GlobalConfiguration.loadConfiguration(flinkConfigDir);
         configuration.addAll(dynamicConfig);
+        configuration.set(DeploymentOptionsInternal.CONF_DIR, flinkConfigDir);
 
         // 3. load the custom command lines
         List<CustomCommandLine> commandLines =
