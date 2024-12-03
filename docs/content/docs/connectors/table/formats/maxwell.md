@@ -74,7 +74,7 @@ Maxwell provides a unified format for changelog, here is a simple example for an
      "weight":5.15
    },
    "old":{
-     "weight":5.18,
+     "weight":5.18
    }
 }
 ```
