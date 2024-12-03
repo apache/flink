@@ -21,6 +21,7 @@ package org.apache.flink.datastream.api.function;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.state.StateDeclaration;
+import org.apache.flink.api.common.watermark.WatermarkDeclaration;
 
 import java.util.Collections;
 import java.util.Set;
@@ -35,6 +36,16 @@ public interface ProcessFunction extends Function {
      * @return all declared states used by this process function.
      */
     default Set<StateDeclaration> usesStates() {
+        return Collections.emptySet();
+    }
+
+    /**
+     * Explicitly declare watermarks upfront. Each specific watermark must be declared in this
+     * method before it can be used.
+     *
+     * @return all watermark declarations used by this application.
+     */
+    default Set<? extends WatermarkDeclaration> declareWatermarks() {
         return Collections.emptySet();
     }
 
