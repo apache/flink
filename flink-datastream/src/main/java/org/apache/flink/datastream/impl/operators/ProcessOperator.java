@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+import java.util.Collections;
 import java.util.function.BiConsumer;
 
 /** Operator for {@link OneInputStreamProcessFunction}. */
@@ -122,7 +123,13 @@ public class ProcessOperator<IN, OUT>
 
     protected NonPartitionedContext<OUT> getNonPartitionedContext() {
         return new DefaultNonPartitionedContext<>(
-                context, partitionedContext, outputCollector, false, null);
+                context,
+                partitionedContext,
+                outputCollector,
+                false,
+                null,
+                output,
+                Collections.emptyMap());
     }
 
     @Override

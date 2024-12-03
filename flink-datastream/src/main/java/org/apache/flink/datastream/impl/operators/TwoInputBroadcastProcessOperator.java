@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+import java.util.Collections;
 import java.util.function.BiConsumer;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -105,7 +106,13 @@ public class TwoInputBroadcastProcessOperator<IN1, IN2, OUT>
 
     protected NonPartitionedContext<OUT> getNonPartitionedContext() {
         return new DefaultNonPartitionedContext<>(
-                context, partitionedContext, collector, false, null);
+                context,
+                partitionedContext,
+                collector,
+                false,
+                null,
+                output,
+                Collections.emptyMap());
     }
 
     @Override

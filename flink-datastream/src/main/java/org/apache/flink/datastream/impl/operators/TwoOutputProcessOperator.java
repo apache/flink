@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 
+import java.util.Collections;
 import java.util.function.BiConsumer;
 
 /**
@@ -140,7 +141,8 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
 
     protected TwoOutputNonPartitionedContext<OUT_MAIN, OUT_SIDE> getNonPartitionedContext() {
         return new DefaultTwoOutputNonPartitionedContext<>(
-                context, partitionedContext, mainCollector, sideCollector, false, null);
+                context, partitionedContext, mainCollector, sideCollector, false, null, output,
+                Collections.emptyMap());
     }
 
     protected ProcessingTimeManager getProcessingTimeManager() {

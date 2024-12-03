@@ -38,6 +38,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -125,7 +126,8 @@ public class KeyedTwoOutputProcessOperator<KEY, IN, OUT_MAIN, OUT_SIDE>
     @Override
     protected TwoOutputNonPartitionedContext<OUT_MAIN, OUT_SIDE> getNonPartitionedContext() {
         return new DefaultTwoOutputNonPartitionedContext<>(
-                context, partitionedContext, mainCollector, sideCollector, true, keySet);
+                context, partitionedContext, mainCollector, sideCollector, true, keySet, output,
+                Collections.emptyMap());
     }
 
     @Override

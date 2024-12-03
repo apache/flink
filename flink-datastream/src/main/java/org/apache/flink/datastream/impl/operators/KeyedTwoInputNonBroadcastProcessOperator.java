@@ -37,6 +37,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -104,7 +105,13 @@ public class KeyedTwoInputNonBroadcastProcessOperator<KEY, IN1, IN2, OUT>
     @Override
     protected NonPartitionedContext<OUT> getNonPartitionedContext() {
         return new DefaultNonPartitionedContext<>(
-                context, partitionedContext, collector, true, keySet);
+                context,
+                partitionedContext,
+                collector,
+                true,
+                keySet,
+                output,
+                Collections.emptyMap());
     }
 
     @Override
