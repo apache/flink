@@ -28,17 +28,19 @@ import org.apache.flink.datastream.impl.context.DefaultNonPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
 import org.apache.flink.datastream.impl.context.UnsupportedProcessingTimeManager;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+import java.util.function.BiConsumer;
+
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** Operator for {@link TwoInputBroadcastStreamProcessFunction}. */
 public class TwoInputBroadcastProcessOperator<IN1, IN2, OUT>
-        extends AbstractUdfStreamOperator<
+        extends AbstractAsyncStateUdfStreamOperator<
                 OUT, TwoInputBroadcastStreamProcessFunction<IN1, IN2, OUT>>
         implements TwoInputStreamOperator<IN1, IN2, OUT>, BoundedMultiInput {
 
@@ -75,7 +77,7 @@ public class TwoInputBroadcastProcessOperator<IN1, IN2, OUT>
                 new DefaultPartitionedContext(
                         context,
                         this::currentKey,
-                        this::setCurrentKey,
+                        getProcessorWithKey(),
                         getProcessingTimeManager(),
                         operatorContext,
                         getOperatorStateBackend());
@@ -120,6 +122,21 @@ public class TwoInputBroadcastProcessOperator<IN1, IN2, OUT>
         throw new UnsupportedOperationException("The key is only defined for keyed operator");
     }
 
+    protected BiConsumer<Runnable, Object> getProcessorWithKey() {
+        if (isAsyncStateProcessingEnabled()) {
+            return (r, k) -> asyncProcessWithKey(k, r::run);
+        } else {
+            return (r, k) -> {
+                Object oldKey = currentKey();
+                try {
+                    r.run();
+                } finally {
+                    setCurrentKey(oldKey);
+                }
+            };
+        }
+    }
+
     protected ProcessingTimeManager getProcessingTimeManager() {
         return UnsupportedProcessingTimeManager.INSTANCE;
     }
@@ -128,5 +145,11 @@ public class TwoInputBroadcastProcessOperator<IN1, IN2, OUT>
     public void close() throws Exception {
         super.close();
         userFunction.close();
+    }
+
+    @Override
+    public boolean isAsyncStateProcessingEnabled() {
+        // For non-keyed operators, we disable async state processing.
+        return false;
     }
 }

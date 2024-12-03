@@ -18,31 +18,32 @@
 
 package org.apache.flink.datastream.impl.context;
 
-import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDeclaration;
-import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.BroadcastStateDeclaration;
-import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDeclaration;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDeclaration;
-import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.OperatorStateStore;
-import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDeclaration;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDeclaration;
-import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDeclaration;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.state.v2.AggregatingState;
+import org.apache.flink.api.common.state.v2.ListState;
+import org.apache.flink.api.common.state.v2.MapState;
+import org.apache.flink.api.common.state.v2.ReducingState;
+import org.apache.flink.api.common.state.v2.ValueState;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.datastream.api.context.StateManager;
+import org.apache.flink.runtime.state.v2.AggregatingStateDescriptor;
+import org.apache.flink.runtime.state.v2.ListStateDescriptor;
+import org.apache.flink.runtime.state.v2.MapStateDescriptor;
+import org.apache.flink.runtime.state.v2.OperatorStateStore;
+import org.apache.flink.runtime.state.v2.ReducingStateDescriptor;
+import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Optional;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 /**
@@ -51,13 +52,10 @@ import java.util.function.Supplier;
  */
 public class DefaultStateManager implements StateManager {
 
-    /**
-     * Retrieve the current key. When {@link #currentKeySetter} receives a key, this must return
-     * that key until it is reset.
-     */
+    /** Retrieve the current key. */
     private final Supplier<Object> currentKeySupplier;
 
-    private final Consumer<Object> currentKeySetter;
+    private final BiConsumer<Runnable, Object> processorWithKey;
 
     protected final StreamingRuntimeContext operatorContext;
 
@@ -65,11 +63,11 @@ public class DefaultStateManager implements StateManager {
 
     public DefaultStateManager(
             Supplier<Object> currentKeySupplier,
-            Consumer<Object> currentKeySetter,
+            BiConsumer<Runnable, Object> processorWithKey,
             StreamingRuntimeContext operatorContext,
             OperatorStateStore operatorStateStore) {
         this.currentKeySupplier = currentKeySupplier;
-        this.currentKeySetter = currentKeySetter;
+        this.processorWithKey = processorWithKey;
         this.operatorContext = Preconditions.checkNotNull(operatorContext);
         this.operatorStateStore = Preconditions.checkNotNull(operatorStateStore);
     }
@@ -86,8 +84,9 @@ public class DefaultStateManager implements StateManager {
         ValueStateDescriptor<T> valueStateDescriptor =
                 new ValueStateDescriptor<>(
                         stateDeclaration.getName(),
-                        stateDeclaration.getTypeDescriptor().getTypeClass());
-        return Optional.ofNullable(operatorContext.getState(valueStateDescriptor));
+                        TypeExtractor.createTypeInfo(
+                                stateDeclaration.getTypeDescriptor().getTypeClass()));
+        return Optional.ofNullable(operatorContext.getValueState(valueStateDescriptor));
     }
 
     @Override
@@ -97,7 +96,8 @@ public class DefaultStateManager implements StateManager {
         ListStateDescriptor<T> listStateDescriptor =
                 new ListStateDescriptor<>(
                         stateDeclaration.getName(),
-                        stateDeclaration.getTypeDescriptor().getTypeClass());
+                        TypeExtractor.createTypeInfo(
+                                stateDeclaration.getTypeDescriptor().getTypeClass()));
 
         if (stateDeclaration.getRedistributionMode()
                 == StateDeclaration.RedistributionMode.REDISTRIBUTABLE) {
@@ -119,8 +119,10 @@ public class DefaultStateManager implements StateManager {
         MapStateDescriptor<K, V> mapStateDescriptor =
                 new MapStateDescriptor<>(
                         stateDeclaration.getName(),
-                        stateDeclaration.getKeyTypeDescriptor().getTypeClass(),
-                        stateDeclaration.getValueTypeDescriptor().getTypeClass());
+                        TypeExtractor.createTypeInfo(
+                                stateDeclaration.getKeyTypeDescriptor().getTypeClass()),
+                        TypeExtractor.createTypeInfo(
+                                stateDeclaration.getValueTypeDescriptor().getTypeClass()));
         return Optional.ofNullable(operatorContext.getMapState(mapStateDescriptor));
     }
 
@@ -131,7 +133,8 @@ public class DefaultStateManager implements StateManager {
                 new ReducingStateDescriptor<>(
                         stateDeclaration.getName(),
                         stateDeclaration.getReduceFunction(),
-                        stateDeclaration.getTypeDescriptor().getTypeClass());
+                        TypeExtractor.createTypeInfo(
+                                stateDeclaration.getTypeDescriptor().getTypeClass()));
         return Optional.ofNullable(operatorContext.getReducingState(reducingStateDescriptor));
     }
 
@@ -142,7 +145,8 @@ public class DefaultStateManager implements StateManager {
                 new AggregatingStateDescriptor<>(
                         stateDeclaration.getName(),
                         stateDeclaration.getAggregateFunction(),
-                        stateDeclaration.getTypeDescriptor().getTypeClass());
+                        TypeExtractor.createTypeInfo(
+                                stateDeclaration.getTypeDescriptor().getTypeClass()));
         return Optional.ofNullable(operatorContext.getAggregatingState(aggregatingStateDescriptor));
     }
 
@@ -152,8 +156,10 @@ public class DefaultStateManager implements StateManager {
         MapStateDescriptor<K, V> mapStateDescriptor =
                 new MapStateDescriptor<>(
                         stateDeclaration.getName(),
-                        stateDeclaration.getKeyTypeDescriptor().getTypeClass(),
-                        stateDeclaration.getValueTypeDescriptor().getTypeClass());
+                        TypeExtractor.createTypeInfo(
+                                stateDeclaration.getKeyTypeDescriptor().getTypeClass()),
+                        TypeExtractor.createTypeInfo(
+                                stateDeclaration.getValueTypeDescriptor().getTypeClass()));
         return Optional.ofNullable(operatorStateStore.getBroadcastState(mapStateDescriptor));
     }
 
@@ -162,20 +168,6 @@ public class DefaultStateManager implements StateManager {
      * key must be reset after the block is executed.
      */
     public void executeInKeyContext(Runnable runnable, Object key) {
-        final Object oldKey = currentKeySupplier.get();
-        setCurrentKey(key);
-        try {
-            runnable.run();
-        } finally {
-            resetCurrentKey(oldKey);
-        }
-    }
-
-    private void setCurrentKey(Object key) {
-        currentKeySetter.accept(key);
-    }
-
-    private void resetCurrentKey(Object oldKey) {
-        currentKeySetter.accept(oldKey);
+        processorWithKey.accept(runnable, key);
     }
 }
