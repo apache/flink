@@ -340,6 +340,15 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
             topNFunction.collectInsert(out, inputRow);
         }
 
+        protected void collectDelete(
+                Collector<RowData> out, RowData inputRow, long rank, long rankEnd) {
+            topNFunction.collectDelete(out, inputRow, rank, rankEnd);
+        }
+
+        protected void collectDelete(Collector<RowData> out, RowData inputRow) {
+            topNFunction.collectDelete(out, inputRow);
+        }
+
         protected void collectUpdateAfter(
                 Collector<RowData> out, RowData inputRow, long rank, long rankEnd) {
             topNFunction.collectUpdateAfter(out, inputRow, rank, rankEnd);
@@ -356,6 +365,10 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
 
         protected void collectUpdateBefore(Collector<RowData> out, RowData inputRow) {
             topNFunction.collectUpdateBefore(out, inputRow);
+        }
+
+        protected boolean isInRankEnd(long rank, long rankEnd) {
+            return rank <= rankEnd;
         }
 
         public void accRequestCount() {
