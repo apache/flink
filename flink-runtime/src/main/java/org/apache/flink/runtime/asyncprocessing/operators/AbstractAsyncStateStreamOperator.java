@@ -405,6 +405,12 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
         return currentProcessingContext;
     }
 
+    public void drainStateRequests() {
+        if (isAsyncStateProcessingEnabled()) {
+            asyncExecutionController.drainInflightRecords(0);
+        }
+    }
+
     @Override
     public void finish() throws Exception {
         super.finish();
