@@ -51,7 +51,10 @@ public enum SqlGatewayRestAPIVersion
     V2(false, true),
 
     // V3 introduces materialized table related APIs
-    V3(true, true);
+    V3(false, true),
+
+    // V4 supports to deploy script to application cluster
+    V4(true, true);
 
     private final boolean isDefaultVersion;
 
@@ -138,5 +141,14 @@ public enum SqlGatewayRestAPIVersion
                         versions.size()));
 
         return versions.get(0);
+    }
+
+    /** Get higher versions comparing to the input version. */
+    public static List<SqlGatewayRestAPIVersion> getHigherVersions(
+            SqlGatewayRestAPIVersion version) {
+        return Arrays.stream(SqlGatewayRestAPIVersion.values())
+                .filter(SqlGatewayRestAPIVersion::isStableVersion)
+                .filter(v -> v.compareTo(version) > 0)
+                .collect(Collectors.toList());
     }
 }
