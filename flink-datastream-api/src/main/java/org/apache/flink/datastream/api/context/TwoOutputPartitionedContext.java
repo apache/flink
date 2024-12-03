@@ -20,9 +20,8 @@ package org.apache.flink.datastream.api.context;
 
 import org.apache.flink.annotation.Experimental;
 
-/** A {@link BasePartitionedContext} used in one output process functions. */
+/** A special {@link BasePartitionedContext} used in two output process functions. */
 @Experimental
-public interface PartitionedContext extends BasePartitionedContext {
-    /** Get the non-partitioned context of this process function. */
-    NonPartitionedContext<?> getNonPartitionedContext();
+public interface TwoOutputPartitionedContext extends BasePartitionedContext {
+    TwoOutputNonPartitionedContext<?, ?> getNonPartitionedContext();
 }

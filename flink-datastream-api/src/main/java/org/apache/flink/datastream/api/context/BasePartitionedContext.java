@@ -20,9 +20,15 @@ package org.apache.flink.datastream.api.context;
 
 import org.apache.flink.annotation.Experimental;
 
-/** A {@link BasePartitionedContext} used in one output process functions. */
+/**
+ * On the base of {@link RuntimeContext}, {@link BasePartitionedContext} also contains all
+ * partition-wise execution information, such as getting state, registering timer, etc.
+ */
 @Experimental
-public interface PartitionedContext extends BasePartitionedContext {
-    /** Get the non-partitioned context of this process function. */
-    NonPartitionedContext<?> getNonPartitionedContext();
+public interface BasePartitionedContext extends RuntimeContext {
+    /** Get the {@link StateManager} of this process function. */
+    StateManager getStateManager();
+
+    /** Get the {@link ProcessingTimeManager} of this process function. */
+    ProcessingTimeManager getProcessingTimeManager();
 }

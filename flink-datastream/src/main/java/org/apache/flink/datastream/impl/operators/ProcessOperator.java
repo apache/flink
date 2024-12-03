@@ -78,6 +78,7 @@ public class ProcessOperator<IN, OUT>
                         getOperatorStateBackend());
         outputCollector = getOutputCollector();
         nonPartitionedContext = getNonPartitionedContext();
+        partitionedContext.setNonPartitionedContext(nonPartitionedContext);
         userFunction.open(nonPartitionedContext);
     }
 
