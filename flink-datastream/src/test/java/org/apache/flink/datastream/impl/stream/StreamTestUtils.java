@@ -25,6 +25,7 @@ import org.apache.flink.datastream.api.ExecutionEnvironment;
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.PartitionedContext;
+import org.apache.flink.datastream.api.context.TwoOutputPartitionedContext;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoInputBroadcastStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoInputNonBroadcastStreamProcessFunction;
@@ -109,7 +110,7 @@ public final class StreamTestUtils {
                 Integer record,
                 Collector<Integer> output1,
                 Collector<Long> output2,
-                PartitionedContext ctx) {
+                TwoOutputPartitionedContext ctx) {
             //  do nothing.
         }
     }

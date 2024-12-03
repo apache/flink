@@ -43,7 +43,7 @@ public class ProcessOperator<IN, OUT>
 
     protected transient DefaultRuntimeContext context;
 
-    protected transient DefaultPartitionedContext partitionedContext;
+    protected transient DefaultPartitionedContext<OUT> partitionedContext;
 
     protected transient NonPartitionedContext<OUT> nonPartitionedContext;
 
@@ -69,7 +69,7 @@ public class ProcessOperator<IN, OUT>
                         taskInfo.getAttemptNumber(),
                         operatorContext.getMetricGroup());
         partitionedContext =
-                new DefaultPartitionedContext(
+                new DefaultPartitionedContext<>(
                         context,
                         this::currentKey,
                         getProcessorWithKey(),
@@ -78,6 +78,7 @@ public class ProcessOperator<IN, OUT>
                         getOperatorStateBackend());
         outputCollector = getOutputCollector();
         nonPartitionedContext = getNonPartitionedContext();
+        partitionedContext.setNonPartitionedContext(nonPartitionedContext);
         userFunction.open(nonPartitionedContext);
     }
 

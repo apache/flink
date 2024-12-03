@@ -24,9 +24,9 @@ import org.apache.flink.datastream.api.context.TwoOutputNonPartitionedContext;
 import org.apache.flink.datastream.api.function.TwoOutputStreamProcessFunction;
 import org.apache.flink.datastream.impl.common.OutputCollector;
 import org.apache.flink.datastream.impl.common.TimestampCollector;
-import org.apache.flink.datastream.impl.context.DefaultPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
 import org.apache.flink.datastream.impl.context.DefaultTwoOutputNonPartitionedContext;
+import org.apache.flink.datastream.impl.context.DefaultTwoOutputPartitionedContext;
 import org.apache.flink.datastream.impl.context.UnsupportedProcessingTimeManager;
 import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateUdfStreamOperator;
 import org.apache.flink.runtime.state.v2.OperatorStateStore;
@@ -54,7 +54,7 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
 
     protected transient DefaultRuntimeContext context;
 
-    protected transient DefaultPartitionedContext partitionedContext;
+    protected transient DefaultTwoOutputPartitionedContext<OUT_MAIN, OUT_SIDE> partitionedContext;
 
     protected transient TwoOutputNonPartitionedContext<OUT_MAIN, OUT_SIDE> nonPartitionedContext;
 
@@ -86,7 +86,7 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
                         taskInfo.getAttemptNumber(),
                         operatorContext.getMetricGroup());
         this.partitionedContext =
-                new DefaultPartitionedContext(
+                new DefaultTwoOutputPartitionedContext<>(
                         context,
                         this::currentKey,
                         getProcessorWithKey(),
@@ -94,6 +94,7 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
                         operatorContext,
                         operatorStateStore);
         this.nonPartitionedContext = getNonPartitionedContext();
+        this.partitionedContext.setNonPartitionedContext(nonPartitionedContext);
         this.userFunction.open(this.nonPartitionedContext);
     }
 

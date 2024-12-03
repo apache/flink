@@ -49,7 +49,7 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
 
     protected transient DefaultRuntimeContext context;
 
-    protected transient DefaultPartitionedContext partitionedContext;
+    protected transient DefaultPartitionedContext<OUT> partitionedContext;
 
     protected transient NonPartitionedContext<OUT> nonPartitionedContext;
 
@@ -77,7 +77,7 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
                         taskInfo.getAttemptNumber(),
                         operatorContext.getMetricGroup());
         this.partitionedContext =
-                new DefaultPartitionedContext(
+                new DefaultPartitionedContext<>(
                         context,
                         this::currentKey,
                         getProcessorWithKey(),
@@ -85,6 +85,7 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
                         operatorContext,
                         operatorStateBackend);
         this.nonPartitionedContext = getNonPartitionedContext();
+        this.partitionedContext.setNonPartitionedContext(this.nonPartitionedContext);
         this.userFunction.open(this.nonPartitionedContext);
     }
 

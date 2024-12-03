@@ -63,24 +63,27 @@ class DefaultTwoOutputNonPartitionedContextTest {
                         0,
                         0,
                         operatorRuntimeContext.getMetricGroup());
+        DefaultTwoOutputPartitionedContext<Integer, Long> partitionedContext =
+                new DefaultTwoOutputPartitionedContext<>(
+                        runtimeContext,
+                        Optional::empty,
+                        (r, k) -> {
+                            cf.complete(null);
+                            r.run();
+                            cf.complete(null);
+                        },
+                        UnsupportedProcessingTimeManager.INSTANCE,
+                        ContextTestUtils.createStreamingRuntimeContext(),
+                        new MockOperatorStateStore());
         DefaultTwoOutputNonPartitionedContext<Integer, Long> nonPartitionedContext =
                 new DefaultTwoOutputNonPartitionedContext<>(
                         runtimeContext,
-                        new DefaultPartitionedContext(
-                                runtimeContext,
-                                Optional::empty,
-                                (r, k) -> {
-                                    cf.complete(null);
-                                    r.run();
-                                    cf.complete(null);
-                                },
-                                UnsupportedProcessingTimeManager.INSTANCE,
-                                ContextTestUtils.createStreamingRuntimeContext(),
-                                new MockOperatorStateStore()),
+                        partitionedContext,
                         firstCollector,
                         secondCollector,
                         false,
                         null);
+        partitionedContext.setNonPartitionedContext(nonPartitionedContext);
 
         nonPartitionedContext.applyToAllPartitions(
                 (firstOutput, secondOutput, ctx) -> {
@@ -127,25 +130,28 @@ class DefaultTwoOutputNonPartitionedContextTest {
                         0,
                         0,
                         operatorRuntimeContext.getMetricGroup());
+        DefaultTwoOutputPartitionedContext<Integer, Long> partitionedContext =
+                new DefaultTwoOutputPartitionedContext<>(
+                        runtimeContext,
+                        currentKey::get,
+                        (r, k) -> {
+                            Integer oldKey = currentKey.get();
+                            currentKey.set((Integer) k);
+                            r.run();
+                            currentKey.set(oldKey);
+                        },
+                        UnsupportedProcessingTimeManager.INSTANCE,
+                        ContextTestUtils.createStreamingRuntimeContext(),
+                        new MockOperatorStateStore());
         DefaultTwoOutputNonPartitionedContext<Integer, Long> nonPartitionedContext =
                 new DefaultTwoOutputNonPartitionedContext<>(
                         runtimeContext,
-                        new DefaultPartitionedContext(
-                                runtimeContext,
-                                currentKey::get,
-                                (r, k) -> {
-                                    Integer oldKey = currentKey.get();
-                                    currentKey.set((Integer) k);
-                                    r.run();
-                                    currentKey.set(oldKey);
-                                },
-                                UnsupportedProcessingTimeManager.INSTANCE,
-                                ContextTestUtils.createStreamingRuntimeContext(),
-                                new MockOperatorStateStore()),
+                        partitionedContext,
                         firstCollector,
                         secondCollector,
                         true,
                         allKeys);
+        partitionedContext.setNonPartitionedContext(nonPartitionedContext);
         nonPartitionedContext.applyToAllPartitions(
                 (firstOut, secondOut, ctx) -> {
                     counter.incrementAndGet();
