@@ -41,6 +41,7 @@ import org.apache.flink.runtime.state.restore.KeyGroup;
 import org.apache.flink.runtime.state.restore.KeyGroupEntry;
 import org.apache.flink.runtime.state.restore.SavepointRestoreResult;
 import org.apache.flink.runtime.state.restore.ThrowingIterator;
+import org.apache.flink.state.forst.ForStDBTtlCompactFiltersManager;
 import org.apache.flink.state.forst.ForStDBWriteBatchWrapper;
 import org.apache.flink.state.forst.ForStNativeMetricOptions;
 import org.apache.flink.state.forst.ForStOperationUtils;
@@ -51,6 +52,7 @@ import org.forstdb.ColumnFamilyOptions;
 import org.forstdb.DBOptions;
 import org.forstdb.RocksDBException;
 
+import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.Closeable;
@@ -90,6 +92,9 @@ public class ForStHeapTimersFullRestoreOperation<K> implements ForStRestoreOpera
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             ForStNativeMetricOptions nativeMetricOptions,
             MetricGroup metricGroup,
+            @Nonnull ForStDBTtlCompactFiltersManager ttlCompactFiltersManager,
+            @Nonnegative long writeBatchSize,
+            Long writeBufferManagerCapacity,
             @Nonnull Collection<KeyedStateHandle> restoreStateHandles,
             ICloseableRegistry cancelStreamRegistryForRestore) {
         this.rocksHandle =
@@ -99,7 +104,9 @@ public class ForStHeapTimersFullRestoreOperation<K> implements ForStRestoreOpera
                         dbOptions,
                         columnFamilyOptionsFactory,
                         nativeMetricOptions,
-                        metricGroup);
+                        metricGroup,
+                        ttlCompactFiltersManager,
+                        writeBufferManagerCapacity);
         this.savepointRestoreOperation =
                 new FullSnapshotRestoreOperation<>(
                         keyGroupRange,
@@ -157,7 +164,7 @@ public class ForStHeapTimersFullRestoreOperation<K> implements ForStRestoreOpera
             } else {
                 ForStOperationUtils.ForStKvStateInfo registeredStateCFHandle =
                         this.rocksHandle.getOrRegisterStateColumnFamilyHandle(
-                                null, restoredMetaInfo);
+                                null, restoredMetaInfo, cancelStreamRegistryForRestore);
                 columnFamilyHandles.put(i, registeredStateCFHandle.columnFamilyHandle);
             }
         }
