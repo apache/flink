@@ -77,6 +77,7 @@ public abstract class AbstractSyncStateTopNFunction extends AbstractTopNFunction
      *
      * @param row input record
      * @return rank end
+     * @throws Exception
      */
     protected long initRankEnd(RowData row) throws Exception {
         if (isConstantRankEnd) {

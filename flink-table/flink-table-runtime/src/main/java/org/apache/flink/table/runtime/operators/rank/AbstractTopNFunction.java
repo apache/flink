@@ -68,17 +68,16 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
 
     protected final StateTtlConfig ttlConfig;
 
-    // The util to compare two sortKey equals to each other.
-    private GeneratedRecordComparator generatedSortKeyComparator;
-    protected Comparator<RowData> sortKeyComparator;
-
     private final boolean generateUpdateBefore;
+
     protected final boolean outputRankNumber;
+
     protected final InternalTypeInfo<RowData> inputRowType;
+
     protected final KeySelector<RowData, RowData> sortKeySelector;
 
-    protected KeyContext keyContext;
     protected final boolean isConstantRankEnd;
+
     protected final long rankStart;
 
     // constant rank end
@@ -87,6 +86,14 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
 
     // variable rank end index
     private final int rankEndIndex;
+
+    // The util to compare two sortKey equals to each other.
+    private GeneratedRecordComparator generatedSortKeyComparator;
+
+    protected Comparator<RowData> sortKeyComparator;
+
+    protected KeyContext keyContext;
+
     // variable rank end fetcher
     protected transient Function<RowData, Long> rankEndFetcher;
 
@@ -340,6 +347,15 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
             topNFunction.collectInsert(out, inputRow);
         }
 
+        protected void collectDelete(
+                Collector<RowData> out, RowData inputRow, long rank, long rankEnd) {
+            topNFunction.collectDelete(out, inputRow, rank, rankEnd);
+        }
+
+        protected void collectDelete(Collector<RowData> out, RowData inputRow) {
+            topNFunction.collectDelete(out, inputRow);
+        }
+
         protected void collectUpdateAfter(
                 Collector<RowData> out, RowData inputRow, long rank, long rankEnd) {
             topNFunction.collectUpdateAfter(out, inputRow, rank, rankEnd);
@@ -356,6 +372,10 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
 
         protected void collectUpdateBefore(Collector<RowData> out, RowData inputRow) {
             topNFunction.collectUpdateBefore(out, inputRow);
+        }
+
+        protected boolean isInRankEnd(long rank, long rankEnd) {
+            return rank <= rankEnd;
         }
 
         public void accRequestCount() {
