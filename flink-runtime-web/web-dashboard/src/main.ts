@@ -20,6 +20,7 @@ import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@a
 import en from '@angular/common/locales/en';
 import { APP_INITIALIZER, enableProdMode, importProvidersFrom, Injector } from '@angular/core';
 import { bootstrapApplication } from '@angular/platform-browser';
+import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideRouter, Router, withHashLocation } from '@angular/router';
 
 import { APP_ICONS } from '@flink-runtime-web/app-icons';
@@ -34,7 +35,6 @@ import { provideNzIcons } from 'ng-zorro-antd/icon';
 import { NzNotificationModule } from 'ng-zorro-antd/notification';
 
 import { environment } from './environments/environment';
-import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 
 if (environment.production) {
   enableProdMode();
