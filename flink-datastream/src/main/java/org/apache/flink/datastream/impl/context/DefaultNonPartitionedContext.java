@@ -18,6 +18,7 @@
 
 package org.apache.flink.datastream.impl.context;
 
+import org.apache.flink.api.common.watermark.WatermarkManager;
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.JobInfo;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
@@ -39,6 +40,8 @@ public class DefaultNonPartitionedContext<OUT> implements NonPartitionedContext<
 
     private final Set<Object> keySet;
 
+    private final WatermarkManager watermarkManager;
+
     public DefaultNonPartitionedContext(
             DefaultRuntimeContext context,
             DefaultPartitionedContext<OUT> partitionedContext,
@@ -50,6 +53,8 @@ public class DefaultNonPartitionedContext<OUT> implements NonPartitionedContext<
         this.collector = collector;
         this.isKeyed = isKeyed;
         this.keySet = keySet;
+        // TODO: we will create the the WaterManager instance in a future commit
+        this.watermarkManager = null;
     }
 
     @Override
@@ -73,6 +78,11 @@ public class DefaultNonPartitionedContext<OUT> implements NonPartitionedContext<
             // non-keyed operator has only one partition.
             applyPartitionFunction.apply(collector, partitionedContext);
         }
+    }
+
+    @Override
+    public WatermarkManager getWatermarkManager() {
+        return watermarkManager;
     }
 
     @Override
