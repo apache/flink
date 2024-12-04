@@ -20,6 +20,7 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.connectors.hive.write.HiveOutputFormatFactory;
 import org.apache.flink.connectors.hive.write.HiveWriterFactory;
+import org.apache.flink.streaming.api.lineage.LineageVertex;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -27,6 +28,7 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
 import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
@@ -48,14 +50,17 @@ public class HiveOutputFormatFactoryTest {
 
     private static final String TEST_URI_SCHEME = "testscheme";
     private static final String TEST_URI_AUTHORITY = "test-uri-auth:8888";
+    private static final String TEST_HMS_THRIFT_ENDPOINT = "thrift://METASTORE:9083";
 
     @Test
     public void testCreateOutputFormat() {
         SerDeInfo serDeInfo =
                 new SerDeInfo("name", LazySimpleSerDe.class.getName(), Collections.emptyMap());
+        JobConf jobConf = new JobConf();
+        jobConf.set(HiveConf.ConfVars.METASTOREURIS.varname, TEST_HMS_THRIFT_ENDPOINT);
         HiveWriterFactory writerFactory =
                 new HiveWriterFactory(
-                        new JobConf(),
+                        jobConf,
                         VerifyURIOutputFormat.class,
                         serDeInfo,
                         ResolvedSchema.of(Column.physical("x", DataTypes.INT())),
@@ -66,7 +71,13 @@ public class HiveOutputFormatFactoryTest {
         HiveOutputFormatFactory factory = new HiveOutputFormatFactory(writerFactory);
         org.apache.flink.core.fs.Path path =
                 new org.apache.flink.core.fs.Path(TEST_URI_SCHEME, TEST_URI_AUTHORITY, "/foo/path");
-        factory.createOutputFormat(path);
+        org.apache.flink.connectors.hive.write.HiveOutputFormatFactory.HiveOutputFormat
+                outputFormat = factory.createOutputFormat(path);
+        LineageVertex lineageVertex = outputFormat.getLineageVertex();
+        assertThat(lineageVertex.datasets()).hasSize(1);
+        assertThat(lineageVertex.datasets().get(0).name())
+                .isEqualTo("testscheme://test-uri-auth:8888/foo/path");
+        assertThat(lineageVertex.datasets().get(0).namespace()).isEqualTo(TEST_HMS_THRIFT_ENDPOINT);
     }
 
     /** A HiveOutputFormat that verifies scheme and authority of the output path uri. */

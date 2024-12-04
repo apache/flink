@@ -21,6 +21,7 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.lineage.LineageVertex;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -111,6 +112,10 @@ public class HiveSourceITCase {
                                         WatermarkStrategy.noWatermarks(),
                                         "HiveSource-tbl1")
                                 .executeAndCollect());
+        LineageVertex lineageVertex = hiveSource.getLineageVertex();
+        assertThat(lineageVertex.datasets()).hasSize(1);
+        assertThat(lineageVertex.datasets().get(0).name()).isEqualTo("default.tbl1");
+
         assertThat(results).hasSize(2);
         assertThat(results.get(0).getInt(0)).isEqualTo(1);
         assertThat(results.get(1).getInt(0)).isEqualTo(2);
@@ -156,6 +161,11 @@ public class HiveSourceITCase {
                                         WatermarkStrategy.noWatermarks(),
                                         "HiveSource-tbl2")
                                 .executeAndCollect());
+
+        lineageVertex = hiveSource.getLineageVertex();
+        assertThat(lineageVertex.datasets()).hasSize(1);
+        assertThat(lineageVertex.datasets().get(0).name()).isEqualTo("default.tbl2");
+
         assertThat(results).hasSize(1);
         assertThat(results.get(0).getInt(0)).isEqualTo(1);
         assertThat(results.get(0).getString(1).toString()).isEqualTo("a");
@@ -191,6 +201,11 @@ public class HiveSourceITCase {
                                         WatermarkStrategy.noWatermarks(),
                                         "HiveSource-tbl2")
                                 .executeAndCollect());
+
+        lineageVertex = hiveSource.getLineageVertex();
+        assertThat(lineageVertex.datasets()).hasSize(1);
+        assertThat(lineageVertex.datasets().get(0).name()).isEqualTo("default.tbl2");
+
         assertThat(results).hasSize(1);
         assertThat(results.get(0).getInt(0)).isEqualTo(3);
         assertThat(results.get(0).getString(1).toString()).isEqualTo("b");
