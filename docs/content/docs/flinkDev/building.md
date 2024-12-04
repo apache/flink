@@ -44,23 +44,23 @@ git clone {{< github_repo >}}
 The simplest way of building Flink is by running:
 
 ```bash
-mvn clean install -DskipTests
+./mvnw clean install -DskipTests
 ```
 
 This instructs [Maven](http://maven.apache.org) (`mvn`) to first remove all existing builds (`clean`) and then create a new Flink binary (`install`).
 
-To speed up the build you can:
+To speed up the build, you can:
 - skip tests by using ' -DskipTests'
 - skip QA plugins and javadoc generation by using the `fast` Maven profile
 - skip the WebUI compilation by using the `skip-webui-build` Maven profile
-- use Maven's parallel build feature, e.g., 'mvn package -T 1C' will attempt to build 1 module for each CPU core in parallel.
+- use Maven's parallel build feature, e.g., './mvnw package -T 1C' will attempt to build 1 [module]() for each CPU core in parallel.
   {{< hint warning >}}
-  Parallel builds may deadlock due to a bug in the maven-shade-plugin. It is recommended to only use it as a 2 steps process, where you first run `mvn validate/test-compile/test` in parallel, and then run `mvn package/verify/install` with a single thread.
+  Parallel builds may deadlock due to a bug in the maven-shade-plugin. It is recommended to only use it as a 2 steps process, where you first run `./mvnw validate/test-compile/test` in parallel, and then run `./mvnw package/verify/install` with a single thread.
   {{< /hint >}}
 
 The build script will be:
 ```bash
-mvn clean install -DskipTests -Dfast -Pskip-webui-build -T 1C
+./mvnw clean install -DskipTests -Dfast -Pskip-webui-build -T 1C
 ```
 The `fast` and `skip-webui-build` profiles have a significant impact on the build time, particularly on slower storage devices, due to them reading/writing many small files.
 
@@ -123,9 +123,9 @@ Flink has APIs, libraries, and runtime modules written in [Scala](http://scala-l
 
 Since version 1.15 Flink dropped the support of Scala 2.11 and it will use Scala 2.12 to build by default.
 
-To build against a specific binary Scala version you can use:
+To build against a specific binary Scala version, you can use:
 ```bash
-mvn clean install -DskipTests -Dscala.version=<scala version>
+./mvnw clean install -DskipTests -Dscala.version=<scala version>
 ```
 
 
