@@ -20,6 +20,7 @@ import os
 import shutil
 import sys
 import tempfile
+import uuid
 
 from pyflink.table import EnvironmentSettings, TableEnvironment
 from pyflink.table.expressions import col, call, lit
@@ -41,16 +42,8 @@ def word_count():
     t_env.get_config().set(config_key, config_value)
 
     # register Results table in table environment
-    tmp_dir = tempfile.gettempdir()
-    result_path = tmp_dir + '/result'
-    if os.path.exists(result_path):
-        try:
-            if os.path.isfile(result_path):
-                os.remove(result_path)
-            else:
-                shutil.rmtree(result_path)
-        except OSError as e:
-            logging.error("Error removing directory: %s - %s.", e.filename, e.strerror)
+    tmp_dir = os.environ['TEST_DATA_DIR']
+    result_path = tmp_dir + '/result-' + str(uuid.uuid4())
 
     logging.info("Results directory: %s", result_path)
 
