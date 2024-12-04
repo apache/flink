@@ -37,7 +37,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import javax.annotation.Nullable;
 
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -109,7 +108,7 @@ public class KeyedTwoInputBroadcastProcessOperator<KEY, IN1, IN2, OUT>
                 true,
                 keySet,
                 output,
-                Collections.emptyMap());
+                watermarkDeclarationMap);
     }
 
     @Override

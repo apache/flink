@@ -37,7 +37,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import javax.annotation.Nullable;
 
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -108,7 +107,7 @@ public class KeyedProcessOperator<KEY, IN, OUT> extends ProcessOperator<IN, OUT>
                 true,
                 keySet,
                 output,
-                Collections.emptyMap());
+                watermarkDeclarationMap);
     }
 
     @Override
