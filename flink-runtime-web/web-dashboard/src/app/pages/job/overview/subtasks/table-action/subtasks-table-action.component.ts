@@ -18,7 +18,7 @@
 
 import { NgIf } from '@angular/common';
 import { Component, ChangeDetectionStrategy, Input } from '@angular/core';
-import { RouterLinkWithHref } from '@angular/router';
+import { RouterLink } from '@angular/router';
 
 import { JobVertexSubTask } from '@flink-runtime-web/interfaces';
 import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
@@ -33,7 +33,7 @@ export interface JobOverviewSubtasksTableAction {
   templateUrl: './subtasks-table-action.component.html',
   styleUrls: ['./subtasks-table-action.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgIf, NzDropDownModule, NzIconModule, RouterLinkWithHref],
+  imports: [NgIf, NzDropDownModule, NzIconModule, RouterLink],
   standalone: true
 })
 export class SubtasksTableActionComponent implements JobOverviewSubtasksTableAction {

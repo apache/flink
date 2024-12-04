@@ -50,7 +50,7 @@
             <flink-blocked-badge size="small" *ngIf="manager.blocked"></flink-blocked-badge>
           </td>
           <td>{{ manager.dataPort }}</td>
-          <td>{{ manager.timeSinceLastHeartbeat | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
+          <td>{{ manager.timeSinceLastHeartbeat | date : 'yyyy-MM-dd HH:mm:ss' }}</td>
           <td>{{ manager.slotsNumber }}</td>
           <td>{{ manager.freeSlots }}</td>
           <td>{{ manager.hardware.cpuCores }}</td>
