@@ -62,7 +62,7 @@ import java.io.Serializable;
  * the current record.
  *
  * <p>The simplest way to return this position information is to store no offset and simply store an
- * incrementing count of records to skip after recovery. Given the above contract, the fist record
+ * incrementing count of records to skip after recovery. Given the above contract, the first record
  * would be returned with a records-to-skip count of one, the second one with a record count of two,
  * etc.
  *
