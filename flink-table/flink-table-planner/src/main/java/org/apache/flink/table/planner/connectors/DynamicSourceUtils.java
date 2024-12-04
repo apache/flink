@@ -408,7 +408,7 @@ public final class DynamicSourceUtils {
         relBuilder.push(scan);
     }
 
-    private static Map<String, DataType> extractMetadataMap(DynamicTableSource source) {
+    public static Map<String, DataType> extractMetadataMap(DynamicTableSource source) {
         if (source instanceof SupportsReadingMetadata) {
             return ((SupportsReadingMetadata) source).listReadableMetadata();
         }
