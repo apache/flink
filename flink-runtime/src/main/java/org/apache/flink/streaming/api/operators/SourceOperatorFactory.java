@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.watermark.WatermarkDeclaration;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -35,9 +36,17 @@ import org.apache.flink.runtime.source.coordinator.SourceCoordinatorProvider;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeServiceAware;
 import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecordsChecker;
+import org.apache.flink.streaming.runtime.watermark.AbstractInternalWatermarkDeclaration;
+import org.apache.flink.streaming.util.watermark.WatermarkUtils;
 import org.apache.flink.util.function.FunctionWithException;
 
 import javax.annotation.Nullable;
+
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -118,7 +127,8 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                                 .getTaskManagerInfo()
                                 .getTaskManagerExternalAddress(),
                         emitProgressiveWatermarks,
-                        parameters.getContainingTask().getCanEmitBatchOfRecords());
+                        parameters.getContainingTask().getCanEmitBatchOfRecords(),
+                        getSourceWatermarkDeclarations());
 
         parameters.getOperatorEventDispatcher().registerEventHandler(operatorId, sourceOperator);
 
@@ -165,6 +175,10 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
         }
     }
 
+    public Set<? extends WatermarkDeclaration> getSourceWatermarkDeclarations() {
+        return source.declareWatermarks();
+    }
+
     /**
      * This is a utility method to conjure up a "SplitT" generics variable binding so that we can
      * construct the SourceOperator without resorting to "all raw types". That way, this methods
@@ -184,7 +198,8 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                     Configuration config,
                     String localHostName,
                     boolean emitProgressiveWatermarks,
-                    CanEmitBatchOfRecordsChecker canEmitBatchOfRecords) {
+                    CanEmitBatchOfRecordsChecker canEmitBatchOfRecords,
+                    Collection<? extends WatermarkDeclaration> watermarkDeclarations) {
 
         // jumping through generics hoops: cast the generics away to then cast them back more
         // strictly typed
@@ -197,6 +212,14 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
         final SimpleVersionedSerializer<SplitT> typedSplitSerializer =
                 (SimpleVersionedSerializer<SplitT>) splitSerializer;
 
+        Map<String, Boolean> watermarkIsAlignedMap =
+                WatermarkUtils.convertToInternalWatermarkDeclarations(
+                                new HashSet<>(watermarkDeclarations))
+                        .stream()
+                        .collect(
+                                Collectors.toMap(
+                                        AbstractInternalWatermarkDeclaration::getIdentifier,
+                                        AbstractInternalWatermarkDeclaration::isAligned));
         return new SourceOperator<>(
                 parameters,
                 typedReaderFactory,
@@ -207,6 +230,7 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                 config,
                 localHostName,
                 emitProgressiveWatermarks,
-                canEmitBatchOfRecords);
+                canEmitBatchOfRecords,
+                watermarkIsAlignedMap);
     }
 }
