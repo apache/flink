@@ -19,7 +19,11 @@
 package org.apache.flink.api.connector.source;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.watermark.WatermarkDeclaration;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+
+import java.util.Collections;
+import java.util.Set;
 
 /**
  * The interface for Source. It acts like a factory class that helps construct the {@link
@@ -83,4 +87,14 @@ public interface Source<T, SplitT extends SourceSplit, EnumChkT>
      * @return The serializer for the SplitEnumerator checkpoint.
      */
     SimpleVersionedSerializer<EnumChkT> getEnumeratorCheckpointSerializer();
+
+    /**
+     * Explicitly declare watermarks upfront. Each specific watermark must be declared in this
+     * method before it can be used.
+     *
+     * @return all watermark declarations used by this application.
+     */
+    default Set<? extends WatermarkDeclaration> declareWatermarks() {
+        return Collections.emptySet();
+    }
 }
