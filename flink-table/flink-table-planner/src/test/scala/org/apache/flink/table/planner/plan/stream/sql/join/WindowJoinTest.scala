@@ -944,7 +944,7 @@ class WindowJoinTest extends TableTestBase {
         |  GROUP BY a, window_start, window_end, window_time
         |) R
         |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a AND
-        | CAST(L.window_start AS BIGINT) > R.uv
+        | L.window_start > TO_TIMESTAMP(FROM_UNIXTIME(R.uv))
       """.stripMargin
     util.verifyRelPlan(sql)
   }
