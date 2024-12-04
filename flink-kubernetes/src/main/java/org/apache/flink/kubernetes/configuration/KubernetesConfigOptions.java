@@ -320,6 +320,14 @@ public class KubernetesConfigOptions {
                     .withDescription(
                             "Specify the name of an existing ConfigMap that contains custom Hadoop configuration "
                                     + "to be mounted on the JobManager(s) and TaskManagers.");
+    public static final ConfigOption<List<String>> FLINK_CONFIGMAP_ADDITIONAL_RESOURCES =
+            key("kubernetes.flink.configmap.additional.resources")
+                    .stringType()
+                    .asList()
+                    .noDefaultValue()
+                    .withDescription(
+                            "A semicolon-separated list of the local file in the client Flink config directory that needs to"
+                                    + " be attached in the Flink ConfigMap for JM and TM pod deployment.");
 
     public static final ConfigOption<Map<String, String>> JOB_MANAGER_ANNOTATIONS =
             key("kubernetes.jobmanager.annotations")
