@@ -59,7 +59,8 @@ class CachedSchemaCoderProvider implements SchemaCoder.SchemaCoderProvider {
     public SchemaCoder get() {
         return new ConfluentSchemaRegistryCoder(
                 this.subject,
-                new CachedSchemaRegistryClient(url, identityMapCapacity, registryConfigs));
+                new CachedSchemaRegistryClient(url, identityMapCapacity, registryConfigs),
+                registryConfigs);
     }
 
     @Override
