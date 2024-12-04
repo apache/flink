@@ -37,11 +37,13 @@ import static org.apache.flink.table.api.DataTypes.HOUR;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
 import static org.apache.flink.table.api.DataTypes.SECOND;
+import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.temporalOverlaps;
 
 /** Test time-related built-in functions. */
@@ -53,7 +55,8 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                         extractTestCases(),
                         temporalOverlapsTestCases(),
                         ceilTestCases(),
-                        floorTestCases())
+                        floorTestCases(),
+                        datediffTestCases())
                 .flatMap(s -> s);
     }
 
@@ -733,5 +736,54 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 "FLOOR(f2 TO MILLENNIUM)",
                                 LocalDateTime.of(2001, 1, 1, 0, 0),
                                 TIMESTAMP().nullable()));
+    }
+
+    private Stream<TestSetSpec> datediffTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.DATEDIFF)
+                        .onFieldsWithData(
+                                null,
+                                LocalDate.of(2024, 6, 26),
+                                LocalDateTime.of(2024, 6, 25, 1, 1, 1),
+                                Instant.parse("2024-06-26T01:01:01Z"),
+                                "2024-06-28 01:01:01",
+                                LocalDate.of(2025, 3, 1),
+                                LocalDate.of(2024, 2, 28))
+                        .andDataTypes(
+                                DATE(),
+                                DATE(),
+                                TIMESTAMP(),
+                                TIMESTAMP_LTZ(),
+                                STRING(),
+                                DATE(),
+                                DATE())
+                        // null input
+                        .testResult($("f0").datediff($("f1")), "DATEDIFF(f0, f1)", null, INT())
+                        .testResult($("f1").datediff(null), "DATEDIFF(f1, NULL)", null, INT())
+                        // invalid date string
+                        .testResult(
+                                lit("2024-13-12").datediff($("f1")),
+                                "DATEDIFF('2024-13-12', f1)",
+                                null,
+                                INT())
+                        // input cast
+                        .testResult($("f1").datediff($("f2")), "DATEDIFF(f1, f2)", 1, INT())
+                        .testResult($("f3").datediff($("f4")), "DATEDIFF(f3, f4)", -2, INT())
+                        // normal
+                        .testResult($("f1").datediff($("f3")), "DATEDIFF(f1, f3)", 0, INT())
+                        .testResult($("f1").datediff($("f4")), "DATEDIFF(f1, f4)", -2, INT())
+                        .testResult($("f1").datediff($("f5")), "DATEDIFF(f1, f5)", -248, INT())
+                        .testResult($("f1").datediff($("f6")), "DATEDIFF(f1, f6)", 119, INT()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.DATEDIFF, "Validation Error")
+                        .onFieldsWithData(LocalDate.of(2024, 6, 26))
+                        .andDataTypes(DATE())
+                        .testTableApiValidationError(
+                                $("f0").datediff(21474836470L),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "DATEDIFF(endDate [<DATE> | <TIMESTAMP_WITHOUT_TIME_ZONE> | <TIMESTAMP_WITH_LOCAL_TIME_ZONE> | <CHARACTER_STRING>], startDate [<DATE> | <TIMESTAMP_WITHOUT_TIME_ZONE> | <TIMESTAMP_WITH_LOCAL_TIME_ZONE> | <CHARACTER_STRING>])")
+                        .testSqlValidationError(
+                                "DATEDIFF(f0, 21474836470)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "DATEDIFF(endDate [<DATE> | <TIMESTAMP_WITHOUT_TIME_ZONE> | <TIMESTAMP_WITH_LOCAL_TIME_ZONE> | <CHARACTER_STRING>], startDate [<DATE> | <TIMESTAMP_WITHOUT_TIME_ZONE> | <TIMESTAMP_WITH_LOCAL_TIME_ZONE> | <CHARACTER_STRING>])"));
     }
 }
