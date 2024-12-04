@@ -20,8 +20,10 @@ package org.apache.flink.datastream.impl.watermark;
 
 import org.apache.flink.api.common.watermark.Watermark;
 import org.apache.flink.api.common.watermark.WatermarkManager;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.watermark.AbstractInternalWatermarkDeclaration;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Map;
 
@@ -41,6 +43,15 @@ public class DefaultWatermarkManager implements WatermarkManager {
 
     @Override
     public void emitWatermark(Watermark watermark) {
-        // TODO: we will send watermark to streamRecordOutput in future commit
+        Preconditions.checkState(
+                watermarkDeclarationMap.containsKey(watermark.getIdentifier()),
+                "Watermark identifier "
+                        + watermark.getIdentifier()
+                        + " does not exist, please declare it.");
+
+        streamRecordOutput.emitWatermark(
+                new WatermarkEvent(
+                        watermark,
+                        watermarkDeclarationMap.get(watermark.getIdentifier()).isAligned()));
     }
 }

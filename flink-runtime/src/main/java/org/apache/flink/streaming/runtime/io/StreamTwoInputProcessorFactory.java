@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -296,6 +297,15 @@ public class StreamTwoInputProcessorFactory {
                 operator.processRecordAttributes1(recordAttributes);
             } else {
                 operator.processRecordAttributes2(recordAttributes);
+            }
+        }
+
+        @Override
+        public void emitWatermark(WatermarkEvent watermark) throws Exception {
+            if (inputIndex == 0) {
+                operator.processWatermark1(watermark);
+            } else {
+                operator.processWatermark2(watermark);
             }
         }
     }
