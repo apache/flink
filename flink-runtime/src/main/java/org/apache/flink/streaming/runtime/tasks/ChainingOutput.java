@@ -21,6 +21,7 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.RecordProcessorUtils;
@@ -160,6 +161,15 @@ class ChainingOutput<T>
     public void emitRecordAttributes(RecordAttributes recordAttributes) {
         try {
             input.processRecordAttributes(recordAttributes);
+        } catch (Exception e) {
+            throw new ExceptionInChainedOperatorException(e);
+        }
+    }
+
+    @Override
+    public void emitWatermark(WatermarkEvent watermark) {
+        try {
+            input.processWatermark(watermark);
         } catch (Exception e) {
             throw new ExceptionInChainedOperatorException(e);
         }
