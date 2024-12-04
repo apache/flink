@@ -42,6 +42,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -61,7 +62,7 @@ public class ContinuousFileSplitEnumerator
 
     private final FileEnumerator enumerator;
 
-    private final HashSet<Path> pathsAlreadyProcessed;
+    private final Set<String> splitsAlreadyProcessed;
 
     private final LinkedHashMap<Integer, String> readersAwaitingSplit;
 
@@ -76,7 +77,7 @@ public class ContinuousFileSplitEnumerator
             FileEnumerator enumerator,
             FileSplitAssigner splitAssigner,
             Path[] paths,
-            Collection<Path> alreadyDiscoveredPaths,
+            Collection<String> splitsAlreadyProcessed,
             long discoveryInterval) {
 
         checkArgument(discoveryInterval > 0L);
@@ -85,7 +86,7 @@ public class ContinuousFileSplitEnumerator
         this.splitAssigner = checkNotNull(splitAssigner);
         this.paths = paths;
         this.discoveryInterval = discoveryInterval;
-        this.pathsAlreadyProcessed = new HashSet<>(alreadyDiscoveredPaths);
+        this.splitsAlreadyProcessed = new HashSet<>(splitsAlreadyProcessed);
         this.readersAwaitingSplit = new LinkedHashMap<>();
     }
 
@@ -130,7 +131,7 @@ public class ContinuousFileSplitEnumerator
             throws Exception {
         final PendingSplitsCheckpoint<FileSourceSplit> checkpoint =
                 PendingSplitsCheckpoint.fromCollectionSnapshot(
-                        splitAssigner.remainingSplits(), pathsAlreadyProcessed);
+                        splitAssigner.remainingSplits(), splitsAlreadyProcessed);
 
         LOG.debug("Source Checkpoint is {}", checkpoint);
         return checkpoint;
@@ -146,7 +147,7 @@ public class ContinuousFileSplitEnumerator
 
         final Collection<FileSourceSplit> newSplits =
                 splits.stream()
-                        .filter((split) -> pathsAlreadyProcessed.add(split.path()))
+                        .filter(split -> splitsAlreadyProcessed.add(split.pathAndOffset()))
                         .collect(Collectors.toList());
         splitAssigner.addSplits(newSplits);
 
