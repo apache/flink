@@ -136,7 +136,7 @@ repositories {
 configurations {
     flinkShadowJar // dependencies which go into the shadowJar
     // always exclude these (also from transitive dependencies) since they are provided by Flink
-    flinkShadowJar.exclude group: 'org.apache.flink', module: 'force-shading'
+    flinkShadowJar.exclude group: 'org.apache.flink', module: 'flink-shaded-force-shading'
     flinkShadowJar.exclude group: 'com.google.code.findbugs', module: 'jsr305'
     flinkShadowJar.exclude group: 'org.slf4j'
     flinkShadowJar.exclude group: 'org.apache.logging.log4j'
