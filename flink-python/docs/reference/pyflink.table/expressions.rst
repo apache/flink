@@ -223,6 +223,7 @@ temporal functions
     Expression.to_time
     Expression.to_timestamp
     Expression.extract
+    Expression.add_months
     Expression.floor
     Expression.ceil
 
