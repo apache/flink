@@ -47,7 +47,7 @@ public class SerializedThrowableDeserializer extends StdDeserializer<SerializedT
         final byte[] serializedException = root.get(FIELD_NAME_SERIALIZED_THROWABLE).binaryValue();
         try {
             return InstantiationUtil.deserializeObject(
-                    serializedException, ClassLoader.getSystemClassLoader());
+                    serializedException, getClass().getClassLoader());
         } catch (ClassNotFoundException e) {
             throw new IOException(
                     "Failed to deserialize " + SerializedThrowable.class.getCanonicalName(), e);
