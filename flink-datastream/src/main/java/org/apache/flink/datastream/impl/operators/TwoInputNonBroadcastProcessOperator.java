@@ -19,6 +19,8 @@
 package org.apache.flink.datastream.impl.operators;
 
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.watermark.WatermarkHandlingResult;
+import org.apache.flink.api.common.watermark.WatermarkHandlingStrategy;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
 import org.apache.flink.datastream.api.function.TwoInputNonBroadcastStreamProcessFunction;
@@ -29,13 +31,18 @@ import org.apache.flink.datastream.impl.context.DefaultPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
 import org.apache.flink.datastream.impl.context.UnsupportedProcessingTimeManager;
 import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateUdfStreamOperator;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermark.AbstractInternalWatermarkDeclaration;
 
+import java.util.Map;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -52,6 +59,9 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
     protected transient DefaultPartitionedContext<OUT> partitionedContext;
 
     protected transient NonPartitionedContext<OUT> nonPartitionedContext;
+
+    protected transient Map<String, AbstractInternalWatermarkDeclaration<?>>
+            watermarkDeclarationMap;
 
     public TwoInputNonBroadcastProcessOperator(
             TwoInputNonBroadcastStreamProcessFunction<IN1, IN2, OUT> userFunction) {
@@ -76,6 +86,13 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
                         taskInfo.getIndexOfThisSubtask(),
                         taskInfo.getAttemptNumber(),
                         operatorContext.getMetricGroup());
+
+        watermarkDeclarationMap =
+                config.getWatermarkDeclarations(getUserCodeClassloader()).stream()
+                        .collect(
+                                Collectors.toMap(
+                                        AbstractInternalWatermarkDeclaration::getIdentifier,
+                                        Function.identity()));
         this.partitionedContext =
                 new DefaultPartitionedContext<>(
                         context,
@@ -102,13 +119,47 @@ public class TwoInputNonBroadcastProcessOperator<IN1, IN2, OUT>
                 element.getValue(), collector, partitionedContext);
     }
 
+    @Override
+    public void processWatermark1Internal(WatermarkEvent watermark) throws Exception {
+        WatermarkHandlingResult watermarkHandlingResultByUserFunction =
+                userFunction.onWatermarkFromFirstInput(
+                        watermark.getWatermark(), collector, nonPartitionedContext);
+        if (watermarkHandlingResultByUserFunction == WatermarkHandlingResult.PEEK
+                && watermarkDeclarationMap
+                                .get(watermark.getWatermark().getIdentifier())
+                                .getDefaultHandlingStrategy()
+                        == WatermarkHandlingStrategy.FORWARD) {
+            output.emitWatermark(watermark);
+        }
+    }
+
+    @Override
+    public void processWatermark2Internal(WatermarkEvent watermark) throws Exception {
+        WatermarkHandlingResult watermarkHandlingResultByUserFunction =
+                userFunction.onWatermarkFromSecondInput(
+                        watermark.getWatermark(), collector, nonPartitionedContext);
+        if (watermarkHandlingResultByUserFunction == WatermarkHandlingResult.PEEK
+                && watermarkDeclarationMap
+                                .get(watermark.getWatermark().getIdentifier())
+                                .getDefaultHandlingStrategy()
+                        == WatermarkHandlingStrategy.FORWARD) {
+            output.emitWatermark(watermark);
+        }
+    }
+
     protected TimestampCollector<OUT> getOutputCollector() {
         return new OutputCollector<>(output);
     }
 
     protected NonPartitionedContext<OUT> getNonPartitionedContext() {
         return new DefaultNonPartitionedContext<>(
-                context, partitionedContext, collector, false, null);
+                context,
+                partitionedContext,
+                collector,
+                false,
+                null,
+                output,
+                watermarkDeclarationMap);
     }
 
     @Override
