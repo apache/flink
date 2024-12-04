@@ -75,7 +75,9 @@ import org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
+import org.apache.flink.streaming.runtime.watermark.AbstractInternalWatermarkDeclaration;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
@@ -110,6 +112,7 @@ import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
+import static org.apache.flink.streaming.util.watermark.WatermarkUtils.getInternalWatermarkDeclarationsFromStreamGraph;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -190,6 +193,10 @@ public class StreamGraph implements Pipeline, ExecutionPlan {
     private UserDefinedObjectsHolder userDefinedObjectsHolder;
 
     private final Map<Integer, ResourceSpec> streamNodeMinResources = new HashMap<>();
+
+    // Serialized watermark declarations of the StreamGraph, which may be null if no watermark is
+    // declared
+    private byte[] serializedWatermarkDeclarations;
 
     public StreamGraph(
             Configuration jobConfiguration,
@@ -1489,6 +1496,24 @@ public class StreamGraph implements Pipeline, ExecutionPlan {
                 addNodesThatHaveNoNewPredecessors(v, target, remaining);
             }
         }
+    }
+
+    public void serializeAndSaveWatermarkDeclarations() {
+        Set<AbstractInternalWatermarkDeclaration<?>> watermarkDeclarations =
+                getInternalWatermarkDeclarationsFromStreamGraph(this);
+        if (!watermarkDeclarations.isEmpty()) {
+            try {
+                this.serializedWatermarkDeclarations =
+                        InstantiationUtil.serializeObject(watermarkDeclarations);
+            } catch (IOException e) {
+                throw new StreamTaskException("Could not serialize watermark declarations.", e);
+            }
+        }
+    }
+
+    /** Get serialized watermark declarations, note that it may be null. */
+    public byte[] getSerializedWatermarkDeclarations() {
+        return serializedWatermarkDeclarations;
     }
 
     @Override

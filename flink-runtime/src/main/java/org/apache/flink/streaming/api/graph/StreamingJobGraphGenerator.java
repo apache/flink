@@ -754,6 +754,7 @@ public class StreamingJobGraphGenerator {
             tryConvertPartitionerForDynamicGraph(
                     chainableOutputs, nonChainableOutputs, jobVertexBuildContext);
             config.setAttribute(currentNodeAttribute);
+            config.setWatermarkDeclarations(streamGraph.getSerializedWatermarkDeclarations());
             setOperatorConfig(currentNodeId, config, chainInfo, jobVertexBuildContext);
 
             setOperatorChainedOutputsConfig(config, chainableOutputs, jobVertexBuildContext);
