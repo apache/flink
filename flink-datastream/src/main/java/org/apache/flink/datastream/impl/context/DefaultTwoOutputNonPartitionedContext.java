@@ -24,8 +24,12 @@ import org.apache.flink.datastream.api.context.JobInfo;
 import org.apache.flink.datastream.api.context.TaskInfo;
 import org.apache.flink.datastream.api.context.TwoOutputNonPartitionedContext;
 import org.apache.flink.datastream.api.function.TwoOutputApplyPartitionFunction;
+import org.apache.flink.datastream.impl.watermark.DefaultWatermarkManager;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.runtime.watermark.AbstractInternalWatermarkDeclaration;
 
+import java.util.Map;
 import java.util.Set;
 
 /** The default implementation of {@link TwoOutputNonPartitionedContext}. */
@@ -51,15 +55,17 @@ public class DefaultTwoOutputNonPartitionedContext<OUT1, OUT2>
             Collector<OUT1> firstCollector,
             Collector<OUT2> secondCollector,
             boolean isKeyed,
-            Set<Object> keySet) {
+            Set<Object> keySet,
+            Output<?> streamRecordOutput,
+            Map<String, AbstractInternalWatermarkDeclaration<?>> watermarkDeclarationMap) {
         this.context = context;
         this.partitionedContext = partitionedContext;
         this.firstCollector = firstCollector;
         this.secondCollector = secondCollector;
         this.isKeyed = isKeyed;
         this.keySet = keySet;
-        // TODO: we will create the the WaterManager instance in a future commit
-        this.watermarkManager = null;
+        this.watermarkManager =
+                new DefaultWatermarkManager(streamRecordOutput, watermarkDeclarationMap);
     }
 
     @Override

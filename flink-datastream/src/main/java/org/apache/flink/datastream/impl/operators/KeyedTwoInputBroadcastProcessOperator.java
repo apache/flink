@@ -102,7 +102,13 @@ public class KeyedTwoInputBroadcastProcessOperator<KEY, IN1, IN2, OUT>
     @Override
     protected NonPartitionedContext<OUT> getNonPartitionedContext() {
         return new DefaultNonPartitionedContext<>(
-                context, partitionedContext, collector, true, keySet);
+                context,
+                partitionedContext,
+                collector,
+                true,
+                keySet,
+                output,
+                watermarkDeclarationMap);
     }
 
     @Override

@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.operators.collect.utils.MockOperatorStateS
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -82,7 +83,9 @@ class DefaultTwoOutputNonPartitionedContextTest {
                         firstCollector,
                         secondCollector,
                         false,
-                        null);
+                        null,
+                        null,
+                        Collections.emptyMap());
         partitionedContext.setNonPartitionedContext(nonPartitionedContext);
 
         nonPartitionedContext.applyToAllPartitions(
@@ -150,7 +153,9 @@ class DefaultTwoOutputNonPartitionedContextTest {
                         firstCollector,
                         secondCollector,
                         true,
-                        allKeys);
+                        allKeys,
+                        null,
+                        Collections.emptyMap());
         partitionedContext.setNonPartitionedContext(nonPartitionedContext);
         nonPartitionedContext.applyToAllPartitions(
                 (firstOut, secondOut, ctx) -> {
