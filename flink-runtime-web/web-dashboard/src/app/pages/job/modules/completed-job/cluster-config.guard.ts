@@ -17,7 +17,7 @@
  */
 
 import { Injectable } from '@angular/core';
-import { ActivatedRouteSnapshot, CanActivate, Router, RouterStateSnapshot, UrlTree } from '@angular/router';
+import { ActivatedRouteSnapshot, Router, RouterStateSnapshot, UrlTree } from '@angular/router';
 import { Observable } from 'rxjs';
 
 import { StatusService } from '@flink-runtime-web/services';
@@ -25,7 +25,7 @@ import { StatusService } from '@flink-runtime-web/services';
 @Injectable({
   providedIn: 'root'
 })
-export class ClusterConfigGuard implements CanActivate {
+export class ClusterConfigGuard {
   constructor(private statusService: StatusService, private router: Router) {}
 
   canActivate(
