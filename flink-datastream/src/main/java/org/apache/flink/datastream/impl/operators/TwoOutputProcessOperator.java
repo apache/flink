@@ -141,7 +141,13 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
 
     protected TwoOutputNonPartitionedContext<OUT_MAIN, OUT_SIDE> getNonPartitionedContext() {
         return new DefaultTwoOutputNonPartitionedContext<>(
-                context, partitionedContext, mainCollector, sideCollector, false, null, output,
+                context,
+                partitionedContext,
+                mainCollector,
+                sideCollector,
+                false,
+                null,
+                output,
                 Collections.emptyMap());
     }
 

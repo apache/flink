@@ -126,7 +126,13 @@ public class KeyedTwoOutputProcessOperator<KEY, IN, OUT_MAIN, OUT_SIDE>
     @Override
     protected TwoOutputNonPartitionedContext<OUT_MAIN, OUT_SIDE> getNonPartitionedContext() {
         return new DefaultTwoOutputNonPartitionedContext<>(
-                context, partitionedContext, mainCollector, sideCollector, true, keySet, output,
+                context,
+                partitionedContext,
+                mainCollector,
+                sideCollector,
+                true,
+                keySet,
+                output,
                 Collections.emptyMap());
     }
 
