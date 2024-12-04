@@ -597,7 +597,7 @@ temporal:
     description: Returns the current SQL timestamp in local time zone, the return type is TIMESTAMP(3). It is evaluated for each record in streaming mode. But in batch mode, it is evaluated once as the query starts and uses the same result for every row.
   - sql: CURRENT_TIME
     table: currentTime()
-    description: Returns the current SQL time in the local time zone, this is a synonym of LOCAL_TIME.
+    description: Returns the current SQL time in the local time zone, this is a synonym of LOCALTIME.
   - sql: CURRENT_DATE
     table: currentDate()
     description: Returns the current SQL date in the local time zone. It is evaluated for each record in streaming mode. But in batch mode, it is evaluated once as the query starts and uses the same result for every row.

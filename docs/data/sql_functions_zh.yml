@@ -680,7 +680,7 @@ temporal:
       但在批处理模式下，它在查询开始时计算一次，并对每一行使用相同的结果。
   - sql: CURRENT_TIME
     table: currentTime()
-    description: 返回本地时区的当前 SQL 时间，这是 LOCAL_TIME 的同义词。
+    description: 返回本地时区的当前 SQL 时间，这是 LOCALTIME 的同义词。
   - sql: CURRENT_DATE
     table: currentDate()
     description: |
