@@ -77,8 +77,9 @@ IntelliJ 提供了插件设置来安装 Scala 插件。如果尚未安装，请�
 4. 保留默认选项，然后依次单击 "Next"，直到到达 SDK 部分。
 5. 如果未列出 SDK，请使用左上角的 "+" 号创建一个。选择 "JDK"，选择 JDK 主目录，然后单击 "OK"。选择最合适的 JDK 版本。注意：一个好的经验法则是选择与活动 Maven 配置文件匹配的 JDK 版本。
 6. 单击 "Next" 继续，直到完成导入。
-7. 右键单击已导入的 Flink 项目 → Maven → Generate Sources and Update Folders。请注意：这会将 Flink 库安装在本地 Maven 存储库中，默认情况下位于 "/home/$USER/.m2/repository/org/apache/flink/"。另外 `mvn clean package -DskipTests` 也可以创建 IDE 运行所需的文件，但无需安装库。
-8. 编译项目（Build → Make Project）。
+7. Set up maven home path to maven-wrapper. Go to "File" → "Settings" → "Build,Execution,Deployment" → "Build Tools" → "Maven". For "Maven home path" select "Use maven-wrapper".
+8. 右键单击已导入的 Flink 项目 → Maven → Generate Sources and Update Folders。请注意：这会将 Flink 库安装在本地 Maven 存储库中，默认情况下位于 "/home/$USER/.m2/repository/org/apache/flink/"。另外 `./mvnw clean package -DskipTests` 也可以创建 IDE 运行所需的文件，但无需安装库。
+9. 译项目（Build → Make Project）。
 
 
 ### 代码格式化
