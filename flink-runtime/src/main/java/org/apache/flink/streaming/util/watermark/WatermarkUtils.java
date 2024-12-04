@@ -18,15 +18,64 @@
 
 package org.apache.flink.streaming.util.watermark;
 
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.watermark.Watermark;
 import org.apache.flink.api.common.watermark.WatermarkDeclaration;
+import org.apache.flink.datastream.api.function.ProcessFunction;
+import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateUdfStreamOperator;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamNode;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.watermark.AbstractInternalWatermarkDeclaration;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 /** Utils class for {@link Watermark}. */
 public class WatermarkUtils {
+
+    public static Set<AbstractInternalWatermarkDeclaration<?>>
+            getInternalWatermarkDeclarationsFromStreamGraph(StreamGraph streamGraph) {
+        Collection<StreamNode> streamNodes = streamGraph.getStreamNodes();
+
+        Set<WatermarkDeclaration> decralations =
+                streamNodes.stream()
+                        .filter(n -> (n.getOperatorFactory() instanceof SimpleOperatorFactory))
+                        .map(n -> WatermarkUtils.getWatermarkDeclarations(n.getOperator()))
+                        .flatMap(Collection::stream)
+                        .collect(Collectors.toSet());
+        Set<WatermarkDeclaration> sourceDeclarations =
+                streamNodes.stream()
+                        .map(StreamNode::getOperatorFactory)
+                        .filter(n -> (n instanceof SourceOperatorFactory))
+                        .map(n -> ((SourceOperatorFactory<?>) n).getSourceWatermarkDeclarations())
+                        .flatMap(Collection::stream)
+                        .collect(Collectors.toSet());
+        decralations.addAll(sourceDeclarations);
+        return convertToInternalWatermarkDeclarations(decralations);
+    }
+
+    /**
+     * Retrieve the user-defined {@link WatermarkDeclaration}s of {@link ProcessFunction}. The
+     * {@link WatermarkDeclaration} defined by the source operator can be retrieved from {@link
+     * SourceOperatorFactory#getSourceWatermarkDeclarations()}.
+     */
+    private static Collection<? extends WatermarkDeclaration> getWatermarkDeclarations(
+            StreamOperator<?> streamOperator) {
+        if (streamOperator instanceof AbstractAsyncStateUdfStreamOperator) {
+            Function f =
+                    ((AbstractAsyncStateUdfStreamOperator<?, ?>) streamOperator).getUserFunction();
+            if (f instanceof ProcessFunction) {
+                return ((ProcessFunction) f).watermarkDeclarations();
+            }
+        }
+        return Collections.emptySet();
+    }
+
     /**
      * Convert user-oriented {@link WatermarkDeclaration} instance to internal-oriented {@link
      * AbstractInternalWatermarkDeclaration} instance.
