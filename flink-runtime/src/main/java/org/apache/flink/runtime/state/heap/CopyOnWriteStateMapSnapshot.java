@@ -58,7 +58,7 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
      * Version of the {@link CopyOnWriteStateMap} when this snapshot was created. This can be used
      * to release the snapshot.
      */
-    private final int snapshotVersion;
+    protected final int snapshotVersion;
 
     /**
      * The state map entries, as by the time this snapshot was created. Objects in this array may or
@@ -66,7 +66,7 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
      * this snapshot. This depends for each entry on whether or not it was subject to copy-on-write
      * operations by the {@link CopyOnWriteStateMap}.
      */
-    @Nonnull private final CopyOnWriteStateMap.StateMapEntry<K, N, S>[] snapshotData;
+    @Nonnull protected final CopyOnWriteStateMap.StateMapEntry<K, N, S>[] snapshotData;
 
     /** The number of (non-null) entries in snapshotData. */
     @Nonnegative private final int numberOfEntriesInSnapshotData;
@@ -80,7 +80,7 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
      * @param owningStateMap the {@link CopyOnWriteStateMap} for which this object represents a
      *     snapshot.
      */
-    CopyOnWriteStateMapSnapshot(CopyOnWriteStateMap<K, N, S> owningStateMap) {
+    protected CopyOnWriteStateMapSnapshot(CopyOnWriteStateMap<K, N, S> owningStateMap) {
         super(owningStateMap);
 
         this.snapshotData = owningStateMap.snapshotMapArrays();
@@ -111,7 +111,7 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
     }
 
     @Override
-    public SnapshotIterator<K, N, S> getIterator(
+    public Iterator<StateEntry<K, N, S>> getIterator(
             @Nonnull TypeSerializer<K> keySerializer,
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull TypeSerializer<S> stateSerializer,
@@ -131,14 +131,14 @@ public class CopyOnWriteStateMapSnapshot<K, N, S>
             @Nonnull DataOutputView dov,
             @Nullable StateSnapshotTransformer<S> stateSnapshotTransformer)
             throws IOException {
-        SnapshotIterator<K, N, S> snapshotIterator =
+        Iterator<StateEntry<K, N, S>> snapshotIterator =
                 getIterator(
                         keySerializer,
                         namespaceSerializer,
                         stateSerializer,
                         stateSnapshotTransformer);
 
-        int size = snapshotIterator.size();
+        int size = ((SnapshotIterator<K, N, S>) snapshotIterator).size();
         dov.writeInt(size);
         while (snapshotIterator.hasNext()) {
             StateEntry<K, N, S> stateEntry = snapshotIterator.next();
