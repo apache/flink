@@ -45,7 +45,7 @@ class RawToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object,
 
     isNull$0 = _myInputIsNull;
     if (!isNull$0) {
-        java.lang.Object deserializedObj$0 = _myInput.toObject(typeSerializer$2);
+        java.lang.Object deserializedObj$0 = _myInput.toObject(typeSerializer$2.getInnerSerializer());
         if (deserializedObj$0 != null) {
             java.lang.String resultString$1;
             resultString$1 = deserializedObj$0.toString().toString();
@@ -92,7 +92,7 @@ class RawToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object,
                 .declStmt(
                         Object.class,
                         deserializedObjTerm,
-                        methodCall(inputTerm, "toObject", typeSerializer))
+                        methodCall(inputTerm, "toObject", typeSerializer + ".getInnerSerializer()"))
                 .ifStmt(
                         deserializedObjTerm + " != null",
                         thenWriter ->
