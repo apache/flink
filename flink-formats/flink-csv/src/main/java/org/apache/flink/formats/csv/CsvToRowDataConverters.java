@@ -32,6 +32,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
@@ -44,6 +45,7 @@ import java.sql.Date;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.function.Function;
 
 import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_FORMAT;
 import static org.apache.flink.formats.common.TimeFormats.SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT;
@@ -143,9 +145,9 @@ public class CsvToRowDataConverters implements Serializable {
             case BOOLEAN:
                 return this::convertToBoolean;
             case TINYINT:
-                return jsonNode -> Byte.parseByte(jsonNode.asText().trim());
+                return jsonNode -> convertStringToValue(jsonNode, Byte::parseByte);
             case SMALLINT:
-                return jsonNode -> Short.parseShort(jsonNode.asText().trim());
+                return jsonNode -> convertStringToValue(jsonNode, Short::parseShort);
             case INTEGER:
             case INTERVAL_YEAR_MONTH:
                 return this::convertToInt;
@@ -185,48 +187,57 @@ public class CsvToRowDataConverters implements Serializable {
         }
     }
 
-    private boolean convertToBoolean(JsonNode jsonNode) {
+    private <V> V convertStringToValue(JsonNode jsonNode, Function<String, V> function) {
+        String val = jsonNode.asText().trim();
+        if (StringUtils.isNullOrWhitespaceOnly(val)) {
+            return null;
+        }
+
+        return function.apply(val);
+    }
+
+    private Boolean convertToBoolean(JsonNode jsonNode) {
         if (jsonNode.isBoolean()) {
             // avoid redundant toString and parseBoolean, for better performance
             return jsonNode.asBoolean();
         } else {
-            return Boolean.parseBoolean(jsonNode.asText().trim());
+            return convertStringToValue(jsonNode, Boolean::parseBoolean);
         }
     }
 
-    private int convertToInt(JsonNode jsonNode) {
+    private Integer convertToInt(JsonNode jsonNode) {
         if (jsonNode.canConvertToInt()) {
             // avoid redundant toString and parseInt, for better performance
             return jsonNode.asInt();
         } else {
-            return Integer.parseInt(jsonNode.asText().trim());
+            return convertStringToValue(jsonNode, Integer::parseInt);
         }
     }
 
-    private long convertToLong(JsonNode jsonNode) {
+    private Long convertToLong(JsonNode jsonNode) {
         if (jsonNode.canConvertToLong()) {
             // avoid redundant toString and parseLong, for better performance
             return jsonNode.asLong();
         } else {
-            return Long.parseLong(jsonNode.asText().trim());
+            return convertStringToValue(jsonNode, Long::parseLong);
         }
     }
 
-    private double convertToDouble(JsonNode jsonNode) {
+    private Double convertToDouble(JsonNode jsonNode) {
         if (jsonNode.isDouble()) {
             // avoid redundant toString and parseDouble, for better performance
             return jsonNode.asDouble();
         } else {
-            return Double.parseDouble(jsonNode.asText().trim());
+            return convertStringToValue(jsonNode, Double::parseDouble);
         }
     }
 
-    private float convertToFloat(JsonNode jsonNode) {
+    private Float convertToFloat(JsonNode jsonNode) {
         if (jsonNode.isDouble()) {
             // avoid redundant toString and parseDouble, for better performance
             return (float) jsonNode.asDouble();
         } else {
-            return Float.parseFloat(jsonNode.asText().trim());
+            return convertStringToValue(jsonNode, Float::parseFloat);
         }
     }
 
