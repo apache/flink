@@ -71,7 +71,7 @@ public interface SqlCallSyntax {
             };
 
     /**
-     * Function syntax for functions without parameters (e.g., CURRENT_DATE, LOCALTIMESTAMP,
+     * Function syntax for functions without parenthesis (e.g., CURRENT_DATE, LOCALTIMESTAMP,
      * LOCALTIME, CURRENT_TIMESTAMP, CURRENT_TIME).
      */
     SqlCallSyntax NO_PARENTHESIS = (sqlName, operands) -> sqlName;
