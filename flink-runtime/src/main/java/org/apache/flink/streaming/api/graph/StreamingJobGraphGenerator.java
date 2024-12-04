@@ -118,6 +118,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.streaming.util.watermark.WatermarkUtils.getInternalWatermarkDeclarationsFromStreamGraph;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -754,6 +755,8 @@ public class StreamingJobGraphGenerator {
             tryConvertPartitionerForDynamicGraph(
                     chainableOutputs, nonChainableOutputs, jobVertexBuildContext);
             config.setAttribute(currentNodeAttribute);
+            config.setWatermarkDeclarations(
+                    getInternalWatermarkDeclarationsFromStreamGraph(streamGraph));
             setOperatorConfig(currentNodeId, config, chainInfo, jobVertexBuildContext);
 
             setOperatorChainedOutputsConfig(config, chainableOutputs, jobVertexBuildContext);
