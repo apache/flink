@@ -1130,6 +1130,13 @@ public class SingleInputGate extends IndexedInputGate {
         }
     }
 
+    public void resumeGateConsumption() throws IOException {
+        checkState(!isFinished(), "InputGate already finished.");
+        for (InputChannel inputChannel : channels) {
+            inputChannel.resumeConsumption();
+        }
+    }
+
     @Override
     public void resumeConsumption(InputChannelInfo channelInfo) throws IOException {
         checkState(!isFinished(), "InputGate already finished.");
