@@ -411,6 +411,10 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
         return rewritten;
     }
 
+    public RelOptCluster getRelOptCluster() {
+        return relOptCluster;
+    }
+
     // --------------------------------------------------------------------------------------------
     // Column expansion
     // --------------------------------------------------------------------------------------------

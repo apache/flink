@@ -16,7 +16,11 @@
  */
 package org.apache.calcite.sql.fun;
 
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 
 import com.google.common.collect.ImmutableSetMultimap;
@@ -98,7 +102,33 @@ public class SqlCastFunction extends SqlFunction {
         assert opBinding.getOperandCount() == 2;
         RelDataType ret = opBinding.getOperandType(1);
         RelDataType firstType = opBinding.getOperandType(0);
-        ret = opBinding.getTypeFactory().createTypeWithNullability(ret, firstType.isNullable());
+
+        /**
+         * Reason: the cast result type should be always nullable when {@link
+         * ExecutionConfigOptions#TABLE_EXEC_LEGACY_CAST_BEHAVIOUR} is enabled, this function
+         * behaves like try_cast.
+         */
+        boolean forceOutputTypeNullable = false;
+        if (opBinding instanceof SqlCallBinding
+                && ((SqlCallBinding) opBinding).getValidator()
+                        instanceof FlinkCalciteSqlValidator) {
+            FlinkCalciteSqlValidator validator =
+                    (FlinkCalciteSqlValidator) ((SqlCallBinding) opBinding).getValidator();
+
+            TableConfig tableConfig =
+                    ShortcutUtils.unwrapContext(validator.getRelOptCluster()).getTableConfig();
+            forceOutputTypeNullable =
+                    tableConfig
+                            .get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR)
+                            .isEnabled();
+        }
+
+        ret =
+                opBinding
+                        .getTypeFactory()
+                        .createTypeWithNullability(
+                                ret, firstType.isNullable() || forceOutputTypeNullable);
+
         if (opBinding instanceof SqlCallBinding) {
             SqlCallBinding callBinding = (SqlCallBinding) opBinding;
             SqlNode operand0 = callBinding.operand(0);
