@@ -343,7 +343,7 @@ string:
     description: Returns a string that repeats the base string integer times. E.g., REPEAT('This is a test String.', 2) returns "This is a test String.This is a test String.".
   - sql: REGEXP_REPLACE(string1, string2, string3)
     table: STRING1.regexpReplace(STRING2, STRING3)
-    description: Returns a string from STRING1 with all the substrings that match a regular expression STRING2 consecutively being replaced with STRING3. E.g., 'foobar'.regexpReplace('oo|ar', '') returns "fb".
+    description: Returns a string from STRING1 with all the substrings that match a regular expression STRING2 consecutively being replaced with STRING3. E.g., 'foobar'.regexpReplace('oo|ar', '') returns "fb". Note that, this function treats the dollar sign ('$') as a special character to capture groups.
   - sql: OVERLAY(string1 PLACING string2 FROM integer1 [ FOR integer2 ])
     table: |
       STRING1.overlay(STRING2, INT1)
