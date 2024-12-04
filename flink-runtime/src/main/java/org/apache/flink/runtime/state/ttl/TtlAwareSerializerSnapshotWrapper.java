@@ -18,86 +18,28 @@
 
 package org.apache.flink.runtime.state.ttl;
 
-import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.ListSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.MapSerializerSnapshot;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
-import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nonnull;
-
-import java.util.Map;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-/**
- * Wrap the TypeSerializerSnapshot restored from {@link StateMetaInfoSnapshot} to
- * TtlAwareSerializerSnapshot
- */
+/** Wrap the TypeSerializerSnapshot restored from {@link TypeSerializerSnapshot} */
 public class TtlAwareSerializerSnapshotWrapper<T> {
 
-    private final StateDescriptor.Type stateType;
     private final TypeSerializerSnapshot<T> typeSerializerSnapshot;
 
-    private final Map<StateDescriptor.Type, Supplier<TypeSerializerSnapshot<T>>>
-            ttlAwareSerializerSnapshotFactories;
-
-    @SuppressWarnings("unchecked")
-    public TtlAwareSerializerSnapshotWrapper(@Nonnull StateMetaInfoSnapshot snapshot) {
-        this.stateType =
-                StateDescriptor.Type.valueOf(
-                        snapshot.getOption(
-                                StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE));
-        this.typeSerializerSnapshot =
-                (TypeSerializerSnapshot<T>)
-                        Preconditions.checkNotNull(
-                                snapshot.getTypeSerializerSnapshot(
-                                        StateMetaInfoSnapshot.CommonSerializerKeys
-                                                .VALUE_SERIALIZER));
-        this.ttlAwareSerializerSnapshotFactories = createTtlAwareSerializerSnapshotFactories();
-    }
-
-    @VisibleForTesting
-    public TtlAwareSerializerSnapshotWrapper(
-            StateDescriptor.Type stateType, TypeSerializerSnapshot<T> typeSerializerSnapshot) {
-        this.stateType = stateType;
+    public TtlAwareSerializerSnapshotWrapper(TypeSerializerSnapshot<T> typeSerializerSnapshot) {
         this.typeSerializerSnapshot = typeSerializerSnapshot;
-        this.ttlAwareSerializerSnapshotFactories = createTtlAwareSerializerSnapshotFactories();
-    }
-
-    private Map<StateDescriptor.Type, Supplier<TypeSerializerSnapshot<T>>>
-            createTtlAwareSerializerSnapshotFactories() {
-        return Stream.of(
-                        Tuple2.of(
-                                StateDescriptor.Type.VALUE,
-                                (Supplier<TypeSerializerSnapshot<T>>)
-                                        this::wrapValueSerializerSnapshot),
-                        Tuple2.of(
-                                StateDescriptor.Type.LIST,
-                                (Supplier<TypeSerializerSnapshot<T>>)
-                                        this::wrapListSerializerSnapshot),
-                        Tuple2.of(
-                                StateDescriptor.Type.MAP,
-                                (Supplier<TypeSerializerSnapshot<T>>)
-                                        this::wrapMapSerializerSnapshot),
-                        Tuple2.of(
-                                StateDescriptor.Type.REDUCING,
-                                (Supplier<TypeSerializerSnapshot<T>>)
-                                        this::wrapValueSerializerSnapshot),
-                        Tuple2.of(
-                                StateDescriptor.Type.AGGREGATING,
-                                (Supplier<TypeSerializerSnapshot<T>>)
-                                        this::wrapValueSerializerSnapshot))
-                .collect(Collectors.toMap(t -> t.f0, t -> t.f1));
     }
 
     public TypeSerializerSnapshot<T> getTtlAwareSerializerSnapshot() {
-        return ttlAwareSerializerSnapshotFactories.get(stateType).get();
+        if (typeSerializerSnapshot instanceof ListSerializerSnapshot) {
+            return wrapListSerializerSnapshot();
+        } else if (typeSerializerSnapshot instanceof MapSerializerSnapshot) {
+            return wrapMapSerializerSnapshot();
+        } else {
+            return wrapValueSerializerSnapshot();
+        }
     }
 
     private TypeSerializerSnapshot<T> wrapValueSerializerSnapshot() {

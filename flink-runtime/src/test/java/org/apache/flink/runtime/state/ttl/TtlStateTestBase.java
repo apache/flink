@@ -109,7 +109,7 @@ public abstract class TtlStateTestBase {
         return (TtlMergingStateTestContext<?, UV, ?>) ctx;
     }
 
-    private void initTest() throws Exception {
+    protected void initTest() throws Exception {
         initTest(
                 StateTtlConfig.UpdateType.OnCreateAndWrite,
                 StateTtlConfig.StateVisibility.NeverReturnExpired);

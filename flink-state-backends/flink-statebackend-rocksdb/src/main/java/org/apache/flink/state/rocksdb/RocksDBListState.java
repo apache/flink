@@ -30,6 +30,8 @@ import org.apache.flink.runtime.state.ListDelimitedSerializer;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.internal.InternalListState;
+import org.apache.flink.runtime.state.ttl.TtlAwareSerializer;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
@@ -198,24 +200,33 @@ class RocksDBListState<K, N, V> extends AbstractRocksDBState<K, N, List<V>>
             DataInputDeserializer serializedOldValueInput,
             DataOutputSerializer serializedMigratedValueOutput,
             TypeSerializer<List<V>> priorSerializer,
-            TypeSerializer<List<V>> newSerializer)
+            TypeSerializer<List<V>> newSerializer,
+            TtlTimeProvider ttlTimeProvider)
             throws StateMigrationException {
-
         Preconditions.checkArgument(priorSerializer instanceof ListSerializer);
         Preconditions.checkArgument(newSerializer instanceof ListSerializer);
+        Preconditions.checkArgument(
+                ((ListSerializer<V>) priorSerializer).getElementSerializer()
+                        instanceof TtlAwareSerializer);
+        Preconditions.checkArgument(
+                ((ListSerializer<V>) newSerializer).getElementSerializer()
+                        instanceof TtlAwareSerializer);
 
-        TypeSerializer<V> priorElementSerializer =
-                ((ListSerializer<V>) priorSerializer).getElementSerializer();
-
-        TypeSerializer<V> newElementSerializer =
-                ((ListSerializer<V>) newSerializer).getElementSerializer();
+        TtlAwareSerializer<V> priorTtlAwareElementSerializer =
+                (TtlAwareSerializer<V>)
+                        ((ListSerializer<V>) priorSerializer).getElementSerializer();
+        TtlAwareSerializer<V> newTtlAwareElementSerializer =
+                (TtlAwareSerializer<V>) ((ListSerializer<V>) newSerializer).getElementSerializer();
 
         try {
             while (serializedOldValueInput.available() > 0) {
-                V element =
-                        ListDelimitedSerializer.deserializeNextElement(
-                                serializedOldValueInput, priorElementSerializer);
-                newElementSerializer.serialize(element, serializedMigratedValueOutput);
+                newTtlAwareElementSerializer.migrateValueFromPriorSerializer(
+                        priorTtlAwareElementSerializer,
+                        () ->
+                                ListDelimitedSerializer.deserializeNextElement(
+                                        serializedOldValueInput, priorTtlAwareElementSerializer),
+                        serializedMigratedValueOutput,
+                        ttlTimeProvider);
                 if (serializedOldValueInput.available() > 0) {
                     serializedMigratedValueOutput.write(DELIMITER);
                 }
@@ -260,7 +271,8 @@ class RocksDBListState<K, N, V> extends AbstractRocksDBState<K, N, List<V>>
                         .setNamespaceSerializer(registerResult.f1.getNamespaceSerializer())
                         .setValueSerializer(
                                 (TypeSerializer<List<E>>) registerResult.f1.getStateSerializer())
-                        .setDefaultValue((List<E>) stateDesc.getDefaultValue());
+                        .setDefaultValue((List<E>) stateDesc.getDefaultValue())
+                        .setColumnFamily(registerResult.f0);
     }
 
     static class StateSnapshotTransformerWrapper<T> implements StateSnapshotTransformer<byte[]> {

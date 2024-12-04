@@ -275,7 +275,7 @@ public class RocksDBOperationUtils {
                 .setMergeOperatorName(MERGE_OPERATOR_NAME);
     }
 
-    private static ColumnFamilyHandle createColumnFamily(
+    public static ColumnFamilyHandle createColumnFamily(
             ColumnFamilyDescriptor columnDescriptor,
             RocksDB db,
             List<ExportImportFilesMetaData> importFilesMetaData,

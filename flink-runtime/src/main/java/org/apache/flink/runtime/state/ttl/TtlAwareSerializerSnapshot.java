@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * A {@link TypeSerializerSnapshot} for TtlAwareSerializer. This class wraps a {@link
@@ -144,5 +145,23 @@ public class TtlAwareSerializerSnapshot<T> implements TypeSerializerSnapshot<T> 
         } else {
             return TypeSerializerSchemaCompatibility.incompatible();
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        TtlAwareSerializerSnapshot<?> that = (TtlAwareSerializerSnapshot<?>) o;
+        return isTtlEnabled == that.isTtlEnabled
+                && Objects.equals(typeSerializerSnapshot, that.typeSerializerSnapshot);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(isTtlEnabled, typeSerializerSnapshot);
     }
 }
