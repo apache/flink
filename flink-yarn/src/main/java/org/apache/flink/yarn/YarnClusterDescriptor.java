@@ -1987,9 +1987,12 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                 YarnConfigKeys.FLINK_YARN_FILES,
                 fileUploader.getApplicationDir().toUri().toString());
         // https://github.com/apache/hadoop/blob/trunk/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-site/src/site/markdown/YarnApplicationSecurity.md#identity-on-an-insecure-cluster-hadoop_user_name
+        String hadoopUserName = System.getenv(YarnConfigKeys.ENV_HADOOP_USER_NAME);
         env.put(
                 YarnConfigKeys.ENV_HADOOP_USER_NAME,
-                UserGroupInformation.getCurrentUser().getUserName());
+                !StringUtils.isNullOrWhitespaceOnly(hadoopUserName)
+                        ? hadoopUserName
+                        : UserGroupInformation.getCurrentUser().getUserName());
         // set classpath from YARN configuration
         Utils.setupYarnClassPath(this.yarnConfiguration, env);
         return env;
