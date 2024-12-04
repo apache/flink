@@ -28,6 +28,7 @@ import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Objects;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.TimeUtils.formatWithHighestUnit;
 
@@ -49,6 +50,7 @@ public class TumblingWindowSpec implements WindowSpec {
     public TumblingWindowSpec(
             @JsonProperty(FIELD_NAME_SIZE) Duration size,
             @JsonProperty(FIELD_NAME_OFFSET) @Nullable Duration offset) {
+        checkArgument(!size.isNegative(), "Tumbling Window parameters must satisfy size > 0");
         this.size = checkNotNull(size);
         this.offset = offset;
     }
