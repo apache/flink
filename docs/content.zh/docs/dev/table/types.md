@@ -1537,6 +1537,7 @@ COALESCE(TRY_CAST('non-number' AS INT), 0) --- 结果返回数字 0 的 INT 格�
 4. 支持转换，当且仅当用使用 `RAW` 的类和类的序列化器一样。
 5. 支持转换，当且仅当用使用 `INTERVAL` 做“月”到“年”的转换。
 6. 支持转换，当且仅当用使用 `INTERVAL` 做“天”到“时间”的转换。
+7. 如果值是Infinity，`DOUBLE`转换成`DECIMAL`可能失败
 
 请注意：无论是 `CAST` 还是 `TRY_CAST`，当输入为 `NULL` ，输出也为 `NULL`。
 
