@@ -29,6 +29,7 @@ import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.AsyncStateException;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
@@ -478,6 +479,48 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
         }
         asyncExecutionController.processNonRecord(
                 null, () -> super.processRecordAttributes2(recordAttributes));
+    }
+
+    public void processWatermarkInternal(WatermarkEvent watermark) throws Exception {
+        super.processWatermark(watermark);
+    }
+
+    public void processWatermark1Internal(WatermarkEvent watermark) throws Exception {
+        super.processWatermark1(watermark);
+    }
+
+    public void processWatermark2Internal(WatermarkEvent watermark) throws Exception {
+        super.processWatermark2(watermark);
+    }
+
+    @Override
+    public void processWatermark(WatermarkEvent watermark) throws Exception {
+        if (!isAsyncStateProcessingEnabled()) {
+            this.processWatermarkInternal(watermark);
+            return;
+        }
+        asyncExecutionController.processNonRecord(
+                null, () -> this.processWatermarkInternal(watermark));
+    }
+
+    @Override
+    public void processWatermark1(WatermarkEvent watermark) throws Exception {
+        if (!isAsyncStateProcessingEnabled()) {
+            this.processWatermark1Internal(watermark);
+            return;
+        }
+        asyncExecutionController.processNonRecord(
+                null, () -> this.processWatermark1Internal(watermark));
+    }
+
+    @Override
+    public void processWatermark2(WatermarkEvent watermark) throws Exception {
+        if (!isAsyncStateProcessingEnabled()) {
+            this.processWatermark2Internal(watermark);
+            return;
+        }
+        asyncExecutionController.processNonRecord(
+                null, () -> this.processWatermark2Internal(watermark));
     }
 
     @VisibleForTesting

@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.runtime.event.RuntimeEvent;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -29,35 +31,49 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 /** Collecting {@link Output} for {@link StreamRecord}. */
 public class CollectorOutput<T> implements Output<StreamRecord<T>> {
 
-    private final List<StreamElement> list;
+    private final List<StreamElement> elementList;
 
-    public CollectorOutput(List<StreamElement> list) {
-        this.list = list;
+    private final List<RuntimeEvent> eventList;
+
+    public CollectorOutput(List<StreamElement> elementList) {
+        this.elementList = elementList;
+        this.eventList = new ArrayList<>();
+    }
+
+    public CollectorOutput(List<StreamElement> elementList, List<RuntimeEvent> eventList) {
+        this.elementList = elementList;
+        this.eventList = eventList;
     }
 
     @Override
     public void emitWatermark(Watermark mark) {
-        list.add(mark);
+        elementList.add(mark);
     }
 
     @Override
     public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {
-        list.add(watermarkStatus);
+        elementList.add(watermarkStatus);
     }
 
     @Override
     public void emitLatencyMarker(LatencyMarker latencyMarker) {
-        list.add(latencyMarker);
+        elementList.add(latencyMarker);
     }
 
     @Override
     public void emitRecordAttributes(RecordAttributes recordAttributes) {
-        list.add(recordAttributes);
+        elementList.add(recordAttributes);
+    }
+
+    @Override
+    public void emitWatermark(WatermarkEvent watermark) {
+        eventList.add(watermark);
     }
 
     @Override
@@ -67,7 +83,7 @@ public class CollectorOutput<T> implements Output<StreamRecord<T>> {
             T copied =
                     InstantiationUtil.deserializeObject(
                             InstantiationUtil.serializeObject(record.getValue()), cl);
-            list.add(record.copy(copied));
+            elementList.add(record.copy(copied));
         } catch (IOException | ClassNotFoundException ex) {
             throw new RuntimeException("Unable to deserialize record: " + record, ex);
         }
