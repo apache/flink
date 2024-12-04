@@ -17,6 +17,15 @@
 # limitations under the License.
 ################################################################################
 
+addSpaces() {
+  local str=$1
+  local count=$2
+  for ((i=0; i<count; i++)); do
+    str="$str "
+  done
+  echo "$str"
+}
+
 readFromConfigFile() {
     local key=$1
     local defaultValue=$2
@@ -25,10 +34,40 @@ readFromConfigFile() {
     # first extract the value with the given key (1st sed), then trim the result (2nd sed)
     # if a key exists multiple times, take the "last" one (tail)
     local value=`sed -n "s/^[ ]*${key}[ ]*: \([^#]*\).*$/\1/p" "${configFile}" | sed "s/^ *//;s/ *$//" | tail -n 1`
-
+    if [ -z "$value" ]; then
+		# for env.java.home value = `sed -n "/^env:/,/^[^ ]/p" "${configFile}" | sed -n "/^  java:/,/^[^ ]/p" | sed -n "/home:/s/.*: //p" | tail -n 1`
+		IFS='.'
+		read -ra nodes <<< "$1"
+		
+		local sed_cmd_left="sed -n \"/^"
+		local sed_cmd_right=" | "		
+		for index in ${!nodes[@]}; do
+			node=${nodes[index]}
+		 		 
+			if [ $index -eq 0 ]; then
+				# echo "first node：$node"
+				sed_cmd_left+=$node
+				sed_cmd_left+=":/,/^[^ ]/p\" "
+			elif [ $index -eq $((${#nodes[@]}-1)) ]; then
+				# echo "last node：$node"
+				sed_cmd_right+="sed -n \"/"
+				sed_cmd_right+=$node
+				sed_cmd_right+=":/s/.*: //p\" | tail -n 1"
+			else
+				let spaces_count=$index*2
+				# echo "spaces_count: $spaces_count"
+				# echo "middle node：$node"
+				sed_cmd_right+="sed -n \"/^"
+				sed_cmd_right+=$(addSpaces "" "$spaces_count")
+				sed_cmd_right+=$node
+				sed_cmd_right+=":/,/^[^ ]/p\" | "
+			fi
+		done
+		value=$(eval "$sed_cmd_left \"$configFile\" $sed_cmd_right")
+    fi
+	
     [ -z "$value" ] && echo "$defaultValue" || echo "$value"
 }
-
 
 setJavaHome() {
     # read JAVA_HOME from config with no default value
