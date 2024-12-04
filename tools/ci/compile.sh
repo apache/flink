@@ -79,6 +79,11 @@ if [ $EXIT_CODE != 0 ]; then
     exit $EXIT_CODE
 fi
 
+if [[ ${PROFILE} == *"-Dfast"* || ${PROFILE} == *"-Pfast"* ]]; then
+  echo "Skipping post-compile checks because 'fast' profile is active."
+  exit $EXIT_CODE
+fi
+
 echo "============ Checking Javadocs ============"
 
 javadoc_output=/tmp/javadoc.out
