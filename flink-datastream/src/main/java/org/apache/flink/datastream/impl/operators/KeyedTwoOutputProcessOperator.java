@@ -38,7 +38,6 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -133,7 +132,7 @@ public class KeyedTwoOutputProcessOperator<KEY, IN, OUT_MAIN, OUT_SIDE>
                 true,
                 keySet,
                 output,
-                Collections.emptyMap());
+                watermarkDeclarationMap);
     }
 
     @Override
