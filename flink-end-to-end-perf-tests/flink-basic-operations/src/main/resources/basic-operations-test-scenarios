@@ -1,0 +1,51 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+scenarioIndex   testClassPath   topologyName    logicalAttributesofEdges    scheduleMode    checkpointMode  recordSize
+1   org.apache.flink.basic.operations.PerformanceTestJob    OneInput    Broadcast   LazyFromSource  ExactlyOnce 10
+2   org.apache.flink.basic.operations.PerformanceTestJob    OneInput    Rescale     LazyFromSource  ExactlyOnce 100
+3   org.apache.flink.basic.operations.PerformanceTestJob    OneInput    Rebalance   LazyFromSource  ExactlyOnce 1024
+4   org.apache.flink.basic.operations.PerformanceTestJob    OneInput    KeyBy       LazyFromSource  ExactlyOnce 10
+5   org.apache.flink.basic.operations.PerformanceTestJob    OneInput    Broadcast   Eager           ExactlyOnce 100
+6   org.apache.flink.basic.operations.PerformanceTestJob    OneInput    Rescale     Eager           ExactlyOnce 1024
+7   org.apache.flink.basic.operations.PerformanceTestJob    OneInput    Rebalance   Eager           ExactlyOnce 10
+8   org.apache.flink.basic.operations.PerformanceTestJob    OneInput    KeyBy       Eager           ExactlyOnce 100
+9   org.apache.flink.basic.operations.PerformanceTestJob    OneInput    Broadcast   LazyFromSource  AtLeastOnce 1024
+10  org.apache.flink.basic.operations.PerformanceTestJob    OneInput    Rescale     LazyFromSource  AtLeastOnce 10
+11  org.apache.flink.basic.operations.PerformanceTestJob    OneInput    Rebalance   LazyFromSource  AtLeastOnce 100
+12  org.apache.flink.basic.operations.PerformanceTestJob    OneInput    KeyBy       LazyFromSource  AtLeastOnce 1024
+13  org.apache.flink.basic.operations.PerformanceTestJob    OneInput    Broadcast   Eager           AtLeastOnce 10
+14  org.apache.flink.basic.operations.PerformanceTestJob    OneInput    Rescale     Eager           AtLeastOnce 100
+15  org.apache.flink.basic.operations.PerformanceTestJob    OneInput    Rebalance   Eager           AtLeastOnce 1024
+16  org.apache.flink.basic.operations.PerformanceTestJob    OneInput    KeyBy       Eager           AtLeastOnce 10
+17  org.apache.flink.basic.operations.PerformanceTestJob    TwoInputs   Broadcast   LazyFromSource  ExactlyOnce 100
+18  org.apache.flink.basic.operations.PerformanceTestJob    TwoInputs   Rescale     LazyFromSource  ExactlyOnce 1024
+19  org.apache.flink.basic.operations.PerformanceTestJob    TwoInputs   Rebalance   LazyFromSource  ExactlyOnce 10
+20  org.apache.flink.basic.operations.PerformanceTestJob    TwoInputs   KeyBy       LazyFromSource  ExactlyOnce 100
+21  org.apache.flink.basic.operations.PerformanceTestJob    TwoInputs   Broadcast   Eager           ExactlyOnce 1024
+22  org.apache.flink.basic.operations.PerformanceTestJob    TwoInputs   Rescale     Eager           ExactlyOnce 10
+23  org.apache.flink.basic.operations.PerformanceTestJob    TwoInputs   Rebalance   Eager           ExactlyOnce 100
+24  org.apache.flink.basic.operations.PerformanceTestJob    TwoInputs   KeyBy       Eager           ExactlyOnce 1024
+25  org.apache.flink.basic.operations.PerformanceTestJob    TwoInputs   Broadcast   LazyFromSource  AtLeastOnce 10
+26  org.apache.flink.basic.operations.PerformanceTestJob    TwoInputs   Rescale     LazyFromSource  AtLeastOnce 100
+27  org.apache.flink.basic.operations.PerformanceTestJob    TwoInputs   Rebalance   LazyFromSource  AtLeastOnce 1024
+28  org.apache.flink.basic.operations.PerformanceTestJob    TwoInputs   KeyBy       LazyFromSource  AtLeastOnce 10
+29  org.apache.flink.basic.operations.PerformanceTestJob    TwoInputs   Broadcast   Eager           AtLeastOnce 100
+30  org.apache.flink.basic.operations.PerformanceTestJob    TwoInputs   Rescale     Eager           AtLeastOnce 1024
+31  org.apache.flink.basic.operations.PerformanceTestJob    TwoInputs   Rebalance   Eager           AtLeastOnce 10
+32  org.apache.flink.basic.operations.PerformanceTestJob    TwoInputs   KeyBy       Eager           AtLeastOnce 100
