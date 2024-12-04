@@ -38,6 +38,7 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
+import org.apache.flink.streaming.runtime.watermark.AbstractInternalWatermarkDeclaration;
 import org.apache.flink.util.ClassLoaderUtil;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
@@ -49,6 +50,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -131,6 +133,8 @@ public class StreamConfig implements Serializable {
     private static final String MANAGED_MEMORY_FRACTION_PREFIX = "managedMemFraction.";
 
     private static final String ATTRIBUTE = "attribute";
+
+    private static final String WATERMARK_DECLARATIONS = "watermarkDeclarations";
 
     private static final ConfigOption<Boolean> STATE_BACKEND_USE_MANAGED_MEMORY =
             ConfigOptions.key("statebackend.useManagedMemory")
@@ -325,6 +329,23 @@ public class StreamConfig implements Serializable {
         try {
             return InstantiationUtil.readObjectFromConfig(
                     this.config, TYPE_SERIALIZER_SIDEOUT_PREFIX + outputTag.getId(), cl);
+        } catch (Exception e) {
+            throw new StreamTaskException("Could not instantiate serializer.", e);
+        }
+    }
+
+    public void setWatermarkDeclarations(
+            Set<AbstractInternalWatermarkDeclaration<?>> watermarkDeclarations) {
+        toBeSerializedConfigObjects.put(WATERMARK_DECLARATIONS, watermarkDeclarations);
+    }
+
+    public Set<AbstractInternalWatermarkDeclaration<?>> getWatermarkDeclarations(ClassLoader cl) {
+        try {
+            Set<AbstractInternalWatermarkDeclaration<?>> watermarkDeclarations =
+                    InstantiationUtil.readObjectFromConfig(this.config, WATERMARK_DECLARATIONS, cl);
+            // The watermark declarations can be null, but this should occur only in some test
+            // cases.
+            return watermarkDeclarations == null ? Collections.emptySet() : watermarkDeclarations;
         } catch (Exception e) {
             throw new StreamTaskException("Could not instantiate serializer.", e);
         }
