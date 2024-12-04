@@ -64,6 +64,8 @@ Flink 的 POJO 字段选择也适用于从 Avro schema 生成的 POJO 类。但�
 在 Avro 中如 `{"name": "type_double_test", "type": "double"},` 这样指定字段是可行的，但是如 (`{"name": "type_double_test", "type": ["double"]},`) 这样指定包含一个字段的复合类型就会生成 `Object` 类型的字段。注意，如 (`{"name": "type_double_test", "type": ["null", "double"]},`) 这样指定 nullable 类型字段也是可能产生 `Object` 类型的!
 
 
+## Python
+
 在 Python 作业中读取 Avro 文件，需要先定义 Avro schema，产生的 DataStream 元素为原生的 Python 对象 Generic。例如：
 
 ```python
