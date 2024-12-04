@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.FullyFilledBuffer;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 
 import javax.annotation.Nullable;
@@ -35,6 +36,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** Subpartition data reader for {@link SortMergeResultPartition}. */
 class SortMergeSubpartitionReader
@@ -70,10 +72,18 @@ class SortMergeSubpartitionReader
     /** Sequence number of the next buffer to be sent to the consumer. */
     private int sequenceNumber;
 
+    @GuardedBy("lock")
+    private final Queue<FullyFilledBuffer> fullyFilledBuffersToRead = new ArrayDeque<>();
+
+    private FullyFilledBuffer toFilledBuffer;
+
+    private final int pageSize;
+
     SortMergeSubpartitionReader(
-            BufferAvailabilityListener listener, PartitionedFileReader fileReader) {
+            int pageSize, BufferAvailabilityListener listener, PartitionedFileReader fileReader) {
         this.availabilityListener = checkNotNull(listener);
         this.fileReader = checkNotNull(fileReader);
+        this.pageSize = pageSize;
     }
 
     @Nullable
@@ -90,28 +100,25 @@ class SortMergeSubpartitionReader
             }
 
             Buffer lookAhead = buffersRead.peek();
-            return BufferAndBacklog.fromBufferAndLookahead(
-                    buffer,
-                    lookAhead == null ? Buffer.DataType.NONE : lookAhead.getDataType(),
-                    dataBufferBacklog,
-                    sequenceNumber++);
+            BufferAndBacklog bufferAndBacklog =
+                    BufferAndBacklog.fromBufferAndLookahead(
+                            buffer,
+                            lookAhead == null ? Buffer.DataType.NONE : lookAhead.getDataType(),
+                            dataBufferBacklog,
+                            sequenceNumber);
+            sequenceNumber += ((FullyFilledBuffer) buffer).getPartialBuffers().size();
+            return bufferAndBacklog;
         }
     }
 
     private void addBuffer(Buffer buffer) {
-        boolean notifyAvailable = false;
         boolean needRecycleBuffer = false;
 
         synchronized (lock) {
             if (isReleased) {
                 needRecycleBuffer = true;
             } else {
-                notifyAvailable = buffersRead.isEmpty();
-
-                buffersRead.add(buffer);
-                if (buffer.isBuffer()) {
-                    ++dataBufferBacklog;
-                }
+                addBufferToFullyFilledBuffer(buffer);
             }
         }
 
@@ -119,15 +126,55 @@ class SortMergeSubpartitionReader
             buffer.recycleBuffer();
             throw new IllegalStateException("Subpartition reader has been already released.");
         }
+    }
 
-        if (notifyAvailable) {
-            notifyDataAvailable();
+    private void addBufferToFullyFilledBuffer(Buffer buffer) {
+        if (toFilledBuffer == null) {
+            toFilledBuffer =
+                    new FullyFilledBuffer(buffer.getDataType(), pageSize, buffer.isCompressed());
+            fullyFilledBuffersToRead.add(toFilledBuffer);
+            if (buffer.isBuffer()) {
+                ++dataBufferBacklog;
+            }
         }
+
+        if (toFilledBuffer.missingLength() < buffer.getSize()
+                || toFilledBuffer.getDataType() != buffer.getDataType()
+                || toFilledBuffer.isCompressed() != buffer.isCompressed()) {
+            checkState(!toFilledBuffer.getPartialBuffers().isEmpty());
+
+            toFilledBuffer =
+                    new FullyFilledBuffer(buffer.getDataType(), pageSize, buffer.isCompressed());
+            fullyFilledBuffersToRead.add(toFilledBuffer);
+            if (buffer.isBuffer()) {
+                ++dataBufferBacklog;
+            }
+        }
+
+        toFilledBuffer.addPartialBuffer(buffer);
     }
 
     /** This method is called by the IO thread of {@link SortMergeResultPartitionReadScheduler}. */
     boolean readBuffers(Queue<MemorySegment> buffers, BufferRecycler recycler) throws IOException {
-        return fileReader.readCurrentRegion(buffers, recycler, this::addBuffer);
+        boolean hasRemaining = fileReader.readCurrentRegion(buffers, recycler, this::addBuffer);
+
+        boolean canNotify;
+        synchronized (lock) {
+            boolean emptyBefore = buffersRead.isEmpty();
+            buffersRead.addAll(fullyFilledBuffersToRead);
+            fullyFilledBuffersToRead.clear();
+            toFilledBuffer = null;
+
+            boolean notEmptyAfter = !buffersRead.isEmpty();
+            canNotify = notEmptyAfter && emptyBefore;
+        }
+
+        // can not be locked!
+        if (canNotify) {
+            notifyDataAvailable();
+        }
+
+        return hasRemaining;
     }
 
     CompletableFuture<?> getReleaseFuture() {
@@ -181,6 +228,9 @@ class SortMergeSubpartitionReader
             if (failureCause == null) {
                 failureCause = throwable;
             }
+            buffersRead.addAll(fullyFilledBuffersToRead);
+            fullyFilledBuffersToRead.clear();
+            toFilledBuffer = null;
             buffersToRecycle = new ArrayList<>(buffersRead);
             buffersRead.clear();
             dataBufferBacklog = 0;
@@ -250,6 +300,7 @@ class SortMergeSubpartitionReader
 
     @Override
     public int peekNextBufferSubpartitionId() {
-        throw new UnsupportedOperationException();
+        // because sort merge shuffle does not care about subpartition id, so just return -1
+        return -1;
     }
 }
