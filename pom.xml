@@ -175,7 +175,6 @@ under the License.
 		<japicmp.referenceVersion>1.20.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<checkstyle.version>10.18.2</checkstyle.version>
-		<!-- can be removed with maven-spotless-plugin:2.38+ -->
 		<spotless.skip>false</spotless.skip>
 		<spotless.version>2.43.0</spotless.version>
 		<spotless.scalafmt.version>3.4.3</spotless.scalafmt.version>
@@ -2141,7 +2140,6 @@ under the License.
 					<artifactId>spotless-maven-plugin</artifactId>
 					<version>${spotless.version}</version>
 					<configuration>
-						<skip>${spotless.skip}</skip>
 						<java>
 							<googleJavaFormat>
 								<version>1.24.0</version>
