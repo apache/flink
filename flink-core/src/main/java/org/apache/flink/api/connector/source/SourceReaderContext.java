@@ -19,6 +19,7 @@
 package org.apache.flink.api.connector.source;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.watermark.Watermark;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 import org.apache.flink.util.UserCodeClassLoader;
@@ -74,6 +75,15 @@ public interface SourceReaderContext {
      * @return the parallelism of the Source.
      */
     default int currentParallelism() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Send the watermark to source output.
+     *
+     * <p>This should only be used for datastream v2.
+     */
+    default void emitWatermark(Watermark watermark) {
         throw new UnsupportedOperationException();
     }
 }

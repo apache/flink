@@ -34,6 +34,7 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
@@ -205,6 +206,9 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
      */
     private transient PausableRelativeClock mainInputActivityClock;
 
+    /** Watermark identifier to whether the watermark are aligned. */
+    private final Map<String, Boolean> watermarkIsAlignedMap;
+
     public SourceOperator(
             StreamOperatorParameters<OUT> parameters,
             FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
@@ -216,7 +220,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             Configuration configuration,
             String localHostname,
             boolean emitProgressiveWatermarks,
-            CanEmitBatchOfRecordsChecker canEmitBatchOfRecords) {
+            CanEmitBatchOfRecordsChecker canEmitBatchOfRecords,
+            Map<String, Boolean> watermarkIsAlignedMap) {
         super(parameters);
         this.readerFactory = checkNotNull(readerFactory);
         this.operatorEventGateway = checkNotNull(operatorEventGateway);
@@ -230,6 +235,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         this.watermarkAlignmentParams = watermarkStrategy.getAlignmentParameters();
         this.allowUnalignedSourceSplits = configuration.get(ALLOW_UNALIGNED_SOURCE_SPLITS);
         this.canEmitBatchOfRecords = checkNotNull(canEmitBatchOfRecords);
+        this.watermarkIsAlignedMap = watermarkIsAlignedMap;
     }
 
     @Override
@@ -324,6 +330,16 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                     @Override
                     public int currentParallelism() {
                         return getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
+                    }
+
+                    @Override
+                    public void emitWatermark(
+                            org.apache.flink.api.common.watermark.Watermark watermark) {
+                        checkState(watermarkIsAlignedMap.containsKey(watermark.getIdentifier()));
+                        output.emitWatermark(
+                                new WatermarkEvent(
+                                        watermark,
+                                        watermarkIsAlignedMap.get(watermark.getIdentifier())));
                     }
                 };
 
