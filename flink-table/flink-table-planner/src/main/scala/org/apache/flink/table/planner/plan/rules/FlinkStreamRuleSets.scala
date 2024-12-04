@@ -19,8 +19,8 @@ package org.apache.flink.table.planner.plan.rules
 
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.rules.logical._
-import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule
-import org.apache.flink.table.planner.plan.rules.physical.stream._
+import org.apache.flink.table.planner.plan.rules.physical.{stream, FlinkExpandConversionRule}
+import org.apache.flink.table.planner.plan.rules.physical.stream.{StreamExpandUnionTransposeRule, _}
 
 import org.apache.calcite.rel.core.RelFactories
 import org.apache.calcite.rel.logical.{LogicalIntersect, LogicalMinus, LogicalUnion}
@@ -504,7 +504,10 @@ object FlinkStreamRuleSets {
     // optimize window agg rule
     TwoStageOptimizedWindowAggregateRule.INSTANCE,
     // optimize ChangelogNormalize
-    PushCalcPastChangelogNormalizeRule.INSTANCE
+    PushCalcPastChangelogNormalizeRule.INSTANCE,
+    StreamLocalAggregateUnionTransposeRule.LOCAL_GROUP_AGG_INSTANCE,
+    StreamLocalAggregateUnionTransposeRule.LOCAL_WINDOW_AGG_INSTANCE,
+    StreamExpandUnionTransposeRule.EXPAND_INSTANCE
   )
 
 }

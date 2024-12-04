@@ -441,6 +441,11 @@ object FlinkBatchRuleSets {
     PushLocalSortAggIntoScanRule.INSTANCE,
     PushLocalSortAggWithSortIntoScanRule.INSTANCE,
     PushLocalSortAggWithCalcIntoScanRule.INSTANCE,
-    PushLocalSortAggWithSortAndCalcIntoScanRule.INSTANCE
+    PushLocalSortAggWithSortAndCalcIntoScanRule.INSTANCE,
+    BatchLocalAggUnionTransposeRule.LOCAL_HASH_AGG_INSTANCE,
+    BatchLocalAggUnionTransposeRule.EXPAND_INSTANCE,
+    BatchLocalAggUnionTransposeRule.LOCAL_SORT_AGG_INSTANCE,
+    BatchLocalSortAggWithKeysUnionTransposeRule.LOCAL_SORT_AGG_WITH_KEYS_INSTANCE,
+    BatchWindowTVFUnionTransposeRule.INSTANCE
   )
 }
