@@ -289,6 +289,8 @@ public class StreamGraphGenerator {
             streamGraph.addUserArtifact(entry.getKey(), entry.getValue());
         }
 
+        streamGraph.serializeAndSaveWatermarkDeclarations();
+
         final StreamGraph builtStreamGraph = streamGraph;
 
         alreadyTransformed.clear();

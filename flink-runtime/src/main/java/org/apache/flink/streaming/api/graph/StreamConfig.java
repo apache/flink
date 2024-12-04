@@ -38,6 +38,7 @@ import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
+import org.apache.flink.streaming.runtime.watermark.AbstractInternalWatermarkDeclaration;
 import org.apache.flink.util.ClassLoaderUtil;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
@@ -49,6 +50,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -132,6 +134,15 @@ public class StreamConfig implements Serializable {
     private static final String MANAGED_MEMORY_FRACTION_PREFIX = "managedMemFraction.";
 
     private static final String ATTRIBUTE = "attribute";
+
+    private static final String WATERMARK_DECLARATIONS = "watermarkDeclarations";
+
+    /**
+     * To reduce the deserialization overhead of reading the WatermarkDeclaration, we'll store the
+     * result after the first deserialization, and return it directly in subsequent reading
+     * requests.
+     */
+    private Set<AbstractInternalWatermarkDeclaration<?>> deserializedWatermarkDeclarations;
 
     private static final ConfigOption<Boolean> STATE_BACKEND_USE_MANAGED_MEMORY =
             ConfigOptions.key("statebackend.useManagedMemory")
@@ -326,6 +337,28 @@ public class StreamConfig implements Serializable {
         try {
             return InstantiationUtil.readObjectFromConfig(
                     this.config, TYPE_SERIALIZER_SIDEOUT_PREFIX + outputTag.getId(), cl);
+        } catch (Exception e) {
+            throw new StreamTaskException("Could not instantiate serializer.", e);
+        }
+    }
+
+    public void setWatermarkDeclarations(byte[] serializedWatermarkDeclarations) {
+        if (serializedWatermarkDeclarations != null) {
+            config.setBytes(WATERMARK_DECLARATIONS, serializedWatermarkDeclarations);
+        }
+    }
+
+    public Set<AbstractInternalWatermarkDeclaration<?>> getWatermarkDeclarations(ClassLoader cl) {
+        if (deserializedWatermarkDeclarations != null) {
+            return deserializedWatermarkDeclarations;
+        }
+
+        try {
+            Set<AbstractInternalWatermarkDeclaration<?>> watermarkDeclarations =
+                    InstantiationUtil.readObjectFromConfig(this.config, WATERMARK_DECLARATIONS, cl);
+            deserializedWatermarkDeclarations =
+                    watermarkDeclarations == null ? Collections.emptySet() : watermarkDeclarations;
+            return deserializedWatermarkDeclarations;
         } catch (Exception e) {
             throw new StreamTaskException("Could not instantiate serializer.", e);
         }
