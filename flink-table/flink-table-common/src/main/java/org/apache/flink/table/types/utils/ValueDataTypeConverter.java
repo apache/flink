@@ -31,6 +31,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import static java.lang.Math.max;
+
 /**
  * Value-based data type extractor that supports extraction of clearly identifiable data types for
  * input conversion.
@@ -119,8 +121,8 @@ public final class ValueDataTypeConverter {
     }
 
     private static DataType convertToDecimalType(BigDecimal decimal) {
-        final int precision = decimal.precision();
         final int scale = decimal.scale();
+        final int precision = max(decimal.precision(), scale);
         // let underlying layers check if precision and scale are supported
         if (scale < 0) {
             // negative scale is not supported, normalize it
