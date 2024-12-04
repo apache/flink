@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationContext;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclaredVariable;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -125,5 +126,10 @@ public final class TimestampedCollectorWithDeclaredVariable<T> implements Output
     @Override
     public void emitRecordAttributes(RecordAttributes recordAttributes) {
         output.emitRecordAttributes(recordAttributes);
+    }
+
+    @Override
+    public void emitWatermark(WatermarkEvent watermark) {
+        output.emitWatermark(watermark);
     }
 }

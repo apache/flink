@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.runtime.utils
 
 import org.apache.flink.api.common.state.{ListState, ListStateDescriptor}
 import org.apache.flink.api.common.typeinfo.Types
+import org.apache.flink.runtime.event.WatermarkEvent
 import org.apache.flink.runtime.state.{StateInitializationContext, StateSnapshotContext}
 import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction
 import org.apache.flink.streaming.api.operators.{AbstractStreamOperator, OneInputStreamOperator}
@@ -101,6 +102,9 @@ object TimeTestUtil {
 
     override def processRecordAttributes(recordAttributes: RecordAttributes): Unit =
       super.processRecordAttributes(recordAttributes)
+
+    override def processWatermark(event: WatermarkEvent): Unit =
+      super.processWatermark(event)
   }
 
 }

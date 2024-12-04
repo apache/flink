@@ -28,6 +28,7 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -294,6 +295,11 @@ public class StreamMultipleInputProcessorFactory {
         @Override
         public void emitRecordAttributes(RecordAttributes recordAttributes) throws Exception {
             input.processRecordAttributes(recordAttributes);
+        }
+
+        @Override
+        public void emitWatermark(WatermarkEvent watermark) throws Exception {
+            input.processWatermark(watermark);
         }
     }
 
