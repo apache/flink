@@ -97,6 +97,13 @@ public interface CatalogMaterializedTable extends CatalogBaseTable {
             String refreshHandlerDescription,
             byte[] serializedRefreshHandler);
 
+    /**
+     * Returns a copy of this {@code CatalogMaterializedTable} with given interval freshness.
+     *
+     * @return a new copy of this table with replaced interval freshness
+     */
+    CatalogMaterializedTable copy(IntervalFreshness intervalFreshness, RefreshMode refreshMode);
+
     /** Return the snapshot specified for the table. Return Optional.empty() if not specified. */
     Optional<Long> getSnapshot();
 
