@@ -31,11 +31,14 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.tasks.StreamTask.CanEmitBatchOfRecordsChecker;
+import org.apache.flink.streaming.runtime.watermark.AbstractInternalWatermarkDeclaration;
 import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static java.util.function.Function.identity;
@@ -68,13 +71,32 @@ public final class StreamTaskNetworkInput<T>
             StatusWatermarkValve statusWatermarkValve,
             int inputIndex,
             CanEmitBatchOfRecordsChecker canEmitBatchOfRecords) {
+        this(
+                checkpointedInputGate,
+                inputSerializer,
+                ioManager,
+                statusWatermarkValve,
+                inputIndex,
+                canEmitBatchOfRecords,
+                Collections.emptySet());
+    }
+
+    public StreamTaskNetworkInput(
+            CheckpointedInputGate checkpointedInputGate,
+            TypeSerializer<T> inputSerializer,
+            IOManager ioManager,
+            StatusWatermarkValve statusWatermarkValve,
+            int inputIndex,
+            CanEmitBatchOfRecordsChecker canEmitBatchOfRecords,
+            Set<AbstractInternalWatermarkDeclaration<?>> watermarkDeclarationSet) {
         super(
                 checkpointedInputGate,
                 inputSerializer,
                 statusWatermarkValve,
                 inputIndex,
                 getRecordDeserializers(checkpointedInputGate, ioManager),
-                canEmitBatchOfRecords);
+                canEmitBatchOfRecords,
+                watermarkDeclarationSet);
     }
 
     // Initialize one deserializer per input channel
