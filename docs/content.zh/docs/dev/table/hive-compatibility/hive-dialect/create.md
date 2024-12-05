@@ -27,7 +27,7 @@ With Hive dialect, the following CREATE statements are supported for now:
 - CREATE DATABASE
 - CREATE TABLE
 - CREATE VIEW
-- CREATE MARCO
+- CREATE MACRO
 - CREATE FUNCTION
 
 ## CREATE DATABASE
@@ -180,7 +180,7 @@ CREATE VIEW IF NOT EXISTS v1
         WHERE key = '1';
 ```
 
-## CREATE MARCO
+## CREATE MACRO
 
 ### Description
 
