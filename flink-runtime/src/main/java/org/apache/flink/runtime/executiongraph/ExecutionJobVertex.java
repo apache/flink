@@ -185,11 +185,33 @@ public class ExecutionJobVertex
         }
     }
 
+    @VisibleForTesting
     protected void initialize(
             int executionHistorySizeLimit,
             Duration timeout,
             long createTimestamp,
             SubtaskAttemptNumberStore initialAttemptCounts)
+            throws JobException {
+        initialize(
+                executionHistorySizeLimit,
+                timeout,
+                createTimestamp,
+                initialAttemptCounts,
+                i -> {
+                    throw new UnsupportedOperationException();
+                },
+                i -> {
+                    throw new UnsupportedOperationException();
+                });
+    }
+
+    protected void initialize(
+            int executionHistorySizeLimit,
+            Duration timeout,
+            long createTimestamp,
+            SubtaskAttemptNumberStore initialAttemptCounts,
+            Function<Integer, Integer> streamNodeParallelismRetriever,
+            Function<Integer, Integer> streamNodeMaxParallelismRetriever)
             throws JobException {
 
         checkState(parallelismInfo.getParallelism() > 0);
@@ -211,7 +233,9 @@ public class ExecutionJobVertex
                             result,
                             this,
                             this.parallelismInfo.getParallelism(),
-                            result.getResultType());
+                            result.getResultType(),
+                            streamNodeParallelismRetriever,
+                            streamNodeMaxParallelismRetriever);
         }
 
         // create all task vertices

@@ -467,8 +467,11 @@ public class DefaultVertexParallelismAndInputInfosDecider
                     List<ExecutionVertexInputInfo> executionVertexInputInfos = new ArrayList<>();
                     for (int i = 0; i < subpartitionRanges.size(); ++i) {
                         IndexRange subpartitionRange;
-                        if (resultInfo.isBroadcast()) {
+                        if (resultInfo.isBroadcast() && !resultInfo.isOptimizedToBroadcast()) {
                             subpartitionRange = new IndexRange(0, 0);
+                        } else if (resultInfo.isBroadcast()) {
+                            subpartitionRange =
+                                    new IndexRange(0, resultInfo.getNumSubpartitions(i) - 1);
                         } else {
                             subpartitionRange = subpartitionRanges.get(i);
                         }

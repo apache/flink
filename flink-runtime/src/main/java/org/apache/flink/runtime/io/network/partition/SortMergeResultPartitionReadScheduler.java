@@ -341,15 +341,15 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
 
     SortMergeSubpartitionReader createSubpartitionReader(
             BufferAvailabilityListener availabilityListener,
-            int targetSubpartition,
+            ResultSubpartitionIndexSet indexSet,
             PartitionedFile resultFile)
             throws IOException {
         synchronized (lock) {
             checkState(!isReleased, "Partition is already released.");
-
-            PartitionedFileReader fileReader = createFileReader(resultFile, targetSubpartition);
+            PartitionedFileReader fileReader = createFileReader(resultFile, indexSet);
             SortMergeSubpartitionReader subpartitionReader =
-                    new SortMergeSubpartitionReader(availabilityListener, fileReader);
+                    new SortMergeSubpartitionReader(
+                            bufferPool.getBufferSize(), availabilityListener, fileReader);
             if (allReaders.isEmpty()) {
                 bufferPool.registerRequester(this);
             }
@@ -374,7 +374,7 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
 
     @GuardedBy("lock")
     private PartitionedFileReader createFileReader(
-            PartitionedFile resultFile, int targetSubpartition) throws IOException {
+            PartitionedFile resultFile, ResultSubpartitionIndexSet indexSet) throws IOException {
         assert Thread.holdsLock(lock);
 
         try {
@@ -384,7 +384,7 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
             PartitionedFileReader partitionedFileReader =
                     new PartitionedFileReader(
                             resultFile,
-                            targetSubpartition,
+                            indexSet,
                             dataFileChannel,
                             indexFileChannel,
                             headerBuf,

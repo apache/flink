@@ -23,6 +23,8 @@ import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -32,18 +34,19 @@ class AllToAllBlockingResultInfoTest {
 
     @Test
     void testGetNumBytesProducedForNonBroadcast() {
-        testGetNumBytesProduced(false, 192L);
+        testGetNumBytesProduced(false, false, 192L);
     }
 
-    @Test
-    void testGetNumBytesProducedForBroadcast() {
-        testGetNumBytesProduced(true, 96L);
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testGetNumBytesProducedForBroadcast(boolean isOptimizedToBroadcast) {
+        testGetNumBytesProduced(true, isOptimizedToBroadcast, isOptimizedToBroadcast ? 192L : 96L);
     }
 
     @Test
     void testGetNumBytesProducedWithIndexRange() {
         AllToAllBlockingResultInfo resultInfo =
-                new AllToAllBlockingResultInfo(new IntermediateDataSetID(), 2, 2, false);
+                new AllToAllBlockingResultInfo(new IntermediateDataSetID(), 2, 2, false, false);
         resultInfo.recordPartitionInfo(0, new ResultPartitionBytes(new long[] {32L, 64L}));
         resultInfo.recordPartitionInfo(1, new ResultPartitionBytes(new long[] {128L, 256L}));
 
@@ -57,7 +60,7 @@ class AllToAllBlockingResultInfoTest {
     @Test
     void testGetAggregatedSubpartitionBytes() {
         AllToAllBlockingResultInfo resultInfo =
-                new AllToAllBlockingResultInfo(new IntermediateDataSetID(), 2, 2, false);
+                new AllToAllBlockingResultInfo(new IntermediateDataSetID(), 2, 2, false, false);
         resultInfo.recordPartitionInfo(0, new ResultPartitionBytes(new long[] {32L, 64L}));
         resultInfo.recordPartitionInfo(1, new ResultPartitionBytes(new long[] {128L, 256L}));
 
@@ -67,8 +70,9 @@ class AllToAllBlockingResultInfoTest {
     @Test
     void testGetBytesWithPartialPartitionInfos() {
         AllToAllBlockingResultInfo resultInfo =
-                new AllToAllBlockingResultInfo(new IntermediateDataSetID(), 2, 2, false);
+                new AllToAllBlockingResultInfo(new IntermediateDataSetID(), 2, 2, false, false);
         resultInfo.recordPartitionInfo(0, new ResultPartitionBytes(new long[] {32L, 64L}));
+        resultInfo.aggregateSubpartitionBytes();
 
         assertThatThrownBy(resultInfo::getNumBytesProduced)
                 .isInstanceOf(IllegalStateException.class);
@@ -79,7 +83,7 @@ class AllToAllBlockingResultInfoTest {
     @Test
     void testRecordPartitionInfoMultiTimes() {
         AllToAllBlockingResultInfo resultInfo =
-                new AllToAllBlockingResultInfo(new IntermediateDataSetID(), 2, 2, false);
+                new AllToAllBlockingResultInfo(new IntermediateDataSetID(), 2, 2, false, false);
 
         ResultPartitionBytes partitionBytes1 = new ResultPartitionBytes(new long[] {32L, 64L});
         ResultPartitionBytes partitionBytes2 = new ResultPartitionBytes(new long[] {64L, 128L});
@@ -99,6 +103,7 @@ class AllToAllBlockingResultInfoTest {
         // The result info should be (partitionBytes2 + partitionBytes3)
         assertThat(resultInfo.getNumBytesProduced()).isEqualTo(576L);
         assertThat(resultInfo.getAggregatedSubpartitionBytes()).containsExactly(192L, 384L);
+        resultInfo.aggregateSubpartitionBytes();
         // The raw info should be clear
         assertThat(resultInfo.getNumOfRecordedPartitions()).isZero();
 
@@ -112,9 +117,11 @@ class AllToAllBlockingResultInfoTest {
         assertThat(resultInfo.getNumOfRecordedPartitions()).isZero();
     }
 
-    private void testGetNumBytesProduced(boolean isBroadcast, long expectedBytes) {
+    private void testGetNumBytesProduced(
+            boolean isBroadcast, boolean isOptimizedToBroadcast, long expectedBytes) {
         AllToAllBlockingResultInfo resultInfo =
-                new AllToAllBlockingResultInfo(new IntermediateDataSetID(), 2, 2, isBroadcast);
+                new AllToAllBlockingResultInfo(
+                        new IntermediateDataSetID(), 2, 2, isBroadcast, isOptimizedToBroadcast);
         resultInfo.recordPartitionInfo(0, new ResultPartitionBytes(new long[] {32L, 32L}));
         resultInfo.recordPartitionInfo(1, new ResultPartitionBytes(new long[] {64L, 64L}));
 

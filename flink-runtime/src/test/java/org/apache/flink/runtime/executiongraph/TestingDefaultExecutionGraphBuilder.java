@@ -41,6 +41,8 @@ import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
+import org.apache.flink.runtime.scheduler.adaptivebatch.DummyStreamGraphSchedulingContext;
+import org.apache.flink.runtime.scheduler.adaptivebatch.StreamGraphSchedulingContext;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 
@@ -86,6 +88,8 @@ public class TestingDefaultExecutionGraphBuilder {
             checkpointStatsTrackerFactory = metricGroup -> NoOpCheckpointStatsTracker.INSTANCE;
 
     private boolean nonFinishedHybridPartitionShouldBeUnknown = false;
+    private StreamGraphSchedulingContext streamGraphSchedulingContext =
+            DummyStreamGraphSchedulingContext.INSTANCE;
 
     private TestingDefaultExecutionGraphBuilder() {}
 
@@ -180,6 +184,12 @@ public class TestingDefaultExecutionGraphBuilder {
         return this;
     }
 
+    public TestingDefaultExecutionGraphBuilder setStreamGraphSchedulingContext(
+            StreamGraphSchedulingContext streamGraphSchedulingContext) {
+        this.streamGraphSchedulingContext = streamGraphSchedulingContext;
+        return this;
+    }
+
     private DefaultExecutionGraph build(
             boolean isDynamicGraph, ScheduledExecutorService executorService)
             throws JobException, JobExecutionException {
@@ -212,7 +222,8 @@ public class TestingDefaultExecutionGraphBuilder {
                 executionJobVertexFactory,
                 markPartitionFinishedStrategy,
                 nonFinishedHybridPartitionShouldBeUnknown,
-                metricGroup);
+                metricGroup,
+                streamGraphSchedulingContext);
     }
 
     public DefaultExecutionGraph build(ScheduledExecutorService executorService)

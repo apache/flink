@@ -18,22 +18,40 @@
 
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** Information of Pointwise result. */
 public class PointwiseBlockingResultInfo extends AbstractBlockingResultInfo {
+
+    @VisibleForTesting
     PointwiseBlockingResultInfo(
             IntermediateDataSetID resultId, int numOfPartitions, int numOfSubpartitions) {
-        super(resultId, numOfPartitions, numOfSubpartitions);
+        this(resultId, numOfPartitions, numOfSubpartitions, new HashMap<>());
+    }
+
+    PointwiseBlockingResultInfo(
+            IntermediateDataSetID resultId,
+            int numOfPartitions,
+            int numOfSubpartitions,
+            Map<Integer, long[]> subpartitionBytesByPartitionIndex) {
+        super(resultId, numOfPartitions, numOfSubpartitions, subpartitionBytesByPartitionIndex);
     }
 
     @Override
     public boolean isBroadcast() {
+        return false;
+    }
+
+    @Override
+    public boolean isOptimizedToBroadcast() {
         return false;
     }
 
@@ -86,5 +104,10 @@ public class PointwiseBlockingResultInfo extends AbstractBlockingResultInfo {
             }
         }
         return inputBytes;
+    }
+
+    @Override
+    public void aggregateSubpartitionBytes() {
+        // do nothing because pointWise result should not be aggregated
     }
 }

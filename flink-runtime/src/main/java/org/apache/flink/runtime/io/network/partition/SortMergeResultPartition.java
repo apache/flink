@@ -40,6 +40,7 @@ import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -536,8 +537,15 @@ public class SortMergeResultPartition extends ResultPartition {
     protected ResultSubpartitionView createSubpartitionView(
             int subpartitionIndex, BufferAvailabilityListener availabilityListener)
             throws IOException {
+        throw new UnsupportedEncodingException();
+    }
+
+    @Override
+    public ResultSubpartitionView createSubpartitionView(
+            ResultSubpartitionIndexSet indexSet, BufferAvailabilityListener availabilityListener)
+            throws IOException {
         synchronized (lock) {
-            checkElementIndex(subpartitionIndex, numSubpartitions, "Subpartition not found.");
+            checkElementIndex(indexSet.getEndIndex(), numSubpartitions, "Subpartition not found.");
             checkState(!isReleased(), "Partition released.");
             checkState(isFinished(), "Trying to read unfinished blocking partition.");
 
@@ -546,7 +554,7 @@ public class SortMergeResultPartition extends ResultPartition {
             }
 
             return readScheduler.createSubpartitionReader(
-                    availabilityListener, subpartitionIndex, resultFile);
+                    availabilityListener, indexSet, resultFile);
         }
     }
 

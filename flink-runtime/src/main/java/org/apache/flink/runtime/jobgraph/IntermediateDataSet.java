@@ -19,9 +19,13 @@
 package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.streaming.api.graph.StreamEdge;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -43,12 +47,17 @@ public class IntermediateDataSet implements java.io.Serializable {
     // All consumers must have the same partitioner and parallelism
     private final List<JobEdge> consumers = new ArrayList<>();
 
+    private final List<StreamEdge> outputStreamEdges = new ArrayList<>();
+
     // The type of partition to use at runtime
     private final ResultPartitionType resultType;
 
     private DistributionPattern distributionPattern;
 
     private boolean isBroadcast;
+
+    /** Indicates whether the dataset has been optimized from a non-broadcast to a broadcast. */
+    private boolean isOptimizedToBroadcast;
 
     // --------------------------------------------------------------------------------------------
 
@@ -73,6 +82,10 @@ public class IntermediateDataSet implements java.io.Serializable {
         return this.consumers;
     }
 
+    public boolean isAllConsumerVerticesCreated() {
+        return outputStreamEdges.isEmpty() || outputStreamEdges.size() == consumers.size();
+    }
+
     public boolean isBroadcast() {
         return isBroadcast;
     }
@@ -85,24 +98,91 @@ public class IntermediateDataSet implements java.io.Serializable {
         return resultType;
     }
 
+    public List<StreamEdge> getOutputStreamEdges() {
+        return outputStreamEdges;
+    }
+
     // --------------------------------------------------------------------------------------------
 
     public void addConsumer(JobEdge edge) {
         // sanity check
         checkState(id.equals(edge.getSourceId()), "Incompatible dataset id.");
 
-        if (consumers.isEmpty()) {
+        if (consumers.isEmpty() && outputStreamEdges.isEmpty()) {
             distributionPattern = edge.getDistributionPattern();
             isBroadcast = edge.isBroadcast();
-        } else {
-            checkState(
-                    distributionPattern == edge.getDistributionPattern(),
-                    "Incompatible distribution pattern.");
-            checkState(isBroadcast == edge.isBroadcast(), "Incompatible broadcast type.");
+        } else if (consumers.isEmpty() && !outputStreamEdges.isEmpty()) {
+            // because the partitioner of output stream edge might be updated, we need to update
+            // the distribution pattern to the latest one
+            updateDistributionPatternAccordingToOutputStreamEdges();
         }
+
+        checkState(
+                distributionPattern == edge.getDistributionPattern(),
+                "Incompatible distribution pattern.");
+        checkState(isBroadcast == edge.isBroadcast(), "Incompatible broadcast type.");
+
         consumers.add(edge);
     }
 
+    private void updateDistributionPatternAccordingToOutputStreamEdges() {
+        checkState(!outputStreamEdges.isEmpty());
+
+        Set<DistributionPattern> distributionPatternSet =
+                outputStreamEdges.stream()
+                        .map(StreamEdge::getPartitioner)
+                        .map(
+                                streamPartitioner ->
+                                        streamPartitioner.isPointwise()
+                                                ? DistributionPattern.POINTWISE
+                                                : DistributionPattern.ALL_TO_ALL)
+                        .collect(Collectors.toSet());
+
+        Set<Boolean> isBroadcastSet =
+                outputStreamEdges.stream()
+                        .map(StreamEdge::getPartitioner)
+                        .map(StreamPartitioner::isBroadcast)
+                        .collect(Collectors.toSet());
+
+        // currently, we only allow one distribution pattern and one broadcast type although the
+        // partitioner of stream edges could be updated
+        if (distributionPatternSet.size() > 1) {
+            throw new IllegalStateException("Incompatible distribution pattern.");
+        }
+
+        if (isBroadcastSet.size() > 1) {
+            throw new IllegalStateException("Incompatible broadcast type.");
+        }
+
+        distributionPattern = distributionPatternSet.iterator().next();
+
+        boolean isBroadcast = isBroadcastSet.iterator().next();
+        if (this.isBroadcast != isBroadcast) {
+            this.isOptimizedToBroadcast = true;
+        }
+        this.isBroadcast = isBroadcast;
+    }
+
+    public boolean isOptimizedToBroadcast() {
+        return isOptimizedToBroadcast;
+    }
+
+    public void addOutputStreamEdge(StreamEdge edge) {
+        DistributionPattern pattern =
+                edge.getPartitioner().isPointwise()
+                        ? DistributionPattern.POINTWISE
+                        : DistributionPattern.ALL_TO_ALL;
+        if (outputStreamEdges.isEmpty()) {
+            distributionPattern = pattern;
+            isBroadcast = edge.getPartitioner().isBroadcast();
+        } else {
+            checkState(distributionPattern == pattern, "Incompatible distribution pattern.");
+            checkState(
+                    isBroadcast == edge.getPartitioner().isBroadcast(),
+                    "Incompatible broadcast type.");
+        }
+        outputStreamEdges.add(edge);
+    }
     // --------------------------------------------------------------------------------------------
 
     @Override

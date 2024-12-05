@@ -36,6 +36,13 @@ public interface IntermediateResultInfo {
     boolean isBroadcast();
 
     /**
+     * Indicates whether the result has been optimized from a non-broadcast to a broadcast.
+     *
+     * @return true if the result has been optimized to broadcast, false otherwise.
+     */
+    boolean isOptimizedToBroadcast();
+
+    /**
      * Whether it is a pointwise result.
      *
      * @return whether it is a pointwise result

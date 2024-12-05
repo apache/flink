@@ -19,10 +19,13 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.apache.flink.runtime.executiongraph.VertexInputInfoComputationUtils.computeVertexInputInfoForAllToAll;
 import static org.apache.flink.runtime.executiongraph.VertexInputInfoComputationUtils.computeVertexInputInfoForPointwise;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link VertexInputInfoComputationUtils}. */
 class VertexInputInfoComputationUtilsTest {
@@ -57,34 +60,49 @@ class VertexInputInfoComputationUtilsTest {
         assertThat(range4).isEqualTo(new IndexRange(4, 5));
     }
 
-    @Test
-    void testComputeBroadcastConsumedSubpartitionRange() {
-        final IndexRange range1 = computeConsumedSubpartitionRange(0, 3, 1, true, true);
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testComputeBroadcastConsumedSubpartitionRange(boolean isOptimizedToBroadcast) {
+        final IndexRange range1 =
+                computeConsumedSubpartitionRange(0, 3, 1, true, true, isOptimizedToBroadcast);
         assertThat(range1).isEqualTo(new IndexRange(0, 0));
 
-        final IndexRange range2 = computeConsumedSubpartitionRange(1, 3, 1, true, true);
+        final IndexRange range2 =
+                computeConsumedSubpartitionRange(1, 3, 1, true, true, isOptimizedToBroadcast);
         assertThat(range2).isEqualTo(new IndexRange(0, 0));
 
-        final IndexRange range3 = computeConsumedSubpartitionRange(2, 3, 1, true, true);
+        final IndexRange range3 =
+                computeConsumedSubpartitionRange(2, 3, 1, true, true, isOptimizedToBroadcast);
         assertThat(range3).isEqualTo(new IndexRange(0, 0));
+
+        if (isOptimizedToBroadcast) {
+            final IndexRange range4 = computeConsumedSubpartitionRange(2, 3, 2, true, true, true);
+            assertThat(range4).isEqualTo(new IndexRange(0, 1));
+        } else {
+            assertThatThrownBy(
+                            () ->
+                                    computeConsumedSubpartitionRange(
+                                            2, 3, 2, true, true, isOptimizedToBroadcast))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
     }
 
     @Test
     void testComputeConsumedSubpartitionRangeForNonDynamicGraph() {
-        final IndexRange range1 = computeConsumedSubpartitionRange(0, 3, -1, false, false);
+        final IndexRange range1 = computeConsumedSubpartitionRange(0, 3, -1, false, false, false);
         assertThat(range1).isEqualTo(new IndexRange(0, 0));
 
-        final IndexRange range2 = computeConsumedSubpartitionRange(1, 3, -1, false, false);
+        final IndexRange range2 = computeConsumedSubpartitionRange(1, 3, -1, false, false, false);
         assertThat(range2).isEqualTo(new IndexRange(1, 1));
 
-        final IndexRange range3 = computeConsumedSubpartitionRange(2, 3, -1, false, false);
+        final IndexRange range3 = computeConsumedSubpartitionRange(2, 3, -1, false, false, false);
         assertThat(range3).isEqualTo(new IndexRange(2, 2));
     }
 
     @Test
     void testComputeVertexInputInfoForAllToAllWithNonDynamicGraph() {
         final JobVertexInputInfo nonBroadcast =
-                computeVertexInputInfoForAllToAll(2, 3, ignored -> 3, false, false);
+                computeVertexInputInfoForAllToAll(2, 3, ignored -> 3, false, false, false);
         assertThat(nonBroadcast.getExecutionVertexInputInfos())
                 .containsExactlyInAnyOrder(
                         new ExecutionVertexInputInfo(0, new IndexRange(0, 1), new IndexRange(0, 0)),
@@ -93,7 +111,7 @@ class VertexInputInfoComputationUtilsTest {
                                 2, new IndexRange(0, 1), new IndexRange(2, 2)));
 
         final JobVertexInputInfo broadcast =
-                computeVertexInputInfoForAllToAll(2, 3, ignored -> 3, false, true);
+                computeVertexInputInfoForAllToAll(2, 3, ignored -> 3, false, true, false);
         assertThat(broadcast.getExecutionVertexInputInfos())
                 .containsExactlyInAnyOrder(
                         new ExecutionVertexInputInfo(0, new IndexRange(0, 1), new IndexRange(0, 0)),
@@ -102,10 +120,11 @@ class VertexInputInfoComputationUtilsTest {
                                 2, new IndexRange(0, 1), new IndexRange(2, 2)));
     }
 
-    @Test
-    void testComputeVertexInputInfoForAllToAllWithDynamicGraph() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testComputeVertexInputInfoForAllToAllWithDynamicGraph(boolean isOptimizedToBroadcast) {
         final JobVertexInputInfo nonBroadcast =
-                computeVertexInputInfoForAllToAll(2, 3, ignored -> 10, true, false);
+                computeVertexInputInfoForAllToAll(2, 3, ignored -> 10, true, false, false);
         assertThat(nonBroadcast.getExecutionVertexInputInfos())
                 .containsExactlyInAnyOrder(
                         new ExecutionVertexInputInfo(0, new IndexRange(0, 1), new IndexRange(0, 2)),
@@ -113,14 +132,31 @@ class VertexInputInfoComputationUtilsTest {
                         new ExecutionVertexInputInfo(
                                 2, new IndexRange(0, 1), new IndexRange(6, 9)));
 
-        final JobVertexInputInfo broadcast =
-                computeVertexInputInfoForAllToAll(2, 3, ignored -> 1, true, true);
-        assertThat(broadcast.getExecutionVertexInputInfos())
-                .containsExactlyInAnyOrder(
-                        new ExecutionVertexInputInfo(0, new IndexRange(0, 1), new IndexRange(0, 0)),
-                        new ExecutionVertexInputInfo(1, new IndexRange(0, 1), new IndexRange(0, 0)),
-                        new ExecutionVertexInputInfo(
-                                2, new IndexRange(0, 1), new IndexRange(0, 0)));
+        if (isOptimizedToBroadcast) {
+            final JobVertexInputInfo broadcast =
+                    computeVertexInputInfoForAllToAll(
+                            2, 3, ignored -> 4, true, true, isOptimizedToBroadcast);
+            assertThat(broadcast.getExecutionVertexInputInfos())
+                    .containsExactlyInAnyOrder(
+                            new ExecutionVertexInputInfo(
+                                    0, new IndexRange(0, 1), new IndexRange(0, 3)),
+                            new ExecutionVertexInputInfo(
+                                    1, new IndexRange(0, 1), new IndexRange(0, 3)),
+                            new ExecutionVertexInputInfo(
+                                    2, new IndexRange(0, 1), new IndexRange(0, 3)));
+        } else {
+            final JobVertexInputInfo broadcast =
+                    computeVertexInputInfoForAllToAll(
+                            2, 3, ignored -> 1, true, true, isOptimizedToBroadcast);
+            assertThat(broadcast.getExecutionVertexInputInfos())
+                    .containsExactlyInAnyOrder(
+                            new ExecutionVertexInputInfo(
+                                    0, new IndexRange(0, 1), new IndexRange(0, 0)),
+                            new ExecutionVertexInputInfo(
+                                    1, new IndexRange(0, 1), new IndexRange(0, 0)),
+                            new ExecutionVertexInputInfo(
+                                    2, new IndexRange(0, 1), new IndexRange(0, 0)));
+        }
     }
 
     @Test
@@ -150,7 +186,7 @@ class VertexInputInfoComputationUtilsTest {
     private static IndexRange computeConsumedSubpartitionRange(
             int consumerIndex, int numConsumers, int numSubpartitions) {
         return computeConsumedSubpartitionRange(
-                consumerIndex, numConsumers, numSubpartitions, true, false);
+                consumerIndex, numConsumers, numSubpartitions, true, false, false);
     }
 
     private static IndexRange computeConsumedSubpartitionRange(
@@ -158,8 +194,14 @@ class VertexInputInfoComputationUtilsTest {
             int numConsumers,
             int numSubpartitions,
             boolean isDynamicGraph,
-            boolean isBroadcast) {
+            boolean isBroadcast,
+            boolean isOptimizedToBroadcast) {
         return VertexInputInfoComputationUtils.computeConsumedSubpartitionRange(
-                consumerIndex, numConsumers, () -> numSubpartitions, isDynamicGraph, isBroadcast);
+                consumerIndex,
+                numConsumers,
+                () -> numSubpartitions,
+                isDynamicGraph,
+                isBroadcast,
+                isOptimizedToBroadcast);
     }
 }

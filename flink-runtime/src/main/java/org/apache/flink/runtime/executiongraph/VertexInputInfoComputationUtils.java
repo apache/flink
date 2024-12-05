@@ -84,7 +84,8 @@ public class VertexInputInfoComputationUtils {
                                 parallelism,
                                 input::getNumSubpartitions,
                                 isDynamicGraph,
-                                input.isBroadcast()));
+                                input.isBroadcast(),
+                                input.isOptimizedToBroadcast()));
             }
         }
 
@@ -124,6 +125,7 @@ public class VertexInputInfoComputationUtils {
                                 1,
                                 () -> numOfSubpartitionsRetriever.apply(start),
                                 isDynamicGraph,
+                                false,
                                 false);
                 executionVertexInputInfos.add(
                         new ExecutionVertexInputInfo(index, partitionRange, subpartitionRange));
@@ -145,6 +147,7 @@ public class VertexInputInfoComputationUtils {
                                     numConsumers,
                                     () -> numOfSubpartitionsRetriever.apply(finalPartitionNum),
                                     isDynamicGraph,
+                                    false,
                                     false);
                     executionVertexInputInfos.add(
                             new ExecutionVertexInputInfo(i, partitionRange, subpartitionRange));
@@ -165,6 +168,7 @@ public class VertexInputInfoComputationUtils {
      * @param numOfSubpartitionsRetriever a retriever to get the number of subpartitions
      * @param isDynamicGraph whether is dynamic graph
      * @param isBroadcast whether the edge is broadcast
+     * @param isOptimizedToBroadcast whether the edge has been optimized to broadcast
      * @return the computed {@link JobVertexInputInfo}
      */
     static JobVertexInputInfo computeVertexInputInfoForAllToAll(
@@ -172,7 +176,8 @@ public class VertexInputInfoComputationUtils {
             int targetCount,
             Function<Integer, Integer> numOfSubpartitionsRetriever,
             boolean isDynamicGraph,
-            boolean isBroadcast) {
+            boolean isBroadcast,
+            boolean isOptimizedToBroadcast) {
         final List<ExecutionVertexInputInfo> executionVertexInputInfos = new ArrayList<>();
         IndexRange partitionRange = new IndexRange(0, sourceCount - 1);
         for (int i = 0; i < targetCount; ++i) {
@@ -182,7 +187,8 @@ public class VertexInputInfoComputationUtils {
                             targetCount,
                             () -> numOfSubpartitionsRetriever.apply(0),
                             isDynamicGraph,
-                            isBroadcast);
+                            isBroadcast,
+                            isOptimizedToBroadcast);
             executionVertexInputInfos.add(
                     new ExecutionVertexInputInfo(i, partitionRange, subpartitionRange));
         }
@@ -199,6 +205,7 @@ public class VertexInputInfoComputationUtils {
      * @param numOfSubpartitionsSupplier a supplier to get the number of subpartitions
      * @param isDynamicGraph whether is dynamic graph
      * @param isBroadcast whether the edge is broadcast
+     * @param isOptimizedToBroadcast whether the edge has been optimized to broadcast
      * @return the computed subpartition range
      */
     @VisibleForTesting
@@ -207,16 +214,21 @@ public class VertexInputInfoComputationUtils {
             int numConsumers,
             Supplier<Integer> numOfSubpartitionsSupplier,
             boolean isDynamicGraph,
-            boolean isBroadcast) {
+            boolean isBroadcast,
+            boolean isOptimizedToBroadcast) {
         int consumerIndex = consumerSubtaskIndex % numConsumers;
         if (!isDynamicGraph) {
             return new IndexRange(consumerIndex, consumerIndex);
         } else {
             int numSubpartitions = numOfSubpartitionsSupplier.get();
             if (isBroadcast) {
-                // broadcast results have only one subpartition, and be consumed multiple times.
-                checkArgument(numSubpartitions == 1);
-                return new IndexRange(0, 0);
+                if (isOptimizedToBroadcast) {
+                    return new IndexRange(0, numSubpartitions - 1);
+                } else {
+                    // broadcast results have only one subpartition, and be consumed multiple times.
+                    checkArgument(numSubpartitions == 1);
+                    return new IndexRange(0, 0);
+                }
             } else {
                 checkArgument(consumerIndex < numConsumers);
                 checkArgument(numConsumers <= numSubpartitions);
@@ -244,6 +256,11 @@ public class VertexInputInfoComputationUtils {
         @Override
         public boolean isBroadcast() {
             return intermediateResult.isBroadcast();
+        }
+
+        @Override
+        public boolean isOptimizedToBroadcast() {
+            return intermediateResult.isOptimizedToBroadcast();
         }
 
         @Override
