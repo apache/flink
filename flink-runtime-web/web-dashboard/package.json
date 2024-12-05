@@ -44,7 +44,7 @@
     "@angular/cli": "^18.2.12",
     "@angular/compiler-cli": "^18.2.13",
     "@angular/language-service": "^18.2.13",
-    "@testing-library/angular": "^12.1.2",
+    "@testing-library/angular": "^17.3.4",
     "@types/d3": "^7.1.0",
     "@types/dagre": "^0.7.46",
     "@types/jasmine": "~3.10.2",
