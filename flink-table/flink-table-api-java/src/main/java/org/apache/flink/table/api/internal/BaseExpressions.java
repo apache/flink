@@ -20,7 +20,6 @@ package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.JsonExistsOnError;
@@ -614,19 +613,6 @@ public abstract class BaseExpressions<InType, OutType> {
      */
     public OutType tryCast(DataType toType) {
         return toApiSpecificExpression(unresolvedCall(TRY_CAST, toExpr(), typeLiteral(toType)));
-    }
-
-    /**
-     * @deprecated This method will be removed in future versions as it uses the old type system. It
-     *     is recommended to use {@link #cast(DataType)} instead which uses the new type system
-     *     based on {@link org.apache.flink.table.api.DataTypes}. Please make sure to use either the
-     *     old or the new type system consistently to avoid unintended behavior. See the website
-     *     documentation for more information.
-     */
-    @Deprecated
-    public OutType cast(TypeInformation<?> toType) {
-        return toApiSpecificExpression(
-                unresolvedCall(CAST, toExpr(), typeLiteral(fromLegacyInfoToDataType(toType))));
     }
 
     /** Specifies ascending order of an expression i.e. a field for orderBy unresolvedCall. */
