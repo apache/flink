@@ -402,7 +402,7 @@ class DefaultCheckpointStatsTrackerTest {
         pending.reportSubtaskStats(jobVertexID, createSubtaskStats(0, true));
 
         // Complete checkpoint => new snapshot
-        tracker.reportCompletedCheckpoint(pending.toCompletedCheckpointStats(null));
+        tracker.reportCompletedCheckpoint(pending.toCompletedCheckpointStats(null, 1984));
 
         assertThat(reportedSpans.size()).isEqualTo(1);
         reportedSpan = Iterables.getOnlyElement(reportedSpans);
