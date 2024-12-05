@@ -49,29 +49,25 @@ start_sql_gateway
 
 echo "[INFO] Submit SQL job in Application Mode"
 SESSION_HANDLE=`curl --silent --request POST http://localhost:8083/sessions | sed -n 's/.*"sessionHandle":\s*"\([^"]*\)".*/\1/p'`
-REQUEST_BODY=`cat <<EOF
-{
-  "script": "CREATE TEMPORARY TABLE sink(a INT) WITH ( 'connector' = 'blackhole'); INSERT INTO sink VALUES (1), (2), (3);",
-  "executionConfig": {
-    "execution.target": "kubernetes-application",
-    "kubernetes.cluster-id": "${CLUSTER_ID}",
-    "kubernetes.container.image.ref": "${PURE_FLINK_IMAGE_NAME}",
-    "jobmanager.memory.process.size": "1088M",
-    "kubernetes.jobmanager.cpu": 0.5,
-    "kubernetes.taskmanager.cpu": 0.5,
-    "kubernetes.rest-service.exposed.type": "NodePort"
-  }
-}
-EOF
-`
-REQUEST_BODY=$(echo "$REQUEST_BODY" | tr -d '\n' | sed 's/ //g')
+curl --location --request POST http://localhost:8083/sessions/${SESSION_HANDLE}/scripts \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "script": "CREATE TEMPORARY TABLE sink(a INT) WITH ( '\''connector'\'' = '\''blackhole'\''); INSERT INTO sink VALUES (1), (2), (3);",
+    "executionConfig": {
+        "execution.target": "kubernetes-application",
+        "kubernetes.cluster-id": "'${CLUSTER_ID}'",
+        "kubernetes.container.image.ref": "'${PURE_FLINK_IMAGE_NAME}'",
+        "jobmanager.memory.process.size": "1000m",
+        "taskmanager.memory.process.size": "1000m",
+        "kubernetes.jobmanager.cpu": 0.5,
+        "kubernetes.taskmanager.cpu": 0.5,
+        "kubernetes.rest-service.exposed.type": "NodePort"
+    }
+}'
 
-curl --request POST http://localhost:8083/sessions/${SESSION_HANDLE}/scripts \
-     --header "Content-Type: application/json" \
-     --data-raw $REQUEST_BODY
-
+echo ""
 echo "[INFO] Wait job finishes"
-kubectl wait --for=condition=Available --timeout=30s deploy/${CLUSTER_ID} || exit 1
+kubectl wait --for=condition=Available --timeout=60s deploy/${CLUSTER_ID} || exit 1
 jm_pod_name=$(kubectl get pods --selector="app=${CLUSTER_ID},component=jobmanager" -o jsonpath='{..metadata.name}')
 wait_rest_endpoint_up_k8s $jm_pod_name
 
