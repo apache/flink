@@ -56,6 +56,25 @@ public interface AsyncKeyedStateBackend<K>
     void setup(@Nonnull StateRequestHandler stateRequestHandler);
 
     /**
+     * Creates or retrieves a keyed state backed by this state backend.
+     *
+     * @param <N> the type of namespace for partitioning.
+     * @param <S> The type of the public API state.
+     * @param <SV> The type of the stored state value.
+     * @param defaultNamespace the default namespace for this state.
+     * @param namespaceSerializer the serializer for namespace.
+     * @param stateDesc The {@code StateDescriptor} that contains the name of the state.
+     * @return A new key/value state backed by this backend.
+     * @throws Exception Exceptions may occur during initialization of the state and should be
+     *     forwarded.
+     */
+    <N, S extends State, SV> S getOrCreateKeyedState(
+            N defaultNamespace,
+            TypeSerializer<N> namespaceSerializer,
+            StateDescriptor<SV> stateDesc)
+            throws Exception;
+
+    /**
      * Creates and returns a new state.
      *
      * @param <N> the type of namespace for partitioning.
@@ -120,6 +139,20 @@ public interface AsyncKeyedStateBackend<K>
      */
     default boolean requiresLegacySynchronousTimerSnapshots(SnapshotType checkpointType) {
         return true;
+    }
+
+    /**
+     * Whether it's safe to reuse key-values from the state-backend, e.g for the purpose of
+     * optimization.
+     *
+     * <p>NOTE: this method should not be used to check for {@link InternalPriorityQueue}, as the
+     * priority queue could be stored on different locations, e.g ForSt state-backend could store
+     * that on JVM heap if configuring HEAP as the time-service factory.
+     *
+     * @return returns ture if safe to reuse the key-values from the state-backend.
+     */
+    default boolean isSafeToReuseKVState() {
+        return false;
     }
 
     @Override

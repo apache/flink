@@ -173,6 +173,15 @@ public class AbstractKeyedStateTestBase {
                 @Override
                 public void setup(@Nonnull StateRequestHandler stateRequestHandler) {}
 
+                @Override
+                public <N, S extends State, SV> S getOrCreateKeyedState(
+                        N defaultNamespace,
+                        TypeSerializer<N> namespaceSerializer,
+                        StateDescriptor<SV> stateDesc)
+                        throws Exception {
+                    return null;
+                }
+
                 @Nonnull
                 @Override
                 public <N, S extends State, SV> S createState(
