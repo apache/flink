@@ -32,6 +32,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -45,6 +46,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for flink statement. */
@@ -194,6 +196,35 @@ public class FlinkStatementTest extends FlinkJdbcDriverTestBase {
                 assertThatThrownBy(() -> statement.executeQuery("INSERT"))
                         .hasMessage(String.format("Statement[%s] is not a query.", "INSERT"));
                 closedFuture.get(10, TimeUnit.SECONDS);
+            }
+        }
+    }
+
+    @Test
+    public void testUnwrapSuccessful() throws Exception {
+        try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
+            try (Statement statement = connection.createStatement()) {
+                FlinkStatement unwrap = statement.unwrap(FlinkStatement.class);
+                assertNotNull(unwrap);
+            }
+        }
+    }
+
+    @Test
+    public void testUnwrapFailed() throws Exception {
+        try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
+            try (Statement statement = connection.createStatement()) {
+                assertThrows(SQLException.class, () -> statement.unwrap(TestingStatement.class));
+            }
+        }
+    }
+
+    @Test
+    public void testIsWrapperFor() throws Exception {
+        try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
+            try (Statement statement = connection.createStatement()) {
+                assertTrue(statement.isWrapperFor(FlinkStatement.class));
+                assertFalse(statement.isWrapperFor(TestingStatement.class));
             }
         }
     }

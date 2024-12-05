@@ -27,6 +27,9 @@ import java.sql.SQLException;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -92,6 +95,29 @@ public class FlinkConnectionTest extends FlinkJdbcDriverTestBase {
             assertEquals("val22", clientInfo.getProperty("key2"));
             assertEquals("val33", clientInfo.getProperty("key3"));
             assertEquals("val44", clientInfo.getProperty("key4"));
+        }
+    }
+
+    @Test
+    public void testUnwrapSuccessful() throws Exception {
+        try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
+            FlinkConnection unwrap = connection.unwrap(FlinkConnection.class);
+            assertNotNull(unwrap);
+        }
+    }
+
+    @Test
+    public void testUnwrapFailed() throws Exception {
+        try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
+            assertThrows(SQLException.class, () -> connection.unwrap(TestingConnection.class));
+        }
+    }
+
+    @Test
+    public void testIsWrapperFor() throws Exception {
+        try (FlinkConnection connection = new FlinkConnection(getDriverUri())) {
+            assertTrue(connection.isWrapperFor(FlinkConnection.class));
+            assertFalse(connection.isWrapperFor(TestingConnection.class));
         }
     }
 }
