@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
+import org.apache.flink.table.gateway.AbstractSqlGatewayStatementITCase;
 import org.apache.flink.table.gateway.AbstractSqlGatewayStatementITCaseBase;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
@@ -38,11 +39,13 @@ import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTe
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.concurrent.Executors;
 
+import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Iterator;
@@ -241,13 +244,11 @@ public class ScriptExecutorITCase extends AbstractSqlGatewayStatementITCaseBase 
                                     Executors.newDirectExecutorService()),
                             new Printer(outputStream));
             String input =
-                    FileUtils.readFileUtf8(
-                            Paths.get(
-                                            checkNotNull(
-                                                            ScriptExecutorITCase.class.getResource(
-                                                                    "/application/" + fileName))
-                                                    .getPath())
-                                    .toFile());
+                    IOUtils.toString(
+                            checkNotNull(
+                                    AbstractSqlGatewayStatementITCase.class.getResourceAsStream(
+                                            "/application/" + fileName)),
+                            StandardCharsets.UTF_8);
             try {
                 executor.execute(input);
             } catch (Exception e) {
