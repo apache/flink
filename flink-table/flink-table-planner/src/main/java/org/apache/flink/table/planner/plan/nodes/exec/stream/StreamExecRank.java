@@ -59,7 +59,8 @@ import org.apache.flink.table.runtime.operators.rank.RankRange;
 import org.apache.flink.table.runtime.operators.rank.RankType;
 import org.apache.flink.table.runtime.operators.rank.RetractableTopNFunction;
 import org.apache.flink.table.runtime.operators.rank.UpdatableTopNFunction;
-import org.apache.flink.table.runtime.operators.rank.asyncprocessing.AbstractAsyncSyncStateTopNFunction;
+import org.apache.flink.table.runtime.operators.rank.asyncprocessing.AbstractAsyncStateTopNFunction;
+import org.apache.flink.table.runtime.operators.rank.asyncprocessing.AsyncStateAppendOnlyFirstNFunction;
 import org.apache.flink.table.runtime.operators.rank.asyncprocessing.AsyncStateAppendOnlyTopNFunction;
 import org.apache.flink.table.runtime.operators.rank.asyncprocessing.AsyncStateFastTop1Function;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -247,16 +248,29 @@ public class StreamExecRank extends ExecNodeBase<RowData>
             if (sortFields.length == 1
                     && TypeCheckUtils.isProcTime(inputType.getChildren().get(sortFields[0]))
                     && sortSpec.getFieldSpec(0).getIsAscendingOrder()) {
-                processFunction =
-                        new AppendOnlyFirstNFunction(
-                                ttlConfig,
-                                inputRowTypeInfo,
-                                sortKeyComparator,
-                                sortKeySelector,
-                                rankType,
-                                rankRange,
-                                generateUpdateBefore,
-                                outputRankNumber);
+                if (enableAsyncState) {
+                    processFunction =
+                            new AsyncStateAppendOnlyFirstNFunction(
+                                    ttlConfig,
+                                    inputRowTypeInfo,
+                                    sortKeyComparator,
+                                    sortKeySelector,
+                                    rankType,
+                                    rankRange,
+                                    generateUpdateBefore,
+                                    outputRankNumber);
+                } else {
+                    processFunction =
+                            new AppendOnlyFirstNFunction(
+                                    ttlConfig,
+                                    inputRowTypeInfo,
+                                    sortKeyComparator,
+                                    sortKeySelector,
+                                    rankType,
+                                    rankRange,
+                                    generateUpdateBefore,
+                                    outputRankNumber);
+                }
             } else if (RankUtil.isTop1(rankRange)) {
                 if (enableAsyncState) {
                     processFunction =
@@ -393,7 +407,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
         }
 
         StreamOperator<RowData> operator;
-        if (processFunction instanceof AbstractAsyncSyncStateTopNFunction) {
+        if (processFunction instanceof AbstractAsyncStateTopNFunction) {
             operator = new AsyncStateKeyedProcessOperator<>(processFunction);
             processFunction.setKeyContext(operator);
         } else {

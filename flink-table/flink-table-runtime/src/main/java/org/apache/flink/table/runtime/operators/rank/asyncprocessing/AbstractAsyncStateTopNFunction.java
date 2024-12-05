@@ -41,11 +41,11 @@ import java.util.Objects;
  *
  * <p>Currently, only constant rank end is supported in async state rank.
  */
-public abstract class AbstractAsyncSyncStateTopNFunction extends AbstractTopNFunction {
+public abstract class AbstractAsyncStateTopNFunction extends AbstractTopNFunction {
 
     private ValueState<Long> rankEndState;
 
-    public AbstractAsyncSyncStateTopNFunction(
+    public AbstractAsyncStateTopNFunction(
             StateTtlConfig ttlConfig,
             InternalTypeInfo<RowData> inputRowType,
             GeneratedRecordComparator generatedSortKeyComparator,
@@ -109,6 +109,14 @@ public abstract class AbstractAsyncSyncStateTopNFunction extends AbstractTopNFun
                                     return rankEndInState;
                                 }
                             });
+        }
+    }
+
+    protected StateFuture<Long> getRankEnd() {
+        if (isConstantRankEnd) {
+            return StateFutureUtils.completedFuture(Objects.requireNonNull(constantRankEnd));
+        } else {
+            return rankEndState.asyncValue();
         }
     }
 }

@@ -52,7 +52,7 @@ import org.apache.flink.util.Collector;
  *
  * <p>Different with {@link FastTop1Function}, this function is used with async state api.
  */
-public class AsyncStateFastTop1Function extends AbstractAsyncSyncStateTopNFunction
+public class AsyncStateFastTop1Function extends AbstractAsyncStateTopNFunction
         implements CheckpointedFunction {
 
     private static final long serialVersionUID = 1L;
@@ -117,7 +117,6 @@ public class AsyncStateFastTop1Function extends AbstractAsyncSyncStateTopNFuncti
 
         // load state under current key if necessary
         RowData currentKey = (RowData) keyContext.getCurrentKey();
-
         RowData prevRowFromCache = helper.getPrevRowFromCache(currentKey);
         StateFuture<RowData> prevRowFuture;
         if (prevRowFromCache == null) {

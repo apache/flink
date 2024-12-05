@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.rank;
 
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.rank.asyncprocessing.AsyncStateAppendOnlyFirstNFunction;
 
 import org.junit.jupiter.api.TestTemplate;
 
@@ -28,7 +29,7 @@ import java.util.List;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 
-/** Tests for {@link AppendOnlyFirstNFunction}. */
+/** Tests for {@link AppendOnlyFirstNFunction} and {@link AsyncStateAppendOnlyFirstNFunction}. */
 class AppendOnlyFirstNFunctionTest extends TopNFunctionTestBase {
 
     @Override
@@ -38,20 +39,32 @@ class AppendOnlyFirstNFunctionTest extends TopNFunctionTestBase {
             boolean generateUpdateBefore,
             boolean outputRankNumber,
             boolean enableAsyncState) {
-        return new AppendOnlyFirstNFunction(
-                ttlConfig,
-                inputRowType,
-                generatedSortKeyComparator,
-                sortKeySelector,
-                rankType,
-                rankRange,
-                generateUpdateBefore,
-                outputRankNumber);
+        if (enableAsyncState) {
+            return new AsyncStateAppendOnlyFirstNFunction(
+                    ttlConfig,
+                    inputRowType,
+                    generatedSortKeyComparator,
+                    sortKeySelector,
+                    rankType,
+                    rankRange,
+                    generateUpdateBefore,
+                    outputRankNumber);
+        } else {
+            return new AppendOnlyFirstNFunction(
+                    ttlConfig,
+                    inputRowType,
+                    generatedSortKeyComparator,
+                    sortKeySelector,
+                    rankType,
+                    rankRange,
+                    generateUpdateBefore,
+                    outputRankNumber);
+        }
     }
 
     @Override
     boolean supportedAsyncState() {
-        return false;
+        return true;
     }
 
     @Override
