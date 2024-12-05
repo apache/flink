@@ -112,7 +112,7 @@ under the License.
 
 		<!-- for the fallback generic serializer -->
 		<dependency>
-			<groupId>com.esotericsoftware.kryo</groupId>
+			<groupId>com.esotericsoftware</groupId>
 			<artifactId>kryo</artifactId>
 			<!-- managed version -->
 		</dependency>
