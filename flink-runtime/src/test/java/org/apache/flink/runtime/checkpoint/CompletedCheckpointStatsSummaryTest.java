@@ -40,6 +40,7 @@ public class CompletedCheckpointStatsSummaryTest {
         long triggerTimestamp = 123123L;
         long ackTimestamp = 123123 + 1212312399L;
         long stateSize = Integer.MAX_VALUE + 17787L;
+        long metadataSize = Integer.MAX_VALUE + 1984L;
         long processedData = Integer.MAX_VALUE + 123123L;
         long persistedData = Integer.MAX_VALUE + 42L;
         boolean unalignedCheckpoint = true;
@@ -59,6 +60,7 @@ public class CompletedCheckpointStatsSummaryTest {
                             triggerTimestamp,
                             ackTimestamp + i,
                             stateSize + i,
+                            metadataSize + i,
                             processedData + i,
                             persistedData + i,
                             unalignedCheckpoint);
@@ -94,6 +96,7 @@ public class CompletedCheckpointStatsSummaryTest {
             long triggerTimestamp,
             long ackTimestamp,
             long stateSize,
+            long metadataSize,
             long processedData,
             long persistedData,
             boolean unalignedCheckpoint) {
@@ -114,6 +117,7 @@ public class CompletedCheckpointStatsSummaryTest {
                 taskStats,
                 1,
                 stateSize,
+                metadataSize,
                 processedData,
                 persistedData,
                 unalignedCheckpoint,
@@ -125,6 +129,7 @@ public class CompletedCheckpointStatsSummaryTest {
     @Test
     void testQuantiles() {
         int stateSize = 100;
+        int metadataSize = 110;
         int processedData = 200;
         int persistedData = 300;
         boolean unalignedCheckpoint = true;
@@ -141,6 +146,7 @@ public class CompletedCheckpointStatsSummaryTest {
                         singletonMap(new JobVertexID(), new TaskStateStats(new JobVertexID(), 1)),
                         1,
                         stateSize,
+                        metadataSize,
                         processedData,
                         persistedData,
                         unalignedCheckpoint,
