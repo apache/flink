@@ -22,6 +22,7 @@ import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
 import java.util.Arrays;
+import java.util.HashMap;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -29,7 +30,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class PointwiseBlockingResultInfo extends AbstractBlockingResultInfo {
     PointwiseBlockingResultInfo(
             IntermediateDataSetID resultId, int numOfPartitions, int numOfSubpartitions) {
-        super(resultId, numOfPartitions, numOfSubpartitions);
+        super(resultId, numOfPartitions, numOfSubpartitions, new HashMap<>());
     }
 
     @Override

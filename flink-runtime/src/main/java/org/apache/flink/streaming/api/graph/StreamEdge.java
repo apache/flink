@@ -76,6 +76,10 @@ public class StreamEdge implements Serializable {
 
     private final IntermediateDataSetID intermediateDatasetIdToProduce;
 
+    private boolean existInterInputsKeyCorrelation;
+
+    private boolean existIntraInputKeyCorrelation;
+
     public StreamEdge(
             StreamNode sourceVertex,
             StreamNode targetVertex,
@@ -149,6 +153,11 @@ public class StreamEdge implements Serializable {
                         + outputPartitioner
                         + "_"
                         + uniqueId;
+        if (outputPartitioner != null) {
+            this.existIntraInputKeyCorrelation = !outputPartitioner.isPointwise();
+            this.existInterInputsKeyCorrelation =
+                    !outputPartitioner.isPointwise() && !outputPartitioner.isBroadcast();
+        }
     }
 
     public int getSourceId() {
@@ -177,6 +186,9 @@ public class StreamEdge implements Serializable {
 
     public void setPartitioner(StreamPartitioner<?> partitioner) {
         this.outputPartitioner = partitioner;
+        this.existIntraInputKeyCorrelation = !partitioner.isPointwise();
+        this.existInterInputsKeyCorrelation =
+                !partitioner.isPointwise() && !partitioner.isBroadcast();
     }
 
     public void setBufferTimeout(long bufferTimeout) {
@@ -237,5 +249,21 @@ public class StreamEdge implements Serializable {
 
     public IntermediateDataSetID getIntermediateDatasetIdToProduce() {
         return intermediateDatasetIdToProduce;
+    }
+
+    public boolean existInterInputsKeyCorrelation() {
+        return existInterInputsKeyCorrelation;
+    }
+
+    public boolean existIntraInputKeyCorrelation() {
+        return existIntraInputKeyCorrelation;
+    }
+
+    public void setExistInterInputsKeyCorrelation(boolean existInterInputsKeyCorrelation) {
+        this.existInterInputsKeyCorrelation = existInterInputsKeyCorrelation;
+    }
+
+    public void setExistIntraInputKeyCorrelation(boolean existIntraInputKeyCorrelation) {
+        this.existIntraInputKeyCorrelation = existIntraInputKeyCorrelation;
     }
 }
