@@ -121,7 +121,7 @@ object FlinkStreamRuleSets {
           new CoerceInputsRule(classOf[LogicalMinus], false),
           ConvertToNotInOrInRule.INSTANCE,
           // optimize limit 0
-          FlinkLimit0RemoveRule.INSTANCE,
+          PruneEmptyRules.SORT_FETCH_ZERO_INSTANCE,
           // fix: FLINK-28986 nested filter pattern causes unnest rule mismatch
           CoreRules.FILTER_MERGE,
           // unnest rule

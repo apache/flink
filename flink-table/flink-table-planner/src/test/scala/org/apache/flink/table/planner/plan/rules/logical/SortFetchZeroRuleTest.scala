@@ -22,11 +22,12 @@ import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContex
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.apache.calcite.plan.hep.HepMatchOrder
+import org.apache.calcite.rel.rules.PruneEmptyRules
 import org.apache.calcite.tools.RuleSets
 import org.junit.jupiter.api.{BeforeEach, Test}
 
-/** Test for [[FlinkLimit0RemoveRule]]. */
-class FlinkLimit0RemoveRuleTest extends TableTestBase {
+/** Test for [[PruneEmptyRules.SORT_FETCH_ZERO_INSTANCE]]. */
+class SortFetchZeroRuleTest extends TableTestBase {
 
   private val util = batchTestUtil()
 
@@ -38,7 +39,8 @@ class FlinkLimit0RemoveRuleTest extends TableTestBase {
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(RuleSets.ofList(FlinkSubQueryRemoveRule.FILTER, FlinkLimit0RemoveRule.INSTANCE))
+        .add(
+          RuleSets.ofList(FlinkSubQueryRemoveRule.FILTER, PruneEmptyRules.SORT_FETCH_ZERO_INSTANCE))
         .build()
     )
     util.replaceBatchProgram(programs)
