@@ -18,10 +18,16 @@
 package org.apache.flink.api.datastream;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.operators.collect.CollectSinkFunction;
+import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
+import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
+import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.TestLogger;
@@ -30,6 +36,7 @@ import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -109,6 +116,31 @@ public class DataStreamCollectTestITCase extends TestLogger {
                 "Failed to collect the correct number of elements from the stream",
                 1,
                 results.size());
+    }
+
+    @Test
+    public void testAsyncCollectWithSinkConfigs() {
+        Configuration configuration = new Configuration();
+        configuration.set(CollectSinkOperatorFactory.SOCKET_TIMEOUT, Duration.ofMillis(2));
+        configuration.set(CollectSinkOperatorFactory.MAX_BATCH_SIZE, new MemorySize(3));
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+
+        final DataStream<Integer> stream = env.fromData(1, 2, 3, 4, 5);
+        stream.collectAsync();
+
+        List<Transformation<?>> transformations = env.getTransformations();
+        Assert.assertEquals(1, transformations.size());
+        LegacySinkTransformation<?> transformation =
+                (LegacySinkTransformation<?>) transformations.get(transformations.size() - 1);
+        CollectSinkOperatorFactory<?> collectSinkOperatorFactory =
+                (CollectSinkOperatorFactory<?>) transformation.getOperatorFactory();
+        CollectSinkFunction<?> collectSinkFunction =
+                ((CollectSinkFunction<?>)
+                        ((CollectSinkOperator<?>) collectSinkOperatorFactory.getOperator())
+                                .getUserFunction());
+        Assert.assertEquals(2, collectSinkOperatorFactory.getSocketTimeoutMillis());
+        Assert.assertEquals(3, collectSinkFunction.getMaxBytesPerBatch());
     }
 
     @Test
