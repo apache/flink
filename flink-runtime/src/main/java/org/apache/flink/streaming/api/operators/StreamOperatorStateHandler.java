@@ -416,7 +416,7 @@ public class StreamOperatorStateHandler {
             throws Exception {
 
         if (asyncKeyedStateBackend != null) {
-            return asyncKeyedStateBackend.createState(
+            return asyncKeyedStateBackend.getOrCreateKeyedState(
                     defaultNamespace, namespaceSerializer, stateDescriptor);
         } else {
             throw new IllegalStateException(

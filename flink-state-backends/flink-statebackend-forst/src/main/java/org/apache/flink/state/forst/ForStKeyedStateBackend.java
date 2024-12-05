@@ -71,6 +71,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -81,6 +82,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.state.SnapshotExecutionType.ASYNCHRONOUS;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A KeyedStateBackend that stores its state in {@code ForSt}. This state backend can store very
@@ -158,6 +160,9 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
      */
     private final LinkedHashMap<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation;
 
+    /** So that we can give out state when the user uses the same key. */
+    private final HashMap<String, InternalKeyedState<K, ?, ?>> keyValueStatesByName;
+
     /** Lock guarding the {@code managedStateExecutors} and {@code disposed}. */
     private final Object lock = new Object();
 
@@ -201,6 +206,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
         this.valueDeserializerView = valueDeserializerView;
         this.db = db;
         this.kvStateInformation = kvStateInformation;
+        this.keyValueStatesByName = new HashMap<>();
         this.columnFamilyOptionsFactory = columnFamilyOptionsFactory;
         this.defaultColumnFamily = defaultColumnFamilyHandle;
         this.snapshotStrategy = snapshotStrategy;
@@ -225,6 +231,21 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
     @Override
     public void setup(@Nonnull StateRequestHandler stateRequestHandler) {
         this.stateRequestHandler = stateRequestHandler;
+    }
+
+    @Override
+    public <N, S extends State, SV> S getOrCreateKeyedState(
+            N defaultNamespace,
+            TypeSerializer<N> namespaceSerializer,
+            StateDescriptor<SV> stateDesc)
+            throws Exception {
+        checkNotNull(namespaceSerializer, "Namespace serializer");
+        InternalKeyedState<K, ?, ?> kvState = keyValueStatesByName.get(stateDesc.getStateId());
+        if (kvState == null) {
+            kvState = createState(defaultNamespace, namespaceSerializer, stateDesc);
+            keyValueStatesByName.put(stateDesc.getStateId(), kvState);
+        }
+        return (S) kvState;
     }
 
     @Nonnull
@@ -521,6 +542,11 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
             IOUtils.closeQuietly(snapshotStrategy);
             this.disposed = true;
         }
+    }
+
+    @Override
+    public boolean isSafeToReuseKVState() {
+        return true;
     }
 
     @VisibleForTesting
