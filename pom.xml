@@ -135,7 +135,7 @@ under the License.
 		<scala.macros.version>2.1.1</scala.macros.version>
 		<!-- Default scala versions, must be overwritten by build profiles, so we set something
 		invalid here -->
-		<scala.version>2.12.7</scala.version>
+		<scala.version>2.12.20</scala.version>
 		<scala.binary.version>2.12</scala.binary.version>
 		<chill.version>0.7.6</chill.version>
 		<!-- keep FlinkTestcontainersConfigurator.configureZookeeperContainer in sync -->
@@ -944,7 +944,7 @@ under the License.
 		<profile>
 			<id>scala-2.12</id>
 			<properties>
-				<scala.version>2.12.7</scala.version>
+				<scala.version>2.12.20</scala.version>
 				<scala.binary.version>2.12</scala.binary.version>
 			</properties>
 			<activation>
@@ -1071,8 +1071,6 @@ under the License.
 			</activation>
 
 			<properties>
-				<!-- Bump Scala because 2.12.7 doesn't compile on Java 17. -->
-				<scala.version>2.12.15</scala.version>
 				<surefire.excludedGroups.jdk>org.apache.flink.testutils.junit.FailsOnJava17</surefire.excludedGroups.jdk>
 			</properties>
 
@@ -1127,11 +1125,6 @@ under the License.
 			<activation>
 				<jdk>[21,)</jdk>
 			</activation>
-
-			<properties>
-				<!-- Bump Scala because before 2.12.18 doesn't compile on Java 21. -->
-				<scala.version>2.12.18</scala.version>
-			</properties>
 
 			<build>
 				<pluginManagement>
