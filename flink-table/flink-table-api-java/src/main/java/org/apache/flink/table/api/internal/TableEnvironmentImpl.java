@@ -1029,6 +1029,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         defaultJobName,
                         jobStatusHookList);
         try {
+            ClassLoader userClassLoader = Thread.currentThread().getContextClassLoader();
+            Thread.currentThread().setContextClassLoader(resourceManager.getUserClassLoader());
             JobClient jobClient = execEnv.executeAsync(pipeline);
             final List<Column> columns = new ArrayList<>();
             Long[] affectedRowCounts = new Long[transformations.size()];
@@ -1055,6 +1057,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     throw new TableException("Fail to wait execution finish.", e);
                 }
             }
+            Thread.currentThread().setContextClassLoader(userClassLoader);
             return result;
         } catch (Exception e) {
             throw new TableException("Failed to execute sql", e);
@@ -1074,8 +1077,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 execEnv.createPipeline(
                         transformations, tableConfig.getConfiguration(), defaultJobName);
         try {
+            ClassLoader userClassLoader = Thread.currentThread().getContextClassLoader();
+            Thread.currentThread().setContextClassLoader(resourceManager.getUserClassLoader());
             JobClient jobClient = execEnv.executeAsync(pipeline);
             ResultProvider resultProvider = sinkOperation.getSelectResultProvider();
+            Thread.currentThread().setContextClassLoader(userClassLoader);
             // We must reset resultProvider as we might to reuse it between different jobs.
             resultProvider.reset();
             resultProvider.setJobClient(jobClient);
