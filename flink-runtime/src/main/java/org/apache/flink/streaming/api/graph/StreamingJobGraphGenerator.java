@@ -1141,6 +1141,12 @@ public class StreamingJobGraphGenerator {
                             ? 0 // single input operator
                             : inEdge.getTypeNumber() - 1; // in case of 2 or more inputs
 
+            Preconditions.checkState(
+                    inputIndex < inputSerializers.length,
+                    "Input type serializer of vertex '%s' was null or undefined for inputIndex %s",
+                    vertex,
+                    inputIndex);
+
             if (chainedSource != null) {
                 // chained source is the input
                 if (inputConfigs[inputIndex] != null) {
