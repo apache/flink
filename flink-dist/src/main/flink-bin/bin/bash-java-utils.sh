@@ -34,36 +34,34 @@ readFromConfigFile() {
     # first extract the value with the given key (1st sed), then trim the result (2nd sed)
     # if a key exists multiple times, take the "last" one (tail)
     local value=`sed -n "s/^[ ]*${key}[ ]*: \([^#]*\).*$/\1/p" "${configFile}" | sed "s/^ *//;s/ *$//" | tail -n 1`
+
+    # when extract empty in flattened format, try to extract in nested format
     if [ -z "$value" ]; then
-		# for env.java.home value = `sed -n "/^env:/,/^[^ ]/p" "${configFile}" | sed -n "/^  java:/,/^[^ ]/p" | sed -n "/home:/s/.*: //p" | tail -n 1`
-		IFS='.'
-		read -ra nodes <<< "$1"
-		
-		local sed_cmd_left="sed -n \"/^"
-		local sed_cmd_right=" | "		
-		for index in ${!nodes[@]}; do
-			node=${nodes[index]}
-		 		 
-			if [ $index -eq 0 ]; then
-				# echo "first node：$node"
-				sed_cmd_left+=$node
-				sed_cmd_left+=":/,/^[^ ]/p\" "
-			elif [ $index -eq $((${#nodes[@]}-1)) ]; then
-				# echo "last node：$node"
-				sed_cmd_right+="sed -n \"/"
-				sed_cmd_right+=$node
-				sed_cmd_right+=":/s/.*: //p\" | tail -n 1"
-			else
-				let spaces_count=$index*2
-				# echo "spaces_count: $spaces_count"
-				# echo "middle node：$node"
-				sed_cmd_right+="sed -n \"/^"
-				sed_cmd_right+=$(addSpaces "" "$spaces_count")
-				sed_cmd_right+=$node
-				sed_cmd_right+=":/,/^[^ ]/p\" | "
-			fi
-		done
-		value=$(eval "$sed_cmd_left \"$configFile\" $sed_cmd_right")
+        # split key by dot
+        IFS='.'
+        read -ra nodes <<< "$key"
+
+        # build a sed command in loop to get key in nested format
+        local sed_cmd_left="sed -n \"/^"
+        local sed_cmd_right=" | "
+        for index in ${!nodes[@]}; do
+            node=${nodes[index]}
+            if [ $index -eq 0 ]; then
+                sed_cmd_left+=$node
+                sed_cmd_left+=":/,/^[^ ]/p\" "
+            elif [ $index -eq $((${#nodes[@]}-1)) ]; then
+                sed_cmd_right+="sed -n \"/"
+                sed_cmd_right+=$node
+                sed_cmd_right+=":/s/.*: //p\" | tail -n 1"
+            else
+                let spaces_count=$index*2
+                sed_cmd_right+="sed -n \"/^"
+                sed_cmd_right+=$(addSpaces "" "$spaces_count")
+                sed_cmd_right+=$node
+                sed_cmd_right+=":/,/^[^ ]/p\" | "
+            fi
+        done
+        value=$(eval "$sed_cmd_left \"$configFile\" $sed_cmd_right")
     fi
 	
     [ -z "$value" ] && echo "$defaultValue" || echo "$value"
