@@ -655,7 +655,7 @@ public final class SliceAssigners {
 
         @Override
         public long getWindowOffset() {
-            return 0;
+            return innerAssigner.getWindowOffset();
         }
 
         @Override
