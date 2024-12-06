@@ -28,6 +28,7 @@ import org.apache.flink.tests.util.flink.ClusterController;
 
 import org.junit.Test;
 
+import java.net.URI;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -69,11 +70,13 @@ public class CreateTableAsITCase extends SqlITCaseBase {
     }
 
     @Override
-    protected void executeSqlStatements(ClusterController clusterController, List<String> sqlLines)
+    protected void executeSqlStatements(
+            ClusterController clusterController, List<String> sqlLines, List<URI> dependencies)
             throws Exception {
         clusterController.submitSQLJob(
                 new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)
                         .addJar(SQL_TOOL_BOX_JAR)
+                        .addJars(dependencies.toArray(new URI[0]))
                         .build(),
                 Duration.ofMinutes(2L));
     }
