@@ -188,7 +188,7 @@ class MatchRecognizeValidationTest extends TableTestBase {
             assertThatExceptionOfType(TableException.class)
                     .isThrownBy(() -> tEnv.executeSql(sqlQuery))
                     .withMessageContaining(
-                            "Match Recognize doesn't support consuming update changes which is produced by node GroupAggregate(");
+                            "Match Recognize doesn't support consuming update and delete changes which is produced by node Rank(");
         }
     }
 
