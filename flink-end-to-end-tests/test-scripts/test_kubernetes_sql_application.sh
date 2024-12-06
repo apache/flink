@@ -22,7 +22,7 @@ source "$(dirname "$0")"/common_kubernetes.sh
 CURRENT_DIR=`cd "$(dirname "$0")" && pwd -P`
 CLUSTER_ROLE_BINDING="flink-role-binding-default"
 CLUSTER_ID="flink-native-k8s-sql-application-1"
-PURE_FLINK_IMAGE_NAME="test_kubernetes_application-1"
+FLINK_IMAGE_NAME="test_kubernetes_application-1"
 LOCAL_LOGS_PATH="${TEST_DATA_DIR}/log"
 IMAGE_BUILD_RETRIES=3
 IMAGE_BUILD_BACKOFF=2
@@ -56,7 +56,7 @@ curl --location --request POST http://localhost:8083/sessions/${SESSION_HANDLE}/
     "executionConfig": {
         "execution.target": "kubernetes-application",
         "kubernetes.cluster-id": "'${CLUSTER_ID}'",
-        "kubernetes.container.image.ref": "'${PURE_FLINK_IMAGE_NAME}'",
+        "kubernetes.container.image.ref": "'${FLINK_IMAGE_NAME}'",
         "jobmanager.memory.process.size": "1000m",
         "taskmanager.memory.process.size": "1000m",
         "kubernetes.jobmanager.cpu": 0.5,
