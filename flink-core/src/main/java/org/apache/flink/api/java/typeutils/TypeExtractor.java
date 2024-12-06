@@ -2046,7 +2046,9 @@ public class TypeExtractor {
                 }
                 // check for setters (<FieldName>_$eq for scala)
                 if ((methodNameLow.equals("set" + fieldNameLow)
-                                || methodNameLow.equals(fieldNameLow + "_$eq"))
+                                || methodNameLow.equals(fieldNameLow + "_$eq")
+                                || (fieldNameLow.startsWith("is")
+                                        && methodNameLow.equals("set" + fieldNameLow.substring(2))))
                         && m.getParameterCount() == 1
                         && // one parameter of the field's type
                         (m.getGenericParameterTypes()[0].equals(fieldType)
