@@ -27,6 +27,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
@@ -580,7 +582,15 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f2").ceil(TimeIntervalUnit.MILLENNIUM),
                                 "CEIL(f2 TO MILLENNIUM)",
                                 LocalDateTime.of(3001, 1, 1, 0, 0),
-                                TIMESTAMP().nullable()));
+                                TIMESTAMP().nullable())
+                        .testResult(
+                                $("f2").cast(TIMESTAMP_LTZ(3)).ceil(TimeIntervalUnit.SECOND),
+                                "CEIL(CAST(f2 AS TIMESTAMP_LTZ(3)) TO SECOND)",
+                                ZonedDateTime.of(
+                                                LocalDateTime.of(2020, 2, 29, 8, 0, 0),
+                                                ZoneId.of("Z"))
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3)));
     }
 
     private Stream<TestSetSpec> floorTestCases() {
@@ -732,6 +742,22 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f2").floor(TimeIntervalUnit.MILLENNIUM),
                                 "FLOOR(f2 TO MILLENNIUM)",
                                 LocalDateTime.of(2001, 1, 1, 0, 0),
-                                TIMESTAMP().nullable()));
+                                TIMESTAMP().nullable())
+                        .testResult(
+                                $("f2").cast(TIMESTAMP_LTZ(3)).floor(TimeIntervalUnit.SECOND),
+                                "FLOOR(CAST(f2 AS TIMESTAMP_LTZ(3)) TO SECOND)",
+                                ZonedDateTime.of(
+                                                LocalDateTime.of(2020, 2, 29, 7, 56, 59),
+                                                ZoneId.of("Z"))
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3))
+                        .testResult(
+                                $("f2").cast(TIMESTAMP_LTZ(3)).floor(TimeIntervalUnit.MINUTE),
+                                "FLOOR(CAST(f2 AS TIMESTAMP_LTZ(3)) TO MINUTE)",
+                                ZonedDateTime.of(
+                                                LocalDateTime.of(2020, 2, 29, 7, 56, 0),
+                                                ZoneId.of("Z"))
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3)));
     }
 }
