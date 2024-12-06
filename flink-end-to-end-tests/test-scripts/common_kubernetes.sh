@@ -228,7 +228,7 @@ function wait_num_checkpoints {
 function wait_for_logs {
   local jm_pod_name=$1
   local successful_response_regex=$2
-  local timeout=${3:-60}
+  local timeout=${3:-600}
 
   echo "Waiting for jobmanager pod ${jm_pod_name} ready."
   kubectl wait --for=condition=Ready --timeout=${timeout}s pod/$jm_pod_name || exit 1

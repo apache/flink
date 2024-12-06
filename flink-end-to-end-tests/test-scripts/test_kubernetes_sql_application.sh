@@ -57,7 +57,7 @@ curl --location --request POST http://localhost:8083/sessions/${SESSION_HANDLE}/
         "execution.target": "kubernetes-application",
         "kubernetes.cluster-id": "'${CLUSTER_ID}'",
         "kubernetes.container.image.ref": "'${FLINK_IMAGE_NAME}'",
-        "jobmanager.memory.process.size": "1000m",
+        "jobmanager.memory.process.size": "1088m",
         "taskmanager.memory.process.size": "1000m",
         "kubernetes.jobmanager.cpu": 0.5,
         "kubernetes.taskmanager.cpu": 0.5,
