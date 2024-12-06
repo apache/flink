@@ -154,7 +154,9 @@ public abstract class InternalWindowProcessFunction<K, W extends Window> impleme
         <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor)
                 throws Exception;
 
-        /** @return current key of current processed element. */
+        /**
+         * @return current key of current processed element.
+         */
         K currentKey();
 
         /** Returns the current processing time. */

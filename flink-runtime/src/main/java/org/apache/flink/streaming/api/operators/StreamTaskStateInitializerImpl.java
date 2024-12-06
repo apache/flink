@@ -292,9 +292,11 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
             }
             // Add stats for input channel and result partition state
             Stream.concat(
-                            prioritizedOperatorSubtaskStates.getPrioritizedInputChannelState()
+                            prioritizedOperatorSubtaskStates
+                                    .getPrioritizedInputChannelState()
                                     .stream(),
-                            prioritizedOperatorSubtaskStates.getPrioritizedResultSubpartitionState()
+                            prioritizedOperatorSubtaskStates
+                                    .getPrioritizedResultSubpartitionState()
                                     .stream())
                     .filter(Objects::nonNull)
                     .forEach(channelHandle -> channelHandle.collectSizeStats(statsCollector));

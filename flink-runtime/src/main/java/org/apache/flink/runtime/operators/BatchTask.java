@@ -620,7 +620,9 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
     //                                 Task Setup and Teardown
     // --------------------------------------------------------------------------------------------
 
-    /** @return the last output collector in the collector chain */
+    /**
+     * @return the last output collector in the collector chain
+     */
     @SuppressWarnings("unchecked")
     protected Collector<OT> getLastOutputCollector() {
         int numChained = this.chainedTasks.size();

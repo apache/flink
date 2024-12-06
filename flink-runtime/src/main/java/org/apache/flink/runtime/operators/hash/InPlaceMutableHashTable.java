@@ -515,7 +515,9 @@ public class InPlaceMutableHashTable<T> extends AbstractMutableHashTable<T> {
         }
     }
 
-    /** @return String containing a summary of the memory consumption for error messages */
+    /**
+     * @return String containing a summary of the memory consumption for error messages
+     */
     private String getMemoryConsumptionString() {
         return "InPlaceMutableHashTable memory stats:\n"
                 + "Total memory:     "

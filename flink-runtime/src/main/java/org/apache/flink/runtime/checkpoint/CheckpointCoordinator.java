@@ -1998,7 +1998,9 @@ public class CheckpointCoordinator {
         return checkpointTimeout;
     }
 
-    /** @deprecated use {@link #getNumQueuedRequests()} */
+    /**
+     * @deprecated use {@link #getNumQueuedRequests()}
+     */
     @Deprecated
     @VisibleForTesting
     PriorityQueue<CheckpointTriggerRequest> getTriggerRequestQueue() {

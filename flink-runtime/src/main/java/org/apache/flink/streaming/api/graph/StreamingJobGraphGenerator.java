@@ -827,7 +827,9 @@ public class StreamingJobGraphGenerator {
         jobVertices.forEach(
                 (startNodeId, jobVertex) -> {
                     Set<JobVertex> forwardConsumers =
-                            jobVertexBuildContext.getChainInfo(startNodeId).getTransitiveOutEdges()
+                            jobVertexBuildContext
+                                    .getChainInfo(startNodeId)
+                                    .getTransitiveOutEdges()
                                     .stream()
                                     .filter(
                                             edge ->
@@ -2075,9 +2077,11 @@ public class StreamingJobGraphGenerator {
                 groupOperatorIds.stream()
                         .flatMap(
                                 (oid) ->
-                                        streamGraph.getStreamNode(oid)
+                                        streamGraph
+                                                .getStreamNode(oid)
                                                 .getManagedMemoryOperatorScopeUseCaseWeights()
-                                                .entrySet().stream())
+                                                .entrySet()
+                                                .stream())
                         .collect(
                                 Collectors.groupingBy(
                                         Map.Entry::getKey,
@@ -2087,8 +2091,10 @@ public class StreamingJobGraphGenerator {
                 groupOperatorIds.stream()
                         .flatMap(
                                 (oid) ->
-                                        streamGraph.getStreamNode(oid)
-                                                .getManagedMemorySlotScopeUseCases().stream())
+                                        streamGraph
+                                                .getStreamNode(oid)
+                                                .getManagedMemorySlotScopeUseCases()
+                                                .stream())
                         .collect(Collectors.toSet());
 
         for (JobVertexID jobVertexID : jobVertexIds) {

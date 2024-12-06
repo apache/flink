@@ -101,50 +101,73 @@ public class Tuple24<
 
     /** Field 0 of the tuple. */
     public T0 f0;
+
     /** Field 1 of the tuple. */
     public T1 f1;
+
     /** Field 2 of the tuple. */
     public T2 f2;
+
     /** Field 3 of the tuple. */
     public T3 f3;
+
     /** Field 4 of the tuple. */
     public T4 f4;
+
     /** Field 5 of the tuple. */
     public T5 f5;
+
     /** Field 6 of the tuple. */
     public T6 f6;
+
     /** Field 7 of the tuple. */
     public T7 f7;
+
     /** Field 8 of the tuple. */
     public T8 f8;
+
     /** Field 9 of the tuple. */
     public T9 f9;
+
     /** Field 10 of the tuple. */
     public T10 f10;
+
     /** Field 11 of the tuple. */
     public T11 f11;
+
     /** Field 12 of the tuple. */
     public T12 f12;
+
     /** Field 13 of the tuple. */
     public T13 f13;
+
     /** Field 14 of the tuple. */
     public T14 f14;
+
     /** Field 15 of the tuple. */
     public T15 f15;
+
     /** Field 16 of the tuple. */
     public T16 f16;
+
     /** Field 17 of the tuple. */
     public T17 f17;
+
     /** Field 18 of the tuple. */
     public T18 f18;
+
     /** Field 19 of the tuple. */
     public T19 f19;
+
     /** Field 20 of the tuple. */
     public T20 f20;
+
     /** Field 21 of the tuple. */
     public T21 f21;
+
     /** Field 22 of the tuple. */
     public T22 f22;
+
     /** Field 23 of the tuple. */
     public T23 f23;
 

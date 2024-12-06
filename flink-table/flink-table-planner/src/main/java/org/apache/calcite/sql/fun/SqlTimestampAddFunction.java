@@ -139,6 +139,7 @@ public class SqlTimestampAddFunction extends SqlFunction {
         // If the latter, check that timeFrameName is valid.
         validator.validateTimeFrame((SqlIntervalQualifier) call.getOperandList().get(0));
     }
+
     // END FLINK MODIFICATION
 
     /** Creates a SqlTimestampAddFunction. */

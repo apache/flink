@@ -63,6 +63,7 @@ public interface OutputFormat<IT> extends Serializable {
      * @throws IOException Thrown, if the output could not be opened due to an I/O problem.
      */
     void open(InitializationContext context) throws IOException;
+
     /**
      * Adds a record to the output.
      *

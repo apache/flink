@@ -84,7 +84,9 @@ public final class TypeInference {
         return outputTypeStrategy;
     }
 
-    /** @deprecated Use {@link #getStaticArguments()} instead. */
+    /**
+     * @deprecated Use {@link #getStaticArguments()} instead.
+     */
     @Deprecated
     public Optional<List<String>> getNamedArguments() {
         return Optional.ofNullable(staticArguments)
@@ -95,7 +97,9 @@ public final class TypeInference {
                                         .collect(Collectors.toList()));
     }
 
-    /** @deprecated Use {@link #getStaticArguments()} instead. */
+    /**
+     * @deprecated Use {@link #getStaticArguments()} instead.
+     */
     @Deprecated
     public Optional<List<DataType>> getTypedArguments() {
         return Optional.ofNullable(staticArguments)
@@ -112,7 +116,9 @@ public final class TypeInference {
                                         .collect(Collectors.toList()));
     }
 
-    /** @deprecated Use {@link #getStaticArguments()} instead. */
+    /**
+     * @deprecated Use {@link #getStaticArguments()} instead.
+     */
     @Deprecated
     public Optional<List<Boolean>> getOptionalArguments() {
         return Optional.ofNullable(staticArguments)
@@ -123,7 +129,9 @@ public final class TypeInference {
                                         .collect(Collectors.toList()));
     }
 
-    /** @deprecated Use {@link #getStateTypeStrategies()} instead. */
+    /**
+     * @deprecated Use {@link #getStateTypeStrategies()} instead.
+     */
     @Deprecated
     public Optional<TypeStrategy> getAccumulatorTypeStrategy() {
         if (stateTypeStrategies.isEmpty()) {

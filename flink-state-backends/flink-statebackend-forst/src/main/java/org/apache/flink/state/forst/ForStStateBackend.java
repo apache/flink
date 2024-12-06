@@ -146,6 +146,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
      * The configuration for rocksdb priorityQueue state settings (priorityQueue state type, etc.).
      */
     private final ForStPriorityQueueConfig priorityQueueConfig;
+
     // ------------------------------------------------------------------------
 
     /** Creates a new {@code ForStStateBackend} for storing state. */

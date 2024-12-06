@@ -339,7 +339,9 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
         return memorySegment;
     }
 
-    /** @return a memory segment from the internal buffer queue. */
+    /**
+     * @return a memory segment from the internal buffer queue.
+     */
     private MemorySegment requestBufferBlockingFromQueue() {
         CompletableFuture<Void> requestBufferFuture = new CompletableFuture<>();
         scheduleCheckRequestBufferFuture(

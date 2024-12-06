@@ -55,7 +55,9 @@ public final class ExistingField extends TimestampExtractor {
 
     private String field;
 
-    /** @param field The field to convert into a rowtime attribute. */
+    /**
+     * @param field The field to convert into a rowtime attribute.
+     */
     public ExistingField(String field) {
         this.field = checkNotNull(field);
     }

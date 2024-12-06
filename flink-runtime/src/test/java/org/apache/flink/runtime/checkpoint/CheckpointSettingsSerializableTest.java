@@ -134,6 +134,7 @@ class CheckpointSettingsSerializableTest {
     private static final class CustomStateBackend implements StateBackend {
 
         private static final long serialVersionUID = -6107964383429395816L;
+
         /** Simulate a custom option that is not in the normal classpath. */
         @SuppressWarnings("unused")
         private Serializable customOption;
@@ -158,6 +159,7 @@ class CheckpointSettingsSerializableTest {
     private static final class CustomCheckpointStorage implements CheckpointStorage {
 
         private static final long serialVersionUID = -6107964383429395816L;
+
         /** Simulate a custom option that is not in the normal classpath. */
         @SuppressWarnings("unused")
         private Serializable customOption;

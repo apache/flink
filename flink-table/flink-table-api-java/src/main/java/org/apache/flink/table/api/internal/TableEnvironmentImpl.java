@@ -601,7 +601,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public String[] listDatabases() {
-        return catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get().listDatabases()
+        return catalogManager
+                .getCatalog(catalogManager.getCurrentCatalog())
+                .get()
+                .listDatabases()
                 .stream()
                 .sorted()
                 .toArray(String[]::new);

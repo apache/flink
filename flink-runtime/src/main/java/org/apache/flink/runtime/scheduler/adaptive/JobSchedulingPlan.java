@@ -65,6 +65,7 @@ public class JobSchedulingPlan {
     /** Assignment of a slot to some target (e.g. a slot sharing group). */
     public static class SlotAssignment {
         private final SlotInfo slotInfo;
+
         /**
          * Interpreted by {@link
          * org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator#tryReserveResources(JobSchedulingPlan)}.

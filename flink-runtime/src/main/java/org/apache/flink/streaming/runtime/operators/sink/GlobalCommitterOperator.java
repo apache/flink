@@ -107,6 +107,7 @@ public class GlobalCommitterOperator<CommT, GlobalCommT> extends AbstractStreamO
     private final SerializableFunction<CommitterInitContext, Committer<CommT>> committerFactory;
     private final SerializableSupplier<SimpleVersionedSerializer<CommT>>
             committableSerializerFactory;
+
     /**
      * Depending on whether there is an upstream committer or it's connected to a writer, we may
      * either wait for notifyCheckpointCompleted or not.

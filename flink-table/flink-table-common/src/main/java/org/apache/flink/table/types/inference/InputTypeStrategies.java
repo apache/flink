@@ -376,7 +376,9 @@ public final class InputTypeStrategies {
         return new CommonArrayInputTypeStrategy(ConstantArgumentCount.from(minCount));
     }
 
-    /** @see ItemAtIndexArgumentTypeStrategy */
+    /**
+     * @see ItemAtIndexArgumentTypeStrategy
+     */
     public static final ArgumentTypeStrategy ITEM_AT_INDEX = new ItemAtIndexArgumentTypeStrategy();
 
     /**

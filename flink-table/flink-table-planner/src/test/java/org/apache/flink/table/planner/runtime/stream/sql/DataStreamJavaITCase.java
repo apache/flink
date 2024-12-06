@@ -1043,7 +1043,7 @@ class DataStreamJavaITCase {
                                 assertThat(primaryKeyValue).isNotNull();
                                 materializedResult.removeIf(
                                         r -> primaryKeyValue.equals(r.getField(primaryKeyPos)));
-                                // fall through
+                            // fall through
                             case INSERT:
                                 materializedResult.add(row);
                                 break;

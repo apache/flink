@@ -137,7 +137,9 @@ public final class ContextResolvedFunction {
         return functionIdentifier == null;
     }
 
-    /** @return true if the function is temporary. An anonymous function is always temporary. */
+    /**
+     * @return true if the function is temporary. An anonymous function is always temporary.
+     */
     public boolean isTemporary() {
         return isTemporary;
     }

@@ -37,6 +37,8 @@ public interface MetricFetcher {
     /** Trigger fetching of metrics. */
     void update();
 
-    /** @return timestamp of the last update. */
+    /**
+     * @return timestamp of the last update.
+     */
     long getLastUpdateTime();
 }

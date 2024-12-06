@@ -63,6 +63,7 @@ public class DefaultContextUtils {
                 Collections.emptyList(),
                 false);
     }
+
     // --------------------------------------------------------------------------------------------
 
     private static List<URL> discoverDependencies(List<URL> jars, List<URL> libraries) {

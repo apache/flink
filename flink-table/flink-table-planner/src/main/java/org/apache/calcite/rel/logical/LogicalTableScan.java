@@ -105,6 +105,7 @@ public final class LogicalTableScan extends TableScan {
     public RelWriter explainTerms(RelWriter pw) {
         return super.explainTerms(pw).itemIf("hints", getHints(), !getHints().isEmpty());
     }
+
     // END FLINK MODIFICATION
 
     /**

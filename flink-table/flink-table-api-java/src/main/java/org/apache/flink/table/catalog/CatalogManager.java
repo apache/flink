@@ -903,8 +903,10 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      */
     public Set<String> listSchemas(String catalogName) {
         return Stream.concat(
-                        getCatalog(catalogName).map(Catalog::listDatabases)
-                                .orElse(Collections.emptyList()).stream(),
+                        getCatalog(catalogName)
+                                .map(Catalog::listDatabases)
+                                .orElse(Collections.emptyList())
+                                .stream(),
                         temporaryTables.keySet().stream()
                                 .filter(i -> i.getCatalogName().equals(catalogName))
                                 .map(ObjectIdentifier::getDatabaseName))

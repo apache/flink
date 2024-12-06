@@ -298,14 +298,18 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
             return this;
         }
 
-        /** @deprecated Use {@link #staticArguments(StaticArgument...)} instead. */
+        /**
+         * @deprecated Use {@link #staticArguments(StaticArgument...)} instead.
+         */
         @Deprecated
         public Builder namedArguments(String... argumentNames) {
             this.typeInferenceBuilder.namedArguments(Arrays.asList(argumentNames));
             return this;
         }
 
-        /** @deprecated Use {@link #staticArguments(StaticArgument...)} instead. */
+        /**
+         * @deprecated Use {@link #staticArguments(StaticArgument...)} instead.
+         */
         @Deprecated
         public Builder typedArguments(DataType... argumentTypes) {
             this.typeInferenceBuilder.typedArguments(Arrays.asList(argumentTypes));

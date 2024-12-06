@@ -758,7 +758,9 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
         return Math.max(10, Math.min(numBuffers / 10, MAX_NUM_PARTITIONS));
     }
 
-    /** @return String containing a summary of the memory consumption for error messages */
+    /**
+     * @return String containing a summary of the memory consumption for error messages
+     */
     private String getMemoryConsumptionString() {
         return "numPartitions: "
                 + this.partitions.size()
@@ -807,7 +809,9 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
         return numSegments * this.segmentSize;
     }
 
-    /** @return number of memory segments in the largest partition */
+    /**
+     * @return number of memory segments in the largest partition
+     */
     private int getMaxPartition() {
         int maxPartition = 0;
         for (InMemoryPartition<T> p1 : this.partitions) {
@@ -818,7 +822,9 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
         return maxPartition;
     }
 
-    /** @return number of memory segments in the smallest partition */
+    /**
+     * @return number of memory segments in the smallest partition
+     */
     private int getMinPartition() {
         int minPartition = Integer.MAX_VALUE;
         for (InMemoryPartition<T> p1 : this.partitions) {
@@ -829,7 +835,9 @@ public class CompactingHashTable<T> extends AbstractMutableHashTable<T> {
         return minPartition;
     }
 
-    /** @return number of memory segments used in overflow buckets */
+    /**
+     * @return number of memory segments used in overflow buckets
+     */
     private int getOverflowSegmentCount() {
         int result = 0;
         for (InMemoryPartition<T> p : this.partitions) {

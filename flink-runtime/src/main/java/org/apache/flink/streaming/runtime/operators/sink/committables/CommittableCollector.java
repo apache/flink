@@ -50,6 +50,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class CommittableCollector<CommT> {
     private static final long EOI = Long.MAX_VALUE;
+
     /** Mapping of checkpoint id to {@link CheckpointCommittableManagerImpl}. */
     private final NavigableMap<Long, CheckpointCommittableManagerImpl<CommT>>
             checkpointCommittables;

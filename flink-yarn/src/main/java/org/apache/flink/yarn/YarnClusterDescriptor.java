@@ -1308,7 +1308,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                                     + "If log aggregation is enabled on your cluster, use this command to further investigate the issue:\n"
                                     + "yarn logs -applicationId "
                                     + appId);
-                    // break ..
+                // break ..
                 case RUNNING:
                     LOG.info("YARN application has been deployed successfully.");
                     break loop;

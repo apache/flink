@@ -56,13 +56,13 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
 
     @Override
     public Expression[] initialValuesExpressions() {
-        return new Expression[] {/* min = */ nullOf(getResultType())};
+        return new Expression[] {/* min= */ nullOf(getResultType())};
     }
 
     @Override
     public Expression[] accumulateExpressions() {
         return new Expression[] {
-            /* min = */ ifThenElse(
+            /* min= */ ifThenElse(
                     isNull(operand(0)),
                     min,
                     ifThenElse(
@@ -81,7 +81,7 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
     @Override
     public Expression[] mergeExpressions() {
         return new Expression[] {
-            /* min = */ ifThenElse(
+            /* min= */ ifThenElse(
                     isNull(mergeOperand(min)),
                     min,
                     ifThenElse(

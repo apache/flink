@@ -1106,6 +1106,7 @@ class DataTypeExtractorTest {
         // CHECKSTYLE.OFF: MemberName
         private final String string_field;
         private final Integer int_field;
+
         // CHECKSTYLE.ON: MemberName
 
         public PojoWithUnderscore(Integer intField, String stringField) {

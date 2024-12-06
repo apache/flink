@@ -72,6 +72,7 @@ public class SharedBuffer<V> {
     private static final String EVENTS_COUNT_STATE_NAME = "sharedBuffer-events-count";
 
     private final MapState<EventId, Lockable<V>> eventsBuffer;
+
     /** The number of events seen so far in the stream per timestamp. */
     private final MapState<Long, Integer> eventsCount;
 

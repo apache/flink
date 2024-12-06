@@ -86,6 +86,7 @@ public abstract class RocksDBSnapshotStrategyBase<K, R extends SnapshotResources
     private static final Logger LOG = LoggerFactory.getLogger(RocksDBSnapshotStrategyBase.class);
 
     @Nonnull private final String description;
+
     /** RocksDB instance from the backend. */
     @Nonnull protected RocksDB db;
 

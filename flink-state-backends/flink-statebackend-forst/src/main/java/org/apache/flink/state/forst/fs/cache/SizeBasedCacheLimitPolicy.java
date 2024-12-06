@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
  */
 public class SizeBasedCacheLimitPolicy implements CacheLimitPolicy {
     private static final Logger LOG = LoggerFactory.getLogger(SizeBasedCacheLimitPolicy.class);
+
     /** The capacity. */
     private final long capacity;
 

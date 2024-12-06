@@ -32,7 +32,9 @@ public abstract class SplitsChange<SplitT> {
         this.splits = splits;
     }
 
-    /** @return the list of splits. */
+    /**
+     * @return the list of splits.
+     */
     public List<SplitT> splits() {
         return Collections.unmodifiableList(splits);
     }

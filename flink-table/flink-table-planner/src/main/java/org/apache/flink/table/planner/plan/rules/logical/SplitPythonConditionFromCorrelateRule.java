@@ -196,7 +196,9 @@ public class SplitPythonConditionFromCorrelateRule
     static class InputRefRewriter extends RexDefaultVisitor<RexNode> {
         private final int offset;
 
-        /** @param offset the start offset of the inputRef in the downstream calc. */
+        /**
+         * @param offset the start offset of the inputRef in the downstream calc.
+         */
         public InputRefRewriter(int offset) {
             this.offset = offset;
         }
