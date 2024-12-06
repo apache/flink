@@ -43,7 +43,7 @@ public class Printer {
     @VisibleForTesting final PrintWriter writer;
 
     public Printer() {
-        this(System.out);
+        this(new LogOutputStream());
     }
 
     public Printer(OutputStream output) {
@@ -114,6 +114,13 @@ public class Printer {
         @Override
         public void close() {
             fetcher.close();
+        }
+    }
+
+    private static class LogOutputStream extends OutputStream {
+        @Override
+        public void write(int b) throws IOException {
+            // do nothing
         }
     }
 }

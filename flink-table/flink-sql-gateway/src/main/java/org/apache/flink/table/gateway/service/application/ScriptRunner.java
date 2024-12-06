@@ -28,6 +28,7 @@ import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.table.gateway.service.context.SessionContext;
 import org.apache.flink.util.concurrent.Executors;
 
+import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Collections;
 import java.util.UUID;
@@ -39,7 +40,7 @@ public class ScriptRunner {
             new SessionHandle(UUID.fromString("013059f8-760f-4390-b74d-d0818bd99365"));
 
     public static void run(String script) throws Exception {
-        run(script, System.out);
+        run(script, new LogOutputStream());
     }
 
     @VisibleForTesting
@@ -63,6 +64,13 @@ public class ScriptRunner {
                         Executors.newDirectExecutorService());
         try (AutoCloseable ignore = sessionContext::close) {
             new ScriptExecutor(sessionContext, new Printer(outputStream)).execute(script);
+        }
+    }
+
+    private static class LogOutputStream extends OutputStream {
+        @Override
+        public void write(int b) throws IOException {
+            // do nothing
         }
     }
 }
