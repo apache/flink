@@ -34,7 +34,7 @@ function internal_cleanup {
 
 start_kubernetes
 
-if ! retry_times $IMAGE_BUILD_RETRIES $IMAGE_BUILD_BACKOFF "build_image ${PURE_FLINK_IMAGE_NAME}"; then
+if ! retry_times $IMAGE_BUILD_RETRIES $IMAGE_BUILD_BACKOFF "build_image ${FLINK_IMAGE_NAME} $(get_host_machine_address)"; then
 	echo "ERROR: Could not build image. Aborting..."
 	exit 1
 fi
