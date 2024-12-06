@@ -675,11 +675,8 @@ LogicalProject(k=[$0], v=[$1], k0=[$2], v0=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashJoin(joinType=[LeftOuterJoin], where=[(k = k0)], select=[k, v, k0, v0], isBroadcast=[true], build=[right])
-:- Calc(select=[CAST(0 AS BIGINT) AS k, v], where=[(k = 0)])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, src, source: [TestTableSource(k, v)]]], fields=[k, v])
-+- Exchange(distribution=[broadcast])
-   +- Values(tuples=[[]], values=[k, v])
+Calc(select=[CAST(0 AS BIGINT) AS k, v, null:BIGINT AS k0, null:VARCHAR(2147483647) AS v0], where=[(k = 0)])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, src, source: [TestTableSource(k, v)]]], fields=[k, v])
 ]]>
     </Resource>
   </TestCase>
@@ -699,6 +696,25 @@ LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
 			<![CDATA[
 Calc(select=[null:INTEGER AS d, null:BIGINT AS e, null:INTEGER AS f, null:VARCHAR(2147483647) AS g, null:BIGINT AS h, a, b, c])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testLeftOuterJoinOnFalse">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM MyTable2 LEFT OUTER JOIN MyTable1 ON false]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
++- LogicalJoin(condition=[false], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[d, e, f, g, h, null:INTEGER AS a, null:BIGINT AS b, null:VARCHAR(2147483647) AS c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 ]]>
 		</Resource>
 	</TestCase>
