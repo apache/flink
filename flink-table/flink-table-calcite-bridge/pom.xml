@@ -152,7 +152,27 @@ under the License.
 					<groupId>org.locationtech.proj4j</groupId>
 					<artifactId>proj4j</artifactId>
 				</exclusion>
+				<!--
+				Exclude json-path as we are manually overriding it to a newer version (FLINK-36830).
+				This can be removed once calcite is upgraded to 1.38 or greater, more details
+				in JIRA issue FLINK-36602.
+				-->
+				<exclusion>
+					<groupId>com.jayway.jsonpath</groupId>
+					<artifactId>json-path</artifactId>
+				</exclusion>
 			</exclusions>
+		</dependency>
+
+		<!--
+		Override the json-path version used by Calcite to deal with CVE-2023-1370 (FLINK-36830).
+		This can be removed once calcite is upgraded to 1.38 or greater, more details
+		in JIRA issue FLINK-36602.
+		 -->
+		<dependency>
+			<groupId>com.jayway.jsonpath</groupId>
+			<artifactId>json-path</artifactId>
+			<version>2.9.0</version>
 		</dependency>
 
 		<dependency>
