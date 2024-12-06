@@ -805,6 +805,61 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
+    public void testCreateTableAsWithOverriddenMetadataColumns() {
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.BIGINT())
+                                        .build())
+                        .build();
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "src1"), false);
+
+        final String sql = "create table tbl1 (f1 bigint metadata) " + "AS SELECT * FROM src1";
+
+        Operation ctas = parseAndConvert(sql);
+        Operation operation = ((CreateTableASOperation) ctas).getCreateTableOperation();
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withNoDistribution(),
+                                        withSchema(
+                                                Schema.newBuilder()
+                                                        .column("f0", DataTypes.INT().notNull())
+                                                        .columnByMetadata("f1", DataTypes.BIGINT())
+                                                        .build()))));
+    }
+
+    @Test
+    public void testCreateTableAsWithOverriddenVirtualMetadataColumnsNotAllowed() {
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.BIGINT())
+                                        .build())
+                        .build();
+
+        catalogManager.createTable(
+                catalogTable, ObjectIdentifier.of("builtin", "default", "src1"), false);
+
+        final String sql =
+                "create table tbl1 (f1 bigint metadata virtual) " + "AS SELECT * FROM src1";
+
+        assertThatThrownBy(() -> parseAndConvert(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "A column named 'f1' already exists in the source schema. "
+                                + "Computed and virtual metadata columns cannot overwrite "
+                                + "columns from source.");
+    }
+
+    @Test
     public void testCreateTableAsWithPrimaryAndPartitionKey() {
         CatalogTable catalogTable =
                 CatalogTable.newBuilder()

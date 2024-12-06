@@ -35,6 +35,7 @@ under the License.
 		<suppress files="DependencyTree.java" checks="IllegalImport"/>
 
 		<suppress files="FlinkSqlParserImplTest.java" checks="FileLength"/>
+	    <suppress files="SqlDdlToOperationConverterTest.java" checks="FileLength"/>
 		<suppress files="JoinOperator.java" checks="FileLength"/>
 		<suppress files="WindowOperatorTest.java" checks="FileLength"/>
 		<suppress files="WindowOperatorContractTest.java" checks="FileLength"/>
