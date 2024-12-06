@@ -50,7 +50,9 @@ public class RowDataCustomStreamPartitioner extends StreamPartitioner<RowData> {
                     "Could not extract key from " + record.getInstance().getValue(), e);
         }
         int partition = partitioner.partition(key, numberOfChannels);
-        Preconditions.checkState(partition < numberOfChannels);
+        Preconditions.checkState(
+                partition < numberOfChannels,
+                "The partition computed by custom partitioner is out of range, please check the logic of custom partitioner.");
         return partition;
     }
 
