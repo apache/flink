@@ -112,5 +112,8 @@ public enum StateRequestType {
     AGGREGATING_GET,
 
     /** Add element to aggregating state by {@link AggregatingState#asyncAdd(Object)}. */
-    AGGREGATING_ADD
+    AGGREGATING_ADD,
+
+    /** Defined by different state backends. */
+    CUSTOMIZED
 }

@@ -31,4 +31,4 @@ import org.apache.flink.api.common.state.v2.AggregatingState;
 public interface InternalAggregatingState<K, N, IN, ACC, OUT>
         extends InternalMergingState<K, N, IN, ACC, OUT, OUT>,
                 AggregatingState<IN, OUT>,
-                InternalKeyedState<K, N, ACC> {}
+                InternalStateAccessible<ACC> {}
