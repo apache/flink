@@ -235,6 +235,9 @@ class AlignedCheckpointsMassiveRandomTest {
         public void sendTaskEvent(TaskEvent event) {}
 
         @Override
+        public void resumeGateConsumption() throws IOException {}
+
+        @Override
         public void resumeConsumption(InputChannelInfo channelInfo) {}
 
         @Override

@@ -37,6 +37,7 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
@@ -732,6 +733,11 @@ public abstract class AbstractStreamOperator<OUT>
     public void processRecordAttributes(RecordAttributes recordAttributes) throws Exception {
         output.emitRecordAttributes(
                 new RecordAttributesBuilder(Collections.singletonList(recordAttributes)).build());
+    }
+
+    @Experimental
+    public void processWatermark(WatermarkEvent watermark) throws Exception {
+        output.emitWatermark(watermark);
     }
 
     @Experimental

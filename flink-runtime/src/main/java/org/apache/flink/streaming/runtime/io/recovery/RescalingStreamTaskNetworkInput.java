@@ -177,7 +177,7 @@ public final class RescalingStreamTaskNetworkInput<T>
         return deserialier;
     }
 
-    protected DataInputStatus processEvent(BufferOrEvent bufferOrEvent) {
+    protected DataInputStatus processEvent(BufferOrEvent bufferOrEvent, DataOutput<T> output) {
         // Event received
         final AbstractEvent event = bufferOrEvent.getEvent();
         if (event instanceof SubtaskConnectionDescriptor) {
@@ -185,7 +185,7 @@ public final class RescalingStreamTaskNetworkInput<T>
                     .select((SubtaskConnectionDescriptor) event);
             return DataInputStatus.MORE_AVAILABLE;
         }
-        return super.processEvent(bufferOrEvent);
+        return super.processEvent(bufferOrEvent, output);
     }
 
     @Override
