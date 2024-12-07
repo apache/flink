@@ -76,7 +76,8 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin
             @Nullable LookupJoinUtil.AsyncLookupOptions asyncLookupOptions,
             InputProperty inputProperty,
             RowType outputType,
-            String description) {
+            String description,
+            boolean preferCustomShuffle) {
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecLookupJoin.class),
@@ -94,7 +95,8 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin
                 ChangelogMode.insertOnly(),
                 Collections.singletonList(inputProperty),
                 outputType,
-                description);
+                description,
+                preferCustomShuffle);
     }
 
     @JsonCreator
@@ -117,7 +119,8 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin
                     LookupJoinUtil.AsyncLookupOptions asyncLookupOptions,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
-            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
+            @JsonProperty(FIELD_NAME_PREFER_CUSTOM_SHUFFLE) boolean preferCustomShuffle) {
         super(
                 id,
                 context,
@@ -135,7 +138,8 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin
                 ChangelogMode.insertOnly(),
                 inputProperties,
                 outputType,
-                description);
+                description,
+                preferCustomShuffle);
     }
 
     @Override

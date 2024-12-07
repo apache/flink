@@ -18,18 +18,25 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.{isProctimeIndicatorType, isRowtimeIndicatorType}
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
+import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.util.Preconditions.checkState
 
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.{OperandTypes, ReturnTypes}
 import org.apache.calcite.sql.{SqlFunction, SqlFunctionCategory, SqlKind}
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.util.mapping.IntPair
 
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 /** Utilities for temporal join. */
 object TemporalJoinUtil {
@@ -395,6 +402,63 @@ object TemporalJoinUtil {
           s"temporal table's primary key [$pk] " +
           s"in [$textualRepresentation]")
     }
+  }
+
+  /**
+   * Gets the join key pairs from left input field index to temporal table field index
+   * @param joinInfo
+   *   the join information of temporal table join
+   * @param calcOnTemporalTable
+   *   the calc programs on temporal table
+   */
+  def getTemporalTableJoinKeyPairs(
+      joinInfo: JoinInfo,
+      calcOnTemporalTable: Option[RexProgram]): Array[IntPair] = {
+    val joinPairs = joinInfo.pairs().asScala.toArray
+    calcOnTemporalTable match {
+      case Some(program) =>
+        // the target key of joinInfo is the calc output fields, we have to remapping to table here
+        val keyPairs = new mutable.ArrayBuffer[IntPair]()
+        joinPairs.map {
+          p =>
+            val calcSrcIdx = getIdenticalSourceField(program, p.target)
+            if (calcSrcIdx != -1) {
+              keyPairs += new IntPair(p.source, calcSrcIdx)
+            }
+        }
+        keyPairs.toArray
+      case None => joinPairs
+    }
+  }
+
+  // this is highly inspired by Calcite's RexProgram#getSourceField(int)
+  private def getIdenticalSourceField(rexProgram: RexProgram, outputOrdinal: Int): Int = {
+    assert((outputOrdinal >= 0) && (outputOrdinal < rexProgram.getProjectList.size()))
+    val project = rexProgram.getProjectList.get(outputOrdinal)
+    var index = project.getIndex
+    while (true) {
+      var expr = rexProgram.getExprList.get(index)
+      expr match {
+        case call: RexCall if call.getOperator == SqlStdOperatorTable.IN_FENNEL =>
+          // drill through identity function
+          expr = call.getOperands.get(0)
+        case call: RexCall if call.getOperator == SqlStdOperatorTable.CAST =>
+          // drill through identity function
+          val outputType = call.getType
+          val inputType = call.getOperands.get(0).getType
+          val isCompatible = PlannerTypeUtils.isInteroperable(
+            FlinkTypeFactory.toLogicalType(outputType),
+            FlinkTypeFactory.toLogicalType(inputType))
+          expr = if (isCompatible) call.getOperands.get(0) else expr
+        case _ =>
+      }
+      expr match {
+        case ref: RexLocalRef => index = ref.getIndex
+        case ref: RexInputRef => return ref.getIndex
+        case _ => return -1
+      }
+    }
+    -1
   }
 
   def extractInputRef(rexNode: RexNode, textualRepresentation: String): Int = {

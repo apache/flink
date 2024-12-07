@@ -26,6 +26,7 @@ import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.data.binary.BinaryStringData
 import org.apache.flink.table.legacy.api.{TableSchema, Types}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.plan.utils.SingleSubTaskBoundTableFunction
 import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSource, StreamingTestBase, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.TestAddWithOpen
 import org.apache.flink.table.runtime.functions.table.fullcache.inputformat.FullCacheTestInputFormat
@@ -34,6 +35,8 @@ import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedT
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assumptions
+import org.assertj.core.api.Assumptions.assumeThat
 import org.assertj.core.api.IterableAssert.assertThatIterable
 import org.junit.jupiter.api.{AfterEach, BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
@@ -86,6 +89,22 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     createScanTable("src", data)
     createScanTable("nullable_src", dataWithNull)
     createLookupTable("user_table", userData)
+    createLookupTable("user_table_custom_shuffle", userData, enableCustomShuffle = true)
+    createLookupTable(
+      "user_table_custom_shuffle_non_deterministic",
+      userData,
+      enableCustomShuffle = true,
+      customShuffleDeterministic = false)
+    createLookupTable(
+      "user_table_custom_shuffle_empty_partitioner",
+      userData,
+      enableCustomShuffle = true,
+      customShuffleEmptyPartitioner = true)
+    createLookupTable(
+      "user_table_custom_shuffle_without_udf",
+      userData,
+      enableCustomShuffle = true,
+      customShuffleWithUDF = false)
     createLookupTable("nullable_user_table", userDataWithNull)
     // lookup will start from the 2nd time, first lookup will always get null result
     createLookupTable("user_table_with_lookup_threshold2", userData, 2)
@@ -108,7 +127,11 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
   private def createLookupTable(
       tableName: String,
       data: List[Row],
-      lookupThreshold: Int = -1): Unit = {
+      lookupThreshold: Int = -1,
+      enableCustomShuffle: Boolean = false,
+      customShuffleDeterministic: Boolean = true,
+      customShuffleWithUDF: Boolean = true,
+      customShuffleEmptyPartitioner: Boolean = false): Unit = {
     if (legacyTableSource) {
       val userSchema = TableSchema
         .builder()
@@ -141,18 +164,54 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
         s"'start-lookup-threshold'='$lookupThreshold',"
       } else ""
 
-      tEnv.executeSql(s"""
-                         |CREATE TABLE $tableName (
-                         |  `age` INT,
-                         |  `id` BIGINT,
-                         |  `name` STRING
-                         |) WITH (
-                         |  $cacheOptions
-                         |  $lookupThresholdOption
-                         |  'connector' = 'values',
-                         |  'data-id' = '$dataId'
-                         |)
-                         |""".stripMargin)
+      if (!enableCustomShuffle) {
+        tEnv.executeSql(s"""
+                           |CREATE TABLE $tableName (
+                           |  `age` INT,
+                           |  `id` BIGINT,
+                           |  `name` STRING
+                           |) WITH (
+                           |  $cacheOptions
+                           |  $lookupThresholdOption
+                           |  'connector' = 'values',
+                           |  'data-id' = '$dataId'
+                           |)
+                           |""".stripMargin)
+      } else {
+        if (customShuffleEmptyPartitioner || !customShuffleWithUDF) {
+          tEnv.executeSql(s"""
+                             |CREATE TABLE $tableName (
+                             |  `age` INT,
+                             |  `id` BIGINT,
+                             |  `name` STRING
+                             |) WITH (
+                             |  $cacheOptions
+                             |  $lookupThresholdOption
+                             |  'connector' = 'values',
+                             |  'data-id' = '$dataId',
+                             |  'enable-custom-shuffle' = 'true',
+                             |  'custom-shuffle-empty-partitioner' = '$customShuffleEmptyPartitioner'
+                             |)
+                             |""".stripMargin)
+        } else {
+          tEnv.executeSql(
+            s"""
+               |CREATE TABLE $tableName (
+               |  `age` INT,
+               |  `id` BIGINT,
+               |  `name` STRING
+               |) WITH (
+               |  $cacheOptions
+               |  $lookupThresholdOption
+               |  'connector' = 'values',
+               |  'data-id' = '$dataId',
+               |  'enable-custom-shuffle' = 'true',
+               |  'lookup-function-class' = '${new SingleSubTaskBoundTableFunction().getClass.getName}',
+               |  'custom-shuffle-deterministic' = '$customShuffleDeterministic'
+               |)
+               |""".stripMargin)
+        }
+      }
     }
   }
 
@@ -197,6 +256,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
                        |  `proctime` AS PROCTIME()
                        |) WITH (
                        |  'connector' = 'values',
+                       |  'runtime-source' ='NewSource',
                        |  'data-id' = '$dataId'
                        |)
                        |""".stripMargin)
@@ -854,6 +914,84 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testJoinTemporalTableWithLookupHintEnableShuffle(): Unit = {
+    assumeThat(legacyTableSource).isFalse
+    val sql = s"SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ T.id, D.name FROM src " +
+      s"AS T JOIN user_table_custom_shuffle " +
+      s"for system_time as of T.proctime AS D ON T.id = D.id AND D.name = 'Hello' AND D.age = 33"
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+    val expected = Seq("1,Hello", "2,Hello", "3,Hello", "8,Hello", "9,Hello")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testJoinTemporalTableWithLookupHintEnableShuffleOnNormalSource(): Unit = {
+    assumeThat(legacyTableSource).isFalse
+    val sql = s"SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ T.id, D.name FROM src " +
+      s"AS T JOIN user_table " +
+      s"for system_time as of T.proctime AS D ON T.id = D.id"
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+    val expected = Seq("1,Julian", "2,Jark", "3,Fabian")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testJoinTemporalTableWithLookupHintEnableNonDeterministicShuffle(): Unit = {
+    assumeThat(legacyTableSource).isFalse
+    val sql = s"SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ T.id, D.name FROM src " +
+      s"AS T JOIN user_table_custom_shuffle_non_deterministic " +
+      s"for system_time as of T.proctime AS D ON T.id = D.id AND D.name = 'Hello' AND D.age = 33"
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+    val expected = Seq("1,Hello", "2,Hello", "3,Hello", "8,Hello", "9,Hello")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testJoinTemporalTableWithLookupHintEnableShuffleOnAllConstantLookupKeys(): Unit = {
+    assumeThat(legacyTableSource).isFalse
+    val sql = s"SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ T.id, D.name FROM src " +
+      s"AS T JOIN user_table_custom_shuffle " +
+      s"for system_time as of T.proctime AS D ON D.id = 1 AND D.name = 'Fabian' AND D.age = 33"
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+    val expected = Seq("1,Fabian", "2,Fabian", "3,Fabian", "8,Fabian", "9,Fabian")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testJoinTemporalTableWithLookupHintEnableShuffleEmptyPartitioner(): Unit = {
+    assumeThat(legacyTableSource).isFalse
+    val sql = s"SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ T.id, D.name FROM src " +
+      s"AS T JOIN user_table_custom_shuffle_empty_partitioner " +
+      s"for system_time as of T.proctime AS D ON T.id = D.id AND D.name = 'Fabian' AND D.age = 33"
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+    val expected = Seq("3,Fabian")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testJoinTemporalTableWithLookupHintEnableShuffleWithoutUDF(): Unit = {
+    assumeThat(legacyTableSource).isFalse
+    val sql = s"SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ T.id, D.name FROM src " +
+      s"AS T JOIN user_table_custom_shuffle_without_udf " +
+      s"for system_time as of T.proctime AS D ON T.id = D.id AND D.name = 'Fabian' AND D.age = 33"
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+    val expected = Seq("3,Fabian")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 }
