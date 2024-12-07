@@ -23,8 +23,11 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.asyncprocessing.AsyncStateKeyedProcessOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
@@ -56,6 +59,10 @@ import org.apache.flink.table.runtime.operators.rank.RankRange;
 import org.apache.flink.table.runtime.operators.rank.RankType;
 import org.apache.flink.table.runtime.operators.rank.RetractableTopNFunction;
 import org.apache.flink.table.runtime.operators.rank.UpdatableTopNFunction;
+import org.apache.flink.table.runtime.operators.rank.asyncprocessing.AbstractAsyncStateTopNFunction;
+import org.apache.flink.table.runtime.operators.rank.asyncprocessing.AsyncStateAppendOnlyFirstNFunction;
+import org.apache.flink.table.runtime.operators.rank.asyncprocessing.AsyncStateAppendOnlyTopNFunction;
+import org.apache.flink.table.runtime.operators.rank.asyncprocessing.AsyncStateFastTop1Function;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.runtime.util.StateConfigUtil;
@@ -233,60 +240,117 @@ public class StreamExecRank extends ExecNodeBase<RowData>
         long stateRetentionTime =
                 StateMetadata.getStateTtlForOneInputOperator(config, stateMetadataList);
         StateTtlConfig ttlConfig = StateConfigUtil.createTtlConfig(stateRetentionTime);
+        boolean enableAsyncState =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED);
 
         AbstractTopNFunction processFunction;
         if (rankStrategy instanceof RankProcessStrategy.AppendFastStrategy) {
             if (sortFields.length == 1
                     && TypeCheckUtils.isProcTime(inputType.getChildren().get(sortFields[0]))
                     && sortSpec.getFieldSpec(0).getIsAscendingOrder()) {
-                processFunction =
-                        new AppendOnlyFirstNFunction(
-                                ttlConfig,
-                                inputRowTypeInfo,
-                                sortKeyComparator,
-                                sortKeySelector,
-                                rankType,
-                                rankRange,
-                                generateUpdateBefore,
-                                outputRankNumber);
+                if (enableAsyncState) {
+                    processFunction =
+                            new AsyncStateAppendOnlyFirstNFunction(
+                                    ttlConfig,
+                                    inputRowTypeInfo,
+                                    sortKeyComparator,
+                                    sortKeySelector,
+                                    rankType,
+                                    rankRange,
+                                    generateUpdateBefore,
+                                    outputRankNumber);
+                } else {
+                    processFunction =
+                            new AppendOnlyFirstNFunction(
+                                    ttlConfig,
+                                    inputRowTypeInfo,
+                                    sortKeyComparator,
+                                    sortKeySelector,
+                                    rankType,
+                                    rankRange,
+                                    generateUpdateBefore,
+                                    outputRankNumber);
+                }
             } else if (RankUtil.isTop1(rankRange)) {
-                processFunction =
-                        new FastTop1Function(
-                                ttlConfig,
-                                inputRowTypeInfo,
-                                sortKeyComparator,
-                                sortKeySelector,
-                                rankType,
-                                rankRange,
-                                generateUpdateBefore,
-                                outputRankNumber,
-                                cacheSize);
+                if (enableAsyncState) {
+                    processFunction =
+                            new AsyncStateFastTop1Function(
+                                    ttlConfig,
+                                    inputRowTypeInfo,
+                                    sortKeyComparator,
+                                    sortKeySelector,
+                                    rankType,
+                                    rankRange,
+                                    generateUpdateBefore,
+                                    outputRankNumber,
+                                    cacheSize);
+                } else {
+                    processFunction =
+                            new FastTop1Function(
+                                    ttlConfig,
+                                    inputRowTypeInfo,
+                                    sortKeyComparator,
+                                    sortKeySelector,
+                                    rankType,
+                                    rankRange,
+                                    generateUpdateBefore,
+                                    outputRankNumber,
+                                    cacheSize);
+                }
             } else {
-                processFunction =
-                        new AppendOnlyTopNFunction(
-                                ttlConfig,
-                                inputRowTypeInfo,
-                                sortKeyComparator,
-                                sortKeySelector,
-                                rankType,
-                                rankRange,
-                                generateUpdateBefore,
-                                outputRankNumber,
-                                cacheSize);
+                if (enableAsyncState) {
+                    processFunction =
+                            new AsyncStateAppendOnlyTopNFunction(
+                                    ttlConfig,
+                                    inputRowTypeInfo,
+                                    sortKeyComparator,
+                                    sortKeySelector,
+                                    rankType,
+                                    rankRange,
+                                    generateUpdateBefore,
+                                    outputRankNumber,
+                                    cacheSize);
+                } else {
+                    processFunction =
+                            new AppendOnlyTopNFunction(
+                                    ttlConfig,
+                                    inputRowTypeInfo,
+                                    sortKeyComparator,
+                                    sortKeySelector,
+                                    rankType,
+                                    rankRange,
+                                    generateUpdateBefore,
+                                    outputRankNumber,
+                                    cacheSize);
+                }
             }
         } else if (rankStrategy instanceof RankProcessStrategy.UpdateFastStrategy) {
             if (RankUtil.isTop1(rankRange)) {
-                processFunction =
-                        new FastTop1Function(
-                                ttlConfig,
-                                inputRowTypeInfo,
-                                sortKeyComparator,
-                                sortKeySelector,
-                                rankType,
-                                rankRange,
-                                generateUpdateBefore,
-                                outputRankNumber,
-                                cacheSize);
+                if (enableAsyncState) {
+                    processFunction =
+                            new AsyncStateFastTop1Function(
+                                    ttlConfig,
+                                    inputRowTypeInfo,
+                                    sortKeyComparator,
+                                    sortKeySelector,
+                                    rankType,
+                                    rankRange,
+                                    generateUpdateBefore,
+                                    outputRankNumber,
+                                    cacheSize);
+                } else {
+                    processFunction =
+                            new FastTop1Function(
+                                    ttlConfig,
+                                    inputRowTypeInfo,
+                                    sortKeyComparator,
+                                    sortKeySelector,
+                                    rankType,
+                                    rankRange,
+                                    generateUpdateBefore,
+                                    outputRankNumber,
+                                    cacheSize);
+                }
             } else {
                 RankProcessStrategy.UpdateFastStrategy updateFastStrategy =
                         (RankProcessStrategy.UpdateFastStrategy) rankStrategy;
@@ -342,9 +406,14 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                     String.format("rank strategy:%s is not supported.", rankStrategy));
         }
 
-        KeyedProcessOperator<RowData, RowData, RowData> operator =
-                new KeyedProcessOperator<>(processFunction);
-        processFunction.setKeyContext(operator);
+        StreamOperator<RowData> operator;
+        if (processFunction instanceof AbstractAsyncStateTopNFunction) {
+            operator = new AsyncStateKeyedProcessOperator<>(processFunction);
+            processFunction.setKeyContext(operator);
+        } else {
+            operator = new KeyedProcessOperator<>(processFunction);
+            processFunction.setKeyContext(operator);
+        }
 
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
