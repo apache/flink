@@ -21,14 +21,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.state.CheckpointStorage
-import org.apache.flink.runtime.state.StateBackend
+import org.apache.flink.runtime.state.{CheckpointStorage, StateBackend}
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend
-import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage
-import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage
+import org.apache.flink.runtime.state.storage.{FileSystemCheckpointStorage, JobManagerCheckpointStorage}
 import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator
+import org.apache.flink.streaming.api.operators.{OneInputStreamOperator, SimpleOperatorFactory}
+import org.apache.flink.streaming.api.operators.asyncprocessing.AsyncStateKeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, PartitionTransformation}
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, OneInputStreamOperatorTestHarness}
@@ -126,6 +125,14 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
 
   def dropWatermarks(elements: Array[AnyRef]): util.Collection[AnyRef] = {
     elements.filter(e => !e.isInstanceOf[Watermark]).toList
+  }
+
+  protected def isAsyncStateOperator(
+      testHarness: KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData]): Boolean = {
+    testHarness.getOperatorFactory
+      .asInstanceOf[SimpleOperatorFactory[_]]
+      .getOperator
+      .isInstanceOf[AsyncStateKeyedProcessOperator[_, _, _]]
   }
 }
 
