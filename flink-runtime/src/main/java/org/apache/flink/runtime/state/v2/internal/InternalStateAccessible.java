@@ -18,17 +18,34 @@
 
 package org.apache.flink.runtime.state.v2.internal;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.state.v2.ListState;
-import org.apache.flink.api.common.state.v2.StateIterator;
+import org.apache.flink.api.common.state.v2.StateFuture;
 
-/**
- * This class defines the internal interface for list state.
- *
- * @param <K> The type of key the state is associated to.
- * @param <N> The namespace type.
- * @param <V> The type of the intermediate state.
- */
-@Internal
-public interface InternalListState<K, N, V>
-        extends InternalMergingState<K, N, V, V, StateIterator<V>, Iterable<V>>, ListState<V> {}
+public interface InternalStateAccessible<SV> {
+    /**
+     * Get internally stored value.
+     *
+     * @return internally stored value.
+     */
+    StateFuture<SV> asyncGetInternal();
+
+    /**
+     * Update internally stored value.
+     *
+     * @param valueToStore new value to store.
+     */
+    StateFuture<Void> asyncUpdateInternal(SV valueToStore);
+
+    /**
+     * Get internally stored value.
+     *
+     * @return internally stored value.
+     */
+    SV getInternal();
+
+    /**
+     * Update internally stored value.
+     *
+     * @param valueToStore new value to store.
+     */
+    void updateInternal(SV valueToStore);
+}

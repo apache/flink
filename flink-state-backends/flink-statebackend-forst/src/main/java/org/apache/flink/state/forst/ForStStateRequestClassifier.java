@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.forst;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestContainer;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
@@ -120,9 +121,40 @@ public class ForStStateRequestClassifier implements StateRequestContainer {
                                         + " doesn't yet support the clear method.");
                     }
                 }
+            case CUSTOMIZED:
+                {
+                    handleCustomizedStateRequests(stateRequest);
+                    return;
+                }
             default:
                 throw new UnsupportedOperationException(
                         "Unsupported state request type:" + stateRequestType);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void handleCustomizedStateRequests(StateRequest<?, ?, ?, ?> stateRequest) {
+        Tuple2<ForStStateRequestType, ?> payload =
+                (Tuple2<ForStStateRequestType, ?>) stateRequest.getPayload();
+        ForStStateRequestType requestType = payload.f0;
+        switch (requestType) {
+            case LIST_GET_RAW:
+                {
+                    ForStListState<?, ?, ?> forStListState =
+                            (ForStListState<?, ?, ?>) stateRequest.getState();
+                    dbGetRequests.add(forStListState.buildDBGetRequest(stateRequest));
+                    return;
+                }
+            case MERGE_ALL_RAW:
+                {
+                    ForStListState<?, ?, ?> forStListState =
+                            (ForStListState<?, ?, ?>) stateRequest.getState();
+                    dbPutRequests.add(forStListState.buildDBPutRequest(stateRequest));
+                    return;
+                }
+            default:
+                throw new UnsupportedOperationException(
+                        "Unsupported customized state request type:" + requestType);
         }
     }
 
