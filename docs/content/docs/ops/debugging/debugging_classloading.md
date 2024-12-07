@@ -150,12 +150,12 @@ The latter means that the library must not be added to Flink's `/lib` folder, bu
 ## Unloading of Dynamically Loaded Classes in User Code
 
 All scenarios that involve dynamic user code classloading (sessions) rely on classes being *unloaded* again.
-Class unloading means that the Garbage Collector finds that no objects from a class exist and more, and thus removes the class
+Class unloading means that the Garbage Collector finds that no objects from a class exist any more, and thus removes the class
 (the code, static variable, metadata, etc).
 
 Whenever a TaskManager starts (or restarts) a task, it will load that specific task's code. Unless classes can be unloaded, this will
 become a memory leak, as new versions of classes are loaded and the total number of loaded classes accumulates over time. This
-typically manifests itself though a **OutOfMemoryError: Metaspace**.
+typically manifests itself through a **OutOfMemoryError: Metaspace**.
 
 Common causes for class leaks and suggested fixes:
 
