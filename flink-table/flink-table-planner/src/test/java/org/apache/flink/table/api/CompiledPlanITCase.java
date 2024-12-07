@@ -22,10 +22,12 @@ import org.apache.flink.FlinkVersion;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.table.planner.utils.JsonTestUtils;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
+import org.apache.flink.types.Row;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,13 +39,16 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -419,6 +424,79 @@ class CompiledPlanITCase extends JsonPlanTestBase {
 
         tableEnv.compilePlanSql("INSERT INTO sink SELECT * FROM src").execute().await();
         assertResult(DATA, sinkPath);
+    }
+
+    @Test
+    void testCompileThenExecutePlanSqlWithDynamicOptionHints() throws Exception {
+        List<Row> srcOldData = new ArrayList<>();
+        srcOldData.add(changelogRow("+I", 1, "hi"));
+        srcOldData.add(changelogRow("-D", 1, "hi"));
+        String srcOldDataId = TestValuesTableFactory.registerData(srcOldData);
+
+        List<Row> srcNewData = new ArrayList<>();
+        srcNewData.add(changelogRow("+I", 2, "hello"));
+        srcNewData.add(changelogRow("-D", 2, "hello"));
+        String srcNewDataId = TestValuesTableFactory.registerData(srcNewData);
+
+        tableEnv.executeSql(
+                String.format(
+                        "CREATE TABLE CdcSource( "
+                                + "   a int primary key not enforced, "
+                                + "   b string, "
+                                + "   pt as proctime() "
+                                + ") WITH ( "
+                                + "   'connector' = 'values', "
+                                + "   'data-id' = '%s' "
+                                + ")",
+                        srcOldDataId));
+
+        List<Row> dimOldData = new ArrayList<>();
+        dimOldData.add(changelogRow("+I", 1, "hi2Dim"));
+        String dimOldDataId = TestValuesTableFactory.registerData(dimOldData);
+
+        List<Row> dimNewData = new ArrayList<>();
+        dimNewData.add(changelogRow("+I", 2, "hello2Dim"));
+        String dimNewDataId = TestValuesTableFactory.registerData(dimNewData);
+
+        tableEnv.executeSql(
+                String.format(
+                        "CREATE TABLE Dim( "
+                                + "   a int primary key not enforced, "
+                                + "   c string "
+                                + ") WITH ( "
+                                + "   'connector' = 'values', "
+                                + "   'data-id' = '%s' "
+                                + ")",
+                        dimOldDataId));
+
+        tableEnv.executeSql(
+                "CREATE TABLE Snk( "
+                        + "   a int primary key not enforced, "
+                        + "   b string,"
+                        + "   c string"
+                        + ") WITH ( "
+                        + "   'connector' = 'values', "
+                        + "   'sink-insert-only' = 'true' "
+                        + ")");
+
+        String sql =
+                String.format(
+                        "INSERT INTO Snk /*+ OPTIONS('sink-insert-only'='false') */ "
+                                + "SELECT CdcSource.a, CdcSource.b, Dim.c FROM CdcSource /*+ OPTIONS('data-id' = '%s') */ "
+                                + "JOIN Dim /*+ OPTIONS('data-id' = '%s') */ FOR SYSTEM_TIME AS OF CdcSource.pt "
+                                + "ON CdcSource.a = Dim.a",
+                        srcNewDataId, dimNewDataId);
+
+        CompiledPlan compiledPlan = tableEnv.compilePlanSql(sql);
+        tableEnv.loadPlan(PlanReference.fromJsonString(compiledPlan.asJsonString()))
+                .execute()
+                .await();
+
+        List<String> expected = Arrays.asList("+I[2, hello, hello2Dim]", "-D[2, hello, hello2Dim]");
+        List<String> actual = TestValuesTableFactory.getRawResultsAsStrings("Snk");
+        Collections.sort(expected);
+        Collections.sort(actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     private File createSourceSinkTables() throws IOException {

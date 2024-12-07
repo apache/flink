@@ -29,6 +29,8 @@ import org.apache.calcite.plan.{RelOptRule, RelOptTable}
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rex.RexProgram
 
+import java.util
+
 /**
  * Rules that convert [[FlinkLogicalJoin]] on a [[FlinkLogicalSnapshot]] into
  * [[StreamPhysicalLookupJoin]]
@@ -49,8 +51,9 @@ object StreamPhysicalLookupJoinRule {
         join: FlinkLogicalJoin,
         input: FlinkLogicalRel,
         temporalTable: RelOptTable,
-        calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin = {
-      doTransform(join, input, temporalTable, calcProgram)
+        calcProgram: Option[RexProgram],
+        dynamicOptionsOnTemporalTable: util.Map[String, String]): CommonPhysicalLookupJoin = {
+      doTransform(join, input, temporalTable, calcProgram, dynamicOptionsOnTemporalTable)
     }
   }
 
@@ -61,8 +64,9 @@ object StreamPhysicalLookupJoinRule {
         join: FlinkLogicalJoin,
         input: FlinkLogicalRel,
         temporalTable: RelOptTable,
-        calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin = {
-      doTransform(join, input, temporalTable, calcProgram)
+        calcProgram: Option[RexProgram],
+        dynamicOptionsOnTemporalTable: util.Map[String, String]): CommonPhysicalLookupJoin = {
+      doTransform(join, input, temporalTable, calcProgram, dynamicOptionsOnTemporalTable)
     }
   }
 
@@ -70,7 +74,8 @@ object StreamPhysicalLookupJoinRule {
       join: FlinkLogicalJoin,
       input: FlinkLogicalRel,
       temporalTable: RelOptTable,
-      calcProgram: Option[RexProgram]): StreamPhysicalLookupJoin = {
+      calcProgram: Option[RexProgram],
+      dynamicOptionsOnTemporalTable: util.Map[String, String]): StreamPhysicalLookupJoin = {
 
     val joinInfo = join.analyzeCondition
 
@@ -101,6 +106,7 @@ object StreamPhysicalLookupJoinRule {
       joinInfo,
       join.getJoinType,
       lookupHint,
-      false)
+      false,
+      dynamicOptionsOnTemporalTable)
   }
 }

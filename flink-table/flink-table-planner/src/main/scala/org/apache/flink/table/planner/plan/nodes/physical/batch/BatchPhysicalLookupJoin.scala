@@ -42,7 +42,8 @@ class BatchPhysicalLookupJoin(
     temporalTable: RelOptTable,
     tableCalcProgram: Option[RexProgram],
     joinInfo: JoinInfo,
-    joinType: JoinRelType)
+    joinType: JoinRelType,
+    dynamicOptionsOnTemporalTable: util.Map[String, String])
   extends CommonPhysicalLookupJoin(
     cluster,
     traitSet,
@@ -61,7 +62,8 @@ class BatchPhysicalLookupJoin(
       temporalTable,
       tableCalcProgram,
       joinInfo,
-      joinType)
+      joinType,
+      dynamicOptionsOnTemporalTable)
   }
 
   override def translateToExecNode(): ExecNode[_] = {
@@ -78,7 +80,7 @@ class BatchPhysicalLookupJoin(
       JoinTypeUtil.getFlinkJoinType(joinType),
       finalPreFilterCondition.orNull,
       finalRemainingCondition.orNull,
-      new TemporalTableSourceSpec(temporalTable),
+      new TemporalTableSourceSpec(temporalTable, dynamicOptionsOnTemporalTable),
       allLookupKeys.map(item => (Int.box(item._1), item._2)).asJava,
       projectionOnTemporalTable,
       filterOnTemporalTable,

@@ -104,7 +104,7 @@ public class TemporalTableSourceSpecSerdeTest {
                         FACTORY,
                         new SourceAbilitySpec[] {new LimitPushDownSpec(100)});
         TemporalTableSourceSpec temporalTableSourceSpec1 =
-                new TemporalTableSourceSpec(tableSourceTable1);
+                new TemporalTableSourceSpec(tableSourceTable1, null);
         return Stream.of(temporalTableSourceSpec1);
     }
 

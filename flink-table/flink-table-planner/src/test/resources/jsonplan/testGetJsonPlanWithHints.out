@@ -27,6 +27,10 @@
             "scan.parallelism" : "2"
           }
         }
+      },
+      "dynamicOptions" : {
+        "bounded" : "true",
+        "scan.parallelism" : "2"
       }
     },
     "outputType" : "ROW<`a` BIGINT, `b` INT, `c` VARCHAR(2147483647)>",

@@ -24,11 +24,43 @@ import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonGetter;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
+
+import javax.annotation.Nullable;
+
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 /** Base class for {@link DynamicTableSinkSpec} and {@link DynamicTableSourceSpec}. */
 class DynamicTableSpecBase {
+
+    public static final String FIELD_NAME_CATALOG_TABLE = "table";
+    public static final String FIELD_NAME_DYNAMIC_OPTIONS = "dynamicOptions";
+
+    protected final ContextResolvedTable contextResolvedTable;
+    protected final @Nullable Map<String, String> dynamicOptions;
+
+    public DynamicTableSpecBase(
+            ContextResolvedTable contextResolvedTable,
+            @Nullable Map<String, String> dynamicOptions) {
+        this.dynamicOptions = dynamicOptions;
+        this.contextResolvedTable =
+                computeContextResolvedTableWithDynamicOptions(contextResolvedTable, dynamicOptions);
+    }
+
+    @JsonGetter(FIELD_NAME_CATALOG_TABLE)
+    public ContextResolvedTable getContextResolvedTable() {
+        return contextResolvedTable;
+    }
+
+    @JsonGetter(FIELD_NAME_DYNAMIC_OPTIONS)
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    @Nullable
+    public Map<String, String> getDynamicOptions() {
+        return dynamicOptions;
+    }
 
     Map<String, String> loadOptionsFromCatalogTable(
             ContextResolvedTable contextResolvedTable, FlinkContext context) {
@@ -49,5 +81,16 @@ class DynamicTableSpecBase {
                 .map(ContextResolvedTable::<ResolvedCatalogTable>getResolvedTable)
                 .map(CatalogBaseTable::getOptions)
                 .orElse(Collections.emptyMap());
+    }
+
+    private static ContextResolvedTable computeContextResolvedTableWithDynamicOptions(
+            ContextResolvedTable oldResolvedTable, @Nullable Map<String, String> dynamicOptions) {
+        if (dynamicOptions == null || dynamicOptions.isEmpty()) {
+            return oldResolvedTable;
+        }
+        Map<String, String> newOptions =
+                new HashMap<>(oldResolvedTable.getResolvedTable().getOptions());
+        newOptions.putAll(dynamicOptions);
+        return oldResolvedTable.copy(newOptions);
     }
 }

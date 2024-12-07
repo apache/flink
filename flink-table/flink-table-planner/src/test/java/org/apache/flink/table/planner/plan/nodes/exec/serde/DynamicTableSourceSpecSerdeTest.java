@@ -121,6 +121,7 @@ public class DynamicTableSourceSpecSerdeTest {
                                         TableConfigOptions.TABLE_DATABASE_NAME.defaultValue(),
                                         "MyTable"),
                                 new ResolvedCatalogTable(catalogTable1, resolvedSchema1)),
+                        null,
                         null);
 
         Map<String, String> options2 = new HashMap<>();
@@ -163,6 +164,7 @@ public class DynamicTableSourceSpecSerdeTest {
                                         TableConfigOptions.TABLE_DATABASE_NAME.defaultValue(),
                                         "MyTable"),
                                 new ResolvedCatalogTable(catalogTable2, resolvedSchema2)),
+                        Collections.singletonMap("source.sleep-time", "1s"),
                         Arrays.asList(
                                 new ProjectPushDownSpec(
                                         new int[][] {{0}, {1}, {4}, {6}},
@@ -268,6 +270,7 @@ public class DynamicTableSourceSpecSerdeTest {
                                 spec.getContextResolvedTable().getIdentifier(),
                                 catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get(),
                                 spec.getContextResolvedTable().getResolvedTable()),
+                        spec.getDynamicOptions(),
                         spec.getSourceAbilities());
 
         String actualJson = toJson(serdeCtx, spec);
@@ -275,6 +278,7 @@ public class DynamicTableSourceSpecSerdeTest {
                 toObject(serdeCtx, actualJson, DynamicTableSourceSpec.class);
 
         assertThat(actual.getContextResolvedTable()).isEqualTo(spec.getContextResolvedTable());
+        assertThat(actual.getDynamicOptions()).isEqualTo(spec.getDynamicOptions());
         assertThat(actual.getSourceAbilities()).isEqualTo(spec.getSourceAbilities());
 
         assertThat(
@@ -333,6 +337,7 @@ public class DynamicTableSourceSpecSerdeTest {
                                 identifier,
                                 catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get(),
                                 planResolvedCatalogTable),
+                        null,
                         Collections.emptyList());
 
         String actualJson = toJson(serdeCtx, planSpec);
