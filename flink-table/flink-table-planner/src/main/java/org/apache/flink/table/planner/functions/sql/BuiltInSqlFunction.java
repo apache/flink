@@ -169,13 +169,17 @@ public class BuiltInSqlFunction extends SqlFunction implements BuiltInSqlOperato
         private Function<SqlOperatorBinding, SqlMonotonicity> monotonicity =
                 call -> SqlMonotonicity.NOT_MONOTONIC;
 
-        /** @see BuiltInFunctionDefinition.Builder#name(String) */
+        /**
+         * @see BuiltInFunctionDefinition.Builder#name(String)
+         */
         public Builder name(String name) {
             this.name = name;
             return this;
         }
 
-        /** @see BuiltInFunctionDefinition.Builder#version(int) */
+        /**
+         * @see BuiltInFunctionDefinition.Builder#version(int)
+         */
         public Builder version(int version) {
             this.version = version;
             return this;
@@ -211,7 +215,9 @@ public class BuiltInSqlFunction extends SqlFunction implements BuiltInSqlOperato
             return this;
         }
 
-        /** @see BuiltInFunctionDefinition.Builder#internal() */
+        /**
+         * @see BuiltInFunctionDefinition.Builder#internal()
+         */
         public Builder internal() {
             this.isInternal = true;
             return this;

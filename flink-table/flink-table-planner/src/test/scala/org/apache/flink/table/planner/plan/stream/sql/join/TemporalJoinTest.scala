@@ -20,15 +20,16 @@ package org.apache.flink.table.planner.plan.stream.sql.join
 import org.apache.flink.table.api.{ExplainDetail, TableException, ValidationException}
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
-import org.junit.{Before, Test}
-import org.junit.Assert.{assertTrue, fail}
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Test temporal join in stream mode. */
 class TemporalJoinTest extends TableTestBase {
 
   val util: StreamTableTestUtil = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util.addTable("""
                     |CREATE TABLE Orders (
@@ -507,6 +508,27 @@ class TemporalJoinTest extends TableTestBase {
         " table, but the rowtime types are TIMESTAMP_LTZ(3) *ROWTIME* and TIMESTAMP(3) *ROWTIME*.",
       classOf[ValidationException]
     )
+
+    val sqlQuery9 = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "RatesHistoryWithPK FOR SYSTEM_TIME AS OF 'o.rowtime' AS r " +
+      "ON o.currency = r.currency"
+    expectExceptionThrown(
+      sqlQuery9,
+      "The system time period specification expects Timestamp type but is 'CHAR'",
+      classOf[ValidationException]
+    )
+
+    val sqlQuery10 = "SELECT * " +
+      "FROM Orders AS o JOIN " +
+      "RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.rowtime + INTERVAL '1' SECOND AS r " +
+      "ON o.currency = r.currency"
+    expectExceptionThrown(
+      sqlQuery10,
+      "Temporal table join currently only supports 'FOR SYSTEM_TIME AS OF' left table's time" +
+        " attribute field'",
+      classOf[ValidationException]
+    )
   }
 
   @Test
@@ -618,20 +640,14 @@ class TemporalJoinTest extends TableTestBase {
       sql: String,
       keywords: String,
       clazz: Class[_ <: Throwable] = classOf[ValidationException]): Unit = {
-    try {
-      verifyTranslationSuccess(sql)
-      fail(s"Expected a $clazz, but no exception is thrown.")
-    } catch {
-      case e if e.getClass == clazz =>
-        if (keywords != null) {
-          assertTrue(
-            s"The actual exception message \n${e.getMessage}\n" +
-              s"doesn't contain expected keyword \n$keywords\n",
-            e.getMessage.contains(keywords))
-        }
-      case e: Throwable =>
-        e.printStackTrace()
-        fail(s"Expected throw ${clazz.getSimpleName}, but is $e.")
+    val callable: ThrowingCallable = () => verifyTranslationSuccess(sql)
+    if (keywords != null) {
+      assertThatExceptionOfType(clazz)
+        .isThrownBy(callable)
+        .withMessageContaining(keywords)
+    } else {
+      assertThatExceptionOfType(clazz)
+        .isThrownBy(callable)
     }
   }
 

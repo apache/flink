@@ -53,7 +53,7 @@ class JsonValueCallGen extends CallGenerator {
             errorBehavior._2
           )
 
-          val rawResultTerm = CodeGenUtils.newName("rawResult")
+          val rawResultTerm = CodeGenUtils.newName(ctx, "rawResult")
           val call = s"""
                         |Object $rawResultTerm =
                         |    ${qualifyMethod(BuiltInMethods.JSON_VALUE)}(${terms.mkString(", ")});
@@ -64,7 +64,7 @@ class JsonValueCallGen extends CallGenerator {
               s"$BINARY_STRING.fromString(java.lang.String.valueOf($rawResultTerm))"
             case LogicalTypeRoot.BOOLEAN => s"(java.lang.Boolean) $rawResultTerm"
             case LogicalTypeRoot.INTEGER => s"(java.lang.Integer) $rawResultTerm"
-            case LogicalTypeRoot.DOUBLE => s"(java.lang.Double) $rawResultTerm"
+            case LogicalTypeRoot.DOUBLE => s"((java.math.BigDecimal) $rawResultTerm).doubleValue()"
             case _ =>
               throw new CodeGenException(
                 s"Unsupported type '$returnType' "

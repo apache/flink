@@ -19,28 +19,25 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.endsWith;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link YarnCancelJobTerminationHeaders}. */
-public class YarnCancelJobTerminationHeadersTest extends TestLogger {
+public class YarnCancelJobTerminationHeadersTest {
 
     // instance under test
     private static final YarnCancelJobTerminationHeaders instance =
             YarnCancelJobTerminationHeaders.getInstance();
 
     @Test
-    public void testMethod() {
-        assertThat(instance.getHttpMethod(), is(HttpMethodWrapper.GET));
+    void testMethod() {
+        assertThat(instance.getHttpMethod()).isEqualTo(HttpMethodWrapper.GET);
     }
 
     @Test
-    public void testURL() {
-        assertThat(instance.getTargetRestEndpointURL(), endsWith("yarn-cancel"));
+    void testURL() {
+        assertThat(instance.getTargetRestEndpointURL()).endsWith("yarn-cancel");
     }
 }

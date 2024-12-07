@@ -18,11 +18,13 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.{AtomicType => AtomicTypeInfo}
 import org.apache.flink.table.data._
 import org.apache.flink.table.data.binary.{BinaryRowData, BinaryStringData}
 import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.data.writer.BinaryRowWriter
+import org.apache.flink.table.legacy.types.logical.TypeInformationRawType
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.calls.CurrentTimePointCallGen
@@ -86,7 +88,7 @@ object GenerateUtils {
          |try {
          |  $stmt
          |  $resultTerm = $result;
-         |} catch (Throwable ${newName("ignored")}) {
+         |} catch (Throwable ${newName(ctx, "ignored")}) {
          |  $nullTerm = true;
          |  $resultTerm = $defaultValue;
          |}
@@ -168,7 +170,7 @@ object GenerateUtils {
       s"""
          |try {
          |  $resultTerm = ${call(parameters)};
-         |} catch (Throwable ${newName("ignored")}) {
+         |} catch (Throwable ${newName(ctx, "ignored")}) {
          |  $nullTerm = true;
          |  $resultTerm = $defaultValue;
          |}
@@ -316,7 +318,7 @@ object GenerateUtils {
         generateNonNullLiteral(literalType, fieldTerm, bytesVal)
 
       case DECIMAL =>
-        val fieldTerm = newName("decimal")
+        val fieldTerm = newName(ctx, "decimal")
         ctx.addReusableMember(
           s"""
              |${className[DecimalData]} $fieldTerm = ${primitiveLiteralForType(literalValue)};
@@ -638,7 +640,7 @@ object GenerateUtils {
     // TODO support MULTISET and MAP?
     case ARRAY =>
       val at = t.asInstanceOf[ArrayType]
-      val compareFunc = newName("compareArray")
+      val compareFunc = newName(ctx, "compareArray")
       val compareCode = generateArrayCompare(ctx, SortUtil.getNullDefaultOrder(true), at, "a", "b")
       val funcCode: String =
         s"""
@@ -657,7 +659,7 @@ object GenerateUtils {
         SortUtil.getAscendingSortSpec((0 until fieldCount).toArray),
         "a",
         "b")
-      val compareFunc = newName("compareRow")
+      val compareFunc = newName(ctx, "compareRow")
       val funcCode: String =
         s"""
           public int $compareFunc($ROW_DATA a, $ROW_DATA b) {
@@ -689,7 +691,7 @@ object GenerateUtils {
             s".compareTo($rightTerm.toObject($serializerTerm))"
 
         case rawType: TypeInformationRawType[_] =>
-          val serializer = rawType.getTypeInformation.createSerializer(new ExecutionConfig)
+          val serializer = rawType.getTypeInformation.createSerializer(new SerializerConfigImpl)
           val ser = ctx.addReusableObject(serializer, "serializer")
           val comp = ctx.addReusableObject(
             rawType.getTypeInformation
@@ -711,15 +713,15 @@ object GenerateUtils {
       rightTerm: String): String = {
     val nullIsLastRet = if (nullsIsLast) 1 else -1
     val elementType = arrayType.getElementType
-    val fieldA = newName("fieldA")
-    val isNullA = newName("isNullA")
-    val lengthA = newName("lengthA")
-    val fieldB = newName("fieldB")
-    val isNullB = newName("isNullB")
-    val lengthB = newName("lengthB")
-    val minLength = newName("minLength")
-    val i = newName("i")
-    val comp = newName("comp")
+    val fieldA = newName(ctx, "fieldA")
+    val isNullA = newName(ctx, "isNullA")
+    val lengthA = newName(ctx, "lengthA")
+    val fieldB = newName(ctx, "fieldB")
+    val isNullB = newName(ctx, "isNullB")
+    val lengthB = newName(ctx, "lengthB")
+    val minLength = newName(ctx, "minLength")
+    val i = newName(ctx, "i")
+    val comp = newName(ctx, "comp")
     val typeTerm = primitiveTypeTermForType(elementType)
     s"""
         int $lengthA = a.size();
@@ -770,11 +772,11 @@ object GenerateUtils {
         val t = fieldTypes.get(index)
 
         val typeTerm = primitiveTypeTermForType(t)
-        val fieldA = newName("fieldA")
-        val isNullA = newName("isNullA")
-        val fieldB = newName("fieldB")
-        val isNullB = newName("isNullB")
-        val comp = newName("comp")
+        val fieldA = newName(ctx, "fieldA")
+        val isNullA = newName(ctx, "isNullA")
+        val fieldB = newName(ctx, "fieldB")
+        val isNullB = newName(ctx, "isNullB")
+        val comp = newName(ctx, "comp")
 
         val code =
           s"""

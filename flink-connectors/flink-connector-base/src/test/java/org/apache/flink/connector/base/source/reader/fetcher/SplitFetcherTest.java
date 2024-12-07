@@ -29,8 +29,9 @@ import org.apache.flink.connector.base.source.reader.synchronization.FutureCompl
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -40,20 +41,22 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static java.lang.Thread.State.WAITING;
+import static org.apache.flink.test.util.TestUtils.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for {@link SplitFetcher}. */
-public class SplitFetcherTest {
+class SplitFetcherTest {
 
     @Test
-    public void testNewFetcherIsIdle() {
+    void testNewFetcherIsIdle() {
         final SplitFetcher<Object, TestingSourceSplit> fetcher =
                 createFetcher(new TestingSplitReader<>());
         assertThat(fetcher.isIdle()).isTrue();
     }
 
     @Test
-    public void testFetcherNotIdleAfterSplitAdded() {
+    void testFetcherNotIdleAfterSplitAdded() {
         final SplitFetcher<Object, TestingSourceSplit> fetcher =
                 createFetcher(new TestingSplitReader<>());
         final TestingSourceSplit split = new TestingSourceSplit("test-split");
@@ -70,7 +73,7 @@ public class SplitFetcherTest {
     }
 
     @Test
-    public void testIdleAfterFinishedSplitsEnqueued() {
+    void testIdleAfterFinishedSplitsEnqueued() {
         final SplitFetcher<Object, TestingSourceSplit> fetcher =
                 createFetcherWithSplit(
                         "test-split", new TestingSplitReader<>(finishedSplitFetch("test-split")));
@@ -82,7 +85,7 @@ public class SplitFetcherTest {
     }
 
     @Test
-    public void testNotifiesWhenGoingIdle() {
+    void testNotifiesWhenGoingIdle() {
         final FutureCompletingBlockingQueue<RecordsWithSplitIds<Object>> queue =
                 new FutureCompletingBlockingQueue<>();
         final SplitFetcher<Object, TestingSourceSplit> fetcher =
@@ -99,7 +102,7 @@ public class SplitFetcherTest {
     }
 
     @Test
-    public void testNotifiesOlderFutureWhenGoingIdle() {
+    void testNotifiesOlderFutureWhenGoingIdle() {
         final FutureCompletingBlockingQueue<RecordsWithSplitIds<Object>> queue =
                 new FutureCompletingBlockingQueue<>();
         final SplitFetcher<Object, TestingSourceSplit> fetcher =
@@ -118,7 +121,7 @@ public class SplitFetcherTest {
     }
 
     @Test
-    public void testNotifiesWhenGoingIdleConcurrent() throws Exception {
+    void testNotifiesWhenGoingIdleConcurrent() throws Exception {
         final FutureCompletingBlockingQueue<RecordsWithSplitIds<Object>> queue =
                 new FutureCompletingBlockingQueue<>();
         final SplitFetcher<Object, TestingSourceSplit> fetcher =
@@ -143,7 +146,7 @@ public class SplitFetcherTest {
     }
 
     @Test
-    public void testNotifiesOlderFutureWhenGoingIdleConcurrent() throws Exception {
+    void testNotifiesOlderFutureWhenGoingIdleConcurrent() throws Exception {
         final FutureCompletingBlockingQueue<RecordsWithSplitIds<Object>> queue =
                 new FutureCompletingBlockingQueue<>();
         final SplitFetcher<Object, TestingSourceSplit> fetcher =
@@ -164,7 +167,7 @@ public class SplitFetcherTest {
     }
 
     @Test
-    public void testWakeup() throws InterruptedException {
+    void testWakeup() throws InterruptedException {
         final int numSplits = 3;
         final int numRecordsPerSplit = 10_000;
         final int wakeupRecordsInterval = 10;
@@ -248,7 +251,7 @@ public class SplitFetcherTest {
     }
 
     @Test
-    public void testClose() {
+    void testClose() {
         TestingSplitReader<Object, TestingSourceSplit> splitReader = new TestingSplitReader<>();
         final SplitFetcher<Object, TestingSourceSplit> fetcher = createFetcher(splitReader);
         fetcher.shutdown();
@@ -257,7 +260,7 @@ public class SplitFetcherTest {
     }
 
     @Test
-    public void testCloseAfterPause() throws InterruptedException {
+    void testCloseAfterPause() throws InterruptedException {
         final FutureCompletingBlockingQueue<RecordsWithSplitIds<Object>> queue =
                 new FutureCompletingBlockingQueue<>();
         final SplitFetcher<Object, TestingSourceSplit> fetcher =
@@ -273,6 +276,39 @@ public class SplitFetcherTest {
         fetcherThread.join();
 
         assertThat(fetcher.runOnce()).isFalse();
+    }
+
+    @Test
+    void testShutdownWaitingForRecordsProcessing() throws Exception {
+        TestingSplitReader<Object, TestingSourceSplit> splitReader = new TestingSplitReader<>();
+        FutureCompletingBlockingQueue<RecordsWithSplitIds<Object>> queue =
+                new FutureCompletingBlockingQueue<>();
+        final SplitFetcher<Object, TestingSourceSplit> fetcher = createFetcher(splitReader, queue);
+        fetcher.shutdown(true);
+
+        // Spawn a new fetcher thread to go through the shutdown sequence.
+        CheckedThread fetcherThread =
+                new CheckedThread() {
+                    @Override
+                    public void go() throws Exception {
+                        fetcher.run();
+                        assertThat(splitReader.isClosed()).isTrue();
+                    }
+                };
+        fetcherThread.start();
+
+        // Wait until the fetcher thread to block on the shutdown latch.
+        waitUntil(
+                () -> fetcherThread.getState() == WAITING,
+                Duration.ofSeconds(1),
+                "The fetcher thread should be waiting for the shutdown latch");
+        assertThat(splitReader.isClosed())
+                .as("The split reader should have not been closed.")
+                .isFalse();
+
+        queue.getAvailabilityFuture().thenRun(() -> queue.poll().recycle());
+        // Now pull the latch.
+        fetcherThread.sync();
     }
 
     // ------------------------------------------------------------------------

@@ -485,9 +485,7 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
         private boolean supportsRowKind = true;
 
-        public RowSerializerSnapshot() {
-            super(RowSerializer.class);
-        }
+        public RowSerializerSnapshot() {}
 
         RowSerializerSnapshot(RowSerializer serializerInstance) {
             super(serializerInstance);
@@ -519,8 +517,13 @@ public final class RowSerializer extends TypeSerializer<Row> {
 
         @Override
         protected OuterSchemaCompatibility resolveOuterSchemaCompatibility(
-                RowSerializer newSerializer) {
-            if (supportsRowKind != newSerializer.supportsRowKind) {
+                TypeSerializerSnapshot<Row> oldSerializerSnapshot) {
+            if (!(oldSerializerSnapshot instanceof RowSerializerSnapshot)) {
+                return OuterSchemaCompatibility.INCOMPATIBLE;
+            }
+            RowSerializerSnapshot oldRowSerializerSnapshot =
+                    (RowSerializerSnapshot) oldSerializerSnapshot;
+            if (supportsRowKind != oldRowSerializerSnapshot.supportsRowKind) {
                 return OuterSchemaCompatibility.COMPATIBLE_AFTER_MIGRATION;
             }
             return OuterSchemaCompatibility.COMPATIBLE_AS_IS;

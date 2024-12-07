@@ -29,20 +29,43 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * A hint that influences the reflection-based extraction of input types and output types for
- * constructing the {@link TypeInference} logic of a {@link Procedure}.
+ * A hint that influences the reflection-based extraction of arguments and output for constructing
+ * the {@link TypeInference} logic of a {@link Procedure}.
  *
  * <p>One or more annotations can be declared on top of a {@link Procedure} class or individually
  * for each {@code call()} method for overloading function signatures. All hint parameters are
  * optional. If a parameter is not defined, the default reflection-based extraction is used. Hint
  * parameters defined on top of a {@link Procedure} class are inherited by all {@code call()}
- * methods. The {@link DataTypeHint} for the output data type of a {@link Procedure} should always
- * hint the component type of the array returned by {@link Procedure}.
+ * methods. The {@link DataTypeHint} for the output data type should always hint the component type
+ * of the array returned by {@link Procedure}.
  *
  * <p>The following examples show how to explicitly specify procedure signatures as a whole or in
  * part and let the default extraction do the rest:
  *
  * <pre>{@code
+ * // accepts (INT, STRING) and returns BOOLEAN,
+ * // the arguments have names and are optional
+ * @ProcedureHint(
+ *   arguments = {
+ *     @ArgumentHint(type = @DataTypeHint("INT"), name = "in1", isOptional = true),
+ *     @ArgumentHint(type = @DataTypeHint("STRING"), name = "in2", isOptional = true)
+ *   },
+ *   output = @DataTypeHint("BOOLEAN")
+ * )
+ * class X implements Procedure { ... }
+ *
+ * // accepts (INT, STRING...) and returns BOOLEAN,
+ * // the arguments have names
+ * @ProcedureHint(
+ *   arguments = {
+ *     @ArgumentHint(type = @DataTypeHint("INT"), name = "in1"),
+ *     @ArgumentHint(type = @DataTypeHint("STRING"), name = "in2")
+ *   },
+ *   isVarArgs = true,
+ *   output = @DataTypeHint("BOOLEAN")
+ * )
+ * class X implements Procedure { ... }
+ *
  * // accepts (INT, STRING) and returns an array of BOOLEAN
  * @ProcedureHint(
  *   input = [@DataTypeHint("INT"), @DataTypeHint("STRING")],
@@ -97,16 +120,17 @@ import java.lang.annotation.Target;
  * }</pre>
  *
  * @see DataTypeHint
+ * @see ArgumentHint
  */
 @PublicEvolving
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Repeatable(ProcedureHints.class)
 public @interface ProcedureHint {
+
     // Note to implementers:
     // Because "null" is not supported as an annotation value. Every annotation parameter *must*
-    // have
-    // some representation for unknown values in order to merge multi-level annotations.
+    // have some representation for unknown values in order to merge multi-level annotations.
 
     /**
      * Explicitly lists the argument types that a procedure takes as input.
@@ -115,8 +139,10 @@ public @interface ProcedureHint {
      * used.
      *
      * <p>Note: Specifying the input arguments manually disables the entire reflection-based
-     * extraction around arguments. This means that also {@link #isVarArgs()} and {@link
-     * #argumentNames()} need to be specified manually if required.
+     * extraction around arguments. This means that also {@link #isVarArgs()} needs to be specified
+     * manually if required.
+     *
+     * <p>Use {@link #arguments()} for more control about argument names and argument kinds.
      */
     DataTypeHint[] input() default @DataTypeHint();
 
@@ -131,13 +157,14 @@ public @interface ProcedureHint {
     boolean isVarArgs() default false;
 
     /**
-     * Explicitly lists the argument names that a procedure takes as input.
+     * Explicitly lists the arguments that a procedure takes as input. Including their names, data
+     * types, kinds, and whether they are optional.
      *
-     * <p>By default, if {@link #input()} is defined, explicit argument names are undefined and this
-     * parameter can be used to provide argument names. If {@link #input()} is not defined, the
-     * reflection-based extraction is used, thus, this parameter is ignored.
+     * <p>It is recommended to use this parameter instead of {@link #input()}. Using both {@link
+     * #input()} and this parameter is not allowed. Specifying the list of arguments manually
+     * disables the entire reflection-based extraction around arguments.
      */
-    String[] argumentNames() default {""};
+    ArgumentHint[] arguments() default {};
 
     /**
      * Explicitly defines the result type that a procedure uses as output.
@@ -146,4 +173,32 @@ public @interface ProcedureHint {
      * used.
      */
     DataTypeHint output() default @DataTypeHint();
+
+    // --------------------------------------------------------------------------------------------
+    // Legacy
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Explicitly lists the argument names that a procedure takes as input.
+     *
+     * <p>By default, if {@link #input()} is defined, explicit argument names are undefined and this
+     * parameter can be used to provide argument names. If {@link #input()} is not defined, the
+     * reflection-based extraction is used, thus, this parameter is ignored.
+     *
+     * @deprecated Use {@link #arguments()} instead.
+     */
+    @Deprecated
+    String[] argumentNames() default {""};
+
+    /**
+     * Explicitly lists the arguments that a procedure takes as input. Including their names, data
+     * types, kinds, and whether they are optional.
+     *
+     * <p>It is recommended to use this parameter instead of {@link #input()}. Specifying the list
+     * of arguments manually disables the entire reflection-based extraction around arguments.
+     *
+     * @deprecated Use {@link #arguments()} instead.
+     */
+    @Deprecated
+    ArgumentHint[] argument() default {};
 }

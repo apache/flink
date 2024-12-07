@@ -64,8 +64,8 @@ public interface Printer extends Closeable {
     }
 
     static StatementResultPrinter createStatementCommandPrinter(
-            StatementResult result, ReadableConfig sessionConfig) {
-        return new StatementResultPrinter(result, sessionConfig);
+            StatementResult result, ReadableConfig sessionConfig, long startTime) {
+        return new StatementResultPrinter(result, sessionConfig, startTime);
     }
 
     static InitializationCommandPrinter createInitializationCommandPrinter() {
@@ -167,9 +167,13 @@ public interface Printer extends Closeable {
         private final StatementResult result;
         private final ReadableConfig sessionConfig;
 
-        public StatementResultPrinter(StatementResult result, ReadableConfig sessionConfig) {
+        private final long queryBeginTime;
+
+        public StatementResultPrinter(
+                StatementResult result, ReadableConfig sessionConfig, long queryBeginTime) {
             this.result = result;
             this.sessionConfig = sessionConfig;
+            this.queryBeginTime = queryBeginTime;
         }
 
         @Override
@@ -192,7 +196,7 @@ public interface Printer extends Closeable {
             final ResultDescriptor resultDesc = new ResultDescriptor(result, sessionConfig);
             if (resultDesc.isTableauMode()) {
                 try (CliTableauResultView tableauResultView =
-                        new CliTableauResultView(terminal, resultDesc)) {
+                        new CliTableauResultView(terminal, resultDesc, queryBeginTime)) {
                     tableauResultView.displayResults();
                 }
             } else {

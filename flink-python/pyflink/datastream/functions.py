@@ -645,8 +645,7 @@ class ProcessFunction(Function):
             """
             Timestamp of the element currently being processed or timestamp of a firing timer.
 
-            This might be None, for example if the time characteristic of your program is set to
-            TimeCharacteristic.ProcessTime.
+            This might be None, depending on the stream's watermark strategy.
             """
             pass
 
@@ -655,8 +654,8 @@ class ProcessFunction(Function):
         """
         Process one element from the input stream.
 
-        This function can output zero or more elements using the Collector parameter and also update
-        internal state or set timers using the Context parameter.
+        This function can output zero or more elements using the :code:`yield` statement. It can
+        read and update the internal state as well as set timers using the Context parameter.
 
         :param value: The input value.
         :param ctx:  A Context that allows querying the timestamp of the element and getting a
@@ -697,8 +696,7 @@ class KeyedProcessFunction(Function):
             """
             Timestamp of the element currently being processed or timestamp of a firing timer.
 
-            This might be None, for example if the time characteristic of your program is set to
-            TimeCharacteristic.ProcessTime.
+            This might be None, depending on the stream's watermark strategy.
             """
             pass
 
@@ -772,8 +770,7 @@ class CoProcessFunction(Function):
             """
             Timestamp of the element currently being processed or timestamp of a firing timer.
 
-            This might be None, for example if the time characteristic of your program is set to
-            TimeCharacteristic.ProcessTime.
+            This might be None, depending on the stream's watermark strategy.
             """
             pass
 
@@ -782,8 +779,8 @@ class CoProcessFunction(Function):
         """
         This method is called for each element in the first of the connected streams.
 
-        This function can output zero or more elements using the Collector parameter and also update
-        internal state or set timers using the Context parameter.
+        This function can output zero or more elements using the :code:`yield` statement. It can
+        read and update the internal state as well as set timers using the Context parameter.
 
         :param value: The input value.
         :param ctx:  A Context that allows querying the timestamp of the element and getting a
@@ -797,8 +794,8 @@ class CoProcessFunction(Function):
         """
         This method is called for each element in the second of the connected streams.
 
-        This function can output zero or more elements using the Collector parameter and also update
-        internal state or set timers using the Context parameter.
+        This function can output zero or more elements using the :code:`yield` statement. It can
+        read and update the internal state as well as set timers using the Context parameter.
 
         :param value: The input value.
         :param ctx:  A Context that allows querying the timestamp of the element and getting a
@@ -843,8 +840,7 @@ register a timer that will trigger an action in the future.
             """
             Timestamp of the element currently being processed or timestamp of a firing timer.
 
-            This might be None, for example if the time characteristic of your program is set to
-            TimeCharacteristic.ProcessTime.
+            This might be None, depending on the stream's watermark strategy.
             """
             pass
 
@@ -863,8 +859,8 @@ register a timer that will trigger an action in the future.
         """
         Process one element from the input stream.
 
-        This function can output zero or more elements using the Collector parameter and also update
-        internal state or set timers using the Context parameter.
+        This function can output zero or more elements using the :code:`yield` statement. It can
+        read and update the internal state as well as set timers using the Context parameter.
 
         :param value: The input value.
         :param ctx:  A Context that allows querying the timestamp of the element and getting a
@@ -878,8 +874,8 @@ register a timer that will trigger an action in the future.
         """
         Process one element from the input stream.
 
-        This function can output zero or more elements using the Collector parameter and also update
-        internal state or set timers using the Context parameter.
+        This function can output zero or more elements using the :code:`yield` statement. It can
+        read and update the internal state as well as set timers using the Context parameter.
 
         :param value: The input value.
         :param ctx:  A Context that allows querying the timestamp of the element and getting a
@@ -1347,8 +1343,7 @@ class BaseBroadcastProcessFunction(Function):
         def timestamp(self) -> int:
             """
             Timestamp of the element currently being processed or timestamp of a firing timer.
-            This might be None, for example if the time characteristic of your program is
-            set to :attr:`TimeCharacteristic.ProcessingTime`.
+            This might be None, depending on the stream's watermark strategy.
             """
             pass
 

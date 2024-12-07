@@ -57,9 +57,9 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint
 
     static {
         config = new Configuration();
-        config.setString(RestOptions.ADDRESS, "localhost");
+        config.set(RestOptions.ADDRESS, "localhost");
         // necessary for loading the web-submission extension
-        config.setString(JobManagerOptions.ADDRESS, "localhost");
+        config.set(JobManagerOptions.ADDRESS, "localhost");
         handlerConfig = RestHandlerConfiguration.fromConfiguration(config);
 
         dispatcherGatewayRetriever = () -> null;

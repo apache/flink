@@ -41,6 +41,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
@@ -131,7 +132,7 @@ class JvmExitOnFatalErrorTest {
         }
 
         @Override
-        public String[] getJvmArgs() {
+        public String[] getMainMethodArgs() {
             return new String[] {temporaryFolder.getAbsolutePath()};
         }
 
@@ -153,7 +154,7 @@ class JvmExitOnFatalErrorTest {
             // have a test that exits accidentally due to a programming error
             try {
                 final Configuration taskManagerConfig = new Configuration();
-                taskManagerConfig.setBoolean(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY, true);
+                taskManagerConfig.set(TaskManagerOptions.KILL_ON_OUT_OF_MEMORY, true);
 
                 final JobID jid = new JobID();
                 final AllocationID allocationID = new AllocationID();
@@ -167,6 +168,7 @@ class JvmExitOnFatalErrorTest {
                 final JobInformation jobInformation =
                         new JobInformation(
                                 jid,
+                                JobType.STREAMING,
                                 "Test Job",
                                 execConfig,
                                 new Configuration(),

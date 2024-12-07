@@ -640,29 +640,6 @@ SortAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_COUN
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testGroupAggregate[aggStrategy=AUTO]">
-    <Resource name="sql">
-      <![CDATA[SELECT a, SUM(b), COUNT(c) FROM MyTable1 GROUP BY a]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1, Final_COUNT(count$1) AS EXPR$2])
-+- Exchange(distribution=[forward])
-   +- Sort(orderBy=[a ASC])
-      +- Exchange(distribution=[hash[a]])
-         +- LocalSortAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0, Partial_COUNT(c) AS count$1])
-            +- Exchange(distribution=[forward])
-               +- Sort(orderBy=[a ASC])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testCountStart[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(*) FROM MyTable]]>
@@ -740,9 +717,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()]), rowType=[RecordType(BIGINT EXPR$
       <![CDATA[
 SortAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0]), rowType=[RecordType(BIGINT EXPR$0)]
 +- Exchange(distribution=[single]), rowType=[RecordType(BIGINT count1$0)]
-   +- LocalSortAggregate(select=[Partial_COUNT(*) AS count1$0]), rowType=[RecordType(BIGINT count1$0)]
-      +- Calc(select=[0 AS $f0]), rowType=[RecordType(INTEGER $f0)]
-         +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id], metadata=[]]], fields=[id]), rowType=[RecordType(VARCHAR(2147483647) id)]
+   +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id], metadata=[], aggregates=[grouping=[], aggFunctions=[Count1AggFunction()]]]], fields=[count1$0]), rowType=[RecordType(BIGINT count1$0)]
 ]]>
     </Resource>
   </TestCase>
@@ -781,9 +756,30 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()]), rowType=[RecordType(BIGINT EXPR$
       <![CDATA[
 SortAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0]), rowType=[RecordType(BIGINT EXPR$0)]
 +- Exchange(distribution=[single]), rowType=[RecordType(BIGINT count1$0)]
-   +- LocalSortAggregate(select=[Partial_COUNT(*) AS count1$0]), rowType=[RecordType(BIGINT count1$0)]
-      +- Calc(select=[0 AS $f0]), rowType=[RecordType(INTEGER $f0)]
-         +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id], metadata=[]]], fields=[id]), rowType=[RecordType(VARCHAR(2147483647) id)]
+   +- TableSourceScan(table=[[default_catalog, default_database, src, project=[id], metadata=[], aggregates=[grouping=[], aggFunctions=[Count1AggFunction()]]]], fields=[count1$0]), rowType=[RecordType(BIGINT count1$0)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupAggregate[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[SELECT a, SUM(b), COUNT(c) FROM MyTable1 GROUP BY a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1, Final_COUNT(count$1) AS EXPR$2])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[a ASC])
+      +- Exchange(distribution=[hash[a]])
+         +- LocalSortAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0, Partial_COUNT(c) AS count$1])
+            +- Exchange(distribution=[forward])
+               +- Sort(orderBy=[a ASC])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1318,38 +1314,29 @@ SortAggregate(isMerge=[true], select=[Final_MIN(min$0) AS EXPR$0]), rowType=[Rec
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSum[aggStrategy=AUTO]">
+  <TestCase name="testPojoAccumulator[aggStrategy=AUTO]">
     <Resource name="sql">
-      <![CDATA[
-SELECT SUM(`byte`),
-       SUM(`short`),
-       SUM(`int`),
-       SUM(`long`),
-       SUM(`float`),
-       SUM(`double`),
-       SUM(`decimal3020`),
-       SUM(`decimal105`)
-FROM MyTable
-      ]]>
+      <![CDATA[SELECT b, var_sum(a) FROM MyTable1 GROUP BY b]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[SUM($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)], EXPR$4=[SUM($4)], EXPR$5=[SUM($5)], EXPR$6=[SUM($6)], EXPR$7=[SUM($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 5) EXPR$7)]
-+- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+LogicalAggregate(group=[{0}], EXPR$1=[var_sum($1)])
++- LogicalProject(b=[$1], a=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="optimized rel plan">
+    <Resource name="optimized exec plan">
       <![CDATA[
-SortAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_SUM(sum$2) AS EXPR$2, Final_SUM(sum$3) AS EXPR$3, Final_SUM(sum$4) AS EXPR$4, Final_SUM(sum$5) AS EXPR$5, Final_SUM(sum$6) AS EXPR$6, Final_SUM(sum$7) AS EXPR$7]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 5) EXPR$7)]
-+- Exchange(distribution=[single]), rowType=[RecordType(TINYINT sum$0, SMALLINT sum$1, INTEGER sum$2, BIGINT sum$3, FLOAT sum$4, DOUBLE sum$5, DECIMAL(38, 20) sum$6, DECIMAL(38, 5) sum$7)]
-   +- LocalSortAggregate(select=[Partial_SUM(byte) AS sum$0, Partial_SUM(short) AS sum$1, Partial_SUM(int) AS sum$2, Partial_SUM(long) AS sum$3, Partial_SUM(float) AS sum$4, Partial_SUM(double) AS sum$5, Partial_SUM(decimal3020) AS sum$6, Partial_SUM(decimal105) AS sum$7]), rowType=[RecordType(TINYINT sum$0, SMALLINT sum$1, INTEGER sum$2, BIGINT sum$3, FLOAT sum$4, DOUBLE sum$5, DECIMAL(38, 20) sum$6, DECIMAL(38, 5) sum$7)]
-      +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+SortAggregate(isMerge=[false], groupBy=[b], select=[b, var_sum(a) AS EXPR$1])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[b ASC])
+      +- Exchange(distribution=[hash[b]])
+         +- Calc(select=[b, a])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testPojoAccumulator[aggStrategy=AUTO]">
+  <TestCase name="testPojoAccumulator[aggStrategy=ONE_PHASE]">
     <Resource name="sql">
       <![CDATA[SELECT b, var_sum(a) FROM MyTable1 GROUP BY b]]>
     </Resource>
@@ -1393,6 +1380,37 @@ SortAggregate(isMerge=[false], groupBy=[b], select=[b, var_sum(a) AS EXPR$1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSum[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT SUM(`byte`),
+       SUM(`short`),
+       SUM(`int`),
+       SUM(`long`),
+       SUM(`float`),
+       SUM(`double`),
+       SUM(`decimal3020`),
+       SUM(`decimal105`)
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[SUM($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)], EXPR$4=[SUM($4)], EXPR$5=[SUM($5)], EXPR$6=[SUM($6)], EXPR$7=[SUM($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 5) EXPR$7)]
++- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+SortAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS EXPR$0, Final_SUM(sum$1) AS EXPR$1, Final_SUM(sum$2) AS EXPR$2, Final_SUM(sum$3) AS EXPR$3, Final_SUM(sum$4) AS EXPR$4, Final_SUM(sum$5) AS EXPR$5, Final_SUM(sum$6) AS EXPR$6, Final_SUM(sum$7) AS EXPR$7]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 5) EXPR$7)]
++- Exchange(distribution=[single]), rowType=[RecordType(TINYINT sum$0, SMALLINT sum$1, INTEGER sum$2, BIGINT sum$3, FLOAT sum$4, DOUBLE sum$5, DECIMAL(38, 20) sum$6, DECIMAL(38, 5) sum$7)]
+   +- LocalSortAggregate(select=[Partial_SUM(byte) AS sum$0, Partial_SUM(short) AS sum$1, Partial_SUM(int) AS sum$2, Partial_SUM(long) AS sum$3, Partial_SUM(float) AS sum$4, Partial_SUM(double) AS sum$5, Partial_SUM(decimal3020) AS sum$6, Partial_SUM(decimal105) AS sum$7]), rowType=[RecordType(TINYINT sum$0, SMALLINT sum$1, INTEGER sum$2, BIGINT sum$3, FLOAT sum$4, DOUBLE sum$5, DECIMAL(38, 20) sum$6, DECIMAL(38, 5) sum$7)]
+      +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testSum[aggStrategy=ONE_PHASE]">
     <Resource name="sql">
       <![CDATA[
@@ -1420,28 +1438,6 @@ SortAggregate(isMerge=[false], select=[SUM(byte) AS EXPR$0, SUM(short) AS EXPR$1
 +- Exchange(distribution=[single]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
    +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testPojoAccumulator[aggStrategy=ONE_PHASE]">
-    <Resource name="sql">
-      <![CDATA[SELECT b, var_sum(a) FROM MyTable1 GROUP BY b]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{0}], EXPR$1=[var_sum($1)])
-+- LogicalProject(b=[$1], a=[$0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-SortAggregate(isMerge=[false], groupBy=[b], select=[b, var_sum(a) AS EXPR$1])
-+- Exchange(distribution=[forward])
-   +- Sort(orderBy=[b ASC])
-      +- Exchange(distribution=[hash[b]])
-         +- Calc(select=[b, a])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

@@ -30,7 +30,6 @@ import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Common tests for the behavior of {@link FileSystem} methods. */
@@ -76,13 +75,6 @@ public abstract class FileSystemBehaviorTestSuite {
     // ------------------------------------------------------------------------
     //  Suite of Tests
     // ------------------------------------------------------------------------
-
-    // --- file system kind
-
-    @Test
-    void testFileSystemKind() {
-        assertThat(fs.getKind()).isEqualTo(getFileSystemKind());
-    }
 
     // --- access and scheme
 
@@ -240,12 +232,7 @@ public abstract class FileSystemBehaviorTestSuite {
         final Path file = new Path(getBasePath(), randomName());
         createFile(file);
 
-        try {
-            fs.mkdirs(file);
-            fail("should fail with an IOException");
-        } catch (IOException e) {
-            // good!
-        }
+        assertThatThrownBy(() -> fs.mkdirs(file)).isInstanceOf(IOException.class);
     }
 
     @Test
@@ -258,12 +245,8 @@ public abstract class FileSystemBehaviorTestSuite {
         createFile(file);
 
         final Path dirUnderFile = new Path(file, randomName());
-        try {
-            fs.mkdirs(dirUnderFile);
-            fail("should fail with an IOException");
-        } catch (IOException e) {
-            // good!
-        }
+
+        assertThatThrownBy(() -> fs.mkdirs(dirUnderFile)).isInstanceOf(IOException.class);
     }
 
     // ------------------------------------------------------------------------

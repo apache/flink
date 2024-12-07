@@ -15,15 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import warnings
 
 from typing import Dict, List
 
-from pyflink.common.execution_mode import ExecutionMode
-from pyflink.common.input_dependency_constraint import InputDependencyConstraint
-from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
 from pyflink.java_gateway import get_gateway
-from pyflink.util.java_utils import load_java_class
 
 __all__ = ['ExecutionConfig']
 
@@ -39,9 +34,6 @@ class ExecutionConfig(object):
     - The number of retries in the case of failed executions.
 
     - The delay between execution retries.
-
-    - The :class:`ExecutionMode` of the program: Batch or Pipelined.
-      The default execution mode is :data:`ExecutionMode.PIPELINED`
 
     - Enabling or disabling the "closure cleaner". The closure cleaner pre-processes
       the implementations of functions. In case they are (anonymous) inner classes,
@@ -250,122 +242,6 @@ class ExecutionConfig(object):
         self._j_execution_config = self._j_execution_config.setTaskCancellationTimeout(timeout)
         return self
 
-    def set_restart_strategy(
-            self,
-            restart_strategy_configuration: RestartStrategyConfiguration) -> 'ExecutionConfig':
-        """
-        Sets the restart strategy to be used for recovery.
-        ::
-
-            >>> config = env.get_config()
-            >>> config.set_restart_strategy(RestartStrategies.fixed_delay_restart(10, 1000))
-
-        The restart strategy configurations are all created from :class:`RestartStrategies`.
-
-        :param restart_strategy_configuration: Configuration defining the restart strategy to use.
-        """
-        self._j_execution_config.setRestartStrategy(
-            restart_strategy_configuration._j_restart_strategy_configuration)
-        return self
-
-    def get_restart_strategy(self) -> RestartStrategyConfiguration:
-        """
-        Returns the restart strategy which has been set for the current job.
-
-        .. seealso:: :func:`set_restart_strategy`
-
-        :return: The specified restart configuration.
-        """
-        return RestartStrategies._from_j_restart_strategy(
-            self._j_execution_config.getRestartStrategy())
-
-    def set_execution_mode(self, execution_mode: ExecutionMode) -> 'ExecutionConfig':
-        """
-        Sets the execution mode to execute the program. The execution mode defines whether
-        data exchanges are performed in a batch or on a pipelined manner.
-
-        The default execution mode is :data:`ExecutionMode.PIPELINED`.
-
-        Example:
-        ::
-
-            >>> config.set_execution_mode(ExecutionMode.BATCH)
-
-        :param execution_mode: The execution mode to use. The execution mode could be
-                               :data:`ExecutionMode.PIPELINED`,
-                               :data:`ExecutionMode.PIPELINED_FORCED`,
-                               :data:`ExecutionMode.BATCH` or
-                               :data:`ExecutionMode.BATCH_FORCED`.
-        """
-        self._j_execution_config.setExecutionMode(execution_mode._to_j_execution_mode())
-        return self
-
-    def get_execution_mode(self) -> 'ExecutionMode':
-        """
-        Gets the execution mode used to execute the program. The execution mode defines whether
-        data exchanges are performed in a batch or on a pipelined manner.
-
-        The default execution mode is :data:`ExecutionMode.PIPELINED`.
-
-        .. seealso:: :func:`set_execution_mode`
-
-        :return: The execution mode for the program.
-        """
-        j_execution_mode = self._j_execution_config.getExecutionMode()
-        return ExecutionMode._from_j_execution_mode(j_execution_mode)
-
-    def set_default_input_dependency_constraint(
-            self, input_dependency_constraint: InputDependencyConstraint) -> 'ExecutionConfig':
-        """
-        Sets the default input dependency constraint for vertex scheduling. It indicates when a
-        task should be scheduled considering its inputs status.
-
-        The default constraint is :data:`InputDependencyConstraint.ANY`.
-
-        Example:
-        ::
-
-            >>> config.set_default_input_dependency_constraint(InputDependencyConstraint.ALL)
-
-        :param input_dependency_constraint: The input dependency constraint. The constraints could
-                                            be :data:`InputDependencyConstraint.ANY` or
-                                            :data:`InputDependencyConstraint.ALL`.
-
-        .. note:: Deprecated in 1.13. :class:`InputDependencyConstraint` is not used anymore in the
-                  current scheduler implementations.
-        """
-        warnings.warn("Deprecated in 1.13. InputDependencyConstraint is not used anywhere. "
-                      "Therefore, the method call set_default_input_dependency_constraint is "
-                      "obsolete.", DeprecationWarning)
-
-        self._j_execution_config.setDefaultInputDependencyConstraint(
-            input_dependency_constraint._to_j_input_dependency_constraint())
-        return self
-
-    def get_default_input_dependency_constraint(self) -> 'InputDependencyConstraint':
-        """
-        Gets the default input dependency constraint for vertex scheduling. It indicates when a
-        task should be scheduled considering its inputs status.
-
-        The default constraint is :data:`InputDependencyConstraint.ANY`.
-
-        .. seealso:: :func:`set_default_input_dependency_constraint`
-
-        :return: The input dependency constraint of this job. The possible constraints are
-                 :data:`InputDependencyConstraint.ANY` and :data:`InputDependencyConstraint.ALL`.
-
-        .. note:: Deprecated in 1.13. :class:`InputDependencyConstraint` is not used anymore in the
-                  current scheduler implementations.
-        """
-        warnings.warn("Deprecated in 1.13. InputDependencyConstraint is not used anywhere. "
-                      "Therefore, the method call get_default_input_dependency_constraint is "
-                      "obsolete.", DeprecationWarning)
-
-        j_input_dependency_constraint = self._j_execution_config\
-            .getDefaultInputDependencyConstraint()
-        return InputDependencyConstraint._from_j_input_dependency_constraint(
-            j_input_dependency_constraint)
-
     def enable_force_kryo(self) -> 'ExecutionConfig':
         """
         Force TypeExtractor to use Kryo serializer for POJOS even though we could analyze as POJO.
@@ -562,99 +438,6 @@ class ExecutionConfig(object):
         self._j_execution_config.setGlobalJobParameters(j_global_job_parameters)
         return self
 
-    def add_default_kryo_serializer(self,
-                                    type_class_name: str,
-                                    serializer_class_name: str) -> 'ExecutionConfig':
-        """
-        Adds a new Kryo default serializer to the Runtime.
-
-        Example:
-        ::
-
-            >>> config.add_default_kryo_serializer("com.aaa.bbb.PojoClass",
-            ...                                    "com.aaa.bbb.Serializer")
-
-        :param type_class_name: The full-qualified java class name of the types serialized with the
-                                given serializer.
-        :param serializer_class_name: The full-qualified java class name of the serializer to use.
-        """
-        type_clz = load_java_class(type_class_name)
-        j_serializer_clz = load_java_class(serializer_class_name)
-        self._j_execution_config.addDefaultKryoSerializer(type_clz, j_serializer_clz)
-        return self
-
-    def register_type_with_kryo_serializer(self,
-                                           type_class_name: str,
-                                           serializer_class_name: str) -> 'ExecutionConfig':
-        """
-        Registers the given Serializer via its class as a serializer for the given type at the
-        KryoSerializer.
-
-        Example:
-        ::
-
-            >>> config.register_type_with_kryo_serializer("com.aaa.bbb.PojoClass",
-            ...                                           "com.aaa.bbb.Serializer")
-
-        :param type_class_name: The full-qualified java class name of the types serialized with
-                                the given serializer.
-        :param serializer_class_name: The full-qualified java class name of the serializer to use.
-        """
-        type_clz = load_java_class(type_class_name)
-        j_serializer_clz = load_java_class(serializer_class_name)
-        self._j_execution_config.registerTypeWithKryoSerializer(type_clz, j_serializer_clz)
-        return self
-
-    def register_pojo_type(self, type_class_name: str) -> 'ExecutionConfig':
-        """
-        Registers the given type with the serialization stack. If the type is eventually
-        serialized as a POJO, then the type is registered with the POJO serializer. If the
-        type ends up being serialized with Kryo, then it will be registered at Kryo to make
-        sure that only tags are written.
-
-        Example:
-        ::
-
-            >>> config.register_pojo_type("com.aaa.bbb.PojoClass")
-
-        :param type_class_name: The full-qualified java class name of the type to register.
-        """
-        type_clz = load_java_class(type_class_name)
-        self._j_execution_config.registerPojoType(type_clz)
-        return self
-
-    def register_kryo_type(self, type_class_name: str) -> 'ExecutionConfig':
-        """
-        Registers the given type with the serialization stack. If the type is eventually
-        serialized as a POJO, then the type is registered with the POJO serializer. If the
-        type ends up being serialized with Kryo, then it will be registered at Kryo to make
-        sure that only tags are written.
-
-        Example:
-        ::
-
-            >>> config.register_kryo_type("com.aaa.bbb.KryoClass")
-
-        :param type_class_name: The full-qualified java class name of the type to register.
-        """
-        type_clz = load_java_class(type_class_name)
-        self._j_execution_config.registerKryoType(type_clz)
-        return self
-
-    def get_registered_types_with_kryo_serializer_classes(self) -> Dict[str, str]:
-        """
-        Returns the registered types with their Kryo Serializer classes.
-
-        :return: The dict which the keys are full-qualified java class names of the registered
-                 types and the values are full-qualified java class names of the Kryo Serializer
-                 classes.
-        """
-        j_clz_map = self._j_execution_config.getRegisteredTypesWithKryoSerializerClasses()
-        registered_serializers = {}
-        for key in j_clz_map:
-            registered_serializers[key.getName()] = j_clz_map[key].getName()
-        return registered_serializers
-
     def get_default_kryo_serializer_classes(self) -> Dict[str, str]:
         """
         Returns the registered default Kryo Serializer classes.
@@ -686,23 +469,6 @@ class ExecutionConfig(object):
         """
         j_clz_set = self._j_execution_config.getRegisteredPojoTypes()
         return [value.getName() for value in j_clz_set]
-
-    def is_auto_type_registration_disabled(self) -> bool:
-        """
-        Returns whether Flink is automatically registering all types in the user programs with
-        Kryo.
-
-        :return: ``True`` means auto type registration is disabled and ``False`` means enabled.
-        """
-        return self._j_execution_config.isAutoTypeRegistrationDisabled()
-
-    def disable_auto_type_registration(self) -> 'ExecutionConfig':
-        """
-        Control whether Flink is automatically registering all types in the user programs with
-        Kryo.
-        """
-        self._j_execution_config.disableAutoTypeRegistration()
-        return self
 
     def is_use_snapshot_compression(self) -> bool:
         """

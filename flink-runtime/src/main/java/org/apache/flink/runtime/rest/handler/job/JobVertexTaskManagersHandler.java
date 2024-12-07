@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
@@ -54,6 +53,7 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -76,7 +76,7 @@ public class JobVertexTaskManagersHandler
 
     public JobVertexTaskManagersHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             MessageHeaders<EmptyRequestBody, JobVertexTaskManagersInfo, JobVertexMessageParameters>
                     messageHeaders,
@@ -132,8 +132,7 @@ public class JobVertexTaskManagersHandler
             JobID jobID,
             @Nullable MetricFetcher metricFetcher) {
         // Build a map that groups task executions by TaskManager
-        Map<String, String> taskManagerId2Host = new HashMap<>();
-        Map<String, List<AccessExecution>> taskManagerExecutions = new HashMap<>();
+        Map<TaskManagerLocation, List<AccessExecution>> taskManagerExecutions = new HashMap<>();
         Set<AccessExecution> representativeExecutions = new HashSet<>();
         for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
             AccessExecution representativeAttempt = vertex.getCurrentExecutionAttempt();
@@ -141,16 +140,9 @@ public class JobVertexTaskManagersHandler
 
             for (AccessExecution execution : vertex.getCurrentExecutions()) {
                 TaskManagerLocation location = execution.getAssignedResourceLocation();
-                String taskManagerHost =
-                        location == null
-                                ? "(unassigned)"
-                                : location.getHostname() + ':' + location.dataPort();
-                String taskmanagerId =
-                        location == null ? "(unassigned)" : location.getResourceID().toString();
-                taskManagerId2Host.put(taskmanagerId, taskManagerHost);
                 List<AccessExecution> executions =
                         taskManagerExecutions.computeIfAbsent(
-                                taskmanagerId, ignored -> new ArrayList<>());
+                                location, ignored -> new ArrayList<>());
                 executions.add(execution);
             }
         }
@@ -158,9 +150,17 @@ public class JobVertexTaskManagersHandler
         final long now = System.currentTimeMillis();
 
         List<JobVertexTaskManagersInfo.TaskManagersInfo> taskManagersInfoList = new ArrayList<>(4);
-        for (Map.Entry<String, List<AccessExecution>> entry : taskManagerExecutions.entrySet()) {
-            String taskmanagerId = entry.getKey();
-            String host = taskManagerId2Host.get(taskmanagerId);
+        for (Map.Entry<TaskManagerLocation, List<AccessExecution>> entry :
+                taskManagerExecutions.entrySet()) {
+            TaskManagerLocation location = entry.getKey();
+            // Port information is included in the host field for backward-compatibility
+            String host =
+                    location == null
+                            ? "(unassigned)"
+                            : location.getHostname() + ':' + location.dataPort();
+            String endpoint = location == null ? "(unassigned)" : location.getEndpoint();
+            String taskmanagerId =
+                    location == null ? "(unassigned)" : location.getResourceID().toString();
             List<AccessExecution> executions = entry.getValue();
 
             List<IOMetricsInfo> ioMetricsInfos = new ArrayList<>();
@@ -265,7 +265,7 @@ public class JobVertexTaskManagersHandler
             }
             taskManagersInfoList.add(
                     new JobVertexTaskManagersInfo.TaskManagersInfo(
-                            host,
+                            endpoint,
                             jobVertexState,
                             startTime,
                             endTime,

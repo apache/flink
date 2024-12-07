@@ -37,7 +37,7 @@ import org.apache.flink.table.runtime.operators.rank.RankType;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableList;
 
 import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.Contexts;
@@ -253,7 +253,8 @@ public final class FlinkRelBuilder extends RelBuilder {
     public RelBuilder watermark(int rowtimeFieldIndex, RexNode watermarkExpr) {
         final RelNode input = build();
         final RelNode relNode =
-                LogicalWatermarkAssigner.create(cluster, input, rowtimeFieldIndex, watermarkExpr);
+                LogicalWatermarkAssigner.create(
+                        cluster, input, Collections.emptyList(), rowtimeFieldIndex, watermarkExpr);
         return push(relNode);
     }
 

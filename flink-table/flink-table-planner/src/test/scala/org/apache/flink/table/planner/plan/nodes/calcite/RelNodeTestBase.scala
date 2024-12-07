@@ -28,7 +28,7 @@ import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.calcite.rex.RexBuilder
-import org.junit.Before
+import org.junit.jupiter.api.BeforeEach
 
 import java.util
 
@@ -44,7 +44,7 @@ class RelNodeTestBase {
   var cluster: RelOptCluster = _
   var logicalTraits: RelTraitSet = _
 
-  @Before
+  @BeforeEach
   def setUp(): Unit = {
     relBuilder = plannerContext.createRelBuilder()
     rexBuilder = relBuilder.getRexBuilder

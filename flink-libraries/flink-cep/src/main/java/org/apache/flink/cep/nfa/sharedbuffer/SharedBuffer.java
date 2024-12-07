@@ -22,23 +22,17 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.cep.configuration.SharedBufferCacheConfig;
-import org.apache.flink.cep.nfa.DeweyNumber;
-import org.apache.flink.cep.nfa.NFAState;
-import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.runtime.state.VoidNamespace;
-import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.util.WrappingRuntimeException;
 
-import org.apache.flink.shaded.guava31.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava31.com.google.common.cache.CacheBuilder;
-import org.apache.flink.shaded.guava31.com.google.common.cache.RemovalCause;
-import org.apache.flink.shaded.guava31.com.google.common.cache.RemovalListener;
-import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava32.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava32.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava32.com.google.common.cache.RemovalCause;
+import org.apache.flink.shaded.guava32.com.google.common.cache.RemovalListener;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,12 +67,12 @@ public class SharedBuffer<V> {
 
     private static final Logger LOG = LoggerFactory.getLogger(SharedBuffer.class);
 
-    private static final String LEGACY_ENTRIES_STATE_NAME = "sharedBuffer-entries";
     private static final String ENTRIES_STATE_NAME = "sharedBuffer-entries-with-lockable-edges";
     private static final String EVENTS_STATE_NAME = "sharedBuffer-events";
     private static final String EVENTS_COUNT_STATE_NAME = "sharedBuffer-events-count";
 
     private final MapState<EventId, Lockable<V>> eventsBuffer;
+
     /** The number of events seen so far in the stream per timestamp. */
     private final MapState<Long, Integer> eventsCount;
 
@@ -180,81 +174,6 @@ public class SharedBuffer<V> {
                 cacheConfig.getCacheStatisticsInterval().toMillis());
     }
 
-    public void migrateOldState(
-            KeyedStateBackend<?> stateBackend, ValueState<NFAState> computationStates)
-            throws Exception {
-        stateBackend.applyToAllKeys(
-                VoidNamespace.INSTANCE,
-                VoidNamespaceSerializer.INSTANCE,
-                new MapStateDescriptor<>(
-                        LEGACY_ENTRIES_STATE_NAME,
-                        new NodeId.NodeIdSerializer(),
-                        new Lockable.LockableTypeSerializer<>(
-                                new SharedBufferNode.SharedBufferNodeSerializer())),
-                (key, state) -> {
-                    copyEntries(state);
-                    state.entries().forEach(this::lockPredecessorEdges);
-                    state.clear();
-
-                    NFAState nfaState = computationStates.value();
-                    nfaState.getPartialMatches()
-                            .forEach(
-                                    computationState ->
-                                            lockEdges(
-                                                    computationState.getPreviousBufferEntry(),
-                                                    computationState.getVersion()));
-                    nfaState.getCompletedMatches()
-                            .forEach(
-                                    computationState ->
-                                            lockEdges(
-                                                    computationState.getPreviousBufferEntry(),
-                                                    computationState.getVersion()));
-                });
-    }
-
-    private void copyEntries(MapState<NodeId, Lockable<SharedBufferNode>> state) throws Exception {
-        state.entries()
-                .forEach(
-                        e -> {
-                            try {
-                                entries.put(e.getKey(), e.getValue());
-                            } catch (Exception exception) {
-                                throw new RuntimeException(exception);
-                            }
-                        });
-    }
-
-    private void lockPredecessorEdges(Map.Entry<NodeId, Lockable<SharedBufferNode>> e) {
-        SharedBufferNode oldNode = e.getValue().getElement();
-        oldNode.getEdges()
-                .forEach(
-                        edge -> {
-                            SharedBufferEdge oldEdge = edge.getElement();
-                            lockEdges(oldEdge.getTarget(), oldEdge.getDeweyNumber());
-                        });
-    }
-
-    private void lockEdges(NodeId nodeId, DeweyNumber version) {
-
-        if (nodeId == null) {
-            return;
-        }
-
-        try {
-            SharedBufferNode newNode = entries.get(nodeId).getElement();
-            newNode.getEdges()
-                    .forEach(
-                            newEdge -> {
-                                if (version.isCompatibleWith(
-                                        newEdge.getElement().getDeweyNumber())) {
-                                    newEdge.lock();
-                                }
-                            });
-        } catch (Exception exception) {
-            throw new RuntimeException(exception);
-        }
-    }
-
     /**
      * Construct an accessor to deal with this sharedBuffer.
      *
@@ -271,6 +190,11 @@ public class SharedBuffer<V> {
             if (next < timestamp) {
                 iterator.remove();
             }
+        }
+
+        // memory leak resolution
+        if (eventsCount.isEmpty()) {
+            eventsCount.clear();
         }
     }
 

@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Process Function used for the aggregate in bounded proc-time OVER window.
@@ -197,13 +198,14 @@ public class ProcTimeRangeBoundedPrecedingFunction<K>
         // when we find timestamps that are out of interest, we retrieve corresponding elements
         // and eliminate them. Multiple elements could have been received at the same timestamp
         // the removal of old elements happens only once per proctime as onTimer is called only once
-        Iterator<Long> iter = inputState.keys().iterator();
+        Iterator<Map.Entry<Long, List<RowData>>> iter = inputState.entries().iterator();
         List<Long> markToRemove = new ArrayList<Long>();
         while (iter.hasNext()) {
-            Long elementKey = iter.next();
+            Map.Entry<Long, List<RowData>> element = iter.next();
+            Long elementKey = element.getKey();
             if (elementKey < limit) {
                 // element key outside of window. Retract values
-                List<RowData> elementsRemove = inputState.get(elementKey);
+                List<RowData> elementsRemove = element.getValue();
                 if (elementsRemove != null) {
                     int iRemove = 0;
                     while (iRemove < elementsRemove.size()) {

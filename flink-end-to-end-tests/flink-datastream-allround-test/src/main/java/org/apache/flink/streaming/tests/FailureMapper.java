@@ -77,6 +77,6 @@ public class FailureMapper<T> extends RichMapFunction<T, T> implements Checkpoin
     private boolean isReachedFailureThreshold() {
         return numProcessedRecords >= numProcessedRecordsFailureThreshold
                 && numCompleteCheckpoints >= numCompleteCheckpointsFailureThreshold
-                && getRuntimeContext().getAttemptNumber() < maxNumFailures;
+                && getRuntimeContext().getTaskInfo().getAttemptNumber() < maxNumFailures;
     }
 }

@@ -119,7 +119,16 @@ function log_environment_info {
     df -h
 
     echo "##[group]Top 15 biggest directories in terms of used disk space"
-    du -a . | sort -n -r | head -n 15
+    local pipefail_config
+    pipefail_config="$(get_current_set_option pipefail)"
+
+    # GitHub Actions runs with pipefail enabled which makes
+    # the piped command fail (because head will exit with 141)
+    set +o pipefail
+
+    du -ah --exclude="proc" -t100M . | sort -h -r | head -n 15
+
+    eval "set ${pipefail_config}o pipefail"
 
     if sudo -n true 2>/dev/null; then
       echo "Allocated ports"
@@ -131,6 +140,23 @@ function log_environment_info {
     echo "Running docker containers"
     docker ps -a
     echo "##[endgroup]"
+}
+
+# The echo'd character can be used to reset the config parameter
+# to it's initial state again, e.g.:
+# sign="$(get_current_set_option pipefail)
+# set -o pipefail
+# set ${sign}o pipefail
+function get_current_set_option {
+    if [ $# -eq 0 ]; then
+      echo "[ERROR] No parameter was specified for get_current_set_option."
+      exit 1
+    elif [ "$(set -o | grep "$1" | grep -c "on$")" -eq 1 ]; then
+      # set -o
+      echo "-"
+    else
+      echo "+"
+    fi
 }
 
 # Shuts down cluster and reverts changes to cluster configs

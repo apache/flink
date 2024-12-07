@@ -18,6 +18,7 @@
 package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -32,6 +33,7 @@ import org.apache.flink.types.RowKind;
 import org.junit.jupiter.api.BeforeAll;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -48,9 +50,9 @@ class RowComparatorTest extends ComparatorTestBase<Row> {
                             BasicTypeInfo.SHORT_TYPE_INFO),
                     TypeExtractor.createTypeInfo(MyPojo.class));
 
-    private static MyPojo testPojo1 = new MyPojo();
-    private static MyPojo testPojo2 = new MyPojo();
-    private static MyPojo testPojo3 = new MyPojo();
+    private static final MyPojo testPojo1 = new MyPojo();
+    private static final MyPojo testPojo2 = new MyPojo();
+    private static final MyPojo testPojo3 = new MyPojo();
 
     private static final Row[] data =
             new Row[] {
@@ -106,7 +108,7 @@ class RowComparatorTest extends ComparatorTestBase<Row> {
 
     @Override
     protected TypeSerializer<Row> createSerializer() {
-        return typeInfo.createSerializer(new ExecutionConfig());
+        return typeInfo.createSerializer(new SerializerConfigImpl());
     }
 
     @Override
@@ -158,7 +160,7 @@ class RowComparatorTest extends ComparatorTestBase<Row> {
 
             MyPojo myPojo = (MyPojo) o;
 
-            return name != null ? name.equals(myPojo.name) : myPojo.name == null;
+            return Objects.equals(name, myPojo.name);
         }
     }
 }

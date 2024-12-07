@@ -22,20 +22,21 @@ import org.apache.flink.formats.hadoop.bulk.HadoopPathBasedBulkWriter;
 import org.apache.flink.formats.hadoop.bulk.TestHadoopPathBasedBulkWriterFactory;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.DateTimeBucketAssigner;
 import org.apache.flink.util.FlinkUserCodeClassLoader;
+import org.apache.flink.util.MutableURLClassLoader;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.junit.Assume;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Constructor;
 import java.net.URL;
 import java.net.URLClassLoader;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests the behaviors of {@link HadoopPathBasedBulkFormatBuilder}. */
-public class HadoopPathBasedBulkFormatBuilderTest {
+class HadoopPathBasedBulkFormatBuilderTest {
 
     /**
      * Tests if we could create {@link HadoopPathBasedBulkFormatBuilder} within user classloader. It
@@ -46,7 +47,7 @@ public class HadoopPathBasedBulkFormatBuilderTest {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void testCreatingBuildWithinUserClassLoader() throws Exception {
         ClassLoader appClassLoader = getClass().getClassLoader();
-        Assume.assumeTrue(appClassLoader instanceof URLClassLoader);
+        assumeThat(appClassLoader).isInstanceOf(URLClassLoader.class);
 
         ClassLoader userClassLoader =
                 new SpecifiedChildFirstUserClassLoader(
@@ -96,6 +97,12 @@ public class HadoopPathBasedBulkFormatBuilderTest {
             } else {
                 return super.loadClassWithoutExceptionHandling(name, resolve);
             }
+        }
+
+        @Override
+        public MutableURLClassLoader copy() {
+            return new SpecifiedChildFirstUserClassLoader(
+                    specifiedClassName, getParent(), getURLs());
         }
     }
 }

@@ -21,7 +21,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
  * Tests all SQL expressions that are currently supported according to the documentation. This tests
@@ -95,7 +95,7 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("5-5", "0")
     testSqlApi("5*5", "25")
     testSqlApi("5/5", "1")
-    testSqlApi("5%2", "1");
+    testSqlApi("5%2", "1")
     testSqlApi("POWER(5, 5)", "3125.0")
     testSqlApi("POWER(-1, 0.5)", "NaN")
     testSqlApi("ABS(-5)", "5")
@@ -144,6 +144,18 @@ class SqlExpressionTest extends ExpressionTestBase {
     // Decimal(2,1) / Decimal(10,0) => Decimal(23,12)
     testSqlApi("2.0/(-3)", "-0.666666666667")
     testSqlApi("-7.9/2", "-3.950000000000")
+
+    // Decimal(2,1) / Integer => Decimal(13,12)
+    testSqlApi("1.0/400", "0.002500000000")
+
+    // Decimal(2,1) / BigInteger => Decimal(22,21)
+    testSqlApi("1.0/100000000000", "0.000000000010000000000")
+
+    // Decimal(2,1) / TinyInt => Decimal(7,6)
+    testSqlApi("1.0/cast(100 as TINYINT)", "0.010000")
+
+    // Decimal(2,1) / SmallInt => Decimal(8,7)
+    testSqlApi("1.0/cast(10000 as SMALLINT)", "0.0001000")
 
     // invalid division
     val divisorZeroException = "Division by zero"

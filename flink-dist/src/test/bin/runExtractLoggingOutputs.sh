@@ -33,6 +33,6 @@ FLINK_CONF_DIR=${bin}/../../main/resources
 FLINK_TARGET_DIR=${bin}/../../../target
 FLINK_DIST_JAR=`find $FLINK_TARGET_DIR -name 'flink-dist*.jar'`
 
-. ${bin}/../../main/flink-bin/bin/config.sh > /dev/null
+. ${bin}/../../main/flink-bin/bin/bash-java-utils.sh > /dev/null
 
 extractLoggingOutputs "${INPUT}"

@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /** Implementation of ConfigUtils.ConfigContext for testing. */
-public class TestingConfigContext implements ConfigUtils.ConfigContext {
+class TestingConfigContext implements ConfigUtils.ConfigContext {
 
     private final Map<String, String> envs;
     private final Map<String, org.apache.hadoop.conf.Configuration> hadoopConfigs;

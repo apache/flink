@@ -17,20 +17,21 @@
 
 package org.apache.flink.connector.base.sink;
 
+import org.apache.flink.api.connector.sink2.StatefulSinkWriter;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriterStateSerializer;
 import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
+import org.apache.flink.connector.base.sink.writer.ResultHandler;
 import org.apache.flink.connector.base.sink.writer.config.AsyncSinkWriterConfiguration;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Consumer;
 
 /** Dummy destination that records write events. */
 public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
@@ -58,7 +59,7 @@ public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
 
     @Override
     public StatefulSinkWriter<String, BufferedRequestState<Integer>> createWriter(
-            InitContext context) throws IOException {
+            WriterInitContext context) throws IOException {
         return new AsyncSinkWriter<String, Integer>(
                 getElementConverter(),
                 context,
@@ -74,13 +75,13 @@ public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
 
             @Override
             protected void submitRequestEntries(
-                    List<Integer> requestEntries, Consumer<List<Integer>> requestResult) {
+                    List<Integer> requestEntries, ResultHandler<Integer> resultHandler) {
                 try {
                     ArrayListDestination.putRecords(requestEntries);
                 } catch (RuntimeException e) {
                     getFatalExceptionCons().accept(e);
                 }
-                requestResult.accept(Arrays.asList());
+                resultHandler.complete();
             }
 
             @Override
@@ -92,7 +93,7 @@ public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
 
     @Override
     public StatefulSinkWriter<String, BufferedRequestState<Integer>> restoreWriter(
-            InitContext context, Collection<BufferedRequestState<Integer>> recoveredState)
+            WriterInitContext context, Collection<BufferedRequestState<Integer>> recoveredState)
             throws IOException {
         return createWriter(context);
     }

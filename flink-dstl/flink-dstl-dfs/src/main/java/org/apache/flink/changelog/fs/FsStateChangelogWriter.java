@@ -421,7 +421,7 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
                         size,
                         incrementalSize,
                         FsStateChangelogStorageFactory.IDENTIFIER);
-        if (localRecoveryConfig.isLocalRecoveryEnabled()) {
+        if (localRecoveryConfig.isLocalBackupEnabled()) {
             size = 0;
             List<Tuple2<StreamStateHandle, Long>> localTuples = new ArrayList<>();
             for (UploadResult uploadResult : results.values()) {

@@ -23,6 +23,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonSubTypes;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
 
+import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Objects;
 
 /** Checkpoint statistics for a subtask. */
@@ -38,6 +41,17 @@ import java.util.Objects;
             value = SubtaskCheckpointStatistics.PendingSubtaskCheckpointStatistics.class,
             name = "pending")
 })
+@Schema(
+        discriminatorProperty = "className",
+        discriminatorMapping = {
+            @DiscriminatorMapping(
+                    value = "completed",
+                    schema =
+                            SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics.class),
+            @DiscriminatorMapping(
+                    value = "pending",
+                    schema = SubtaskCheckpointStatistics.PendingSubtaskCheckpointStatistics.class),
+        })
 public class SubtaskCheckpointStatistics {
 
     public static final String FIELD_NAME_INDEX = "index";

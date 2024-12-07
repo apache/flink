@@ -19,24 +19,24 @@
 package org.apache.flink.test.windowing.sessionwindows;
 
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashSet;
@@ -44,7 +44,7 @@ import java.util.List;
 import java.util.Set;
 
 /** ITCase for Session Windows. */
-public class SessionWindowITCase extends AbstractTestBase {
+public class SessionWindowITCase extends AbstractTestBaseJUnit4 {
 
     // seed for the pseudo random engine of this test
     private static final long RANDOM_SEED = 1234567;
@@ -94,20 +94,21 @@ public class SessionWindowITCase extends AbstractTestBase {
 
     private void runTest(
             SourceFunction<SessionEvent<Integer, TestEventPayload>> dataSource,
-            WindowFunction<SessionEvent<Integer, TestEventPayload>, String, Tuple, TimeWindow>
+            WindowFunction<SessionEvent<Integer, TestEventPayload>, String, Integer, TimeWindow>
                     windowFunction)
             throws Exception {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        WindowedStream<SessionEvent<Integer, TestEventPayload>, Tuple, TimeWindow> windowedStream =
-                env.addSource(dataSource)
-                        .keyBy("sessionKey")
-                        .window(
-                                EventTimeSessionWindows.withGap(
-                                        Time.milliseconds(MAX_SESSION_EVENT_GAP_MS)));
+        WindowedStream<SessionEvent<Integer, TestEventPayload>, Integer, TimeWindow>
+                windowedStream =
+                        env.addSource(dataSource)
+                                .keyBy(SessionEvent::getSessionKey, Types.INT)
+                                .window(
+                                        EventTimeSessionWindows.withGap(
+                                                Duration.ofMillis(MAX_SESSION_EVENT_GAP_MS)));
 
         if (ALLOWED_LATENESS_MS != Long.MAX_VALUE) {
-            windowedStream = windowedStream.allowedLateness(Time.milliseconds(ALLOWED_LATENESS_MS));
+            windowedStream = windowedStream.allowedLateness(Duration.ofMillis(ALLOWED_LATENESS_MS));
         }
 
         if (PURGE_WINDOW_ON_FIRE) {
@@ -131,13 +132,13 @@ public class SessionWindowITCase extends AbstractTestBase {
     /** Window function that performs correctness checks for this test case. */
     private static final class ValidatingWindowFunction
             extends RichWindowFunction<
-                    SessionEvent<Integer, TestEventPayload>, String, Tuple, TimeWindow> {
+                    SessionEvent<Integer, TestEventPayload>, String, Integer, TimeWindow> {
 
         static final long serialVersionUID = 865723993979L;
 
         @Override
         public void apply(
-                Tuple tuple,
+                Integer i,
                 TimeWindow timeWindow,
                 Iterable<SessionEvent<Integer, TestEventPayload>> input,
                 Collector<String> output)

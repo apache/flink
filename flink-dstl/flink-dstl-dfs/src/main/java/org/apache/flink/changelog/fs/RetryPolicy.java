@@ -43,7 +43,9 @@ public interface RetryPolicy {
         }
     }
 
-    /** @return timeout in millis. Zero or negative means no timeout. */
+    /**
+     * @return timeout in millis. Zero or negative means no timeout.
+     */
     long timeoutFor(int attempt);
 
     /**

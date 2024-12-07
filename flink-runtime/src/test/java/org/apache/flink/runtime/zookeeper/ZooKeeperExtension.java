@@ -104,7 +104,7 @@ public class ZooKeeperExtension implements CustomExtension {
     private CuratorFrameworkWithUnhandledErrorListener createCuratorFramework(
             FatalErrorHandler fatalErrorHandler) {
         final Configuration config = new Configuration();
-        config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, getConnectString());
+        config.set(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, getConnectString());
 
         return ZooKeeperUtils.startCuratorFramework(config, fatalErrorHandler);
     }

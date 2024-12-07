@@ -30,12 +30,12 @@ import org.slf4j.LoggerFactory;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link StateWithoutExecutionGraph} state. */
-public class StateWithoutExecutionGraphTest {
+class StateWithoutExecutionGraphTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(CreatedTest.class);
 
     @RegisterExtension
-    MockStateWithoutExecutionGraphContext ctx = new MockStateWithoutExecutionGraphContext();
+    private MockStateWithoutExecutionGraphContext ctx = new MockStateWithoutExecutionGraphContext();
 
     @Test
     void testCancelTransitionsToFinished() {

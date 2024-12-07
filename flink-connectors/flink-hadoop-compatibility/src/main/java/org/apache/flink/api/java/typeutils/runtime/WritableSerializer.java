@@ -135,6 +135,7 @@ public final class WritableSerializer<T extends Writable> extends TypeSerializer
             this.kryo.register(typeClass);
         }
     }
+
     // --------------------------------------------------------------------------------------------
 
     @Override
@@ -163,6 +164,7 @@ public final class WritableSerializer<T extends Writable> extends TypeSerializer
     }
 
     /** {@link WritableSerializer} snapshot class. */
+    @Internal
     public static final class WritableSerializerSnapshot<T extends Writable>
             extends GenericTypeSerializerSnapshot<T, WritableSerializer> {
 

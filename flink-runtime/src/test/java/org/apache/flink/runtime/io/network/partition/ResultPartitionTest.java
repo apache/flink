@@ -34,17 +34,20 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 
-import static org.apache.flink.runtime.io.network.buffer.LocalBufferPoolDestroyTest.isInBlockingBufferRequest;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.isInBlockingBufferRequest;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.verifyCreateSubpartitionViewThrowsException;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -123,7 +126,8 @@ class ResultPartitionTest {
         // times
         for (int x = 0; x < 2; x++) {
             ResultSubpartitionView subpartitionView1 =
-                    partition.createSubpartitionView(0, () -> {});
+                    partition.createSubpartitionView(
+                            new ResultSubpartitionIndexSet(0), (ResultSubpartitionView view) -> {});
             subpartitionView1.releaseAllResources();
 
             // partition should not be released on consumption
@@ -199,10 +203,10 @@ class ResultPartitionTest {
     }
 
     /**
-     * Tests {@link ResultPartitionManager#createSubpartitionView(ResultPartitionID, int,
-     * BufferAvailabilityListener)} would throw a {@link PartitionNotFoundException} if the
-     * registered partition was released from manager via {@link ResultPartition#fail(Throwable)}
-     * before.
+     * Tests {@link ResultPartitionProvider#createSubpartitionView(ResultPartitionID,
+     * ResultSubpartitionIndexSet, BufferAvailabilityListener)} would throw a {@link
+     * PartitionNotFoundException} if the registered partition was released from manager via {@link
+     * ResultPartition#fail(Throwable)} before.
      */
     @Test
     void testCreateSubpartitionOnFailingPartition() throws Exception {
@@ -374,7 +378,8 @@ class ResultPartitionTest {
 
         resultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
         ResultSubpartitionView readView =
-                resultPartition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
+                resultPartition.createSubpartitionView(
+                        new ResultSubpartitionIndexSet(0), new NoOpBufferAvailablityListener());
         Buffer buffer = readView.getNextBuffer().buffer();
         assertThat(buffer).isNotNull();
 
@@ -440,7 +445,8 @@ class ResultPartitionTest {
         record.rewind();
 
         ResultSubpartitionView readView1 =
-                partition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
+                partition.createSubpartitionView(
+                        new ResultSubpartitionIndexSet(0), new NoOpBufferAvailablityListener());
         for (int i = 0; i < 4; ++i) {
             assertThat(readView1.getNextBuffer().buffer().getNioBufferReadable()).isEqualTo(record);
         }
@@ -448,7 +454,8 @@ class ResultPartitionTest {
         assertThat(readView1.getNextBuffer()).isNull();
 
         ResultSubpartitionView readView2 =
-                partition.createSubpartitionView(1, new NoOpBufferAvailablityListener());
+                partition.createSubpartitionView(
+                        new ResultSubpartitionIndexSet(1), new NoOpBufferAvailablityListener());
         for (int i = 0; i < 2; ++i) {
             assertThat(readView2.getNextBuffer().buffer().getNioBufferReadable()).isEqualTo(record);
         }
@@ -488,7 +495,10 @@ class ResultPartitionTest {
                 new ResultPartitionBuilder().setBufferPoolFactory(() -> localPool).build();
         resultPartition.setup();
         // emulate BufferDebloater - and suggest small buffer size
-        resultPartition.createSubpartitionView(0, () -> {}).notifyNewBufferSize(1);
+        resultPartition
+                .createSubpartitionView(
+                        new ResultSubpartitionIndexSet(0), (ResultSubpartitionView view) -> {})
+                .notifyNewBufferSize(1);
         // need to insert two records: the 1st one expands the buffer regardless of back-pressure
         resultPartition.emitRecord(ByteBuffer.allocate(recordSize), 0);
         // insert the 2nd record:
@@ -873,12 +883,54 @@ class ResultPartitionTest {
         assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(0);
     }
 
-    @NotNull
+    @Test
+    void testReleaseAllResourcesAtFailure() {
+        final int maxNumSubpartitions = 4;
+        final ResultSubpartitionIndexSet indexSet =
+                new ResultSubpartitionIndexSet(0, maxNumSubpartitions);
+        final BufferAvailabilityListener availabilityListener = (ResultSubpartitionView view) -> {};
+
+        for (int numSubpartitions = 1; numSubpartitions < maxNumSubpartitions; numSubpartitions++) {
+            List<ResultSubpartitionView> views = new ArrayList<>();
+            for (int i = 0; i < numSubpartitions; i++) {
+                views.add(new NoOpResultSubpartitionViewWithReleaseListener());
+            }
+
+            ResultPartition partition =
+                    TestingResultPartition.newBuilder()
+                            .setCreateSubpartitionViewFunction(
+                                    (index, listener) -> views.get(index))
+                            .build();
+
+            assertThatThrownBy(
+                            () -> partition.createSubpartitionView(indexSet, availabilityListener))
+                    .isInstanceOf(IndexOutOfBoundsException.class);
+
+            assertThat(views).allMatch(ResultSubpartitionView::isReleased);
+        }
+    }
+
+    @Nonnull
     private BufferBuilder getFinishedBufferBuilder(
             PipelinedResultPartition resultPartition, int bufferSize) throws Exception {
         BufferBuilder bufferBuilder = resultPartition.requestBufferBuilderBlocking();
         bufferBuilder.appendAndCommit(ByteBuffer.allocate(bufferSize));
         bufferBuilder.finish();
         return bufferBuilder;
+    }
+
+    private static class NoOpResultSubpartitionViewWithReleaseListener
+            extends NoOpResultSubpartitionView {
+        private boolean isReleased = false;
+
+        @Override
+        public void releaseAllResources() {
+            isReleased = true;
+        }
+
+        @Override
+        public boolean isReleased() {
+            return isReleased;
+        }
     }
 }

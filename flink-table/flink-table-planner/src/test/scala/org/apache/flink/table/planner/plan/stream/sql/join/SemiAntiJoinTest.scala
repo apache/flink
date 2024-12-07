@@ -17,12 +17,11 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql.join
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class SemiAntiJoinTest extends TableTestBase {
 
@@ -30,7 +29,7 @@ class SemiAntiJoinTest extends TableTestBase {
   util.addTableSource[(Int, Long, String)]("l", 'a, 'b, 'c)
   util.addTableSource[(Int, Long, String)]("r", 'd, 'e, 'f)
   util.addTableSource[(Int, Long, String)]("t", 'i, 'j, 'k)
-  util.addFunction("table_func", new StringSplit)
+  util.addTemporarySystemFunction("table_func", new StringSplit)
 
   @Test
   def testInWithUncorrelated_SimpleCondition1(): Unit = {

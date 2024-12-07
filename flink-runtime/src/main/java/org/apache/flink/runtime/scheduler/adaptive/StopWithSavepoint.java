@@ -38,6 +38,7 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 
@@ -76,6 +77,7 @@ import java.util.concurrent.ScheduledFuture;
 class StopWithSavepoint extends StateWithExecutionGraph {
 
     private final Context context;
+
     /**
      * The result future of this operation, containing the path to the savepoint. This is the future
      * that other components (e.g., the REST API) wait for.
@@ -209,7 +211,7 @@ class StopWithSavepoint extends StateWithExecutionGraph {
     }
 
     @Override
-    void onFailure(Throwable cause) {
+    void onFailure(Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {
         if (hasPendingStateTransition) {
             // the error handling remains the same independent of how many tasks have failed
             // we don't want to initiate the same state transition multiple times, so we exit early
@@ -231,7 +233,7 @@ class StopWithSavepoint extends StateWithExecutionGraph {
                                                     savepoint, getJobId(), cause);
                             operationFailureCause = ex;
                             FailureResultUtil.restartOrFail(
-                                    context.howToHandleFailure(ex), context, this);
+                                    context.howToHandleFailure(ex, failureLabels), context, this);
                             return null;
                         }));
     }
@@ -279,9 +281,11 @@ class StopWithSavepoint extends StateWithExecutionGraph {
          * Asks how to handle the failure.
          *
          * @param failure failure describing the failure cause
+         * @param failureLabels future of labels from error classification.
          * @return {@link FailureResult} which describes how to handle the failure
          */
-        FailureResult howToHandleFailure(Throwable failure);
+        FailureResult howToHandleFailure(
+                Throwable failure, CompletableFuture<Map<String, String>> failureLabels);
 
         /**
          * Runs the given action after the specified delay if the state is the expected state at

@@ -26,10 +26,12 @@ import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.utils.ProjectedRowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -42,16 +44,22 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 class UpsertTestDynamicTableSink implements DynamicTableSink {
 
     private final DataType physicalRowDataType;
+    private final DataType primaryKeyDataType;
+    private final int[] primaryKeyIndexes;
     private final EncodingFormat<SerializationSchema<RowData>> keyEncodingFormat;
     private final EncodingFormat<SerializationSchema<RowData>> valueEncodingFormat;
     private final String outputFilePath;
 
     UpsertTestDynamicTableSink(
             DataType physicalRowDataType,
+            DataType primaryKeyDataType,
+            int[] primaryKeyIndexes,
             EncodingFormat<SerializationSchema<RowData>> keyEncodingFormat,
             EncodingFormat<SerializationSchema<RowData>> valueEncodingFormat,
             String outputFilePath) {
         this.physicalRowDataType = checkNotNull(physicalRowDataType);
+        this.primaryKeyIndexes = checkNotNull(primaryKeyIndexes);
+        this.primaryKeyDataType = checkNotNull(primaryKeyDataType);
         this.keyEncodingFormat = checkNotNull(keyEncodingFormat);
         this.valueEncodingFormat = checkNotNull(valueEncodingFormat);
         this.outputFilePath = checkNotNull(outputFilePath);
@@ -71,8 +79,7 @@ class UpsertTestDynamicTableSink implements DynamicTableSink {
     @Override
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
         final File outputFile = new File(outputFilePath);
-        final SerializationSchema<RowData> keySerialization =
-                keyEncodingFormat.createRuntimeEncoder(context, physicalRowDataType);
+        final SerializationSchema<RowData> keySerialization = createKeySerializationSchema(context);
         final SerializationSchema<RowData> valueSerialization =
                 valueEncodingFormat.createRuntimeEncoder(context, physicalRowDataType);
 
@@ -88,7 +95,12 @@ class UpsertTestDynamicTableSink implements DynamicTableSink {
     @Override
     public DynamicTableSink copy() {
         return new UpsertTestDynamicTableSink(
-                physicalRowDataType, keyEncodingFormat, valueEncodingFormat, outputFilePath);
+                physicalRowDataType,
+                primaryKeyDataType,
+                primaryKeyIndexes,
+                keyEncodingFormat,
+                valueEncodingFormat,
+                outputFilePath);
     }
 
     @Override
@@ -101,6 +113,8 @@ class UpsertTestDynamicTableSink implements DynamicTableSink {
         }
         UpsertTestDynamicTableSink that = (UpsertTestDynamicTableSink) o;
         return Objects.equals(physicalRowDataType, that.physicalRowDataType)
+                && Objects.equals(primaryKeyDataType, that.primaryKeyDataType)
+                && Arrays.equals(primaryKeyIndexes, that.primaryKeyIndexes)
                 && Objects.equals(keyEncodingFormat, that.keyEncodingFormat)
                 && Objects.equals(valueEncodingFormat, that.valueEncodingFormat)
                 && Objects.equals(outputFilePath, that.outputFilePath);
@@ -108,12 +122,56 @@ class UpsertTestDynamicTableSink implements DynamicTableSink {
 
     @Override
     public int hashCode() {
-        return Objects.hash(
-                physicalRowDataType, keyEncodingFormat, valueEncodingFormat, outputFilePath);
+        return 31
+                        * Objects.hash(
+                                physicalRowDataType,
+                                primaryKeyDataType,
+                                keyEncodingFormat,
+                                valueEncodingFormat,
+                                outputFilePath)
+                + Arrays.hashCode(primaryKeyIndexes);
     }
 
     @Override
     public String asSummaryString() {
         return "UpsertTestSink";
+    }
+
+    private SerializationSchema<RowData> createKeySerializationSchema(Context context) {
+        final SerializationSchema<RowData> serializationSchema =
+                keyEncodingFormat.createRuntimeEncoder(context, primaryKeyDataType);
+        if (primaryKeyIndexes.length > 0) {
+            return new UpsertKeySerializationSchema(serializationSchema, primaryKeyIndexes);
+        }
+        return serializationSchema;
+    }
+
+    /**
+     * {@code SerializationSchema} that extracts and serializes the primary key fields from given
+     * {@link RowData}.
+     */
+    private static class UpsertKeySerializationSchema implements SerializationSchema<RowData> {
+
+        private final SerializationSchema<RowData> serializationSchema;
+
+        private final int[] primaryKeyIndexes;
+
+        private UpsertKeySerializationSchema(
+                SerializationSchema<RowData> serializationSchema, int[] primaryKeyIndexes) {
+            this.serializationSchema = serializationSchema;
+            this.primaryKeyIndexes = primaryKeyIndexes;
+        }
+
+        @Override
+        public void open(InitializationContext context) throws Exception {
+            serializationSchema.open(context);
+        }
+
+        @Override
+        public byte[] serialize(RowData element) {
+            RowData primaryKeyRowData =
+                    ProjectedRowData.from(primaryKeyIndexes).replaceRow(element);
+            return serializationSchema.serialize(primaryKeyRowData);
+        }
     }
 }

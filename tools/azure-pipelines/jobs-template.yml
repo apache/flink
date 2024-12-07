@@ -95,10 +95,8 @@ jobs:
         module: python
       table:
         module: table
-      connect_1:
-        module: connect_1
-      connect_2:
-        module: connect_2
+      connect:
+        module: connect
       tests:
         module: tests
       misc:

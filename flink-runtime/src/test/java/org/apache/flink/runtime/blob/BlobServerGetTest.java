@@ -30,6 +30,7 @@ import org.apache.flink.util.Reference;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.commons.io.FileUtils;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -145,6 +146,7 @@ class BlobServerGetTest {
      * Retrieves a BLOB from the HA store to a {@link BlobServer} which cannot create incoming
      * files. File transfers should fail.
      */
+    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @Test
     void testGetFailsIncomingForJobHa() throws IOException {
         assumeThat(OperatingSystem.isWindows()).as("setWritable doesn't work on Windows").isFalse();
@@ -152,8 +154,8 @@ class BlobServerGetTest {
         final JobID jobId = new JobID();
 
         final Configuration config = new Configuration();
-        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-        config.setString(
+        config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.set(
                 HighAvailabilityOptions.HA_STORAGE_PATH, TempDirUtils.newFolder(tempDir).getPath());
 
         BlobStoreService blobStore = null;
@@ -207,7 +209,8 @@ class BlobServerGetTest {
             }
         } finally {
             if (blobStore != null) {
-                blobStore.closeAndCleanupAllData();
+                blobStore.cleanupAllData();
+                blobStore.close();
             }
         }
     }
@@ -216,6 +219,7 @@ class BlobServerGetTest {
      * Retrieves a BLOB from the HA store to a {@link BlobServer} which cannot create the final
      * storage file. File transfers should fail.
      */
+    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @Test
     void testGetFailsStoreForJobHa() throws IOException {
         assumeThat(OperatingSystem.isWindows()).as("setWritable doesn't work on Windows").isFalse();
@@ -223,8 +227,8 @@ class BlobServerGetTest {
         final JobID jobId = new JobID();
 
         final Configuration config = new Configuration();
-        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-        config.setString(
+        config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.set(
                 HighAvailabilityOptions.HA_STORAGE_PATH, TempDirUtils.newFolder(tempDir).getPath());
 
         BlobStoreService blobStore = null;
@@ -269,7 +273,8 @@ class BlobServerGetTest {
             }
         } finally {
             if (blobStore != null) {
-                blobStore.closeAndCleanupAllData();
+                blobStore.cleanupAllData();
+                blobStore.close();
             }
         }
     }

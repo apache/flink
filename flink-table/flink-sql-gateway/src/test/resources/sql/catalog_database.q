@@ -35,6 +35,7 @@ org.apache.flink.sql.parser.impl.ParseException: Encountered "." at line 1, colu
 Was expecting one of:
     <EOF> 
     "WITH" ...
+    "COMMENT" ...
     ";" ...
 !error
 
@@ -66,6 +67,46 @@ show catalogs;
 | default_catalog |
 +-----------------+
 2 rows in set
+!ok
+
+show catalogs like '%c1';
+!output
++--------------+
+| catalog name |
++--------------+
+|           c1 |
++--------------+
+1 row in set
+!ok
+
+show catalogs not like 'default%';
+!output
++--------------+
+| catalog name |
++--------------+
+|           c1 |
++--------------+
+1 row in set
+!ok
+
+show catalogs ilike '%c1';
+!output
++--------------+
+| catalog name |
++--------------+
+|           c1 |
++--------------+
+1 row in set
+!ok
+
+show catalogs not ilike 'default%';
+!output
++--------------+
+| catalog name |
++--------------+
+|           c1 |
++--------------+
+1 row in set
 !ok
 
 show current catalog;
@@ -106,6 +147,234 @@ drop catalog default_catalog;
 |     OK |
 +--------+
 1 row in set
+!ok
+
+create catalog cat_comment comment 'hello ''catalog''' WITH ('type'='generic_in_memory', 'default-database'='db');
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+show create catalog cat_comment;
+!output
+CREATE CATALOG `cat_comment`
+COMMENT 'hello ''catalog'''
+WITH (
+  'default-database' = 'db',
+  'type' = 'generic_in_memory'
+)
+!ok
+
+describe catalog cat_comment;
+!output
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |       cat_comment |
+|      type | generic_in_memory |
+|   comment |   hello 'catalog' |
++-----------+-------------------+
+3 rows in set
+!ok
+
+describe catalog extended cat_comment;
+!output
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |       cat_comment |
+|                    type | generic_in_memory |
+|                 comment |   hello 'catalog' |
+| option:default-database |                db |
++-------------------------+-------------------+
+4 rows in set
+!ok
+
+create catalog if not exists cat_comment comment 'hello' with ('type' = 'generic_in_memory');
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+create catalog cat_comment comment 'hello2' with ('type' = 'generic_in_memory');
+!output
+org.apache.flink.table.catalog.exceptions.CatalogException: Catalog cat_comment already exists.
+!error
+
+create catalog cat2 WITH ('type'='generic_in_memory', 'default-database'='db');
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+show create catalog cat2;
+!output
+CREATE CATALOG `cat2`
+WITH (
+  'default-database' = 'db',
+  'type' = 'generic_in_memory'
+)
+!ok
+
+describe catalog cat2;
+!output
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
++-----------+-------------------+
+3 rows in set
+!ok
+
+describe catalog extended cat2;
+!output
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |              cat2 |
+|                    type | generic_in_memory |
+|                 comment |                   |
+| option:default-database |                db |
++-------------------------+-------------------+
+4 rows in set
+!ok
+
+desc catalog cat2;
+!output
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
++-----------+-------------------+
+3 rows in set
+!ok
+
+desc catalog extended cat2;
+!output
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |              cat2 |
+|                    type | generic_in_memory |
+|                 comment |                   |
+| option:default-database |                db |
++-------------------------+-------------------+
+4 rows in set
+!ok
+
+alter catalog cat2 set ('default-database'='db_new');
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+desc catalog extended cat2;
+!output
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |              cat2 |
+|                    type | generic_in_memory |
+|                 comment |                   |
+| option:default-database |            db_new |
++-------------------------+-------------------+
+4 rows in set
+!ok
+
+alter catalog cat2 reset ('default-database', 'k1');
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+desc catalog extended cat2;
+!output
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
++-----------+-------------------+
+3 rows in set
+!ok
+
+alter catalog cat2 reset ('type');
+!output
+org.apache.flink.table.api.ValidationException: ALTER CATALOG RESET does not support changing 'type'
+!error
+
+alter catalog cat2 reset ();
+!output
+org.apache.flink.table.api.ValidationException: ALTER CATALOG RESET does not support empty key
+!error
+
+alter catalog cat2 comment 'comment for catalog ''cat2''';
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+desc catalog extended cat2;
+!output
++-----------+----------------------------+
+| info name |                 info value |
++-----------+----------------------------+
+|      name |                       cat2 |
+|      type |          generic_in_memory |
+|   comment | comment for catalog 'cat2' |
++-----------+----------------------------+
+3 rows in set
+!ok
+
+alter catalog cat2 comment '';
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+desc catalog extended cat2;
+!output
++-----------+-------------------+
+| info name |        info value |
++-----------+-------------------+
+|      name |              cat2 |
+|      type | generic_in_memory |
+|   comment |                   |
++-----------+-------------------+
+3 rows in set
 !ok
 
 # ==========================================================================
@@ -254,13 +523,8 @@ use `default`;
 
 drop database `default`;
 !output
-+--------+
-| result |
-+--------+
-|     OK |
-+--------+
-1 row in set
-!ok
+org.apache.flink.table.api.ValidationException: Cannot drop a database which is currently in use.
+!error
 
 drop catalog `mod`;
 !output
@@ -704,7 +968,7 @@ show tables;
 !ok
 
 # ==========================================================================
-# test enhanced show tables
+# test enhanced show tables and views
 # ==========================================================================
 
 create catalog catalog1 with ('type'='generic_in_memory');
@@ -767,6 +1031,16 @@ create view catalog1.db1.v_person as select * from catalog1.db1.person;
 1 row in set
 !ok
 
+create view catalog1.db1.v_address comment 'view comment' as select * from catalog1.db1.address;
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
 show tables from catalog1.db1;
 !output
 +------------+
@@ -775,9 +1049,21 @@ show tables from catalog1.db1;
 |    address |
 |        dim |
 |     person |
+|  v_address |
 |   v_person |
 +------------+
-4 rows in set
+5 rows in set
+!ok
+
+show views from catalog1.db1;
+!output
++-----------+
+| view name |
++-----------+
+| v_address |
+|  v_person |
++-----------+
+2 rows in set
 !ok
 
 show tables from catalog1.db1 like '%person%';
@@ -791,6 +1077,16 @@ show tables from catalog1.db1 like '%person%';
 2 rows in set
 !ok
 
+show views from catalog1.db1 like '%person%';
+!output
++-----------+
+| view name |
++-----------+
+|  v_person |
++-----------+
+1 row in set
+!ok
+
 show tables in catalog1.db1 not like '%person%';
 !output
 +------------+
@@ -798,8 +1094,19 @@ show tables in catalog1.db1 not like '%person%';
 +------------+
 |    address |
 |        dim |
+|  v_address |
 +------------+
-2 rows in set
+3 rows in set
+!ok
+
+show views in catalog1.db1 not like '%person%';
+!output
++-----------+
+| view name |
++-----------+
+| v_address |
++-----------+
+1 row in set
 !ok
 
 use catalog catalog1;
@@ -819,5 +1126,15 @@ show tables from db1 like 'p_r%';
 +------------+
 |     person |
 +------------+
+1 row in set
+!ok
+
+show views from db1 like '%p_r%';
+!output
++-----------+
+| view name |
++-----------+
+|  v_person |
++-----------+
 1 row in set
 !ok

@@ -19,7 +19,6 @@
 package org.apache.flink.formats.csv;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.file.sink.FileSink;
@@ -30,12 +29,11 @@ import org.apache.flink.formats.common.Converter;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.BasePathBucketAssigner;
-import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.junit5.MiniClusterExtension;
-import org.apache.flink.util.TestLoggerExtension;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
@@ -44,11 +42,11 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.Csv
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
 import org.apache.commons.io.FileUtils;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
+
+import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -72,8 +70,7 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** MiniCluster-based integration tests CSV data format. */
-@ExtendWith({TestLoggerExtension.class})
-public class DataStreamCsvITCase {
+class DataStreamCsvITCase {
 
     private static final CsvMapper CSV_MAPPER = JacksonMapperFactory.createCsvMapper();
 
@@ -151,7 +148,7 @@ public class DataStreamCsvITCase {
     //  test cases
     // ------------------------------------------------------------------------
     @Test
-    public void testCsvReaderFormatFromPojo() throws Exception {
+    void testCsvReaderFormatFromPojo() throws Exception {
         writeFile(outDir, "data.csv", CSV_LINES);
 
         final CsvReaderFormat<CityPojo> csvFormat = CsvReaderFormat.forPojo(CityPojo.class);
@@ -161,7 +158,7 @@ public class DataStreamCsvITCase {
     }
 
     @Test
-    public void testCsvReaderFormatFromSchema() throws Exception {
+    void testCsvReaderFormatFromSchema() throws Exception {
         writeFile(outDir, "data.csv", CSV_LINES_PIPE_SEPARATED);
 
         final CsvReaderFormat<CityPojo> csvFormat =
@@ -178,7 +175,7 @@ public class DataStreamCsvITCase {
     }
 
     @Test
-    public void testCsvReaderFormatMalformed() throws Exception {
+    void testCsvReaderFormatMalformed() throws Exception {
         writeFile(outDir, "data.csv", CSV_LINES_MALFORMED);
 
         final CsvReaderFormat<CityPojo> csvFormat =
@@ -193,7 +190,7 @@ public class DataStreamCsvITCase {
     }
 
     @Test
-    public void testCustomBulkWriter() throws Exception {
+    void testCustomBulkWriter() throws Exception {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
@@ -217,7 +214,7 @@ public class DataStreamCsvITCase {
         assertThat(result).containsExactlyInAnyOrder(CSV_LINES);
     }
 
-    @NotNull
+    @Nonnull
     private String[] getResultsFromSinkFiles(File outDir) throws IOException {
         final Map<File, String> contents = getFileContentByPath(outDir);
 
@@ -347,7 +344,7 @@ public class DataStreamCsvITCase {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
 
         final DataStream<T> stream =
                 env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
@@ -355,14 +352,13 @@ public class DataStreamCsvITCase {
         return getResultsFromStream(stream);
     }
 
-    @NotNull
+    @Nonnull
     private static <T> List<T> getResultsFromStream(DataStream<T> stream) throws Exception {
-        final ClientAndIterator<T> client =
-                DataStreamUtils.collectWithClient(stream, "Bounded Results Fetch");
+        CloseableIterator<T> iterator = stream.executeAndCollect("Bounded Results Fetch");
 
         final List<T> result = new ArrayList<>();
-        while (client.iterator.hasNext()) {
-            T next = client.iterator.next();
+        while (iterator.hasNext()) {
+            T next = iterator.next();
             result.add(next);
         }
         return result;

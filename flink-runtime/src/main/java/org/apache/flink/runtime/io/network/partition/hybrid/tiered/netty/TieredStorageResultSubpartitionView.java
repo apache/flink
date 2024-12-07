@@ -93,12 +93,12 @@ public class TieredStorageResultSubpartitionView implements ResultSubpartitionVi
     }
 
     @Override
-    public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
+    public AvailabilityWithBacklog getAvailabilityAndBacklog(boolean isCreditAvailable) {
         if (findCurrentNettyPayloadQueue()) {
             NettyPayloadManager currentQueue =
                     nettyPayloadManagers.get(managerIndexContainsCurrentSegment);
-            boolean availability = numCreditsAvailable > 0;
-            if (numCreditsAvailable == 0 && isEventOrError(currentQueue)) {
+            boolean availability = isCreditAvailable;
+            if (!isCreditAvailable && isEventOrError(currentQueue)) {
                 availability = true;
             }
             return new AvailabilityWithBacklog(availability, getBacklog());
@@ -107,12 +107,17 @@ public class TieredStorageResultSubpartitionView implements ResultSubpartitionVi
     }
 
     @Override
-    public void notifyRequiredSegmentId(int segmentId) {
+    public void notifyRequiredSegmentId(int subpartitionId, int segmentId) {
         if (segmentId > requiredSegmentId) {
             requiredSegmentId = segmentId;
             stopSendingData = false;
-            availabilityListener.notifyDataAvailable();
+            availabilityListener.notifyDataAvailable(this);
         }
+    }
+
+    @Override
+    public int peekNextBufferSubpartitionId() {
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -158,8 +163,7 @@ public class TieredStorageResultSubpartitionView implements ResultSubpartitionVi
 
     @Override
     public void notifyDataAvailable() {
-        throw new UnsupportedOperationException(
-                "Method notifyDataAvailable should never be called.");
+        availabilityListener.notifyDataAvailable(this);
     }
 
     @Override

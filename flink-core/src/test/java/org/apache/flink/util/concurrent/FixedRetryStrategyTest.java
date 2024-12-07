@@ -18,31 +18,34 @@
 
 package org.apache.flink.util.concurrent;
 
-import org.apache.flink.util.TestLogger;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link FixedRetryStrategy}. */
-public class FixedRetryStrategyTest extends TestLogger {
+class FixedRetryStrategyTest {
 
     @Test
-    public void testGetters() throws Exception {
+    void testGetters() {
         RetryStrategy retryStrategy = new FixedRetryStrategy(10, Duration.ofMillis(5L));
-        assertEquals(10, retryStrategy.getNumRemainingRetries());
-        assertEquals(Duration.ofMillis(5L), retryStrategy.getRetryDelay());
+        assertThat(retryStrategy.getNumRemainingRetries()).isEqualTo(10);
+        assertThat(retryStrategy.getRetryDelay()).isEqualTo(Duration.ofMillis(5L));
 
         RetryStrategy nextRetryStrategy = retryStrategy.getNextRetryStrategy();
-        assertEquals(9, nextRetryStrategy.getNumRemainingRetries());
-        assertEquals(Duration.ofMillis(5L), nextRetryStrategy.getRetryDelay());
+        assertThat(nextRetryStrategy.getNumRemainingRetries()).isEqualTo(9);
+        assertThat(nextRetryStrategy.getRetryDelay()).isEqualTo(Duration.ofMillis(5L));
     }
 
     /** Tests that getting a next RetryStrategy below zero remaining retries fails. */
-    @Test(expected = IllegalStateException.class)
-    public void testRetryFailure() throws Throwable {
-        new FixedRetryStrategy(0, Duration.ofMillis(5L)).getNextRetryStrategy();
+    @Test
+    void testRetryFailure() {
+        assertThatThrownBy(
+                        () ->
+                                new FixedRetryStrategy(0, Duration.ofMillis(5L))
+                                        .getNextRetryStrategy())
+                .isInstanceOf(IllegalStateException.class);
     }
 }

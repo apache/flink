@@ -36,6 +36,13 @@ abstract class BaseTemporalSortOperator extends AbstractStreamOperator<RowData>
     protected transient TimerService timerService;
     protected transient TimestampedCollector<RowData> collector;
 
+    BaseTemporalSortOperator() {}
+
+    @Override
+    public boolean useSplittableTimers() {
+        return true;
+    }
+
     @Override
     public void open() throws Exception {
         InternalTimerService<VoidNamespace> internalTimerService =

@@ -18,9 +18,10 @@
 package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.ParameterTool;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -58,14 +59,19 @@ public class DistributedCacheViaBlobTestProgram {
                                                     "Input directory must not be empty."));
         }
 
-        env.fromElements(1)
+        env.fromData(1)
                 .map(
                         new TestMapFunction(
                                 inputFile.toAbsolutePath().toString(),
                                 Files.size(inputFile),
                                 inputDir.toAbsolutePath().toString(),
                                 containedFile.getFileName().toString()))
-                .writeAsText(params.getRequired("output"), FileSystem.WriteMode.OVERWRITE);
+                .sinkTo(
+                        FileSink.forRowFormat(
+                                        new org.apache.flink.core.fs.Path(
+                                                params.getRequired("output")),
+                                        new SimpleStringEncoder<String>())
+                                .build());
 
         env.execute("Distributed Cache Via Blob Test Program");
     }

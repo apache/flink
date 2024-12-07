@@ -34,7 +34,7 @@ import org.apache.flink.table.gateway.service.utils.SqlCancelException;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.util.IOUtils;
 
-import org.apache.flink.shaded.guava31.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.flink.shaded.guava32.com.google.common.util.concurrent.Uninterruptibles;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,6 +66,7 @@ public class OperationManager {
 
     private final Map<OperationHandle, Operation> submittedOperations;
     private final ExecutorService service;
+
     /**
      * Operation lock is used to control the execution among the {@link Operation}s. The reason why
      * using the lock to control the execution in sequence is the managers, e.g. CatalogManager is

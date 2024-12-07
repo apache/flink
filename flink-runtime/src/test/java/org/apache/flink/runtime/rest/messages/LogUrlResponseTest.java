@@ -18,8 +18,13 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
+
 /** Tests that the {@link LogUrlResponse} can be marshalled and unmarshalled. */
-public class LogUrlResponseTest extends RestResponseMarshallingTestBase<LogUrlResponse> {
+@ExtendWith(NoOpTestExtension.class)
+class LogUrlResponseTest extends RestResponseMarshallingTestBase<LogUrlResponse> {
     @Override
     protected Class<LogUrlResponse> getTestResponseClass() {
         return LogUrlResponse.class;

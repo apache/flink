@@ -34,11 +34,11 @@ pygmentsUseClasses = true
   # we change the version for the complete docs when forking of a release branch
   # etc.
   # The full version string as referenced in Maven (e.g. 1.2.1)
-  Version = "1.19-SNAPSHOT"
+  Version = "2.0-SNAPSHOT"
 
   # For stable releases, leave the bugfix version out (e.g. 1.2). For snapshot
   # release this should be the same as the regular version
-  VersionTitle = "1.19-SNAPSHOT"
+  VersionTitle = "2.0-SNAPSHOT"
 
   # The branch for this version of Apache Flink
   Branch = "master"
@@ -62,8 +62,6 @@ pygmentsUseClasses = true
 
   JavaDocs = "//nightlies.apache.org/flink/flink-docs-master/api/java/"
 
-  ScalaDocs = "//nightlies.apache.org/flink/flink-docs-master/api/scala/index.html#org.apache.flink.api.scala.package"
-
   PyDocs = "//nightlies.apache.org/flink/flink-docs-master/api/python/"
 
   # External links at the bottom
@@ -71,11 +69,13 @@ pygmentsUseClasses = true
   MenuLinks = [
     ["Project Homepage", "//flink.apache.org"],
     ["JavaDocs", "//nightlies.apache.org/flink/flink-docs-master/api/java/"],
-    ["ScalaDocs", "//nightlies.apache.org/flink/flink-docs-master/api/scala/index.html#org.apache.flink.api.scala.package"],
     ["PyDocs", "//nightlies.apache.org/flink/flink-docs-master/api/python/"]
   ]
 
   PreviousDocs = [
+    ["1.20", "http://nightlies.apache.org/flink/flink-docs-release-1.20"],
+    ["1.19", "http://nightlies.apache.org/flink/flink-docs-release-1.19"],
+    ["1.18", "http://nightlies.apache.org/flink/flink-docs-release-1.18"],
     ["1.17", "http://nightlies.apache.org/flink/flink-docs-release-1.17"],
     ["1.16", "http://nightlies.apache.org/flink/flink-docs-release-1.16"],
     ["1.15", "http://nightlies.apache.org/flink/flink-docs-release-1.15"],
@@ -99,6 +99,8 @@ pygmentsUseClasses = true
 [markup]
 [markup.goldmark.renderer]
   unsafe = true
+[markup.tableOfContents]
+  startLevel = 1
 
 [languages]
 [languages.en]

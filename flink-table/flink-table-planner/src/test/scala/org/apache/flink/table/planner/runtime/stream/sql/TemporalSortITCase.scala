@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
@@ -25,21 +24,19 @@ import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit._
-import org.junit.Assert._
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.time.{Instant, LocalDateTime}
 
-import scala.collection.Seq
-
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
-  @Test
+  @TestTemplate
   def testOnlyEventTimeOrderBy(): Unit = {
     val data = List(
       (3L, 2L, "Hello world", 3),
@@ -82,10 +79,10 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       "4,Comment#4,10"
     )
 
-    assertEquals(expected, sink.getRetractResults)
+    assertThat(sink.getRetractResults).isEqualTo(expected)
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeOrderByWithParallelInput(): Unit = {
     val data = List(
       (3L, 2L, "Hello world", 3),
@@ -127,10 +124,10 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       "4,Comment#4,10"
     )
 
-    assertEquals(expected, sink.getRetractResults)
+    assertThat(sink.getRetractResults).isEqualTo(expected)
   }
 
-  @Test
+  @TestTemplate
   def testTimestampEventTimeAndOtherFieldOrderBy(): Unit = {
     val rows = Seq(
       row(LocalDateTime.parse("1970-01-01T00:00:03"), 2L, "Hello world", 3),
@@ -182,10 +179,10 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       "4,Comment#4,10"
     )
 
-    assertEquals(expected, sink.getRetractResults)
+    assertThat(sink.getRetractResults).isEqualTo(expected)
   }
 
-  @Test
+  @TestTemplate
   def testTimestampLtzEventTimeAndOtherFieldOrderBy(): Unit = {
     val rows = Seq(
       row(Instant.ofEpochSecond(3L), 2L, "Hello world", 3),
@@ -237,10 +234,10 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       "4,Comment#4,10"
     )
 
-    assertEquals(expected, sink.getRetractResults)
+    assertThat(sink.getRetractResults).isEqualTo(expected)
   }
 
-  @Test
+  @TestTemplate
   def testProcTimeOrderBy(): Unit = {
     val t = failingDataSource(TestData.tupleData3)
       .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
@@ -277,7 +274,7 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       "21,6,Comment#15"
     )
 
-    assertEquals(expected, sink.getRetractResults)
+    assertThat(sink.getRetractResults).isEqualTo(expected)
   }
 
 }

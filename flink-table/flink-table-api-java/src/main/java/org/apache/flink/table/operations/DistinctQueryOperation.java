@@ -28,6 +28,7 @@ import java.util.List;
 @Internal
 public class DistinctQueryOperation implements QueryOperation {
 
+    private static final String INPUT_ALIAS = "$$T_DISTINCT";
     private final QueryOperation child;
 
     public DistinctQueryOperation(QueryOperation child) {
@@ -43,6 +44,15 @@ public class DistinctQueryOperation implements QueryOperation {
     public String asSummaryString() {
         return OperationUtils.formatWithChildren(
                 "Distinct", Collections.emptyMap(), getChildren(), Operation::asSummaryString);
+    }
+
+    @Override
+    public String asSerializableString() {
+        return String.format(
+                "SELECT DISTINCT %s FROM (%s\n) %s",
+                OperationUtils.formatSelectColumns(getResolvedSchema(), INPUT_ALIAS),
+                OperationUtils.indent(child.asSerializableString()),
+                INPUT_ALIAS);
     }
 
     @Override

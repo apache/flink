@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -45,6 +44,7 @@ import org.apache.flink.util.function.RunnableWithException;
 
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
@@ -54,7 +54,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 
 /** Base class for the tests of {@link FineGrainedSlotManager}. */
 abstract class FineGrainedSlotManagerTestBase {
@@ -135,13 +135,11 @@ abstract class FineGrainedSlotManagerTestBase {
         return completableFuture.get(FUTURE_TIMEOUT_SECOND, TimeUnit.SECONDS);
     }
 
-    static void assertFutureNotComplete(CompletableFuture<?> completableFuture) throws Exception {
-        assertThatThrownBy(
-                        () ->
-                                completableFuture.get(
-                                        FUTURE_EXPECT_TIMEOUT_MS, TimeUnit.MILLISECONDS),
-                        "Expected to fail with a timeout.")
-                .isInstanceOf(TimeoutException.class);
+    static void assertFutureNotComplete(CompletableFuture<?> completableFuture) {
+        assertThatFuture(completableFuture)
+                .withFailMessage("Expected to fail with a timeout.")
+                .failsWithin(FUTURE_EXPECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                .withThrowableOfType(TimeoutException.class);
     }
 
     /** This class provides a self-contained context for each test case. */
@@ -150,7 +148,7 @@ abstract class FineGrainedSlotManagerTestBase {
         private final ResourceTracker resourceTracker = new DefaultResourceTracker();
         private final TaskManagerTracker taskManagerTracker = new FineGrainedTaskManagerTracker();
         private final SlotStatusSyncer slotStatusSyncer =
-                new DefaultSlotStatusSyncer(Time.seconds(10L));
+                new DefaultSlotStatusSyncer(Duration.ofSeconds(10L));
         private SlotManagerMetricGroup slotManagerMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredSlotManagerMetricGroup();
         private BlockedTaskManagerChecker blockedTaskManagerChecker = resourceID -> false;

@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.optimize.program._
@@ -26,12 +25,12 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctio
 import org.apache.flink.table.planner.utils.{MockPythonTableFunction, TableFunc1, TableTestBase}
 
 import org.apache.calcite.plan.hep.HepMatchOrder
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class PythonCorrelateSplitRuleTest extends TableTestBase {
   private val util = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     val programs = new FlinkChainedProgram[StreamOptimizeContext]()
     // query decorrelation
@@ -53,9 +52,9 @@ class PythonCorrelateSplitRuleTest extends TableTestBase {
     )
     util.replaceStreamProgram(programs)
 
-    util.addFunction("func", new MockPythonTableFunction)
-    util.addFunction("javaFunc", new TableFunc1)
-    util.addFunction("pyFunc", new PythonScalarFunction("pyFunc"))
+    util.addTemporarySystemFunction("func", new MockPythonTableFunction)
+    util.addTemporarySystemFunction("javaFunc", new TableFunc1)
+    util.addTemporarySystemFunction("pyFunc", new PythonScalarFunction("pyFunc"))
   }
 
   @Test

@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen
 
+import org.apache.flink.api.common.functions.{DefaultOpenContext, OpenContext}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.Indenter.toISC
@@ -59,7 +60,7 @@ object CollectorCodeGenerator {
       collectedTerm: String = CodeGenUtils.DEFAULT_INPUT2_TERM)
       : GeneratedCollector[TableFunctionCollector[_]] = {
 
-    val funcName = newName(name)
+    val funcName = newName(ctx, name)
     val input1TypeClass = boxedTypeTermForType(inputType)
     val input2TypeClass = boxedTypeTermForType(collectedType)
 
@@ -74,7 +75,7 @@ object CollectorCodeGenerator {
         }
 
         @Override
-        public void open(${className[Configuration]} parameters) throws Exception {
+        public void open(${className[OpenContext]} openContext) throws Exception {
           ${ctx.reuseOpenCode()}
         }
 
@@ -128,7 +129,7 @@ object CollectorCodeGenerator {
       inputConversion: (String) => String,
       bodyCode: String): GeneratedCollector[WrappingCollector[_]] = {
 
-    val funcName = newName(name)
+    val funcName = newName(ctx, name)
     val inputTypeTerm = boxedTypeTermForType(inputType)
 
     val funcCode =
@@ -142,7 +143,7 @@ object CollectorCodeGenerator {
         }
 
         @Override
-        public void open(${className[Configuration]} parameters) throws Exception {
+        public void open(${className[OpenContext]} openContext) throws Exception {
           ${ctx.reuseOpenCode()}
         }
 
@@ -180,7 +181,7 @@ object CollectorCodeGenerator {
       s"""
          |$collectorTerm = new ${generatedCollector.getClassName}();
          |$collectorTerm.setRuntimeContext(getRuntimeContext());
-         |$collectorTerm.open(new ${className[Configuration]}());
+         |$collectorTerm.open(new ${className[DefaultOpenContext]}());
          |""".stripMargin
     ctx.addReusableOpenStatement(openCollector)
 

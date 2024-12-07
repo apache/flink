@@ -72,7 +72,7 @@ class YARNSessionFIFOITCase extends YarnTestBase {
 
     /** Override init with FIFO scheduler. */
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         YARN_CONFIGURATION.setClass(
                 YarnConfiguration.RM_SCHEDULER, FifoScheduler.class, ResourceScheduler.class);
         YARN_CONFIGURATION.setInt(YarnConfiguration.NM_PMEM_MB, 768);
@@ -222,8 +222,7 @@ class YARNSessionFIFOITCase extends YarnTestBase {
             try {
                 File yarnPropertiesFile =
                         FlinkYarnSessionCli.getYarnPropertiesLocation(
-                                configuration.getString(
-                                        YarnConfigOptions.PROPERTIES_FILE_LOCATION));
+                                configuration.get(YarnConfigOptions.PROPERTIES_FILE_LOCATION));
                 if (yarnPropertiesFile.exists()) {
                     log.info(
                             "testDetachedPerJobYarnClusterInternal: Cleaning up temporary Yarn address reference: {}",

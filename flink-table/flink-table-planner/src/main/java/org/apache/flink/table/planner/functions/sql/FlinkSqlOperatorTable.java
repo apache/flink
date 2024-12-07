@@ -31,9 +31,13 @@ import org.apache.calcite.sql.SqlGroupedWindowFunction;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlJsonConstructorNullClause;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlMatchRecognize;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlPostfixOperator;
+import org.apache.calcite.sql.SqlPrefixOperator;
 import org.apache.calcite.sql.SqlSyntax;
+import org.apache.calcite.sql.fun.SqlBasicAggFunction;
+import org.apache.calcite.sql.fun.SqlLibraryOperators;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.InferTypes;
 import org.apache.calcite.sql.type.OperandTypes;
@@ -938,7 +942,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
             new SqlFunction(
                     "RAND",
                     SqlKind.OTHER_FUNCTION,
-                    ReturnTypes.DOUBLE,
+                    ReturnTypes.cascade(
+                            ReturnTypes.explicit(SqlTypeName.DOUBLE),
+                            SqlTypeTransforms.TO_NULLABLE),
                     null,
                     OperandTypes.or(
                             new SqlSingleOperandTypeChecker[] {
@@ -956,7 +962,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
             new SqlFunction(
                     "RAND_INTEGER",
                     SqlKind.OTHER_FUNCTION,
-                    ReturnTypes.INTEGER,
+                    ReturnTypes.cascade(
+                            ReturnTypes.explicit(SqlTypeName.INTEGER),
+                            SqlTypeTransforms.TO_NULLABLE),
                     null,
                     OperandTypes.or(
                             new SqlSingleOperandTypeChecker[] {
@@ -1133,6 +1141,22 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlAggFunction APPROX_COUNT_DISTINCT =
             SqlStdOperatorTable.APPROX_COUNT_DISTINCT;
 
+    /**
+     * Use the definitions in Flink instead of {@link SqlLibraryOperators#ARRAY_AGG}, because we
+     * return nullable ARRAY type. Order by clause like <code>ARRAY_AGG(x ORDER BY x, y)</code> for
+     * aggregate function is not supported yet, because the row data cannot be obtained inside the
+     * aggregate function.
+     */
+    public static final SqlAggFunction ARRAY_AGG =
+            SqlBasicAggFunction.create(
+                            SqlKind.ARRAY_AGG,
+                            ReturnTypes.cascade(
+                                    ReturnTypes.TO_ARRAY, SqlTypeTransforms.TO_NULLABLE),
+                            OperandTypes.ANY)
+                    .withFunctionType(SqlFunctionCategory.SYSTEM)
+                    .withSyntax(SqlSyntax.FUNCTION)
+                    .withAllowsNullTreatment(true);
+
     // ARRAY OPERATORS
     public static final SqlOperator ARRAY_VALUE_CONSTRUCTOR = new SqlArrayConstructor();
     public static final SqlOperator ELEMENT = SqlStdOperatorTable.ELEMENT;
@@ -1147,6 +1171,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     // SPECIAL OPERATORS
     public static final SqlOperator MULTISET_VALUE = SqlStdOperatorTable.MULTISET_VALUE;
     public static final SqlOperator ROW = SqlStdOperatorTable.ROW;
+    public static final SqlOperator IGNORE_NULLS = SqlStdOperatorTable.IGNORE_NULLS;
+    public static final SqlOperator RESPECT_NULLS = SqlStdOperatorTable.RESPECT_NULLS;
     public static final SqlOperator OVERLAPS = SqlStdOperatorTable.OVERLAPS;
     public static final SqlOperator LITERAL_CHAIN = SqlStdOperatorTable.LITERAL_CHAIN;
     public static final SqlOperator BETWEEN = SqlStdOperatorTable.BETWEEN;
@@ -1219,6 +1245,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlFunction LAST = SqlStdOperatorTable.LAST;
     public static final SqlFunction PREV = SqlStdOperatorTable.PREV;
     public static final SqlFunction NEXT = SqlStdOperatorTable.NEXT;
+    public static final SqlPrefixOperator SKIP_TO_FIRST = SqlMatchRecognize.SKIP_TO_FIRST;
+    public static final SqlPrefixOperator SKIP_TO_LAST = SqlMatchRecognize.SKIP_TO_LAST;
     public static final SqlFunction CLASSIFIER = SqlStdOperatorTable.CLASSIFIER;
     public static final SqlOperator FINAL = SqlStdOperatorTable.FINAL;
     public static final SqlOperator RUNNING = SqlStdOperatorTable.RUNNING;
@@ -1268,6 +1296,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlFunction TUMBLE = new SqlTumbleTableFunction();
     public static final SqlFunction HOP = new SqlHopTableFunction();
     public static final SqlFunction CUMULATE = new SqlCumulateTableFunction();
+    public static final SqlFunction SESSION = new SqlSessionTableFunction();
 
     // Catalog Functions
     public static final SqlFunction CURRENT_DATABASE =

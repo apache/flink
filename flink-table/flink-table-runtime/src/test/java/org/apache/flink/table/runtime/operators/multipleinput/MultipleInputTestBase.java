@@ -24,6 +24,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -53,7 +54,7 @@ import java.util.stream.Collectors;
 public class MultipleInputTestBase {
 
     protected Transformation<RowData> createSource(StreamExecutionEnvironment env, String... data) {
-        return env.fromCollection(
+        return env.fromData(
                         Arrays.stream(data)
                                 .map(StringData::fromString)
                                 .map(GenericRowData::of)
@@ -63,15 +64,25 @@ public class MultipleInputTestBase {
     }
 
     protected TestingOneInputStreamOperator createOneInputStreamOperator() throws Exception {
-        TestingOneInputStreamOperator op = new TestingOneInputStreamOperator();
-        op.setup(createStreamTask(), createStreamConfig(), new BlackHoleOutput());
-        return op;
+        return new TestingOneInputStreamOperator(
+                new StreamOperatorParameters<>(
+                        createStreamTask(),
+                        createStreamConfig(),
+                        new BlackHoleOutput(),
+                        TestProcessingTimeService::new,
+                        null,
+                        null));
     }
 
     protected TestingTwoInputStreamOperator createTwoInputStreamOperator() throws Exception {
-        TestingTwoInputStreamOperator op = new TestingTwoInputStreamOperator();
-        op.setup(createStreamTask(), createStreamConfig(), new BlackHoleOutput());
-        return op;
+        return new TestingTwoInputStreamOperator(
+                new StreamOperatorParameters<>(
+                        createStreamTask(),
+                        createStreamConfig(),
+                        new BlackHoleOutput(),
+                        TestProcessingTimeService::new,
+                        null,
+                        null));
     }
 
     protected OneInputTransformation<RowData, RowData> createOneInputTransform(
@@ -154,6 +165,7 @@ public class MultipleInputTestBase {
                 createStreamConfig(),
                 output,
                 TestProcessingTimeService::new,
-                null);
+                null,
+                new SyncMailboxExecutor());
     }
 }

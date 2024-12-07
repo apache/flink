@@ -45,6 +45,8 @@ abstract class LogicalWindow(
     Objects.equals(timeAttribute, that.timeAttribute)
   }
 
+  def copy(newTimeAttribute: FieldReferenceExpression): LogicalWindow
+
   protected def isValueLiteralExpressionEqual(
       l1: ValueLiteralExpression,
       l2: ValueLiteralExpression): Boolean = {
@@ -90,6 +92,10 @@ case class TumblingGroupWindow(
     }
   }
 
+  override def copy(newTimeField: FieldReferenceExpression): LogicalWindow = {
+    TumblingGroupWindow(alias, newTimeField, size)
+  }
+
   override def toString: String = s"TumblingGroupWindow($alias, $timeField, $size)"
 }
 
@@ -113,6 +119,10 @@ case class SlidingGroupWindow(
     }
   }
 
+  override def copy(newTimeField: FieldReferenceExpression): LogicalWindow = {
+    SlidingGroupWindow(alias, newTimeField, size, slide)
+  }
+
   override def toString: String = s"SlidingGroupWindow($alias, $timeField, $size, $slide)"
 }
 
@@ -132,6 +142,10 @@ case class SessionGroupWindow(
     } else {
       false
     }
+  }
+
+  override def copy(newTimeField: FieldReferenceExpression): LogicalWindow = {
+    SessionGroupWindow(alias, newTimeField, gap)
   }
 
   override def toString: String = s"SessionGroupWindow($alias, $timeField, $gap)"

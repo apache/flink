@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -32,6 +31,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -39,6 +39,7 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -65,7 +66,7 @@ class JarDeleteHandlerTest {
         jarDeleteHandler =
                 new JarDeleteHandler(
                         () -> CompletableFuture.completedFuture(restfulGateway),
-                        Time.seconds(10),
+                        Duration.ofSeconds(10),
                         Collections.emptyMap(),
                         new JarDeleteHeaders(),
                         jarDir,
@@ -103,6 +104,7 @@ class JarDeleteHandlerTest {
                         });
     }
 
+    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @Test
     void testFailedDelete() throws Exception {
         makeJarDirReadOnly();

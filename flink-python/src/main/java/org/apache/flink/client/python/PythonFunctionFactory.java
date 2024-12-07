@@ -18,19 +18,19 @@
 
 package org.apache.flink.client.python;
 
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.python.util.PythonDependencyUtils;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.functions.python.PythonFunction;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
-import org.apache.flink.shaded.guava31.com.google.common.cache.CacheBuilder;
-import org.apache.flink.shaded.guava31.com.google.common.cache.CacheLoader;
-import org.apache.flink.shaded.guava31.com.google.common.cache.LoadingCache;
-import org.apache.flink.shaded.guava31.com.google.common.cache.RemovalListener;
+import org.apache.flink.shaded.guava32.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava32.com.google.common.cache.CacheLoader;
+import org.apache.flink.shaded.guava32.com.google.common.cache.LoadingCache;
+import org.apache.flink.shaded.guava32.com.google.common.cache.RemovalListener;
 
 import py4j.GatewayServer;
 
@@ -123,8 +123,10 @@ public interface PythonFunctionFactory {
         String objectName = fullyQualifiedName.substring(splitIndex + 1);
 
         Configuration mergedConfig =
-                new Configuration(
-                        ExecutionEnvironment.getExecutionEnvironment().getConfiguration());
+                Configuration.fromMap(
+                        StreamExecutionEnvironment.getExecutionEnvironment()
+                                .getConfiguration()
+                                .toMap());
         if (config instanceof TableConfig) {
             PythonDependencyUtils.merge(mergedConfig, ((TableConfig) config).getConfiguration());
         } else {

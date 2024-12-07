@@ -93,6 +93,13 @@ class TableSourceTable(
     builder.build()
   }
 
+  /** Adds the newSpec replacing any spec of the same class from existing ones. */
+  private def mergeSpecs(
+      original: Array[SourceAbilitySpec],
+      newSpec: Array[SourceAbilitySpec]): Array[SourceAbilitySpec] = {
+    original.filter(old => !newSpec.exists(n => old.getClass == n.getClass)) ++ newSpec
+  }
+
   /**
    * Creates a copy of this table with specified digest.
    *
@@ -116,7 +123,7 @@ class TableSourceTable(
       contextResolvedTable,
       flinkContext,
       flinkTypeFactory,
-      abilitySpecs ++ newAbilitySpecs
+      mergeSpecs(abilitySpecs, newAbilitySpecs)
     )
   }
 
@@ -146,7 +153,7 @@ class TableSourceTable(
       newResolveTable,
       flinkContext,
       flinkTypeFactory,
-      abilitySpecs ++ newAbilitySpecs
+      mergeSpecs(abilitySpecs, newAbilitySpecs)
     )
   }
 
@@ -198,7 +205,7 @@ class TableSourceTable(
       contextResolvedTable,
       flinkContext,
       flinkTypeFactory,
-      abilitySpecs ++ newAbilitySpecs)
+      mergeSpecs(abilitySpecs, newAbilitySpecs))
   }
 
   /**

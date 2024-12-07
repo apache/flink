@@ -25,19 +25,17 @@ import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 import org.apache.flink.connector.base.source.reader.mocks.MockBaseSource;
 import org.apache.flink.connector.base.source.reader.mocks.MockSourceReader;
 import org.apache.flink.connector.base.source.reader.mocks.MockSplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
-import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderContext;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderOutput;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.mock.Whitebox;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.util.Collections;
@@ -48,10 +46,10 @@ import java.util.function.Supplier;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link HybridSourceReader}. */
-public class HybridSourceReaderTest {
+class HybridSourceReaderTest {
 
     @Test
-    public void testReader() throws Exception {
+    void testReader() throws Exception {
         TestingReaderContext readerContext = new TestingReaderContext();
         TestingReaderOutput<Integer> readerOutput = new TestingReaderOutput<>();
         MockBaseSource source = new MockBaseSource(1, 1, Boundedness.BOUNDED);
@@ -130,7 +128,7 @@ public class HybridSourceReaderTest {
     }
 
     @Test
-    public void testAvailabilityFutureSwitchover() throws Exception {
+    void testAvailabilityFutureSwitchover() throws Exception {
         TestingReaderContext readerContext = new TestingReaderContext();
         TestingReaderOutput<Integer> readerOutput = new TestingReaderOutput<>();
         MockBaseSource source = new MockBaseSource(1, 1, Boundedness.BOUNDED);
@@ -244,7 +242,7 @@ public class HybridSourceReaderTest {
     }
 
     @Test
-    public void testReaderRecovery() throws Exception {
+    void testReaderRecovery() throws Exception {
         TestingReaderContext readerContext = new TestingReaderContext();
         TestingReaderOutput<Integer> readerOutput = new TestingReaderOutput<>();
         MockBaseSource source = new MockBaseSource(1, 1, Boundedness.BOUNDED);
@@ -284,7 +282,7 @@ public class HybridSourceReaderTest {
     }
 
     @Test
-    public void testDefaultMethodDelegation() throws Exception {
+    void testDefaultMethodDelegation() throws Exception {
         TestingReaderContext readerContext = new TestingReaderContext();
         TestingReaderOutput<Integer> readerOutput = new TestingReaderOutput<>();
         MockBaseSource source =
@@ -330,26 +328,21 @@ public class HybridSourceReaderTest {
         private CompletableFuture<Void> availabilityFuture = new CompletableFuture<>();
 
         public MutableFutureSourceReader(
-                FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue,
                 Supplier<SplitReader<int[], MockSourceSplit>> splitFetcherSupplier,
                 Configuration config,
                 SourceReaderContext context) {
-            super(elementsQueue, splitFetcherSupplier, config, context);
+            super(splitFetcherSupplier, config, context);
         }
 
         public static MutableFutureSourceReader createReader(SourceReaderContext readerContext) {
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
-                    new FutureCompletingBlockingQueue<>();
-
             Configuration config = new Configuration();
-            config.setInteger(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 2);
-            config.setLong(SourceReaderOptions.SOURCE_READER_CLOSE_TIMEOUT, 30000L);
+            config.set(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 2);
+            config.set(SourceReaderOptions.SOURCE_READER_CLOSE_TIMEOUT, 30000L);
             MockSplitReader.Builder builder =
                     MockSplitReader.newBuilder()
                             .setNumRecordsPerSplitPerFetch(2)
                             .setBlockingFetch(true);
-            return new MutableFutureSourceReader(
-                    elementsQueue, builder::build, config, readerContext);
+            return new MutableFutureSourceReader(builder::build, config, readerContext);
         }
 
         @Override

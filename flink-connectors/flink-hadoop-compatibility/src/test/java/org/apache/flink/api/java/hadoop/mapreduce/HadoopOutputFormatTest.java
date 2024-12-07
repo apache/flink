@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java.hadoop.mapreduce;
 
+import org.apache.flink.api.common.io.FinalizeOnMaster;
+import org.apache.flink.api.common.io.FirstAttemptInitializationContext;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 import org.apache.hadoop.conf.Configurable;
@@ -28,13 +30,13 @@ import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.io.IOException;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -42,13 +44,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link HadoopOutputFormat}. */
-public class HadoopOutputFormatTest {
+class HadoopOutputFormatTest {
 
     private static final String MAPRED_OUTPUT_PATH = "an/ignored/file/";
     private static final String MAPRED_OUTPUT_DIR_KEY = "mapred.output.dir";
 
     @Test
-    public void testWriteRecord() throws Exception {
+    void testWriteRecord() throws Exception {
 
         RecordWriter<String, Long> recordWriter = mock(DummyRecordWriter.class);
         HadoopOutputFormat<String, Long> hadoopOutputFormat =
@@ -65,7 +67,7 @@ public class HadoopOutputFormatTest {
     }
 
     @Test
-    public void testOpen() throws Exception {
+    void testOpen() throws Exception {
 
         OutputFormat<String, Long> dummyOutputFormat = mock(DummyOutputFormat.class);
         OutputCommitter outputCommitter = setupOutputCommitter(true);
@@ -80,7 +82,7 @@ public class HadoopOutputFormatTest {
                         setupOutputCommitter(true),
                         new Configuration());
 
-        hadoopOutputFormat.open(1, 4);
+        hadoopOutputFormat.open(FirstAttemptInitializationContext.of(1, 4));
 
         verify(hadoopOutputFormat.outputCommitter, times(1)).setupJob(any(JobContext.class));
         verify(hadoopOutputFormat.mapreduceOutputFormat, times(1))
@@ -88,7 +90,7 @@ public class HadoopOutputFormatTest {
     }
 
     @Test
-    public void testCloseWithNeedsTaskCommitTrue() throws Exception {
+    void testCloseWithNeedsTaskCommitTrue() throws Exception {
 
         RecordWriter<String, Long> recordWriter = Mockito.mock(DummyRecordWriter.class);
         OutputCommitter outputCommitter = setupOutputCommitter(true);
@@ -108,7 +110,7 @@ public class HadoopOutputFormatTest {
     }
 
     @Test
-    public void testCloseWithNeedsTaskCommitFalse() throws Exception {
+    void testCloseWithNeedsTaskCommitFalse() throws Exception {
 
         RecordWriter<String, Long> recordWriter = Mockito.mock(DummyRecordWriter.class);
         OutputCommitter outputCommitter = setupOutputCommitter(false);
@@ -128,7 +130,7 @@ public class HadoopOutputFormatTest {
     }
 
     @Test
-    public void testConfigure() throws Exception {
+    void testConfigure() throws Exception {
 
         ConfigurableDummyOutputFormat outputFormat = mock(ConfigurableDummyOutputFormat.class);
 
@@ -142,7 +144,7 @@ public class HadoopOutputFormatTest {
     }
 
     @Test
-    public void testFinalizedGlobal() throws Exception {
+    void testFinalizedGlobal() throws Exception {
 
         HadoopOutputFormat<String, Long> hadoopOutputFormat =
                 setupHadoopOutputFormat(
@@ -152,7 +154,18 @@ public class HadoopOutputFormatTest {
                         null,
                         new Configuration());
 
-        hadoopOutputFormat.finalizeGlobal(1);
+        hadoopOutputFormat.finalizeGlobal(
+                new FinalizeOnMaster.FinalizationContext() {
+                    @Override
+                    public int getParallelism() {
+                        return 1;
+                    }
+
+                    @Override
+                    public int getFinishedAttempt(int subtaskIndex) {
+                        return 0;
+                    }
+                });
 
         verify(hadoopOutputFormat.outputCommitter, times(1)).commitJob(any(JobContext.class));
     }

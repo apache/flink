@@ -44,18 +44,18 @@ import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.java.tuple.Tuple9;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link Tuple} to {@code Array}. */
-public class ArrayFromTupleTest {
+class ArrayFromTupleTest {
 
     private String[] testStrings;
 
-    @Before
-    public void init() {
+    @BeforeEach
+    void init() {
         testStrings = new String[Tuple.MAX_ARITY];
         for (int i = 0; i < Tuple.MAX_ARITY; i++) {
             testStrings[i] = Integer.toString(i);
@@ -63,8 +63,7 @@ public class ArrayFromTupleTest {
     }
 
     @Test
-    public void testConvertFromTupleToArray()
-            throws InstantiationException, IllegalAccessException {
+    void testConvertFromTupleToArray() throws InstantiationException, IllegalAccessException {
         for (int i = 0; i < Tuple.MAX_ARITY; i++) {
             Tuple currentTuple = (Tuple) CLASSES[i].newInstance();
             String[] currentArray = new String[i + 1];
@@ -77,7 +76,7 @@ public class ArrayFromTupleTest {
     }
 
     @Test
-    public void testUserSpecifiedOrder() throws InstantiationException, IllegalAccessException {
+    void testUserSpecifiedOrder() throws InstantiationException, IllegalAccessException {
         Tuple currentTuple = (Tuple) CLASSES[Tuple.MAX_ARITY - 1].newInstance();
         for (int i = 0; i < Tuple.MAX_ARITY; i++) {
             currentTuple.setField(testStrings[i], i);
@@ -131,10 +130,7 @@ public class ArrayFromTupleTest {
     }
 
     private void arrayEqualityCheck(Object[] array1, Object[] array2) {
-        assertEquals("The result arrays must have the same length", array1.length, array2.length);
-        for (int i = 0; i < array1.length; i++) {
-            assertEquals("Unequal fields at position " + i, array1[i], array2[i]);
-        }
+        assertThat(array1).isEqualTo(array2);
     }
 
     private static final Class<?>[] CLASSES =

@@ -29,7 +29,7 @@ import org.apache.flink.table.runtime.operators.join.KeyedCoProcessOperatorWithW
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +38,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link RowTimeIntervalJoin}. */
-public class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
+class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
 
     private int keyIdx = 1;
     private RowDataKeySelector keySelector =
@@ -48,7 +48,7 @@ public class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
 
     /** a.rowtime >= b.rowtime - 10 and a.rowtime <= b.rowtime + 20. * */
     @Test
-    public void testRowTimeInnerJoinWithCommonBounds() throws Exception {
+    void testRowTimeInnerJoinWithCommonBounds() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
                         FlinkJoinType.INNER, -10, 20, 0, 15, rowType, rowType, joinFunction, 0, 0);
@@ -113,7 +113,7 @@ public class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
 
     /** a.rowtime >= b.rowtime - 10 and a.rowtime <= b.rowtime - 7. * */
     @Test
-    public void testRowTimeInnerJoinWithNegativeBounds() throws Exception {
+    void testRowTimeInnerJoinWithNegativeBounds() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
                         FlinkJoinType.INNER, -10, -7, 0, 0, rowType, rowType, joinFunction, 0, 0);
@@ -168,7 +168,7 @@ public class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     }
 
     @Test
-    public void testRowTimeInnerJoinRealtimeCleanUp() throws Exception {
+    void testRowTimeInnerJoinRealtimeCleanUp() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
                         FlinkJoinType.LEFT, -5, 9, 0, 0, rowType, rowType, joinFunction, 0, 0);
@@ -197,7 +197,7 @@ public class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     }
 
     @Test
-    public void testRowTimeLeftOuterJoin() throws Exception {
+    void testRowTimeLeftOuterJoin() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
                         FlinkJoinType.LEFT, -5, 9, 0, 7, rowType, rowType, joinFunction, 0, 0);
@@ -267,7 +267,7 @@ public class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     }
 
     @Test
-    public void testRowTimeRightOuterJoin() throws Exception {
+    void testRowTimeRightOuterJoin() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
                         FlinkJoinType.RIGHT, -5, 9, 0, 7, rowType, rowType, joinFunction, 0, 0);
@@ -338,7 +338,7 @@ public class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
 
     /** a.rowtime >= b.rowtime - 5 and a.rowtime <= b.rowtime + 9. * */
     @Test
-    public void testRowTimeFullOuterJoin() throws Exception {
+    void testRowTimeFullOuterJoin() throws Exception {
         RowTimeIntervalJoin joinProcessFunc =
                 new RowTimeIntervalJoin(
                         FlinkJoinType.FULL, -5, 9, 0, 7, rowType, rowType, joinFunction, 0, 0);

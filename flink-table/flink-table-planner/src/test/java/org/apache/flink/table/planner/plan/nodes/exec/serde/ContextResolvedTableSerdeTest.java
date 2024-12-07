@@ -33,6 +33,7 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -99,12 +100,20 @@ public class ContextResolvedTableSerdeTest {
         PLAN_OPTIONS.put("d", "4");
     }
 
+    private static final TableDistribution DISTRIBUTION =
+            TableDistribution.ofHash(Collections.singletonList("a"), 6);
+
     private static final List<String> PARTITION_KEYS = Collections.singletonList("a");
 
     private static final ResolvedCatalogTable RESOLVED_CATALOG_TABLE =
             new ResolvedCatalogTable(
-                    CatalogTable.of(
-                            CATALOG_TABLE_SCHEMA, "my comment", PARTITION_KEYS, CATALOG_OPTIONS),
+                    CatalogTable.newBuilder()
+                            .schema(CATALOG_TABLE_SCHEMA)
+                            .comment("my comment")
+                            .distribution(DISTRIBUTION)
+                            .partitionKeys(PARTITION_KEYS)
+                            .options(CATALOG_OPTIONS)
+                            .build(),
                     CATALOG_TABLE_RESOLVED_SCHEMA);
 
     // Mock catalog
@@ -125,11 +134,13 @@ public class ContextResolvedTableSerdeTest {
     private static final ContextResolvedTable ANONYMOUS_CONTEXT_RESOLVED_TABLE =
             ContextResolvedTable.anonymous(
                     new ResolvedCatalogTable(
-                            CatalogTable.of(
-                                    CATALOG_TABLE_SCHEMA,
-                                    "my comment",
-                                    PARTITION_KEYS,
-                                    PLAN_OPTIONS),
+                            CatalogTable.newBuilder()
+                                    .schema(CATALOG_TABLE_SCHEMA)
+                                    .comment("my comment")
+                                    .distribution(DISTRIBUTION)
+                                    .partitionKeys(PARTITION_KEYS)
+                                    .options(PLAN_OPTIONS)
+                                    .build(),
                             CATALOG_TABLE_RESOLVED_SCHEMA));
 
     private static final ContextResolvedTable TEMPORARY_CATALOG_CONTEXT_RESOLVED_TABLE =
@@ -138,11 +149,13 @@ public class ContextResolvedTableSerdeTest {
             ContextResolvedTable.temporary(
                     TEMPORARY_TABLE_IDENTIFIER,
                     new ResolvedCatalogTable(
-                            CatalogTable.of(
-                                    CATALOG_TABLE_SCHEMA,
-                                    "my comment",
-                                    PARTITION_KEYS,
-                                    PLAN_OPTIONS),
+                            CatalogTable.newBuilder()
+                                    .schema(CATALOG_TABLE_SCHEMA)
+                                    .comment("my comment")
+                                    .distribution(DISTRIBUTION)
+                                    .partitionKeys(PARTITION_KEYS)
+                                    .options(PLAN_OPTIONS)
+                                    .build(),
                             CATALOG_TABLE_RESOLVED_SCHEMA));
 
     private static final ContextResolvedTable PERMANENT_CATALOG_CONTEXT_RESOLVED_TABLE =
@@ -152,11 +165,13 @@ public class ContextResolvedTableSerdeTest {
                     PERMANENT_TABLE_IDENTIFIER,
                     CATALOG_MANAGER.getCatalog(DEFAULT_CATALOG).orElseThrow(AssertionError::new),
                     new ResolvedCatalogTable(
-                            CatalogTable.of(
-                                    CATALOG_TABLE_SCHEMA,
-                                    "my comment",
-                                    PARTITION_KEYS,
-                                    PLAN_OPTIONS),
+                            CatalogTable.newBuilder()
+                                    .schema(CATALOG_TABLE_SCHEMA)
+                                    .comment("my comment")
+                                    .distribution(DISTRIBUTION)
+                                    .partitionKeys(PARTITION_KEYS)
+                                    .options(PLAN_OPTIONS)
+                                    .build(),
                             CATALOG_TABLE_RESOLVED_SCHEMA));
 
     @Test
@@ -204,11 +219,12 @@ public class ContextResolvedTableSerdeTest {
                 ContextResolvedTable.temporary(
                         objectIdentifier,
                         new ResolvedCatalogTable(
-                                CatalogTable.of(
-                                        CATALOG_TABLE_SCHEMA,
-                                        "my amazing table",
-                                        Collections.emptyList(),
-                                        PLAN_OPTIONS),
+                                CatalogTable.newBuilder()
+                                        .schema(CATALOG_TABLE_SCHEMA)
+                                        .comment("my amazing table")
+                                        .partitionKeys(Collections.emptyList())
+                                        .options(PLAN_OPTIONS)
+                                        .build(),
                                 CATALOG_TABLE_RESOLVED_SCHEMA));
         final byte[] actualSerialized = createObjectWriter(ctx).writeValueAsBytes(spec);
 
@@ -456,6 +472,12 @@ public class ContextResolvedTableSerdeTest {
                 assertThat(result.f1.isPermanent()).isTrue();
                 assertThat(result.f1.getIdentifier()).isEqualTo(PERMANENT_TABLE_IDENTIFIER);
                 assertThat(result.f1.getResolvedSchema()).isEqualTo(CATALOG_TABLE_RESOLVED_SCHEMA);
+                assertThat(
+                                result.f1
+                                        .<ResolvedCatalogTable>getResolvedTable()
+                                        .getDistribution()
+                                        .get())
+                        .isEqualTo(DISTRIBUTION);
                 assertThat(result.f1.<ResolvedCatalogTable>getResolvedTable().getPartitionKeys())
                         .isEqualTo(PARTITION_KEYS);
                 assertThat(result.f1.getResolvedTable().getOptions())
@@ -578,11 +600,12 @@ public class ContextResolvedTableSerdeTest {
                                 objectIdentifier,
                                 CATALOG,
                                 new ResolvedCatalogTable(
-                                        CatalogTable.of(
-                                                CATALOG_TABLE_SCHEMA,
-                                                "my amazing table",
-                                                Collections.emptyList(),
-                                                PLAN_OPTIONS),
+                                        CatalogTable.newBuilder()
+                                                .schema(CATALOG_TABLE_SCHEMA)
+                                                .comment("my amazing table")
+                                                .partitionKeys(Collections.emptyList())
+                                                .options(PLAN_OPTIONS)
+                                                .build(),
                                         CATALOG_TABLE_RESOLVED_SCHEMA));
 
                 final Tuple2<JsonNode, ContextResolvedTable> result = serDe(ctx, spec);

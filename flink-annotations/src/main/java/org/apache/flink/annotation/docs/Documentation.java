@@ -62,6 +62,7 @@ public final class Documentation {
 
         public static final String COMMON_HOST_PORT = "common_host_port";
         public static final String COMMON_STATE_BACKENDS = "common_state_backends";
+        public static final String COMMON_CHECKPOINTING = "common_checkpointing";
         public static final String COMMON_HIGH_AVAILABILITY = "common_high_availability";
         public static final String COMMON_HIGH_AVAILABILITY_ZOOKEEPER =
                 "common_high_availability_zk";
@@ -77,16 +78,15 @@ public final class Documentation {
 
         public static final String STATE_BACKEND_ROCKSDB = "state_backend_rocksdb";
 
-        public static final String STATE_BACKEND_LATENCY_TRACKING =
-                "state_backend_latency_tracking";
+        public static final String STATE_LATENCY_TRACKING = "state_latency_tracking";
 
-        public static final String STATE_BACKEND_CHANGELOG = "state_backend_changelog";
+        public static final String STATE_CHANGELOG = "state_changelog";
 
         public static final String EXPERT_CLASS_LOADING = "expert_class_loading";
         public static final String EXPERT_DEBUGGING_AND_TUNING = "expert_debugging_and_tuning";
         public static final String EXPERT_SCHEDULING = "expert_scheduling";
         public static final String EXPERT_FAULT_TOLERANCE = "expert_fault_tolerance";
-        public static final String EXPERT_STATE_BACKENDS = "expert_state_backends";
+        public static final String EXPERT_CHECKPOINTING = "expert_checkpointing";
         public static final String EXPERT_REST = "expert_rest";
         public static final String EXPERT_HIGH_AVAILABILITY = "expert_high_availability";
         public static final String EXPERT_ZOOKEEPER_HIGH_AVAILABILITY =
@@ -105,6 +105,10 @@ public final class Documentation {
         public static final String DEPRECATED_FILE_SINKS = "deprecated_file_sinks";
 
         public static final String METRIC_REPORTERS = "metric_reporters";
+
+        public static final String TRACE_REPORTERS = "trace_reporters";
+
+        public static final String CHECKPOINT_FILE_MERGING = "checkpoint_file_merging";
 
         private Sections() {}
     }

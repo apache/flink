@@ -18,14 +18,14 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalCorrelate, BatchPhysicalGroupAggregateBase}
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Aggregate, Correlate}
 import org.apache.calcite.rel.metadata.{MetadataDef, MetadataHandler, RelMetadataQuery}
-import org.junit.Assert.fail
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.fail
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.reflect.Method
 import java.util
@@ -47,7 +47,7 @@ import scala.collection.mutable
  *      estimation should be same. This test does not check this point because every MetadataHandler
  *      could have different parameters with each other.
  */
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class MetadataHandlerConsistencyTest(
     logicalNodeClass: Class[_ <: RelNode],
     physicalNodeClass: Class[_ <: RelNode]) {
@@ -87,7 +87,7 @@ class MetadataHandlerConsistencyTest(
   // get [[MetadataDef]] of each subclasses of [[MetadataHandler]]
   private val mdDefMethods = allMdHandlerClazz.map(_.getMethod("getDef"))
 
-  @Test
+  @TestTemplate
   def ensureLogicalNodeAndPhysicalNodeBothPresentOrBothAbsent(): Unit = {
     allMdHandlerClazz.zip(mdHandlerInstances).zip(mdDefMethods).foreach {
       case ((mdHandlerClass, mdHandlerInstance), mdDefMethod) =>
@@ -144,7 +144,7 @@ class MetadataHandlerConsistencyTest(
 
 object MetadataHandlerConsistencyTest {
 
-  @Parameterized.Parameters(name = "logicalNodeClass={0}, physicalNodeClass={1}")
+  @Parameters(name = "logicalNodeClass={0}, physicalNodeClass={1}")
   def parameters(): util.Collection[Array[Any]] = {
     Seq[Array[Any]](
       Array(classOf[Aggregate], classOf[BatchPhysicalGroupAggregateBase]),

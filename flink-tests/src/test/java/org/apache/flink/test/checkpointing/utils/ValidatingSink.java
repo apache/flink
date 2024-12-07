@@ -20,7 +20,7 @@ package org.apache.flink.test.checkpointing.utils;
 
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
 import org.apache.flink.test.util.SuccessException;
 
 import javax.annotation.Nonnull;
@@ -79,7 +79,7 @@ public class ValidatingSink<T> extends RichSinkFunction<T>
     @Override
     public void open(OpenContext openContext) throws Exception {
         // this sink can only work with DOP 1
-        assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
+        assertEquals(1, getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks());
         if (usingProcessingTime && resultChecker.checkResult(windowCounts)) {
             throw new SuccessException();
         }

@@ -50,7 +50,7 @@ import static org.apache.flink.table.catalog.hive.util.Constants.IDENTIFIER;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for {@link HiveSource}. */
+/** IT case for {@link HiveSource}. */
 public class HiveSourceITCase {
 
     private static HiveCatalog hiveCatalog;

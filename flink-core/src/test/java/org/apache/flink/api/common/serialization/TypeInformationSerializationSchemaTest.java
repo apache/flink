@@ -23,58 +23,48 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.testutils.CommonTestUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TypeInformationSerializationSchema}. */
-public class TypeInformationSerializationSchemaTest {
+class TypeInformationSerializationSchemaTest {
 
     @Test
-    public void testDeSerialization() {
-        try {
-            TypeInformation<MyPOJO> info = TypeExtractor.getForClass(MyPOJO.class);
+    void testDeSerialization() {
+        TypeInformation<MyPOJO> info = TypeExtractor.getForClass(MyPOJO.class);
 
-            TypeInformationSerializationSchema<MyPOJO> schema =
-                    new TypeInformationSerializationSchema<MyPOJO>(info, new ExecutionConfig());
+        TypeInformationSerializationSchema<MyPOJO> schema =
+                new TypeInformationSerializationSchema<>(info, new ExecutionConfig());
 
-            MyPOJO[] types = {
-                new MyPOJO(72, new Date(763784523L), new Date(88234L)),
-                new MyPOJO(-1, new Date(11111111111111L)),
-                new MyPOJO(42),
-                new MyPOJO(17, new Date(222763784523L))
-            };
+        MyPOJO[] types = {
+            new MyPOJO(72, new Date(763784523L), new Date(88234L)),
+            new MyPOJO(-1, new Date(11111111111111L)),
+            new MyPOJO(42),
+            new MyPOJO(17, new Date(222763784523L))
+        };
 
-            for (MyPOJO val : types) {
-                byte[] serialized = schema.serialize(val);
-                MyPOJO deser = schema.deserialize(serialized);
-                assertEquals(val, deser);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
+        for (MyPOJO val : types) {
+            byte[] serialized = schema.serialize(val);
+            MyPOJO deser = schema.deserialize(serialized);
+            assertThat(deser).isEqualTo(val);
         }
     }
 
     @Test
-    public void testSerializability() {
-        try {
-            TypeInformation<MyPOJO> info = TypeExtractor.getForClass(MyPOJO.class);
-            TypeInformationSerializationSchema<MyPOJO> schema =
-                    new TypeInformationSerializationSchema<MyPOJO>(info, new ExecutionConfig());
+    void testSerializability() throws IOException {
+        TypeInformation<MyPOJO> info = TypeExtractor.getForClass(MyPOJO.class);
+        TypeInformationSerializationSchema<MyPOJO> schema =
+                new TypeInformationSerializationSchema<>(info, new ExecutionConfig());
 
-            // this needs to succeed
-            CommonTestUtils.createCopySerializable(schema);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        // this needs to succeed
+        CommonTestUtils.createCopySerializable(schema);
     }
 
     // ------------------------------------------------------------------------

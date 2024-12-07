@@ -45,6 +45,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.type.RelDataType;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -107,19 +108,19 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
 
         // finalize catalog table with option hints
         final Map<String, String> hintedOptions = FlinkHints.getHintedOptions(hints);
-        final ContextResolvedTable catalogTable =
+        final ContextResolvedTable contextTableWithHints =
                 computeContextResolvedTable(context, hintedOptions);
 
         // create table source
         final DynamicTableSource tableSource =
-                createDynamicTableSource(context, catalogTable.getResolvedTable());
+                createDynamicTableSource(context, contextTableWithHints.getResolvedTable());
 
         // prepare table source and convert to RelNode
         return DynamicSourceUtils.convertSourceToRel(
                 !schemaTable.isStreamingMode(),
                 context.getTableConfig(),
                 relBuilder,
-                schemaTable.getContextResolvedTable(),
+                contextTableWithHints,
                 schemaTable.getStatistic(),
                 hints,
                 tableSource);
@@ -176,6 +177,7 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
                 factory,
                 schemaTable.getContextResolvedTable().getIdentifier(),
                 catalogTable,
+                Collections.emptyMap(),
                 context.getTableConfig(),
                 context.getClassLoader(),
                 schemaTable.isTemporary());

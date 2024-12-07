@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -36,22 +35,22 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.net.SSLUtilsTest;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.testutils.serialization.types.ByteArrayType;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPromise;
 
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.List;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests the bug reported in FLINK-131O0.
@@ -67,8 +66,8 @@ import static org.junit.Assert.assertThat;
  * recycled while fetching the second buffer to trigger next read ahead, which breaks the above
  * assumption.
  */
-@RunWith(Parameterized.class)
-public class FileBufferReaderITCase extends TestLogger {
+@ExtendWith(ParameterizedTestExtension.class)
+class FileBufferReaderITCase {
 
     private static final int parallelism = 8;
 
@@ -82,22 +81,22 @@ public class FileBufferReaderITCase extends TestLogger {
 
     private static final byte[] dataSource = new byte[recordSize];
 
-    @Parameterized.Parameters(name = "SSL Enabled = {0}")
-    public static List<Boolean> paras() {
+    @Parameters(name = "SSL Enabled = {0}")
+    private static List<Boolean> paras() {
         return Arrays.asList(true, false);
     }
 
-    @Parameterized.Parameter public boolean sslEnabled;
+    @Parameter private boolean sslEnabled;
 
-    @BeforeClass
-    public static void setup() {
+    @BeforeAll
+    static void setup() {
         for (int i = 0; i < dataSource.length; i++) {
             dataSource[i] = 0;
         }
     }
 
-    @Test
-    public void testSequentialReading() throws Exception {
+    @TestTemplate
+    void testSequentialReading() throws Exception {
         // setup
         final Configuration configuration;
         if (sslEnabled) {
@@ -109,9 +108,7 @@ public class FileBufferReaderITCase extends TestLogger {
         // Increases the handshake timeout to avoid connection reset/close issues
         // if the netty server thread could not response in time, like when it is
         // busy reading the files.
-        configuration.setInteger(SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT, 100000);
-        configuration.setString(
-                NettyShuffleEnvironmentOptions.NETWORK_BLOCKING_SHUFFLE_TYPE, "file");
+        configuration.set(SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT, 100000);
         configuration.set(TaskManagerOptions.TOTAL_FLINK_MEMORY, MemorySize.parse("1g"));
         configuration.set(
                 TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse(bufferSize + "b"));
@@ -213,7 +210,7 @@ public class FileBufferReaderITCase extends TestLogger {
                 numReceived++;
             }
 
-            assertThat(numReceived, is(numRecords));
+            assertThat(numReceived).isEqualTo(numRecords);
         }
     }
 }

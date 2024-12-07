@@ -89,6 +89,12 @@ public class SqlReplaceTableAs extends SqlCreate implements ExtendedSqlNode {
 
     private final List<SqlTableConstraint> tableConstraints;
 
+    public SqlDistribution getDistribution() {
+        return distribution;
+    }
+
+    private final SqlDistribution distribution;
+
     private final SqlNodeList partitionKeyList;
 
     private final SqlWatermark watermark;
@@ -107,6 +113,7 @@ public class SqlReplaceTableAs extends SqlCreate implements ExtendedSqlNode {
             SqlNodeList columnList,
             List<SqlTableConstraint> tableConstraints,
             SqlNodeList propertyList,
+            SqlDistribution distribution,
             SqlNodeList partitionKeyList,
             @Nullable SqlWatermark watermark,
             @Nullable SqlCharStringLiteral comment,
@@ -125,6 +132,7 @@ public class SqlReplaceTableAs extends SqlCreate implements ExtendedSqlNode {
         this.tableConstraints =
                 requireNonNull(tableConstraints, "table constraints should not be null");
         this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
+        this.distribution = distribution;
         this.partitionKeyList =
                 requireNonNull(partitionKeyList, "partitionKeyList should not be null");
         this.watermark = watermark;
@@ -150,7 +158,10 @@ public class SqlReplaceTableAs extends SqlCreate implements ExtendedSqlNode {
 
     @Override
     public void validate() throws SqlValidateException {
-        SqlConstraintValidator.validateAndChangeColumnNullability(tableConstraints, columnList);
+        if (!isSchemaWithColumnsIdentifiersOnly()) {
+            SqlConstraintValidator.validateAndChangeColumnNullability(tableConstraints, columnList);
+        }
+
         // The following features are not currently supported by RTAS, but may be supported in the
         // future
         String errorMsg =
@@ -166,28 +177,6 @@ public class SqlReplaceTableAs extends SqlCreate implements ExtendedSqlNode {
             throw new SqlValidateException(
                     getParserPosition(),
                     errorMsg + " syntax does not support temporary table yet.");
-        }
-
-        if (getColumnList().size() > 0) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    errorMsg + " syntax does not support to specify explicit columns yet.");
-        }
-
-        if (getWatermark().isPresent()) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    errorMsg + " syntax does not support to specify explicit watermark yet.");
-        }
-        if (getPartitionKeyList().size() > 0) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    errorMsg + " syntax does not support to create partitioned table yet.");
-        }
-        if (getFullConstraints().stream().anyMatch(SqlTableConstraint::isPrimaryKey)) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    errorMsg + " syntax does not support primary key constraints yet.");
         }
     }
 
@@ -233,6 +222,13 @@ public class SqlReplaceTableAs extends SqlCreate implements ExtendedSqlNode {
 
     public boolean isTemporary() {
         return isTemporary;
+    }
+
+    public boolean isSchemaWithColumnsIdentifiersOnly() {
+        // REPLACE table supports passing only column identifiers in the column list. If
+        // the first column in the list is an identifier, then we assume the rest of the
+        // columns are identifiers as well.
+        return !columnList.isEmpty() && columnList.get(0) instanceof SqlIdentifier;
     }
 
     /** Returns the column constraints plus the table constraints. */

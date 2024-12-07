@@ -24,16 +24,16 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test json serialization for over aggregate. */
-public class PythonOverAggregateJsonPlanTest extends TableTestBase {
+class PythonOverAggregateJsonPlanTest extends TableTestBase {
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
         String srcTableDdl =
@@ -52,7 +52,7 @@ public class PythonOverAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testProcTimeBoundedPartitionedRangeOver() {
+    void testProcTimeBoundedPartitionedRangeOver() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a bigint,\n"
@@ -71,7 +71,7 @@ public class PythonOverAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testProcTimeBoundedNonPartitionedRangeOver() {
+    void testProcTimeBoundedNonPartitionedRangeOver() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a bigint,\n"
@@ -90,7 +90,7 @@ public class PythonOverAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testProcTimeUnboundedPartitionedRangeOver() {
+    void testProcTimeUnboundedPartitionedRangeOver() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a bigint,\n"
@@ -108,7 +108,7 @@ public class PythonOverAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testRowTimeBoundedPartitionedRowsOver() {
+    void testRowTimeBoundedPartitionedRowsOver() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a bigint,\n"
@@ -127,7 +127,7 @@ public class PythonOverAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testProcTimeBoundedPartitionedRowsOverWithBuiltinProctime() {
+    void testProcTimeBoundedPartitionedRowsOverWithBuiltinProctime() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a bigint,\n"

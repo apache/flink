@@ -29,6 +29,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 
 import org.slf4j.Logger;
@@ -167,6 +168,21 @@ public class InMemoryReporter implements MetricReporter {
         }
     }
 
+    public List<TaskMetricGroup> findTaskMetricGroups(JobID jobId, String operatorPattern) {
+        Pattern pattern = Pattern.compile(operatorPattern);
+        synchronized (this) {
+            return metrics.keySet().stream()
+                    .filter(
+                            g ->
+                                    g instanceof TaskMetricGroup
+                                            && pattern.matcher(getTaskName(g)).find()
+                                            && getJobId(g).equals(jobId.toString()))
+                    .map(TaskMetricGroup.class::cast)
+                    .sorted(Comparator.comparing(this::getSubtaskId))
+                    .collect(Collectors.toList());
+        }
+    }
+
     public List<Tuple3<MetricGroup, String, Metric>> findJobMetricGroups(
             JobID jobId, String metricPattern) {
         Pattern pattern = Pattern.compile(metricPattern);
@@ -189,12 +205,16 @@ public class InMemoryReporter implements MetricReporter {
         }
     }
 
-    private String getSubtaskId(OperatorMetricGroup g) {
+    private String getSubtaskId(MetricGroup g) {
         return g.getAllVariables().get(ScopeFormat.SCOPE_TASK_SUBTASK_INDEX);
     }
 
     private String getOperatorName(MetricGroup g) {
         return g.getAllVariables().get(ScopeFormat.SCOPE_OPERATOR_NAME);
+    }
+
+    private String getTaskName(MetricGroup g) {
+        return g.getAllVariables().get(ScopeFormat.SCOPE_TASK_NAME);
     }
 
     private String getJobId(MetricGroup g) {

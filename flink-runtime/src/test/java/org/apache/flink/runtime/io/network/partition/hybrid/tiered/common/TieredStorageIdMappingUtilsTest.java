@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TieredStorageIdMappingUtils}. */
-public class TieredStorageIdMappingUtilsTest {
+class TieredStorageIdMappingUtilsTest {
 
     @Test
     void testConvertDataSetId() {

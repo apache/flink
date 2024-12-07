@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.rest;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.io.network.netty.InboundChannelHandlerFactory;
 import org.apache.flink.runtime.io.network.netty.OutboundChannelHandlerFactory;
 import org.apache.flink.runtime.io.network.netty.Prio0InboundChannelHandlerFactory;
@@ -33,33 +33,31 @@ import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.testutils.junit.extensions.ContextClassLoaderExtension;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT cases for {@link RestClient} and {@link RestServerEndpoint}. */
-@ExtendWith(TestLoggerExtension.class)
 class RestExternalHandlersITCase {
 
-    private static final Time timeout = Time.seconds(10L);
+    private static final Duration timeout = Duration.ofSeconds(10L);
     private static final String REQUEST_URL = "/nonExisting1";
     private static final String REDIRECT1_URL = "/nonExisting2";
     private static final String REDIRECT2_URL = "/nonExisting3";
@@ -69,7 +67,7 @@ class RestExternalHandlersITCase {
     private InetSocketAddress serverAddress;
 
     @RegisterExtension
-    static final Extension CONTEXT_CLASS_LOADER_EXTENSION =
+    private static final Extension CONTEXT_CLASS_LOADER_EXTENSION =
             ContextClassLoaderExtension.builder()
                     .withServiceEntry(
                             InboundChannelHandlerFactory.class,
@@ -82,7 +80,7 @@ class RestExternalHandlersITCase {
                     .build();
 
     @RegisterExtension
-    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
             TestingUtils.defaultExecutorExtension();
 
     private final Configuration config;
@@ -95,19 +93,19 @@ class RestExternalHandlersITCase {
         final String loopbackAddress = InetAddress.getLoopbackAddress().getHostAddress();
 
         final Configuration config = new Configuration();
-        config.setString(RestOptions.BIND_PORT, "0");
-        config.setString(RestOptions.BIND_ADDRESS, loopbackAddress);
-        config.setString(RestOptions.ADDRESS, loopbackAddress);
-        config.setString(Prio0OutboundChannelHandlerFactory.REDIRECT_TO_URL, REDIRECT1_URL);
-        config.setString(Prio0InboundChannelHandlerFactory.REDIRECT_FROM_URL, REDIRECT1_URL);
-        config.setString(Prio0InboundChannelHandlerFactory.REDIRECT_TO_URL, REDIRECT2_URL);
+        config.set(RestOptions.BIND_PORT, "0");
+        config.set(RestOptions.BIND_ADDRESS, loopbackAddress);
+        config.set(RestOptions.ADDRESS, loopbackAddress);
+        config.set(Prio0OutboundChannelHandlerFactory.REDIRECT_TO_URL, REDIRECT1_URL);
+        config.set(Prio0InboundChannelHandlerFactory.REDIRECT_FROM_URL, REDIRECT1_URL);
+        config.set(Prio0InboundChannelHandlerFactory.REDIRECT_TO_URL, REDIRECT2_URL);
         return config;
     }
 
     @BeforeEach
     void setup() throws Exception {
         serverEndpoint = TestRestServerEndpoint.builder(config).buildAndStart();
-        restClient = new RestClient(config, EXECUTOR_RESOURCE.getExecutor());
+        restClient = new RestClient(config, EXECUTOR_EXTENSION.getExecutor());
         serverAddress = serverEndpoint.getServerAddress();
     }
 
@@ -119,7 +117,7 @@ class RestExternalHandlersITCase {
         }
 
         if (serverEndpoint != null) {
-            serverEndpoint.closeAsync().get(timeout.getSize(), timeout.getUnit());
+            serverEndpoint.closeAsync().get(timeout.toMillis(), TimeUnit.MILLISECONDS);
             serverEndpoint = null;
         }
     }
@@ -128,30 +126,26 @@ class RestExternalHandlersITCase {
     void testHandlersMustBeLoaded() {
         final List<InboundChannelHandlerFactory> inboundChannelHandlerFactories =
                 serverEndpoint.getInboundChannelHandlerFactories();
-        assertEquals(inboundChannelHandlerFactories.size(), 2);
-        assertTrue(
-                inboundChannelHandlerFactories.get(0) instanceof Prio1InboundChannelHandlerFactory);
-        assertTrue(
-                inboundChannelHandlerFactories.get(1) instanceof Prio0InboundChannelHandlerFactory);
+        assertThat(inboundChannelHandlerFactories).hasSize(2);
+        assertThat(inboundChannelHandlerFactories.get(0))
+                .isInstanceOf(Prio1InboundChannelHandlerFactory.class);
+        assertThat(inboundChannelHandlerFactories.get(1))
+                .isInstanceOf(Prio0InboundChannelHandlerFactory.class);
 
         final List<OutboundChannelHandlerFactory> outboundChannelHandlerFactories =
                 restClient.getOutboundChannelHandlerFactories();
-        assertEquals(outboundChannelHandlerFactories.size(), 2);
-        assertTrue(
-                outboundChannelHandlerFactories.get(0)
-                        instanceof Prio1OutboundChannelHandlerFactory);
-        assertTrue(
-                outboundChannelHandlerFactories.get(1)
-                        instanceof Prio0OutboundChannelHandlerFactory);
+        assertThat(outboundChannelHandlerFactories).hasSize(2);
+        assertThat(outboundChannelHandlerFactories.get(0))
+                .isInstanceOf(Prio1OutboundChannelHandlerFactory.class);
+        assertThat(outboundChannelHandlerFactories.get(1))
+                .isInstanceOf(Prio0OutboundChannelHandlerFactory.class);
 
-        try {
-            final CompletableFuture<TestResponse> response =
-                    sendRequestToTestHandler(new TestRequest());
-            response.get();
-            fail("Request must fail with 2 times redirected URL");
-        } catch (Exception e) {
-            assertTrue(e.getMessage().contains(REDIRECT2_URL));
-        }
+        final CompletableFuture<TestResponse> response =
+                sendRequestToTestHandler(new TestRequest());
+        FlinkAssertions.assertThatFuture(response)
+                .eventuallyFailsWith(ExecutionException.class)
+                .as("Request must fail with 2 times redirected URL")
+                .withMessageContaining(REDIRECT2_URL);
     }
 
     private CompletableFuture<TestResponse> sendRequestToTestHandler(

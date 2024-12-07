@@ -39,14 +39,12 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.assertj.core.api.Assertions;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.Closeable;
 import java.util.concurrent.ScheduledExecutorService;
@@ -55,17 +53,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskTest.createTask;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the StreamTask cancellation. */
-public class StreamTaskCancellationTest extends TestLogger {
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+class StreamTaskCancellationTest {
+
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     @Test
-    public void testDoNotInterruptWhileClosing() throws Exception {
+    void testDoNotInterruptWhileClosing() throws Exception {
         TestInterruptInCloseOperator testOperator = new TestInterruptInCloseOperator();
         try (StreamTaskMailboxTestHarness<String> harness =
                 new StreamTaskMailboxTestHarnessBuilder<>(OneInputStreamTask::new, STRING_TYPE_INFO)
@@ -89,7 +87,7 @@ public class StreamTaskCancellationTest extends TestLogger {
             thread.start();
             try {
                 getContainingTask().maybeInterruptOnCancel(thread, null, null);
-                assertFalse(thread.isInterrupted());
+                assertThat(thread.isInterrupted()).isFalse();
             } finally {
                 running.set(false);
             }
@@ -100,7 +98,7 @@ public class StreamTaskCancellationTest extends TestLogger {
     }
 
     @Test
-    public void testCanceleablesCanceledOnCancelTaskError() throws Exception {
+    void testCanceleablesCanceledOnCancelTaskError() throws Exception {
         CancelFailingTask.syncLatch = new OneShotLatch();
 
         StreamConfig cfg = new StreamConfig(new Configuration());
@@ -126,7 +124,7 @@ public class StreamTaskCancellationTest extends TestLogger {
             task.cancelExecution();
             task.getExecutingThread().join();
 
-            assertEquals(ExecutionState.CANCELED, task.getExecutionState());
+            assertThat(task.getExecutionState()).isEqualTo(ExecutionState.CANCELED);
         }
     }
 
@@ -232,7 +230,7 @@ public class StreamTaskCancellationTest extends TestLogger {
      * should be able to correctly handle such situation.
      */
     @Test
-    public void testCancelTaskExceptionHandling() throws Exception {
+    void testCancelTaskExceptionHandling() throws Exception {
         StreamConfig cfg = new StreamConfig(new Configuration());
 
         try (NettyShuffleEnvironment shuffleEnvironment =
@@ -248,7 +246,7 @@ public class StreamTaskCancellationTest extends TestLogger {
             task.startTaskThread();
             task.getExecutingThread().join();
 
-            assertEquals(ExecutionState.CANCELED, task.getExecutionState());
+            assertThat(task.getExecutionState()).isEqualTo(ExecutionState.CANCELED);
         }
     }
 
@@ -270,13 +268,12 @@ public class StreamTaskCancellationTest extends TestLogger {
     }
 
     @Test
-    public void testCancelTaskShouldPreventAdditionalEventTimeTimersFromBeingFired()
-            throws Exception {
+    void testCancelTaskShouldPreventAdditionalEventTimeTimersFromBeingFired() throws Exception {
         testCancelTaskShouldPreventAdditionalTimersFromBeingFired(false);
     }
 
     @Test
-    public void testCancelTaskShouldPreventAdditionalProcessingTimeTimersFromBeingFired()
+    void testCancelTaskShouldPreventAdditionalProcessingTimeTimersFromBeingFired()
             throws Exception {
         testCancelTaskShouldPreventAdditionalTimersFromBeingFired(true);
     }
@@ -309,7 +306,7 @@ public class StreamTaskCancellationTest extends TestLogger {
                 harness.processAll();
             }
         }
-        Assertions.assertThat(numKeyedTimersFired).hasValue(numKeyedTimersToFire);
+        assertThat(numKeyedTimersFired).hasValue(numKeyedTimersToFire);
     }
 
     private static class TaskWithPreRegisteredTimers extends AbstractStreamOperator<String>

@@ -36,8 +36,9 @@ import java.io.IOException;
  *       This is explained in more detail below.
  *   <li><strong>Compatibility checks for new serializers:</strong> when new serializers are
  *       available, they need to be checked whether or not they are compatible to read the data
- *       written by the previous serializer. This is performed by providing the new serializer to
- *       the corresponding serializer configuration snapshots in checkpoints.
+ *       written by the previous serializer. This is performed by providing the new serializer
+ *       snapshots to resolve the compatibility with the corresponding previous serializer snapshots
+ *       in checkpoints.
  *   <li><strong>Factory for a read serializer when schema conversion is required:</strong> in the
  *       case that new serializers are not compatible to read previous data, a schema conversion
  *       process executed across all data is required before the new serializer can be continued to
@@ -112,7 +113,7 @@ public interface TypeSerializerSnapshot<T> {
     TypeSerializer<T> restoreSerializer();
 
     /**
-     * Checks a new serializer's compatibility to read data written by the prior serializer.
+     * Checks current serializer's compatibility to read data written by the prior serializer.
      *
      * <p>When a checkpoint/savepoint is restored, this method checks whether the serialization
      * format of the data in the checkpoint/savepoint is compatible for the format of the serializer
@@ -124,11 +125,14 @@ public interface TypeSerializerSnapshot<T> {
      * program's serializer re-serializes the data, thus converting the format during the restore
      * operation.
      *
-     * @param newSerializer the new serializer to check.
+     * <p>This method must be implemented to clarify the compatibility. See FLIP-263 for more
+     * details.
+     *
+     * @param oldSerializerSnapshot the old serializer snapshot to check.
      * @return the serializer compatibility result.
      */
     TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
-            TypeSerializer<T> newSerializer);
+            TypeSerializerSnapshot<T> oldSerializerSnapshot);
 
     // ------------------------------------------------------------------------
     //  read / write utilities

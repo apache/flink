@@ -21,7 +21,7 @@ package org.apache.flink.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.IllegalConfigurationException;
 
-import org.apache.flink.shaded.guava31.com.google.common.net.InetAddresses;
+import org.apache.flink.shaded.guava32.com.google.common.net.InetAddresses;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,8 +103,15 @@ public class NetUtils {
      * @return URL object for accessing host and port
      */
     private static URL validateHostPortString(String hostPort) {
+        if (StringUtils.isNullOrWhitespaceOnly(hostPort)) {
+            throw new IllegalArgumentException("hostPort should not be null or empty");
+        }
         try {
-            URL u = new URL("http://" + hostPort);
+            URL u =
+                    (hostPort.toLowerCase().startsWith("http://")
+                                    || hostPort.toLowerCase().startsWith("https://"))
+                            ? new URL(hostPort)
+                            : new URL("http://" + hostPort);
             if (u.getHost() == null) {
                 throw new IllegalArgumentException(
                         "The given host:port ('" + hostPort + "') doesn't contain a valid host");
@@ -128,7 +135,16 @@ public class NetUtils {
      * @return a URL object representing the provided socket address with "http://" schema
      */
     public static URL socketToUrl(InetSocketAddress socketAddress) {
-        String hostPort = socketAddress.getHostString() + ":" + socketAddress.getPort();
+        String hostString = socketAddress.getHostString();
+        // If the hostString is an IPv6 address, it needs to be enclosed in square brackets
+        // at the beginning and end.
+        if (socketAddress.getAddress() != null
+                && socketAddress.getAddress() instanceof Inet6Address
+                && hostString.equals(socketAddress.getAddress().getHostAddress())) {
+            hostString = "[" + hostString + "]";
+        }
+        String hostPort = hostString + ":" + socketAddress.getPort();
+
         return validateHostPortString(hostPort);
     }
 

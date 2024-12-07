@@ -20,12 +20,9 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
 import java.util.List;
-import java.util.Optional;
 
-import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 
 /** Partially defined over window with (optional) partitioning and order. */
@@ -67,11 +64,6 @@ public final class OverWindowPartitionedOrdered {
      * @return the fully defined over window
      */
     public OverWindow as(Expression alias) {
-        return new OverWindow(
-                alias,
-                partitionBy,
-                orderBy,
-                unresolvedCall(BuiltInFunctionDefinitions.UNBOUNDED_RANGE),
-                Optional.empty());
+        return new OverWindow(alias, partitionBy, orderBy, null, null);
     }
 }

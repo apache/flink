@@ -427,13 +427,13 @@ public class DataSourceTask<OT> extends AbstractInvokable {
         sourceName = sourceName.startsWith("CHAIN") ? sourceName.substring(6) : sourceName;
 
         return new DistributedRuntimeUDFContext(
+                env.getJobInfo(),
                 env.getTaskInfo(),
                 env.getUserCodeClassLoader(),
                 getExecutionConfig(),
                 env.getDistributedCacheEntries(),
                 env.getAccumulatorRegistry().getUserMap(),
                 getEnvironment().getMetricGroup().getOrAddOperator(sourceName),
-                env.getExternalResourceInfoProvider(),
-                env.getJobID());
+                env.getExternalResourceInfoProvider());
     }
 }

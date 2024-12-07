@@ -18,13 +18,13 @@
 
 package org.apache.flink.runtime.testutils;
 
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.StandaloneSessionClusterEntrypoint;
+import org.apache.flink.util.ParameterTool;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,7 +78,7 @@ public class DispatcherProcess extends TestJvmProcess {
     }
 
     @Override
-    public String[] getJvmArgs() {
+    public String[] getMainMethodArgs() {
         return jvmArgs;
     }
 
@@ -115,8 +115,8 @@ public class DispatcherProcess extends TestJvmProcess {
                 Configuration config = params.getConfiguration();
                 LOG.info("Configuration: {}.", config);
 
-                config.setInteger(JobManagerOptions.PORT, 0);
-                config.setString(RestOptions.BIND_PORT, "0");
+                config.set(JobManagerOptions.PORT, 0);
+                config.set(RestOptions.BIND_PORT, "0");
 
                 final StandaloneSessionClusterEntrypoint clusterEntrypoint =
                         new StandaloneSessionClusterEntrypoint(config);

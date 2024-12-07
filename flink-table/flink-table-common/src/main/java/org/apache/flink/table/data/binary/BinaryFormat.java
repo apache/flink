@@ -36,6 +36,7 @@ public interface BinaryFormat {
      * to the data, and 4-bytes length of data. Data is stored in variable-length part.
      */
     int MAX_FIX_PART_DATA_SIZE = 7;
+
     /**
      * To get the mark in highest bit of long. Form: 10000000 00000000 ... (8 bytes)
      *
@@ -43,6 +44,7 @@ public interface BinaryFormat {
      * part. see {@link #MAX_FIX_PART_DATA_SIZE} for more information.
      */
     long HIGHEST_FIRST_BIT = 0x80L << 56;
+
     /**
      * To get the 7 bits length in second bit to eighth bit out of a long. Form: 01111111 00000000
      * ... (8 bytes)

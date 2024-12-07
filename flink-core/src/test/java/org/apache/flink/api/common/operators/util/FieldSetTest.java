@@ -18,19 +18,17 @@
 
 package org.apache.flink.api.common.operators.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Iterator;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class FieldSetTest {
+class FieldSetTest {
 
     @Test
-    public void testFieldSetConstructors() {
+    void testFieldSetConstructors() {
         check(new FieldSet());
         check(FieldSet.EMPTY_SET);
         check(new FieldSet(14), 14);
@@ -40,7 +38,7 @@ public class FieldSetTest {
     }
 
     @Test
-    public void testFieldSetAdds() {
+    void testFieldSetAdds() {
         check(new FieldSet().addField(1).addField(2), 1, 2);
         check(FieldSet.EMPTY_SET.addField(3).addField(2), 3, 2);
         check(new FieldSet(13).addFields(new FieldSet(17, 31, 42)), 17, 13, 42, 31);
@@ -52,7 +50,7 @@ public class FieldSetTest {
     }
 
     @Test
-    public void testImmutability() {
+    void testImmutability() {
         FieldSet s1 = new FieldSet();
         FieldSet s2 = new FieldSet(5);
         FieldSet s3 = new FieldSet(Integer.valueOf(7));
@@ -65,24 +63,24 @@ public class FieldSetTest {
         s1.addField(Integer.valueOf(14));
         s2.addFields(78, 13, 66, 3);
 
-        assertEquals(0, s1.size());
-        assertEquals(1, s2.size());
-        assertEquals(1, s3.size());
-        assertEquals(4, s4.size());
+        assertThat(s1).isEmpty();
+        assertThat(s2).hasSize(1);
+        assertThat(s3).hasSize(1);
+        assertThat(s4).hasSize(4);
     }
 
     @Test
-    public void testAddListToSet() {
+    void testAddListToSet() {
         check(new FieldSet().addField(1).addFields(new FieldList(14, 3, 1)), 1, 3, 14);
     }
 
     private static void check(FieldSet set, int... elements) {
         if (elements == null) {
-            assertEquals(0, set.size());
+            assertThat(set).isEmpty();
             return;
         }
 
-        assertEquals(elements.length, set.size());
+        assertThat(set).hasSameSizeAs(elements);
 
         // test contains
         for (int i : elements) {
@@ -95,7 +93,7 @@ public class FieldSetTest {
         {
             int[] arr = set.toArray();
             Arrays.sort(arr);
-            assertTrue(Arrays.equals(arr, elements));
+            assertThat(elements).isEqualTo(arr);
         }
 
         {
@@ -105,9 +103,9 @@ public class FieldSetTest {
             for (int i = 0; i < fromIter.length; i++) {
                 fromIter[i] = iter.next();
             }
-            assertFalse(iter.hasNext());
+            assertThat(iter).isExhausted();
             Arrays.sort(fromIter);
-            assertTrue(Arrays.equals(fromIter, elements));
+            assertThat(elements).isEqualTo(fromIter);
         }
     }
 }

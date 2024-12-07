@@ -48,26 +48,26 @@ class DefaultMetricFilterTest {
     void testConvertToPatternWithoutWildcards() {
         final Pattern pattern = DefaultMetricFilter.convertToPattern("numRecordsIn");
         assertThat(pattern.toString()).isEqualTo("(numRecordsIn)");
-        assertThat(pattern.matcher("numRecordsIn").matches()).isEqualTo(true);
-        assertThat(pattern.matcher("numBytesOut").matches()).isEqualTo(false);
+        assertThat(pattern.matcher("numRecordsIn").matches()).isTrue();
+        assertThat(pattern.matcher("numBytesOut").matches()).isFalse();
     }
 
     @Test
     void testConvertToPatternSingle() {
         final Pattern pattern = DefaultMetricFilter.convertToPattern("numRecords*");
         assertThat(pattern.toString()).isEqualTo("(numRecords.*)");
-        assertThat(pattern.matcher("numRecordsIn").matches()).isEqualTo(true);
-        assertThat(pattern.matcher("numBytesOut").matches()).isEqualTo(false);
+        assertThat(pattern.matcher("numRecordsIn").matches()).isTrue();
+        assertThat(pattern.matcher("numBytesOut").matches()).isFalse();
     }
 
     @Test
     void testConvertToPatternMultiple() {
         final Pattern pattern = DefaultMetricFilter.convertToPattern("numRecords*,numBytes*");
         assertThat(pattern.toString()).isEqualTo("(numRecords.*|numBytes.*)");
-        assertThat(pattern.matcher("numRecordsIn").matches()).isEqualTo(true);
-        assertThat(pattern.matcher("numBytesOut").matches()).isEqualTo(true);
-        assertThat(pattern.matcher("numBytes").matches()).isEqualTo(true);
-        assertThat(pattern.matcher("hello").matches()).isEqualTo(false);
+        assertThat(pattern.matcher("numRecordsIn").matches()).isTrue();
+        assertThat(pattern.matcher("numBytesOut").matches()).isTrue();
+        assertThat(pattern.matcher("numBytes").matches()).isTrue();
+        assertThat(pattern.matcher("hello").matches()).isFalse();
     }
 
     @Test
@@ -97,10 +97,10 @@ class DefaultMetricFilterTest {
 
         final MetricFilter metricFilter = DefaultMetricFilter.fromConfiguration(configuration);
 
-        assertThat(metricFilter.filter(COUNTER, "name", "include1")).isEqualTo(true);
-        assertThat(metricFilter.filter(COUNTER, "name", "include1.bar")).isEqualTo(false);
-        assertThat(metricFilter.filter(COUNTER, "name", "include2")).isEqualTo(false);
-        assertThat(metricFilter.filter(COUNTER, "name", "include2.bar")).isEqualTo(true);
+        assertThat(metricFilter.filter(COUNTER, "name", "include1")).isTrue();
+        assertThat(metricFilter.filter(COUNTER, "name", "include1.bar")).isFalse();
+        assertThat(metricFilter.filter(COUNTER, "name", "include2")).isFalse();
+        assertThat(metricFilter.filter(COUNTER, "name", "include2.bar")).isTrue();
     }
 
     @Test
@@ -111,8 +111,8 @@ class DefaultMetricFilterTest {
 
         final MetricFilter metricFilter = DefaultMetricFilter.fromConfiguration(configuration);
 
-        assertThat(metricFilter.filter(COUNTER, "name", "bar")).isEqualTo(true);
-        assertThat(metricFilter.filter(COUNTER, "foo", "bar")).isEqualTo(false);
+        assertThat(metricFilter.filter(COUNTER, "name", "bar")).isTrue();
+        assertThat(metricFilter.filter(COUNTER, "foo", "bar")).isFalse();
     }
 
     @Test
@@ -123,8 +123,8 @@ class DefaultMetricFilterTest {
 
         final MetricFilter metricFilter = DefaultMetricFilter.fromConfiguration(configuration);
 
-        assertThat(metricFilter.filter(COUNTER, "foo", "bar")).isEqualTo(true);
-        assertThat(metricFilter.filter(METER, "foo", "bar")).isEqualTo(false);
+        assertThat(metricFilter.filter(COUNTER, "foo", "bar")).isTrue();
+        assertThat(metricFilter.filter(METER, "foo", "bar")).isFalse();
     }
 
     @Test
@@ -135,10 +135,10 @@ class DefaultMetricFilterTest {
 
         final MetricFilter metricFilter = DefaultMetricFilter.fromConfiguration(configuration);
 
-        assertThat(metricFilter.filter(COUNTER, "name", "include1")).isEqualTo(false);
-        assertThat(metricFilter.filter(COUNTER, "name", "include1.bar")).isEqualTo(true);
-        assertThat(metricFilter.filter(COUNTER, "name", "include2")).isEqualTo(true);
-        assertThat(metricFilter.filter(COUNTER, "name", "include2.bar")).isEqualTo(false);
+        assertThat(metricFilter.filter(COUNTER, "name", "include1")).isFalse();
+        assertThat(metricFilter.filter(COUNTER, "name", "include1.bar")).isTrue();
+        assertThat(metricFilter.filter(COUNTER, "name", "include2")).isTrue();
+        assertThat(metricFilter.filter(COUNTER, "name", "include2.bar")).isFalse();
     }
 
     @Test
@@ -149,10 +149,10 @@ class DefaultMetricFilterTest {
 
         final MetricFilter metricFilter = DefaultMetricFilter.fromConfiguration(configuration);
 
-        assertThat(metricFilter.filter(COUNTER, "name", "bar")).isEqualTo(true);
-        assertThat(metricFilter.filter(COUNTER, "foo", "bar")).isEqualTo(false);
-        assertThat(metricFilter.filter(COUNTER, "foob", "bar")).isEqualTo(true);
-        assertThat(metricFilter.filter(COUNTER, "faab", "bar")).isEqualTo(false);
+        assertThat(metricFilter.filter(COUNTER, "name", "bar")).isTrue();
+        assertThat(metricFilter.filter(COUNTER, "foo", "bar")).isFalse();
+        assertThat(metricFilter.filter(COUNTER, "foob", "bar")).isTrue();
+        assertThat(metricFilter.filter(COUNTER, "faab", "bar")).isFalse();
     }
 
     @Test
@@ -163,8 +163,8 @@ class DefaultMetricFilterTest {
 
         final MetricFilter metricFilter = DefaultMetricFilter.fromConfiguration(configuration);
 
-        assertThat(metricFilter.filter(COUNTER, "foo", "bar")).isEqualTo(true);
-        assertThat(metricFilter.filter(METER, "foo", "bar")).isEqualTo(false);
+        assertThat(metricFilter.filter(COUNTER, "foo", "bar")).isTrue();
+        assertThat(metricFilter.filter(METER, "foo", "bar")).isFalse();
     }
 
     @Test
@@ -174,8 +174,8 @@ class DefaultMetricFilterTest {
 
         final MetricFilter metricFilter = DefaultMetricFilter.fromConfiguration(configuration);
 
-        assertThat(metricFilter.filter(COUNTER, "foo", "hello")).isEqualTo(true);
-        assertThat(metricFilter.filter(METER, "foo", "hello")).isEqualTo(false);
+        assertThat(metricFilter.filter(COUNTER, "foo", "hello")).isTrue();
+        assertThat(metricFilter.filter(METER, "foo", "hello")).isFalse();
     }
 
     @Test
@@ -185,7 +185,7 @@ class DefaultMetricFilterTest {
 
         final MetricFilter metricFilter = DefaultMetricFilter.fromConfiguration(configuration);
 
-        assertThat(metricFilter.filter(COUNTER, "foo", "bar")).isEqualTo(true);
+        assertThat(metricFilter.filter(COUNTER, "foo", "bar")).isTrue();
     }
 
     @Test
@@ -194,8 +194,8 @@ class DefaultMetricFilterTest {
 
         final MetricFilter metricFilter = DefaultMetricFilter.fromConfiguration(configuration);
 
-        assertThat(metricFilter.filter(COUNTER, "foo", "bar")).isEqualTo(true);
-        assertThat(metricFilter.filter(METER, "foo", "bar")).isEqualTo(true);
+        assertThat(metricFilter.filter(COUNTER, "foo", "bar")).isTrue();
+        assertThat(metricFilter.filter(METER, "foo", "bar")).isTrue();
     }
 
     @Test
@@ -208,8 +208,8 @@ class DefaultMetricFilterTest {
 
         final MetricFilter metricFilter = DefaultMetricFilter.fromConfiguration(configuration);
 
-        assertThat(metricFilter.filter(COUNTER, "foo", "bar")).isEqualTo(true);
-        assertThat(metricFilter.filter(METER, "foo", "bar")).isEqualTo(false);
-        assertThat(metricFilter.filter(GAUGE, "foo", "bar")).isEqualTo(false);
+        assertThat(metricFilter.filter(COUNTER, "foo", "bar")).isTrue();
+        assertThat(metricFilter.filter(METER, "foo", "bar")).isFalse();
+        assertThat(metricFilter.filter(GAUGE, "foo", "bar")).isFalse();
     }
 }

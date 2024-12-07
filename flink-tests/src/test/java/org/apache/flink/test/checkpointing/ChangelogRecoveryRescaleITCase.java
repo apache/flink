@@ -17,8 +17,8 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.runtime.state.AbstractStateBackend;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import org.junit.Test;
@@ -35,19 +35,19 @@ public class ChangelogRecoveryRescaleITCase extends ChangelogRecoverySwitchEnvTe
 
     @Test
     public void testRescaleOut() throws Exception {
-        testSwitchEnv(getEnv(NUM_SLOTS / 2), getEnv(NUM_SLOTS));
+        testSwitchEnv(delegatedStateBackend, getEnv(NUM_SLOTS / 2), getEnv(NUM_SLOTS));
     }
 
     @Test
     public void testRescaleIn() throws Exception {
-        testSwitchEnv(getEnv(NUM_SLOTS), getEnv(NUM_SLOTS / 2));
+        testSwitchEnv(delegatedStateBackend, getEnv(NUM_SLOTS), getEnv(NUM_SLOTS / 2));
     }
 
     private StreamExecutionEnvironment getEnv(int parallelism) {
-        StreamExecutionEnvironment env = getEnv(delegatedStateBackend, 50, 0, 20, 0);
+        StreamExecutionEnvironment env = getEnv(50, 0, 20, 0);
         env.getCheckpointConfig()
-                .setExternalizedCheckpointCleanup(
-                        CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+                .setExternalizedCheckpointRetention(
+                        ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
         env.setParallelism(parallelism);
         return env;
     }

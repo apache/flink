@@ -17,7 +17,9 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.table.planner.JList
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.hint.StateTtlHint
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecIncrementalGroupAggregate
 import org.apache.flink.table.planner.plan.utils._
@@ -27,8 +29,10 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rel.hint.RelHint
 
 import java.util
+import java.util.Collections
 
 /**
  * Stream physical RelNode for unbounded incremental group aggregate.
@@ -68,13 +72,15 @@ class StreamPhysicalIncrementalGroupAggregate(
     partialAggCallNeedRetractions: Array[Boolean],
     partialAggNeedRetraction: Boolean,
     partialLocalAggInputRowType: RelDataType,
-    partialGlobalAggRowType: RelDataType)
+    partialGlobalAggRowType: RelDataType,
+    hints: JList[RelHint] = Collections.emptyList())
   extends StreamPhysicalGroupAggregateBase(
     cluster,
     traitSet,
     inputRel,
     finalAggGrouping,
-    finalAggCalls) {
+    finalAggCalls,
+    hints) {
 
   private lazy val incrementalAggInfo = AggregateUtil.createIncrementalAggInfoList(
     unwrapTypeFactory(inputRel),
@@ -107,7 +113,8 @@ class StreamPhysicalIncrementalGroupAggregate(
       partialAggCallNeedRetractions,
       partialAggNeedRetraction,
       partialLocalAggInputRowType,
-      partialGlobalAggRowType)
+      partialGlobalAggRowType,
+      hints)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -137,6 +144,7 @@ class StreamPhysicalIncrementalGroupAggregate(
       partialAggCallNeedRetractions,
       FlinkTypeFactory.toLogicalRowType(partialLocalAggInputRowType),
       partialAggNeedRetraction,
+      StateTtlHint.getStateTtlFromHintOnSingleRel(hints),
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)

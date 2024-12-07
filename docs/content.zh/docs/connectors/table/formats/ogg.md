@@ -216,7 +216,7 @@ Format Options
       <td>当解析异常时，是跳过当前字段或行，还是抛出错误失败（默认为 false，即抛出错误失败）。如果忽略字段的解析异常，则会将该字段值设置为null。</td>
     </tr>
     <tr>
-      <td><h5>debezium-json.timestamp-format.standard</h5></td>
+      <td><h5>ogg-json.timestamp-format.standard</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;"><code>'SQL'</code></td>
       <td>String</td>
@@ -246,6 +246,13 @@ Format Options
       <td style="word-wrap: break-word;">'null'</td>
       <td>String</td>
       <td>当 <code>'ogg-json.map-null-key.mode'</code> 是 LITERAL 的时候，指定字符串常量替换 Map 中的空 key 值。</td>
+    </tr>
+    <tr>
+      <td><h5>ogg-json.encode.ignore-null-fields</h5></td>
+      <td>选填</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>仅序列化非 Null 的列，默认情况下，会序列化所有列无论是否为 Null。</td>
     </tr>
     </tbody>
 </table>

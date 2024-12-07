@@ -19,8 +19,8 @@
 package org.apache.flink.state.api.runtime;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
@@ -42,6 +42,8 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.util.Preconditions;
 
@@ -49,6 +51,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -80,13 +83,13 @@ public final class SavepointRuntimeContext implements RuntimeContext {
     }
 
     @Override
-    public JobID getJobId() {
-        return ctx.getJobId();
+    public JobInfo getJobInfo() {
+        return ctx.getJobInfo();
     }
 
     @Override
-    public String getTaskName() {
-        return ctx.getTaskName();
+    public TaskInfo getTaskInfo() {
+        return ctx.getTaskInfo();
     }
 
     @Override
@@ -95,33 +98,18 @@ public final class SavepointRuntimeContext implements RuntimeContext {
     }
 
     @Override
-    public int getNumberOfParallelSubtasks() {
-        return ctx.getNumberOfParallelSubtasks();
+    public <T> TypeSerializer<T> createSerializer(TypeInformation<T> typeInformation) {
+        return ctx.createSerializer(typeInformation);
     }
 
     @Override
-    public int getMaxNumberOfParallelSubtasks() {
-        return ctx.getMaxNumberOfParallelSubtasks();
+    public Map<String, String> getGlobalJobParameters() {
+        return ctx.getGlobalJobParameters();
     }
 
     @Override
-    public int getIndexOfThisSubtask() {
-        return ctx.getIndexOfThisSubtask();
-    }
-
-    @Override
-    public int getAttemptNumber() {
-        return ctx.getAttemptNumber();
-    }
-
-    @Override
-    public String getTaskNameWithSubtasks() {
-        return ctx.getTaskNameWithSubtasks();
-    }
-
-    @Override
-    public ExecutionConfig getExecutionConfig() {
-        return ctx.getExecutionConfig();
+    public boolean isObjectReuseEnabled() {
+        return ctx.isObjectReuseEnabled();
     }
 
     @Override

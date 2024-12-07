@@ -50,7 +50,10 @@ env.readTextFile("oss://<your-bucket>/<object-name>");
 stream.writeAsText("oss://<your-bucket>/<object-name>");
 
 // Use OSS as checkpoint storage
-env.getCheckpointConfig().setCheckpointStorage("oss://<your-bucket>/<object-name>");
+Configuration config = new Configuration();
+config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "oss://<your-bucket>/<object-name>");
+env.configure(config);
 ```
 
 ### Shaded Hadoop OSS file system
@@ -68,11 +71,11 @@ cp ./opt/flink-oss-fs-hadoop-{{< version >}}.jar ./plugins/oss-fs-hadoop/
 
 After setting up the OSS FileSystem wrapper, you need to add some configurations to make sure that Flink is allowed to access your OSS buckets.
 
-To allow for easy adoption, you can use the same configuration keys in `flink-conf.yaml` as in Hadoop's `core-site.xml`
+To allow for easy adoption, you can use the same configuration keys in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) as in Hadoop's `core-site.xml`
 
 You can see the configuration keys in the [Hadoop OSS documentation](http://hadoop.apache.org/docs/current/hadoop-aliyun/tools/hadoop-aliyun/index.html).
 
-There are some required configurations that must be added to `flink-conf.yaml` (**Other configurations defined in Hadoop OSS documentation are advanced configurations which used by performance tuning**):
+There are some required configurations that must be added to [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) (**Other configurations defined in Hadoop OSS documentation are advanced configurations which used by performance tuning**):
 
 ```yaml
 fs.oss.endpoint: Aliyun OSS endpoint to connect to
@@ -80,7 +83,7 @@ fs.oss.accessKeyId: Aliyun access key ID
 fs.oss.accessKeySecret: Aliyun access key secret
 ```
 
-An alternative `CredentialsProvider` can also be configured in the `flink-conf.yaml`, e.g. 
+An alternative `CredentialsProvider` can also be configured in the [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}), e.g. 
 ```yaml
 # Read Credentials from OSS_ACCESS_KEY_ID and OSS_ACCESS_KEY_SECRET
 fs.oss.credentials.provider: com.aliyun.oss.common.auth.EnvironmentVariableCredentialsProvider

@@ -25,7 +25,6 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -39,8 +38,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.StateMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
-import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.planner.plan.utils.MinibatchUtil;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
@@ -145,8 +144,7 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
 
         final long stateRetentionTime =
                 StateMetadata.getStateTtlForOneInputOperator(config, stateMetadataList);
-        final boolean isMiniBatchEnabled =
-                config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
+        final boolean isMiniBatchEnabled = MinibatchUtil.isMiniBatchEnabled(config);
 
         GeneratedRecordEqualiser generatedEqualiser =
                 new EqualiserCodeGenerator(
@@ -155,7 +153,8 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
 
         if (isMiniBatchEnabled) {
             TypeSerializer<RowData> rowSerializer =
-                    rowTypeInfo.createSerializer(planner.getExecEnv().getConfig());
+                    rowTypeInfo.createSerializer(
+                            planner.getExecEnv().getConfig().getSerializerConfig());
             ProcTimeMiniBatchDeduplicateKeepLastRowFunction processFunction =
                     new ProcTimeMiniBatchDeduplicateKeepLastRowFunction(
                             rowTypeInfo,
@@ -165,7 +164,7 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                             true, // generateInsert
                             false, // inputInsertOnly
                             generatedEqualiser);
-            CountBundleTrigger<RowData> trigger = AggregateUtil.createMiniBatchTrigger(config);
+            CountBundleTrigger<RowData> trigger = MinibatchUtil.createMiniBatchTrigger(config);
             operator = new KeyedMapBundleOperator<>(processFunction, trigger);
         } else {
             ProcTimeDeduplicateKeepLastRowFunction processFunction =

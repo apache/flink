@@ -19,9 +19,9 @@
 
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
@@ -36,18 +36,20 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.SpeculativeExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategyFactoryLoader;
-import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
-import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategyFactoryLoader;
+import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyFactoryLoader;
+import org.apache.flink.runtime.executiongraph.failover.RestartBackoffTimeStrategy;
+import org.apache.flink.runtime.executiongraph.failover.RestartBackoffTimeStrategyFactoryLoader;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroup;
 import org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroupComputeUtil;
+import org.apache.flink.runtime.jobgraph.forwardgroup.JobVertexForwardGroup;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
+import org.apache.flink.runtime.jobmaster.event.FileSystemJobEventStore;
+import org.apache.flink.runtime.jobmaster.event.JobEventManager;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
@@ -58,6 +60,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.DefaultExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.DefaultExecutionOperations;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
+import org.apache.flink.runtime.scheduler.ExecutionOperations;
 import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.ExecutionVertexVersioner;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
@@ -71,19 +74,21 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.scheduler.strategy.VertexwiseSchedulingStrategy;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.util.SlotSelectionStrategyUtils;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
+import java.time.Duration;
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Consumer;
 
 import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.ONLY_FINISHED_PRODUCERS;
 import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.UNFINISHED_PRODUCERS;
@@ -97,17 +102,17 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
     @Override
     public SchedulerNG createInstance(
             Logger log,
-            JobGraph jobGraph,
+            ExecutionPlan executionPlan,
             Executor ioExecutor,
             Configuration jobMasterConfiguration,
             SlotPoolService slotPoolService,
             ScheduledExecutorService futureExecutor,
             ClassLoader userCodeLoader,
             CheckpointRecoveryFactory checkpointRecoveryFactory,
-            Time rpcTimeout,
+            Duration rpcTimeout,
             BlobWriter blobWriter,
             JobManagerJobMetricGroup jobManagerJobMetricGroup,
-            Time slotRequestTimeout,
+            Duration slotRequestTimeout,
             ShuffleMaster<?> shuffleMaster,
             JobMasterPartitionTracker partitionTracker,
             ExecutionDeploymentTracker executionDeploymentTracker,
@@ -118,11 +123,17 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
             Collection<FailureEnricher> failureEnrichers,
             BlocklistOperations blocklistOperations)
             throws Exception {
+        JobGraph jobGraph;
 
-        checkState(
-                jobGraph.getJobType() == JobType.BATCH,
-                "Adaptive batch scheduler only supports batch jobs");
-        checkAllExchangesAreSupported(jobGraph);
+        if (executionPlan instanceof JobGraph) {
+            jobGraph = (JobGraph) executionPlan;
+        } else if (executionPlan instanceof StreamGraph) {
+            jobGraph = ((StreamGraph) executionPlan).getJobGraph(userCodeLoader);
+        } else {
+            throw new FlinkException(
+                    "Unsupported execution plan " + executionPlan.getClass().getCanonicalName());
+        }
+
         final SlotPool slotPool =
                 slotPoolService
                         .castInto(SlotPool.class)
@@ -130,17 +141,6 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                                 () ->
                                         new IllegalStateException(
                                                 "The AdaptiveBatchScheduler requires a SlotPool."));
-
-        final boolean enableSpeculativeExecution =
-                jobMasterConfiguration.getBoolean(BatchExecutionOptions.SPECULATIVE_ENABLED);
-
-        final HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint =
-                getOrDecideHybridPartitionDataConsumeConstraint(
-                        jobMasterConfiguration, enableSpeculativeExecution);
-
-        final List<Consumer<ComponentMainThreadExecutor>> startUpActions = new ArrayList<>();
-        final Consumer<ComponentMainThreadExecutor> combinedStartUpActions =
-                m -> startUpActions.forEach(a -> a.accept(m));
 
         final ExecutionSlotAllocatorFactory allocatorFactory =
                 createExecutionSlotAllocatorFactory(jobMasterConfiguration, slotPool);
@@ -150,7 +150,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
 
         final RestartBackoffTimeStrategy restartBackoffTimeStrategy =
                 RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
-                                executionConfig.getRestartStrategy(),
+                                jobGraph.getJobConfiguration(),
                                 jobMasterConfiguration,
                                 jobGraph.isCheckpointingEnabled())
                         .create();
@@ -159,6 +159,92 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                 restartBackoffTimeStrategy,
                 jobGraph.getName(),
                 jobGraph.getJobID());
+
+        final boolean isJobRecoveryEnabled =
+                jobMasterConfiguration.get(BatchExecutionOptions.JOB_RECOVERY_ENABLED)
+                        && shuffleMaster.supportsBatchSnapshot();
+
+        BatchJobRecoveryHandler jobRecoveryHandler;
+        if (isJobRecoveryEnabled) {
+            FileSystemJobEventStore jobEventStore =
+                    new FileSystemJobEventStore(jobGraph.getJobID(), jobMasterConfiguration);
+            JobEventManager jobEventManager = new JobEventManager(jobEventStore);
+            jobRecoveryHandler =
+                    new DefaultBatchJobRecoveryHandler(jobEventManager, jobMasterConfiguration);
+        } else {
+            jobRecoveryHandler = new DummyBatchJobRecoveryHandler();
+        }
+
+        return createScheduler(
+                log,
+                jobGraph,
+                executionConfig,
+                ioExecutor,
+                jobMasterConfiguration,
+                futureExecutor,
+                userCodeLoader,
+                checkpointRecoveryFactory,
+                rpcTimeout,
+                blobWriter,
+                jobManagerJobMetricGroup,
+                shuffleMaster,
+                partitionTracker,
+                executionDeploymentTracker,
+                initializationTimestamp,
+                mainThreadExecutor,
+                jobStatusListener,
+                failureEnrichers,
+                blocklistOperations,
+                new DefaultExecutionOperations(),
+                allocatorFactory,
+                restartBackoffTimeStrategy,
+                new ScheduledExecutorServiceAdapter(futureExecutor),
+                DefaultVertexParallelismAndInputInfosDecider.from(
+                        getDefaultMaxParallelism(jobMasterConfiguration, executionConfig),
+                        jobMasterConfiguration),
+                jobRecoveryHandler);
+    }
+
+    @VisibleForTesting
+    public static AdaptiveBatchScheduler createScheduler(
+            Logger log,
+            JobGraph jobGraph,
+            ExecutionConfig executionConfig,
+            Executor ioExecutor,
+            Configuration jobMasterConfiguration,
+            ScheduledExecutorService futureExecutor,
+            ClassLoader userCodeLoader,
+            CheckpointRecoveryFactory checkpointRecoveryFactory,
+            Duration rpcTimeout,
+            BlobWriter blobWriter,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup,
+            ShuffleMaster<?> shuffleMaster,
+            JobMasterPartitionTracker partitionTracker,
+            ExecutionDeploymentTracker executionDeploymentTracker,
+            long initializationTimestamp,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            JobStatusListener jobStatusListener,
+            Collection<FailureEnricher> failureEnrichers,
+            BlocklistOperations blocklistOperations,
+            ExecutionOperations executionOperations,
+            ExecutionSlotAllocatorFactory allocatorFactory,
+            RestartBackoffTimeStrategy restartBackoffTimeStrategy,
+            ScheduledExecutor delayExecutor,
+            VertexParallelismAndInputInfosDecider vertexParallelismAndInputInfosDecider,
+            BatchJobRecoveryHandler jobRecoveryHandler)
+            throws Exception {
+
+        checkState(
+                jobGraph.getJobType() == JobType.BATCH,
+                "Adaptive batch scheduler only supports batch jobs");
+        checkAllExchangesAreSupported(jobGraph);
+
+        final boolean enableSpeculativeExecution =
+                jobMasterConfiguration.get(BatchExecutionOptions.SPECULATIVE_ENABLED);
+
+        final HybridPartitionDataConsumeConstraint hybridPartitionDataConsumeConstraint =
+                getOrDecideHybridPartitionDataConsumeConstraint(
+                        jobMasterConfiguration, enableSpeculativeExecution);
 
         final ExecutionGraphFactory executionGraphFactory =
                 new DefaultExecutionGraphFactory(
@@ -183,74 +269,40 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
         int defaultMaxParallelism =
                 getDefaultMaxParallelism(jobMasterConfiguration, executionConfig);
 
-        final Map<JobVertexID, ForwardGroup> forwardGroupsByJobVertexId =
+        final Map<JobVertexID, JobVertexForwardGroup> forwardGroupsByJobVertexId =
                 ForwardGroupComputeUtil.computeForwardGroupsAndCheckParallelism(
                         jobGraph.getVerticesSortedTopologicallyFromSources());
 
-        if (enableSpeculativeExecution) {
-            return new SpeculativeScheduler(
-                    log,
-                    jobGraph,
-                    ioExecutor,
-                    jobMasterConfiguration,
-                    combinedStartUpActions,
-                    new ScheduledExecutorServiceAdapter(futureExecutor),
-                    userCodeLoader,
-                    new CheckpointsCleaner(),
-                    checkpointRecoveryFactory,
-                    jobManagerJobMetricGroup,
-                    schedulingStrategyFactory,
-                    FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(
-                            jobMasterConfiguration),
-                    restartBackoffTimeStrategy,
-                    new DefaultExecutionOperations(),
-                    new ExecutionVertexVersioner(),
-                    allocatorFactory,
-                    initializationTimestamp,
-                    mainThreadExecutor,
-                    jobStatusListener,
-                    failureEnrichers,
-                    executionGraphFactory,
-                    shuffleMaster,
-                    rpcTimeout,
-                    DefaultVertexParallelismAndInputInfosDecider.from(
-                            defaultMaxParallelism, jobMasterConfiguration),
-                    defaultMaxParallelism,
-                    blocklistOperations,
-                    hybridPartitionDataConsumeConstraint,
-                    forwardGroupsByJobVertexId);
-        } else {
-            return new AdaptiveBatchScheduler(
-                    log,
-                    jobGraph,
-                    ioExecutor,
-                    jobMasterConfiguration,
-                    combinedStartUpActions,
-                    new ScheduledExecutorServiceAdapter(futureExecutor),
-                    userCodeLoader,
-                    new CheckpointsCleaner(),
-                    checkpointRecoveryFactory,
-                    jobManagerJobMetricGroup,
-                    schedulingStrategyFactory,
-                    FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(
-                            jobMasterConfiguration),
-                    restartBackoffTimeStrategy,
-                    new DefaultExecutionOperations(),
-                    new ExecutionVertexVersioner(),
-                    allocatorFactory,
-                    initializationTimestamp,
-                    mainThreadExecutor,
-                    jobStatusListener,
-                    failureEnrichers,
-                    executionGraphFactory,
-                    shuffleMaster,
-                    rpcTimeout,
-                    DefaultVertexParallelismAndInputInfosDecider.from(
-                            defaultMaxParallelism, jobMasterConfiguration),
-                    defaultMaxParallelism,
-                    hybridPartitionDataConsumeConstraint,
-                    forwardGroupsByJobVertexId);
-        }
+        return new AdaptiveBatchScheduler(
+                log,
+                jobGraph,
+                ioExecutor,
+                jobMasterConfiguration,
+                componentMainThreadExecutor -> {},
+                delayExecutor,
+                userCodeLoader,
+                new CheckpointsCleaner(),
+                checkpointRecoveryFactory,
+                jobManagerJobMetricGroup,
+                schedulingStrategyFactory,
+                FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(jobMasterConfiguration),
+                restartBackoffTimeStrategy,
+                executionOperations,
+                new ExecutionVertexVersioner(),
+                allocatorFactory,
+                initializationTimestamp,
+                mainThreadExecutor,
+                jobStatusListener,
+                failureEnrichers,
+                executionGraphFactory,
+                shuffleMaster,
+                rpcTimeout,
+                vertexParallelismAndInputInfosDecider,
+                defaultMaxParallelism,
+                blocklistOperations,
+                hybridPartitionDataConsumeConstraint,
+                forwardGroupsByJobVertexId,
+                jobRecoveryHandler);
     }
 
     public static InputConsumableDecider.Factory loadInputConsumableDeciderFactory(
@@ -316,7 +368,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
         }
     }
 
-    private void checkAllExchangesAreSupported(final JobGraph jobGraph) {
+    private static void checkAllExchangesAreSupported(final JobGraph jobGraph) {
         for (JobVertex jobVertex : jobGraph.getVertices()) {
             for (IntermediateDataSet dataSet : jobVertex.getProducedDataSets()) {
                 checkState(
@@ -325,7 +377,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                         String.format(
                                 "At the moment, adaptive batch scheduler requires batch workloads "
                                         + "to be executed with types of all edges being BLOCKING or HYBRID_FULL/HYBRID_SELECTIVE. "
-                                        + "To do that, you need to configure '%s' to '%s' or '%s/%s'.",
+                                        + "To do that, you need to configure '%s' to '%s' or '%s/%s'. ",
                                 ExecutionOptions.BATCH_SHUFFLE_MODE.key(),
                                 BatchShuffleMode.ALL_EXCHANGES_BLOCKING,
                                 BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL,

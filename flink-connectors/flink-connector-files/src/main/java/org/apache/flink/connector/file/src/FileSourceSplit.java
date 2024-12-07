@@ -163,37 +163,6 @@ public class FileSourceSplit implements SourceSplit, Serializable {
                 null);
     }
 
-    /** @deprecated You should use {@link #FileSourceSplit(String, Path, long, long, long, long)} */
-    @Deprecated
-    public FileSourceSplit(String id, Path filePath, long offset, long length) {
-        this(id, filePath, offset, length, 0, 0, NO_HOSTS);
-    }
-
-    /**
-     * @deprecated You should use {@link #FileSourceSplit(String, Path, long, long, long, long,
-     *     String...)}
-     */
-    @Deprecated
-    public FileSourceSplit(
-            String id, Path filePath, long offset, long length, String... hostnames) {
-        this(id, filePath, offset, length, 0, 0, hostnames, null, null);
-    }
-
-    /**
-     * @deprecated You should use {@link #FileSourceSplit(String, Path, long, long, long, long,
-     *     String[], CheckpointedPosition)}
-     */
-    @Deprecated
-    public FileSourceSplit(
-            String id,
-            Path filePath,
-            long offset,
-            long length,
-            String[] hostnames,
-            @Nullable CheckpointedPosition readerPosition) {
-        this(id, filePath, offset, length, 0, 0, hostnames, readerPosition, null);
-    }
-
     /**
      * Package private constructor, used by the serializers to directly cache the serialized form.
      */

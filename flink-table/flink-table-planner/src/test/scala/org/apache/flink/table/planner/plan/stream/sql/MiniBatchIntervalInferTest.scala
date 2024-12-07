@@ -17,8 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.api.common.time.Time
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
@@ -26,7 +24,7 @@ import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.time.Duration
 
@@ -37,7 +35,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
   val LONG = new BigIntType()
   val INT = new IntType()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.addDataStream[(Int, String, Long)](
       "MyDataStream1",
@@ -111,7 +109,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
     val tableConfig = util.tableEnv.getConfig
     tableConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
-    withEarlyFireDelay(tableConfig, Time.milliseconds(500))
+    withEarlyFireDelay(tableConfig, Duration.ofMillis(500))
     val sql =
       """
         | SELECT b, SUM(cnt)
@@ -426,8 +424,8 @@ class MiniBatchIntervalInferTest extends TableTestBase {
     util.verifyExecPlan(sql)
   }
 
-  private def withEarlyFireDelay(tableConfig: TableConfig, interval: Time): Unit = {
-    val intervalInMillis = interval.toMilliseconds
+  private def withEarlyFireDelay(tableConfig: TableConfig, interval: Duration): Unit = {
+    val intervalInMillis = interval.toMillis
     val earlyFireDelay: Duration = tableConfig
       .getOptional(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY)
       .orElse(null)

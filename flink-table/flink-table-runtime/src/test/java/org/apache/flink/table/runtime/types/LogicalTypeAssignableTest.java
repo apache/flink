@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.types;
 
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.legacy.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -43,17 +44,13 @@ import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
-import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
 import java.util.List;
@@ -63,11 +60,9 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link PlannerTypeUtils#isAssignable(LogicalType, LogicalType)}. */
-@RunWith(Parameterized.class)
-public class LogicalTypeAssignableTest {
+class LogicalTypeAssignableTest {
 
-    @Parameters(name = "{index}: [{0} COMPATIBLE {1} => {2}")
-    public static List<Object[]> testData() {
+    private static List<Object[]> testData() {
         return Arrays.asList(
                 new Object[][] {
                     {new CharType(), new CharType(5), true},
@@ -206,16 +201,10 @@ public class LogicalTypeAssignableTest {
                 });
     }
 
-    @Parameter public LogicalType sourceType;
-
-    @Parameter(1)
-    public LogicalType targetType;
-
-    @Parameter(2)
-    public boolean equals;
-
-    @Test
-    public void testAreTypesCompatible() {
+    @ParameterizedTest(name = "{index}: [{0} COMPATIBLE {1} => {2}")
+    @MethodSource("testData")
+    void testAreTypesCompatible(
+            final LogicalType sourceType, final LogicalType targetType, final boolean equals) {
         assertThat(PlannerTypeUtils.isAssignable(sourceType, targetType)).isEqualTo(equals);
         assertThat(PlannerTypeUtils.isAssignable(sourceType, sourceType.copy())).isTrue();
         assertThat(PlannerTypeUtils.isAssignable(targetType, targetType.copy())).isTrue();

@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.BiConsumer;
 
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.SegmentPartitionFile.getSegmentPath;
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.SegmentPartitionFile.writeSegmentFinishFile;
@@ -60,10 +61,8 @@ class RemoteStorageScannerTest {
     @Test
     void testWatchSegment() throws IOException {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        TestingAvailabilityNotifier notifier =
-                new TestingAvailabilityNotifier.Builder()
-                        .setNotifyFunction(((partitionId, subpartitionId) -> future))
-                        .build();
+        BiConsumer<TieredStoragePartitionId, TieredStorageSubpartitionId> notifier =
+                (partitionId, subpartitionId) -> future.complete(null);
 
         // Create segment files with id 2, and finish file with id 2.
         createSegmentFile(2);
@@ -81,10 +80,8 @@ class RemoteStorageScannerTest {
     @Test
     void testWatchSegmentIgnored() throws IOException {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        TestingAvailabilityNotifier notifier =
-                new TestingAvailabilityNotifier.Builder()
-                        .setNotifyFunction(((partitionId, subpartitionId) -> future))
-                        .build();
+        BiConsumer<TieredStoragePartitionId, TieredStorageSubpartitionId> notifier =
+                (partitionId, subpartitionId) -> future.complete(null);
 
         // Create segment files with id 2 and id 3, and finish file with id 3.
         createSegmentFile(2);
@@ -110,10 +107,8 @@ class RemoteStorageScannerTest {
     @Test
     void testStartAndClose() throws IOException, ExecutionException, InterruptedException {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        TestingAvailabilityNotifier notifier =
-                new TestingAvailabilityNotifier.Builder()
-                        .setNotifyFunction(((partitionId, subpartitionId) -> future))
-                        .build();
+        BiConsumer<TieredStoragePartitionId, TieredStorageSubpartitionId> notifier =
+                (partitionId, subpartitionId) -> future.complete(null);
         createSegmentFile(0);
         createSegmentFinishFile(0);
         RemoteStorageScanner remoteStorageScanner = new RemoteStorageScanner(remoteStoragePath);

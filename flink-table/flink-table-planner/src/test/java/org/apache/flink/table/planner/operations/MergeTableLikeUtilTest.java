@@ -32,6 +32,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.utils.PlannerMocks;
@@ -50,20 +51,21 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.apache.calcite.sql.validate.SqlValidator;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link MergeTableLikeUtil}. */
-public class MergeTableLikeUtilTest {
+class MergeTableLikeUtilTest {
 
     private final FlinkTypeFactory typeFactory =
             new FlinkTypeFactory(
@@ -75,7 +77,7 @@ public class MergeTableLikeUtilTest {
             new MergeTableLikeUtil(sqlValidator, SqlNode::toString, dataTypeFactory);
 
     @Test
-    public void mergePhysicalColumns() {
+    void mergePhysicalColumns() {
         Schema sourceSchema =
                 Schema.newBuilder()
                         .column("one", DataTypes.INT())
@@ -107,7 +109,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeWithIncludeFailsOnDuplicateColumn() {
+    void mergeWithIncludeFailsOnDuplicateColumn() {
         Schema sourceSchema = Schema.newBuilder().column("one", DataTypes.INT()).build();
 
         List<SqlNode> derivedColumns =
@@ -128,7 +130,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeWithIncludeFailsOnDuplicateRegularColumn() {
+    void mergeWithIncludeFailsOnDuplicateRegularColumn() {
         Schema sourceSchema = Schema.newBuilder().column("one", DataTypes.INT()).build();
 
         List<SqlNode> derivedColumns =
@@ -150,7 +152,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeWithIncludeFailsOnDuplicateRegularColumnAndComputeColumn() {
+    void mergeWithIncludeFailsOnDuplicateRegularColumnAndComputeColumn() {
         Schema sourceSchema = Schema.newBuilder().column("one", DataTypes.INT()).build();
 
         List<SqlNode> derivedColumns =
@@ -175,7 +177,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeWithIncludeFailsOnDuplicateRegularColumnAndMetadataColumn() {
+    void mergeWithIncludeFailsOnDuplicateRegularColumnAndMetadataColumn() {
         Schema sourceSchema = Schema.newBuilder().column("one", DataTypes.INT()).build();
 
         List<SqlNode> derivedColumns =
@@ -200,7 +202,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeGeneratedColumns() {
+    void mergeGeneratedColumns() {
         Schema sourceSchema =
                 Schema.newBuilder()
                         .column("one", DataTypes.INT())
@@ -232,7 +234,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeMetadataColumns() {
+    void mergeMetadataColumns() {
         Schema sourceSchema =
                 Schema.newBuilder()
                         .column("one", DataTypes.INT())
@@ -266,7 +268,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeIncludingGeneratedColumnsFailsOnDuplicate() {
+    void mergeIncludingGeneratedColumnsFailsOnDuplicate() {
         Schema sourceSchema =
                 Schema.newBuilder()
                         .column("one", DataTypes.INT())
@@ -292,7 +294,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeIncludingMetadataColumnsFailsOnDuplicate() {
+    void mergeIncludingMetadataColumnsFailsOnDuplicate() {
         Schema sourceSchema =
                 Schema.newBuilder()
                         .column("one", DataTypes.INT())
@@ -318,7 +320,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeExcludingGeneratedColumnsDuplicate() {
+    void mergeExcludingGeneratedColumnsDuplicate() {
         Schema sourceSchema =
                 Schema.newBuilder()
                         .column("one", DataTypes.INT())
@@ -349,7 +351,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeExcludingMetadataColumnsDuplicate() {
+    void mergeExcludingMetadataColumnsDuplicate() {
         Schema sourceSchema =
                 Schema.newBuilder()
                         .column("one", DataTypes.INT())
@@ -380,7 +382,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeOverwritingGeneratedColumnsDuplicate() {
+    void mergeOverwritingGeneratedColumnsDuplicate() {
         Schema sourceSchema =
                 Schema.newBuilder()
                         .column("one", DataTypes.INT())
@@ -411,7 +413,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeOverwritingMetadataColumnsDuplicate() {
+    void mergeOverwritingMetadataColumnsDuplicate() {
         Schema sourceSchema =
                 Schema.newBuilder()
                         .column("one", DataTypes.INT())
@@ -442,7 +444,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeOverwritingPhysicalColumnWithGeneratedColumn() {
+    void mergeOverwritingPhysicalColumnWithGeneratedColumn() {
         Schema sourceSchema =
                 Schema.newBuilder()
                         .column("one", DataTypes.INT())
@@ -471,7 +473,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeOverwritingComputedColumnWithMetadataColumn() {
+    void mergeOverwritingComputedColumnWithMetadataColumn() {
         Schema sourceSchema =
                 Schema.newBuilder()
                         .column("one", DataTypes.INT())
@@ -499,7 +501,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeWatermarks() {
+    void mergeWatermarks() {
         Schema sourceSchema =
                 Schema.newBuilder()
                         .column("one", DataTypes.INT())
@@ -535,7 +537,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeIncludingWatermarksFailsOnDuplicate() {
+    void mergeIncludingWatermarksFailsOnDuplicate() {
         Schema sourceSchema =
                 Schema.newBuilder()
                         .column("one", DataTypes.INT())
@@ -566,7 +568,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeExcludingWatermarksDuplicate() {
+    void mergeExcludingWatermarksDuplicate() {
         Schema sourceSchema =
                 Schema.newBuilder()
                         .column("one", DataTypes.INT())
@@ -603,7 +605,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeOverwritingWatermarksDuplicate() {
+    void mergeOverwritingWatermarksDuplicate() {
         Schema sourceSchema =
                 Schema.newBuilder()
                         .column("one", DataTypes.INT())
@@ -640,7 +642,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeConstraintsFromBaseTable() {
+    void mergeConstraintsFromBaseTable() {
         Schema sourceSchema =
                 Schema.newBuilder()
                         .column("one", DataTypes.INT().notNull())
@@ -669,7 +671,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeConstraintsFromDerivedTable() {
+    void mergeConstraintsFromDerivedTable() {
         Schema sourceSchema =
                 Schema.newBuilder()
                         .column("one", DataTypes.INT().notNull())
@@ -690,14 +692,14 @@ public class MergeTableLikeUtilTest {
                         .column("one", DataTypes.INT().notNull())
                         .column("two", DataTypes.STRING().notNull())
                         .column("three", DataTypes.FLOAT())
-                        .primaryKeyNamed("PK_3531879", new String[] {"one", "two"})
+                        .primaryKeyNamed("PK_one_two", new String[] {"one", "two"})
                         .build();
 
         assertThat(mergedSchema).isEqualTo(expectedSchema);
     }
 
     @Test
-    public void mergeIncludingConstraintsFailsOnDuplicate() {
+    void mergeIncludingConstraintsFailsOnDuplicate() {
         Schema sourceSchema =
                 Schema.newBuilder()
                         .column("one", DataTypes.INT().notNull())
@@ -721,7 +723,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeExcludingConstraintsOnDuplicate() {
+    void mergeExcludingConstraintsOnDuplicate() {
         Schema sourceSchema =
                 Schema.newBuilder()
                         .column("one", DataTypes.INT().notNull())
@@ -746,14 +748,73 @@ public class MergeTableLikeUtilTest {
                         .column("one", DataTypes.INT().notNull())
                         .column("two", DataTypes.STRING().notNull())
                         .column("three", DataTypes.FLOAT())
-                        .primaryKeyNamed("PK_3531879", new String[] {"one", "two"})
+                        .primaryKeyNamed("PK_one_two", new String[] {"one", "two"})
                         .build();
 
         assertThat(mergedSchema).isEqualTo(expectedSchema);
     }
 
     @Test
-    public void mergePartitionsFromBaseTable() {
+    void mergeDistributionFromBaseTable() {
+        Optional<TableDistribution> sourceDistribution =
+                Optional.of(TableDistribution.ofHash(Collections.singletonList("a"), 3));
+        Optional<TableDistribution> mergePartitions =
+                util.mergeDistribution(
+                        getDefaultMergingStrategies().get(FeatureOption.DISTRIBUTION),
+                        sourceDistribution,
+                        Optional.empty());
+
+        assertThat(mergePartitions).isEqualTo(sourceDistribution);
+    }
+
+    @Test
+    void mergeDistributionFromDerivedTable() {
+        Optional<TableDistribution> derivedDistribution =
+                Optional.of(TableDistribution.ofHash(Collections.singletonList("a"), 3));
+        Optional<TableDistribution> mergePartitions =
+                util.mergeDistribution(
+                        getDefaultMergingStrategies().get(FeatureOption.DISTRIBUTION),
+                        Optional.empty(),
+                        derivedDistribution);
+
+        assertThat(mergePartitions).isEqualTo(derivedDistribution);
+    }
+
+    @Test
+    void mergeIncludingDistributionFailsOnDuplicate() {
+        Optional<TableDistribution> sourceDistribution =
+                Optional.of(TableDistribution.ofHash(Collections.singletonList("a"), 3));
+        Optional<TableDistribution> derivedDistribution =
+                Optional.of(TableDistribution.ofHash(Collections.singletonList("b"), 3));
+
+        assertThatThrownBy(
+                        () ->
+                                util.mergeDistribution(
+                                        MergingStrategy.INCLUDING,
+                                        sourceDistribution,
+                                        derivedDistribution))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "The base table already has a distribution defined. You might want "
+                                + "to specify EXCLUDING DISTRIBUTION.");
+    }
+
+    @Test
+    void mergeExcludingDistributionOnDuplicate() {
+        Optional<TableDistribution> sourceDistribution =
+                Optional.of(TableDistribution.ofHash(Collections.singletonList("a"), 3));
+        Optional<TableDistribution> derivedDistribution =
+                Optional.of(TableDistribution.ofHash(Collections.singletonList("b"), 3));
+
+        Optional<TableDistribution> mergedPartitions =
+                util.mergeDistribution(
+                        MergingStrategy.EXCLUDING, sourceDistribution, derivedDistribution);
+
+        assertThat(mergedPartitions).isEqualTo(derivedDistribution);
+    }
+
+    @Test
+    void mergePartitionsFromBaseTable() {
         List<String> sourcePartitions = Arrays.asList("col1", "col2");
         List<String> mergePartitions =
                 util.mergePartitions(
@@ -765,7 +826,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergePartitionsFromDerivedTable() {
+    void mergePartitionsFromDerivedTable() {
         List<String> derivedPartitions = Arrays.asList("col1", "col2");
         List<String> mergePartitions =
                 util.mergePartitions(
@@ -777,7 +838,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeIncludingPartitionsFailsOnDuplicate() {
+    void mergeIncludingPartitionsFailsOnDuplicate() {
         List<String> sourcePartitions = Arrays.asList("col3", "col4");
         List<String> derivedPartitions = Arrays.asList("col1", "col2");
 
@@ -794,7 +855,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeExcludingPartitionsOnDuplicate() {
+    void mergeExcludingPartitionsOnDuplicate() {
         List<String> sourcePartitions = Arrays.asList("col3", "col4");
         List<String> derivedPartitions = Arrays.asList("col1", "col2");
 
@@ -806,7 +867,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeOptions() {
+    void mergeOptions() {
         Map<String, String> sourceOptions = new HashMap<>();
         sourceOptions.put("offset", "1");
         sourceOptions.put("format", "json");
@@ -829,7 +890,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeIncludingOptionsFailsOnDuplicate() {
+    void mergeIncludingOptionsFailsOnDuplicate() {
         Map<String, String> sourceOptions = new HashMap<>();
         sourceOptions.put("offset", "1");
 
@@ -848,7 +909,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeExcludingOptionsDuplicate() {
+    void mergeExcludingOptionsDuplicate() {
         Map<String, String> sourceOptions = new HashMap<>();
         sourceOptions.put("offset", "1");
         sourceOptions.put("format", "json");
@@ -868,7 +929,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void mergeOverwritingOptionsDuplicate() {
+    void mergeOverwritingOptionsDuplicate() {
         Map<String, String> sourceOptions = new HashMap<>();
         sourceOptions.put("offset", "1");
         sourceOptions.put("format", "json");
@@ -889,7 +950,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void defaultMergeStrategies() {
+    void defaultMergeStrategies() {
         Map<FeatureOption, MergingStrategy> mergingStrategies =
                 util.computeMergingStrategies(Collections.emptyList());
 
@@ -906,7 +967,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void includingAllMergeStrategyExpansion() {
+    void includingAllMergeStrategyExpansion() {
         List<SqlTableLikeOption> inputOptions =
                 Collections.singletonList(
                         new SqlTableLikeOption(MergingStrategy.INCLUDING, FeatureOption.ALL));
@@ -927,7 +988,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void excludingAllMergeStrategyExpansion() {
+    void excludingAllMergeStrategyExpansion() {
         List<SqlTableLikeOption> inputOptions =
                 Collections.singletonList(
                         new SqlTableLikeOption(MergingStrategy.EXCLUDING, FeatureOption.ALL));
@@ -948,7 +1009,7 @@ public class MergeTableLikeUtilTest {
     }
 
     @Test
-    public void includingAllOverwriteOptionsMergeStrategyExpansion() {
+    void includingAllOverwriteOptionsMergeStrategyExpansion() {
         List<SqlTableLikeOption> inputOptions =
                 Arrays.asList(
                         new SqlTableLikeOption(MergingStrategy.EXCLUDING, FeatureOption.ALL),

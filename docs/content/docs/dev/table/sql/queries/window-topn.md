@@ -30,6 +30,10 @@ Window Top-N is a special [Top-N]({{< ref "docs/dev/table/sql/queries/topn" >}})
 For streaming queries, unlike regular Top-N on continuous tables, window Top-N does not emit intermediate results but only a final result, the total top N records at the end of the window. Moreover, window Top-N purges all intermediate state when no longer needed.
 Therefore, window Top-N queries have better performance if users don't need results updated per record. Usually, Window Top-N is used with [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) directly. Besides, Window Top-N could be used with other operations based on [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}), such as [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}), [Window TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}}) and [Window Join]({{< ref "docs/dev/table/sql/queries/window-join">}}). 
 
+{{< hint info >}}
+Note: `SESSION` Window Top-N is not supported in batch mode now.
+{{< /hint >}}
+
 Window Top-N can be defined in the same syntax as regular Top-N, see [Top-N documentation]({{< ref "docs/dev/table/sql/queries/topn" >}}) for more information.
 Besides that, Window Top-N requires the `PARTITION BY` clause contains `window_start` and `window_end` columns of the relation applied [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) or [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}).
 Otherwise, the optimizer won’t be able to translate the query.
@@ -85,8 +89,7 @@ Flink SQL> SELECT *
     SELECT *, ROW_NUMBER() OVER (PARTITION BY window_start, window_end ORDER BY price DESC) as rownum
     FROM (
       SELECT window_start, window_end, supplier_id, SUM(price) as price, COUNT(*) as cnt
-      FROM TABLE(
-        TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
+      FROM TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES)
       GROUP BY window_start, window_end, supplier_id
     )
   ) WHERE rownum <= 3;
@@ -112,8 +115,7 @@ The following example shows how to calculate Top 3 items which have the highest 
 Flink SQL> SELECT *
   FROM (
     SELECT bidtime, price, item, supplier_id, window_start, window_end, ROW_NUMBER() OVER (PARTITION BY window_start, window_end ORDER BY price DESC) as rownum
-    FROM TABLE(
-               TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
+    FROM TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES)
   ) WHERE rownum <= 3;
 +------------------+-------+------+-------------+------------------+------------------+--------+
 |          bidtime | price | item | supplier_id |     window_start |       window_end | rownum |

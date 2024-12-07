@@ -21,6 +21,7 @@ package org.apache.flink.queryablestate.client;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
@@ -293,8 +294,9 @@ public class QueryableStateClient {
         Preconditions.checkNotNull(namespaceTypeInfo);
         Preconditions.checkNotNull(stateDescriptor);
 
-        TypeSerializer<K> keySerializer = keyTypeInfo.createSerializer(executionConfig);
-        TypeSerializer<N> namespaceSerializer = namespaceTypeInfo.createSerializer(executionConfig);
+        TypeSerializer<K> keySerializer = keyTypeInfo.createSerializer(getSerializerConfig());
+        TypeSerializer<N> namespaceSerializer =
+                namespaceTypeInfo.createSerializer(getSerializerConfig());
 
         stateDescriptor.initializeSerializerUnlessSet(executionConfig);
 
@@ -361,5 +363,9 @@ public class QueryableStateClient {
             LOG.error("Unable to send KVStateRequest: ", e);
             return FutureUtils.completedExceptionally(e);
         }
+    }
+
+    private SerializerConfig getSerializerConfig() {
+        return executionConfig == null ? null : executionConfig.getSerializerConfig();
     }
 }

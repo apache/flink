@@ -20,6 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.Keys.ExpressionKeys;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.CompositeType;
@@ -57,7 +58,7 @@ class PojoComparatorTest extends ComparatorTestBase<PojoContainingTuple> {
 
     @Override
     protected TypeSerializer<PojoContainingTuple> createSerializer() {
-        return type.createSerializer(new ExecutionConfig());
+        return type.createSerializer(new SerializerConfigImpl());
     }
 
     @Override

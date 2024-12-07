@@ -19,26 +19,25 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{DOUBLE_TYPE_INFO, INT_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, _}
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchMode}
-import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil
+import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, StreamingEnvUtil}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.TableTestUtil
 
 import org.apache.calcite.sql.SqlExplainLevel
-import org.junit.{Before, Test}
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.{BeforeEach, Test}
+import org.junit.jupiter.api.Assertions.assertEquals
 
 class FlinkRelOptUtilTest {
 
   var tableEnv: TableEnvironment = _
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     val settings = EnvironmentSettings.newInstance().build()
     val tEnv = TableEnvironmentImpl.create(settings)
@@ -57,7 +56,8 @@ class FlinkRelOptUtilTest {
     val env = StreamExecutionEnvironment.createLocalEnvironment()
     val tableEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
-    val table = env.fromElements[(Int, Long, String)]().toTable(tableEnv, 'a, 'b, 'c)
+    val table =
+      StreamingEnvUtil.fromElements[(Int, Long, String)](env).toTable(tableEnv, 'a, 'b, 'c)
     tableEnv.createTemporaryView("MyTable", table)
 
     val sqlQuery =
@@ -109,7 +109,8 @@ class FlinkRelOptUtilTest {
     val env = StreamExecutionEnvironment.createLocalEnvironment()
     val tableEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
-    val table = env.fromElements[(Int, Long, String)]().toTable(tableEnv, 'a, 'b, 'c)
+    val table =
+      StreamingEnvUtil.fromElements[(Int, Long, String)](env).toTable(tableEnv, 'a, 'b, 'c)
     tableEnv.createTemporaryView("MyTable", table)
 
     val sqlQuery =

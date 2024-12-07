@@ -18,8 +18,8 @@
 package org.apache.flink.runtime.rpc.pekko;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.util.NetUtils;
 
@@ -122,7 +122,9 @@ public class ActorSystemBootstrapTools {
             } catch (Exception e) {
                 // we can continue to try if this contains a netty channel exception
                 Throwable cause = e.getCause();
-                if (!(cause instanceof org.jboss.netty.channel.ChannelException
+                if (!(cause
+                                instanceof
+                                org.apache.flink.shaded.netty4.io.netty.channel.ChannelException
                         || cause instanceof java.net.BindException)) {
                     throw e;
                 } // else fall through the loop and try the next port
@@ -264,11 +266,22 @@ public class ActorSystemBootstrapTools {
     public static RpcSystem.ForkJoinExecutorConfiguration getForkJoinExecutorConfiguration(
             final Configuration configuration) {
         final double parallelismFactor =
-                configuration.getDouble(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_FACTOR);
+                configuration.get(RpcOptions.FORK_JOIN_EXECUTOR_PARALLELISM_FACTOR);
+        final int minParallelism = configuration.get(RpcOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MIN);
+        final int maxParallelism = configuration.get(RpcOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MAX);
+
+        return new RpcSystem.ForkJoinExecutorConfiguration(
+                parallelismFactor, minParallelism, maxParallelism);
+    }
+
+    public static RpcSystem.ForkJoinExecutorConfiguration getRemoteForkJoinExecutorConfiguration(
+            final Configuration configuration) {
+        final double parallelismFactor =
+                configuration.get(RpcOptions.REMOTE_FORK_JOIN_EXECUTOR_PARALLELISM_FACTOR);
         final int minParallelism =
-                configuration.getInteger(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MIN);
+                configuration.get(RpcOptions.REMOTE_FORK_JOIN_EXECUTOR_PARALLELISM_MIN);
         final int maxParallelism =
-                configuration.getInteger(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MAX);
+                configuration.get(RpcOptions.REMOTE_FORK_JOIN_EXECUTOR_PARALLELISM_MAX);
 
         return new RpcSystem.ForkJoinExecutorConfiguration(
                 parallelismFactor, minParallelism, maxParallelism);

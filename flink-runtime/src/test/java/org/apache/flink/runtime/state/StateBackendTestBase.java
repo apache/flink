@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.ListState;
@@ -33,7 +34,6 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
@@ -48,11 +48,12 @@ import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.JavaSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.StateBackendOptions;
+import org.apache.flink.configuration.StateLatencyTrackOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
@@ -64,6 +65,7 @@ import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.KvStateRegistryListener;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.heap.AbstractHeapState;
 import org.apache.flink.runtime.state.heap.StateTable;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
@@ -80,7 +82,7 @@ import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StateMigrationException;
 
-import org.apache.flink.shaded.guava31.com.google.common.base.Joiner;
+import org.apache.flink.shaded.guava32.com.google.common.base.Joiner;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
@@ -92,6 +94,7 @@ import org.junit.jupiter.api.TestTemplate;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -122,8 +125,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.Assumptions.assumeThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -207,19 +210,26 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         CheckpointableKeyedStateBackend<K> backend =
                 getStateBackend()
                         .createKeyedStateBackend(
-                                env,
-                                new JobID(),
-                                "test_op",
-                                keySerializer,
-                                numberOfKeyGroups,
-                                keyGroupRange,
-                                env.getTaskKvStateRegistry(),
-                                TtlTimeProvider.DEFAULT,
-                                new UnregisteredMetricsGroup(),
-                                Collections.emptyList(),
-                                new CloseableRegistry());
+                                new KeyedStateBackendParametersImpl<>(
+                                        env,
+                                        new JobID(),
+                                        "test_op",
+                                        keySerializer,
+                                        numberOfKeyGroups,
+                                        keyGroupRange,
+                                        env.getTaskKvStateRegistry(),
+                                        TtlTimeProvider.DEFAULT,
+                                        getMetricGroup(),
+                                        getCustomInitializationMetrics(),
+                                        Collections.emptyList(),
+                                        new CloseableRegistry(),
+                                        1.0d));
 
         return backend;
+    }
+
+    protected StateBackend.CustomInitializationMetrics getCustomInitializationMetrics() {
+        return (name, value) -> {};
     }
 
     protected <K> CheckpointableKeyedStateBackend<K> restoreKeyedBackend(
@@ -244,40 +254,54 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
         return getStateBackend()
                 .createKeyedStateBackend(
-                        env,
-                        new JobID(),
-                        "test_op",
-                        keySerializer,
-                        numberOfKeyGroups,
-                        keyGroupRange,
-                        env.getTaskKvStateRegistry(),
-                        TtlTimeProvider.DEFAULT,
-                        new UnregisteredMetricsGroup(),
-                        state,
-                        new CloseableRegistry());
+                        new KeyedStateBackendParametersImpl<>(
+                                env,
+                                new JobID(),
+                                "test_op",
+                                keySerializer,
+                                numberOfKeyGroups,
+                                keyGroupRange,
+                                env.getTaskKvStateRegistry(),
+                                TtlTimeProvider.DEFAULT,
+                                getMetricGroup(),
+                                getCustomInitializationMetrics(),
+                                state,
+                                new CloseableRegistry(),
+                                1.0d));
+    }
+
+    protected MetricGroup getMetricGroup() {
+        return new UnregisteredMetricsGroup();
     }
 
     @TestTemplate
     void testEnableStateLatencyTracking() throws Exception {
         ConfigurableStateBackend stateBackend = getStateBackend();
         Configuration config = new Configuration();
-        config.setBoolean(StateBackendOptions.LATENCY_TRACK_ENABLED, true);
+        config.set(StateLatencyTrackOptions.LATENCY_TRACK_ENABLED, true);
         StateBackend configuredBackend =
                 stateBackend.configure(config, Thread.currentThread().getContextClassLoader());
         KeyGroupRange groupRange = new KeyGroupRange(0, 1);
+        JobID jobID = new JobID();
+        int numberOfKeyGroups = groupRange.getNumberOfKeyGroups();
+        TaskKvStateRegistry kvStateRegistry = env.getTaskKvStateRegistry();
+        CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         CheckpointableKeyedStateBackend<Integer> keyedStateBackend =
                 configuredBackend.createKeyedStateBackend(
-                        env,
-                        new JobID(),
-                        "test_op",
-                        IntSerializer.INSTANCE,
-                        groupRange.getNumberOfKeyGroups(),
-                        groupRange,
-                        env.getTaskKvStateRegistry(),
-                        TtlTimeProvider.DEFAULT,
-                        new UnregisteredMetricsGroup(),
-                        Collections.emptyList(),
-                        new CloseableRegistry());
+                        new KeyedStateBackendParametersImpl<>(
+                                env,
+                                jobID,
+                                "test_op",
+                                IntSerializer.INSTANCE,
+                                numberOfKeyGroups,
+                                groupRange,
+                                kvStateRegistry,
+                                TtlTimeProvider.DEFAULT,
+                                getMetricGroup(),
+                                getCustomInitializationMetrics(),
+                                Collections.emptyList(),
+                                cancelStreamRegistry,
+                                1.0d));
         try {
             KeyedStateBackend<Integer> nested =
                     keyedStateBackend instanceof TestableKeyedStateBackend
@@ -536,14 +560,14 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
         try {
             // cast because our test serializer is not typed to TestPojo
-            env.getExecutionConfig()
+            ((SerializerConfigImpl) env.getExecutionConfig().getSerializerConfig())
                     .addDefaultKryoSerializer(
                             TestPojo.class, (Class) ExceptionThrowingTestSerializer.class);
 
             TypeInformation<TestPojo> pojoType = new GenericTypeInfo<>(TestPojo.class);
 
             // make sure that we are in fact using the KryoSerializer
-            assertThat(pojoType.createSerializer(env.getExecutionConfig()))
+            assertThat(pojoType.createSerializer(env.getExecutionConfig().getSerializerConfig()))
                     .isInstanceOf(KryoSerializer.class);
 
             ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
@@ -609,17 +633,17 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
         try {
             // cast because our test serializer is not typed to TestPojo
-            env.getExecutionConfig()
+            ((SerializerConfigImpl) env.getExecutionConfig().getSerializerConfig())
                     .addDefaultKryoSerializer(
                             TestPojo.class, (Class) ExceptionThrowingTestSerializer.class);
 
             TypeInformation<TestPojo> pojoType = new GenericTypeInfo<>(TestPojo.class);
 
             // make sure that we are in fact using the KryoSerializer
-            assertThat(pojoType.createSerializer(env.getExecutionConfig()))
+            assertThat(pojoType.createSerializer(env.getExecutionConfig().getSerializerConfig()))
                     .isInstanceOf(KryoSerializer.class);
 
-            pojoType.createSerializer(env.getExecutionConfig());
+            pojoType.createSerializer(env.getExecutionConfig().getSerializerConfig());
 
             ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
 
@@ -679,14 +703,14 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
     void testBackendUsesRegisteredKryoSerializer() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
-        env.getExecutionConfig()
+        ((SerializerConfigImpl) env.getExecutionConfig().getSerializerConfig())
                 .registerTypeWithKryoSerializer(
                         TestPojo.class, ExceptionThrowingTestSerializer.class);
 
         TypeInformation<TestPojo> pojoType = new GenericTypeInfo<>(TestPojo.class);
 
         // make sure that we are in fact using the KryoSerializer
-        assertThat(pojoType.createSerializer(env.getExecutionConfig()))
+        assertThat(pojoType.createSerializer(env.getExecutionConfig().getSerializerConfig()))
                 .isInstanceOf(KryoSerializer.class);
 
         ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
@@ -751,14 +775,14 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
-        env.getExecutionConfig()
+        ((SerializerConfigImpl) env.getExecutionConfig().getSerializerConfig())
                 .registerTypeWithKryoSerializer(
                         TestPojo.class, ExceptionThrowingTestSerializer.class);
 
         TypeInformation<TestPojo> pojoType = new GenericTypeInfo<>(TestPojo.class);
 
         // make sure that we are in fact using the KryoSerializer
-        assertThat(pojoType.createSerializer(env.getExecutionConfig()))
+        assertThat(pojoType.createSerializer(env.getExecutionConfig().getSerializerConfig()))
                 .isInstanceOf(KryoSerializer.class);
 
         ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
@@ -834,7 +858,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         TypeInformation<TestPojo> pojoType = new GenericTypeInfo<>(TestPojo.class);
 
         // make sure that we are in fact using the KryoSerializer
-        assertThat(pojoType.createSerializer(env.getExecutionConfig()))
+        assertThat(pojoType.createSerializer(env.getExecutionConfig().getSerializerConfig()))
                 .isInstanceOf(KryoSerializer.class);
 
         ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
@@ -872,7 +896,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             // ====================================== restore snapshot
             // ======================================
 
-            env.getExecutionConfig().registerKryoType(TestPojo.class);
+            ((SerializerConfigImpl) env.getExecutionConfig().getSerializerConfig())
+                    .registerKryoType(TestPojo.class);
 
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
 
@@ -915,7 +940,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             TypeInformation<TestPojo> pojoType = new GenericTypeInfo<>(TestPojo.class);
 
             // make sure that we are in fact using the KryoSerializer
-            assertThat(pojoType.createSerializer(env.getExecutionConfig()))
+            assertThat(pojoType.createSerializer(env.getExecutionConfig().getSerializerConfig()))
                     .isInstanceOf(KryoSerializer.class);
 
             ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
@@ -949,7 +974,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             // ==========
 
             // cast because our test serializer is not typed to TestPojo
-            env.getExecutionConfig()
+            ((SerializerConfigImpl) env.getExecutionConfig().getSerializerConfig())
                     .addDefaultKryoSerializer(
                             TestPojo.class, (Class) CustomKryoTestSerializer.class);
 
@@ -984,7 +1009,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             // =========
 
             // cast because our test serializer is not typed to TestPojo
-            env.getExecutionConfig()
+            ((SerializerConfigImpl) env.getExecutionConfig().getSerializerConfig())
                     .addDefaultKryoSerializer(
                             TestPojo.class, (Class) CustomKryoTestSerializer.class);
 
@@ -1023,7 +1048,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             TypeInformation<TestPojo> pojoType = new GenericTypeInfo<>(TestPojo.class);
 
             // make sure that we are in fact using the KryoSerializer
-            assertThat(pojoType.createSerializer(env.getExecutionConfig()))
+            assertThat(pojoType.createSerializer(env.getExecutionConfig().getSerializerConfig()))
                     .isInstanceOf(KryoSerializer.class);
 
             ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
@@ -1055,7 +1080,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             // ========== restore snapshot - should use specific serializer (ONLY SERIALIZATION)
             // ==========
 
-            env.getExecutionConfig()
+            ((SerializerConfigImpl) env.getExecutionConfig().getSerializerConfig())
                     .registerTypeWithKryoSerializer(TestPojo.class, CustomKryoTestSerializer.class);
 
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
@@ -1088,7 +1113,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             // ========= restore snapshot - should use specific serializer (FAIL ON DESERIALIZATION)
             // =========
 
-            env.getExecutionConfig()
+            ((SerializerConfigImpl) env.getExecutionConfig().getSerializerConfig())
                     .registerTypeWithKryoSerializer(TestPojo.class, CustomKryoTestSerializer.class);
 
             assertRestoreKeyedBackendFail(snapshot2, kvId);
@@ -1107,8 +1132,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         // register A first then B
-        env.getExecutionConfig().registerKryoType(TestNestedPojoClassA.class);
-        env.getExecutionConfig().registerKryoType(TestNestedPojoClassB.class);
+        ((SerializerConfigImpl) env.getExecutionConfig().getSerializerConfig())
+                .registerKryoType(TestNestedPojoClassA.class);
+        ((SerializerConfigImpl) env.getExecutionConfig().getSerializerConfig())
+                .registerKryoType(TestNestedPojoClassB.class);
 
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE, env);
@@ -1118,7 +1145,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             TypeInformation<TestPojo> pojoType = new GenericTypeInfo<>(TestPojo.class);
 
             // make sure that we are in fact using the KryoSerializer
-            assertThat(pojoType.createSerializer(env.getExecutionConfig()))
+            assertThat(pojoType.createSerializer(env.getExecutionConfig().getSerializerConfig()))
                     .isInstanceOf(KryoSerializer.class);
 
             ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
@@ -1177,9 +1204,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             env.close();
             env = buildMockEnv();
 
-            env.getExecutionConfig()
+            ((SerializerConfigImpl) env.getExecutionConfig().getSerializerConfig())
                     .registerKryoType(TestNestedPojoClassB.class); // this time register B first
-            env.getExecutionConfig().registerKryoType(TestNestedPojoClassA.class);
+            ((SerializerConfigImpl) env.getExecutionConfig().getSerializerConfig())
+                    .registerKryoType(TestNestedPojoClassA.class);
 
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
 
@@ -1233,8 +1261,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         // register A first then B
-        env.getExecutionConfig().registerPojoType(TestNestedPojoClassA.class);
-        env.getExecutionConfig().registerPojoType(TestNestedPojoClassB.class);
+        ((SerializerConfigImpl) env.getExecutionConfig().getSerializerConfig())
+                .registerPojoType(TestNestedPojoClassA.class);
+        ((SerializerConfigImpl) env.getExecutionConfig().getSerializerConfig())
+                .registerPojoType(TestNestedPojoClassB.class);
 
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE, env);
@@ -1244,7 +1274,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             TypeInformation<TestPojo> pojoType = TypeExtractor.getForClass(TestPojo.class);
 
             // make sure that we are in fact using the PojoSerializer
-            assertThat(pojoType.createSerializer(env.getExecutionConfig()))
+            assertThat(pojoType.createSerializer(env.getExecutionConfig().getSerializerConfig()))
                     .isInstanceOf(PojoSerializer.class);
 
             ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
@@ -1288,9 +1318,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             env.close();
             env = buildMockEnv();
 
-            env.getExecutionConfig()
+            ((SerializerConfigImpl) env.getExecutionConfig().getSerializerConfig())
                     .registerPojoType(TestNestedPojoClassB.class); // this time register B first
-            env.getExecutionConfig().registerPojoType(TestNestedPojoClassA.class);
+            ((SerializerConfigImpl) env.getExecutionConfig().getSerializerConfig())
+                    .registerPojoType(TestNestedPojoClassA.class);
 
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
 
@@ -1543,7 +1574,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         try {
             ValueStateDescriptor<MutableLong> kvId =
                     new ValueStateDescriptor<>("id", MutableLong.class);
-            kvId.enableTimeToLive(StateTtlConfig.newBuilder(Time.seconds(1)).build());
+            kvId.enableTimeToLive(StateTtlConfig.newBuilder(Duration.ofSeconds(1)).build());
 
             ValueState<MutableLong> state =
                     backend.getPartitionedState(
@@ -5692,7 +5723,9 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         return true;
     }
 
-    /** @return true if state backend is safe to reuse state. */
+    /**
+     * @return true if state backend is safe to reuse state.
+     */
     protected boolean isSafeToReuseKVState() {
         return false;
     }

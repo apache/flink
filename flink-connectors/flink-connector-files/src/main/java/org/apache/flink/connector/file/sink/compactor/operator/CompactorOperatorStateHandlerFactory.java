@@ -63,11 +63,9 @@ public class CompactorOperatorStateHandlerFactory
         try {
             final CompactorOperatorStateHandler handler =
                     new CompactorOperatorStateHandler(
-                            committableSerializerSupplier.get(), bucketWriterProvider.get());
-            handler.setup(
-                    parameters.getContainingTask(),
-                    parameters.getStreamConfig(),
-                    parameters.getOutput());
+                            parameters,
+                            committableSerializerSupplier.get(),
+                            bucketWriterProvider.get());
             return (T) handler;
         } catch (Exception e) {
             throw new IllegalStateException(

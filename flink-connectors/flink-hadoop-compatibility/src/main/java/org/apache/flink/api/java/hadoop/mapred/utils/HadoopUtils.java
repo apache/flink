@@ -19,7 +19,6 @@
 package org.apache.flink.api.java.hadoop.mapred.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.GlobalConfiguration;
 
 import org.apache.hadoop.conf.Configuration;
@@ -55,7 +54,7 @@ public final class HadoopUtils {
 
     /**
      * Returns a new Hadoop Configuration object using the path to the hadoop conf configured in the
-     * main configuration (flink-conf.yaml). This method is public because its being used in the
+     * main configuration (config.yaml). This method is public because its being used in the
      * HadoopDataSource.
      *
      * @param flinkConfiguration Flink configuration object
@@ -69,24 +68,8 @@ public final class HadoopUtils {
         // We need to load both core-site.xml and hdfs-site.xml to determine the default fs path and
         // the hdfs configuration
         // Try to load HDFS configuration from Hadoop's own configuration files
-        // 1. approach: Flink configuration
-        final String hdfsDefaultPath =
-                flinkConfiguration.getString(ConfigConstants.HDFS_DEFAULT_CONFIG, null);
-        if (hdfsDefaultPath != null) {
-            retConf.addResource(new org.apache.hadoop.fs.Path(hdfsDefaultPath));
-        } else {
-            LOG.debug("Cannot find hdfs-default configuration file");
-        }
 
-        final String hdfsSitePath =
-                flinkConfiguration.getString(ConfigConstants.HDFS_SITE_CONFIG, null);
-        if (hdfsSitePath != null) {
-            retConf.addResource(new org.apache.hadoop.fs.Path(hdfsSitePath));
-        } else {
-            LOG.debug("Cannot find hdfs-site configuration file");
-        }
-
-        // 2. Approach environment variables
+        // Approach environment variables
         for (String possibleHadoopConfPath : possibleHadoopConfPaths(flinkConfiguration)) {
             if (new File(possibleHadoopConfPath).exists()) {
                 if (new File(possibleHadoopConfPath + "/core-site.xml").exists()) {
@@ -128,12 +111,11 @@ public final class HadoopUtils {
     public static String[] possibleHadoopConfPaths(
             org.apache.flink.configuration.Configuration flinkConfiguration) {
         String[] possiblePaths = new String[4];
-        possiblePaths[0] = flinkConfiguration.getString(ConfigConstants.PATH_HADOOP_CONFIG, null);
-        possiblePaths[1] = System.getenv("HADOOP_CONF_DIR");
+        possiblePaths[0] = System.getenv("HADOOP_CONF_DIR");
 
         if (System.getenv("HADOOP_HOME") != null) {
-            possiblePaths[2] = System.getenv("HADOOP_HOME") + "/conf";
-            possiblePaths[3] = System.getenv("HADOOP_HOME") + "/etc/hadoop"; // hadoop 2.2
+            possiblePaths[1] = System.getenv("HADOOP_HOME") + "/conf";
+            possiblePaths[2] = System.getenv("HADOOP_HOME") + "/etc/hadoop"; // hadoop 2.2
         }
         return Arrays.stream(possiblePaths).filter(Objects::nonNull).toArray(String[]::new);
     }

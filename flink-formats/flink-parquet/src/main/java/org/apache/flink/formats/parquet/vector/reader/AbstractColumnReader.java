@@ -21,7 +21,6 @@ import org.apache.flink.formats.parquet.vector.ParquetDictionary;
 import org.apache.flink.table.data.columnar.vector.writable.WritableColumnVector;
 import org.apache.flink.table.data.columnar.vector.writable.WritableIntVector;
 
-import org.apache.parquet.Preconditions;
 import org.apache.parquet.bytes.ByteBufferInputStream;
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.bytes.BytesUtils;
@@ -44,6 +43,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.parquet.column.ValuesType.REPETITION_LEVEL;
 
 /**
@@ -132,7 +132,7 @@ public abstract class AbstractColumnReader<VECTOR extends WritableColumnVector>
     protected void checkTypeName(PrimitiveType.PrimitiveTypeName expectedName) {
         PrimitiveType.PrimitiveTypeName actualName =
                 descriptor.getPrimitiveType().getPrimitiveTypeName();
-        Preconditions.checkArgument(
+        checkArgument(
                 actualName == expectedName,
                 "Expected type name: %s, actual type name: %s",
                 expectedName,
@@ -173,7 +173,7 @@ public abstract class AbstractColumnReader<VECTOR extends WritableColumnVector>
                     // We can't do this if rowId != 0 AND the column doesn't have a dictionary (i.e.
                     // some
                     // non-dictionary encoded values have already been added).
-                    vector.setDictionary(new ParquetDictionary(dictionary));
+                    vector.setDictionary(new ParquetDictionary(dictionary, descriptor));
                 } else {
                     readBatchFromDictionaryIds(rowId, num, vector, dictionaryIds);
                 }

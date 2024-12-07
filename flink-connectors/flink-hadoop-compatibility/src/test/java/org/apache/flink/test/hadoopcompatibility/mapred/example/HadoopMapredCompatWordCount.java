@@ -18,13 +18,16 @@
 
 package org.apache.flink.test.hadoopcompatibility.mapred.example;
 
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.hadoop.mapred.HadoopInputFormat;
 import org.apache.flink.api.java.hadoop.mapred.HadoopOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.hadoopcompatibility.mapred.HadoopMapFunction;
-import org.apache.flink.hadoopcompatibility.mapred.HadoopReduceCombineFunction;
+import org.apache.flink.hadoopcompatibility.mapred.HadoopReducerWrappedFunction;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.legacy.OutputFormatSinkFunction;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
@@ -49,16 +52,16 @@ import java.util.Iterator;
  */
 public class HadoopMapredCompatWordCount {
 
-    public static void main(String[] args) throws Exception {
+    public static JobExecutionResult run(String[] args) throws Exception {
         if (args.length < 2) {
             System.err.println("Usage: WordCount <input path> <result path>");
-            return;
+            return null;
         }
 
         final String inputPath = args[0];
         final String outputPath = args[1];
 
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // Set up the Hadoop Input Format
         HadoopInputFormat<LongWritable, Text> hadoopInputFormat =
@@ -67,17 +70,15 @@ public class HadoopMapredCompatWordCount {
         TextInputFormat.addInputPath(hadoopInputFormat.getJobConf(), new Path(inputPath));
 
         // Create a Flink job with it
-        DataSet<Tuple2<LongWritable, Text>> text = env.createInput(hadoopInputFormat);
+        DataStream<Tuple2<LongWritable, Text>> text = env.createInput(hadoopInputFormat);
 
-        DataSet<Tuple2<Text, LongWritable>> words =
+        DataStream<Tuple2<Text, LongWritable>> words =
                 text.flatMap(
                                 new HadoopMapFunction<LongWritable, Text, Text, LongWritable>(
                                         new Tokenizer()))
-                        .groupBy(0)
-                        .reduceGroup(
-                                new HadoopReduceCombineFunction<
-                                        Text, LongWritable, Text, LongWritable>(
-                                        new Counter(), new Counter()));
+                        .keyBy(x -> x.f0)
+                        .window(GlobalWindows.createWithEndOfStreamTrigger())
+                        .apply(new HadoopReducerWrappedFunction<>(new Counter()));
 
         // Set up Hadoop Output Format
         HadoopOutputFormat<Text, LongWritable> hadoopOutputFormat =
@@ -87,8 +88,8 @@ public class HadoopMapredCompatWordCount {
         TextOutputFormat.setOutputPath(hadoopOutputFormat.getJobConf(), new Path(outputPath));
 
         // Output & Execute
-        words.output(hadoopOutputFormat).setParallelism(1);
-        env.execute("Hadoop Compat WordCount");
+        words.addSink(new OutputFormatSinkFunction<>(hadoopOutputFormat)).setParallelism(1);
+        return env.execute("Hadoop Compat WordCount");
     }
 
     /** A {@link Mapper} that splits a line into words. */

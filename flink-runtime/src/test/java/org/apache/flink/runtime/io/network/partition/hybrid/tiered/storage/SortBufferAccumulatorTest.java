@@ -18,9 +18,12 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.TestingTieredStorageMemoryManager;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 
 import org.junit.jupiter.api.AfterEach;
@@ -29,6 +32,8 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -60,6 +65,21 @@ class SortBufferAccumulatorTest {
 
     @Test
     void testAccumulateRecordsAndGenerateBuffers() throws IOException {
+        testAccumulateRecordsAndGenerateBuffers(
+                true,
+                Arrays.asList(
+                        Buffer.DataType.DATA_BUFFER, Buffer.DataType.DATA_BUFFER_WITH_CLEAR_END));
+    }
+
+    @Test
+    void testAccumulateRecordsAndGenerateBuffersWithPartialRecordUnallowed() throws IOException {
+        testAccumulateRecordsAndGenerateBuffers(
+                false, Collections.singletonList(Buffer.DataType.DATA_BUFFER_WITH_CLEAR_END));
+    }
+
+    private void testAccumulateRecordsAndGenerateBuffers(
+            boolean isPartialRecordAllowed, Collection<Buffer.DataType> expectedDataTypes)
+            throws IOException {
         int numBuffers = 10;
         int numRecords = 1000;
         int indexEntrySize = 16;
@@ -74,14 +94,14 @@ class SortBufferAccumulatorTest {
         // The test use only one buffer for sort, and when it is full, the sort buffer will be
         // flushed.
         try (SortBufferAccumulator bufferAccumulator =
-                new SortBufferAccumulator(1, 2, BUFFER_SIZE_BYTES, memoryManager)) {
+                new SortBufferAccumulator(
+                        1, 2, BUFFER_SIZE_BYTES, memoryManager, isPartialRecordAllowed)) {
             bufferAccumulator.setup(
-                    ((subpartition, buffers) ->
-                            buffers.forEach(
-                                    buffer -> {
-                                        numReceivedFinishedBuffer.incrementAndGet();
-                                        buffer.recycleBuffer();
-                                    })));
+                    ((subpartition, buffer, numRemainingBuffers) -> {
+                        assertThat(buffer.getDataType()).isIn(expectedDataTypes);
+                        numReceivedFinishedBuffer.incrementAndGet();
+                        buffer.recycleBuffer();
+                    }));
             boolean isBroadcastForPreviousRecord = false;
             for (int i = 0; i < numRecords; i++) {
                 int numBytes = random.nextInt(BUFFER_SIZE_BYTES) + 1;
@@ -107,6 +127,15 @@ class SortBufferAccumulatorTest {
 
     @Test
     void testWriteLargeRecord() throws IOException {
+        testWriteLargeRecord(true);
+    }
+
+    @Test
+    void testWriteLargeRecordWithPartialRecordUnallowed() throws IOException {
+        testWriteLargeRecord(false);
+    }
+
+    private void testWriteLargeRecord(boolean isPartialRecordAllowed) throws IOException {
         int numBuffers = 15;
         Random random = new Random();
         TieredStorageMemoryManager memoryManager = createStorageMemoryManager(numBuffers);
@@ -114,12 +143,13 @@ class SortBufferAccumulatorTest {
         // The test use only one buffer for sort, and when it is full, the sort buffer will be
         // flushed.
         try (SortBufferAccumulator bufferAccumulator =
-                new SortBufferAccumulator(1, 2, BUFFER_SIZE_BYTES, memoryManager)) {
+                new SortBufferAccumulator(
+                        1, 2, BUFFER_SIZE_BYTES, memoryManager, isPartialRecordAllowed)) {
             AtomicInteger numReceivedBuffers = new AtomicInteger(0);
             bufferAccumulator.setup(
-                    (subpartitionIndex, buffers) -> {
-                        numReceivedBuffers.getAndAdd(buffers.size());
-                        buffers.forEach(Buffer::recycleBuffer);
+                    (subpartitionIndex, buffer, numRemainingBuffers) -> {
+                        numReceivedBuffers.getAndAdd(1);
+                        buffer.recycleBuffer();
                     });
             ByteBuffer largeRecord = generateRandomData(BUFFER_SIZE_BYTES * numBuffers, random);
             bufferAccumulator.receive(
@@ -140,8 +170,8 @@ class SortBufferAccumulatorTest {
         TieredStorageMemoryManager memoryManager = createStorageMemoryManager(numBuffers);
 
         try (SortBufferAccumulator bufferAccumulator =
-                new SortBufferAccumulator(1, 1, bufferSize, memoryManager)) {
-            bufferAccumulator.setup((subpartitionIndex, buffers) -> {});
+                new SortBufferAccumulator(1, 1, bufferSize, memoryManager, true)) {
+            bufferAccumulator.setup((subpartitionIndex, buffer, numRemainingBuffers) -> {});
             assertThatThrownBy(
                             () ->
                                     bufferAccumulator.receive(
@@ -160,9 +190,10 @@ class SortBufferAccumulatorTest {
         TieredStorageMemoryManager tieredStorageMemoryManager =
                 createStorageMemoryManager(numBuffers);
         SortBufferAccumulator bufferAccumulator =
-                new SortBufferAccumulator(1, 2, BUFFER_SIZE_BYTES, tieredStorageMemoryManager);
+                new SortBufferAccumulator(
+                        1, 2, BUFFER_SIZE_BYTES, tieredStorageMemoryManager, true);
         bufferAccumulator.setup(
-                ((subpartition, buffers) -> buffers.forEach(Buffer::recycleBuffer)));
+                ((subpartition, buffer, numRemainingBuffers) -> buffer.recycleBuffer()));
         bufferAccumulator.receive(
                 generateRandomData(1, new Random()),
                 new TieredStorageSubpartitionId(0),
@@ -172,6 +203,47 @@ class SortBufferAccumulatorTest {
                 .isEqualTo(2);
         bufferAccumulator.close();
         assertThat(tieredStorageMemoryManager.numOwnerRequestedBuffer(bufferAccumulator)).isZero();
+    }
+
+    @Test
+    void testReuseRecycledBuffersWhenFlushDataBuffer() throws IOException {
+        int numBuffers = 10;
+        int numSubpartitions = 10;
+
+        AtomicInteger numRequestedBuffers = new AtomicInteger(0);
+        TestingTieredStorageMemoryManager memoryManager =
+                new TestingTieredStorageMemoryManager.Builder()
+                        .setRequestBufferBlockingFunction(
+                                owner -> {
+                                    numRequestedBuffers.incrementAndGet();
+                                    MemorySegment memorySegment =
+                                            globalPool.requestPooledMemorySegment();
+                                    // When flushing data from the data buffer, the buffers should
+                                    // not be requested from here anymore because the freeSegments
+                                    // can be reused before released.
+                                    assertThat(numRequestedBuffers.get() <= numBuffers).isTrue();
+                                    return new BufferBuilder(
+                                            memorySegment,
+                                            segment -> globalPool.requestPooledMemorySegment());
+                                })
+                        .build();
+
+        SortBufferAccumulator bufferAccumulator =
+                new SortBufferAccumulator(
+                        numSubpartitions, numBuffers, BUFFER_SIZE_BYTES, memoryManager, true);
+        bufferAccumulator.setup(
+                ((subpartition, buffer, numRemainingBuffers) -> buffer.recycleBuffer()));
+
+        for (int i = 0; i < numSubpartitions; i++) {
+            bufferAccumulator.receive(
+                    generateRandomData(10, new Random()),
+                    new TieredStorageSubpartitionId(i % numSubpartitions),
+                    Buffer.DataType.DATA_BUFFER,
+                    false);
+        }
+
+        // Trigger flushing buffers from data buffer.
+        bufferAccumulator.close();
     }
 
     private TieredStorageMemoryManagerImpl createStorageMemoryManager(int numBuffersInBufferPool)

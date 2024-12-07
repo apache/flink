@@ -17,12 +17,12 @@
 
 package org.apache.flink.state.changelog;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
+import org.apache.flink.runtime.state.InternalKeyContextImpl;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.heap.InternalKeyContextImpl;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -151,7 +151,8 @@ public class ChangelogMapStateTest {
         private final Map<String, String> map;
 
         public TestingInternalMapState(Map<String, String> stringStringMap) {
-            serializer = TypeInformation.of(String.class).createSerializer(new ExecutionConfig());
+            serializer =
+                    TypeInformation.of(String.class).createSerializer(new SerializerConfigImpl());
             mapSerializer = new MapSerializer<>(serializer, serializer);
             map = new HashMap<>(stringStringMap);
         }

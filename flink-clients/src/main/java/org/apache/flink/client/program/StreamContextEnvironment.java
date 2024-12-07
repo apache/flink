@@ -19,12 +19,9 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.cli.ClientOptions;
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.DetachedJobExecutionResult;
@@ -32,7 +29,6 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.dispatcher.ConfigurationNotAllowedMessage;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -40,8 +36,8 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ShutdownHookUtil;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.MapDifference;
-import org.apache.flink.shaded.guava31.com.google.common.collect.Maps;
+import org.apache.flink.shaded.guava32.com.google.common.collect.MapDifference;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Maps;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +46,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -65,7 +60,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @PublicEvolving
 public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
+    private static final Logger LOG = LoggerFactory.getLogger(StreamContextEnvironment.class);
 
     private final boolean suppressSysout;
 
@@ -139,12 +134,12 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
         checkNotNull(jobClient);
 
         JobExecutionResult jobExecutionResult;
-        if (configuration.getBoolean(DeploymentOptions.ATTACHED)) {
+        if (configuration.get(DeploymentOptions.ATTACHED)) {
             CompletableFuture<JobExecutionResult> jobExecutionResultFuture =
                     jobClient.getJobExecutionResult();
 
             ScheduledExecutorService clientHeartbeatService = null;
-            if (configuration.getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
+            if (configuration.get(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
                 Thread shutdownHook =
                         ShutdownHookUtil.addShutdownHook(
                                 () -> {
@@ -164,8 +159,12 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
                 clientHeartbeatService =
                         ClientUtils.reportHeartbeatPeriodically(
                                 jobClient,
-                                configuration.getLong(ClientOptions.CLIENT_HEARTBEAT_INTERVAL),
-                                configuration.getLong(ClientOptions.CLIENT_HEARTBEAT_TIMEOUT));
+                                configuration
+                                        .get(ClientOptions.CLIENT_HEARTBEAT_INTERVAL)
+                                        .toMillis(),
+                                configuration
+                                        .get(ClientOptions.CLIENT_HEARTBEAT_TIMEOUT)
+                                        .toMillis());
             }
 
             jobExecutionResult = jobExecutionResultFuture.get();
@@ -251,10 +250,8 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
     /**
      * Collects programmatic configuration changes.
      *
-     * <p>Configuration is spread across instances of {@link Configuration} and POJOs (e.g. {@link
-     * ExecutionConfig}), so we need to have logic for comparing both. For supporting wildcards, the
-     * first can be accomplished by simply removing keys, the latter by setting equal fields before
-     * comparison.
+     * <p>For supporting wildcards, the first can be accomplished by simply removing keys, the
+     * latter by setting equal fields before comparison.
      */
     private Collection<String> collectNotAllowedConfigurations() {
         if (programConfigEnabled) {
@@ -270,8 +267,6 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
         removeProgramConfigWildcards(clusterConfigMap);
 
         checkMainConfiguration(clusterConfigMap, errors);
-        checkCheckpointConfig(clusterConfigMap, errors);
-        checkExecutionConfig(clusterConfigMap, errors);
         return errors;
     }
 
@@ -298,40 +293,6 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
                                 errors.add(
                                         ConfigurationNotAllowedMessage.ofConfigurationChanged(
                                                 k, v)));
-    }
-
-    private void checkCheckpointConfig(Configuration clusterConfigMap, List<String> errors) {
-        CheckpointConfig expectedCheckpointConfig = new CheckpointConfig();
-        expectedCheckpointConfig.configure(clusterConfigMap);
-        checkConfigurationObject(
-                expectedCheckpointConfig.toConfiguration(),
-                checkpointCfg.toConfiguration(),
-                checkpointCfg.getClass().getSimpleName(),
-                errors);
-
-        /**
-         * Unfortunately, {@link CheckpointConfig#setCheckpointStorage} is not backed by a {@link
-         * Configuration}, but it also has to be validated. For this validation we are implementing
-         * a one off manual check.
-         */
-        if (!programConfigWildcards.contains(CheckpointingOptions.CHECKPOINTS_DIRECTORY.key())
-                && !Objects.equals(
-                        checkpointCfg.getCheckpointStorage(),
-                        expectedCheckpointConfig.getCheckpointStorage())) {
-            errors.add(
-                    ConfigurationNotAllowedMessage.ofConfigurationObjectSetterUsed(
-                            checkpointCfg.getClass().getSimpleName(), "setCheckpointStorage"));
-        }
-    }
-
-    private void checkExecutionConfig(Configuration clusterConfigMap, List<String> errors) {
-        ExecutionConfig expectedExecutionConfig = new ExecutionConfig();
-        expectedExecutionConfig.configure(clusterConfigMap, getUserClassloader());
-        checkConfigurationObject(
-                expectedExecutionConfig.toConfiguration(),
-                config.toConfiguration(),
-                config.getClass().getSimpleName(),
-                errors);
     }
 
     private void checkConfigurationObject(

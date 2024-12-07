@@ -164,7 +164,7 @@ class BlockingShutdownTest {
         }
 
         @Override
-        public String[] getJvmArgs() {
+        public String[] getMainMethodArgs() {
             return new String[] {
                 tempFilePath, String.valueOf(installSignalHandler), String.valueOf(selfKillDelay)
             };

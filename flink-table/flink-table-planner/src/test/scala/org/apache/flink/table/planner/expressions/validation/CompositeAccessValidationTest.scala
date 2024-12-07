@@ -20,27 +20,33 @@ package org.apache.flink.table.planner.expressions.validation
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.CompositeTypeTestBase
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 class CompositeAccessValidationTest extends CompositeTypeTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testWrongSqlFieldFull(): Unit = {
-    testSqlApi("testTable.f5.test", "13")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testSqlApi("testTable.f5.test", "13"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testWrongSqlField(): Unit = {
-    testSqlApi("f5.test", "13")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testSqlApi("f5.test", "13"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testWrongIntKeyField(): Unit = {
-    testTableApi('f0.get(555), "fail")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testTableApi('f0.get(555), "fail"))
+
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testWrongStringKeyField(): Unit = {
-    testTableApi('f0.get("fghj"), "fail")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testTableApi('f0.get("fghj"), "fail"))
   }
 }

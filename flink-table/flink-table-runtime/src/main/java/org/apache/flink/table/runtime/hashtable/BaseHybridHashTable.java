@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.hashtable;
 
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.iomanager.AbstractChannelReaderInputView;
@@ -116,6 +117,7 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 
     /** The reader for the spilled-file of the build partition that is currently read. */
     protected HeaderlessChannelReaderInputView currentSpilledBuildSide;
+
     /** The reader for the spilled-file of the probe partition that is currently read. */
     protected AbstractChannelReaderInputView currentSpilledProbeSide;
 
@@ -146,7 +148,7 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
         this.compressionCodecFactory =
                 this.compressionEnabled
                         ? BlockCompressionFactory.createBlockCompressionFactory(
-                                BlockCompressionFactory.CompressionFactoryName.LZ4.toString())
+                                CompressionCodec.LZ4)
                         : null;
         this.compressionBlockSize = compressionBlockSize;
         this.avgRecordLen = avgRecordLen;

@@ -27,19 +27,18 @@ import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.JobManagerJobConfigurationHeaders;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for the {@link JobManagerJobConfigurationHandler}. */
-public class JobManagerJobConfigurationHandlerTest extends TestLogger {
+class JobManagerJobConfigurationHandlerTest {
 
     @Test
-    public void testRequestConfiguration() throws Exception {
+    void testRequestConfiguration() throws Exception {
         final Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.ADDRESS, "address");
 
@@ -62,7 +61,7 @@ public class JobManagerJobConfigurationHandlerTest extends TestLogger {
                                 new TestingRestfulGateway.Builder().build())
                         .get();
 
-        assertEquals(JobManagerOptions.ADDRESS.key(), configurationInfo.get(0).getKey());
-        assertEquals("address", configurationInfo.get(0).getValue());
+        assertThat(configurationInfo.get(0).getKey()).isEqualTo(JobManagerOptions.ADDRESS.key());
+        assertThat(configurationInfo.get(0).getValue()).isEqualTo("address");
     }
 }

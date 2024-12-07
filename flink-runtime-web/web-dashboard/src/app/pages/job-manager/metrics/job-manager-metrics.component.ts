@@ -112,7 +112,11 @@ export class JobManagerMetricsComponent implements OnInit, OnDestroy {
           this.listOfGCMetric = Array.from(
             new Set(
               this.listOfGCName.map(item =>
-                item.replace('Status.JVM.GarbageCollector.', '').replace('.Count', '').replace('.Time', '')
+                item
+                  .replace('Status.JVM.GarbageCollector.', '')
+                  .replace('.Count', '')
+                  .replace('.TimeMsPerSecond', '')
+                  .replace('.Time', '')
               )
             )
           ).map(name => {

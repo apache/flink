@@ -31,7 +31,7 @@ import org.apache.flink.table.module.Module;
 import org.apache.flink.table.planner.factories.TableFactoryHarness;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 import java.util.Set;
@@ -39,10 +39,10 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for modules. */
-public class ModuleITCase extends StreamingTestBase {
+class ModuleITCase extends StreamingTestBase {
 
     @Test
-    public void testTableSourceFactory() {
+    void testTableSourceFactory() {
         tEnv().createTemporaryTable(
                         "T",
                         TableFactoryHarness.newBuilder()
@@ -71,7 +71,7 @@ public class ModuleITCase extends StreamingTestBase {
     }
 
     @Test
-    public void testTableSinkFactory() {
+    void testTableSinkFactory() {
         tEnv().createTemporaryTable(
                         "T",
                         TableFactoryHarness.newBuilder()

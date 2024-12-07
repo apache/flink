@@ -31,7 +31,6 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -49,16 +48,12 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> {
     private static Map<String, String> oldEnvVariables;
 
     private final ProcessMemoryOptions options;
-    private final LegacyMemoryOptions legacyMemoryOptions;
     private final ConfigOption<MemorySize> newOptionForLegacyHeapOption;
 
     @SuppressWarnings("JUnitTestCaseWithNonTrivialConstructors")
     protected ProcessMemoryUtilsTestBase(
-            ProcessMemoryOptions options,
-            LegacyMemoryOptions legacyMemoryOptions,
-            ConfigOption<MemorySize> newOptionForLegacyHeapOption) {
+            ProcessMemoryOptions options, ConfigOption<MemorySize> newOptionForLegacyHeapOption) {
         this.options = checkNotNull(options);
-        this.legacyMemoryOptions = checkNotNull(legacyMemoryOptions);
         this.newOptionForLegacyHeapOption = checkNotNull(newOptionForLegacyHeapOption);
     }
 
@@ -220,7 +215,7 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> {
         Configuration conf = new Configuration();
         conf.set(options.getJvmOptions().getJvmOverheadMax(), maxSize);
         conf.set(options.getJvmOptions().getJvmOverheadMin(), minSize);
-        conf.setFloat(options.getJvmOptions().getJvmOverheadFraction(), fraction);
+        conf.set(options.getJvmOptions().getJvmOverheadFraction(), fraction);
 
         validateInAllConfigurations(
                 conf,
@@ -236,14 +231,14 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> {
     void testConfigJvmOverheadFractionFailureNegative() {
         Configuration conf = new Configuration();
         //noinspection MagicNumber
-        conf.setFloat(options.getJvmOptions().getJvmOverheadFraction(), -0.1f);
+        conf.set(options.getJvmOptions().getJvmOverheadFraction(), -0.1f);
         validateFailInAllConfigurations(conf);
     }
 
     @Test
     void testConfigJvmOverheadFractionFailureNoLessThanOne() {
         Configuration conf = new Configuration();
-        conf.setFloat(options.getJvmOptions().getJvmOverheadFraction(), 1.0f);
+        conf.set(options.getJvmOptions().getJvmOverheadFraction(), 1.0f);
         validateFailInAllConfigurations(conf);
     }
 
@@ -277,56 +272,6 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> {
     }
 
     @Test
-    void testConfigLegacyHeapSize() {
-        MemorySize legacyHeapSize = MemorySize.parse("1g");
-
-        Configuration conf = new Configuration();
-        conf.set(legacyMemoryOptions.getHeap(), legacyHeapSize);
-
-        testConfigLegacyHeapMemory(conf, legacyHeapSize);
-    }
-
-    @Test
-    void testConfigLegacyHeapMB() {
-        MemorySize jvmHeapSize = MemorySize.parse("1g");
-
-        Configuration conf = new Configuration();
-        conf.set(legacyMemoryOptions.getHeapMb(), jvmHeapSize.getMebiBytes());
-
-        testConfigLegacyHeapMemory(conf, jvmHeapSize);
-    }
-
-    @Test
-    void testConfigLegacyHeapEnv() {
-        MemorySize jvmHeapSize = MemorySize.parse("1g");
-
-        Map<String, String> env = new HashMap<>();
-        env.put(legacyMemoryOptions.getEnvVar(), "1g");
-        CommonTestUtils.setEnv(env);
-
-        testConfigLegacyHeapMemory(new Configuration(), jvmHeapSize);
-    }
-
-    @Test
-    void testConfigBothNewOptionAndLegacyHeapSize() {
-        MemorySize newOptionValue = MemorySize.parse("1g");
-        MemorySize legacyHeapSize = MemorySize.parse("2g");
-
-        Configuration conf = new Configuration();
-        conf.set(getNewOptionForLegacyHeapOption(), newOptionValue);
-        conf.set(legacyMemoryOptions.getHeap(), legacyHeapSize);
-
-        testConfigLegacyHeapMemory(conf, newOptionValue);
-    }
-
-    private void testConfigLegacyHeapMemory(Configuration configuration, MemorySize expected) {
-        MemorySize newOptionValue =
-                getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(configuration)
-                        .get(getNewOptionForLegacyHeapOption());
-        assertThat(newOptionValue).isEqualTo(expected);
-    }
-
-    @Test
     void testConfigTotalProcessMemoryAddUpFailure() {
         MemorySize totalProcessMemory = MemorySize.parse("699m");
         MemorySize totalFlinkMemory = MemorySize.parse("500m");
@@ -351,9 +296,6 @@ public abstract class ProcessMemoryUtilsTestBase<T extends ProcessMemorySpec> {
     protected abstract void validateFail(Configuration config);
 
     protected abstract T processSpecFromConfig(Configuration config);
-
-    protected abstract Configuration getConfigurationWithLegacyHeapSizeMappedToNewConfigOption(
-            Configuration config);
 
     protected abstract void configWithFineGrainedOptions(
             Configuration configuration, MemorySize totalFlinkMemorySize);

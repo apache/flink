@@ -110,7 +110,7 @@ Flink natively support various connectors. The following tables list all availab
     </tr>
     <tr>
       <td><a href="{{< ref "docs/connectors/table/mongodb" >}}">MongoDB</a></td>
-      <td></td>
+      <td>3.6.x & 4.x & 5.x & 6.0.x</td>
       <td>Bounded Scan, Lookup</td>
       <td>Streaming Sink, Batch Sink</td>
     </tr>
@@ -181,7 +181,7 @@ In this situation, the recommended way is transforming these resource files unde
         <!--  other project dependencies  ...-->
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-sql-connector-hive-3.1.3{{< scala_version >}}</artifactId>
+            <artifactId>flink-sql-connector-hive-3.1.3</artifactId>
             <version>{{< version >}}</version>
         </dependency>
 

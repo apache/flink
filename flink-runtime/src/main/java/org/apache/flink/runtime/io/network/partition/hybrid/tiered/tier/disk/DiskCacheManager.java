@@ -41,6 +41,8 @@ class DiskCacheManager {
 
     private final int numSubpartitions;
 
+    private final int maxCachedBytesBeforeFlush;
+
     private final PartitionFileWriter partitionFileWriter;
 
     private final SubpartitionDiskCacheManager[] subpartitionCacheManagers;
@@ -48,13 +50,21 @@ class DiskCacheManager {
     /** Whether the current flush process has completed. */
     private CompletableFuture<Void> hasFlushCompleted;
 
+    /**
+     * The number of all subpartition's cached bytes in the cache manager. Note that the counter can
+     * only be accessed by the task thread and does not require locks.
+     */
+    private int numCachedBytesCounter;
+
     DiskCacheManager(
             TieredStoragePartitionId partitionId,
             int numSubpartitions,
+            int maxCachedBytesBeforeFlush,
             TieredStorageMemoryManager memoryManager,
             PartitionFileWriter partitionFileWriter) {
         this.partitionId = partitionId;
         this.numSubpartitions = numSubpartitions;
+        this.maxCachedBytesBeforeFlush = maxCachedBytesBeforeFlush;
         this.partitionFileWriter = partitionFileWriter;
         this.subpartitionCacheManagers = new SubpartitionDiskCacheManager[numSubpartitions];
         this.hasFlushCompleted = FutureUtils.completedVoidFuture();
@@ -78,9 +88,11 @@ class DiskCacheManager {
      *
      * @param buffer to be managed by this class.
      * @param subpartitionId the subpartition of this record.
+     * @param flush whether it is allowed to flush the cache after this buffer is appended.
      */
-    void append(Buffer buffer, int subpartitionId) {
+    void append(Buffer buffer, int subpartitionId, boolean flush) {
         subpartitionCacheManagers[subpartitionId].append(buffer);
+        increaseNumCachedBytesAndCheckFlush(buffer.readableBytes(), flush);
     }
 
     /**
@@ -92,12 +104,7 @@ class DiskCacheManager {
      */
     void appendEndOfSegmentEvent(ByteBuffer record, int subpartitionId) {
         subpartitionCacheManagers[subpartitionId].appendEndOfSegmentEvent(record);
-
-        // When finishing a segment, the buffers should be flushed because the next segment may be
-        // written to another tier. If the buffers in this tier are not flushed here, then the next
-        // segment in another tier may be stuck by lacking buffers. This flush has a low trigger
-        // frequency, so its impact on performance is relatively small.
-        forceFlushCachedBuffers();
+        increaseNumCachedBytesAndCheckFlush(record.remaining(), true);
     }
 
     /**
@@ -127,6 +134,13 @@ class DiskCacheManager {
     //  Internal Methods
     // ------------------------------------------------------------------------
 
+    private void increaseNumCachedBytesAndCheckFlush(int numIncreasedCachedBytes, boolean flush) {
+        numCachedBytesCounter += numIncreasedCachedBytes;
+        if (flush && numCachedBytesCounter > maxCachedBytesBeforeFlush) {
+            forceFlushCachedBuffers();
+        }
+    }
+
     private void notifyFlushCachedBuffers() {
         flushBuffers(false);
     }
@@ -153,6 +167,7 @@ class DiskCacheManager {
                 hasFlushCompleted = flushCompletableFuture;
             }
         }
+        numCachedBytesCounter = 0;
     }
 
     private int getSubpartitionToFlushBuffers(

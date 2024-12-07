@@ -17,7 +17,6 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.Configuration;
@@ -36,6 +35,7 @@ import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.SharedObjects;
 
@@ -101,7 +101,7 @@ public class IncrementalStateReuseAfterFailureITCase {
 
         // reliably fails Changelog with FLINK-25395, but might affect any incremental backend
         env.enableChangelogStateBackend(true);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 1));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 1L);
         env.setMaxParallelism(1); // simplify debugging
         env.setParallelism(1); // simplify debugging
 

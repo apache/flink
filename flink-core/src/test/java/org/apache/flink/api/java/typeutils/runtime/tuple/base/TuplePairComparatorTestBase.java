@@ -21,12 +21,10 @@ package org.apache.flink.api.java.typeutils.runtime.tuple.base;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Abstract test base for TuplePairComparators.
@@ -34,57 +32,44 @@ import static org.junit.Assert.fail;
  * @param <T>
  * @param <R>
  */
-public abstract class TuplePairComparatorTestBase<T extends Tuple, R extends Tuple>
-        extends TestLogger {
+public abstract class TuplePairComparatorTestBase<T extends Tuple, R extends Tuple> {
 
     protected abstract TypePairComparator<T, R> createComparator(boolean ascending);
 
     protected abstract Tuple2<T[], R[]> getSortedTestData();
 
     @Test
-    public void testEqualityWithReference() {
-        try {
-            TypePairComparator<T, R> comparator = getComparator(true);
-            Tuple2<T[], R[]> data = getSortedData();
-            for (int x = 0; x < data.f0.length; x++) {
-                comparator.setReference(data.f0[x]);
+    void testEqualityWithReference() {
+        TypePairComparator<T, R> comparator = getComparator(true);
+        Tuple2<T[], R[]> data = getSortedData();
+        for (int x = 0; x < data.f0.length; x++) {
+            comparator.setReference(data.f0[x]);
 
-                assertTrue(comparator.equalToReference(data.f1[x]));
-            }
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            fail("Exception in test: " + e.getMessage());
+            assertThat(comparator.equalToReference(data.f1[x])).isTrue();
         }
     }
 
     @Test
-    public void testInequalityWithReference() {
+    void testInequalityWithReference() {
         testGreatSmallAscDescWithReference(true);
         testGreatSmallAscDescWithReference(false);
     }
 
     protected void testGreatSmallAscDescWithReference(boolean ascending) {
-        try {
-            Tuple2<T[], R[]> data = getSortedData();
+        Tuple2<T[], R[]> data = getSortedData();
 
-            TypePairComparator<T, R> comparator = getComparator(ascending);
+        TypePairComparator<T, R> comparator = getComparator(ascending);
 
-            // compares every element in high with every element in low
-            for (int x = 0; x < data.f0.length - 1; x++) {
-                for (int y = x + 1; y < data.f1.length; y++) {
-                    comparator.setReference(data.f0[x]);
-                    if (ascending) {
-                        assertTrue(comparator.compareToReference(data.f1[y]) > 0);
-                    } else {
-                        assertTrue(comparator.compareToReference(data.f1[y]) < 0);
-                    }
+        // compares every element in high with every element in low
+        for (int x = 0; x < data.f0.length - 1; x++) {
+            for (int y = x + 1; y < data.f1.length; y++) {
+                comparator.setReference(data.f0[x]);
+                if (ascending) {
+                    assertThat(comparator.compareToReference(data.f1[y])).isPositive();
+                } else {
+                    assertThat(comparator.compareToReference(data.f1[y])).isNegative();
                 }
             }
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            e.printStackTrace();
-            fail("Exception in test: " + e.getMessage());
         }
     }
 

@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for `ANALYZE TABLE`. */
-public class AnalyzeTableITCase extends StreamingTestBase {
+class AnalyzeTableITCase extends StreamingTestBase {
 
     private TableEnvironment tEnv;
 
@@ -55,7 +55,7 @@ public class AnalyzeTableITCase extends StreamingTestBase {
     }
 
     @Test
-    public void testAnalyzeTable() {
+    void testAnalyzeTable() {
         assertThatThrownBy(() -> tEnv.executeSql("analyze table MyTable compute statistics"))
                 .isInstanceOf(TableException.class)
                 .hasMessageContaining("ANALYZE TABLE is not supported for streaming mode now");

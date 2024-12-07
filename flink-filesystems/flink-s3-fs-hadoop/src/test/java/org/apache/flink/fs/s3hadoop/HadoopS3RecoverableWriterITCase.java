@@ -28,7 +28,7 @@ import org.apache.flink.fs.s3.common.writer.S3Recoverable;
 import org.apache.flink.runtime.fs.hdfs.AbstractHadoopRecoverableWriterITCase;
 import org.apache.flink.testutils.s3.S3TestCredentials;
 
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.BeforeAll;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -40,15 +40,15 @@ import static org.apache.flink.fs.s3.common.AbstractS3FileSystemFactory.PART_UPL
  * Tests for the {@link org.apache.flink.fs.s3.common.writer.S3RecoverableWriter
  * S3RecoverableWriter}.
  */
-public class HadoopS3RecoverableWriterITCase extends AbstractHadoopRecoverableWriterITCase {
+class HadoopS3RecoverableWriterITCase extends AbstractHadoopRecoverableWriterITCase {
 
     // ----------------------- S3 general configuration -----------------------
 
     private static final long PART_UPLOAD_MIN_SIZE_VALUE = 7L << 20;
     private static final int MAX_CONCURRENT_UPLOADS_VALUE = 2;
 
-    @BeforeClass
-    public static void checkCredentialsAndSetup() throws IOException {
+    @BeforeAll
+    static void checkCredentialsAndSetup() throws IOException {
         // check whether credentials exist
         S3TestCredentials.assumeCredentialsAvailable();
 
@@ -59,11 +59,11 @@ public class HadoopS3RecoverableWriterITCase extends AbstractHadoopRecoverableWr
         conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
         conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
 
-        conf.setLong(PART_UPLOAD_MIN_SIZE, PART_UPLOAD_MIN_SIZE_VALUE);
-        conf.setInteger(MAX_CONCURRENT_UPLOADS, MAX_CONCURRENT_UPLOADS_VALUE);
+        conf.set(PART_UPLOAD_MIN_SIZE, PART_UPLOAD_MIN_SIZE_VALUE);
+        conf.set(MAX_CONCURRENT_UPLOADS, MAX_CONCURRENT_UPLOADS_VALUE);
 
-        final String defaultTmpDir = TEMP_FOLDER.getRoot().getAbsolutePath() + "s3_tmp_dir";
-        conf.setString(CoreOptions.TMP_DIRS, defaultTmpDir);
+        final String defaultTmpDir = tempFolder.getAbsolutePath() + "s3_tmp_dir";
+        conf.set(CoreOptions.TMP_DIRS, defaultTmpDir);
 
         FileSystem.initialize(conf);
         bigDataChunk = createBigDataChunk(BIG_CHUNK_DATA_PATTERN, PART_UPLOAD_MIN_SIZE_VALUE);

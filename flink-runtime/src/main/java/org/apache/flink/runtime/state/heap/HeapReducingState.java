@@ -28,8 +28,6 @@ import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.util.Preconditions;
 
-import java.io.IOException;
-
 /**
  * Heap-backed partitioned {@link ReducingState} that is snapshotted into files.
  *
@@ -89,18 +87,14 @@ class HeapReducingState<K, N, V> extends AbstractHeapMergingState<K, N, V, V, V>
     }
 
     @Override
-    public void add(V value) throws IOException {
+    public void add(V value) throws Exception {
 
         if (value == null) {
             clear();
             return;
         }
 
-        try {
-            stateTable.transform(currentNamespace, value, reduceTransformation);
-        } catch (Exception e) {
-            throw new IOException("Exception while applying ReduceFunction in reducing state", e);
-        }
+        stateTable.transform(currentNamespace, value, reduceTransformation);
     }
 
     // ------------------------------------------------------------------------

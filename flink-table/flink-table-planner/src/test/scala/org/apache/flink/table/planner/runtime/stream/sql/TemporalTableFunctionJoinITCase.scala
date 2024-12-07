@@ -17,28 +17,25 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink}
+import org.apache.flink.table.planner.runtime.utils.{StreamingEnvUtil, StreamingWithStateTestBase, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.utils.TableTestUtil
-import org.apache.flink.types.Row
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 
-import org.junit._
-import org.junit.Assert.assertEquals
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.sql.Timestamp
+import java.time.Duration
 
 import scala.collection.mutable
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class TemporalTableFunctionJoinITCase(state: StateBackendMode)
   extends StreamingWithStateTestBase(state) {
 
@@ -47,12 +44,11 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
    * the result here. Instead of that, here we are just testing whether there are no exceptions in a
    * full blown ITCase. Actual correctness is tested in unit tests.
    */
-  @Test
+  @TestTemplate
   def testProcessTimeInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     env.setParallelism(1)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 
     val sqlQuery =
       """
@@ -78,11 +74,11 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     ratesHistoryData.+=(("Euro", 116L))
     ratesHistoryData.+=(("Euro", 119L))
 
-    val orders = env
-      .fromCollection(ordersData)
+    val orders = StreamingEnvUtil
+      .fromCollection(env, ordersData)
       .toTable(tEnv, 'amount, 'currency, 'proctime.proctime)
-    val ratesHistory = env
-      .fromCollection(ratesHistoryData)
+    val ratesHistory = StreamingEnvUtil
+      .fromCollection(env, ratesHistoryData)
       .toTable(tEnv, 'currency, 'rate, 'proctime.proctime)
 
     tEnv.createTemporaryView("Orders", orders)
@@ -91,32 +87,30 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
       "Rates",
       ratesHistory.createTemporalTableFunction($"proctime", $"currency"))
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(new TestingAppendSink)
     env.execute()
   }
 
-  @Test
+  @TestTemplate
   def testProcessTimeInnerJoinWithConstantTable(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     env.setParallelism(1)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
     val result = tEnv
       .sqlQuery(
         "SELECT amount, currency, proctime() as proctime " +
           "FROM (VALUES (1, 2.0)) AS T(amount, currency)")
-      .toAppendStream[Row]
+      .toDataStream
     result.addSink(new TestingAppendSink)
     env.execute()
   }
 
-  @Test
+  @TestTemplate
   def testProcessTimeInnerJoinUnionAll(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     env.setParallelism(1)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 
     val sqlQuery =
       """
@@ -142,37 +136,36 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     ratesHistoryData.+=(("Euro", 116L))
     ratesHistoryData.+=(("Euro", 119L))
 
-    val orders1 = env
-      .fromCollection(ordersData)
+    val orders1 = StreamingEnvUtil
+      .fromCollection(env, ordersData)
       .toTable(tEnv, 'amount, 'currency, 'proctime.proctime)
-    val orders2 = env
-      .fromCollection(ordersData)
+    val orders2 = StreamingEnvUtil
+      .fromCollection(env, ordersData)
       .toTable(tEnv, 'amount, 'currency, 'proctime.proctime)
-    val ratesHistory = env
-      .fromCollection(ratesHistoryData)
+    val ratesHistory = StreamingEnvUtil
+      .fromCollection(env, ratesHistoryData)
       .toTable(tEnv, 'currency, 'rate, 'proctime.proctime)
 
     tEnv.createTemporaryView("Orders1", orders1)
     tEnv.createTemporaryView("Orders2", orders2)
     tEnv.createTemporaryView("RatesHistory", ratesHistory)
 
-    tEnv.registerFunction(
+    tEnv.createTemporaryFunction(
       "Rates",
       ratesHistory.createTemporalTableFunction($"proctime", $"currency"))
     tEnv.createTemporaryView(
       "Orders",
       tEnv.sqlQuery("SELECT * FROM Orders1 UNION ALL SELECT * FROM Orders2"))
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(new TestingAppendSink)
     env.execute()
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     env.setParallelism(1)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     val sqlQuery =
       """
@@ -201,12 +194,12 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     expectedOutput += (2 * 114).toString
     expectedOutput += (3 * 116).toString
 
-    val orders = env
-      .fromCollection(ordersData)
+    val orders = StreamingEnvUtil
+      .fromCollection(env, ordersData)
       .assignTimestampsAndWatermarks(new TimestampExtractor[(Long, String, Timestamp)]())
       .toTable(tEnv, 'amount, 'currency, 'rowtime.rowtime)
-    val ratesHistory = env
-      .fromCollection(ratesHistoryData)
+    val ratesHistory = StreamingEnvUtil
+      .fromCollection(env, ratesHistoryData)
       .assignTimestampsAndWatermarks(new TimestampExtractor[(String, Long, Timestamp)]())
       .toTable(tEnv, 'currency, 'rate, 'rowtime.rowtime)
 
@@ -224,19 +217,18 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
 
     // Scan from registered table to test for interplay between
     // LogicalCorrelateToTemporalTableJoinRule and TableScanRule
-    val result = tEnv.from("TemporalJoinResult").toAppendStream[Row]
+    val result = tEnv.from("TemporalJoinResult").toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
 
-    assertEquals(expectedOutput, sink.getAppendResults.toSet)
+    assertThat(sink.getAppendResults.toSet).isEqualTo(expectedOutput)
   }
 
-  @Test
+  @TestTemplate
   def testNestedTemporalJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     val sqlQuery =
       """
@@ -257,8 +249,8 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     ordersData.+=((2L, "A2", 1L, new Timestamp(3L)))
     ordersData.+=((3L, "A4", 50L, new Timestamp(4L)))
     ordersData.+=((4L, "A1", 3L, new Timestamp(5L)))
-    val orders = env
-      .fromCollection(ordersData)
+    val orders = StreamingEnvUtil
+      .fromCollection(env, ordersData)
       .assignTimestampsAndWatermarks(new TimestampExtractor[(Long, String, Long, Timestamp)]())
       .toTable(tEnv, 'orderId, 'productId, 'amount, 'rowtime.rowtime)
 
@@ -268,8 +260,8 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     ratesHistoryData.+=(("Yen", 1L, new Timestamp(1L)))
     ratesHistoryData.+=(("Euro", 116L, new Timestamp(5L)))
     ratesHistoryData.+=(("Euro", 119L, new Timestamp(7L)))
-    val ratesHistory = env
-      .fromCollection(ratesHistoryData)
+    val ratesHistory = StreamingEnvUtil
+      .fromCollection(env, ratesHistoryData)
       .assignTimestampsAndWatermarks(new TimestampExtractor[(String, Long, Timestamp)]())
       .toTable(tEnv, 'currency, 'rate, 'rowtime.rowtime)
 
@@ -279,8 +271,8 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     pricesHistoryData.+=(("A4", "Yen", 1d, new Timestamp(1L)))
     pricesHistoryData.+=(("A1", "Euro", 11.6d, new Timestamp(5L)))
     pricesHistoryData.+=(("A1", "Euro", 11.9d, new Timestamp(7L)))
-    val pricesHistory = env
-      .fromCollection(pricesHistoryData)
+    val pricesHistory = StreamingEnvUtil
+      .fromCollection(env, pricesHistoryData)
       .assignTimestampsAndWatermarks(new TimestampExtractor[(String, String, Double, Timestamp)]())
       .toTable(tEnv, 'productId, 'currency, 'price, 'rowtime.rowtime)
 
@@ -297,7 +289,7 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
 
     // Scan from registered table to test for interplay between
     // LogicalCorrelateToTemporalTableJoinRule and TableScanRule
-    val result = tEnv.from("TemporalJoinResult").toAppendStream[Row]
+    val result = tEnv.from("TemporalJoinResult").toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -307,12 +299,12 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
       s"2,${1 * 102 * 10.2}",
       s"3,${50 * 1 * 1.0}",
       s"4,${3 * 116 * 11.6}")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 }
 
 class TimestampExtractor[T <: Product]
-  extends BoundedOutOfOrdernessTimestampExtractor[T](Time.seconds(10)) {
+  extends BoundedOutOfOrdernessTimestampExtractor[T](Duration.ofSeconds(10)) {
   override def extractTimestamp(element: T): Long = element match {
     case (_, _, ts: Timestamp) => ts.getTime
     case (_, _, _, ts: Timestamp) => ts.getTime

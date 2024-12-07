@@ -21,7 +21,8 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.RowTypeTestBase
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => gLocalTime}
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 class RowTypeTest extends RowTypeTestBase {
 
@@ -89,22 +90,31 @@ class RowTypeTest extends RowTypeTestBase {
 
   @Test
   def testUnsupportedCastTableApi(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-
-    testTableApi(
-      'f5.cast(DataTypes.BIGINT()),
-      ""
-    )
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          testTableApi(
+            'f5.cast(DataTypes.BIGINT()),
+            ""
+          ))
   }
 
   @Test
   def testUnsupportedCastSqlApi(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Cast function cannot convert value")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          testSqlApi(
+            "CAST(f5 AS BIGINT)",
+            ""
+          ))
+      .withMessageContaining("Cast function cannot convert value")
+  }
 
-    testSqlApi(
-      "CAST(f5 AS BIGINT)",
-      ""
-    )
+  @Test
+  def testRowTypeEquality(): Unit = {
+    testAllApis('f2 === row(2, "foo", true), "f2 = row(2, 'foo', true)", "TRUE")
+
+    testAllApis('f3 === row(3, row(2, "foo", true)), "f3 = row(3, row(2, 'foo', true))", "TRUE")
   }
 }

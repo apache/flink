@@ -50,7 +50,9 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-/** @see org.apache.flink.api.common.functions.CoGroupFunction */
+/**
+ * @see org.apache.flink.api.common.functions.CoGroupFunction
+ */
 @Internal
 public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, IN2, OUT>>
         extends DualInputOperator<IN1, IN2, OUT, FT> {
@@ -218,8 +220,10 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
         Arrays.fill(inputDirections1, true);
         Arrays.fill(inputDirections2, true);
 
-        final TypeSerializer<IN1> inputSerializer1 = inputType1.createSerializer(executionConfig);
-        final TypeSerializer<IN2> inputSerializer2 = inputType2.createSerializer(executionConfig);
+        final TypeSerializer<IN1> inputSerializer1 =
+                inputType1.createSerializer(executionConfig.getSerializerConfig());
+        final TypeSerializer<IN2> inputSerializer2 =
+                inputType2.createSerializer(executionConfig.getSerializerConfig());
 
         final TypeComparator<IN1> inputComparator1 =
                 getTypeComparator(executionConfig, inputType1, inputKeys1, inputDirections1);
@@ -302,7 +306,9 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
         Collector<OUT> resultCollector =
                 new CopyingListCollector<OUT>(
                         result,
-                        getOperatorInfo().getOutputType().createSerializer(executionConfig));
+                        getOperatorInfo()
+                                .getOutputType()
+                                .createSerializer(executionConfig.getSerializerConfig()));
 
         while (coGroupIterator.next()) {
             function.coGroup(

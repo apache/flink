@@ -28,7 +28,6 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.heap.InternalKeyContext;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateFactory;
@@ -242,13 +241,22 @@ public abstract class AbstractKeyedStateBackend<K>
         keyValueStatesByName.clear();
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     @Override
     public void setCurrentKey(K newKey) {
         notifyKeySelected(newKey);
         this.keyContext.setCurrentKey(newKey);
         this.keyContext.setCurrentKeyGroupIndex(
                 KeyGroupRangeAssignment.assignToKeyGroup(newKey, numberOfKeyGroups));
+    }
+
+    @Override
+    public void setCurrentKeyAndKeyGroup(K newKey, int newKeyGroupIndex) {
+        notifyKeySelected(newKey);
+        this.keyContext.setCurrentKey(newKey);
+        this.keyContext.setCurrentKeyGroupIndex(newKeyGroupIndex);
     }
 
     private void notifyKeySelected(K newKey) {
@@ -268,35 +276,47 @@ public abstract class AbstractKeyedStateBackend<K>
         return keySelectionListeners.remove(listener);
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     @Override
     public TypeSerializer<K> getKeySerializer() {
         return keySerializer;
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     @Override
     public K getCurrentKey() {
         return this.keyContext.getCurrentKey();
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     public int getCurrentKeyGroupIndex() {
         return this.keyContext.getCurrentKeyGroupIndex();
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     public int getNumberOfKeyGroups() {
         return numberOfKeyGroups;
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     @Override
     public KeyGroupRange getKeyGroupRange() {
         return keyGroupRange;
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     @Override
     public <N, S extends State, T> void applyToAllKeys(
             final N namespace,
@@ -340,7 +360,9 @@ public abstract class AbstractKeyedStateBackend<K>
         }
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     @Override
     @SuppressWarnings("unchecked")
     public <N, S extends State, V> S getOrCreateKeyedState(

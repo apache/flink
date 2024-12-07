@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -39,13 +38,16 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.messages.LogInfo;
+import org.apache.flink.runtime.rest.messages.ProfilingInfo;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.SerializedValue;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -74,7 +76,7 @@ public interface TaskExecutorGateway
             ResourceProfile resourceProfile,
             String targetAddress,
             ResourceManagerId resourceManagerId,
-            @RpcTimeout Time timeout);
+            @RpcTimeout Duration timeout);
 
     /**
      * Submit a {@link Task} to the {@link TaskExecutor}.
@@ -85,7 +87,7 @@ public interface TaskExecutorGateway
      * @return Future acknowledge of the successful operation
      */
     CompletableFuture<Acknowledge> submitTask(
-            TaskDeploymentDescriptor tdd, JobMasterId jobMasterId, @RpcTimeout Time timeout);
+            TaskDeploymentDescriptor tdd, JobMasterId jobMasterId, @RpcTimeout Duration timeout);
 
     /**
      * Update the task where the given partitions can be found.
@@ -98,7 +100,7 @@ public interface TaskExecutorGateway
     CompletableFuture<Acknowledge> updatePartitions(
             ExecutionAttemptID executionAttemptID,
             Iterable<PartitionInfo> partitionInfos,
-            @RpcTimeout Time timeout);
+            @RpcTimeout Duration timeout);
 
     /**
      * Batch release intermediate result partitions.
@@ -126,7 +128,7 @@ public interface TaskExecutorGateway
      * @return Future acknowledge that the request was received
      */
     CompletableFuture<Acknowledge> releaseClusterPartitions(
-            Collection<IntermediateDataSetID> dataSetsToRelease, @RpcTimeout Time timeout);
+            Collection<IntermediateDataSetID> dataSetsToRelease, @RpcTimeout Duration timeout);
 
     /**
      * Trigger the checkpoint for the given task. The checkpoint is identified by the checkpoint ID
@@ -184,7 +186,7 @@ public interface TaskExecutorGateway
      * @return Future acknowledge if the task is successfully canceled
      */
     CompletableFuture<Acknowledge> cancelTask(
-            ExecutionAttemptID executionAttemptID, @RpcTimeout Time timeout);
+            ExecutionAttemptID executionAttemptID, @RpcTimeout Duration timeout);
 
     /**
      * Heartbeat request from the job manager.
@@ -227,7 +229,9 @@ public interface TaskExecutorGateway
      * @return Future acknowledge which is returned once the slot has been freed
      */
     CompletableFuture<Acknowledge> freeSlot(
-            final AllocationID allocationId, final Throwable cause, @RpcTimeout final Time timeout);
+            final AllocationID allocationId,
+            final Throwable cause,
+            @RpcTimeout final Duration timeout);
 
     /**
      * Frees all currently inactive slot allocated for the given job.
@@ -235,7 +239,7 @@ public interface TaskExecutorGateway
      * @param jobId job for which all inactive slots should be released
      * @param timeout for the operation
      */
-    void freeInactiveSlots(JobID jobId, @RpcTimeout Time timeout);
+    void freeInactiveSlots(JobID jobId, @RpcTimeout Duration timeout);
 
     /**
      * Requests the file upload of the specified type to the cluster's {@link BlobServer}.
@@ -245,7 +249,7 @@ public interface TaskExecutorGateway
      * @return Future which is completed with the {@link TransientBlobKey} of the uploaded file.
      */
     CompletableFuture<TransientBlobKey> requestFileUploadByType(
-            FileType fileType, @RpcTimeout Time timeout);
+            FileType fileType, @RpcTimeout Duration timeout);
 
     /**
      * Requests the file upload of the specified name to the cluster's {@link BlobServer}.
@@ -255,7 +259,19 @@ public interface TaskExecutorGateway
      * @return Future which is completed with the {@link TransientBlobKey} of the uploaded file.
      */
     CompletableFuture<TransientBlobKey> requestFileUploadByName(
-            String fileName, @RpcTimeout Time timeout);
+            String fileName, @RpcTimeout Duration timeout);
+
+    /**
+     * Requests the file upload of the specified name and file type to the cluster's {@link
+     * BlobServer}.
+     *
+     * @param fileName to upload
+     * @param fileType to upload
+     * @param timeout for the asynchronous operation
+     * @return Future which is completed with the {@link TransientBlobKey} of the uploaded file.
+     */
+    CompletableFuture<TransientBlobKey> requestFileUploadByNameAndType(
+            String fileName, FileType fileType, @RpcTimeout Duration timeout);
 
     /**
      * Returns the gateway of Metric Query Service on the TaskManager.
@@ -263,7 +279,7 @@ public interface TaskExecutorGateway
      * @return Future gateway of Metric Query Service on the TaskManager.
      */
     CompletableFuture<SerializableOptional<String>> requestMetricQueryServiceAddress(
-            @RpcTimeout Time timeout);
+            @RpcTimeout Duration timeout);
 
     /**
      * Checks whether the task executor can be released. It cannot be released if there're
@@ -278,7 +294,7 @@ public interface TaskExecutorGateway
      *
      * @return A Tuple2 Array with all log file names with its length.
      */
-    CompletableFuture<Collection<LogInfo>> requestLogList(@RpcTimeout Time timeout);
+    CompletableFuture<Collection<LogInfo>> requestLogList(@RpcTimeout Duration timeout);
 
     @Override
     CompletableFuture<Acknowledge> sendOperatorEventToTask(
@@ -290,7 +306,7 @@ public interface TaskExecutorGateway
      * @param timeout timeout for the asynchronous operation
      * @return the {@link ThreadDumpInfo} for this TaskManager.
      */
-    CompletableFuture<ThreadDumpInfo> requestThreadDump(@RpcTimeout Time timeout);
+    CompletableFuture<ThreadDumpInfo> requestThreadDump(@RpcTimeout Duration timeout);
 
     /**
      * Sends new delegation tokens to this TaskManager.
@@ -301,4 +317,34 @@ public interface TaskExecutorGateway
      */
     CompletableFuture<Acknowledge> updateDelegationTokens(
             ResourceManagerId resourceManagerId, byte[] tokens);
+
+    /**
+     * Get and retain all partitions and their metrics located on this task executor, the metrics
+     * mainly includes the meta information of partition(partition bytes, etc).
+     *
+     * @param jobId ID of the target job
+     * @return All partitions belong to the target job and their metrics
+     */
+    default CompletableFuture<Collection<PartitionWithMetrics>> getAndRetainPartitionWithMetrics(
+            JobID jobId) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Requests the profiling from this TaskManager.
+     *
+     * @param duration profiling duration
+     * @param mode profiling mode {@link ProfilingInfo.ProfilingMode}
+     * @param timeout timeout for the asynchronous operation
+     * @return the {@link ProfilingInfo} for this TaskManager.
+     */
+    CompletableFuture<ProfilingInfo> requestProfiling(
+            int duration, ProfilingInfo.ProfilingMode mode, @RpcTimeout Duration timeout);
+
+    /**
+     * Requests for the historical profiling file names on the TaskManager.
+     *
+     * @return A Collection with all profiling instances information.
+     */
+    CompletableFuture<Collection<ProfilingInfo>> requestProfilingList(@RpcTimeout Duration timeout);
 }

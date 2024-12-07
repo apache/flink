@@ -143,7 +143,7 @@ class KubernetesSessionCliTest {
                 JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(jobManagerMemory));
         configuration.set(
                 TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(taskManagerMemory));
-        configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
+        configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
         final String[] args = {
             "-e",
@@ -179,7 +179,7 @@ class KubernetesSessionCliTest {
         configuration.set(
                 TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(taskManagerMemory));
         final int slotsPerTaskManager = 42;
-        configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
+        configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
         final String[] args = {"-e", KubernetesSessionClusterExecutor.NAME};
         final KubernetesSessionCli cli =
@@ -237,26 +237,6 @@ class KubernetesSessionCliTest {
 
         assertThat(clusterSpecification.getMasterMemoryMB()).isEqualTo(1024);
         assertThat(clusterSpecification.getTaskManagerMemoryMB()).isEqualTo(3072);
-    }
-
-    /** Tests the specifying heap memory with old config key for job manager and task manager. */
-    @Test
-    void testHeapMemoryPropertyWithOldConfigKey() throws Exception {
-        Configuration configuration = new Configuration();
-        configuration.set(DeploymentOptions.TARGET, KubernetesSessionClusterExecutor.NAME);
-        configuration.setInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB, 2048);
-        configuration.setInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB, 4096);
-
-        final KubernetesSessionCli cli =
-                new KubernetesSessionCli(configuration, confDirPath.toAbsolutePath().toString());
-
-        final Configuration executorConfig = cli.getEffectiveConfiguration(new String[] {});
-        final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
-        final ClusterSpecification clusterSpecification =
-                clientFactory.getClusterSpecification(executorConfig);
-
-        assertThat(clusterSpecification.getMasterMemoryMB()).isEqualTo(2048);
-        assertThat(clusterSpecification.getTaskManagerMemoryMB()).isEqualTo(4096);
     }
 
     /**

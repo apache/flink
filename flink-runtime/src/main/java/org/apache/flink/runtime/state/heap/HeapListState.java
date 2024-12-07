@@ -30,6 +30,7 @@ import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.util.Preconditions;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -106,7 +107,7 @@ class HeapListState<K, N, V> extends AbstractHeapMergingState<K, N, V, List<V>, 
             final TypeSerializer<K> safeKeySerializer,
             final TypeSerializer<N> safeNamespaceSerializer,
             final TypeSerializer<List<V>> safeValueSerializer)
-            throws Exception {
+            throws IOException {
 
         Preconditions.checkNotNull(serializedKeyAndNamespace);
         Preconditions.checkNotNull(safeKeySerializer);

@@ -26,14 +26,14 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
+import org.apache.flink.table.legacy.types.logical.TypeInformationRawType;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.typeutils.RawValueDataSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.function.Function;
 import java.util.stream.IntStream;
@@ -42,10 +42,10 @@ import static org.apache.flink.table.data.TimestampData.fromEpochMillis;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link EqualiserCodeGenerator}. */
-public class EqualiserCodeGeneratorTest {
+class EqualiserCodeGeneratorTest {
 
     @Test
-    public void testRaw() {
+    void testRaw() {
         RecordEqualiser equaliser =
                 new EqualiserCodeGenerator(
                                 new LogicalType[] {new TypeInformationRawType<>(Types.INT)},
@@ -68,7 +68,7 @@ public class EqualiserCodeGeneratorTest {
     }
 
     @Test
-    public void testTimestamp() {
+    void testTimestamp() {
         RecordEqualiser equaliser =
                 new EqualiserCodeGenerator(
                                 new LogicalType[] {new TimestampType()},
@@ -88,7 +88,7 @@ public class EqualiserCodeGeneratorTest {
     }
 
     @Test
-    public void testManyFields() {
+    void testManyFields() {
         final LogicalType[] fieldTypes =
                 IntStream.range(0, 499)
                         .mapToObj(i -> new VarCharType())

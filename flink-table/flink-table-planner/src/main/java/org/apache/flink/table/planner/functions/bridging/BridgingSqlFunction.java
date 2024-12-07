@@ -116,7 +116,9 @@ public class BridgingSqlFunction extends SqlFunction {
             TypeInference typeInference) {
         final FunctionKind functionKind = resolvedFunction.getDefinition().getKind();
         checkState(
-                functionKind == FunctionKind.SCALAR || functionKind == FunctionKind.TABLE,
+                functionKind == FunctionKind.SCALAR
+                        || functionKind == FunctionKind.ASYNC_SCALAR
+                        || functionKind == FunctionKind.TABLE,
                 "Scalar or table function kind expected.");
 
         if (functionKind == FunctionKind.TABLE) {

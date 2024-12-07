@@ -26,10 +26,10 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.19-SNAPSHOT</version>
+		<version>2.0-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-connector-hive_${scala.binary.version}</artifactId>
+	<artifactId>flink-connector-hive</artifactId>
 	<name>Flink : Connectors : Hive</name>
 
 	<packaging>jar</packaging>
@@ -239,7 +239,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-hadoop-compatibility_${scala.binary.version}</artifactId>
+			<artifactId>flink-hadoop-compatibility</artifactId>
 			<version>${project.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
@@ -694,13 +694,15 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!--flink-java and flink-clients test dependencies used for HiveInputFormatTest-->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java</artifactId>
+			<artifactId>flink-connector-datagen</artifactId>
 			<version>${project.version}</version>
+			 <type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
+
+		<!--flink-clients test dependencies used for HiveInputFormatTest-->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients</artifactId>
@@ -1081,7 +1083,7 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!-- ArchUit test dependencies -->
+		<!-- ArchUnit test dependencies -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -1236,7 +1238,7 @@ under the License.
 									<include>org.apache.flink:flink-hadoop-fs</include>
 									<include>org.apache.flink:flink-orc</include>
 									<include>org.apache.flink:flink-orc-nohive</include>
-									<include>org.apache.flink:flink-hadoop-compatibility_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-hadoop-compatibility</include>
 									<include>org.apache.flink:flink-parquet</include>
 									<include>org.apache.flink:flink-hadoop-bulk</include>
 									<include>org.apache.parquet:parquet-hadoop</include>
@@ -1256,6 +1258,11 @@ under the License.
 								<relocation>
 									<pattern>org.apache.flink.runtime.util</pattern>
 									<shadedPattern>org.apache.flink.hive.shaded.util</shadedPattern>
+									<excludes>
+										<exclude>org.apache.flink.runtime.util.IntArrayList</exclude>
+										<exclude>org.apache.flink.runtime.util.BooleanArrayList</exclude>
+										<exclude>org.apache.flink.runtime.util.LongArrayList</exclude>
+									</excludes>
 								</relocation>
 								<relocation>
 									<pattern>org.apache.flink.formats.parquet</pattern>
@@ -1275,14 +1282,14 @@ under the License.
 									<artifact>org.apache.flink:flink-orc</artifact>
 									<excludes>
 										<exclude>META-INF/services/org.apache.flink.table.factories.Factory</exclude>
-										<exclude>META-INF/services/org.apache.flink.table.factories.TableFactory</exclude>
+										<exclude>META-INF/services/org.apache.flink.table.legacy.factories.TableFactory</exclude>
 									</excludes>
 								</filter>
 								<filter>
 									<artifact>org.apache.flink:flink-parquet</artifact>
 									<excludes>
 										<exclude>META-INF/services/org.apache.flink.table.factories.Factory</exclude>
-										<exclude>META-INF/services/org.apache.flink.table.factories.TableFactory</exclude>
+										<exclude>META-INF/services/org.apache.flink.table.legacy.factories.TableFactory</exclude>
 									</excludes>
 								</filter>
 							</filters>

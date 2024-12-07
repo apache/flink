@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -45,7 +44,7 @@ import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
-import org.apache.flink.shaded.guava31.com.google.common.base.Ticker;
+import org.apache.flink.shaded.guava32.com.google.common.base.Ticker;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -54,6 +53,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -254,7 +254,7 @@ public class ExecutionGraphInfoStoreTestUtils {
             File storageDirectory, ScheduledExecutor scheduledExecutor) throws IOException {
         return new FileExecutionGraphInfoStore(
                 storageDirectory,
-                Time.hours(1L),
+                Duration.ofHours(1L),
                 Integer.MAX_VALUE,
                 10000L,
                 scheduledExecutor,

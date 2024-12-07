@@ -18,12 +18,17 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 /** Tests that the {@link JobAccumulatorsInfo} can be marshalled and unmarshalled. */
-public class JobAccumulatorsInfoTest extends RestResponseMarshallingTestBase<JobAccumulatorsInfo> {
+@ExtendWith(NoOpTestExtension.class)
+class JobAccumulatorsInfoTest extends RestResponseMarshallingTestBase<JobAccumulatorsInfo> {
     @Override
     protected Class<JobAccumulatorsInfo> getTestResponseClass() {
         return JobAccumulatorsInfo.class;

@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.api.internal.PlanCacheManager;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogStoreHolder;
@@ -37,6 +38,7 @@ import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
+import org.apache.flink.table.gateway.service.materializedtable.MaterializedTableManager;
 import org.apache.flink.table.gateway.service.operation.OperationExecutor;
 import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
@@ -50,17 +52,24 @@ import org.apache.flink.util.MutableURLClassLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+
+import static org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_PLAN_CACHE_ENABLED;
+import static org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_PLAN_CACHE_SIZE;
+import static org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_PLAN_CACHE_TTL;
 
 /**
  * Context describing a session, it's mainly used for user to open a new session in the backend. If
@@ -85,6 +94,8 @@ public class SessionContext {
     private boolean isStatementSetState;
     private final List<ModifyOperation> statementSetOperations;
 
+    @Nullable private final PlanCacheManager planCacheManager;
+
     protected SessionContext(
             DefaultContext defaultContext,
             SessionHandle sessionId,
@@ -102,6 +113,18 @@ public class SessionContext {
         this.operationManager = operationManager;
         this.isStatementSetState = false;
         this.statementSetOperations = new ArrayList<>();
+        this.planCacheManager = createPlanCacheManager(sessionConf);
+    }
+
+    @Nullable
+    private static PlanCacheManager createPlanCacheManager(ReadableConfig readableConfig) {
+        boolean planCacheEnabled = readableConfig.get(SQL_GATEWAY_SESSION_PLAN_CACHE_ENABLED);
+        if (planCacheEnabled) {
+            int planCacheSize = readableConfig.get(SQL_GATEWAY_SESSION_PLAN_CACHE_SIZE);
+            Duration ttl = readableConfig.get(SQL_GATEWAY_SESSION_PLAN_CACHE_TTL);
+            return new PlanCacheManager(planCacheSize, ttl);
+        }
+        return null;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -136,6 +159,11 @@ public class SessionContext {
         return userClassloader;
     }
 
+    @Nullable
+    public PlanCacheManager getPlanCacheManager() {
+        return planCacheManager;
+    }
+
     public void set(String key, String value) {
         try {
             // Test whether the key value will influence the creation of the Executor.
@@ -147,6 +175,7 @@ public class SessionContext {
                     String.format("Failed to set key %s with value %s.", key, value), e);
         }
         sessionConf.setString(key, value);
+        invalidatePlanCacheIfExist();
     }
 
     public synchronized void reset(String key) {
@@ -159,6 +188,7 @@ public class SessionContext {
         } else {
             sessionConf.removeConfig(option);
         }
+        invalidatePlanCacheIfExist();
     }
 
     public synchronized void reset() {
@@ -166,6 +196,7 @@ public class SessionContext {
             sessionConf.removeConfig(ConfigOptions.key(key).stringType().noDefaultValue());
         }
         sessionConf.addAll(defaultContext.getFlinkConfig());
+        invalidatePlanCacheIfExist();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -174,6 +205,12 @@ public class SessionContext {
 
     public OperationExecutor createOperationExecutor(Configuration executionConfig) {
         return new OperationExecutor(this, executionConfig);
+    }
+
+    private void invalidatePlanCacheIfExist() {
+        if (planCacheManager != null) {
+            planCacheManager.invalidateAll();
+        }
     }
 
     // --------------------------------------------------------------------------------------------
@@ -201,20 +238,30 @@ public class SessionContext {
         statementSetOperations.add(operation);
     }
 
+    public void open() {
+        try {
+            sessionState.materializedTableManager.open();
+        } catch (Exception e) {
+            LOG.error(
+                    String.format(
+                            "Failed to open the materialized table manager for the session %s.",
+                            sessionId),
+                    e);
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
 
     /** Close resources, e.g. catalogs. */
     public void close() {
         operationManager.close();
-        for (String name : sessionState.catalogManager.listCatalogs()) {
-            try {
-                sessionState.catalogManager.getCatalog(name).ifPresent(Catalog::close);
-            } catch (Throwable t) {
-                LOG.error(
-                        String.format(
-                                "Failed to close catalog %s for the session %s.", name, sessionId),
-                        t);
-            }
+
+        try {
+            sessionState.catalogManager.close();
+        } catch (Throwable t) {
+            LOG.error(
+                    String.format("Failed to close catalog manager for the session %s.", sessionId),
+                    t);
         }
         try {
             userClassloader.close();
@@ -230,6 +277,15 @@ public class SessionContext {
             LOG.error(
                     String.format(
                             "Failed to close the resource manager for the session %s.", sessionId),
+                    e);
+        }
+        try {
+            sessionState.materializedTableManager.close();
+        } catch (Exception e) {
+            LOG.error(
+                    String.format(
+                            "Failed to close the materialized table manager for the session %s.",
+                            sessionId),
                     e);
         }
     }
@@ -296,7 +352,14 @@ public class SessionContext {
 
         final FunctionCatalog functionCatalog =
                 new FunctionCatalog(configuration, resourceManager, catalogManager, moduleManager);
-        return new SessionState(catalogManager, moduleManager, resourceManager, functionCatalog);
+        final MaterializedTableManager materializedTableManager =
+                new MaterializedTableManager(configuration, resourceManager.getUserClassLoader());
+        return new SessionState(
+                catalogManager,
+                moduleManager,
+                resourceManager,
+                functionCatalog,
+                materializedTableManager);
     }
 
     private static ModuleManager buildModuleManager(
@@ -417,16 +480,19 @@ public class SessionContext {
         public final ResourceManager resourceManager;
         public final FunctionCatalog functionCatalog;
         public final ModuleManager moduleManager;
+        public final MaterializedTableManager materializedTableManager;
 
         public SessionState(
                 CatalogManager catalogManager,
                 ModuleManager moduleManager,
                 ResourceManager resourceManager,
-                FunctionCatalog functionCatalog) {
+                FunctionCatalog functionCatalog,
+                MaterializedTableManager materializedTableManager) {
             this.catalogManager = catalogManager;
             this.moduleManager = moduleManager;
             this.resourceManager = resourceManager;
             this.functionCatalog = functionCatalog;
+            this.materializedTableManager = materializedTableManager;
         }
     }
 }

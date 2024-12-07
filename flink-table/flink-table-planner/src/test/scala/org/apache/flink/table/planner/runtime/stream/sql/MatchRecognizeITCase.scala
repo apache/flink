@@ -17,36 +17,38 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.common.time.Time
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo
-import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.api.common.eventtime._
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
+import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.planner.runtime.utils.{StreamingEnvUtil, StreamingWithStateTestBase, TestingAppendSink, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.planner.utils.TableTestUtil
+import org.apache.flink.table.types.inference.{TypeInference, TypeStrategies}
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.sql.Timestamp
-import java.time.{Instant, ZoneId}
+import java.time.{Duration, Instant, ZoneId}
 import java.util.TimeZone
 
 import scala.collection.mutable
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithStateTestBase(backend) {
 
-  @Test
+  @TestTemplate
   def testSimplePattern(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -62,7 +64,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=((8, "c"))
     data.+=((9, "h"))
 
-    val t = env.fromCollection(data).toTable(tEnv, 'id, 'name, 'proctime.proctime)
+    val t =
+      StreamingEnvUtil
+        .fromCollection(env, data)
+        .toTable(tEnv, 'id, 'name, 'proctime.proctime)
     tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery =
@@ -84,15 +89,15 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("6,7,8")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testSimplePatternWithNulls(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -108,7 +113,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=((8, "c", null))
     data.+=((9, null, null))
 
-    val t = env.fromCollection(data).toTable(tEnv, 'id, 'name, 'nullField, 'proctime.proctime)
+    val t =
+      StreamingEnvUtil
+        .fromCollection(env, data)
+        .toTable(tEnv, 'id, 'name, 'nullField, 'proctime.proctime)
     tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery =
@@ -131,15 +139,15 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("1,null,3,null", "6,null,8,null")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testCodeSplitsAreProperlyGenerated(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -158,9 +166,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=((8, "c", "key2", "second_key4"))
     data.+=((9, "f", "key", "second_key"))
 
-    val t = env
-      .fromCollection(data)
-      .toTable(tEnv, 'id, 'name, 'key1, 'key2, 'proctime.proctime)
+    val t =
+      StreamingEnvUtil
+        .fromCollection(env, data)
+        .toTable(tEnv, 'id, 'name, 'key1, 'key2, 'proctime.proctime)
     tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery =
@@ -185,17 +194,17 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
       "key1,second_key3,1,key1,2,3,second_key3",
       "key2,second_key4,6,key2,7,8,second_key4")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testEventsAreProperlyOrdered(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -220,7 +229,9 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     )
 
     val t = env
-      .addSource(new EventTimeSourceFunction[(Int, Int, String, Int)](data))
+      .addSource(
+        new EventTimeSourceFunction[(Int, Int, String, Int)](data),
+        implicitly[TypeInformation[(Int, Int, String, Int)]])
       .toTable(tEnv, 'secondaryOrder, 'ternaryOrder, 'name, 'id, 'rowtime.rowtime)
     tEnv.createTemporaryView("MyTable", t)
 
@@ -245,39 +256,51 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val table = tEnv.sqlQuery(sqlQuery)
 
     val sink = new TestingAppendSink()
-    val result = table.toAppendStream[Row]
+    val result = table.toDataStream
     result.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("10,11,12")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testMatchRecognizeAppliedToWindowedGrouping(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data = new mutable.MutableList[(String, Long, Int, Int)]
     // first window
-    data.+=(("ACME", Time.seconds(1).toMilliseconds, 1, 1))
-    data.+=(("ACME", Time.seconds(2).toMilliseconds, 2, 2))
+    data.+=(("ACME", Duration.ofSeconds(1).toMillis, 1, 1))
+    data.+=(("ACME", Duration.ofSeconds(2).toMillis, 2, 2))
     // second window
-    data.+=(("ACME", Time.seconds(4).toMilliseconds, 1, 4))
-    data.+=(("ACME", Time.seconds(5).toMilliseconds, 1, 3))
+    data.+=(("ACME", Duration.ofSeconds(4).toMillis, 1, 4))
+    data.+=(("ACME", Duration.ofSeconds(5).toMillis, 1, 3))
     // third window
-    data.+=(("ACME", Time.seconds(7).toMilliseconds, 2, 3))
-    data.+=(("ACME", Time.seconds(8).toMilliseconds, 2, 3))
+    data.+=(("ACME", Duration.ofSeconds(7).toMillis, 2, 3))
+    data.+=(("ACME", Duration.ofSeconds(8).toMillis, 2, 3))
 
-    data.+=(("ACME1", Time.seconds(1).toMilliseconds, 20, 4))
-    data.+=(("ACME1", Time.seconds(1).toMilliseconds, 24, 4))
-    data.+=(("ACME1", Time.seconds(1).toMilliseconds, 25, 3))
-    data.+=(("ACME1", Time.seconds(1).toMilliseconds, 19, 8))
+    data.+=(("ACME1", Duration.ofSeconds(1).toMillis, 20, 4))
+    data.+=(("ACME1", Duration.ofSeconds(1).toMillis, 24, 4))
+    data.+=(("ACME1", Duration.ofSeconds(1).toMillis, 25, 3))
+    data.+=(("ACME1", Duration.ofSeconds(1).toMillis, 19, 8))
 
-    val t = env
-      .fromCollection(data)
-      .assignAscendingTimestamps(e => e._2)
-      .toTable(tEnv, 'symbol, 'rowtime.rowtime, 'price, 'tax)
+    val t =
+      StreamingEnvUtil
+        .fromCollection(env, data)
+        .assignTimestampsAndWatermarks(new WatermarkStrategy[(String, Long, Int, Int)]() {
+
+          override def createWatermarkGenerator(context: WatermarkGeneratorSupplier.Context)
+              : WatermarkGenerator[(String, Long, Int, Int)] = {
+            new AscendingTimestampsWatermarks[(String, Long, Int, Int)]
+          }
+
+          override def createTimestampAssigner(context: TimestampAssignerSupplier.Context)
+              : TimestampAssigner[(String, Long, Int, Int)] = {
+            (e: (String, Long, Int, Int), _: Long) => e._2
+          }
+        })
+        .toTable(tEnv, 'symbol, 'rowtime.rowtime, 'price, 'tax)
     tEnv.createTemporaryView("Ticker", t)
 
     val sqlQuery =
@@ -306,31 +329,43 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
     val expected = List("ACME,2,1970-01-01T00:00:03")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testWindowedGroupingAppliedToMatchRecognize(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data = new mutable.MutableList[(String, Long, Int, Int)]
     // first window
-    data.+=(("ACME", Time.seconds(1).toMilliseconds, 1, 1))
-    data.+=(("ACME", Time.seconds(2).toMilliseconds, 2, 2))
+    data.+=(("ACME", Duration.ofSeconds(1).toMillis, 1, 1))
+    data.+=(("ACME", Duration.ofSeconds(2).toMillis, 2, 2))
     // second window
-    data.+=(("ACME", Time.seconds(4).toMilliseconds, 1, 4))
-    data.+=(("ACME", Time.seconds(5).toMilliseconds, 1, 3))
+    data.+=(("ACME", Duration.ofSeconds(4).toMillis, 1, 4))
+    data.+=(("ACME", Duration.ofSeconds(5).toMillis, 1, 3))
 
-    val tickerEvents = env
-      .fromCollection(data)
-      .assignAscendingTimestamps(tickerEvent => tickerEvent._2)
-      .toTable(tEnv, 'symbol, 'rowtime.rowtime, 'price, 'tax)
+    val tickerEvents =
+      StreamingEnvUtil
+        .fromCollection(env, data)
+        .assignTimestampsAndWatermarks(new WatermarkStrategy[(String, Long, Int, Int)]() {
+
+          override def createWatermarkGenerator(context: WatermarkGeneratorSupplier.Context)
+              : WatermarkGenerator[(String, Long, Int, Int)] = {
+            new AscendingTimestampsWatermarks[(String, Long, Int, Int)]
+          }
+
+          override def createTimestampAssigner(context: TimestampAssignerSupplier.Context)
+              : TimestampAssigner[(String, Long, Int, Int)] = {
+            (e: (String, Long, Int, Int), _: Long) => e._2
+          }
+        })
+        .toTable(tEnv, 'symbol, 'rowtime.rowtime, 'price, 'tax)
 
     tEnv.createTemporaryView("Ticker", tickerEvents)
 
@@ -358,17 +393,17 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
     val expected = List(
       "ACME,3,1970-01-01T00:00:02.999,1970-01-01T00:00",
       "ACME,2,1970-01-01T00:00:05.999,1970-01-01T00:00:03")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testWindowedGroupingAppliedToMatchRecognizeOnLtzRowtime(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -422,17 +457,17 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
     val expected = List(
       "ACME,3,1970-01-01T00:00:02.999Z,1970-01-01T08:00",
       "ACME,2,1970-01-01T00:00:05.999Z,1970-01-01T08:00:03")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testLogicalOffsets(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -447,9 +482,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=(("ACME", 7L, 20, 7))
     data.+=(("ACME", 8L, 25, 8))
 
-    val t = env
-      .fromCollection(data)
-      .toTable(tEnv, 'symbol, 'tstamp, 'price, 'tax, 'proctime.proctime)
+    val t =
+      StreamingEnvUtil
+        .fromCollection(env, data)
+        .toTable(tEnv, 'symbol, 'tstamp, 'price, 'tax, 'proctime.proctime)
     tEnv.createTemporaryView("Ticker", t)
 
     val sqlQuery =
@@ -474,15 +510,15 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
     val expected = List("6,7,8,33,33")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testPartitionByWithParallelSource(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -493,11 +529,23 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=(("ACME", 3L, 13, 3))
     data.+=(("ACME", 4L, 20, 4))
 
-    val t = env
-      .fromCollection(data)
-      .assignAscendingTimestamps(tickerEvent => tickerEvent._2)
-      .setParallelism(env.getParallelism)
-      .toTable(tEnv, 'symbol, 'rowtime.rowtime, 'price, 'tax)
+    val t =
+      StreamingEnvUtil
+        .fromCollection(env, data)
+        .assignTimestampsAndWatermarks(new WatermarkStrategy[(String, Long, Int, Int)]() {
+
+          override def createWatermarkGenerator(context: WatermarkGeneratorSupplier.Context)
+              : WatermarkGenerator[(String, Long, Int, Int)] = {
+            new AscendingTimestampsWatermarks[(String, Long, Int, Int)]
+          }
+
+          override def createTimestampAssigner(context: TimestampAssignerSupplier.Context)
+              : TimestampAssigner[(String, Long, Int, Int)] = {
+            (e: (String, Long, Int, Int), _: Long) => e._2
+          }
+        })
+        .setParallelism(env.getParallelism)
+        .toTable(tEnv, 'symbol, 'rowtime.rowtime, 'price, 'tax)
     tEnv.createTemporaryView("Ticker", t)
 
     val sqlQuery =
@@ -520,15 +568,15 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
     val expected = List("ACME,3,4")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testLogicalOffsetsWithStarVariable(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -543,9 +591,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=((7, "ACME", 7L, 14))
     data.+=((8, "ACME", 8L, 20))
 
-    val t = env
-      .fromCollection(data)
-      .toTable(tEnv, 'id, 'symbol, 'tstamp, 'price, 'proctime.proctime)
+    val t =
+      StreamingEnvUtil
+        .fromCollection(env, data)
+        .toTable(tEnv, 'id, 'symbol, 'tstamp, 'price, 'proctime.proctime)
     tEnv.createTemporaryView("Ticker", t)
 
     val sqlQuery =
@@ -581,15 +630,15 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
     val expected = List("1,2,3,4,5,6,7,8,8,7,6,5,4,3,2,1")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testLogicalOffsetOutsideOfRangeInMeasures(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -600,9 +649,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=(("ACME", 3L, 13, 3))
     data.+=(("ACME", 4L, 20, 4))
 
-    val t = env
-      .fromCollection(data)
-      .toTable(tEnv, 'symbol, 'tstamp, 'price, 'tax, 'proctime.proctime)
+    val t =
+      StreamingEnvUtil
+        .fromCollection(env, data)
+        .toTable(tEnv, 'symbol, 'tstamp, 'price, 'tax, 'proctime.proctime)
     tEnv.createTemporaryView("Ticker", t)
 
     val sqlQuery =
@@ -625,12 +675,12 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
     val expected = List("19,13,null")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   /**
@@ -640,7 +690,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
    *      because no rows matched to D 3. aggregates that take multiple parameters work 4.
    *      aggregates with expressions work
    */
-  @Test
+  @TestTemplate
   def testAggregates(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -660,9 +710,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=((11, "h", 2, 0.8, 3))
     data.+=((12, "h", 2, 0.8, 3))
 
-    val t = env
-      .fromCollection(data)
-      .toTable(tEnv, 'id, 'name, 'price, 'rate, 'weight, 'proctime.proctime)
+    val t =
+      StreamingEnvUtil
+        .fromCollection(env, data)
+        .toTable(tEnv, 'id, 'name, 'price, 'rate, 'weight, 'proctime.proctime)
     tEnv.createTemporaryView("MyTable", t)
     tEnv.createTemporarySystemFunction("weightedAvg", classOf[WeightedAvg])
 
@@ -694,15 +745,15 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("1,5,0,null,2,3,3.4,8", "9,4,0,null,3,4,3.2,12")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAggregatesWithNullInputs(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -719,15 +770,17 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=(Row.of(Int.box(8), "c", Int.box(3)))
     data.+=(Row.of(Int.box(9), "c", Int.box(2)))
 
-    val t = env
-      .fromCollection(data)(
-        Types.ROW(
-          BasicTypeInfo.INT_TYPE_INFO,
-          BasicTypeInfo.STRING_TYPE_INFO,
-          BasicTypeInfo.INT_TYPE_INFO))
-      .toTable(tEnv, 'id, 'name, 'price, 'proctime.proctime)
+    implicit val tpe: TypeInformation[Row] = Types.ROW(
+      BasicTypeInfo.INT_TYPE_INFO,
+      BasicTypeInfo.STRING_TYPE_INFO,
+      BasicTypeInfo.INT_TYPE_INFO)
+
+    val t =
+      StreamingEnvUtil
+        .fromCollection(env, data)
+        .toTable(tEnv, 'id, 'name, 'price, 'proctime.proctime)
     tEnv.createTemporaryView("MyTable", t)
-    tEnv.registerFunction("weightedAvg", new WeightedAvg)
+    tEnv.createTemporarySystemFunction("weightedAvg", classOf[WeightedAvg])
 
     val sqlQuery =
       s"""
@@ -751,15 +804,15 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("29,7,5,8,6,8")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAccessingCurrentTime(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -767,7 +820,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val data = new mutable.MutableList[(Int, String)]
     data.+=((1, "a"))
 
-    val t = env.fromCollection(data).toTable(tEnv, 'id, 'name, 'proctime.proctime)
+    val t =
+      StreamingEnvUtil
+        .fromCollection(env, data)
+        .toTable(tEnv, 'id, 'name, 'proctime.proctime)
     tEnv.createTemporaryView("MyTable", t)
 
     val sqlQuery =
@@ -787,18 +843,18 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
     val expected = List("1")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
 
     // We do not assert the proctime in the result, cause it is currently
     // accessed from System.currentTimeMillis(), so there is no graceful way to assert the proctime
   }
 
-  @Test
+  @TestTemplate
   def testUserDefinedFunctions(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -815,12 +871,13 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     data.+=((8, "a", 1))
     data.+=((9, "f", 1))
 
-    val t = env
-      .fromCollection(data)
-      .toTable(tEnv, 'id, 'name, 'price, 'proctime.proctime)
+    val t =
+      StreamingEnvUtil
+        .fromCollection(env, data)
+        .toTable(tEnv, 'id, 'name, 'price, 'proctime.proctime)
     tEnv.createTemporaryView("MyTable", t)
-    tEnv.registerFunction("prefix", new PrefixingScalarFunc)
-    tEnv.registerFunction("countFrom", new RichAggFunc)
+    tEnv.createTemporarySystemFunction("prefix", classOf[PrefixingScalarFunc])
+    tEnv.createTemporarySystemFunction("countFrom", classOf[RichAggFunc])
     val prefix = "PREF"
     val startFrom = 4
     UserDefinedFunctionTestUtils
@@ -845,12 +902,12 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("1,PREF:a,8,5", "7,PREF:a,6,9")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 }
 
@@ -896,4 +953,13 @@ private class RichAggFunc extends AggregateFunction[Long, CountAcc] {
   override def createAccumulator(): CountAcc = CountAcc(start)
 
   override def getValue(accumulator: CountAcc): Long = accumulator.count
+
+  override def getTypeInference(typeFactory: DataTypeFactory): TypeInference = {
+    TypeInference.newBuilder
+      .typedArguments(DataTypes.BIGINT())
+      .accumulatorTypeStrategy(TypeStrategies.explicit(
+        DataTypes.STRUCTURED(classOf[CountAcc], DataTypes.FIELD("count", DataTypes.BIGINT()))))
+      .outputTypeStrategy(TypeStrategies.explicit(DataTypes.BIGINT()))
+      .build
+  }
 }

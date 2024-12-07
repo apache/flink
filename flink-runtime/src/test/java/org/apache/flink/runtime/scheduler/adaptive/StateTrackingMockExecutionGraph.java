@@ -47,9 +47,10 @@ import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.JobVertexInputInfo;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
-import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
+import org.apache.flink.runtime.executiongraph.failover.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -77,6 +78,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 /**
  * Mocked ExecutionGraph which (partially) tracks the job status, and provides some basic mocks to
@@ -88,6 +91,7 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
             LoggerFactory.getLogger(StateTrackingMockExecutionGraph.class);
 
     private JobStatus state = JobStatus.INITIALIZING;
+    private JobType jobType = JobType.STREAMING;
     private final CompletableFuture<JobStatus> terminationFuture = new CompletableFuture<>();
     private final JobID jobId = new JobID();
     private static final ArchivedExecutionConfig archivedExecutionConfig =
@@ -125,6 +129,11 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     }
 
     @Override
+    public JobType getJobType() {
+        return jobType;
+    }
+
+    @Override
     public CompletableFuture<JobStatus> getTerminationFuture() {
         return terminationFuture;
     }
@@ -158,7 +167,8 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
 
     @Override
     public Map<JobVertexID, ExecutionJobVertex> getAllVertices() {
-        return Collections.emptyMap();
+        return StreamSupport.stream(getVerticesTopologically().spliterator(), false)
+                .collect(Collectors.toMap(ExecutionJobVertex::getJobVertexId, v -> v));
     }
 
     @Override
@@ -384,8 +394,7 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     public void initializeJobVertex(
             ExecutionJobVertex ejv,
             long createTimestamp,
-            Map<IntermediateDataSetID, JobVertexInputInfo> jobVertexInputInfos,
-            JobManagerJobMetricGroup jobManagerJobMetricGroup)
+            Map<IntermediateDataSetID, JobVertexInputInfo> jobVertexInputInfos)
             throws JobException {
         throw new UnsupportedOperationException();
     }

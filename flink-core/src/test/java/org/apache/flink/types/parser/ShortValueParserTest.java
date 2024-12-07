@@ -20,7 +20,7 @@ package org.apache.flink.types.parser;
 
 import org.apache.flink.types.ShortValue;
 
-public class ShortValueParserTest extends ParserTestBase<ShortValue> {
+class ShortValueParserTest extends ParserTestBase<ShortValue> {
 
     @Override
     public String[] getValidTestValues() {

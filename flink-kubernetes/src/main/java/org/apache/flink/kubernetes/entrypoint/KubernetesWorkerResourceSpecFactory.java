@@ -41,7 +41,7 @@ public class KubernetesWorkerResourceSpecFactory extends WorkerResourceSpecFacto
 
     @VisibleForTesting
     static CPUResource getDefaultCpus(Configuration configuration) {
-        double fallback = configuration.getDouble(KubernetesConfigOptions.TASK_MANAGER_CPU);
+        double fallback = configuration.get(KubernetesConfigOptions.TASK_MANAGER_CPU);
         return TaskExecutorProcessUtils.getCpuCoresWithFallback(configuration, fallback);
     }
 }

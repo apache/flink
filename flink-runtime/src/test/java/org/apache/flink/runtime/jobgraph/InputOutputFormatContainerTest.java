@@ -22,13 +22,13 @@ import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -47,11 +47,11 @@ public class InputOutputFormatContainerTest {
         formatContainer.addParameters(operatorID1, "parameter1", "abc123");
 
         OperatorID operatorID2 = new OperatorID();
-        formatContainer.addOutputFormat(operatorID2, new DiscardingOutputFormat());
+        formatContainer.addOutputFormat(operatorID2, new TestOutputFormat<>());
         formatContainer.addParameters(operatorID2, "parameter1", "bcd234");
 
         OperatorID operatorID3 = new OperatorID();
-        formatContainer.addOutputFormat(operatorID3, new DiscardingOutputFormat());
+        formatContainer.addOutputFormat(operatorID3, new TestOutputFormat());
         formatContainer.addParameters(operatorID3, "parameter1", "cde345");
 
         TaskConfig taskConfig = new TaskConfig(new Configuration());
@@ -77,16 +77,12 @@ public class InputOutputFormatContainerTest {
         assertEquals("abc123", inputFormatParams.getString("parameter1", null));
 
         // verify the output formats
-        assertTrue(
-                outputFormats.get(operatorID2).getUserCodeObject()
-                        instanceof DiscardingOutputFormat);
+        assertTrue(outputFormats.get(operatorID2).getUserCodeObject() instanceof TestOutputFormat);
         Configuration outputFormatParams1 = loadedFormatContainer.getParameters(operatorID2);
         assertEquals(1, outputFormatParams1.keySet().size());
         assertEquals("bcd234", outputFormatParams1.getString("parameter1", null));
 
-        assertTrue(
-                outputFormats.get(operatorID3).getUserCodeObject()
-                        instanceof DiscardingOutputFormat);
+        assertTrue(outputFormats.get(operatorID3).getUserCodeObject() instanceof TestOutputFormat);
         Configuration outputFormatParams2 = loadedFormatContainer.getParameters(operatorID3);
         assertEquals(1, outputFormatParams2.keySet().size());
         assertEquals("cde345", outputFormatParams2.getString("parameter1", null));
@@ -127,7 +123,7 @@ public class InputOutputFormatContainerTest {
                 new InputOutputFormatContainer(Thread.currentThread().getContextClassLoader());
 
         OperatorID operatorID = new OperatorID();
-        formatContainer.addOutputFormat(operatorID, new DiscardingOutputFormat<>());
+        formatContainer.addOutputFormat(operatorID, new TestOutputFormat<>());
 
         Configuration parameters = new Configuration();
         parameters.setString("parameter1", "bcd234");
@@ -144,9 +140,7 @@ public class InputOutputFormatContainerTest {
         assertEquals(1, outputFormats.size());
         assertEquals(0, loadedFormatContainer.getInputFormats().size());
 
-        assertTrue(
-                outputFormats.get(operatorID).getUserCodeObject()
-                        instanceof DiscardingOutputFormat);
+        assertTrue(outputFormats.get(operatorID).getUserCodeObject() instanceof TestOutputFormat);
 
         Configuration loadedParameters = loadedFormatContainer.getParameters(operatorID);
         assertEquals(1, loadedParameters.keySet().size());
@@ -183,5 +177,22 @@ public class InputOutputFormatContainerTest {
         public GenericInputSplit[] createInputSplits(int numSplits) {
             return null;
         }
+    }
+
+    private static final class TestOutputFormat<T> implements OutputFormat<T> {
+
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public void configure(Configuration parameters) {}
+
+        @Override
+        public void open(InitializationContext context) throws IOException {}
+
+        @Override
+        public void writeRecord(T record) {}
+
+        @Override
+        public void close() {}
     }
 }

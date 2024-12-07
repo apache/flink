@@ -79,7 +79,7 @@ class BlobCacheCleanupTest {
 
         try {
             Configuration config = new Configuration();
-            config.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);
+            config.set(BlobServerOptions.CLEANUP_INTERVAL, 1L);
 
             server = TestingBlobUtils.createServer(tempDir, config);
             server.start();
@@ -149,7 +149,7 @@ class BlobCacheCleanupTest {
         JobID jobId = new JobID();
 
         Configuration config = new Configuration();
-        config.setLong(
+        config.set(
                 BlobServerOptions.CLEANUP_INTERVAL,
                 3_600_000L); // 1 hour should effectively prevent races
 
@@ -176,7 +176,7 @@ class BlobCacheCleanupTest {
 
             // release a second time
             long cleanupLowerBound =
-                    System.currentTimeMillis() + config.getLong(BlobServerOptions.CLEANUP_INTERVAL);
+                    System.currentTimeMillis() + config.get(BlobServerOptions.CLEANUP_INTERVAL);
             cache.releaseJob(jobId);
             assertThat(cache.getJobRefCounters().get(jobId).references).isZero();
             assertThat(cache.getJobRefCounters().get(jobId).keepUntil)
@@ -189,7 +189,7 @@ class BlobCacheCleanupTest {
 
             // finally release the job
             cleanupLowerBound =
-                    System.currentTimeMillis() + config.getLong(BlobServerOptions.CLEANUP_INTERVAL);
+                    System.currentTimeMillis() + config.get(BlobServerOptions.CLEANUP_INTERVAL);
             cache.releaseJob(jobId);
             assertThat(cache.getJobRefCounters().get(jobId).references).isZero();
             assertThat(cache.getJobRefCounters().get(jobId).keepUntil)
@@ -218,7 +218,7 @@ class BlobCacheCleanupTest {
 
         try {
             Configuration config = new Configuration();
-            config.setLong(BlobServerOptions.CLEANUP_INTERVAL, cleanupInterval);
+            config.set(BlobServerOptions.CLEANUP_INTERVAL, cleanupInterval);
 
             server = new BlobServer(config, TempDirUtils.newFolder(tempDir), new VoidBlobStore());
             server.start();
@@ -327,7 +327,7 @@ class BlobCacheCleanupTest {
         byte[] data2 = Arrays.copyOfRange(data, 10, 54);
 
         Configuration config = new Configuration();
-        config.setLong(BlobServerOptions.CLEANUP_INTERVAL, cleanupInterval);
+        config.set(BlobServerOptions.CLEANUP_INTERVAL, cleanupInterval);
 
         long cleanupLowerBound;
 

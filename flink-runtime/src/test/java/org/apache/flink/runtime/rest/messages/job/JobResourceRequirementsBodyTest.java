@@ -21,15 +21,19 @@ package org.apache.flink.runtime.rest.messages.job;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.RestRequestMarshallingTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
 
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Optional;
 
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Tests for the marshalling of {@link JobResourceRequirementsBody}. */
+@ExtendWith(NoOpTestExtension.class)
 public class JobResourceRequirementsBodyTest
         extends RestRequestMarshallingTestBase<JobResourceRequirementsBody> {
     @Override
@@ -49,7 +53,7 @@ public class JobResourceRequirementsBodyTest
     @Override
     protected void assertOriginalEqualsToUnmarshalled(
             JobResourceRequirementsBody expected, JobResourceRequirementsBody actual) {
-        assertThat(expected, equalsChangeJobRequestBody(actual));
+        assertThat(expected).satisfies(matching(equalsChangeJobRequestBody(actual)));
     }
 
     private EqualityChangeJobRequestBodyMatcher equalsChangeJobRequestBody(

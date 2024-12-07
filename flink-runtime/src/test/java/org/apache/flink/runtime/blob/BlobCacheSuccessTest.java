@@ -51,7 +51,7 @@ class BlobCacheSuccessTest {
     @Test
     void testBlobNoJobCache() throws IOException {
         Configuration config = new Configuration();
-        config.setString(BlobServerOptions.STORAGE_DIRECTORY, tempDir.toString());
+        config.set(BlobServerOptions.STORAGE_DIRECTORY, tempDir.toString());
 
         uploadFileGetTest(config, null, false, false, TRANSIENT_BLOB);
     }
@@ -63,7 +63,7 @@ class BlobCacheSuccessTest {
     @Test
     void testBlobForJobCache() throws IOException {
         Configuration config = new Configuration();
-        config.setString(BlobServerOptions.STORAGE_DIRECTORY, tempDir.toString());
+        config.set(BlobServerOptions.STORAGE_DIRECTORY, tempDir.toString());
 
         uploadFileGetTest(config, new JobID(), false, false, TRANSIENT_BLOB);
     }
@@ -76,11 +76,11 @@ class BlobCacheSuccessTest {
     @Test
     void testBlobForJobCacheHa() throws IOException {
         Configuration config = new Configuration();
-        config.setString(
+        config.set(
                 BlobServerOptions.STORAGE_DIRECTORY,
                 TempDirUtils.newFolder(tempDir).getAbsolutePath());
-        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-        config.setString(
+        config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.set(
                 HighAvailabilityOptions.HA_STORAGE_PATH, TempDirUtils.newFolder(tempDir).getPath());
 
         uploadFileGetTest(config, new JobID(), true, true, PERMANENT_BLOB);
@@ -94,11 +94,11 @@ class BlobCacheSuccessTest {
     @Test
     void testBlobForJobCacheHa2() throws IOException {
         Configuration config = new Configuration();
-        config.setString(
+        config.set(
                 BlobServerOptions.STORAGE_DIRECTORY,
                 TempDirUtils.newFolder(tempDir).getAbsolutePath());
-        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-        config.setString(
+        config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.set(
                 HighAvailabilityOptions.HA_STORAGE_PATH, TempDirUtils.newFolder(tempDir).getPath());
         uploadFileGetTest(config, new JobID(), false, true, PERMANENT_BLOB);
     }
@@ -110,11 +110,11 @@ class BlobCacheSuccessTest {
     @Test
     void testBlobForJobCacheHaFallback() throws IOException {
         Configuration config = new Configuration();
-        config.setString(
+        config.set(
                 BlobServerOptions.STORAGE_DIRECTORY,
                 TempDirUtils.newFolder(tempDir).getAbsolutePath());
-        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-        config.setString(
+        config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.set(
                 HighAvailabilityOptions.HA_STORAGE_PATH, TempDirUtils.newFolder(tempDir).getPath());
 
         uploadFileGetTest(config, new JobID(), false, false, PERMANENT_BLOB);
@@ -142,12 +142,12 @@ class BlobCacheSuccessTest {
             throws IOException {
 
         final Configuration cacheConfig = new Configuration(config);
-        cacheConfig.setString(
+        cacheConfig.set(
                 BlobServerOptions.STORAGE_DIRECTORY,
                 TempDirUtils.newFolder(tempDir).getAbsolutePath());
         if (!cacheHasAccessToFs) {
             // make sure the cache cannot access the HA store directly
-            cacheConfig.setString(
+            cacheConfig.set(
                     HighAvailabilityOptions.HA_STORAGE_PATH,
                     TempDirUtils.newFolder(tempDir).getPath() + "/does-not-exist");
         }
@@ -192,7 +192,8 @@ class BlobCacheSuccessTest {
             }
         } finally {
             if (blobStoreService != null) {
-                blobStoreService.closeAndCleanupAllData();
+                blobStoreService.cleanupAllData();
+                blobStoreService.close();
             }
         }
     }

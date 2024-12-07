@@ -17,22 +17,21 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{TableException, _}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit.Assert._
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.ExtendWith
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class LimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
-  @Test
+  @TestTemplate
   def testLimit(): Unit = {
     val data = List(
       ("book", 1, 12),
@@ -52,10 +51,10 @@ class LimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mod
     env.execute()
 
     val expected = Seq("book,1,12", "book,2,19", "book,4,11", "fruit,4,33")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testOffsetAndFetch(): Unit = {
     val data = List(
       ("book", 1, 12),
@@ -75,11 +74,11 @@ class LimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mod
     env.execute()
 
     val expected = Seq("book,4,11", "fruit,4,33", "fruit,3,44", "fruit,5,22")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
   /** Limit could not handle order by without fetch or limit */
-  @Test
+  @TestTemplate
   def testWithoutFetch(): Unit = {
     val data = List(
       ("book", 1, 12),
@@ -89,12 +88,13 @@ class LimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mod
       ("fruit", 3, 44),
       ("fruit", 5, 22))
 
-    val t = env.fromCollection(data).toTable(tEnv, 'category, 'shopId, 'num)
+    val t = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'category, 'shopId, 'num)
     tEnv.createTemporaryView("T", t)
 
     val sql = "SELECT * FROM T OFFSET 2"
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("FETCH is missed, which on streaming table is not supported currently.")
-    tEnv.sqlQuery(sql).toRetractStream[Row]
+
+    assertThatThrownBy(() => tEnv.sqlQuery(sql).toRetractStream[Row])
+      .hasMessage("FETCH is missed, which on streaming table is not supported currently.")
+      .isInstanceOf[TableException]
   }
 }

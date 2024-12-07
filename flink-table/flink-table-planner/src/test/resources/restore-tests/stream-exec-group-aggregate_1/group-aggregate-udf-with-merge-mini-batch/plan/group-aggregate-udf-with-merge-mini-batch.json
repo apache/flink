@@ -1,0 +1,400 @@
+{
+  "flinkVersion" : "1.19",
+  "nodes" : [ {
+    "id" : 34,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`source_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "INT"
+            }, {
+              "name" : "b",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "c",
+              "dataType" : "INT"
+            }, {
+              "name" : "d",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "e",
+              "dataType" : "BIGINT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ]
+        }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 4 ], [ 0 ], [ 3 ] ],
+        "producedType" : "ROW<`e` BIGINT, `a` INT, `d` VARCHAR(2147483647)> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`e` BIGINT, `a` INT, `d` VARCHAR(2147483647)> NOT NULL"
+      } ]
+    },
+    "outputType" : "ROW<`e` BIGINT, `a` INT, `d` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t, project=[e, a, d], metadata=[]]], fields=[e, a, d])",
+    "inputProperties" : [ ]
+  }, {
+    "id" : 35,
+    "type" : "stream-exec-mini-batch-assigner_1",
+    "miniBatchInterval" : {
+      "interval" : 10000,
+      "mode" : "ProcTime"
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`e` BIGINT, `a` INT, `d` VARCHAR(2147483647)>",
+    "description" : "MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])"
+  }, {
+    "id" : 36,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : "INT"
+      } ],
+      "type" : "BIGINT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`e` BIGINT, `$f1` BIGINT, `d` VARCHAR(2147483647)>",
+    "description" : "Calc(select=[e, CAST(a AS BIGINT) AS $f1, d])"
+  }, {
+    "id" : 37,
+    "type" : "stream-exec-local-group-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "true",
+      "table.exec.mini-batch.size" : "5"
+    },
+    "grouping" : [ 0 ],
+    "aggCalls" : [ {
+      "name" : "s1",
+      "catalogName" : "`default_catalog`.`default_database`.`my_avg`",
+      "argList" : [ 0, 1 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "BIGINT"
+    }, {
+      "name" : "c1",
+      "systemName" : "my_concat",
+      "argList" : [ 2 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "VARCHAR(2147483647)"
+    } ],
+    "aggCallNeedRetractions" : [ false, false ],
+    "needRetraction" : false,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "e",
+        "fieldType" : "BIGINT"
+      }, {
+        "name" : "my_avg$0",
+        "fieldType" : {
+          "type" : "STRUCTURED_TYPE",
+          "implementationClass" : "org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgAccum",
+          "attributes" : [ {
+            "name" : "count",
+            "attributeType" : "INT NOT NULL"
+          }, {
+            "name" : "sum",
+            "attributeType" : "BIGINT NOT NULL"
+          } ]
+        }
+      }, {
+        "name" : "my_concat$1",
+        "fieldType" : {
+          "type" : "STRUCTURED_TYPE",
+          "implementationClass" : "org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$ConcatAcc",
+          "attributes" : [ {
+            "name" : "list",
+            "attributeType" : {
+              "type" : "RAW",
+              "class" : "org.apache.flink.table.api.dataview.ListView",
+              "externalDataType" : {
+                "logicalType" : {
+                  "type" : "STRUCTURED_TYPE",
+                  "implementationClass" : "org.apache.flink.table.api.dataview.ListView",
+                  "attributes" : [ {
+                    "name" : "list",
+                    "attributeType" : "ARRAY<VARCHAR(2147483647)>"
+                  } ]
+                },
+                "fields" : [ {
+                  "name" : "list",
+                  "conversionClass" : "java.util.List"
+                } ]
+              }
+            }
+          }, {
+            "name" : "map",
+            "attributeType" : {
+              "type" : "RAW",
+              "class" : "org.apache.flink.table.api.dataview.MapView",
+              "externalDataType" : {
+                "type" : "STRUCTURED_TYPE",
+                "implementationClass" : "org.apache.flink.table.api.dataview.MapView",
+                "attributes" : [ {
+                  "name" : "map",
+                  "attributeType" : "MAP<VARCHAR(2147483647), BOOLEAN>"
+                } ]
+              }
+            }
+          } ]
+        }
+      } ]
+    },
+    "description" : "LocalGroupAggregate(groupBy=[e], select=[e, my_avg(e, $f1) AS my_avg$0, my_concat(d) AS my_concat$1])"
+  }, {
+    "id" : 38,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "fields" : [ {
+        "name" : "e",
+        "fieldType" : "BIGINT"
+      }, {
+        "name" : "my_avg$0",
+        "fieldType" : {
+          "type" : "STRUCTURED_TYPE",
+          "implementationClass" : "org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgAccum",
+          "attributes" : [ {
+            "name" : "count",
+            "attributeType" : "INT NOT NULL"
+          }, {
+            "name" : "sum",
+            "attributeType" : "BIGINT NOT NULL"
+          } ]
+        }
+      }, {
+        "name" : "my_concat$1",
+        "fieldType" : {
+          "type" : "STRUCTURED_TYPE",
+          "implementationClass" : "org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$ConcatAcc",
+          "attributes" : [ {
+            "name" : "list",
+            "attributeType" : {
+              "type" : "RAW",
+              "class" : "org.apache.flink.table.api.dataview.ListView",
+              "externalDataType" : {
+                "logicalType" : {
+                  "type" : "STRUCTURED_TYPE",
+                  "implementationClass" : "org.apache.flink.table.api.dataview.ListView",
+                  "attributes" : [ {
+                    "name" : "list",
+                    "attributeType" : "ARRAY<VARCHAR(2147483647)>"
+                  } ]
+                },
+                "fields" : [ {
+                  "name" : "list",
+                  "conversionClass" : "java.util.List"
+                } ]
+              }
+            }
+          }, {
+            "name" : "map",
+            "attributeType" : {
+              "type" : "RAW",
+              "class" : "org.apache.flink.table.api.dataview.MapView",
+              "externalDataType" : {
+                "type" : "STRUCTURED_TYPE",
+                "implementationClass" : "org.apache.flink.table.api.dataview.MapView",
+                "attributes" : [ {
+                  "name" : "map",
+                  "attributeType" : "MAP<VARCHAR(2147483647), BOOLEAN>"
+                } ]
+              }
+            }
+          } ]
+        }
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[e]])"
+  }, {
+    "id" : 39,
+    "type" : "stream-exec-global-group-aggregate_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "true",
+      "table.exec.mini-batch.size" : "5"
+    },
+    "grouping" : [ 0 ],
+    "aggCalls" : [ {
+      "name" : "s1",
+      "catalogName" : "`default_catalog`.`default_database`.`my_avg`",
+      "argList" : [ 0, 1 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "BIGINT"
+    }, {
+      "name" : "c1",
+      "systemName" : "my_concat",
+      "argList" : [ 2 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : "VARCHAR(2147483647)"
+    } ],
+    "aggCallNeedRetractions" : [ false, false ],
+    "localAggInputRowType" : "ROW<`e` BIGINT, `$f1` BIGINT, `d` VARCHAR(2147483647)>",
+    "generateUpdateBefore" : false,
+    "needRetraction" : false,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "globalGroupAggregateState"
+    } ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`e` BIGINT, `s1` BIGINT, `c1` VARCHAR(2147483647)>",
+    "description" : "GlobalGroupAggregate(groupBy=[e], select=[e, my_avg(my_avg$0) AS s1, my_concat(my_concat$1) AS c1])"
+  }, {
+    "id" : 40,
+    "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "d",
+              "dataType" : "BIGINT NOT NULL"
+            }, {
+              "name" : "s1",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "c1",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "watermarkSpecs" : [ ],
+            "primaryKey" : {
+              "name" : "PK_d",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "d" ]
+            }
+          },
+          "partitionKeys" : [ ]
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER" ],
+    "inputUpsertKey" : [ 0 ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`e` BIGINT, `s1` BIGINT, `c1` VARCHAR(2147483647)>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[e, s1, c1])"
+  } ],
+  "edges" : [ {
+    "source" : 34,
+    "target" : 35,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 35,
+    "target" : 36,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 36,
+    "target" : 37,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 37,
+    "target" : 38,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 38,
+    "target" : 39,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 39,
+    "target" : 40,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

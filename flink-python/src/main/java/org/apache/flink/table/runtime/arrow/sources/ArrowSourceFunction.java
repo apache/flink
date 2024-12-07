@@ -31,8 +31,8 @@ import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.arrow.ArrowReader;
 import org.apache.flink.table.runtime.arrow.ArrowUtils;
@@ -60,9 +60,8 @@ import java.util.Deque;
 /**
  * An Arrow {@link SourceFunction} which takes the serialized arrow record batch data as input.
  *
- * @deprecated This class is based on the {@link
- *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
- *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+ * @deprecated This class is based on the {@link SourceFunction} API, which is due to be removed.
+ *     Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
 @Deprecated
 @Internal
@@ -161,12 +160,12 @@ public class ArrowSourceFunction extends RichParallelSourceFunction<RowData>
             }
             LOG.info(
                     "Subtask {} restored state: {}.",
-                    getRuntimeContext().getIndexOfThisSubtask(),
+                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
                     indexesToEmit);
         } else {
             // the first time the job is executed
-            final int stepSize = getRuntimeContext().getNumberOfParallelSubtasks();
-            final int taskIdx = getRuntimeContext().getIndexOfThisSubtask();
+            final int stepSize = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
+            final int taskIdx = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
 
             for (int i = taskIdx; i < arrowData.length; i += stepSize) {
                 this.indexesToEmit.add(Tuple2.of(i, 0));

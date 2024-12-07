@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.types;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -231,7 +231,7 @@ class TypeInfoDataTypeConverterTest {
         }
 
         @Override
-        public TypeSerializer<Object> createSerializer(ExecutionConfig config) {
+        public TypeSerializer<Object> createSerializer(SerializerConfig config) {
             return null;
         }
 

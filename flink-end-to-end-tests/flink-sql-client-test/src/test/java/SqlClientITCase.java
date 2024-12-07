@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.connector.testframe.container.FlinkContainers;
 import org.apache.flink.connector.testframe.container.FlinkContainersSettings;
 import org.apache.flink.connector.testframe.container.TestcontainersSettings;
 import org.apache.flink.connector.upserttest.sink.UpsertTestFileUtil;
-import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.util.DockerImageVersions;
@@ -36,6 +36,7 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.common.utils.Bytes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
@@ -91,7 +92,7 @@ public class SqlClientITCase {
                                     .numTaskManagers(1)
                                     // enable checkpointing for the UpsertTestSink to write anything
                                     .setConfigOption(
-                                            ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL,
+                                            CheckpointingOptions.CHECKPOINTING_INTERVAL,
                                             Duration.ofMillis(500))
                                     .build())
                     .withTestcontainersSettings(
@@ -188,6 +189,7 @@ public class SqlClientITCase {
     }
 
     @Test
+    @Disabled("Disable due to Kafka connector need to release a new version 2.0.")
     void testMatchRecognize() throws Exception {
         String outputFilepath = "/flink/records-matchrecognize.out";
 

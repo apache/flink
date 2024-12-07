@@ -172,7 +172,7 @@ class MetricDumpSerializerTest {
 
         // ===== Counters
         // ==============================================================================================
-        assertThat(deserialized.size()).isEqualTo(6);
+        assertThat(deserialized).hasSize(6);
 
         for (MetricDump metric : deserialized) {
             switch (metric.getCategory()) {

@@ -26,10 +26,10 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.util.event.NotificationListener;
 import org.apache.flink.util.IOUtils;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -39,12 +39,10 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.apache.flink.runtime.io.disk.iomanager.BufferFileWriterReaderTest.fillBufferWithAscendingNumbers;
 import static org.apache.flink.runtime.io.disk.iomanager.BufferFileWriterReaderTest.verifyBufferFilledWithAscendingNumbers;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
-public class BufferFileWriterFileSegmentReaderTest {
+class BufferFileWriterFileSegmentReaderTest {
 
     private static final int BUFFER_SIZE = 32 * 1024;
 
@@ -60,13 +58,13 @@ public class BufferFileWriterFileSegmentReaderTest {
 
     private LinkedBlockingQueue<FileSegment> returnedFileSegments = new LinkedBlockingQueue<>();
 
-    @AfterClass
-    public static void shutdown() throws Exception {
+    @AfterAll
+    static void shutdown() throws Exception {
         ioManager.close();
     }
 
-    @Before
-    public void setUpWriterAndReader() {
+    @BeforeEach
+    void setUpWriterAndReader() {
         final FileIOChannel.ID channel = ioManager.createChannel();
 
         try {
@@ -82,18 +80,18 @@ public class BufferFileWriterFileSegmentReaderTest {
         }
     }
 
-    @After
-    public void tearDownWriterAndReader() {
+    @AfterEach
+    void tearDownWriterAndReader() {
         if (writer != null) {
             if (!writer.isClosed()) {
-                IOUtils.closeQuietly(() -> writer.close());
+                IOUtils.closeQuietly(writer::close);
             }
             writer.deleteChannel();
         }
 
         if (reader != null) {
             if (!reader.isClosed()) {
-                IOUtils.closeQuietly(() -> reader.close());
+                IOUtils.closeQuietly(reader::close);
             }
             reader.deleteChannel();
         }
@@ -102,7 +100,7 @@ public class BufferFileWriterFileSegmentReaderTest {
     }
 
     @Test
-    public void testWriteRead() throws IOException, InterruptedException {
+    void testWriteRead() throws IOException, InterruptedException {
         int numBuffers = 1024;
         int currentNumber = 0;
 
@@ -124,28 +122,24 @@ public class BufferFileWriterFileSegmentReaderTest {
 
         // Read buffers back in...
         for (int i = 0; i < numBuffers; i++) {
-            assertFalse(reader.hasReachedEndOfFile());
+            assertThat(reader.hasReachedEndOfFile()).isFalse();
             reader.read();
         }
 
         // Wait for all requests to be finished
         final CountDownLatch sync = new CountDownLatch(1);
-        final NotificationListener listener =
-                new NotificationListener() {
-                    @Override
-                    public void onNotification() {
-                        sync.countDown();
-                    }
-                };
+        final NotificationListener listener = sync::countDown;
 
         if (reader.registerAllRequestsProcessedListener(listener)) {
             sync.await();
         }
 
-        assertTrue(reader.hasReachedEndOfFile());
+        assertThat(reader.hasReachedEndOfFile()).isTrue();
 
         // Verify that the content is the same
-        assertEquals("Read less buffers than written.", numBuffers, returnedFileSegments.size());
+        assertThat(returnedFileSegments)
+                .withFailMessage("Read less buffers than written.")
+                .hasSize(numBuffers);
 
         currentNumber = 0;
         FileSegment fileSegment;

@@ -44,6 +44,7 @@ final class ResolvedCatalogTableJsonSerializer extends StdSerializer<ResolvedCat
     static final String SERIALIZE_OPTIONS = "serialize_options";
 
     static final String RESOLVED_SCHEMA = "schema";
+    static final String DISTRIBUTION = "distribution";
     static final String PARTITION_KEYS = "partitionKeys";
     static final String OPTIONS = "options";
     static final String COMMENT = "comment";
@@ -86,6 +87,9 @@ final class ResolvedCatalogTableJsonSerializer extends StdSerializer<ResolvedCat
 
         serializerProvider.defaultSerializeField(
                 RESOLVED_SCHEMA, resolvedCatalogTable.getResolvedSchema(), jsonGenerator);
+        if (resolvedCatalogTable.getDistribution().isPresent()) {
+            jsonGenerator.writeObjectField(DISTRIBUTION, resolvedCatalogTable.getDistribution());
+        }
         jsonGenerator.writeObjectField(PARTITION_KEYS, resolvedCatalogTable.getPartitionKeys());
 
         if (serializeOptions) {

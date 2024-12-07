@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -28,55 +26,54 @@ import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.util.FlinkRuntimeException;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the recovery of task failures. */
-public class JobRecoveryITCase extends TestLogger {
+class JobRecoveryITCase {
 
     private static final int NUM_TMS = 1;
     private static final int SLOTS_PER_TM = 10;
     private static final int PARALLELISM = NUM_TMS * SLOTS_PER_TM;
 
-    @ClassRule
-    public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterResource(
+    @RegisterExtension
+    private static final InternalMiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new InternalMiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(NUM_TMS)
                             .setNumberSlotsPerTaskManager(SLOTS_PER_TM)
                             .build());
 
     @Test
-    public void testTaskFailureRecovery() throws Exception {
+    void testTaskFailureRecovery() throws Exception {
         runTaskFailureRecoveryTest(createjobGraph(false));
     }
 
     @Test
-    public void testTaskFailureWithSlotSharingRecovery() throws Exception {
+    void testTaskFailureWithSlotSharingRecovery() throws Exception {
         runTaskFailureRecoveryTest(createjobGraph(true));
     }
 
     private void runTaskFailureRecoveryTest(final JobGraph jobGraph) throws Exception {
-        final MiniCluster miniCluster = MINI_CLUSTER_RESOURCE.getMiniCluster();
+        final MiniCluster miniCluster = MINI_CLUSTER_EXTENSION.getMiniCluster();
 
         miniCluster.submitJob(jobGraph).get();
 
         final CompletableFuture<JobResult> jobResultFuture =
                 miniCluster.requestJobResult(jobGraph.getJobID());
 
-        assertThat(jobResultFuture.get().isSuccess(), is(true));
+        assertThat(jobResultFuture.get().isSuccess()).isTrue();
     }
 
     private JobGraph createjobGraph(boolean slotSharingEnabled) throws IOException {
@@ -98,14 +95,15 @@ public class JobRecoveryITCase extends TestLogger {
         receiver.connectNewDataSetAsInput(
                 sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-        final ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
+        JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .addJobVertices(Arrays.asList(sender, receiver))
+                        .setJobName(getClass().getSimpleName())
+                        .build();
 
-        return JobGraphBuilder.newStreamingJobGraphBuilder()
-                .addJobVertices(Arrays.asList(sender, receiver))
-                .setJobName(getClass().getSimpleName())
-                .setExecutionConfig(executionConfig)
-                .build();
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(jobGraph, 1, 0L);
+
+        return jobGraph;
     }
 
     /** Receiver which fails once before successfully completing. */

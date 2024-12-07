@@ -19,7 +19,7 @@
 package org.apache.flink.api.java.typeutils;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
@@ -108,7 +108,7 @@ public class MapTypeInfo<K, V> extends TypeInformation<Map<K, V>> {
     }
 
     @Override
-    public TypeSerializer<Map<K, V>> createSerializer(ExecutionConfig config) {
+    public TypeSerializer<Map<K, V>> createSerializer(SerializerConfig config) {
         TypeSerializer<K> keyTypeSerializer = keyTypeInfo.createSerializer(config);
         TypeSerializer<V> valueTypeSerializer = valueTypeInfo.createSerializer(config);
 

@@ -71,12 +71,16 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
         return new KeyGroupsStateHandle(groupRangeOffsets, streamStateHandle, stateHandleId);
     }
 
-    /** @return the internal key-group range to offsets metadata */
+    /**
+     * @return the internal key-group range to offsets metadata
+     */
     public KeyGroupRangeOffsets getGroupRangeOffsets() {
         return groupRangeOffsets;
     }
 
-    /** @return The handle to the actual states */
+    /**
+     * @return The handle to the actual states
+     */
     public StreamStateHandle getDelegateStateHandle() {
         return stateHandle;
     }
@@ -136,6 +140,17 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
     }
 
     @Override
+    public void collectSizeStats(StateObjectSizeStatsCollector collector) {
+        // TODO: for now this ignores that only some key groups might be accessed when reading the
+        //  state, so this only reports the upper bound. We could introduce
+        //  #collectSizeStats(StateObjectSizeStatsCollector, KeyGroupRange) in KeyedStateHandle
+        //  that computes which groups where actually touched and computes the size, depending on
+        //  the exact state handle type, from either the offsets (e.g. here) or for the full size
+        //  (e.g. remote incremental) when we restore from managed/raw keyed state.
+        stateHandle.collectSizeStats(collector);
+    }
+
+    @Override
     public long getCheckpointedSize() {
         return getStateSize();
     }
@@ -148,6 +163,11 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
     @Override
     public Optional<byte[]> asBytesIfInMemory() {
         return stateHandle.asBytesIfInMemory();
+    }
+
+    @Override
+    public Optional<org.apache.flink.core.fs.Path> maybeGetPath() {
+        return stateHandle.maybeGetPath();
     }
 
     @Override

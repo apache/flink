@@ -264,4 +264,8 @@ public class PbCodegenUtils {
         }
         return simpleCompiler.getClassLoader().loadClass(className);
     }
+
+    public static boolean needToSplit(int noSplitCodeSize) {
+        return noSplitCodeSize >= PbConstant.CODEGEN_SPLIT_THRESHOLD;
+    }
 }

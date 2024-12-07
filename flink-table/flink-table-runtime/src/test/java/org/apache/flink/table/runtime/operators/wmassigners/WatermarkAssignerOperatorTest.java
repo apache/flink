@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.wmassigners;
 
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
@@ -29,7 +30,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedWatermarkGenerator;
 import org.apache.flink.table.runtime.generated.WatermarkGenerator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -37,17 +38,36 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import static org.apache.flink.table.runtime.operators.wmassigners.WatermarkAssignerOperator.calculateProcessingTimeTimerInterval;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests of {@link WatermarkAssignerOperator}. */
-public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTestBase {
+class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTestBase {
 
     private static final WatermarkGenerator WATERMARK_GENERATOR =
             new BoundedOutOfOrderWatermarkGenerator(0, 1);
 
     @Test
-    public void testWatermarkAssignerWithIdleSource() throws Exception {
+    void testCalculateProcessingTimeTimerInterval() {
+        assertThat(calculateProcessingTimeTimerInterval(5, 0)).isEqualTo(5);
+        assertThat(calculateProcessingTimeTimerInterval(5, -1)).isEqualTo(5);
+
+        assertThat(calculateProcessingTimeTimerInterval(0, 5)).isEqualTo(5);
+        assertThat(calculateProcessingTimeTimerInterval(-1, 5)).isEqualTo(5);
+
+        assertThat(calculateProcessingTimeTimerInterval(5, 42)).isEqualTo(5);
+        assertThat(calculateProcessingTimeTimerInterval(42, 5)).isEqualTo(5);
+
+        assertThat(calculateProcessingTimeTimerInterval(2, 4)).isEqualTo(1);
+        assertThat(calculateProcessingTimeTimerInterval(4, 2)).isEqualTo(1);
+
+        assertThat(calculateProcessingTimeTimerInterval(100, 110)).isEqualTo(20);
+        assertThat(calculateProcessingTimeTimerInterval(110, 100)).isEqualTo(20);
+    }
+
+    @Test
+    void testWatermarkAssignerWithIdleSource() throws Exception {
         // with timeout 1000 ms
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createTestHarness(0, WATERMARK_GENERATOR, 1000);
@@ -68,7 +88,10 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
         expectedOutput.add(new Watermark(3));
         assertThat(filterOutRecords(output)).isEqualTo(expectedOutput);
 
-        testHarness.setProcessingTime(1001);
+        stepProcessingTime(testHarness, 52, 1050, 50);
+        assertThat(filterOutRecords(output)).isEqualTo(expectedOutput);
+
+        stepProcessingTime(testHarness, 1051, 1100, 50);
         expectedOutput.add(WatermarkStatus.IDLE);
         assertThat(filterOutRecords(output)).isEqualTo(expectedOutput);
 
@@ -79,13 +102,87 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(7L)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(8L)));
 
-        testHarness.setProcessingTime(1060);
+        assertThat(filterOutRecords(output)).isEqualTo(expectedOutput);
+
+        stepProcessingTime(testHarness, 1101, 1200, 50);
         expectedOutput.add(new Watermark(7));
         assertThat(filterOutRecords(output)).isEqualTo(expectedOutput);
     }
 
     @Test
-    public void testWatermarkAssignerOperator() throws Exception {
+    void testWatermarkIntervalSmallerThanIdleTimeout() throws Exception {
+        testIdleTimeout(1000, 50);
+    }
+
+    @Test
+    void testIdleTimeoutSmallerThanWatermarkInterval() throws Exception {
+        testIdleTimeout(50, 1000);
+    }
+
+    private void testIdleTimeout(long idleTimeout, long watermarkInterval) throws Exception {
+        long step = Math.min(idleTimeout, watermarkInterval);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(0, WATERMARK_GENERATOR, idleTimeout);
+        testHarness.getExecutionConfig().setAutoWatermarkInterval(watermarkInterval);
+        testHarness.open();
+
+        ConcurrentLinkedQueue<Object> output = testHarness.getOutput();
+
+        long timeBetweenRecords = (long) (idleTimeout * 0.9);
+        // Process elements at intervals less than idleTimeout (1000ms)
+        for (long i = 1; i <= 10; i++) {
+            long timestamp = i * timeBetweenRecords;
+            testHarness.processElement(new StreamRecord<>(GenericRowData.of(timestamp), timestamp));
+            stepProcessingTime(testHarness, timestamp, timestamp + timeBetweenRecords - 1, step);
+        }
+
+        // Check if the status ever becomes IDLE (it shouldn't)
+        assertThat(extractWatermarkStatuses(output)).doesNotContain(WatermarkStatus.IDLE);
+    }
+
+    @Test
+    void testIdleTimeoutUnderBackpressure() throws Exception {
+        long idleTimeout = 100;
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(0, WATERMARK_GENERATOR, idleTimeout);
+        testHarness.getExecutionConfig().setAutoWatermarkInterval(idleTimeout);
+        testHarness.open();
+
+        TaskIOMetricGroup taskIOMetricGroup =
+                testHarness.getEnvironment().getMetricGroup().getIOMetricGroup();
+        taskIOMetricGroup.getHardBackPressuredTimePerSecond().markStart();
+
+        stepProcessingTime(testHarness, 0, idleTimeout * 10, idleTimeout / 10);
+        assertThat(testHarness.getOutput()).isEmpty();
+
+        taskIOMetricGroup.getHardBackPressuredTimePerSecond().markEnd();
+        taskIOMetricGroup.getSoftBackPressuredTimePerSecond().markStart();
+
+        stepProcessingTime(testHarness, idleTimeout * 10, idleTimeout * 20, idleTimeout / 10);
+        assertThat(testHarness.getOutput()).isEmpty();
+
+        taskIOMetricGroup.getSoftBackPressuredTimePerSecond().markEnd();
+
+        stepProcessingTime(testHarness, idleTimeout * 20, idleTimeout * 30, idleTimeout / 10);
+        assertThat(testHarness.getOutput()).containsExactly(WatermarkStatus.IDLE);
+    }
+
+    private void stepProcessingTime(
+            OneInputStreamOperatorTestHarness<?, ?> testHarness,
+            long fromInclusive,
+            long toInclusive,
+            long step)
+            throws Exception {
+        for (long time = fromInclusive; time < toInclusive; time += step) {
+            // incrementally fire processing time timers
+            testHarness.setProcessingTime(time);
+        }
+        testHarness.setProcessingTime(toInclusive);
+    }
+
+    @Test
+    void testWatermarkAssignerOperator() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createTestHarness(0, WATERMARK_GENERATOR, -1);
 
@@ -167,7 +264,7 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
     }
 
     @Test
-    public void testCustomizedWatermarkGenerator() throws Exception {
+    void testCustomizedWatermarkGenerator() throws Exception {
         MyWatermarkGenerator.openCalled = false;
         MyWatermarkGenerator.closeCalled = false;
         WatermarkGenerator generator = new MyWatermarkGenerator(1);
@@ -213,11 +310,11 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
         expected.add(Watermark.MAX_WATERMARK);
 
         // num_watermark + num_records
-        assertThat(testHarness.getOutput()).hasSize(expected.size() + 11);
         List<Watermark> results = extractWatermarks(testHarness.getOutput());
         assertThat(results).isEqualTo(expected);
         assertThat(MyWatermarkGenerator.openCalled).isTrue();
         assertThat(MyWatermarkGenerator.closeCalled).isTrue();
+        assertThat(testHarness.getOutput()).hasSize(expected.size() + 11);
     }
 
     private static OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(

@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
@@ -28,8 +28,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -170,7 +170,6 @@ class CheckpointCoordinatorFailureTest {
         assertThat(pendingCheckpoint.isDisposed()).isTrue();
 
         // make sure that the subtask state has been discarded after we could not complete it.
-        verify(operatorSubtaskState).discardState();
         verify(operatorSubtaskState.getManagedOperatorState().iterator().next()).discardState();
         verify(operatorSubtaskState.getRawOperatorState().iterator().next()).discardState();
         verify(operatorSubtaskState.getManagedKeyedState().iterator().next()).discardState();
@@ -213,7 +212,9 @@ class CheckpointCoordinatorFailureTest {
                 new FailingCompletedCheckpointStore(failure);
 
         CheckpointStatsTracker statsTracker =
-                new CheckpointStatsTracker(Integer.MAX_VALUE, new UnregisteredMetricsGroup());
+                new DefaultCheckpointStatsTracker(
+                        Integer.MAX_VALUE,
+                        UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
         final AtomicInteger cleanupCallCount = new AtomicInteger(0);
         final CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
@@ -284,7 +285,7 @@ class CheckpointCoordinatorFailureTest {
         public FailingCompletedCheckpointStore(Exception addCheckpointFailure) {
             super(
                     SharedStateRegistry.DEFAULT_FACTORY.create(
-                            Executors.directExecutor(), emptyList(), RestoreMode.DEFAULT));
+                            Executors.directExecutor(), emptyList(), RecoveryClaimMode.DEFAULT));
             this.addCheckpointFailure = addCheckpointFailure;
         }
 
@@ -298,18 +299,17 @@ class CheckpointCoordinatorFailureTest {
         }
 
         @Override
-        public CompletedCheckpoint getLatestCheckpoint() throws Exception {
+        public CompletedCheckpoint getLatestCheckpoint() {
             throw new UnsupportedOperationException("Not implemented.");
         }
 
         @Override
-        public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner)
-                throws Exception {
+        public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner) {
             throw new UnsupportedOperationException("Not implemented.");
         }
 
         @Override
-        public List<CompletedCheckpoint> getAllCheckpoints() throws Exception {
+        public List<CompletedCheckpoint> getAllCheckpoints() {
             return Collections.emptyList();
         }
 

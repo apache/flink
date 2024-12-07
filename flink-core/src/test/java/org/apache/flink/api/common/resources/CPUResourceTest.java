@@ -18,27 +18,25 @@
 
 package org.apache.flink.api.common.resources;
 
-import org.apache.flink.util.TestLogger;
+import org.junit.jupiter.api.Test;
 
-import org.junit.Test;
-
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link CPUResource}. */
-public class CPUResourceTest extends TestLogger {
+class CPUResourceTest {
     @Test
-    public void toHumanReadableString() {
-        assertThat(new CPUResource(0).toHumanReadableString(), is("0.00 cores"));
-        assertThat(new CPUResource(1).toHumanReadableString(), is("1.00 cores"));
-        assertThat(new CPUResource(1.2).toHumanReadableString(), is("1.20 cores"));
-        assertThat(new CPUResource(1.23).toHumanReadableString(), is("1.23 cores"));
-        assertThat(new CPUResource(1.234).toHumanReadableString(), is("1.23 cores"));
-        assertThat(new CPUResource(1.235).toHumanReadableString(), is("1.24 cores"));
-        assertThat(new CPUResource(10).toHumanReadableString(), is("10.00 cores"));
-        assertThat(new CPUResource(100).toHumanReadableString(), is("100.00 cores"));
-        assertThat(new CPUResource(1000).toHumanReadableString(), is("1000.00 cores"));
-        assertThat(new CPUResource(123456789).toHumanReadableString(), is("123456789.00 cores"));
-        assertThat(new CPUResource(12345.6789).toHumanReadableString(), is("12345.68 cores"));
+    void toHumanReadableString() {
+        assertThat(new CPUResource(0).toHumanReadableString()).isEqualTo("0.00 cores");
+        assertThat(new CPUResource(1).toHumanReadableString()).isEqualTo("1.00 cores");
+        assertThat(new CPUResource(1.2).toHumanReadableString()).isEqualTo("1.20 cores");
+        assertThat(new CPUResource(1.23).toHumanReadableString()).isEqualTo("1.23 cores");
+        assertThat(new CPUResource(1.234).toHumanReadableString()).isEqualTo("1.23 cores");
+        assertThat(new CPUResource(1.235).toHumanReadableString()).isEqualTo("1.24 cores");
+        assertThat(new CPUResource(10).toHumanReadableString()).isEqualTo("10.00 cores");
+        assertThat(new CPUResource(100).toHumanReadableString()).isEqualTo("100.00 cores");
+        assertThat(new CPUResource(1000).toHumanReadableString()).isEqualTo("1000.00 cores");
+        assertThat(new CPUResource(123456789).toHumanReadableString())
+                .isEqualTo("123456789.00 cores");
+        assertThat(new CPUResource(12345.6789).toHumanReadableString()).isEqualTo("12345.68 cores");
     }
 }

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.rpc.messages.LocalFencedMessage;
 import org.apache.flink.runtime.rpc.pekko.exceptions.UnknownMessageException;
 
 import java.io.Serializable;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
@@ -47,14 +48,16 @@ public class FencedPekkoRpcActor<
             int version,
             final long maximumFramesize,
             final boolean forceSerialization,
-            ClassLoader flinkClassLoader) {
+            ClassLoader flinkClassLoader,
+            final Map<String, String> loggingContext) {
         super(
                 rpcEndpoint,
                 terminationFuture,
                 version,
                 maximumFramesize,
                 forceSerialization,
-                flinkClassLoader);
+                flinkClassLoader,
+                loggingContext);
     }
 
     @Override

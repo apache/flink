@@ -38,7 +38,7 @@ public class FloatingBuffersUsageGauge extends AbstractBuffersUsageGauge {
         BufferPool bufferPool = inputGate.getBufferPool();
         if (bufferPool != null) {
             int requestedFloatingBuffers = bufferPool.bestEffortGetNumOfUsedBuffers();
-            for (InputChannel ic : inputGate.getInputChannels().values()) {
+            for (InputChannel ic : inputGate.inputChannels()) {
                 if (ic instanceof RemoteInputChannel) {
                     availableFloatingBuffers +=
                             ((RemoteInputChannel) ic).unsynchronizedGetFloatingBuffersAvailable();

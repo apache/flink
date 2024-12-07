@@ -67,7 +67,7 @@ kubernetes.cluster-id: cluster1337
 
 ### 配置示例
 
-在 `conf/flink-conf.yaml` 中配置高可用模式:
+在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中配置高可用模式:
 
 ```yaml
 kubernetes.cluster-id: <cluster-id>

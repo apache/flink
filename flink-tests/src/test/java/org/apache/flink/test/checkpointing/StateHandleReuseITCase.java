@@ -17,7 +17,6 @@
 
 package org.apache.flink.test.checkpointing;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.runtime.operators.lifecycle.TestJobExecutor;
 import org.apache.flink.runtime.operators.lifecycle.TestJobWithDescription;
 import org.apache.flink.runtime.operators.lifecycle.event.CheckpointCompletedEvent;
@@ -30,7 +29,8 @@ import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.ttl.mock.MockKeyedStateBackend.MockSnapshotSupplier;
 import org.apache.flink.runtime.state.ttl.mock.MockStateBackend;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.testutils.junit.SharedObjects;
 
 import org.junit.Rule;
@@ -51,7 +51,7 @@ import static org.apache.flink.runtime.state.KeyGroupRange.EMPTY_KEY_GROUP_RANGE
  * org.apache.flink.runtime.checkpoint.CheckpointCoordinator} which doesn't expect to receive the
  * same object.
  */
-public class StateHandleReuseITCase extends AbstractTestBase {
+public class StateHandleReuseITCase extends AbstractTestBaseJUnit4 {
     @Rule public final SharedObjects sharedObjects = SharedObjects.create();
 
     @Test
@@ -74,11 +74,11 @@ public class StateHandleReuseITCase extends AbstractTestBase {
                 env -> {
                     env.setParallelism(1);
                     env.enableCheckpointing(10);
-                    env.setRestartStrategy(RestartStrategies.noRestart());
-                    env.setStateBackend(new MockStateBackend(new SingleHandleSnapshotSupplier()));
+                    RestartStrategyUtils.configureNoRestartStrategy(env);
                     // changelog backend doesn't work with the mock backend
                     env.enableChangelogStateBackend(false);
-                });
+                },
+                new MockStateBackend(new SingleHandleSnapshotSupplier()));
     }
 
     /** {@link MockSnapshotSupplier} that always sends the same handle (object). */

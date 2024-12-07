@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.testutils.BlockerSync;
@@ -28,13 +28,13 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.Serializable;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * This tests that the {@link KryoSerializer} properly fails when accessed by two threads
@@ -43,39 +43,41 @@ import static org.junit.Assert.fail;
  * <p><b>Important:</b> This test only works if assertions are activated (-ea) on the JVM when
  * running tests.
  */
-public class KryoSerializerConcurrencyTest {
+class KryoSerializerConcurrencyTest {
 
     @Test
-    public void testDuplicateSerializerWithDefaultSerializerClass() {
-        ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.addDefaultKryoSerializer(WrappedString.class, TestSerializer.class);
-        runDuplicateSerializerTest(executionConfig);
+    void testDuplicateSerializerWithDefaultSerializerClass() {
+        SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
+        serializerConfigImpl.addDefaultKryoSerializer(WrappedString.class, TestSerializer.class);
+        runDuplicateSerializerTest(serializerConfigImpl);
     }
 
     @Test
-    public void testDuplicateSerializerWithDefaultSerializerInstance() {
-        ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.addDefaultKryoSerializer(WrappedString.class, new TestSerializer());
-        runDuplicateSerializerTest(executionConfig);
+    void testDuplicateSerializerWithDefaultSerializerInstance() {
+        SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
+        serializerConfigImpl.addDefaultKryoSerializer(WrappedString.class, new TestSerializer());
+        runDuplicateSerializerTest(serializerConfigImpl);
     }
 
     @Test
-    public void testDuplicateSerializerWithRegisteredSerializerClass() {
-        ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.registerTypeWithKryoSerializer(WrappedString.class, TestSerializer.class);
-        runDuplicateSerializerTest(executionConfig);
+    void testDuplicateSerializerWithRegisteredSerializerClass() {
+        SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
+        serializerConfigImpl.registerTypeWithKryoSerializer(
+                WrappedString.class, TestSerializer.class);
+        runDuplicateSerializerTest(serializerConfigImpl);
     }
 
     @Test
-    public void testDuplicateSerializerWithRegisteredSerializerInstance() {
-        ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.registerTypeWithKryoSerializer(WrappedString.class, new TestSerializer());
-        runDuplicateSerializerTest(executionConfig);
+    void testDuplicateSerializerWithRegisteredSerializerInstance() {
+        SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
+        serializerConfigImpl.registerTypeWithKryoSerializer(
+                WrappedString.class, new TestSerializer());
+        runDuplicateSerializerTest(serializerConfigImpl);
     }
 
-    private void runDuplicateSerializerTest(ExecutionConfig executionConfig) {
+    private void runDuplicateSerializerTest(SerializerConfigImpl serializerConfigImpl) {
         final KryoSerializer<WrappedString> original =
-                new KryoSerializer<>(WrappedString.class, executionConfig);
+                new KryoSerializer<>(WrappedString.class, serializerConfigImpl);
         final KryoSerializer<WrappedString> duplicate = original.duplicate();
 
         WrappedString testString = new WrappedString("test");
@@ -83,17 +85,17 @@ public class KryoSerializerConcurrencyTest {
         String copyWithOriginal = original.copy(testString).content;
         String copyWithDuplicate = duplicate.copy(testString).content;
 
-        Assert.assertTrue(copyWithOriginal.startsWith(testString.content));
-        Assert.assertTrue(copyWithDuplicate.startsWith(testString.content));
+        assertThat(copyWithOriginal).startsWith(testString.content);
+        assertThat(copyWithDuplicate).startsWith(testString.content);
 
         // check that both serializer instances have appended a different identity hash
-        Assert.assertNotEquals(copyWithOriginal, copyWithDuplicate);
+        assertThat(copyWithDuplicate).isNotEqualTo(copyWithOriginal);
     }
 
     @Test
-    public void testConcurrentUseOfSerializer() throws Exception {
+    void testConcurrentUseOfSerializer() throws Exception {
         final KryoSerializer<String> serializer =
-                new KryoSerializer<>(String.class, new ExecutionConfig());
+                new KryoSerializer<>(String.class, new SerializerConfigImpl());
 
         final BlockerSync sync = new BlockerSync();
 
@@ -113,15 +115,9 @@ public class KryoSerializerConcurrencyTest {
         sync.awaitBlocker();
 
         // this should fail with an exception
-        try {
-            serializer.serialize("value", regularOut);
-            fail("should have failed with an exception");
-        } catch (IllegalStateException e) {
-            // expected
-        } finally {
-            // release the thread that serializes
-            sync.releaseBlocker();
-        }
+        assertThatThrownBy(() -> serializer.serialize("value", regularOut))
+                .isInstanceOf(IllegalStateException.class);
+        sync.releaseBlocker();
 
         // this propagates exceptions from the spawned thread
         thread.sync();

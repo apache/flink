@@ -25,6 +25,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.runtime.entrypoint.StandaloneSessionClusterEntrypoint;
@@ -94,27 +95,33 @@ abstract class AbstractTaskManagerProcessFailureRecoveryTest {
         File coordinateTempDir;
 
         Configuration config = new Configuration();
-        config.setString(JobManagerOptions.ADDRESS, "localhost");
-        config.setString(RestOptions.BIND_PORT, "0");
-        config.setLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 200L);
-        config.setLong(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, 10000L);
+        config.set(JobManagerOptions.ADDRESS, "localhost");
+        config.set(RestOptions.BIND_PORT, "0");
+        config.set(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, Duration.ofMillis(200L));
+        config.set(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, Duration.ofMillis(10000L));
         config.set(HeartbeatManagerOptions.HEARTBEAT_RPC_FAILURE_THRESHOLD, 1);
-        config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-        config.setString(
+        config.set(HighAvailabilityOptions.HA_MODE, "zookeeper");
+        config.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
                 zooKeeperExtensionWrapper.getCustomExtension().getConnectString());
-        config.setString(
+        config.set(
                 HighAvailabilityOptions.HA_STORAGE_PATH,
                 TempDirUtils.newFolder(temporaryFolder).getAbsolutePath());
-        config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
+        config.set(TaskManagerOptions.NUM_TASK_SLOTS, 2);
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("3200k"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("3200k"));
         config.set(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS, 16);
         config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
         config.set(TaskManagerOptions.CPU_CORES, 1.0);
-        config.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
-        config.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofSeconds(30L));
+        config.set(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
+        config.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,
+                Duration.ofSeconds(30L));
+        config.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        config.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+        config.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMillis(5000));
 
         try (final StandaloneSessionClusterEntrypoint clusterEntrypoint =
                 new StandaloneSessionClusterEntrypoint(config)) {

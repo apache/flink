@@ -54,6 +54,10 @@ class CurrentWatermarkInputTypeStrategy implements InputTypeStrategy {
             CallContext callContext, boolean throwOnFailure) {
         final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
 
+        if (argumentDataTypes == null || argumentDataTypes.isEmpty()) {
+            return Optional.of(Collections.emptyList());
+        }
+
         final DataType dataType = argumentDataTypes.get(0);
         if (!LogicalTypeChecks.canBeTimeAttributeType(dataType.getLogicalType())) {
             return callContext.fail(

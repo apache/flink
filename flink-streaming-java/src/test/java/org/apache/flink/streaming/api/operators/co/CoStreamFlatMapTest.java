@@ -26,11 +26,12 @@ import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link CoStreamFlatMap}. These test that:
@@ -41,7 +42,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *   <li>Watermarks are correctly forwarded
  * </ul>
  */
-public class CoStreamFlatMapTest implements Serializable {
+class CoStreamFlatMapTest implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private static final class MyCoFlatMap implements CoFlatMapFunction<String, Integer, String> {
@@ -61,7 +62,7 @@ public class CoStreamFlatMapTest implements Serializable {
     }
 
     @Test
-    public void testCoFlatMap() throws Exception {
+    void testCoFlatMap() throws Exception {
         CoStreamFlatMap<String, Integer, String> operator =
                 new CoStreamFlatMap<String, Integer, String>(new MyCoFlatMap());
 
@@ -107,7 +108,7 @@ public class CoStreamFlatMapTest implements Serializable {
     }
 
     @Test
-    public void testOpenClose() throws Exception {
+    void testOpenClose() throws Exception {
         CoStreamFlatMap<String, Integer, String> operator =
                 new CoStreamFlatMap<String, Integer, String>(new TestOpenCloseCoFlatMapFunction());
 
@@ -123,10 +124,10 @@ public class CoStreamFlatMapTest implements Serializable {
 
         testHarness.close();
 
-        Assert.assertTrue(
-                "RichFunction methods where not called.",
-                TestOpenCloseCoFlatMapFunction.closeCalled);
-        Assert.assertTrue("Output contains no elements.", testHarness.getOutput().size() > 0);
+        assertThat(TestOpenCloseCoFlatMapFunction.closeCalled)
+                .as("RichFunction methods where not called.")
+                .isTrue();
+        assertThat(testHarness.getOutput()).isNotEmpty();
     }
 
     // This must only be used in one test, otherwise the static fields will be changed
@@ -141,34 +142,26 @@ public class CoStreamFlatMapTest implements Serializable {
         @Override
         public void open(OpenContext openContext) throws Exception {
             super.open(openContext);
-            if (closeCalled) {
-                Assert.fail("Close called before open.");
-            }
+            assertThat(closeCalled).as("Close called before open.").isFalse();
             openCalled = true;
         }
 
         @Override
         public void close() throws Exception {
             super.close();
-            if (!openCalled) {
-                Assert.fail("Open was not called before close.");
-            }
+            assertThat(openCalled).as("Open was not called before close.").isTrue();
             closeCalled = true;
         }
 
         @Override
         public void flatMap1(String value, Collector<String> out) throws Exception {
-            if (!openCalled) {
-                Assert.fail("Open was not called before run.");
-            }
+            assertThat(openCalled).as("Open was not called before run.").isTrue();
             out.collect(value);
         }
 
         @Override
         public void flatMap2(Integer value, Collector<String> out) throws Exception {
-            if (!openCalled) {
-                Assert.fail("Open was not called before run.");
-            }
+            assertThat(openCalled).as("Open was not called before run.").isTrue();
             out.collect(value.toString());
         }
     }

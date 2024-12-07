@@ -214,6 +214,19 @@ public final class SubsequenceInputTypeStrategy implements InputTypeStrategy {
             return this;
         }
 
+        /** Defines that we expect a single named argument at the next position. */
+        public SubsequenceStrategyBuilder argument(
+                String argumentName, ArgumentTypeStrategy argumentTypeStrategy) {
+            SequenceInputTypeStrategy singleArgumentStrategy =
+                    new SequenceInputTypeStrategy(
+                            Collections.singletonList(argumentTypeStrategy),
+                            Collections.singletonList(argumentName));
+            argumentsSplits.add(
+                    new ArgumentsSplit(currentPos, currentPos + 1, singleArgumentStrategy));
+            currentPos += 1;
+            return this;
+        }
+
         /**
          * Defines a common {@link InputTypeStrategy} for the next arguments. Given input strategy
          * must expect a constant number of arguments. That means that both the minimum and maximum

@@ -24,23 +24,20 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link HandlerRequestUtils}. */
-public class HandlerRequestUtilsTest extends TestLogger {
+class HandlerRequestUtilsTest {
 
     @Test
-    public void testGetQueryParameter() throws Exception {
+    void testGetQueryParameter() throws Exception {
         final Boolean queryParameter =
                 HandlerRequestUtils.getQueryParameter(
                         HandlerRequest.resolveParametersAndCreate(
@@ -50,11 +47,11 @@ public class HandlerRequestUtilsTest extends TestLogger {
                                 Collections.singletonMap("key", Collections.singletonList("true")),
                                 Collections.emptyList()),
                         TestBooleanQueryParameter.class);
-        assertThat(queryParameter, equalTo(true));
+        assertThat(queryParameter).isTrue();
     }
 
     @Test
-    public void testGetQueryParameterRepeated() throws Exception {
+    void testGetQueryParameterRepeated() throws Exception {
         try {
             HandlerRequestUtils.getQueryParameter(
                     HandlerRequest.resolveParametersAndCreate(
@@ -65,12 +62,12 @@ public class HandlerRequestUtilsTest extends TestLogger {
                             Collections.emptyList()),
                     TestBooleanQueryParameter.class);
         } catch (final RestHandlerException e) {
-            assertThat(e.getMessage(), containsString("Expected only one value"));
+            assertThat(e.getMessage()).contains("Expected only one value");
         }
     }
 
     @Test
-    public void testGetQueryParameterDefaultValue() throws Exception {
+    void testGetQueryParameterDefaultValue() throws Exception {
         final Boolean allowNonRestoredState =
                 HandlerRequestUtils.getQueryParameter(
                         HandlerRequest.resolveParametersAndCreate(
@@ -81,7 +78,7 @@ public class HandlerRequestUtilsTest extends TestLogger {
                                 Collections.emptyList()),
                         TestBooleanQueryParameter.class,
                         true);
-        assertThat(allowNonRestoredState, equalTo(true));
+        assertThat(allowNonRestoredState).isTrue();
     }
 
     private static class TestMessageParameters extends MessageParameters {

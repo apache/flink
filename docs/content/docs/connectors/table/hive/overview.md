@@ -54,6 +54,7 @@ Flink supports the following Hive versions.
     - 2.3.7
     - 2.3.8
     - 2.3.9
+    - 2.3.10
 - 3.1
     - 3.1.0
     - 3.1.1
@@ -89,10 +90,10 @@ There are two ways to add Hive dependencies. First is to use Flink's bundled Hiv
 
 The following tables list all available bundled hive jars. You can pick one to the `/lib/` directory in Flink distribution.
 
-| Metastore version | Maven dependency                 | SQL Client JAR                                                                                                                                                                                                                                                                                                   |
-|:------------------|:---------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 2.3.0 - 2.3.9     | `flink-sql-connector-hive-2.3.9` | {{< stable >}}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hive-2.3.9{{< scala_version >}}/{{< version >}}/flink-sql-connector-hive-2.3.9{{< scala_version >}}-{{< version >}}.jar) {{< /stable >}}{{< unstable >}} Only available for stable releases {{< /unstable >}} |
-| 3.0.0 - 3.1.3     | `flink-sql-connector-hive-3.1.3` | {{< stable >}}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hive-3.1.3{{< scala_version >}}/{{< version >}}/flink-sql-connector-hive-3.1.3{{< scala_version >}}-{{< version >}}.jar) {{< /stable >}}{{< unstable >}} Only available for stable releases {{< /unstable >}} |
+| Metastore version | Maven dependency                  | SQL Client JAR                                                                                                                                                                                                                                                                                                     |
+|:------------------|:----------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 2.3.0 - 2.3.10    | `flink-sql-connector-hive-2.3.10` | {{< stable >}}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hive-2.3.10{{< scala_version >}}/{{< version >}}/flink-sql-connector-hive-2.3.10{{< scala_version >}}-{{< version >}}.jar) {{< /stable >}}{{< unstable >}} Only available for stable releases {{< /unstable >}} |
+| 3.0.0 - 3.1.3     | `flink-sql-connector-hive-3.1.3`  | {{< stable >}}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hive-3.1.3{{< scala_version >}}/{{< version >}}/flink-sql-connector-hive-3.1.3{{< scala_version >}}-{{< version >}}.jar) {{< /stable >}}{{< unstable >}} Only available for stable releases {{< /unstable >}}   |
 
 #### User defined dependencies
 
@@ -106,7 +107,7 @@ Please find the required dependencies for different Hive major versions below.
    /lib
 
        // Flink's Hive connector.Contains flink-hadoop-compatibility and flink-orc jars
-       flink-connector-hive{{< scala_version >}}-{{< version >}}.jar
+       flink-connector-hive-{{< version >}}.jar
 
        // Hive dependencies
        hive-exec-2.3.4.jar
@@ -122,7 +123,7 @@ Please find the required dependencies for different Hive major versions below.
    /lib
 
        // Flink's Hive connector
-       flink-connector-hive{{< scala_version >}}-{{< version >}}.jar
+       flink-connector-hive-{{< version >}}.jar
 
        // Hive dependencies
        hive-exec-3.1.0.jar
@@ -145,7 +146,7 @@ You're supposed to add dependencies as stated above at runtime.
 <!-- Flink Dependency -->
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-hive{{< scala_version >}}</artifactId>
+  <artifactId>flink-connector-hive</artifactId>
   <version>{{< version >}}</version>
   <scope>provided</scope>
 </dependency>

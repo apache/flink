@@ -22,17 +22,15 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.source.Boundedness;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.connector.testframe.environment.TestEnvironment;
 import org.apache.flink.connector.testframe.environment.TestEnvironmentSettings;
 import org.apache.flink.connector.testframe.external.ExternalSystemDataReader;
 import org.apache.flink.connector.testframe.external.sink.DataStreamSinkExternalContext;
-import org.apache.flink.connector.testframe.external.sink.DataStreamSinkV1ExternalContext;
 import org.apache.flink.connector.testframe.external.sink.DataStreamSinkV2ExternalContext;
 import org.apache.flink.connector.testframe.external.sink.TestingSinkSettings;
 import org.apache.flink.connector.testframe.junit.extensions.ConnectorTestingExtension;
@@ -40,19 +38,19 @@ import org.apache.flink.connector.testframe.junit.extensions.TestCaseInvocationC
 import org.apache.flink.connector.testframe.source.FromElementsSource;
 import org.apache.flink.connector.testframe.utils.CollectIteratorAssertions;
 import org.apache.flink.connector.testframe.utils.MetricQuerier;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.rest.RestClient;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
-import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.commons.math3.util.Precision;
@@ -80,13 +78,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.connector.testframe.utils.MetricQuerier.getJobDetails;
+import static org.apache.flink.core.execution.CheckpointingMode.AT_LEAST_ONCE;
+import static org.apache.flink.core.execution.CheckpointingMode.EXACTLY_ONCE;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.terminateJob;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForJobStatus;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondition;
-import static org.apache.flink.streaming.api.CheckpointingMode.AT_LEAST_ONCE;
-import static org.apache.flink.streaming.api.CheckpointingMode.EXACTLY_ONCE;
+import static org.apache.flink.streaming.api.CheckpointingMode.convertToCheckpointingMode;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -141,7 +140,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
                                 .build());
         execEnv.enableCheckpointing(50);
         DataStream<T> dataStream =
-                execEnv.fromCollection(testRecords)
+                execEnv.fromData(testRecords)
                         .name("sourceInSinkTest")
                         .setParallelism(1)
                         .returns(externalContext.getProducedType());
@@ -237,7 +236,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
                         TestEnvironmentSettings.builder()
                                 .setConnectorJarPaths(externalContext.getConnectorJarPaths())
                                 .build());
-        execEnv.setRestartStrategy(RestartStrategies.noRestart());
+        RestartStrategyUtils.configureNoRestartStrategy(execEnv);
 
         // Step 2: Generate test data
         final List<T> testRecords = generateTestData(sinkSettings, externalContext);
@@ -513,6 +512,20 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
                 });
     }
 
+    /**
+     * This method is required for downstream projects e.g. Flink connectors extending this test for
+     * the case when there should be supported Flink versions below 1.20. Could be removed together
+     * with dropping support for Flink 1.19.
+     */
+    @Deprecated
+    protected void checkResultWithSemantic(
+            ExternalSystemDataReader<T> reader,
+            List<T> testData,
+            org.apache.flink.streaming.api.CheckpointingMode semantic)
+            throws Exception {
+        checkResultWithSemantic(reader, testData, convertToCheckpointingMode(semantic));
+    }
+
     /** Compare the metrics. */
     private boolean compareSinkMetrics(
             MetricQuerier metricQuerier,
@@ -558,11 +571,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
             DataStreamSinkExternalContext<T> context,
             TestingSinkSettings sinkSettings) {
         try {
-            if (context instanceof DataStreamSinkV1ExternalContext) {
-                org.apache.flink.api.connector.sink.Sink<T, ?, ?, ?> sinkV1 =
-                        ((DataStreamSinkV1ExternalContext<T>) context).createSink(sinkSettings);
-                return dataStream.sinkTo(sinkV1);
-            } else if (context instanceof DataStreamSinkV2ExternalContext) {
+            if (context instanceof DataStreamSinkV2ExternalContext) {
                 Sink<T> sinkV2 =
                         ((DataStreamSinkV2ExternalContext<T>) context).createSink(sinkSettings);
                 return dataStream.sinkTo(sinkV2);
@@ -587,9 +596,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
      * </ul>
      */
     private String getSinkMetricFilter(DataStreamSinkExternalContext<T> context) {
-        if (context instanceof DataStreamSinkV1ExternalContext) {
-            return null;
-        } else if (context instanceof DataStreamSinkV2ExternalContext) {
+        if (context instanceof DataStreamSinkV2ExternalContext) {
             // See class `SinkTransformationTranslator`
             return "Writer";
         } else {
@@ -600,20 +607,21 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
 
     protected CollectResultIterator<T> addCollectSink(DataStream<T> stream) {
         TypeSerializer<T> serializer =
-                stream.getType().createSerializer(stream.getExecutionConfig());
+                stream.getType()
+                        .createSerializer(stream.getExecutionConfig().getSerializerConfig());
         String accumulatorName = "dataStreamCollect_" + UUID.randomUUID();
         CollectSinkOperatorFactory<T> factory =
                 new CollectSinkOperatorFactory<>(serializer, accumulatorName);
-        CollectSinkOperator<T> operator = (CollectSinkOperator<T>) factory.getOperator();
+
         CollectStreamSink<T> sink = new CollectStreamSink<>(stream, factory);
         sink.name("Data stream collect sink");
         stream.getExecutionEnvironment().addOperator(sink.getTransformation());
         return new CollectResultIterator<>(
-                operator.getOperatorIdFuture(),
+                accumulatorName,
                 serializer,
                 accumulatorName,
                 stream.getExecutionEnvironment().getCheckpointConfig(),
-                AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue().toMillis());
+                RpcOptions.ASK_TIMEOUT_DURATION.defaultValue().toMillis());
     }
 
     private void waitExpectedSizeData(CollectResultIterator<T> iterator, int targetNum) {

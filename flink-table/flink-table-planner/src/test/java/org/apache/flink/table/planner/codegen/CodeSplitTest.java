@@ -43,7 +43,7 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -60,12 +60,12 @@ import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Tests for code generations with code splitting. */
-public class CodeSplitTest {
+class CodeSplitTest {
 
     private final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 
     @Test
-    public void testJoinCondition() {
+    void testJoinCondition() {
         int numFields = 200;
 
         FlinkTypeFactory typeFactory = new FlinkTypeFactory(classLoader, FlinkTypeSystem.INSTANCE);
@@ -112,7 +112,7 @@ public class CodeSplitTest {
     }
 
     @Test
-    public void testHashFunction() {
+    void testHashFunction() {
         int numFields = 1000;
 
         RowType rowType = getIntRowType(numFields);
@@ -145,7 +145,7 @@ public class CodeSplitTest {
     }
 
     @Test
-    public void testRecordComparator() {
+    void testRecordComparator() {
         int numFields = 600;
 
         RowType rowType = getIntRowType(numFields);
@@ -189,7 +189,7 @@ public class CodeSplitTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testProjection() {
+    void testProjection() {
         int numFields = 1000;
 
         RowType rowType = getIntRowType(numFields);

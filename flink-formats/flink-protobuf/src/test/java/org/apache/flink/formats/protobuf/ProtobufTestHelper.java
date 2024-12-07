@@ -56,14 +56,15 @@ public class ProtobufTestHelper {
                 (Row) DataFormatConverters.getConverterForDataType(rowDataType).toExternal(rowData);
         TypeInformation<Row> rowTypeInfo =
                 (TypeInformation<Row>) TypeConversions.fromDataTypeToLegacyInfo(rowDataType);
-        DataStream<Row> rows = env.fromCollection(Collections.singletonList(row), rowTypeInfo);
+        DataStream<Row> rows = env.fromData(Collections.singletonList(row), rowTypeInfo);
 
         Table table = tableEnv.fromDataStream(rows);
         tableEnv.createTemporaryView("t", table);
         table = tableEnv.sqlQuery("select * from t");
-        List<RowData> resultRows =
-                tableEnv.toAppendStream(table, InternalTypeInfo.of(rowType)).executeAndCollect(1);
-        return resultRows.get(0);
+        List<Object> resultRows =
+                tableEnv.toDataStream(table, InternalTypeInfo.of(rowType).getDataType())
+                        .executeAndCollect(1);
+        return (RowData) resultRows.get(0);
     }
 
     public static byte[] rowToPbBytes(RowData row, Class messageClass) throws Exception {

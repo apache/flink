@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.logical;
 
-import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowOperator;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -31,7 +31,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * A windowing strategy that gets windows from input columns as window slice have been assigned and
  * attached to the physical columns. The window slice is usually identified by slice end timestamp.
  *
- * @see SlicingWindowOperator for more details about which windows can apply slicing.
+ * @see SlicingWindowProcessor for more details about which windows can apply slicing.
  */
 @JsonTypeName("SliceAttached")
 public class SliceAttachedWindowingStrategy extends WindowingStrategy {
@@ -54,7 +54,7 @@ public class SliceAttachedWindowingStrategy extends WindowingStrategy {
     public String toSummaryString(String[] inputFieldNames) {
         checkArgument(sliceEnd < inputFieldNames.length);
         String windowing = String.format("slice_end=[%s]", inputFieldNames[sliceEnd]);
-        return window.toSummaryString(windowing);
+        return window.toSummaryString(windowing, inputFieldNames);
     }
 
     public int getSliceEnd() {

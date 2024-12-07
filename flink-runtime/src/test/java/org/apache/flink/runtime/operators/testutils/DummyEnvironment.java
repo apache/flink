@@ -20,7 +20,10 @@ package org.apache.flink.runtime.operators.testutils;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
@@ -36,6 +39,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
@@ -45,6 +49,7 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
@@ -61,11 +66,14 @@ import java.util.Map;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
+/** The {@link DummyEnvironment} is used for test purpose. */
 public class DummyEnvironment implements Environment {
 
-    private final JobID jobId = new JobID();
+    private final JobInfo jobInfo = new JobInfoImpl(new JobID(), "DummyJob");
     private final JobVertexID jobVertexId = new JobVertexID();
+    private final JobType jobType = JobType.STREAMING;
     private final ExecutionAttemptID executionId;
     private final ExecutionConfig executionConfig = new ExecutionConfig();
     private final TaskInfo taskInfo;
@@ -76,7 +84,9 @@ public class DummyEnvironment implements Environment {
     private UserCodeClassLoader userClassLoader;
     private final Configuration taskConfiguration = new Configuration();
     private final ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory =
-            new ChannelStateWriteRequestExecutorFactory(jobId);
+            new ChannelStateWriteRequestExecutorFactory(jobInfo.getJobId());
+
+    private CheckpointStorageAccess checkpointStorageAccess;
 
     public DummyEnvironment() {
         this("Test Job", 1, 0, 1);
@@ -94,12 +104,12 @@ public class DummyEnvironment implements Environment {
 
     public DummyEnvironment(
             String taskName, int numSubTasks, int subTaskIndex, int maxParallelism) {
-        this.taskInfo = new TaskInfo(taskName, maxParallelism, subTaskIndex, numSubTasks, 0);
+        this.taskInfo = new TaskInfoImpl(taskName, maxParallelism, subTaskIndex, numSubTasks, 0);
         this.executionId =
                 createExecutionAttemptId(jobVertexId, subTaskIndex, taskInfo.getAttemptNumber());
         this.taskStateManager = new TestTaskStateManager();
         this.aggregateManager = new TestGlobalAggregateManager();
-        this.accumulatorRegistry = new AccumulatorRegistry(jobId, executionId);
+        this.accumulatorRegistry = new AccumulatorRegistry(jobInfo.getJobId(), executionId);
     }
 
     public void setKvStateRegistry(KvStateRegistry kvStateRegistry) {
@@ -117,7 +127,12 @@ public class DummyEnvironment implements Environment {
 
     @Override
     public JobID getJobID() {
-        return jobId;
+        return jobInfo.getJobId();
+    }
+
+    @Override
+    public JobType getJobType() {
+        return jobType;
     }
 
     @Override
@@ -211,7 +226,7 @@ public class DummyEnvironment implements Environment {
 
     @Override
     public TaskKvStateRegistry getTaskKvStateRegistry() {
-        return kvStateRegistry.createTaskRegistry(jobId, jobVertexId);
+        return kvStateRegistry.createTaskRegistry(jobInfo.getJobId(), jobVertexId);
     }
 
     @Override
@@ -281,5 +296,20 @@ public class DummyEnvironment implements Environment {
     @Override
     public ChannelStateWriteRequestExecutorFactory getChannelStateExecutorFactory() {
         return channelStateExecutorFactory;
+    }
+
+    @Override
+    public JobInfo getJobInfo() {
+        return jobInfo;
+    }
+
+    @Override
+    public void setCheckpointStorageAccess(CheckpointStorageAccess checkpointStorageAccess) {
+        this.checkpointStorageAccess = checkpointStorageAccess;
+    }
+
+    @Override
+    public CheckpointStorageAccess getCheckpointStorageAccess() {
+        return checkNotNull(checkpointStorageAccess);
     }
 }

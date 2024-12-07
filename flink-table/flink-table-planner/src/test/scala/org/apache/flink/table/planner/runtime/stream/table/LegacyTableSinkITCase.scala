@@ -17,32 +17,38 @@
  */
 package org.apache.flink.table.planner.runtime.stream.table
 
+import org.apache.flink.api.common.eventtime._
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.core.testutils.EachCallbackWrapper
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.planner.runtime.utils.{TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
+import org.apache.flink.table.legacy.api.{TableSchema, Types}
+import org.apache.flink.table.planner.runtime.utils.{StreamingEnvUtil, TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.planner.runtime.utils.TestData.{smallTupleData3, tupleData3, tupleData5}
 import org.apache.flink.table.planner.utils.{MemoryTableSourceSinkUtil, TableTestUtil}
 import org.apache.flink.table.sinks._
-import org.apache.flink.table.utils.LegacyRowResource
-import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
+import org.apache.flink.table.utils.LegacyRowExtension
+import org.apache.flink.test.junit5.MiniClusterExtension
+import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 
-import org.junit.{Rule, Test}
-import org.junit.Assert._
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.RegisterExtension
 
 import java.io.File
 import java.util.TimeZone
 
 import scala.collection.JavaConverters._
 
-class LegacyTableSinkITCase extends AbstractTestBase {
+class LegacyTableSinkITCase {
 
-  @Rule
-  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+  @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
+    new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
   @Test
   def testStreamTableSink(): Unit = {
@@ -66,10 +72,22 @@ class LegacyTableSinkITCase extends AbstractTestBase {
           Array[String]("nullableCol", "c", "b"),
           Array[TypeInformation[_]](Types.INT, Types.STRING, Types.SQL_TIMESTAMP)))
 
-    val input = env
-      .fromCollection(tupleData3)
-      .assignAscendingTimestamps(_._2)
+    val input = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .assignTimestampsAndWatermarks(new WatermarkStrategy[(Int, Long, String)]() {
+
+        override def createWatermarkGenerator(context: WatermarkGeneratorSupplier.Context)
+            : WatermarkGenerator[(Int, Long, String)] = {
+          new AscendingTimestampsWatermarks[(Int, Long, String)]
+        }
+
+        override def createTimestampAssigner(
+            context: TimestampAssignerSupplier.Context): TimestampAssigner[(Int, Long, String)] = {
+          (e: (Int, Long, String), _: Long) => e._2
+        }
+      })
       .map(x => x)
+      .returns(implicitly[TypeInformation[(Int, Long, String)]])
       .setParallelism(4) // increase DOP to 4
 
     val table = input
@@ -98,9 +116,20 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     env.getConfig.enableObjectReuse()
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
-    val t = env
-      .fromCollection(tupleData3)
-      .assignAscendingTimestamps(_._1.toLong)
+    val t = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .assignTimestampsAndWatermarks(new WatermarkStrategy[(Int, Long, String)]() {
+
+        override def createWatermarkGenerator(context: WatermarkGeneratorSupplier.Context)
+            : WatermarkGenerator[(Int, Long, String)] = {
+          new AscendingTimestampsWatermarks[(Int, Long, String)]
+        }
+
+        override def createTimestampAssigner(
+            context: TimestampAssignerSupplier.Context): TimestampAssigner[(Int, Long, String)] = {
+          (e: (Int, Long, String), _: Long) => e._1.toLong
+        }
+      })
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
     val sink = new TestingAppendTableSink(TimeZone.getDefault)
@@ -135,8 +164,8 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     env.getConfig.enableObjectReuse()
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
-    val t = env
-      .fromCollection(smallTupleData3)
+    val t = StreamingEnvUtil
+      .fromCollection(env, smallTupleData3)
       .toTable(tEnv, 'id, 'num, 'text)
     tEnv.createTemporaryView("src", t)
 
@@ -162,8 +191,12 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     env.getConfig.enableObjectReuse()
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
-    val ds1 = env.fromCollection(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
-    val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, smallTupleData3)
+      .toTable(tEnv, 'a, 'b, 'c)
+    val ds2 = StreamingEnvUtil
+      .fromCollection(env, tupleData5)
+      .toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
     val sink = new TestingAppendTableSink
     tEnv
@@ -191,9 +224,20 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     env.getConfig.enableObjectReuse()
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
-    val t = env
-      .fromCollection(tupleData3)
-      .assignAscendingTimestamps(_._1.toLong)
+    val t = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .assignTimestampsAndWatermarks(new WatermarkStrategy[(Int, Long, String)]() {
+
+        override def createWatermarkGenerator(context: WatermarkGeneratorSupplier.Context)
+            : WatermarkGenerator[(Int, Long, String)] = {
+          new AscendingTimestampsWatermarks[(Int, Long, String)]
+        }
+
+        override def createTimestampAssigner(
+            context: TimestampAssignerSupplier.Context): TimestampAssigner[(Int, Long, String)] = {
+          (e: (Int, Long, String), _: Long) => e._1.toLong
+        }
+      })
       .toTable(tEnv, 'id, 'num, 'text)
 
     val sink = new TestingRetractTableSink()
@@ -231,9 +275,20 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     env.getConfig.enableObjectReuse()
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
-    val t = env
-      .fromCollection(tupleData3)
-      .assignAscendingTimestamps(_._1.toLong)
+    val t = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .assignTimestampsAndWatermarks(new WatermarkStrategy[(Int, Long, String)]() {
+
+        override def createWatermarkGenerator(context: WatermarkGeneratorSupplier.Context)
+            : WatermarkGenerator[(Int, Long, String)] = {
+          new AscendingTimestampsWatermarks[(Int, Long, String)]
+        }
+
+        override def createTimestampAssigner(
+            context: TimestampAssignerSupplier.Context): TimestampAssigner[(Int, Long, String)] = {
+          (e: (Int, Long, String), _: Long) => e._1.toLong
+        }
+      })
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
     val sink = new TestingRetractTableSink(TimeZone.getDefault)
@@ -252,8 +307,8 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     table.executeInsert("retractSink").await()
 
     assertFalse(
-      "Received retraction messages for append only table",
-      sink.getRawResults.exists(_.startsWith("(false,")))
+      sink.getRawResults.exists(_.startsWith("(false,")),
+      "Received retraction messages for append only table")
 
     val retracted = sink.getRetractResults.sorted
     val expected = List(
@@ -273,9 +328,20 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     env.getConfig.enableObjectReuse()
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
-    val t = env
-      .fromCollection(tupleData3)
-      .assignAscendingTimestamps(_._1.toLong)
+    val t = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .assignTimestampsAndWatermarks(new WatermarkStrategy[(Int, Long, String)]() {
+
+        override def createWatermarkGenerator(context: WatermarkGeneratorSupplier.Context)
+            : WatermarkGenerator[(Int, Long, String)] = {
+          new AscendingTimestampsWatermarks[(Int, Long, String)]
+        }
+
+        override def createTimestampAssigner(
+            context: TimestampAssignerSupplier.Context): TimestampAssigner[(Int, Long, String)] = {
+          (e: (Int, Long, String), _: Long) => e._1.toLong
+        }
+      })
       .toTable(tEnv, 'id, 'num, 'text)
 
     val sink = new TestingUpsertTableSink(Array(0, 2), TimeZone.getDefault).configure(
@@ -295,8 +361,8 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     table.executeInsert("upsertSink").await()
 
     assertTrue(
-      "Results must include delete messages",
-      sink.getRawResults.exists(_.startsWith("(false,")))
+      sink.getRawResults.exists(_.startsWith("(false,")),
+      "Results must include delete messages")
 
     val retracted = sink.getUpsertResults.sorted
     val expected = List(
@@ -313,9 +379,20 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     env.getConfig.enableObjectReuse()
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
-    val t = env
-      .fromCollection(tupleData3)
-      .assignAscendingTimestamps(_._1.toLong)
+    val t = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .assignTimestampsAndWatermarks(new WatermarkStrategy[(Int, Long, String)]() {
+
+        override def createWatermarkGenerator(context: WatermarkGeneratorSupplier.Context)
+            : WatermarkGenerator[(Int, Long, String)] = {
+          new AscendingTimestampsWatermarks[(Int, Long, String)]
+        }
+
+        override def createTimestampAssigner(
+            context: TimestampAssignerSupplier.Context): TimestampAssigner[(Int, Long, String)] = {
+          (e: (Int, Long, String), _: Long) => e._1.toLong
+        }
+      })
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
     val sink = new TestingUpsertTableSink(Array(0, 1, 2), TimeZone.getDefault).configure(
@@ -333,8 +410,8 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     table.executeInsert("upsertSink").await()
 
     assertFalse(
-      "Received retraction messages for append only table",
-      sink.getRawResults.exists(_.startsWith("(false,")))
+      sink.getRawResults.exists(_.startsWith("(false,")),
+      "Received retraction messages for append only table")
 
     val retracted = sink.getUpsertResults.sorted
     val expected = List(
@@ -358,9 +435,20 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     env.getConfig.enableObjectReuse()
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
-    val t = env
-      .fromCollection(tupleData3)
-      .assignAscendingTimestamps(_._1.toLong)
+    val t = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .assignTimestampsAndWatermarks(new WatermarkStrategy[(Int, Long, String)]() {
+
+        override def createWatermarkGenerator(context: WatermarkGeneratorSupplier.Context)
+            : WatermarkGenerator[(Int, Long, String)] = {
+          new AscendingTimestampsWatermarks[(Int, Long, String)]
+        }
+
+        override def createTimestampAssigner(
+            context: TimestampAssignerSupplier.Context): TimestampAssigner[(Int, Long, String)] = {
+          (e: (Int, Long, String), _: Long) => e._1.toLong
+        }
+      })
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
     val sink = new TestingUpsertTableSink(Array(0, 1, 2), TimeZone.getDefault)
@@ -386,8 +474,8 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     table.executeInsert("upsertSink").await()
 
     assertFalse(
-      "Received retraction messages for append only table",
-      sink.getRawResults.exists(_.startsWith("(false,")))
+      sink.getRawResults.exists(_.startsWith("(false,")),
+      "Received retraction messages for append only table")
 
     val retracted = sink.getUpsertResults.sorted
     val expected = List(
@@ -411,9 +499,20 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     env.getConfig.enableObjectReuse()
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
-    val t = env
-      .fromCollection(tupleData3)
-      .assignAscendingTimestamps(_._1.toLong)
+    val t = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .assignTimestampsAndWatermarks(new WatermarkStrategy[(Int, Long, String)]() {
+
+        override def createWatermarkGenerator(context: WatermarkGeneratorSupplier.Context)
+            : WatermarkGenerator[(Int, Long, String)] = {
+          new AscendingTimestampsWatermarks[(Int, Long, String)]
+        }
+
+        override def createTimestampAssigner(
+            context: TimestampAssignerSupplier.Context): TimestampAssigner[(Int, Long, String)] = {
+          (e: (Int, Long, String), _: Long) => e._1.toLong
+        }
+      })
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
     val sink = new TestingUpsertTableSink(Array(0), TimeZone.getDefault)
@@ -433,8 +532,8 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     table.executeInsert("upsertSink").await()
 
     assertFalse(
-      "Received retraction messages for append only table",
-      sink.getRawResults.exists(_.startsWith("(false,")))
+      sink.getRawResults.exists(_.startsWith("(false,")),
+      "Received retraction messages for append only table")
 
     val retracted = sink.getRawResults.sorted
     val expected = List(
@@ -458,9 +557,20 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     env.getConfig.enableObjectReuse()
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
-    val t = env
-      .fromCollection(tupleData3)
-      .assignAscendingTimestamps(_._1.toLong)
+    val t = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .assignTimestampsAndWatermarks(new WatermarkStrategy[(Int, Long, String)]() {
+
+        override def createWatermarkGenerator(context: WatermarkGeneratorSupplier.Context)
+            : WatermarkGenerator[(Int, Long, String)] = {
+          new AscendingTimestampsWatermarks[(Int, Long, String)]
+        }
+
+        override def createTimestampAssigner(
+            context: TimestampAssignerSupplier.Context): TimestampAssigner[(Int, Long, String)] = {
+          (e: (Int, Long, String), _: Long) => e._1.toLong
+        }
+      })
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
     val sink = new TestingUpsertTableSink(Array(0), TimeZone.getDefault)
@@ -480,8 +590,8 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     table.executeInsert("upsertSink").await()
 
     assertFalse(
-      "Received retraction messages for append only table",
-      sink.getRawResults.exists(_.startsWith("(false,")))
+      sink.getRawResults.exists(_.startsWith("(false,")),
+      "Received retraction messages for append only table")
 
     val retracted = sink.getRawResults.sorted
     val expected = List(
@@ -506,9 +616,20 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     env.setParallelism(4)
 
-    val t = env
-      .fromCollection(tupleData3)
-      .assignAscendingTimestamps(_._1.toLong)
+    val t = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .assignTimestampsAndWatermarks(new WatermarkStrategy[(Int, Long, String)]() {
+
+        override def createWatermarkGenerator(context: WatermarkGeneratorSupplier.Context)
+            : WatermarkGenerator[(Int, Long, String)] = {
+          new AscendingTimestampsWatermarks[(Int, Long, String)]
+        }
+
+        override def createTimestampAssigner(
+            context: TimestampAssignerSupplier.Context): TimestampAssigner[(Int, Long, String)] = {
+          (e: (Int, Long, String), _: Long) => e._1.toLong
+        }
+      })
       .toTable(tEnv, 'id, 'num, 'text)
 
     val sink = new TestingUpsertTableSink(Array(0))
@@ -539,15 +660,26 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     assertEquals(expectedWithFilter.sorted, sink.getUpsertResults.sorted)
   }
 
-  @Test(expected = classOf[TableException])
-  def testToAppendStreamMultiRowtime(): Unit = {
+  @Test
+  def testToDataStreamMultiRowtime(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
-    val t = env
-      .fromCollection(tupleData3)
-      .assignAscendingTimestamps(_._1.toLong)
+    val t = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .assignTimestampsAndWatermarks(new WatermarkStrategy[(Int, Long, String)]() {
+
+        override def createWatermarkGenerator(context: WatermarkGeneratorSupplier.Context)
+            : WatermarkGenerator[(Int, Long, String)] = {
+          new AscendingTimestampsWatermarks[(Int, Long, String)]
+        }
+
+        override def createTimestampAssigner(
+            context: TimestampAssignerSupplier.Context): TimestampAssigner[(Int, Long, String)] = {
+          (e: (Int, Long, String), _: Long) => e._1.toLong
+        }
+      })
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
     val r = t
@@ -555,18 +687,30 @@ class LegacyTableSinkITCase extends AbstractTestBase {
       .groupBy('num, 'w)
       .select('num, 'w.rowtime, 'w.rowtime.as('rowtime2))
 
-    r.toAppendStream[Row]
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => r.toDataStream)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testToRetractStreamMultiRowtime(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
-    val t = env
-      .fromCollection(tupleData3)
-      .assignAscendingTimestamps(_._1.toLong)
+    val t = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
+      .assignTimestampsAndWatermarks(new WatermarkStrategy[(Int, Long, String)]() {
+
+        override def createWatermarkGenerator(context: WatermarkGeneratorSupplier.Context)
+            : WatermarkGenerator[(Int, Long, String)] = {
+          new AscendingTimestampsWatermarks[(Int, Long, String)]
+        }
+
+        override def createTimestampAssigner(
+            context: TimestampAssignerSupplier.Context): TimestampAssigner[(Int, Long, String)] = {
+          (e: (Int, Long, String), _: Long) => e._1.toLong
+        }
+      })
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
     val r = t
@@ -574,7 +718,8 @@ class LegacyTableSinkITCase extends AbstractTestBase {
       .groupBy('num, 'w)
       .select('num, 'w.rowtime, 'w.rowtime.as('rowtime2))
 
-    r.toRetractStream[Row]
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => r.toRetractStream[Row])
   }
 
   @Test
@@ -593,8 +738,8 @@ class LegacyTableSinkITCase extends AbstractTestBase {
 
     MemoryTableSourceSinkUtil.createDataTypeAppendStreamTable(tEnv, schema, "testSink")
 
-    val table = env
-      .fromCollection(tupleData3)
+    val table = StreamingEnvUtil
+      .fromCollection(env, tupleData3)
       .toTable(tEnv, 'a, 'b, 'c)
       .where('a > 20)
       .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
@@ -605,4 +750,15 @@ class LegacyTableSinkITCase extends AbstractTestBase {
 
     TestBaseUtils.compareResultAsText(results, expected)
   }
+}
+
+object LegacyTableSinkITCase {
+
+  @RegisterExtension
+  private val _: MiniClusterExtension = new MiniClusterExtension(
+    () =>
+      new MiniClusterResourceConfiguration.Builder()
+        .setNumberTaskManagers(1)
+        .setNumberSlotsPerTaskManager(4)
+        .build())
 }

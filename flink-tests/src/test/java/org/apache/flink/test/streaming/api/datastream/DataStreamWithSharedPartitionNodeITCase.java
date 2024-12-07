@@ -22,7 +22,7 @@ import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 
 import org.junit.ClassRule;
@@ -57,7 +57,7 @@ public class DataStreamWithSharedPartitionNodeITCase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         DataStream<Integer> source =
-                env.fromElements(1, 2, 3, 4).partitionCustom(new TestPartitioner(), f -> f);
+                env.fromData(1, 2, 3, 4).partitionCustom(new TestPartitioner(), f -> f);
         source.addSink(new CollectSink("first"));
         source.addSink(new CollectSink("second")).setParallelism(2);
 
@@ -98,7 +98,7 @@ public class DataStreamWithSharedPartitionNodeITCase {
         @Override
         public void invoke(Integer value, Context context) throws Exception {
             synchronized (resultLock) {
-                String key = name + "-" + getRuntimeContext().getIndexOfThisSubtask();
+                String key = name + "-" + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
                 result.compute(key, (k, v) -> v == null ? new ArrayList<>() : v).add(value);
             }
         }

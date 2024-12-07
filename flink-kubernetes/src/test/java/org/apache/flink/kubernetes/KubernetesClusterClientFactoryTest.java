@@ -39,7 +39,7 @@ class KubernetesClusterClientFactoryTest {
 
     private void testKubernetesClusterClientFactoryDiscoveryHelper(final String targetName) {
         final Configuration configuration = new Configuration();
-        configuration.setString(DeploymentOptions.TARGET, targetName);
+        configuration.set(DeploymentOptions.TARGET, targetName);
 
         final ClusterClientServiceLoader serviceLoader = new DefaultClusterClientServiceLoader();
         final ClusterClientFactory<String> factory =

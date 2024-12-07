@@ -20,11 +20,10 @@ package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.UUID;
@@ -35,11 +34,9 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class AsyncCallsTest extends TestLogger {
+class AsyncCallsTest {
 
     // ------------------------------------------------------------------------
     //  shared test members
@@ -49,14 +46,13 @@ public class AsyncCallsTest extends TestLogger {
 
     private static RpcService rpcService;
 
-    @BeforeClass
-    public static void setup() throws Exception {
+    @BeforeAll
+    static void setup() throws Exception {
         rpcService = RpcSystem.load().localServiceBuilder(new Configuration()).createAndStart();
     }
 
-    @AfterClass
-    public static void shutdown()
-            throws InterruptedException, ExecutionException, TimeoutException {
+    @AfterAll
+    static void shutdown() throws InterruptedException, ExecutionException, TimeoutException {
         rpcService.closeAsync().get();
     }
 
@@ -65,12 +61,12 @@ public class AsyncCallsTest extends TestLogger {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testScheduleWithNoDelay() throws Exception {
+    void testScheduleWithNoDelay() throws Exception {
         runScheduleWithNoDelayTest(TestEndpoint::new);
     }
 
     @Test
-    public void testFencedScheduleWithNoDelay() throws Exception {
+    void testFencedScheduleWithNoDelay() throws Exception {
         runScheduleWithNoDelayTest(FencedTestEndpoint::new);
     }
 
@@ -117,22 +113,24 @@ public class AsyncCallsTest extends TestLogger {
                             Duration.ofSeconds(30L));
 
             String str = result.get(30, TimeUnit.SECONDS);
-            assertEquals("test", str);
+            assertThat(str).isEqualTo("test");
 
             // validate that no concurrent access happened
-            assertFalse("Rpc Endpoint had concurrent access", concurrentAccess.get());
+            assertThat(concurrentAccess)
+                    .withFailMessage("Rpc Endpoint had concurrent access")
+                    .isFalse();
         } finally {
             RpcUtils.terminateRpcEndpoint(rpcEndpoint);
         }
     }
 
     @Test
-    public void testScheduleWithDelay() throws Exception {
+    void testScheduleWithDelay() throws Exception {
         runScheduleWithDelayTest(TestEndpoint::new);
     }
 
     @Test
-    public void testFencedScheduleWithDelay() throws Exception {
+    void testFencedScheduleWithDelay() throws Exception {
         runScheduleWithDelayTest(FencedTestEndpoint::new);
     }
 
@@ -178,9 +176,13 @@ public class AsyncCallsTest extends TestLogger {
             final long stop = System.nanoTime();
 
             // validate that no concurrent access happened
-            assertFalse("Rpc Endpoint had concurrent access", concurrentAccess.get());
+            assertThat(concurrentAccess)
+                    .withFailMessage("Rpc Endpoint had concurrent access")
+                    .isFalse();
 
-            assertTrue("call was not properly delayed", ((stop - start) / 1_000_000) >= delay);
+            assertThat(delay)
+                    .withFailMessage("call was not properly delayed")
+                    .isLessThanOrEqualTo((stop - start) / 1_000_000);
         } finally {
             RpcUtils.terminateRpcEndpoint(rpcEndpoint);
         }

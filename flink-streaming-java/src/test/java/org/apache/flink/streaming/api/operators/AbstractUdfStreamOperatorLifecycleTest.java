@@ -32,9 +32,8 @@ import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
@@ -42,11 +41,10 @@ import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTest;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.Serializable;
 import java.lang.reflect.Method;
@@ -56,13 +54,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** This test secures the lifecycle of AbstractUdfStreamOperator, including it's UDF handling. */
-public class AbstractUdfStreamOperatorLifecycleTest {
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+class AbstractUdfStreamOperatorLifecycleTest {
+
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     private static final List<String> EXPECTED_CALL_ORDER_FULL =
             Arrays.asList(
@@ -99,6 +99,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
                     + "finish[], "
                     + "getCurrentKey[], "
                     + "getMetricGroup[], "
+                    + "getOperatorAttributes[], "
                     + "getOperatorID[], "
                     + "initializeState[interface org.apache.flink.streaming.api.operators.StreamTaskStateInitializer], "
                     + "notifyCheckpointAborted[long], "
@@ -112,27 +113,27 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 
     private static final String ALL_METHODS_RICH_FUNCTION =
             "[close[], getIterationRuntimeContext[], getRuntimeContext[]"
-                    + ", open[class org.apache.flink.configuration.Configuration], open[interface org.apache.flink.api.common.functions.OpenContext], setRuntimeContext[interface "
+                    + ", open[interface org.apache.flink.api.common.functions.OpenContext], setRuntimeContext[interface "
                     + "org.apache.flink.api.common.functions.RuntimeContext]]";
 
     private static final List<String> ACTUAL_ORDER_TRACKING =
             Collections.synchronizedList(new ArrayList<String>(EXPECTED_CALL_ORDER_FULL.size()));
 
     @Test
-    public void testAllMethodsRegisteredInTest() {
+    void testAllMethodsRegisteredInTest() {
         List<String> methodsWithSignatureString = new ArrayList<>();
         for (Method method : StreamOperator.class.getMethods()) {
             methodsWithSignatureString.add(
                     method.getName() + Arrays.toString(method.getParameterTypes()));
         }
         Collections.sort(methodsWithSignatureString);
-        Assert.assertEquals(
-                "It seems like new methods have been introduced to "
-                        + StreamOperator.class
-                        + ". Please register them with this test and ensure to document their position in the lifecycle "
-                        + "(if applicable).",
-                ALL_METHODS_STREAM_OPERATOR,
-                methodsWithSignatureString.toString());
+        assertThat(methodsWithSignatureString)
+                .as(
+                        "It seems like new methods have been introduced to "
+                                + StreamOperator.class
+                                + ". Please register them with this test and ensure to document their position in the lifecycle "
+                                + "(if applicable).")
+                .hasToString(ALL_METHODS_STREAM_OPERATOR);
 
         methodsWithSignatureString = new ArrayList<>();
         for (Method method : RichFunction.class.getMethods()) {
@@ -140,17 +141,17 @@ public class AbstractUdfStreamOperatorLifecycleTest {
                     method.getName() + Arrays.toString(method.getParameterTypes()));
         }
         Collections.sort(methodsWithSignatureString);
-        Assert.assertEquals(
-                "It seems like new methods have been introduced to "
-                        + RichFunction.class
-                        + ". Please register them with this test and ensure to document their position in the lifecycle "
-                        + "(if applicable).",
-                ALL_METHODS_RICH_FUNCTION,
-                methodsWithSignatureString.toString());
+        assertThat(methodsWithSignatureString)
+                .as(
+                        "It seems like new methods have been introduced to "
+                                + RichFunction.class
+                                + ". Please register them with this test and ensure to document their position in the lifecycle "
+                                + "(if applicable).")
+                .hasToString(ALL_METHODS_RICH_FUNCTION);
     }
 
     @Test
-    public void testLifeCycleFull() throws Exception {
+    void testLifeCycleFull() throws Exception {
         ACTUAL_ORDER_TRACKING.clear();
 
         Configuration taskManagerConfig = new Configuration();
@@ -159,7 +160,6 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 
         cfg.setStreamOperator(new LifecycleTrackingStreamSource<>(srcFun, true));
         cfg.setOperatorID(new OperatorID());
-        cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         try (ShuffleEnvironment shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build()) {
             Task task =
@@ -176,13 +176,13 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 
             // wait for clean termination
             task.getExecutingThread().join();
-            assertEquals(ExecutionState.FINISHED, task.getExecutionState());
-            assertEquals(EXPECTED_CALL_ORDER_FULL, ACTUAL_ORDER_TRACKING);
+            assertThat(task.getExecutionState()).isEqualTo(ExecutionState.FINISHED);
+            assertThat(ACTUAL_ORDER_TRACKING).isEqualTo(EXPECTED_CALL_ORDER_FULL);
         }
     }
 
     @Test
-    public void testLifeCycleCancel() throws Exception {
+    void testLifeCycleCancel() throws Exception {
         ACTUAL_ORDER_TRACKING.clear();
 
         Configuration taskManagerConfig = new Configuration();
@@ -190,7 +190,6 @@ public class AbstractUdfStreamOperatorLifecycleTest {
         MockSourceFunction srcFun = new MockSourceFunction();
         cfg.setStreamOperator(new LifecycleTrackingStreamSource<>(srcFun, false));
         cfg.setOperatorID(new OperatorID());
-        cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         try (ShuffleEnvironment shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build()) {
             Task task =
@@ -209,8 +208,8 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 
             // wait for clean termination
             task.getExecutingThread().join();
-            assertEquals(ExecutionState.CANCELED, task.getExecutionState());
-            assertEquals(EXPECTED_CALL_ORDER_CANCEL_RUNNING, ACTUAL_ORDER_TRACKING);
+            assertThat(task.getExecutionState()).isEqualTo(ExecutionState.CANCELED);
+            assertThat(ACTUAL_ORDER_TRACKING).isEqualTo(EXPECTED_CALL_ORDER_CANCEL_RUNNING);
         }
     }
 
@@ -278,7 +277,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
         }
 
         @Override
-        public void setup(
+        protected void setup(
                 StreamTask<?, ?> containingTask,
                 StreamConfig config,
                 Output<StreamRecord<OUT>> output) {
@@ -302,8 +301,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
                                         LifecycleTrackingStreamSource.runFinish.trigger();
                                     }
                                 } catch (Exception e) {
-                                    e.printStackTrace();
-                                    Assert.fail();
+                                    fail(e);
                                 }
                             }
                         };

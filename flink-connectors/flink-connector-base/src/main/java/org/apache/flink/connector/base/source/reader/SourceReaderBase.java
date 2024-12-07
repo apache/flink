@@ -107,23 +107,27 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
     @Nullable protected final RecordEvaluator<T> eofRecordEvaluator;
 
+    /**
+     * The primary constructor for the source reader.
+     *
+     * <p>The reader will use a handover queue sized as configured via {@link
+     * SourceReaderOptions#ELEMENT_QUEUE_CAPACITY}.
+     */
     public SourceReaderBase(
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             SplitFetcherManager<E, SplitT> splitFetcherManager,
             RecordEmitter<E, T, SplitStateT> recordEmitter,
             Configuration config,
             SourceReaderContext context) {
-        this(elementsQueue, splitFetcherManager, recordEmitter, null, config, context);
+        this(splitFetcherManager, recordEmitter, null, config, context);
     }
 
     public SourceReaderBase(
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             SplitFetcherManager<E, SplitT> splitFetcherManager,
             RecordEmitter<E, T, SplitStateT> recordEmitter,
             @Nullable RecordEvaluator<T> eofRecordEvaluator,
             Configuration config,
             SourceReaderContext context) {
-        this.elementsQueue = elementsQueue;
+        this.elementsQueue = splitFetcherManager.getQueue();
         this.splitFetcherManager = splitFetcherManager;
         this.recordEmitter = recordEmitter;
         this.splitStates = new HashMap<>();
@@ -308,6 +312,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
     }
 
     // -------------------- Abstract method to allow different implementations ------------------
+
     /** Handles the finished splits to clean the state if needed. */
     protected abstract void onSplitFinished(Map<String, SplitStateT> finishedSplitIds);
 

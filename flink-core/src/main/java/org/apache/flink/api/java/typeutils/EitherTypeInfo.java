@@ -20,7 +20,7 @@ package org.apache.flink.api.java.typeutils;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.EitherSerializer;
@@ -100,8 +100,8 @@ public class EitherTypeInfo<L, R> extends TypeInformation<Either<L, R>> {
 
     @Override
     @PublicEvolving
-    public TypeSerializer<Either<L, R>> createSerializer(ExecutionConfig config) {
-        return new EitherSerializer<L, R>(
+    public TypeSerializer<Either<L, R>> createSerializer(SerializerConfig config) {
+        return new EitherSerializer<>(
                 leftType.createSerializer(config), rightType.createSerializer(config));
     }
 

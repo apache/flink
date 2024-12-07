@@ -67,8 +67,8 @@ public class FsStateChangelogStorageFactory implements StateChangelogStorageFact
             File newFolder,
             Duration uploadTimeout,
             int maxUploadAttempts) {
-        configuration.setString(STATE_CHANGE_LOG_STORAGE, IDENTIFIER);
-        configuration.setString(BASE_PATH, newFolder.getAbsolutePath());
+        configuration.set(STATE_CHANGE_LOG_STORAGE, IDENTIFIER);
+        configuration.set(BASE_PATH, newFolder.getAbsolutePath());
         configuration.set(UPLOAD_TIMEOUT, uploadTimeout);
         configuration.set(RETRY_MAX_ATTEMPTS, maxUploadAttempts);
     }

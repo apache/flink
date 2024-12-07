@@ -160,7 +160,7 @@ public class CountWindowAverage extends RichFlatMapFunction<Tuple2<Long, Long>, 
     }
 
     @Override
-    public void open(Configuration config) {
+    public void open(OpenContext ctx) {
         ValueStateDescriptor<Tuple2<Long, Long>> descriptor =
                 new ValueStateDescriptor<>(
                         "average", // the state name
@@ -302,10 +302,10 @@ env.execute()
 ```java
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.time.Time;
+import java.time.Duration;
 
 StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
+    .newBuilder(Duration.ofSeconds(1))
     .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
     .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
     .build();
@@ -318,10 +318,10 @@ stateDescriptor.enableTimeToLive(ttlConfig);
 ```scala
 import org.apache.flink.api.common.state.StateTtlConfig
 import org.apache.flink.api.common.state.ValueStateDescriptor
-import org.apache.flink.api.common.time.Time
+import java.time.Duration
 
 val ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
+    .newBuilder(Duration.ofSeconds(1))
     .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
     .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
     .build
@@ -337,7 +337,7 @@ from pyflink.common.typeinfo import Types
 from pyflink.datastream.state import ValueStateDescriptor, StateTtlConfig
 
 ttl_config = StateTtlConfig \
-  .new_builder(Time.seconds(1)) \
+  .new_builder(Duration.ofSeconds(1)) \
   .set_update_type(StateTtlConfig.UpdateType.OnCreateAndWrite) \
   .set_state_visibility(StateTtlConfig.StateVisibility.NeverReturnExpired) \
   .build()
@@ -399,7 +399,7 @@ Heap state backend 会额外存储一个包括用户状态以及时间戳的 Jav
 import org.apache.flink.api.common.state.StateTtlConfig;
 
 StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
+    .newBuilder(Duration.ofSeconds(1))
     .disableCleanupInBackground()
     .build();
 ```
@@ -409,7 +409,7 @@ StateTtlConfig ttlConfig = StateTtlConfig
 import org.apache.flink.api.common.state.StateTtlConfig
 
 val ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
+    .newBuilder(Duration.ofSeconds(1))
     .disableCleanupInBackground
     .build
 ```
@@ -420,7 +420,7 @@ from pyflink.common.time import Time
 from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
-  .new_builder(Time.seconds(1)) \
+  .new_builder(Duration.ofSeconds(1)) \
   .disable_cleanup_in_background() \
   .build()
 ```
@@ -438,10 +438,10 @@ ttl_config = StateTtlConfig \
 {{< tab "Java" >}}
 ```java
 import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.time.Time;
+import java.time.Duration;
 
 StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
+    .newBuilder(Duration.ofSeconds(1))
     .cleanupFullSnapshot()
     .build();
 ```
@@ -449,10 +449,10 @@ StateTtlConfig ttlConfig = StateTtlConfig
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.api.common.state.StateTtlConfig
-import org.apache.flink.api.common.time.Time
+import java.time.Duration
 
 val ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
+    .newBuilder(Duration.ofSeconds(1))
     .cleanupFullSnapshot
     .build
 ```
@@ -463,7 +463,7 @@ from pyflink.common.time import Time
 from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
-  .new_builder(Time.seconds(1)) \
+  .new_builder(Duration.ofSeconds(1)) \
   .cleanup_full_snapshot() \
   .build()
 ```
@@ -487,7 +487,7 @@ ttl_config = StateTtlConfig \
 ```java
 import org.apache.flink.api.common.state.StateTtlConfig;
  StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
+    .newBuilder(Duration.ofSeconds(1))
     .cleanupIncrementally(10, true)
     .build();
 ```
@@ -496,7 +496,7 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 ```scala
 import org.apache.flink.api.common.state.StateTtlConfig
 val ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
+    .newBuilder(Duration.ofSeconds(1))
     .cleanupIncrementally(10, true)
     .build
 ```
@@ -507,7 +507,7 @@ from pyflink.common.time import Time
 from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
-  .new_builder(Time.seconds(1)) \
+  .new_builder(Duration.ofSeconds(1)) \
   .cleanup_incrementally(10, True) \
   .build()
 ```
@@ -537,8 +537,8 @@ Flink 提供的 RocksDB 压缩过滤器会在压缩时过滤掉已经过期的�
 import org.apache.flink.api.common.state.StateTtlConfig;
 
 StateTtlConfig ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .cleanupInRocksdbCompactFilter(1000, Time.hours(1))
+    .newBuilder(Duration.ofSeconds(1))
+    .cleanupInRocksdbCompactFilter(1000, Duration.ofHours(1))
     .build();
 ```
 {{< /tab >}}
@@ -547,19 +547,20 @@ StateTtlConfig ttlConfig = StateTtlConfig
 import org.apache.flink.api.common.state.StateTtlConfig
 
 val ttlConfig = StateTtlConfig
-    .newBuilder(Time.seconds(1))
-    .cleanupInRocksdbCompactFilter(1000, Time.hours(1))
+    .newBuilder(Duration.ofSeconds(1))
+    .cleanupInRocksdbCompactFilter(1000, Duration.ofHours(1))
     .build
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
+from pyflink.common import Duration
 from pyflink.common.time import Time
 from pyflink.datastream.state import StateTtlConfig
 
 ttl_config = StateTtlConfig \
   .new_builder(Time.seconds(1)) \
-  .cleanup_in_rocksdb_compact_filter(1000, Time.hours(1)) \
+  .cleanup_in_rocksdb_compact_filter(1000, Duration.of_hours(1)) \
   .build()
 ```
 {{< /tab >}}
@@ -573,7 +574,7 @@ RocksDB backend 的默认后台清理策略会每处理 1000 条数据进行一�
 定期压缩可以加速过期状态条目的清理，特别是对于很少访问的状态条目。
 比这个值早的文件将被选取进行压缩，并重新写入与之前相同的 Level 中。 
 该功能可以确保文件定期通过压缩过滤器压缩。
-您可以通过`StateTtlConfig.newBuilder(...).cleanupInRocksdbCompactFilter(long queryTimeAfterNumEntries, Time periodicCompactionTime)` 
+您可以通过`StateTtlConfig.newBuilder(...).cleanupInRocksdbCompactFilter(long queryTimeAfterNumEntries, Duration periodicCompactionTime)` 
 方法设定定期压缩的时间。
 定期压缩的时间的默认值是 30 天。
 您可以将其设置为 0 以关闭定期压缩或设置一个较小的值以加速过期状态条目的清理，但它将会触发更多压缩。

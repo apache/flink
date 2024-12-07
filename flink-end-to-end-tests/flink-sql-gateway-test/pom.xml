@@ -22,7 +22,7 @@ under the License.
     <parent>
         <artifactId>flink-end-to-end-tests</artifactId>
         <groupId>org.apache.flink</groupId>
-        <version>1.19-SNAPSHOT</version>
+        <version>2.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -39,7 +39,7 @@ under the License.
 
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-sql-connector-hive-${hive.version}_${scala.binary.version}
+            <artifactId>flink-sql-connector-hive-${hive.version}
             </artifactId>
             <version>${project.version}</version>
             <exclusions>
@@ -166,12 +166,20 @@ under the License.
                                 <artifactItem>
                                     <groupId>org.apache.flink</groupId>
                                     <artifactId>
-                                        flink-sql-connector-hive-${hive.version}_${scala.binary.version}
+                                        flink-sql-connector-hive-${hive.version}
                                     </artifactId>
                                     <version>${project.version}</version>
                                     <destFileName>
-                                        flink-sql-connector-hive-${hive.version}_${scala.binary.version}-${project.version}.jar
+                                        flink-sql-connector-hive-${hive.version}-${project.version}.jar
                                     </destFileName>
+                                    <type>jar</type>
+                                    <outputDirectory>${project.build.directory}/dependencies
+                                    </outputDirectory>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.apache.flink</groupId>
+                                    <artifactId>flink-table-filesystem-test-utils</artifactId>
+                                    <version>${project.version}</version>
                                     <type>jar</type>
                                     <outputDirectory>${project.build.directory}/dependencies
                                     </outputDirectory>

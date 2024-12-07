@@ -18,9 +18,9 @@
 package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
+import org.apache.flink.util.ParameterTool;
 
 import java.io.InputStream;
 import java.net.URL;
@@ -42,7 +42,7 @@ public class ClassLoaderTestProgram {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        env.fromElements("Hello")
+        env.fromData("Hello")
                 .map(
                         (MapFunction<String, String>)
                                 value -> {
@@ -88,7 +88,7 @@ public class ClassLoaderTestProgram {
                                             + ":"
                                             + orderedProperties;
                                 })
-                .writeAsText(params.getRequired("output"), FileSystem.WriteMode.OVERWRITE);
+                .sinkTo(new DiscardingSink<>());
 
         env.execute("ClassLoader Test Program");
     }

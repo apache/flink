@@ -20,10 +20,12 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStore;
@@ -33,13 +35,11 @@ import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointStoreUtil;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
-import org.apache.flink.runtime.jobmanager.DefaultJobGraphStore;
+import org.apache.flink.runtime.jobmanager.DefaultExecutionPlanStore;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStoreUtil;
-import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStoreWatcher;
+import org.apache.flink.runtime.jobmanager.ZooKeeperExecutionPlanStoreUtil;
+import org.apache.flink.runtime.jobmanager.ZooKeeperExecutionPlanStoreWatcher;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriverFactory;
@@ -50,9 +50,11 @@ import org.apache.flink.runtime.persistence.filesystem.FileSystemStateStorageHel
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.RunnableWithException;
 
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.AuthInfo;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.api.ACLProvider;
@@ -83,6 +85,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.function.BooleanSupplier;
@@ -96,7 +99,8 @@ public class ZooKeeperUtils {
     private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperUtils.class);
 
     /** The prefix of the submitted job graph file. */
-    public static final String HA_STORAGE_SUBMITTED_JOBGRAPH_PREFIX = "submittedJobGraph";
+    public static final String HA_STORAGE_SUBMITTED_EXECUTION_PLAN_PREFIX =
+            "submittedExecutionPlan";
 
     /** The prefix of the completed checkpoint file. */
     public static final String HA_STORAGE_COMPLETED_CHECKPOINT = "completedCheckpoint";
@@ -188,22 +192,29 @@ public class ZooKeeperUtils {
         }
 
         int sessionTimeout =
-                configuration.getInteger(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT);
+                Math.toIntExact(
+                        configuration
+                                .get(HighAvailabilityOptions.ZOOKEEPER_SESSION_TIMEOUT)
+                                .toMillis());
 
         int connectionTimeout =
-                configuration.getInteger(HighAvailabilityOptions.ZOOKEEPER_CONNECTION_TIMEOUT);
+                Math.toIntExact(
+                        configuration
+                                .get(HighAvailabilityOptions.ZOOKEEPER_CONNECTION_TIMEOUT)
+                                .toMillis());
 
-        int retryWait = configuration.getInteger(HighAvailabilityOptions.ZOOKEEPER_RETRY_WAIT);
+        int retryWait =
+                Math.toIntExact(
+                        configuration.get(HighAvailabilityOptions.ZOOKEEPER_RETRY_WAIT).toMillis());
 
         int maxRetryAttempts =
-                configuration.getInteger(HighAvailabilityOptions.ZOOKEEPER_MAX_RETRY_ATTEMPTS);
+                configuration.get(HighAvailabilityOptions.ZOOKEEPER_MAX_RETRY_ATTEMPTS);
 
         String root = configuration.getValue(HighAvailabilityOptions.HA_ZOOKEEPER_ROOT);
 
         String namespace = configuration.getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
 
-        boolean disableSaslClient =
-                configuration.getBoolean(SecurityOptions.ZOOKEEPER_SASL_DISABLE);
+        boolean disableSaslClient = configuration.get(SecurityOptions.ZOOKEEPER_SASL_DISABLE);
 
         ACLProvider aclProvider;
 
@@ -234,7 +245,7 @@ public class ZooKeeperUtils {
         LOG.info("Using '{}' as Zookeeper namespace.", rootWithNamespace);
 
         boolean ensembleTracking =
-                configuration.getBoolean(HighAvailabilityOptions.ZOOKEEPER_ENSEMBLE_TRACKING);
+                configuration.get(HighAvailabilityOptions.ZOOKEEPER_ENSEMBLE_TRACKING);
 
         final CuratorFrameworkFactory.Builder curatorFrameworkBuilder =
                 CuratorFrameworkFactory.builder()
@@ -247,6 +258,43 @@ public class ZooKeeperUtils {
                         .namespace(trimStartingSlash(rootWithNamespace))
                         .ensembleTracker(ensembleTracking)
                         .aclProvider(aclProvider);
+
+        if (configuration.contains(HighAvailabilityOptions.ZOOKEEPER_CLIENT_AUTHORIZATION)) {
+            Map<String, String> authMap =
+                    configuration.get(HighAvailabilityOptions.ZOOKEEPER_CLIENT_AUTHORIZATION);
+            List<AuthInfo> authInfos =
+                    authMap.entrySet().stream()
+                            .map(
+                                    entry ->
+                                            new AuthInfo(
+                                                    entry.getKey(),
+                                                    entry.getValue()
+                                                            .getBytes(
+                                                                    ConfigConstants
+                                                                            .DEFAULT_CHARSET)))
+                            .collect(Collectors.toList());
+            curatorFrameworkBuilder.authorization(authInfos);
+        }
+
+        if (configuration.contains(HighAvailabilityOptions.ZOOKEEPER_MAX_CLOSE_WAIT)) {
+            long maxCloseWait =
+                    configuration.get(HighAvailabilityOptions.ZOOKEEPER_MAX_CLOSE_WAIT).toMillis();
+            if (maxCloseWait < 0 || maxCloseWait > Integer.MAX_VALUE) {
+                throw new IllegalConfigurationException(
+                        "The value (%d ms) is out-of-range for %s. The milliseconds timeout is expected to be between 0 and %d ms.",
+                        maxCloseWait,
+                        HighAvailabilityOptions.ZOOKEEPER_MAX_CLOSE_WAIT.key(),
+                        Integer.MAX_VALUE);
+            }
+            curatorFrameworkBuilder.maxCloseWaitMs((int) maxCloseWait);
+        }
+
+        if (configuration.contains(
+                HighAvailabilityOptions.ZOOKEEPER_SIMULATED_SESSION_EXP_PERCENT)) {
+            curatorFrameworkBuilder.simulatedSessionExpirationPercent(
+                    configuration.get(
+                            HighAvailabilityOptions.ZOOKEEPER_SIMULATED_SESSION_EXP_PERCENT));
+        }
 
         if (configuration.get(HighAvailabilityOptions.ZOOKEEPER_TOLERATE_SUSPENDED_CONNECTIONS)) {
             curatorFrameworkBuilder.connectionStateErrorPolicy(
@@ -467,25 +515,26 @@ public class ZooKeeperUtils {
     }
 
     /**
-     * Creates a {@link DefaultJobGraphStore} instance with {@link ZooKeeperStateHandleStore},
-     * {@link ZooKeeperJobGraphStoreWatcher} and {@link ZooKeeperJobGraphStoreUtil}.
+     * Creates a {@link DefaultExecutionPlanStore} instance with {@link ZooKeeperStateHandleStore},
+     * {@link ZooKeeperExecutionPlanStoreWatcher} and {@link ZooKeeperExecutionPlanStoreUtil}.
      *
      * @param client The {@link CuratorFramework} ZooKeeper client to use
      * @param configuration {@link Configuration} object
-     * @return {@link DefaultJobGraphStore} instance
-     * @throws Exception if the submitted job graph store cannot be created
+     * @return {@link DefaultExecutionPlanStore} instance
+     * @throws Exception if the submitted execution plan store cannot be created
      */
-    public static JobGraphStore createJobGraphs(
+    public static ExecutionPlanStore createExecutionPlans(
             CuratorFramework client, Configuration configuration) throws Exception {
 
         checkNotNull(configuration, "Configuration");
 
-        RetrievableStateStorageHelper<JobGraph> stateStorage =
-                createFileSystemStateStorage(configuration, HA_STORAGE_SUBMITTED_JOBGRAPH_PREFIX);
+        RetrievableStateStorageHelper<ExecutionPlan> stateStorage =
+                createFileSystemStateStorage(
+                        configuration, HA_STORAGE_SUBMITTED_EXECUTION_PLAN_PREFIX);
 
         // ZooKeeper submitted jobs root dir
         String zooKeeperJobsPath =
-                configuration.getString(HighAvailabilityOptions.HA_ZOOKEEPER_JOBGRAPHS_PATH);
+                configuration.get(HighAvailabilityOptions.HA_ZOOKEEPER_EXECUTION_PLANS_PATH);
 
         // Ensure that the job graphs path exists
         client.newNamespaceAwareEnsurePath(zooKeeperJobsPath).ensure(client.getZookeeperClient());
@@ -493,17 +542,15 @@ public class ZooKeeperUtils {
         // All operations will have the path as root
         CuratorFramework facade = client.usingNamespace(client.getNamespace() + zooKeeperJobsPath);
 
-        final String zooKeeperFullJobsPath = client.getNamespace() + zooKeeperJobsPath;
-
-        final ZooKeeperStateHandleStore<JobGraph> zooKeeperStateHandleStore =
+        final ZooKeeperStateHandleStore<ExecutionPlan> zooKeeperStateHandleStore =
                 new ZooKeeperStateHandleStore<>(facade, stateStorage);
 
         final PathChildrenCache pathCache = new PathChildrenCache(facade, "/", false);
 
-        return new DefaultJobGraphStore<>(
+        return new DefaultExecutionPlanStore<>(
                 zooKeeperStateHandleStore,
-                new ZooKeeperJobGraphStoreWatcher(pathCache),
-                ZooKeeperJobGraphStoreUtil.INSTANCE);
+                new ZooKeeperExecutionPlanStoreWatcher(pathCache),
+                ZooKeeperExecutionPlanStoreUtil.INSTANCE);
     }
 
     /**
@@ -514,7 +561,7 @@ public class ZooKeeperUtils {
      * @param configuration {@link Configuration} object
      * @param maxNumberOfCheckpointsToRetain The maximum number of checkpoints to retain
      * @param executor to run ZooKeeper callbacks
-     * @param restoreMode the mode in which the job is being restored
+     * @param recoveryClaimMode the mode in which the job is being restored
      * @return {@link DefaultCompletedCheckpointStore} instance
      * @throws Exception if the completed checkpoint store cannot be created
      */
@@ -525,7 +572,7 @@ public class ZooKeeperUtils {
             SharedStateRegistryFactory sharedStateRegistryFactory,
             Executor ioExecutor,
             Executor executor,
-            RestoreMode restoreMode)
+            RecoveryClaimMode recoveryClaimMode)
             throws Exception {
 
         checkNotNull(configuration, "Configuration");
@@ -545,7 +592,7 @@ public class ZooKeeperUtils {
                         ZooKeeperCheckpointStoreUtil.INSTANCE,
                         completedCheckpoints,
                         sharedStateRegistryFactory.create(
-                                ioExecutor, completedCheckpoints, restoreMode),
+                                ioExecutor, completedCheckpoints, recoveryClaimMode),
                         executor);
         LOG.info(
                 "Initialized {} in '{}' with {}.",
@@ -772,7 +819,7 @@ public class ZooKeeperUtils {
          *     HighAvailabilityOptions#ZOOKEEPER_CLIENT_ACL} if not configured.
          */
         public static ZkClientACLMode fromConfig(Configuration config) {
-            String aclMode = config.getString(HighAvailabilityOptions.ZOOKEEPER_CLIENT_ACL);
+            String aclMode = config.get(HighAvailabilityOptions.ZOOKEEPER_CLIENT_ACL);
             if (aclMode == null || aclMode.equalsIgnoreCase(OPEN.name())) {
                 return OPEN;
             } else if (aclMode.equalsIgnoreCase(CREATOR.name())) {

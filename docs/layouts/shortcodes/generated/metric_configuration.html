@@ -10,9 +10,9 @@
     <tbody>
         <tr>
             <td><h5>metrics.fetcher.update-interval</h5></td>
-            <td style="word-wrap: break-word;">10000</td>
-            <td>Long</td>
-            <td>Update interval for the metric fetcher used by the web UI in milliseconds. Decrease this value for faster updating metrics. Increase this value if the metric fetcher causes too much load. Setting this value to 0 disables the metric fetching completely.</td>
+            <td style="word-wrap: break-word;">10 s</td>
+            <td>Duration</td>
+            <td>Update interval for the metric fetcher used by the web UI. Decrease this value for faster updating metrics. Increase this value if the metric fetcher causes too much load. Setting this value to 0 disables the metric fetching completely.</td>
         </tr>
         <tr>
             <td><h5>metrics.internal.query-service.port</h5></td>
@@ -46,8 +46,8 @@
         </tr>
         <tr>
             <td><h5>metrics.latency.interval</h5></td>
-            <td style="word-wrap: break-word;">0</td>
-            <td>Long</td>
+            <td style="word-wrap: break-word;">0 ms</td>
+            <td>Duration</td>
             <td>Defines the interval at which latency tracking marks are emitted from the sources. Disables latency tracking if set to 0 or a negative value. Enabling this feature can significantly impact the performance of the cluster.</td>
         </tr>
         <tr>
@@ -126,7 +126,7 @@
             <td><h5>metrics.scope.jm-operator</h5></td>
             <td style="word-wrap: break-word;">"&lt;host&gt;.jobmanager.&lt;job_name&gt;.&lt;operator_name&gt;"</td>
             <td>String</td>
-            <td>Defines the scope format string that is applied to all metrics scoped to the components running on a JobManager of an Operator, like OperatorCoordinator.</td>
+            <td>Defines the scope format string that is applied to all metrics scoped to the components running on a JobManager of an Operator, like OperatorCoordinator for Source Enumerator metrics.</td>
         </tr>
         <tr>
             <td><h5>metrics.scope.operator</h5></td>
@@ -160,9 +160,9 @@
         </tr>
         <tr>
             <td><h5>metrics.system-resource-probing-interval</h5></td>
-            <td style="word-wrap: break-word;">5000</td>
-            <td>Long</td>
-            <td>Interval between probing of system resource metrics specified in milliseconds. Has an effect only when 'metrics.system-resource' is enabled.</td>
+            <td style="word-wrap: break-word;">5 s</td>
+            <td>Duration</td>
+            <td>Interval between probing of system resource metrics specified. Has an effect only when 'metrics.system-resource' is enabled.</td>
         </tr>
     </tbody>
 </table>

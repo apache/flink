@@ -36,16 +36,18 @@ import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.EOFException;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /** */
-public class ChannelViewsTest {
+class ChannelViewsTest {
     private static final long SEED = 649180756312423613L;
 
     private static final int KEY_MAX = Integer.MAX_VALUE;
@@ -72,8 +74,8 @@ public class ChannelViewsTest {
 
     // --------------------------------------------------------------------------------------------
 
-    @Before
-    public void beforeTest() {
+    @BeforeEach
+    void beforeTest() {
         this.memoryManager =
                 MemoryManagerBuilder.newBuilder()
                         .setMemorySize(MEMORY_SIZE)
@@ -82,14 +84,15 @@ public class ChannelViewsTest {
         this.ioManager = new IOManagerAsync();
     }
 
-    @After
-    public void afterTest() throws Exception {
+    @AfterEach
+    void afterTest() throws Exception {
         this.ioManager.close();
 
         if (memoryManager != null) {
-            Assert.assertTrue(
-                    "Memory leak: not all segments have been returned to the memory manager.",
-                    this.memoryManager.verifyEmpty());
+            assertThat(this.memoryManager.verifyEmpty())
+                    .withFailMessage(
+                            "Memory leak: not all segments have been returned to the memory manager.")
+                    .isTrue();
             this.memoryManager.shutdown();
             this.memoryManager = null;
         }
@@ -98,7 +101,7 @@ public class ChannelViewsTest {
     // --------------------------------------------------------------------------------------------
 
     @Test
-    public void testWriteReadSmallRecords() throws Exception {
+    void testWriteReadSmallRecords() throws Exception {
         final TestData.TupleGenerator generator =
                 new TestData.TupleGenerator(
                         SEED, KEY_MAX, VALUE_SHORT_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
@@ -134,16 +137,7 @@ public class ChannelViewsTest {
         for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
             generator.next(rec);
             serializer.deserialize(readRec, inView);
-
-            int k1 = rec.f0;
-            String v1 = rec.f1;
-
-            int k2 = readRec.f0;
-            String v2 = readRec.f1;
-
-            Assert.assertTrue(
-                    "The re-generated and the read record do not match.",
-                    k1 == k2 && v1.equals(v2));
+            assertReadRecordMatchRegenerated(readRec, rec);
         }
 
         this.memoryManager.release(inView.close());
@@ -151,7 +145,7 @@ public class ChannelViewsTest {
     }
 
     @Test
-    public void testWriteAndReadLongRecords() throws Exception {
+    void testWriteAndReadLongRecords() throws Exception {
         final TestData.TupleGenerator generator =
                 new TestData.TupleGenerator(
                         SEED, KEY_MAX, VALUE_LONG_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
@@ -188,13 +182,7 @@ public class ChannelViewsTest {
         for (int i = 0; i < NUM_PAIRS_LONG; i++) {
             generator.next(rec);
             serializer.deserialize(readRec, inView);
-            final int k1 = rec.f0;
-            final String v1 = rec.f1;
-            final int k2 = readRec.f0;
-            final String v2 = readRec.f1;
-            Assert.assertTrue(
-                    "The re-generated and the read record do not match.",
-                    k1 == k2 && v1.equals(v2));
+            assertReadRecordMatchRegenerated(readRec, rec);
         }
 
         this.memoryManager.release(inView.close());
@@ -202,7 +190,7 @@ public class ChannelViewsTest {
     }
 
     @Test
-    public void testReadTooMany() throws Exception {
+    void testReadTooMany() throws Exception {
         final TestData.TupleGenerator generator =
                 new TestData.TupleGenerator(
                         SEED, KEY_MAX, VALUE_SHORT_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
@@ -235,33 +223,24 @@ public class ChannelViewsTest {
         generator.reset();
 
         // read and re-generate all records and compare them
-        try {
-            final Tuple2<Integer, String> readRec = new Tuple2<>();
-            for (int i = 0; i < NUM_PAIRS_SHORT + 1; i++) {
-                generator.next(rec);
-                serializer.deserialize(readRec, inView);
-                final int k1 = rec.f0;
-                final String v1 = rec.f1;
-                final int k2 = readRec.f0;
-                final String v2 = readRec.f1;
-                Assert.assertTrue(
-                        "The re-generated and the read record do not match.",
-                        k1 == k2 && v1.equals(v2));
-            }
-            Assert.fail("Expected an EOFException which did not occur.");
-        } catch (EOFException eofex) {
-            // expected
-        } catch (Throwable t) {
-            // unexpected
-            Assert.fail("Unexpected Exception: " + t.getMessage());
+        final Tuple2<Integer, String> readRec = new Tuple2<>();
+        for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
+            generator.next(rec);
+            serializer.deserialize(readRec, inView);
+            assertReadRecordMatchRegenerated(readRec, rec);
         }
+
+        generator.next(rec);
+        assertThatThrownBy(() -> serializer.deserialize(readRec, inView))
+                .withFailMessage("Expected an EOFException which did not occur.")
+                .isInstanceOf(EOFException.class);
 
         this.memoryManager.release(inView.close());
         reader.deleteChannel();
     }
 
     @Test
-    public void testReadWithoutKnownBlockCount() throws Exception {
+    void testReadWithoutKnownBlockCount() throws Exception {
         final TestData.TupleGenerator generator =
                 new TestData.TupleGenerator(
                         SEED, KEY_MAX, VALUE_SHORT_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
@@ -297,16 +276,7 @@ public class ChannelViewsTest {
         for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
             generator.next(rec);
             serializer.deserialize(readRec, inView);
-
-            int k1 = rec.f0;
-            String v1 = rec.f1;
-
-            int k2 = readRec.f0;
-            String v2 = readRec.f1;
-
-            Assert.assertTrue(
-                    "The re-generated and the read record do not match.",
-                    k1 == k2 && v1.equals(v2));
+            assertReadRecordMatchRegenerated(readRec, rec);
         }
 
         this.memoryManager.release(inView.close());
@@ -314,7 +284,7 @@ public class ChannelViewsTest {
     }
 
     @Test
-    public void testWriteReadOneBufferOnly() throws Exception {
+    void testWriteReadOneBufferOnly() throws Exception {
         final TestData.TupleGenerator generator =
                 new TestData.TupleGenerator(
                         SEED, KEY_MAX, VALUE_SHORT_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
@@ -350,16 +320,7 @@ public class ChannelViewsTest {
         for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
             generator.next(rec);
             serializer.deserialize(readRec, inView);
-
-            int k1 = rec.f0;
-            String v1 = rec.f1;
-
-            int k2 = readRec.f0;
-            String v2 = readRec.f1;
-
-            Assert.assertTrue(
-                    "The re-generated and the read record do not match.",
-                    k1 == k2 && v1.equals(v2));
+            assertReadRecordMatchRegenerated(readRec, rec);
         }
 
         this.memoryManager.release(inView.close());
@@ -367,7 +328,7 @@ public class ChannelViewsTest {
     }
 
     @Test
-    public void testWriteReadNotAll() throws Exception {
+    void testWriteReadNotAll() throws Exception {
         final TestData.TupleGenerator generator =
                 new TestData.TupleGenerator(
                         SEED, KEY_MAX, VALUE_SHORT_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
@@ -404,19 +365,26 @@ public class ChannelViewsTest {
         for (int i = 0; i < NUM_PAIRS_SHORT / 2; i++) {
             generator.next(rec);
             serializer.deserialize(readRec, inView);
-
-            int k1 = rec.f0;
-            String v1 = rec.f1;
-
-            int k2 = readRec.f0;
-            String v2 = readRec.f1;
-
-            Assert.assertTrue(
-                    "The re-generated and the read record do not match.",
-                    k1 == k2 && v1.equals(v2));
+            assertReadRecordMatchRegenerated(readRec, rec);
         }
 
         this.memoryManager.release(inView.close());
         reader.deleteChannel();
+    }
+
+    private static void assertReadRecordMatchRegenerated(
+            Tuple2<Integer, String> readRec, Tuple2<Integer, String> rec) {
+        int k1 = rec.f0;
+        String v1 = rec.f1;
+
+        int k2 = readRec.f0;
+        String v2 = readRec.f1;
+
+        assertThat(k2)
+                .withFailMessage("The re-generated and the read record do not match.")
+                .isEqualTo(k1);
+        assertThat(v2)
+                .withFailMessage("The re-generated and the read record do not match.")
+                .isEqualTo(v1);
     }
 }

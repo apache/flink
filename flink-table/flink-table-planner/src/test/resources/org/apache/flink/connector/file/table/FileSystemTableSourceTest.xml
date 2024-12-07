@@ -45,7 +45,7 @@ Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
 LogicalSink(table=[default_catalog.default_database.MySink], targetColumns=[[0],[1],[2]], fields=[a, b, filemeta])
 +- LogicalProject(a=[$0], b=[$1], filemeta=[$3])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], filemeta=[CAST($3):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTableWithMeta]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTableWithMeta, metadata=[file.path]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">

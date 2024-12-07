@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -114,12 +115,13 @@ class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
         final List<LogicalType> fields = LogicalTypeChecks.getFieldTypes(inputLogicalType);
+        CodeGeneratorContext codeGeneratorContext = context.getCodeGeneratorContext();
 
-        final String builderTerm = newName("builder");
+        final String builderTerm = newName(codeGeneratorContext, "builder");
         context.declareClassField(
                 className(StringBuilder.class), builderTerm, constructorCall(StringBuilder.class));
 
-        final String resultStringTerm = newName("resultString");
+        final String resultStringTerm = newName(codeGeneratorContext, "resultString");
         final int length = LogicalTypeChecks.getLength(targetLogicalType);
         final LogicalType targetTypeForElementCast =
                 targetLogicalType.is(LogicalTypeFamily.CHARACTER_STRING)
@@ -135,8 +137,9 @@ class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
             final int fieldIndex = i;
             final LogicalType fieldType = fields.get(fieldIndex);
 
-            final String fieldTerm = newName("f" + fieldIndex + "Value");
-            final String fieldIsNullTerm = newName("f" + fieldIndex + "IsNull");
+            final String fieldTerm = newName(codeGeneratorContext, "f" + fieldIndex + "Value");
+            final String fieldIsNullTerm =
+                    newName(codeGeneratorContext, "f" + fieldIndex + "IsNull");
 
             final CastCodeBlock codeBlock =
                     // Null check is done at the row access level
@@ -188,7 +191,8 @@ class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
                         context.legacyBehaviour(),
                         length,
                         resultStringTerm,
-                        builderTerm)
+                        builderTerm,
+                        context.getCodeGeneratorContext())
                 // Assign the result value
                 .assignStmt(
                         returnVariable,

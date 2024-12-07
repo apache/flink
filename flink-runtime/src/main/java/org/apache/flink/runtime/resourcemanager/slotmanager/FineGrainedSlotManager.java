@@ -21,7 +21,6 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.resources.CPUResource;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -81,7 +80,7 @@ public class FineGrainedSlotManager implements SlotManager {
     private final ScheduledExecutor scheduledExecutor;
 
     /** Timeout after which an unused TaskManager is released. */
-    private final Time taskManagerTimeout;
+    private final Duration taskManagerTimeout;
 
     /** Delay of the requirement change check in the slot manager. */
     private final Duration requirementsCheckDelay;
@@ -92,11 +91,6 @@ public class FineGrainedSlotManager implements SlotManager {
     private final SlotManagerMetricGroup slotManagerMetricGroup;
 
     private final Map<JobID, String> jobMasterTargetAddresses = new HashMap<>();
-
-    /**
-     * Release task executor only when each produced result partition is either consumed or failed.
-     */
-    private final boolean waitResultConsumedBeforeRelease;
 
     private final CPUResource maxTotalCpu;
     private final MemorySize maxTotalMem;
@@ -142,8 +136,6 @@ public class FineGrainedSlotManager implements SlotManager {
 
         Preconditions.checkNotNull(slotManagerConfiguration);
         this.taskManagerTimeout = slotManagerConfiguration.getTaskManagerTimeout();
-        this.waitResultConsumedBeforeRelease =
-                slotManagerConfiguration.isWaitResultConsumedBeforeRelease();
         this.requirementsCheckDelay =
                 Preconditions.checkNotNull(slotManagerConfiguration.getRequirementCheckDelay());
         this.declareNeededResourceDelay =
@@ -226,7 +218,7 @@ public class FineGrainedSlotManager implements SlotManager {
                     scheduledExecutor.scheduleWithFixedDelay(
                             () -> mainThreadExecutor.execute(this::checkClusterReconciliation),
                             0L,
-                            taskManagerTimeout.toMilliseconds(),
+                            taskManagerTimeout.toMillis(),
                             TimeUnit.MILLISECONDS);
         }
 
@@ -801,9 +793,12 @@ public class FineGrainedSlotManager implements SlotManager {
 
     @Override
     public Collection<SlotInfo> getAllocatedSlotsOf(InstanceID instanceID) {
-        return taskManagerTracker.getRegisteredTaskManager(instanceID)
-                .map(TaskManagerInfo::getAllocatedSlots).map(Map::values)
-                .orElse(Collections.emptyList()).stream()
+        return taskManagerTracker
+                .getRegisteredTaskManager(instanceID)
+                .map(TaskManagerInfo::getAllocatedSlots)
+                .map(Map::values)
+                .orElse(Collections.emptyList())
+                .stream()
                 .map(slot -> new SlotInfo(slot.getJobId(), slot.getResourceProfile()))
                 .collect(Collectors.toList());
     }
@@ -828,11 +823,7 @@ public class FineGrainedSlotManager implements SlotManager {
                 .forEach(taskManagerTracker::removePendingTaskManager);
 
         for (TaskManagerInfo taskManagerToRelease : reconcileResult.getTaskManagersToRelease()) {
-            if (waitResultConsumedBeforeRelease) {
-                releaseIdleTaskExecutorIfPossible(taskManagerToRelease);
-            } else {
-                releaseIdleTaskExecutor(taskManagerToRelease.getInstanceId());
-            }
+            releaseIdleTaskExecutorIfPossible(taskManagerToRelease);
         }
 
         reconcileResult.getPendingTaskManagersToAllocate().forEach(this::allocateResource);

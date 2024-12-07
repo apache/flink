@@ -35,10 +35,10 @@ import java.nio.file.Path;
 /** Batch test base to use {@link RegisterExtension}. */
 public class BatchAbstractTestBase {
 
-    public static final int DEFAULT_PARALLELISM = 3;
+    protected static final int DEFAULT_PARALLELISM = 3;
 
     @RegisterExtension
-    public static MiniClusterExtension miniClusterResource =
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getConfiguration())
@@ -46,7 +46,7 @@ public class BatchAbstractTestBase {
                             .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
                             .build());
 
-    @TempDir public static Path tmpDir;
+    @TempDir protected static Path tmpDir;
 
     private static Configuration getConfiguration() {
         Configuration config = new Configuration();
@@ -54,16 +54,16 @@ public class BatchAbstractTestBase {
         return config;
     }
 
-    public static File createTempFolder() throws IOException {
+    protected static File createTempFolder() throws IOException {
         return TempDirUtils.newFolder(BatchAbstractTestBase.tmpDir);
     }
 
-    public static File createTempFile() throws IOException {
+    protected static File createTempFile() throws IOException {
         Path tmpDirPath = createTempFolder().toPath();
         return TempDirUtils.newFile(tmpDirPath);
     }
 
-    public static File createFileInTempFolder(String fileName) throws IOException {
+    protected static File createFileInTempFolder(String fileName) throws IOException {
         Path tmpDirPath = createTempFolder().toPath();
         return TempDirUtils.newFile(tmpDirPath, fileName);
     }

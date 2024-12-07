@@ -49,7 +49,7 @@ function verify_num_occurences_in_logs() {
     local text="$2"
     local expected_no="$3"
 
-    local actual_no=$(grep -r --include "*${log_pattern}*.log*" -e "${text}" "$FLINK_LOG_DIR/" | cut -d ":" -f 1 | sed "s/\.[0-9]\{1,\}$//g" | uniq | wc -l)
+    local actual_no=$(grep -r --include "*${log_pattern}*.log*" -e "${text}" "$FLINK_LOG_DIR/" | cut -d ":" -f 1 | sed "s/\.[0-9]\{1,\}$//g" | sort -u | wc -l)
     [[ "${expected_no}" -eq "${actual_no}" ]]
 }
 
@@ -65,7 +65,7 @@ function verify_logs() {
     fi
 
     # checks that all apart from the first JM recover the failed jobgraph.
-    if ! verify_num_occurences_in_logs 'standalonesession' 'Recovered JobGraph' ${JM_FAILURES}; then
+    if ! verify_num_occurences_in_logs 'standalonesession' 'Recovered StreamGraph' ${JM_FAILURES}; then
         echo "FAILURE: A JM did not take over."
         EXIT_CODE=1
     fi

@@ -19,21 +19,20 @@
 package org.apache.flink.runtime.rest.messages.job.savepoints;
 
 import org.apache.flink.util.SerializedThrowable;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link SavepointInfo}. */
-public class SavepointInfoTest extends TestLogger {
+class SavepointInfoTest {
 
     @Test
-    public void testSetBothLocationAndFailureCause() {
-        try {
-            new SavepointInfo("/tmp", new SerializedThrowable(new RuntimeException()));
-            fail("Expected exception not thrown");
-        } catch (IllegalArgumentException e) {
-        }
+    void testSetBothLocationAndFailureCause() {
+        assertThatThrownBy(
+                        () ->
+                                new SavepointInfo(
+                                        "/tmp", new SerializedThrowable(new RuntimeException())))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

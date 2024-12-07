@@ -32,72 +32,68 @@ class PythonOptionsTest {
     @Test
     void testBundleSize() {
         final Configuration configuration = new Configuration();
-        final int defaultBundleSize = configuration.getInteger(PythonOptions.MAX_BUNDLE_SIZE);
+        final int defaultBundleSize = configuration.get(PythonOptions.MAX_BUNDLE_SIZE);
         assertThat(defaultBundleSize).isEqualTo(PythonOptions.MAX_BUNDLE_SIZE.defaultValue());
 
         final int expectedBundleSize = 100;
-        configuration.setInteger(PythonOptions.MAX_BUNDLE_SIZE, expectedBundleSize);
+        configuration.set(PythonOptions.MAX_BUNDLE_SIZE, expectedBundleSize);
 
-        final int actualBundleSize = configuration.getInteger(PythonOptions.MAX_BUNDLE_SIZE);
+        final int actualBundleSize = configuration.get(PythonOptions.MAX_BUNDLE_SIZE);
         assertThat(actualBundleSize).isEqualTo(expectedBundleSize);
     }
 
     @Test
     void testBundleTime() {
         final Configuration configuration = new Configuration();
-        final long defaultBundleTime = configuration.getLong(PythonOptions.MAX_BUNDLE_TIME_MILLS);
+        final long defaultBundleTime = configuration.get(PythonOptions.MAX_BUNDLE_TIME_MILLS);
         assertThat(defaultBundleTime).isEqualTo(PythonOptions.MAX_BUNDLE_TIME_MILLS.defaultValue());
 
         final long expectedBundleTime = 100;
-        configuration.setLong(PythonOptions.MAX_BUNDLE_TIME_MILLS, expectedBundleTime);
+        configuration.set(PythonOptions.MAX_BUNDLE_TIME_MILLS, expectedBundleTime);
 
-        final long actualBundleSize = configuration.getLong(PythonOptions.MAX_BUNDLE_TIME_MILLS);
+        final long actualBundleSize = configuration.get(PythonOptions.MAX_BUNDLE_TIME_MILLS);
         assertThat(actualBundleSize).isEqualTo(expectedBundleTime);
     }
 
     @Test
     void testArrowBatchSize() {
         final Configuration configuration = new Configuration();
-        final int defaultArrowBatchSize =
-                configuration.getInteger(PythonOptions.MAX_ARROW_BATCH_SIZE);
+        final int defaultArrowBatchSize = configuration.get(PythonOptions.MAX_ARROW_BATCH_SIZE);
         assertThat(defaultArrowBatchSize)
                 .isEqualTo(PythonOptions.MAX_ARROW_BATCH_SIZE.defaultValue());
 
         final int expectedArrowBatchSize = 100;
-        configuration.setInteger(PythonOptions.MAX_ARROW_BATCH_SIZE, expectedArrowBatchSize);
+        configuration.set(PythonOptions.MAX_ARROW_BATCH_SIZE, expectedArrowBatchSize);
 
-        final int actualArrowBatchSize =
-                configuration.getInteger(PythonOptions.MAX_ARROW_BATCH_SIZE);
+        final int actualArrowBatchSize = configuration.get(PythonOptions.MAX_ARROW_BATCH_SIZE);
         assertThat(actualArrowBatchSize).isEqualTo(expectedArrowBatchSize);
     }
 
     @Test
     void testPythonMetricEnabled() {
         final Configuration configuration = new Configuration();
-        final boolean isMetricEnabled =
-                configuration.getBoolean(PythonOptions.PYTHON_METRIC_ENABLED);
+        final boolean isMetricEnabled = configuration.get(PythonOptions.PYTHON_METRIC_ENABLED);
         assertThat(isMetricEnabled).isEqualTo(PythonOptions.PYTHON_METRIC_ENABLED.defaultValue());
 
         final boolean expectedIsMetricEnabled = false;
-        configuration.setBoolean(PythonOptions.PYTHON_METRIC_ENABLED, false);
+        configuration.set(PythonOptions.PYTHON_METRIC_ENABLED, false);
 
         final boolean actualIsMetricEnabled =
-                configuration.getBoolean(PythonOptions.PYTHON_METRIC_ENABLED);
+                configuration.get(PythonOptions.PYTHON_METRIC_ENABLED);
         assertThat(actualIsMetricEnabled).isEqualTo(expectedIsMetricEnabled);
     }
 
     @Test
     void testPythonProfileEnabled() {
         final Configuration configuration = new Configuration();
-        final boolean isProfileEnabled =
-                configuration.getBoolean(PythonOptions.PYTHON_PROFILE_ENABLED);
+        final boolean isProfileEnabled = configuration.get(PythonOptions.PYTHON_PROFILE_ENABLED);
         assertThat(isProfileEnabled).isEqualTo(PythonOptions.PYTHON_PROFILE_ENABLED.defaultValue());
 
         final boolean expectedIsProfileEnabled = true;
-        configuration.setBoolean(PythonOptions.PYTHON_PROFILE_ENABLED, true);
+        configuration.set(PythonOptions.PYTHON_PROFILE_ENABLED, true);
 
         final boolean actualIsProfileEnabled =
-                configuration.getBoolean(PythonOptions.PYTHON_PROFILE_ENABLED);
+                configuration.get(PythonOptions.PYTHON_PROFILE_ENABLED);
         assertThat(actualIsProfileEnabled).isEqualTo(expectedIsProfileEnabled);
     }
 
@@ -177,15 +173,15 @@ class PythonOptionsTest {
     void testPythonSystemEnvEnabled() {
         final Configuration configuration = new Configuration();
         final boolean isSystemEnvEnabled =
-                configuration.getBoolean(PythonOptions.PYTHON_SYSTEMENV_ENABLED);
+                configuration.get(PythonOptions.PYTHON_SYSTEMENV_ENABLED);
         assertThat(isSystemEnvEnabled)
                 .isEqualTo(PythonOptions.PYTHON_SYSTEMENV_ENABLED.defaultValue());
 
         final boolean expectedIsSystemEnvEnabled = false;
-        configuration.setBoolean(PythonOptions.PYTHON_SYSTEMENV_ENABLED, false);
+        configuration.set(PythonOptions.PYTHON_SYSTEMENV_ENABLED, false);
 
         final boolean actualIsSystemEnvEnabled =
-                configuration.getBoolean(PythonOptions.PYTHON_SYSTEMENV_ENABLED);
+                configuration.get(PythonOptions.PYTHON_SYSTEMENV_ENABLED);
         assertThat(actualIsSystemEnvEnabled).isEqualTo(expectedIsSystemEnvEnabled);
     }
 

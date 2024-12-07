@@ -24,7 +24,7 @@ DOCKER_SCRIPTS=${END_TO_END_DIR}/test-scripts/container-scripts
 DOCKER_IMAGE_BUILD_RETRIES=3
 BUILD_BACKOFF_TIME=5
 
-export FLINK_JOB=org.apache.flink.examples.java.wordcount.WordCount
+export FLINK_JOB=org.apache.flink.streaming.examples.wordcount.WordCount
 export FLINK_DOCKER_IMAGE_NAME=test_nat
 export INPUT_VOLUME=${END_TO_END_DIR}/test-scripts/test-data
 export OUTPUT_VOLUME=${TEST_DATA_DIR}/out
@@ -47,11 +47,11 @@ export TM_1_DATA_EX_PORT=11001
 export TM_2_DATA_EX_PORT=11002
 export TM_DATA_IN_PORT=11000
 
-RESULT_HASH="72a690412be8928ba239c2da967328a5"
+RESULT_HASH="5a9945c9ab08890b2a0f6b31a4437d57"
 INPUT_ARGS="--input ${INPUT_PATH}/words"
 OUTPUT_PREFIX="docker_wc_out"
 
-export FLINK_JOB_ARGUMENTS="${INPUT_ARGS} --output ${OUTPUT_PATH}/${OUTPUT_PREFIX}"
+export FLINK_JOB_ARGUMENTS="${INPUT_ARGS} --output ${OUTPUT_PATH}/${OUTPUT_PREFIX} --execution-mode BATCH"
 
 # user inside the container must be able to create files, this is a workaround in-container permissions
 mkdir -p $OUTPUT_VOLUME
@@ -63,11 +63,12 @@ if ! retry_times $DOCKER_IMAGE_BUILD_RETRIES ${BUILD_BACKOFF_TIME} "build_image 
 fi
 popd
 
-export USER_LIB=${FLINK_DIR}/examples/batch
-docker-compose -f ${DOCKER_SCRIPTS}/docker-compose.nat.yml up --force-recreate --abort-on-container-exit --exit-code-from job-cluster &> /dev/null
-docker-compose -f ${DOCKER_SCRIPTS}/docker-compose.nat.yml logs job-cluster > $FLINK_LOG_DIR/jobmanager.log
-docker-compose -f ${DOCKER_SCRIPTS}/docker-compose.nat.yml logs taskmanager1 > $FLINK_LOG_DIR/taskmanager1.log
-docker-compose -f ${DOCKER_SCRIPTS}/docker-compose.nat.yml logs taskmanager2 > $FLINK_LOG_DIR/taskmanager2.log
-docker-compose -f ${DOCKER_SCRIPTS}/docker-compose.nat.yml rm -f
+export USER_LIB=${FLINK_DIR}/examples/streaming
+docker compose -f ${DOCKER_SCRIPTS}/docker-compose.nat.yml up --force-recreate --abort-on-container-exit --exit-code-from job-cluster &> /dev/null
+docker compose -f ${DOCKER_SCRIPTS}/docker-compose.nat.yml logs job-cluster > $FLINK_LOG_DIR/jobmanager.log
+docker compose -f ${DOCKER_SCRIPTS}/docker-compose.nat.yml logs taskmanager1 > $FLINK_LOG_DIR/taskmanager1.log
+docker compose -f ${DOCKER_SCRIPTS}/docker-compose.nat.yml logs taskmanager2 > $FLINK_LOG_DIR/taskmanager2.log
+docker compose -f ${DOCKER_SCRIPTS}/docker-compose.nat.yml rm -f
 
-check_result_hash "WordCount" ${OUTPUT_VOLUME}/${OUTPUT_PREFIX}/ "${RESULT_HASH}"
+OUTPUT_FILES=$(find "${OUTPUT_VOLUME}/${OUTPUT_PREFIX}/" -type f)
+check_result_hash "WordCount" "${OUTPUT_FILES}" "${RESULT_HASH}"

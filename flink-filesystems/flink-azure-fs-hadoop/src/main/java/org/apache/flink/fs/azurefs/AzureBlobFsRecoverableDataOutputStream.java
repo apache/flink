@@ -63,6 +63,16 @@ public class AzureBlobFsRecoverableDataOutputStream
         this.out = fs.create(tempFile);
     }
 
+    /** Use only for testing! */
+    @VisibleForTesting
+    AzureBlobFsRecoverableDataOutputStream(
+            FileSystem fs, Path targetFile, Path tempFile, FSDataOutputStream out) {
+        this.fs = checkNotNull(fs);
+        this.targetFile = checkNotNull(targetFile);
+        this.tempFile = checkNotNull(tempFile);
+        this.out = out;
+    }
+
     AzureBlobFsRecoverableDataOutputStream(FileSystem fs, HadoopFsRecoverable recoverable)
             throws IOException {
         this.fs = checkNotNull(fs);
@@ -215,11 +225,8 @@ public class AzureBlobFsRecoverableDataOutputStream
     }
 
     @Override
-    public Committer closeForCommit() throws IOException {
-        final long pos = getPos();
-        close();
-        return new AzureBlobFsRecoverableDataOutputStream.ABFSCommitter(
-                fs, createHadoopFsRecoverable(pos));
+    protected Committer createCommitterFromResumeRecoverable(HadoopFsRecoverable recoverable) {
+        return new ABFSCommitter(fs, recoverable);
     }
 
     // ------------------------------------------------------------------------

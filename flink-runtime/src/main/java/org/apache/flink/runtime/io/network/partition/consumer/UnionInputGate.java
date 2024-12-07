@@ -24,7 +24,7 @@ import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Sets;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -77,6 +77,7 @@ public class UnionInputGate extends InputGate {
     private final Set<IndexedInputGate> inputGatesWithRemainingUserData;
 
     private boolean shouldDrainOnEndOfData = true;
+
     /**
      * Gates, which notified this input gate about available data. We are using it as a FIFO queue
      * of {@link InputGate}s to avoid starvation and provide some basic fairness.

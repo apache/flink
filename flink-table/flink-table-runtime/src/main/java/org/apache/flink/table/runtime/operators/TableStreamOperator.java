@@ -22,8 +22,8 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -43,7 +43,11 @@ public abstract class TableStreamOperator<OUT> extends AbstractStreamOperator<OU
     protected transient ContextImpl ctx;
 
     public TableStreamOperator() {
-        setChainingStrategy(ChainingStrategy.ALWAYS);
+        this(null);
+    }
+
+    public TableStreamOperator(StreamOperatorParameters<OUT> parameters) {
+        super(parameters);
     }
 
     @Override
@@ -53,9 +57,8 @@ public abstract class TableStreamOperator<OUT> extends AbstractStreamOperator<OU
     }
 
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
-        super.processWatermark(mark);
-        currentWatermark = mark.getTimestamp();
+    public boolean useSplittableTimers() {
+        return true;
     }
 
     /** Compute memory size from memory faction. */
@@ -67,8 +70,15 @@ public abstract class TableStreamOperator<OUT> extends AbstractStreamOperator<OU
                         getOperatorConfig()
                                 .getManagedMemoryFractionOperatorUseCaseOfSlot(
                                         ManagedMemoryUseCase.OPERATOR,
+                                        environment.getJobConfiguration(),
                                         environment.getTaskManagerInfo().getConfiguration(),
                                         environment.getUserCodeClassLoader().asClassLoader()));
+    }
+
+    @Override
+    public void processWatermark(Watermark mark) throws Exception {
+        currentWatermark = mark.getTimestamp();
+        super.processWatermark(mark);
     }
 
     /** Information available in an invocation of processElement. */

@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 
@@ -27,23 +26,22 @@ import org.apache.flink.shaded.netty4.io.netty.bootstrap.Bootstrap;
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
 import org.apache.flink.shaded.netty4.io.netty.channel.EventLoopGroup;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Simple netty connection manager test. */
-public class NettyConnectionManagerTest {
+class NettyConnectionManagerTest {
 
     /**
      * Tests that the number of arenas and number of threads of the client and server are set to the
      * same number, that is the number of configured task slots.
      */
     @Test
-    public void testMatchingNumberOfArenasAndThreadsAsDefault() throws Exception {
+    void testMatchingNumberOfArenasAndThreadsAsDefault() throws Exception {
         // Expected number of arenas and threads
         int numberOfSlots = 2;
         NettyConnectionManager connectionManager;
@@ -59,10 +57,11 @@ public class NettyConnectionManagerTest {
             connectionManager = createNettyConnectionManager(config);
             connectionManager.start();
         }
-        assertNotNull(
-                "connectionManager is null due to fail to get a free port", connectionManager);
+        assertThat(connectionManager)
+                .withFailMessage("connectionManager is null due to fail to get a free port")
+                .isNotNull();
 
-        assertEquals(numberOfSlots, connectionManager.getBufferPool().getNumberOfArenas());
+        assertThat(connectionManager.getBufferPool().getNumberOfArenas()).isEqualTo(numberOfSlots);
 
         {
             // Client event loop group
@@ -73,7 +72,7 @@ public class NettyConnectionManagerTest {
             f.setAccessible(true);
             Object[] eventExecutors = (Object[]) f.get(group);
 
-            assertEquals(numberOfSlots, eventExecutors.length);
+            assertThat(eventExecutors).hasSize(numberOfSlots);
         }
 
         {
@@ -85,7 +84,7 @@ public class NettyConnectionManagerTest {
             f.setAccessible(true);
             Object[] eventExecutors = (Object[]) f.get(group);
 
-            assertEquals(numberOfSlots, eventExecutors.length);
+            assertThat(eventExecutors).hasSize(numberOfSlots);
         }
 
         {
@@ -97,76 +96,12 @@ public class NettyConnectionManagerTest {
             f.setAccessible(true);
             Object[] eventExecutors = (Object[]) f.get(group);
 
-            assertEquals(numberOfSlots, eventExecutors.length);
-        }
-    }
-
-    /** Tests that the number of arenas and threads can be configured manually. */
-    @Test
-    public void testManualConfiguration() throws Exception {
-        // Expected numbers
-        int numberOfArenas = 1;
-        int numberOfClientThreads = 3;
-        int numberOfServerThreads = 4;
-
-        // Expected number of threads
-        Configuration flinkConfig = new Configuration();
-        flinkConfig.setInteger(NettyShuffleEnvironmentOptions.NUM_ARENAS, numberOfArenas);
-        flinkConfig.setInteger(NettyShuffleEnvironmentOptions.NUM_THREADS_CLIENT, 3);
-        flinkConfig.setInteger(NettyShuffleEnvironmentOptions.NUM_THREADS_SERVER, 4);
-
-        NettyConnectionManager connectionManager;
-        {
-            NettyConfig config =
-                    new NettyConfig(InetAddress.getLocalHost(), 0, 1024, 1337, flinkConfig);
-
-            connectionManager = createNettyConnectionManager(config);
-            connectionManager.start();
-
-            assertEquals(numberOfArenas, connectionManager.getBufferPool().getNumberOfArenas());
-        }
-        assertNotNull(
-                "connectionManager is null due to fail to get a free port", connectionManager);
-
-        {
-            // Client event loop group
-            Bootstrap boostrap = connectionManager.getClient().getBootstrap();
-            EventLoopGroup group = boostrap.config().group();
-
-            Field f = group.getClass().getSuperclass().getSuperclass().getDeclaredField("children");
-            f.setAccessible(true);
-            Object[] eventExecutors = (Object[]) f.get(group);
-
-            assertEquals(numberOfClientThreads, eventExecutors.length);
-        }
-
-        {
-            // Server event loop group
-            ServerBootstrap bootstrap = connectionManager.getServer().getBootstrap();
-            EventLoopGroup group = bootstrap.config().group();
-
-            Field f = group.getClass().getSuperclass().getSuperclass().getDeclaredField("children");
-            f.setAccessible(true);
-            Object[] eventExecutors = (Object[]) f.get(group);
-
-            assertEquals(numberOfServerThreads, eventExecutors.length);
-        }
-
-        {
-            // Server child event loop group
-            ServerBootstrap bootstrap = connectionManager.getServer().getBootstrap();
-            EventLoopGroup group = bootstrap.childGroup();
-
-            Field f = group.getClass().getSuperclass().getSuperclass().getDeclaredField("children");
-            f.setAccessible(true);
-            Object[] eventExecutors = (Object[]) f.get(group);
-
-            assertEquals(numberOfServerThreads, eventExecutors.length);
+            assertThat(eventExecutors).hasSize(numberOfSlots);
         }
     }
 
     private NettyConnectionManager createNettyConnectionManager(NettyConfig config) {
         return new NettyConnectionManager(
-                new ResultPartitionManager(), new TaskEventDispatcher(), config, 1, true);
+                new ResultPartitionManager(), new TaskEventDispatcher(), config, true);
     }
 }

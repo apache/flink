@@ -29,13 +29,14 @@ import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.RichAndCondition;
 import org.apache.flink.cep.pattern.conditions.RichOrCondition;
 import org.apache.flink.cep.pattern.conditions.SubtypeCondition;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Base class for a pattern definition.
@@ -64,7 +65,7 @@ public class Pattern<T, F extends T> {
     private IterativeCondition<F> condition;
 
     /** Window length in which the pattern match has to occur. */
-    private final Map<WithinType, Time> windowTimes = new HashMap<>();
+    private final Map<WithinType, Duration> windowTimes = new HashMap<>();
 
     /**
      * A quantifier for the pattern. By default set to {@link Quantifier#one(ConsumingStrategy)}.
@@ -102,12 +103,12 @@ public class Pattern<T, F extends T> {
         return name;
     }
 
-    public Time getWindowTime() {
-        return windowTimes.get(WithinType.FIRST_AND_LAST);
+    public Optional<Duration> getWindowSize() {
+        return getWindowSize(WithinType.FIRST_AND_LAST);
     }
 
-    public Time getWindowTime(WithinType withinType) {
-        return windowTimes.get(withinType);
+    public Optional<Duration> getWindowSize(WithinType withinType) {
+        return Optional.ofNullable(windowTimes.get(withinType));
     }
 
     public Quantifier getQuantifier() {
@@ -251,7 +252,7 @@ public class Pattern<T, F extends T> {
      * @param windowTime Time of the matching window
      * @return The same pattern operator with the new window length
      */
-    public Pattern<T, F> within(Time windowTime) {
+    public Pattern<T, F> within(@Nullable Duration windowTime) {
         return within(windowTime, WithinType.FIRST_AND_LAST);
     }
 
@@ -263,7 +264,7 @@ public class Pattern<T, F extends T> {
      * @param windowTime Time of the matching window
      * @return The same pattern operator with the new window length
      */
-    public Pattern<T, F> within(Time windowTime, WithinType withinType) {
+    public Pattern<T, F> within(@Nullable Duration windowTime, WithinType withinType) {
         if (windowTime != null) {
             windowTimes.put(withinType, windowTime);
         }
@@ -369,7 +370,7 @@ public class Pattern<T, F extends T> {
      * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
      */
     public Pattern<T, F> oneOrMore() {
-        return oneOrMore(null);
+        return oneOrMore((Duration) null);
     }
 
     /**
@@ -386,7 +387,7 @@ public class Pattern<T, F extends T> {
      *     applied.
      * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
      */
-    public Pattern<T, F> oneOrMore(@Nullable Time windowTime) {
+    public Pattern<T, F> oneOrMore(@Nullable Duration windowTime) {
         checkIfNoNotPattern();
         checkIfQuantifierApplied();
         this.quantifier = Quantifier.looping(quantifier.getConsumingStrategy());
@@ -428,7 +429,7 @@ public class Pattern<T, F extends T> {
      * @return The same pattern with number of times applied
      * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
      */
-    public Pattern<T, F> times(int times, @Nullable Time windowTime) {
+    public Pattern<T, F> times(int times, @Nullable Duration windowTime) {
         checkIfNoNotPattern();
         checkIfQuantifierApplied();
         Preconditions.checkArgument(times > 0, "You should give a positive number greater than 0.");
@@ -459,7 +460,7 @@ public class Pattern<T, F extends T> {
      * @return The same pattern with the number of times range applied
      * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
      */
-    public Pattern<T, F> times(int from, int to, @Nullable Time windowTime) {
+    public Pattern<T, F> times(int from, int to, @Nullable Duration windowTime) {
         checkIfNoNotPattern();
         checkIfQuantifierApplied();
         this.quantifier = Quantifier.times(quantifier.getConsumingStrategy());
@@ -495,7 +496,7 @@ public class Pattern<T, F extends T> {
      *     applied.
      * @throws MalformedPatternException if the quantifier is not applicable to this pattern.
      */
-    public Pattern<T, F> timesOrMore(int times, @Nullable Time windowTime) {
+    public Pattern<T, F> timesOrMore(int times, @Nullable Duration windowTime) {
         checkIfNoNotPattern();
         checkIfQuantifierApplied();
         this.quantifier = Quantifier.looping(quantifier.getConsumingStrategy());
@@ -642,7 +643,9 @@ public class Pattern<T, F extends T> {
         }
     }
 
-    /** @return the pattern's {@link AfterMatchSkipStrategy.SkipStrategy} after match. */
+    /**
+     * @return the pattern's {@link AfterMatchSkipStrategy.SkipStrategy} after match.
+     */
     public AfterMatchSkipStrategy getAfterMatchSkipStrategy() {
         return afterMatchSkipStrategy;
     }

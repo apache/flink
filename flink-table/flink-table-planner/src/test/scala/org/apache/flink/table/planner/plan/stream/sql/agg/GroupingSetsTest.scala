@@ -17,13 +17,12 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.junit.jupiter.api.Test
 
 import java.sql.Date
 
@@ -403,14 +402,14 @@ class GroupingSetsTest extends TableTestBase {
 
   @Test
   def testCALCITE1824(): Unit = {
-    expectedException.expect(classOf[TableException])
-    expectedException.expectMessage("GROUPING SETS are currently not supported")
     val sqlQuery =
       """
         |SELECT deptno, GROUP_ID() AS g, COUNT(*) AS c
         |FROM scott_emp GROUP BY GROUPING SETS (deptno, (), ())
       """.stripMargin
-    util.verifyExecPlan(sqlQuery)
+    assertThatThrownBy(() => util.verifyExecPlan(sqlQuery))
+      .hasMessageContaining("GROUPING SETS are currently not supported")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -498,12 +497,32 @@ class GroupingSetsTest extends TableTestBase {
     util.verifyExecPlan(rollupQuery)
   }
 
+  @Test
+  def testCaseWhenRefGroupingSetsNullableCols(): Unit = {
+    // https://issues.apache.org/jira/browse/CALCITE-6317
+    val groupingSetsQuery =
+      """
+        |SELECT
+        |    case
+        |     when g1 = 1 then 'aaa'
+        |     when g2 = 1 then 'bbb'
+        |    end as gt,
+        |    b, c,
+        |    AVG(a) AS a
+        |FROM (select *, 1 g1, 1 g2 from MyTable) t
+        |    GROUP BY GROUPING SETS ((g1, b), (g2, b, c))
+      """.stripMargin
+
+    util.verifyExecPlan(groupingSetsQuery)
+  }
+
   def verifyPlanIdentical(sql1: String, sql2: String): Unit = {
     val table1 = util.tableEnv.sqlQuery(sql1)
     val table2 = util.tableEnv.sqlQuery(sql2)
     val optimized1 = util.getPlanner.optimize(TableTestUtil.toRelNode(table1))
     val optimized2 = util.getPlanner.optimize(TableTestUtil.toRelNode(table2))
-    assertEquals(FlinkRelOptUtil.toString(optimized1), FlinkRelOptUtil.toString(optimized2))
+    assertThat(FlinkRelOptUtil.toString(optimized2))
+      .isEqualTo(FlinkRelOptUtil.toString(optimized1));
   }
 
 }

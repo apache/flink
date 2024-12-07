@@ -260,6 +260,13 @@ Format Options
       <td>String</td>
       <td>Specify string literal to replace null key when <code>'ogg-json.map-null-key.mode'</code> is LITERAL.</td>
     </tr>
+    <tr>
+      <td><h5>ogg-json.encode.ignore-null-fields</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Encode only non-null fields. By default, all fields will be included.</td>
+    </tr>
     </tbody>
 </table>
 

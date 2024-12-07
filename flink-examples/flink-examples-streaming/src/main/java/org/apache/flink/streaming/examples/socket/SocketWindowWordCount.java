@@ -20,11 +20,12 @@ package org.apache.flink.streaming.examples.socket;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.util.ParameterTool;
+
+import java.time.Duration;
 
 /**
  * Implements a streaming windowed version of the "WordCount" program.
@@ -77,7 +78,7 @@ public class SocketWindowWordCount {
                                         },
                                 Types.POJO(WordWithCount.class))
                         .keyBy(value -> value.word)
-                        .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+                        .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5)))
                         .reduce((a, b) -> new WordWithCount(a.word, a.count + b.count))
                         .returns(WordWithCount.class);
 

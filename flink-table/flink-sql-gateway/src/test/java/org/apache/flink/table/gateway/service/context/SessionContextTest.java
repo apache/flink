@@ -175,7 +175,10 @@ class SessionContextTest {
                                 .build(),
                         EXECUTOR_SERVICE);
         assertThat(
-                        context1.getSessionState().catalogManager.getCatalogModificationListeners()
+                        context1
+                                .getSessionState()
+                                .catalogManager
+                                .getCatalogModificationListeners()
                                 .stream()
                                 .map(l -> l.getClass().getName())
                                 .collect(Collectors.toList()))
@@ -184,7 +187,7 @@ class SessionContextTest {
                                 CatalogListener1.class.getName(),
                                 CatalogListener2.class.getName()));
 
-        // Find and create listeners from flink-conf.yaml for session
+        // Find and create listeners from config.yaml for session
         flinkConfig.set(
                 TableConfigOptions.TABLE_CATALOG_MODIFICATION_LISTENERS,
                 Arrays.asList(CatalogFactory1.IDENTIFIER, CatalogFactory2.IDENTIFIER));
@@ -197,7 +200,10 @@ class SessionContextTest {
                                 .build(),
                         EXECUTOR_SERVICE);
         assertThat(
-                        context2.getSessionState().catalogManager.getCatalogModificationListeners()
+                        context2
+                                .getSessionState()
+                                .catalogManager
+                                .getCatalogModificationListeners()
                                 .stream()
                                 .map(l -> l.getClass().getName())
                                 .collect(Collectors.toList()))

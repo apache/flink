@@ -431,7 +431,9 @@ public abstract class YarnTestBase {
         private String[] names;
         private String excludeInPath = null;
 
-        /** @param names which have to be included in the filename. */
+        /**
+         * @param names which have to be included in the filename.
+         */
         public ContainsName(String[] names) {
             this.names = names;
         }
@@ -821,13 +823,16 @@ public abstract class YarnTestBase {
 
             File flinkConfDirPath =
                     TestUtils.findFile(
-                            flinkDistRootDir, new ContainsName(new String[] {"flink-conf.yaml"}));
+                            flinkDistRootDir,
+                            new ContainsName(
+                                    new String[] {GlobalConfiguration.FLINK_CONF_FILENAME}));
             assertThat(flinkConfDirPath).isNotNull();
 
             final String confDirPath = flinkConfDirPath.getParentFile().getAbsolutePath();
             globalConfiguration = GlobalConfiguration.loadConfiguration(confDirPath);
             globalConfiguration.set(
-                    JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofSeconds(30));
+                    JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,
+                    Duration.ofSeconds(30));
 
             // copy conf dir to test temporary workspace location
             tempConfPathForSecureRun = tmp.toPath().resolve("conf").toFile();
@@ -836,7 +841,8 @@ public abstract class YarnTestBase {
             FileUtils.copyDirectory(new File(confDirPath), tempConfPathForSecureRun);
 
             BootstrapTools.writeConfiguration(
-                    globalConfiguration, new File(tempConfPathForSecureRun, "flink-conf.yaml"));
+                    globalConfiguration,
+                    new File(tempConfPathForSecureRun, GlobalConfiguration.FLINK_CONF_FILENAME));
 
             String configDir = tempConfPathForSecureRun.getAbsolutePath();
 

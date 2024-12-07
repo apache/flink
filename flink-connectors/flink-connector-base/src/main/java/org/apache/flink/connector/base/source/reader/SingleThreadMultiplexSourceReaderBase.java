@@ -74,29 +74,8 @@ public abstract class SingleThreadMultiplexSourceReaderBase<
             RecordEmitter<E, T, SplitStateT> recordEmitter,
             Configuration config,
             SourceReaderContext context) {
-        this(
-                new FutureCompletingBlockingQueue<>(
-                        config.getInteger(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY)),
-                splitReaderSupplier,
-                recordEmitter,
-                config,
-                context);
-    }
-
-    /**
-     * This constructor behaves like {@link #SingleThreadMultiplexSourceReaderBase(Supplier,
-     * RecordEmitter, Configuration, SourceReaderContext)}, but accepts a specific {@link
-     * FutureCompletingBlockingQueue}.
-     */
-    public SingleThreadMultiplexSourceReaderBase(
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
-            Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
-            RecordEmitter<E, T, SplitStateT> recordEmitter,
-            Configuration config,
-            SourceReaderContext context) {
         super(
-                elementsQueue,
-                new SingleThreadFetcherManager<>(elementsQueue, splitReaderSupplier, config),
+                new SingleThreadFetcherManager<>(splitReaderSupplier, config),
                 recordEmitter,
                 config,
                 context);
@@ -108,12 +87,11 @@ public abstract class SingleThreadMultiplexSourceReaderBase<
      * FutureCompletingBlockingQueue} and {@link SingleThreadFetcherManager}.
      */
     public SingleThreadMultiplexSourceReaderBase(
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             SingleThreadFetcherManager<E, SplitT> splitFetcherManager,
             RecordEmitter<E, T, SplitStateT> recordEmitter,
             Configuration config,
             SourceReaderContext context) {
-        super(elementsQueue, splitFetcherManager, recordEmitter, config, context);
+        super(splitFetcherManager, recordEmitter, config, context);
     }
 
     /**
@@ -123,18 +101,11 @@ public abstract class SingleThreadMultiplexSourceReaderBase<
      * RecordEvaluator}.
      */
     public SingleThreadMultiplexSourceReaderBase(
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             SingleThreadFetcherManager<E, SplitT> splitFetcherManager,
             RecordEmitter<E, T, SplitStateT> recordEmitter,
             @Nullable RecordEvaluator<T> eofRecordEvaluator,
             Configuration config,
             SourceReaderContext context) {
-        super(
-                elementsQueue,
-                splitFetcherManager,
-                recordEmitter,
-                eofRecordEvaluator,
-                config,
-                context);
+        super(splitFetcherManager, recordEmitter, eofRecordEvaluator, config, context);
     }
 }

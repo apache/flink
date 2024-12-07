@@ -23,61 +23,60 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.TestingPhysicalSlotPayload;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.not;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link SharedSlot}. */
-public class SharedSlotTest extends TestLogger {
+class SharedSlotTest {
 
     @Test
-    public void testConstructorAssignsPayload() {
+    void testConstructorAssignsPayload() {
         final TestingPhysicalSlot physicalSlot = TestingPhysicalSlot.builder().build();
 
         new SharedSlot(new SlotRequestId(), physicalSlot, false, () -> {});
 
-        assertThat(physicalSlot.getPayload(), not(nullValue()));
-    }
-
-    @Test(expected = IllegalStateException.class)
-    public void testConstructorFailsIfSlotAlreadyHasAssignedPayload() {
-        final TestingPhysicalSlot physicalSlot = TestingPhysicalSlot.builder().build();
-        physicalSlot.tryAssignPayload(new TestingPhysicalSlotPayload());
-
-        new SharedSlot(new SlotRequestId(), physicalSlot, false, () -> {});
+        assertThat(physicalSlot.getPayload()).isNotNull();
     }
 
     @Test
-    public void testAllocateLogicalSlot() {
+    void testConstructorFailsIfSlotAlreadyHasAssignedPayload() {
+        assertThatThrownBy(
+                        () -> {
+                            final TestingPhysicalSlot physicalSlot =
+                                    TestingPhysicalSlot.builder().build();
+                            physicalSlot.tryAssignPayload(new TestingPhysicalSlotPayload());
+
+                            new SharedSlot(new SlotRequestId(), physicalSlot, false, () -> {});
+                        })
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void testAllocateLogicalSlot() {
         final TestingPhysicalSlot physicalSlot = TestingPhysicalSlot.builder().build();
         final SharedSlot sharedSlot =
                 new SharedSlot(new SlotRequestId(), physicalSlot, false, () -> {});
 
         final LogicalSlot logicalSlot = sharedSlot.allocateLogicalSlot();
 
-        assertThat(logicalSlot.getAllocationId(), equalTo(physicalSlot.getAllocationId()));
-        assertThat(logicalSlot.getLocality(), is(Locality.UNKNOWN));
-        assertThat(logicalSlot.getPayload(), nullValue());
-        assertThat(
-                logicalSlot.getTaskManagerLocation(),
-                equalTo(physicalSlot.getTaskManagerLocation()));
-        assertThat(
-                logicalSlot.getTaskManagerGateway(), equalTo(physicalSlot.getTaskManagerGateway()));
+        assertThat(logicalSlot.getAllocationId()).isEqualTo(physicalSlot.getAllocationId());
+        assertThat(logicalSlot.getLocality()).isEqualTo(Locality.UNKNOWN);
+        assertThat(logicalSlot.getPayload()).isNull();
+        assertThat(logicalSlot.getTaskManagerLocation())
+                .isEqualTo(physicalSlot.getTaskManagerLocation());
+        assertThat(logicalSlot.getTaskManagerGateway())
+                .isEqualTo(physicalSlot.getTaskManagerGateway());
     }
 
     @Test
-    public void testAllocateLogicalSlotIssuesUniqueSlotRequestIds() {
+    void testAllocateLogicalSlotIssuesUniqueSlotRequestIds() {
         final TestingPhysicalSlot physicalSlot = TestingPhysicalSlot.builder().build();
         final SharedSlot sharedSlot =
                 new SharedSlot(new SlotRequestId(), physicalSlot, false, () -> {});
@@ -85,32 +84,45 @@ public class SharedSlotTest extends TestLogger {
         final LogicalSlot logicalSlot1 = sharedSlot.allocateLogicalSlot();
         final LogicalSlot logicalSlot2 = sharedSlot.allocateLogicalSlot();
 
-        assertThat(logicalSlot1.getSlotRequestId(), not(equalTo(logicalSlot2.getSlotRequestId())));
-    }
-
-    @Test(expected = IllegalStateException.class)
-    public void testReturnLogicalSlotRejectsAliveSlots() {
-        final TestingPhysicalSlot physicalSlot = TestingPhysicalSlot.builder().build();
-        final SharedSlot sharedSlot =
-                new SharedSlot(new SlotRequestId(), physicalSlot, false, () -> {});
-        final LogicalSlot logicalSlot = sharedSlot.allocateLogicalSlot();
-
-        sharedSlot.returnLogicalSlot(logicalSlot);
-    }
-
-    @Test(expected = IllegalStateException.class)
-    public void testReturnLogicalSlotRejectsUnknownSlot() {
-        final TestingPhysicalSlot physicalSlot = TestingPhysicalSlot.builder().build();
-        final SharedSlot sharedSlot =
-                new SharedSlot(new SlotRequestId(), physicalSlot, false, () -> {});
-        final LogicalSlot logicalSlot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
-        logicalSlot.releaseSlot(new Exception("test"));
-
-        sharedSlot.returnLogicalSlot(logicalSlot);
+        assertThat(logicalSlot1.getSlotRequestId()).isNotEqualTo(logicalSlot2.getSlotRequestId());
     }
 
     @Test
-    public void testReturnLogicalSlotTriggersExternalReleaseOnLastSlot() {
+    void testReturnLogicalSlotRejectsAliveSlots() {
+        assertThatThrownBy(
+                        () -> {
+                            final TestingPhysicalSlot physicalSlot =
+                                    TestingPhysicalSlot.builder().build();
+                            final SharedSlot sharedSlot =
+                                    new SharedSlot(
+                                            new SlotRequestId(), physicalSlot, false, () -> {});
+                            final LogicalSlot logicalSlot = sharedSlot.allocateLogicalSlot();
+
+                            sharedSlot.returnLogicalSlot(logicalSlot);
+                        })
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void testReturnLogicalSlotRejectsUnknownSlot() {
+        assertThatThrownBy(
+                        () -> {
+                            final TestingPhysicalSlot physicalSlot =
+                                    TestingPhysicalSlot.builder().build();
+                            final SharedSlot sharedSlot =
+                                    new SharedSlot(
+                                            new SlotRequestId(), physicalSlot, false, () -> {});
+                            final LogicalSlot logicalSlot =
+                                    new TestingLogicalSlotBuilder().createTestingLogicalSlot();
+                            logicalSlot.releaseSlot(new Exception("test"));
+
+                            sharedSlot.returnLogicalSlot(logicalSlot);
+                        })
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void testReturnLogicalSlotTriggersExternalReleaseOnLastSlot() {
         final TestingPhysicalSlot physicalSlot = TestingPhysicalSlot.builder().build();
         final AtomicBoolean externalReleaseInitiated = new AtomicBoolean(false);
         final SharedSlot sharedSlot =
@@ -124,14 +136,14 @@ public class SharedSlotTest extends TestLogger {
 
         // this implicitly returns the slot
         logicalSlot1.releaseSlot(new Exception("test"));
-        assertThat(externalReleaseInitiated.get(), is(false));
+        assertThat(externalReleaseInitiated).isFalse();
 
         logicalSlot2.releaseSlot(new Exception("test"));
-        assertThat(externalReleaseInitiated.get(), is(true));
+        assertThat(externalReleaseInitiated).isTrue();
     }
 
     @Test
-    public void testReleaseDoesNotTriggersExternalRelease() {
+    void testReleaseDoesNotTriggersExternalRelease() {
         final TestingPhysicalSlot physicalSlot = TestingPhysicalSlot.builder().build();
         final AtomicBoolean externalReleaseInitiated = new AtomicBoolean(false);
         final SharedSlot sharedSlot =
@@ -143,11 +155,11 @@ public class SharedSlotTest extends TestLogger {
 
         sharedSlot.release(new Exception("test"));
 
-        assertThat(externalReleaseInitiated.get(), is(false));
+        assertThat(externalReleaseInitiated).isFalse();
     }
 
     @Test
-    public void testReleaseAlsoReleasesLogicalSlots() {
+    void testReleaseAlsoReleasesLogicalSlots() {
         final TestingPhysicalSlot physicalSlot = TestingPhysicalSlot.builder().build();
         final SharedSlot sharedSlot =
                 new SharedSlot(new SlotRequestId(), physicalSlot, false, () -> {});
@@ -155,22 +167,28 @@ public class SharedSlotTest extends TestLogger {
 
         sharedSlot.release(new Exception("test"));
 
-        assertThat(logicalSlot.isAlive(), is(false));
-    }
-
-    @Test(expected = IllegalStateException.class)
-    public void testReleaseForbidsSubsequentLogicalSlotAllocations() {
-        final TestingPhysicalSlot physicalSlot = TestingPhysicalSlot.builder().build();
-        final SharedSlot sharedSlot =
-                new SharedSlot(new SlotRequestId(), physicalSlot, false, () -> {});
-
-        sharedSlot.release(new Exception("test"));
-
-        sharedSlot.allocateLogicalSlot();
+        assertThat(logicalSlot.isAlive()).isFalse();
     }
 
     @Test
-    public void testCanReturnLogicalSlotDuringRelease() {
+    void testReleaseForbidsSubsequentLogicalSlotAllocations() {
+        assertThatThrownBy(
+                        () -> {
+                            final TestingPhysicalSlot physicalSlot =
+                                    TestingPhysicalSlot.builder().build();
+                            final SharedSlot sharedSlot =
+                                    new SharedSlot(
+                                            new SlotRequestId(), physicalSlot, false, () -> {});
+
+                            sharedSlot.release(new Exception("test"));
+
+                            sharedSlot.allocateLogicalSlot();
+                        })
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void testCanReturnLogicalSlotDuringRelease() {
         final TestingPhysicalSlot physicalSlot = TestingPhysicalSlot.builder().build();
         final SharedSlot sharedSlot =
                 new SharedSlot(new SlotRequestId(), physicalSlot, false, () -> {});
@@ -198,27 +216,33 @@ public class SharedSlotTest extends TestLogger {
 
         // if all logical slots were released, and the sharedSlot no longer allows the allocation of
         // logical slots, then the slot release was completed
-        assertThat(logicalSlot1.isAlive(), is(false));
-        assertThat(logicalSlot2.isAlive(), is(false));
-        try {
-            sharedSlot.allocateLogicalSlot();
-            fail("Allocation of logical slot should have failed because the slot was released.");
-        } catch (IllegalStateException expected) {
-        }
+        assertThat(logicalSlot1.isAlive()).isFalse();
+        assertThat(logicalSlot2.isAlive()).isFalse();
+        assertThatThrownBy(sharedSlot::allocateLogicalSlot)
+                .withFailMessage(
+                        "Allocation of logical slot should have failed because the slot was released.")
+                .isInstanceOf(IllegalStateException.class);
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void testCannotAllocateLogicalSlotDuringRelease() {
-        final TestingPhysicalSlot physicalSlot = TestingPhysicalSlot.builder().build();
-        final SharedSlot sharedSlot =
-                new SharedSlot(new SlotRequestId(), physicalSlot, false, () -> {});
+    @Test
+    void testCannotAllocateLogicalSlotDuringRelease() {
+        assertThatThrownBy(
+                        () -> {
+                            final TestingPhysicalSlot physicalSlot =
+                                    TestingPhysicalSlot.builder().build();
+                            final SharedSlot sharedSlot =
+                                    new SharedSlot(
+                                            new SlotRequestId(), physicalSlot, false, () -> {});
 
-        final LogicalSlot logicalSlot = sharedSlot.allocateLogicalSlot();
+                            final LogicalSlot logicalSlot = sharedSlot.allocateLogicalSlot();
 
-        logicalSlot.tryAssignPayload(
-                new TestLogicalSlotPayload(ignored -> sharedSlot.allocateLogicalSlot()));
+                            logicalSlot.tryAssignPayload(
+                                    new TestLogicalSlotPayload(
+                                            ignored -> sharedSlot.allocateLogicalSlot()));
 
-        sharedSlot.release(new Exception("test"));
+                            sharedSlot.release(new Exception("test"));
+                        })
+                .isInstanceOf(IllegalStateException.class);
     }
 
     private static class TestLogicalSlotPayload implements LogicalSlot.Payload {

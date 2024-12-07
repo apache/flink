@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.BooleanSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -41,7 +41,7 @@ import java.util.stream.IntStream;
 
 /** Test suite for {@link CompositeSerializer}. */
 class CompositeSerializerTest {
-    private static final ExecutionConfig execConf = new ExecutionConfig();
+    private static final SerializerConfigImpl serializerConf = new SerializerConfigImpl();
 
     private static final List<Tuple2<TypeSerializer<?>, Object[]>> TEST_FIELD_SERIALIZERS =
             Arrays.asList(
@@ -49,7 +49,7 @@ class CompositeSerializerTest {
                     Tuple2.of(LongSerializer.INSTANCE, new Object[] {1L, 23L}),
                     Tuple2.of(StringSerializer.INSTANCE, new Object[] {"teststr1", "teststr2"}),
                     Tuple2.of(
-                            TypeInformation.of(Pojo.class).createSerializer(execConf),
+                            TypeInformation.of(Pojo.class).createSerializer(serializerConf),
                             new Object[] {
                                 new Pojo(3, new String[] {"123", "456"}),
                                 new Pojo(6, new String[] {})
@@ -131,8 +131,8 @@ class CompositeSerializerTest {
     }
 
     private static class Pojo {
-        public int f1;
-        public String[] f2;
+        public final int f1;
+        public final String[] f2;
 
         private Pojo(int f1, String[] f2) {
             this.f1 = f1;
@@ -214,7 +214,6 @@ class CompositeSerializerTest {
 
         /** Constructor for read instantiation. */
         public TestListCompositeSerializerSnapshot() {
-            super(TestListCompositeSerializer.class);
             this.isImmutableTargetType = false;
         }
 

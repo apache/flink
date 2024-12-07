@@ -20,6 +20,7 @@ package org.apache.flink.sql.parser.ddl;
 
 import org.apache.flink.sql.parser.ExtendedSqlNode;
 import org.apache.flink.sql.parser.SqlConstraintValidator;
+import org.apache.flink.sql.parser.SqlUnparseUtils;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.ddl.position.SqlTableColumnPosition;
 import org.apache.flink.sql.parser.error.SqlValidateException;
@@ -27,6 +28,7 @@ import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
@@ -42,6 +44,7 @@ public abstract class SqlAlterTableSchema extends SqlAlterTable implements Exten
 
     protected final SqlNodeList columnList;
     @Nullable protected final SqlWatermark watermark;
+    @Nullable protected final SqlDistribution distribution;
     protected final List<SqlTableConstraint> constraints;
 
     public SqlAlterTableSchema(
@@ -50,10 +53,12 @@ public abstract class SqlAlterTableSchema extends SqlAlterTable implements Exten
             SqlNodeList columnList,
             List<SqlTableConstraint> constraints,
             @Nullable SqlWatermark sqlWatermark,
+            @Nullable SqlDistribution distribution,
             boolean ifTableExists) {
         super(pos, tableName, ifTableExists);
         this.columnList = columnList;
         this.constraints = constraints;
+        this.distribution = distribution;
         this.watermark = sqlWatermark;
     }
 
@@ -80,6 +85,10 @@ public abstract class SqlAlterTableSchema extends SqlAlterTable implements Exten
         return Optional.ofNullable(watermark);
     }
 
+    public Optional<SqlDistribution> getDistribution() {
+        return Optional.ofNullable(distribution);
+    }
+
     public List<SqlTableConstraint> getConstraints() {
         return constraints;
     }
@@ -96,5 +105,17 @@ public abstract class SqlAlterTableSchema extends SqlAlterTable implements Exten
                         .map(columnPos -> ((SqlTableColumnPosition) columnPos).getColumn())
                         .collect(Collectors.toList()),
                 SqlParserPos.ZERO);
+    }
+
+    void unparseSchemaAndDistribution(SqlWriter writer, int leftPrec, int rightPrec) {
+        if ((columnList != null && columnList.size() > 0)
+                || (constraints != null && constraints.size() > 0)
+                || watermark != null) {
+            SqlUnparseUtils.unparseTableSchema(
+                    writer, leftPrec, rightPrec, columnList, constraints, watermark);
+        }
+        if (distribution != null) {
+            distribution.unparseAlter(writer, leftPrec, rightPrec);
+        }
     }
 }

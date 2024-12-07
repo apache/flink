@@ -19,9 +19,10 @@
 package org.apache.flink.runtime.state.filesystem;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.fs.DuplicatingFileSystem;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.ICloseableRegistry;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.PathsCopyingFileSystem;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
@@ -47,10 +48,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
-/**
- * Tests for the {@link FsCheckpointStorageAccess}, which implements the checkpoint storage aspects
- * of the {@link FsStateBackend}.
- */
+/** Tests for the {@link FsCheckpointStorageAccess}, which implements the checkpoint storage. */
 class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessTestBase {
 
     private static final int FILE_SIZE_THRESHOLD = 1024;
@@ -61,16 +59,28 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
     // ------------------------------------------------------------------------
 
     @Override
-    protected CheckpointStorageAccess createCheckpointStorage(Path checkpointDir) throws Exception {
+    protected CheckpointStorageAccess createCheckpointStorage(
+            Path checkpointDir, boolean createCheckpointSubDir) throws Exception {
         return new FsCheckpointStorageAccess(
-                checkpointDir, null, new JobID(), FILE_SIZE_THRESHOLD, WRITE_BUFFER_SIZE);
+                checkpointDir,
+                null,
+                createCheckpointSubDir,
+                new JobID(),
+                FILE_SIZE_THRESHOLD,
+                WRITE_BUFFER_SIZE);
     }
 
     @Override
     protected CheckpointStorageAccess createCheckpointStorageWithSavepointDir(
-            Path checkpointDir, Path savepointDir) throws Exception {
+            Path checkpointDir, Path savepointDir, boolean createCheckpointSubDir)
+            throws Exception {
         return new FsCheckpointStorageAccess(
-                checkpointDir, savepointDir, new JobID(), FILE_SIZE_THRESHOLD, WRITE_BUFFER_SIZE);
+                checkpointDir,
+                savepointDir,
+                createCheckpointSubDir,
+                new JobID(),
+                FILE_SIZE_THRESHOLD,
+                WRITE_BUFFER_SIZE);
     }
 
     // ------------------------------------------------------------------------
@@ -85,6 +95,7 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
                 new FsCheckpointStorageAccess(
                         Path.fromLocalFile(TempDirUtils.newFolder(tmp)),
                         defaultSavepointDir,
+                        true,
                         new JobID(),
                         FILE_SIZE_THRESHOLD,
                         WRITE_BUFFER_SIZE);
@@ -109,6 +120,7 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
                 new FsCheckpointStorageAccess(
                         Path.fromLocalFile(TempDirUtils.newFolder(tmp)),
                         null,
+                        true,
                         new JobID(),
                         FILE_SIZE_THRESHOLD,
                         WRITE_BUFFER_SIZE);
@@ -135,6 +147,7 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
                 new FsCheckpointStorageAccess(
                         Path.fromLocalFile(TempDirUtils.newFolder(tmp)),
                         null,
+                        true,
                         new JobID(),
                         10,
                         WRITE_BUFFER_SIZE);
@@ -224,6 +237,7 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
                 new FsCheckpointStorageAccess(
                         randomTempPath(),
                         null,
+                        true,
                         new JobID(),
                         FILE_SIZE_THRESHOLD,
                         WRITE_BUFFER_SIZE);
@@ -240,6 +254,7 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
                 new FsCheckpointStorageAccess(
                         randomTempPath(),
                         null,
+                        true,
                         new JobID(),
                         FILE_SIZE_THRESHOLD,
                         WRITE_BUFFER_SIZE);
@@ -261,6 +276,7 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
                 new FsCheckpointStorageAccess(
                         new TestingPath("hdfs:///checkpoint/", checkpointFileSystem),
                         null,
+                        true,
                         new JobID(),
                         FILE_SIZE_THRESHOLD,
                         WRITE_BUFFER_SIZE);
@@ -284,7 +300,7 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
 
     @Test
     void testNotDuplicationCheckpointStateToolset() throws Exception {
-        CheckpointStorageAccess checkpointStorage = createCheckpointStorage(randomTempPath());
+        CheckpointStorageAccess checkpointStorage = createCheckpointStorage(randomTempPath(), true);
         assertThat(checkpointStorage.createTaskOwnedCheckpointStateToolset())
                 .isInstanceOf(NotDuplicatingCheckpointStateToolset.class);
     }
@@ -296,6 +312,7 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
                         new TestDuplicatingFileSystem(),
                         randomTempPath(),
                         null,
+                        true,
                         new JobID(),
                         FILE_SIZE_THRESHOLD,
                         WRITE_BUFFER_SIZE);
@@ -305,15 +322,16 @@ class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessT
     }
 
     private static final class TestDuplicatingFileSystem extends TestFileSystem
-            implements DuplicatingFileSystem {
+            implements PathsCopyingFileSystem {
 
         @Override
-        public boolean canFastDuplicate(Path source, Path destination) throws IOException {
+        public boolean canCopyPaths(Path source, Path destination) throws IOException {
             return !source.equals(destination);
         }
 
         @Override
-        public void duplicate(List<CopyRequest> requests) throws IOException {}
+        public void copyFiles(List<CopyRequest> requests, ICloseableRegistry closeableRegistry)
+                throws IOException {}
     }
 
     // ------------------------------------------------------------------------

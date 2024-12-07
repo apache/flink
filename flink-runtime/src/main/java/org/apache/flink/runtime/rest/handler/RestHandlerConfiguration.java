@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
@@ -39,7 +38,7 @@ public class RestHandlerConfiguration {
 
     private final int checkpointCacheSize;
 
-    private final Time timeout;
+    private final Duration timeout;
 
     private final File webUiDir;
 
@@ -54,7 +53,7 @@ public class RestHandlerConfiguration {
             int checkpointHistorySize,
             Duration checkpointCacheExpireAfterWrite,
             int checkpointCacheSize,
-            Time timeout,
+            Duration timeout,
             File webUiDir,
             boolean webSubmitEnabled,
             boolean webCancelEnabled,
@@ -90,7 +89,7 @@ public class RestHandlerConfiguration {
         return checkpointCacheSize;
     }
 
-    public Time getTimeout() {
+    public Duration getTimeout() {
         return timeout;
     }
 
@@ -111,10 +110,9 @@ public class RestHandlerConfiguration {
     }
 
     public static RestHandlerConfiguration fromConfiguration(Configuration configuration) {
-        final long refreshInterval = configuration.getLong(WebOptions.REFRESH_INTERVAL);
+        final long refreshInterval = configuration.get(WebOptions.REFRESH_INTERVAL).toMillis();
 
-        final int checkpointHistorySize =
-                configuration.getInteger(WebOptions.CHECKPOINTS_HISTORY_SIZE);
+        final int checkpointHistorySize = configuration.get(WebOptions.CHECKPOINTS_HISTORY_SIZE);
         final Duration checkpointStatsSnapshotCacheExpireAfterWrite =
                 configuration
                         .getOptional(RestOptions.CACHE_CHECKPOINT_STATISTICS_TIMEOUT)
@@ -122,18 +120,18 @@ public class RestHandlerConfiguration {
         final int checkpointStatsSnapshotCacheSize =
                 configuration.get(RestOptions.CACHE_CHECKPOINT_STATISTICS_SIZE);
 
-        final Time timeout = Time.milliseconds(configuration.getLong(WebOptions.TIMEOUT));
+        final Duration timeout = configuration.get(WebOptions.TIMEOUT);
 
         final String rootDir = "flink-web-ui";
-        final File webUiDir = new File(configuration.getString(WebOptions.TMP_DIR), rootDir);
+        final File webUiDir = new File(configuration.get(WebOptions.TMP_DIR), rootDir);
 
-        final boolean webSubmitEnabled = configuration.getBoolean(WebOptions.SUBMIT_ENABLE);
-        final boolean webCancelEnabled = configuration.getBoolean(WebOptions.CANCEL_ENABLE);
+        final boolean webSubmitEnabled = configuration.get(WebOptions.SUBMIT_ENABLE);
+        final boolean webCancelEnabled = configuration.get(WebOptions.CANCEL_ENABLE);
         final boolean webRescaleSupported =
                 ClusterOptions.isAdaptiveSchedulerEnabled(configuration)
                         && !ClusterOptions.isReactiveModeEnabled(configuration);
         final boolean webRescaleEnabled =
-                webRescaleSupported && configuration.getBoolean(WebOptions.RESCALE_ENABLE);
+                webRescaleSupported && configuration.get(WebOptions.RESCALE_ENABLE);
 
         return new RestHandlerConfiguration(
                 refreshInterval,

@@ -23,7 +23,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.testjar.AvroExternalJarProgram;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
-import org.apache.flink.test.util.TestEnvironment;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.JarUtils;
 
 import org.junit.jupiter.api.AfterAll;
@@ -52,13 +52,13 @@ class AvroExternalJarProgramITCase {
                             .build());
 
     @BeforeAll
-    public static void setUp() throws Exception {
+    static void setUp() throws Exception {
         MINI_CLUSTER.start();
     }
 
     @AfterAll
-    public static void tearDown() {
-        TestEnvironment.unsetAsContext();
+    static void tearDown() {
+        TestStreamEnvironment.unsetAsContext();
         MINI_CLUSTER.closeAsync();
     }
 
@@ -72,7 +72,7 @@ class AvroExternalJarProgramITCase {
             jarFile = "target/".concat(jarFile);
         }
 
-        TestEnvironment.setAsContext(
+        TestStreamEnvironment.setAsContext(
                 MINI_CLUSTER,
                 PARALLELISM,
                 Collections.singleton(new Path(jarFile)),

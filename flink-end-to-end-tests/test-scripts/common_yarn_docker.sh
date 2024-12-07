@@ -42,14 +42,14 @@ function cluster_shutdown {
   if [ ${TRAPPED_EXIT_CODE} != 0 ];then
       debug_copy_and_show_logs
   fi
-  docker-compose -f "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml" down
+  docker compose -f "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml" down
   rm "${FLINK_TARBALL_DIR}/${FLINK_TARBALL}"
 }
 on_exit cluster_shutdown
 
 function start_hadoop_cluster() {
     echo "Starting Hadoop cluster"
-    docker-compose -f "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml" up -d
+    docker compose -f "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml" up -d
 
     # Wait for kerberos to be set up
     local start_time
@@ -99,11 +99,11 @@ function start_hadoop_cluster() {
 function build_image() {
     echo "Pre-downloading Hadoop tarball"
     local cache_path
-    cache_path=$(get_artifact "http://archive.apache.org/dist/hadoop/common/hadoop-2.10.2/hadoop-2.10.2.tar.gz")
+    cache_path=$(get_artifact "https://archive.apache.org/dist/hadoop/common/hadoop-2.10.2/hadoop-2.10.2.tar.gz")
     ln "${cache_path}" "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/hadoop/hadoop.tar.gz"
 
     echo "Building Hadoop Docker container"
-    docker-compose -f "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml" build
+    docker compose -f "${END_TO_END_DIR}/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml" build
 }
 
 function start_hadoop_cluster_and_prepare_flink() {
@@ -131,10 +131,10 @@ security.kerberos.login.principal: hadoop-user
 slot.request.timeout: 120000
 END
 )
-    docker exec master bash -c "echo \"${FLINK_CONFIG}\" > /home/hadoop-user/${FLINK_DIRNAME}/conf/flink-conf.yaml"
+    docker exec master bash -c "echo \"${FLINK_CONFIG}\" > /home/hadoop-user/${FLINK_DIRNAME}/conf/config.yaml"
 
     echo "Flink config:"
-    docker exec master bash -c "cat /home/hadoop-user/${FLINK_DIRNAME}/conf/flink-conf.yaml"
+    docker exec master bash -c "cat /home/hadoop-user/${FLINK_DIRNAME}/conf/config.yaml"
 }
 
 function debug_copy_and_show_logs {

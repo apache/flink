@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.19-SNAPSHOT</version>
+		<version>2.0-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-streaming-java</artifactId>
@@ -34,7 +34,14 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<surefire.module.config><!--
+		<!--
+		Two properties below should be merged once support for jdk8 and jdk11 is dropped.
+		The reason of extraction into a separate property with profile is that
+		specifying -Djava.security.manager=allow within ${surefire.module.config} leads to
+		hanging of surefire for jdk8 and jdk11
+		-->
+		<surefire.module.config.jdk21></surefire.module.config.jdk21>
+		<surefire.module.config> ${surefire.module.config.jdk21} <!--
 			FromElementsFunctionTest
 			-->--add-opens=java.base/java.lang=ALL-UNNAMED <!--
 			chill ArraysAsListSerializer
@@ -61,12 +68,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-runtime</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -106,9 +107,15 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>fink-migration-test-utils</artifactId>
+			<artifactId>flink-migration-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.twitter</groupId>
+			<artifactId>chill-java</artifactId>
+			<version>${chill.version}</version>
 		</dependency>
 	</dependencies>
 
@@ -169,6 +176,18 @@ under the License.
 					</plugin>
 				</plugins>
 			</build>
+		</profile>
+		<profile>
+			<id>java21</id>
+			<activation>
+				<jdk>[21,)</jdk>
+			</activation>
+
+			<properties>
+				<surefire.module.config.jdk21> <!--
+				    required by StreamTaskSystemExitTest-->
+					-Djava.security.manager=allow</surefire.module.config.jdk21>
+			</properties>
 		</profile>
 	</profiles>
 </project>

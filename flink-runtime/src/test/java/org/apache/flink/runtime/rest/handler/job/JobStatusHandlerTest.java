@@ -29,21 +29,20 @@ import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.JobStatusInfoHeaders;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for the {@link JobStatusHandler}. */
-public class JobStatusHandlerTest extends TestLogger {
+class JobStatusHandlerTest {
     @Test
-    public void testRequestJobStatus() throws Exception {
+    void testRequestJobStatus() throws Exception {
         final JobStatusHandler jobStatusHandler =
                 new JobStatusHandler(
                         CompletableFuture::new,
@@ -62,7 +61,7 @@ public class JobStatusHandlerTest extends TestLogger {
                                                         JobStatus.INITIALIZING))
                                 .build());
 
-        assertEquals(response.get().getJobStatus(), JobStatus.INITIALIZING);
+        assertThat(JobStatus.INITIALIZING).isEqualTo(response.get().getJobStatus());
     }
 
     private static HandlerRequest<EmptyRequestBody> createRequest(JobID jobId)

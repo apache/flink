@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
@@ -31,6 +30,7 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionHistory;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.DefaultExecutionGraphCache;
@@ -45,23 +45,23 @@ import org.apache.flink.runtime.rest.messages.job.SubtaskAttemptPathParameter;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests of {@link SubtaskExecutionAttemptDetailsHandler}. */
-public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
+class SubtaskExecutionAttemptDetailsHandlerTest {
 
     @Test
-    public void testHandleRequest() throws Exception {
+    void testHandleRequest() throws Exception {
 
         final JobID jobID = new JobID();
         final JobVertexID jobVertexId = new JobVertexID();
@@ -116,6 +116,7 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
                         "test",
                         1,
                         1,
+                        new SlotSharingGroup(),
                         ResourceProfile.UNKNOWN,
                         emptyAccumulators);
 
@@ -125,8 +126,8 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
                         () -> null,
                         address -> null,
                         Executors.directExecutor(),
-                        Time.milliseconds(1000L),
-                        MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
+                        Duration.ofMillis(1000L),
+                        MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue().toMillis());
 
         // Instance the handler.
         final RestHandlerConfiguration restHandlerConfiguration =
@@ -135,12 +136,12 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
         final SubtaskExecutionAttemptDetailsHandler handler =
                 new SubtaskExecutionAttemptDetailsHandler(
                         () -> null,
-                        Time.milliseconds(100L),
+                        Duration.ofMillis(100L),
                         Collections.emptyMap(),
                         SubtaskExecutionAttemptDetailsHeaders.getInstance(),
                         new DefaultExecutionGraphCache(
                                 restHandlerConfiguration.getTimeout(),
-                                Time.milliseconds(restHandlerConfiguration.getRefreshInterval())),
+                                Duration.ofMillis(restHandlerConfiguration.getRefreshInterval())),
                         Executors.directExecutor(),
                         metricFetcher);
 
@@ -198,6 +199,6 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
                         statusDuration,
                         null);
 
-        assertEquals(expectedDetailsInfo, detailsInfo);
+        assertThat(detailsInfo).isEqualTo(expectedDetailsInfo);
     }
 }

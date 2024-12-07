@@ -174,7 +174,7 @@ public interface ChangelogStateBackendHandle
 
                 StreamStateHandle castMetaStateHandle =
                         restoreFileStateHandle(
-                                incrementalRemoteKeyedStateHandle.getMetaStateHandle());
+                                incrementalRemoteKeyedStateHandle.getMetaDataStateHandle());
                 List<HandleAndLocalPath> castSharedStates =
                         incrementalRemoteKeyedStateHandle.getSharedState().stream()
                                 .map(
@@ -363,6 +363,11 @@ public interface ChangelogStateBackendHandle
             @Override
             public long getStateSize() {
                 return keyedStateHandle.getStateSize();
+            }
+
+            @Override
+            public void collectSizeStats(StateObjectSizeStatsCollector collector) {
+                keyedStateHandle.collectSizeStats(collector);
             }
 
             @Override

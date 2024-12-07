@@ -19,23 +19,35 @@
 package org.apache.flink.client.deployment.executors;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.cli.ClientOptions;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
+import org.apache.flink.core.execution.JobStatusChangedListener;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.runtime.execution.DefaultJobCreatedEvent;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
 import java.net.MalformedURLException;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** Utility class with method related to job execution. */
 public class PipelineExecutorUtils {
+    private static final Logger LOG = LoggerFactory.getLogger(PipelineExecutorUtils.class);
 
     /**
      * Creates the {@link JobGraph} corresponding to the provided {@link Pipeline}.
@@ -68,10 +80,10 @@ public class PipelineExecutorUtils {
                 .getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID)
                 .ifPresent(strJobID -> jobGraph.setJobID(JobID.fromHexString(strJobID)));
 
-        if (configuration.getBoolean(DeploymentOptions.ATTACHED)
-                && configuration.getBoolean(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
+        if (configuration.get(DeploymentOptions.ATTACHED)
+                && configuration.get(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
             jobGraph.setInitialClientHeartbeatTimeout(
-                    configuration.getLong(ClientOptions.CLIENT_HEARTBEAT_TIMEOUT));
+                    configuration.get(ClientOptions.CLIENT_HEARTBEAT_TIMEOUT).toMillis());
         }
 
         jobGraph.addJars(executionConfigAccessor.getJars());
@@ -79,5 +91,66 @@ public class PipelineExecutorUtils {
         jobGraph.setSavepointRestoreSettings(executionConfigAccessor.getSavepointRestoreSettings());
 
         return jobGraph;
+    }
+
+    /**
+     * Notify the {@link DefaultJobCreatedEvent} to job status changed listeners.
+     *
+     * @param pipeline the pipeline that contains lineage graph information.
+     * @param executionPlan executionPlan that contains job basic info
+     * @param listeners the list of job status changed listeners
+     */
+    public static void notifyJobStatusListeners(
+            @Nonnull final Pipeline pipeline,
+            @Nonnull final ExecutionPlan executionPlan,
+            List<JobStatusChangedListener> listeners) {
+        RuntimeExecutionMode executionMode =
+                executionPlan.getJobConfiguration().get(ExecutionOptions.RUNTIME_MODE);
+        listeners.forEach(
+                listener -> {
+                    try {
+                        listener.onEvent(
+                                new DefaultJobCreatedEvent(
+                                        executionPlan.getJobID(),
+                                        executionPlan.getName(),
+                                        ((StreamGraph) pipeline).getLineageGraph(),
+                                        executionMode));
+                    } catch (Throwable e) {
+                        LOG.error(
+                                "Fail to notify job status changed listener {}",
+                                listener.getClass().getName(),
+                                e);
+                    }
+                });
+    }
+
+    public static StreamGraph getStreamGraph(
+            @Nonnull final Pipeline pipeline, @Nonnull final Configuration configuration)
+            throws Exception {
+        checkNotNull(pipeline);
+        checkNotNull(configuration);
+        checkState(pipeline instanceof StreamGraph);
+
+        StreamGraph streamGraph = (StreamGraph) pipeline;
+
+        final ExecutionConfigAccessor executionConfigAccessor =
+                ExecutionConfigAccessor.fromConfiguration(configuration);
+
+        configuration
+                .getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID)
+                .ifPresent(strJobID -> streamGraph.setJobId(JobID.fromHexString(strJobID)));
+
+        if (configuration.get(DeploymentOptions.ATTACHED)
+                && configuration.get(DeploymentOptions.SHUTDOWN_IF_ATTACHED)) {
+            streamGraph.setInitialClientHeartbeatTimeout(
+                    configuration.get(ClientOptions.CLIENT_HEARTBEAT_TIMEOUT).toMillis());
+        }
+
+        streamGraph.addJars(executionConfigAccessor.getJars());
+        streamGraph.setClasspath(executionConfigAccessor.getClasspaths());
+        streamGraph.setSavepointRestoreSettings(
+                executionConfigAccessor.getSavepointRestoreSettings());
+
+        return streamGraph;
     }
 }

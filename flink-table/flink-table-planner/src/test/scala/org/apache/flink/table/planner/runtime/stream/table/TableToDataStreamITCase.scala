@@ -17,18 +17,17 @@
  */
 package org.apache.flink.table.planner.runtime.stream.table
 
-import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.functions.sink.SinkFunction
-import org.apache.flink.streaming.api.scala.DataStream
+import org.apache.flink.api.common.eventtime._
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.TestSinkContextTableSink
-import org.apache.flink.table.planner.runtime.utils.{AbstractExactlyOnceSink, StreamingTestBase, TestingRetractSink, TestSinkUtil}
+import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
 import java.time.{LocalDateTime, ZoneOffset}
 import java.util.TimeZone
@@ -62,7 +61,7 @@ final class TableToDataStreamITCase extends StreamingTestBase {
       """.stripMargin
 
     tEnv.executeSql(sourceDDL)
-    val dataStream = tEnv.sqlQuery("SELECT a, ts FROM src").toAppendStream[Row]
+    val dataStream = tEnv.sqlQuery("SELECT a, ts FROM src").toDataStream
 
     val expected = List(
       "+I[A, 1970-01-01T00:00:01], 1000",
@@ -75,7 +74,7 @@ final class TableToDataStreamITCase extends StreamingTestBase {
     val sink = new StringWithTimestampSink[Row]
     dataStream.addSink(sink)
     env.execute("TableToAppendStream")
-    assertEquals(expected, sink.getResults.sorted)
+    assertThat(sink.getResults.sorted).isEqualTo(expected)
 
   }
 
@@ -126,7 +125,7 @@ final class TableToDataStreamITCase extends StreamingTestBase {
       "C,1970-01-01T00:00:03,3000",
       "D,1970-01-01T00:00:04,4000",
       "E,1970-01-01T00:00:07,7000")
-    assertEquals(expected, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
 
     val expectedRetract = List(
       "(true,A,1970-01-01T00:00:01,1000)",
@@ -136,17 +135,29 @@ final class TableToDataStreamITCase extends StreamingTestBase {
       "(true,D,1970-01-01T00:00:04,4000)",
       "(true,E,1970-01-01T00:00:07,7000)"
     )
-    assertEquals(expectedRetract.sorted, sink.getRawResults.sorted)
+    assertThat(sink.getRawResults.sorted).isEqualTo(expectedRetract.sorted)
   }
 
   @Test
   def testHasRowtimeFromDataStreamToTableBackDataStream(): Unit = {
     val data = Seq((1L, "A"), (2L, "B"), (3L, "C"), (4L, "D"), (7L, "E"))
 
-    val ds1 = env
-      .fromCollection(data)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, data)
       // second to millisecond
-      .assignAscendingTimestamps(_._1 * 1000L)
+      .assignTimestampsAndWatermarks(new WatermarkStrategy[(Long, String)]() {
+
+        override def createWatermarkGenerator(
+            context: WatermarkGeneratorSupplier.Context): WatermarkGenerator[(Long, String)] = {
+          new AscendingTimestampsWatermarks[(Long, String)]
+        }
+
+        override def createTimestampAssigner(
+            context: TimestampAssignerSupplier.Context): TimestampAssigner[(Long, String)] = {
+          (e: (Long, String), _: Long) => e._1 * 1000L
+        }
+      })
+
     val table = ds1.toTable(tEnv, 'ts, 'a, 'rowtime.rowtime)
     tEnv.createTemporaryView("t1", table)
 
@@ -157,7 +168,7 @@ final class TableToDataStreamITCase extends StreamingTestBase {
           | FROM t1
       """.stripMargin
       )
-      .toAppendStream[Row]
+      .toDataStream
 
     val expected = List(
       "+I[A_, 1, 1970-01-01T00:00:01], 1000",
@@ -170,7 +181,7 @@ final class TableToDataStreamITCase extends StreamingTestBase {
     val sink = new StringWithTimestampSink[Row]
     ds2.addSink(sink)
     env.execute("DataStreamToTableBackDataStream")
-    assertEquals(expected, sink.getResults.sorted)
+    assertThat(sink.getResults.sorted).isEqualTo(expected)
   }
 
   @Test
@@ -224,7 +235,7 @@ final class TableToDataStreamITCase extends StreamingTestBase {
     tEnv.executeSql("INSERT INTO sink SELECT * FROM src").await()
 
     val expected = List(1000, 2000, 3000, 4000, 7000, 8000, 16000)
-    assertEquals(expected.sorted, TestSinkContextTableSink.ROWTIMES.sorted)
+    assertThat(TestSinkContextTableSink.ROWTIMES.sorted).isEqualTo(expected.sorted)
 
     val sinkDDL2 =
       s"""
@@ -256,11 +267,11 @@ final class TableToDataStreamITCase extends StreamingTestBase {
       .await()
 
     val expected2 = List(4999, 9999, 19999)
-    assertEquals(expected2.sorted, TestSinkContextTableSink.ROWTIMES.sorted)
+    assertThat(TestSinkContextTableSink.ROWTIMES.sorted).isEqualTo(expected2.sorted)
   }
 
   @Test
-  def testFromTableToAppendStreamWithProctime(): Unit = {
+  def testFromTableToDataStreamWithProctime(): Unit = {
     val data = List(rowOf(localDateTime(1L), "A"))
 
     val dataId: String = TestValuesTableFactory.registerData(data)
@@ -278,20 +289,32 @@ final class TableToDataStreamITCase extends StreamingTestBase {
       """.stripMargin
 
     tEnv.executeSql(sourceDDL)
-    val dataStream = tEnv.sqlQuery("SELECT a, ts, proctime FROM src").toAppendStream[Row]
+    val dataStream = tEnv.sqlQuery("SELECT a, ts, proctime FROM src").toDataStream
 
-    val expected = "Row(a: String, ts: LocalDateTime, proctime: Instant)"
-    assertEquals(expected, dataStream.dataType.toString)
+    val expected =
+      "ROW<`a` STRING, `ts` TIMESTAMP(3), `proctime` TIMESTAMP_LTZ(3) NOT NULL> NOT NULL(org.apache.flink.types.Row, org.apache.flink.table.runtime.typeutils.ExternalSerializer)"
+    assertThat(dataStream.getType.toString).isEqualTo(expected)
   }
 
   @Test
   def testHasFromDataStreamToTableBackDataStreamWithProctime(): Unit = {
     val data = Seq((1L, "A"))
 
-    val ds1 = env
-      .fromCollection(data)
+    val ds1 = StreamingEnvUtil
+      .fromCollection(env, data)
       // second to millisecond
-      .assignAscendingTimestamps(_._1 * 1000L)
+      .assignTimestampsAndWatermarks(new WatermarkStrategy[(Long, String)]() {
+
+        override def createWatermarkGenerator(
+            context: WatermarkGeneratorSupplier.Context): WatermarkGenerator[(Long, String)] = {
+          new AscendingTimestampsWatermarks[(Long, String)]
+        }
+
+        override def createTimestampAssigner(
+            context: TimestampAssignerSupplier.Context): TimestampAssigner[(Long, String)] = {
+          (e: (Long, String), _: Long) => e._1 * 1000L
+        }
+      })
     val table = ds1.toTable(tEnv, 'ts, 'a, 'proctime.proctime())
     tEnv.createTemporaryView("t1", table)
 
@@ -302,10 +325,11 @@ final class TableToDataStreamITCase extends StreamingTestBase {
           | FROM t1
       """.stripMargin
       )
-      .toAppendStream[Row]
+      .toDataStream
 
-    val expected = "Row(EXPR$0: String, ts: Long, proctime: Instant)"
-    assertEquals(expected, ds2.dataType.toString)
+    val expected =
+      "ROW<`EXPR$0` STRING, `ts` BIGINT, `proctime` TIMESTAMP_LTZ(3)> NOT NULL(org.apache.flink.types.Row, org.apache.flink.table.runtime.typeutils.ExternalSerializer)"
+    assertThat(ds2.getType.toString).isEqualTo(expected)
   }
 
   private def localDateTime(epochSecond: Long): LocalDateTime = {

@@ -27,7 +27,7 @@ import org.apache.flink.connector.file.table.TableMetaStoreFactory;
 import org.apache.flink.connector.file.table.stream.compact.CompactMessages;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
@@ -127,7 +127,7 @@ public class BatchPartitionCommitterSinkTest {
             };
 
     private static RuntimeContext getMockRuntimeContext() {
-        return new MockStreamingRuntimeContext(false, 0, 0) {
+        return new MockStreamingRuntimeContext(false, 1, 0) {
             @Override
             public ClassLoader getUserCodeClassLoader() {
                 return Thread.currentThread().getContextClassLoader();

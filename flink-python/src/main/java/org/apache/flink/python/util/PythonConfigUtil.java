@@ -17,14 +17,14 @@
 
 package org.apache.flink.python.util;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonConfig;
@@ -52,9 +52,9 @@ import org.apache.flink.streaming.runtime.translators.python.PythonBroadcastStat
 import org.apache.flink.streaming.runtime.translators.python.PythonKeyedBroadcastStateTransformationTranslator;
 import org.apache.flink.util.OutputTag;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
-import org.apache.flink.shaded.guava31.com.google.common.collect.Queues;
-import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Queues;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Sets;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -79,8 +79,16 @@ public class PythonConfigUtil {
     }
 
     public static void configPythonOperator(StreamExecutionEnvironment env) throws Exception {
-        final Configuration config =
-                extractPythonConfiguration(env.getCachedFiles(), env.getConfiguration());
+        final Configuration config = extractPythonConfiguration(env.getConfiguration());
+
+        env.getConfiguration()
+                .getOptional(PipelineOptions.CACHED_FILES)
+                .ifPresent(
+                        f -> {
+                            env.getCachedFiles().clear();
+                            env.getCachedFiles()
+                                    .addAll(DistributedCache.parseCachedFilesFromString(f));
+                        });
 
         for (Transformation<?> transformation : env.getTransformations()) {
             alignTransformation(transformation);
@@ -102,11 +110,9 @@ public class PythonConfigUtil {
     }
 
     /** Extract the configurations which is used in the Python operators. */
-    public static Configuration extractPythonConfiguration(
-            List<Tuple2<String, DistributedCache.DistributedCacheEntry>> cachedFiles,
-            ReadableConfig config) {
+    public static Configuration extractPythonConfiguration(ReadableConfig config) {
         final Configuration pythonDependencyConfig =
-                PythonDependencyUtils.configurePythonDependencies(cachedFiles, config);
+                PythonDependencyUtils.configurePythonDependencies(config);
         final PythonConfig pythonConfig = new PythonConfig(config, pythonDependencyConfig);
         return pythonConfig.toConfiguration();
     }
@@ -336,7 +342,7 @@ public class PythonConfigUtil {
                 new ArrayList<>(names.length);
         TypeSerializer<byte[]> byteArraySerializer =
                 PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO.createSerializer(
-                        new ExecutionConfig());
+                        new SerializerConfigImpl());
         for (String name : names) {
             descriptors.add(
                     new MapStateDescriptor<>(

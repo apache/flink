@@ -113,9 +113,9 @@ class CliFrontendITCase {
         Map<String, String> originalEnv = System.getenv();
         try {
             File confFolder = Files.createTempDirectory(tempFolder, "conf").toFile();
-            File confYaml = new File(confFolder, "flink-conf.yaml");
+            File confYaml = new File(confFolder, "config.yaml");
             if (!confYaml.createNewFile()) {
-                throw new IOException("Can't create testing flink-conf.yaml file.");
+                throw new IOException("Can't create testing config.yaml file.");
             }
 
             Map<String, String> map = new HashMap<>(System.getenv());

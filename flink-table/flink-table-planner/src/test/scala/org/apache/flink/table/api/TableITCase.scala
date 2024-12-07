@@ -18,13 +18,14 @@
 package org.apache.flink.table.api
 
 import org.apache.flink.api.common.JobStatus
+import org.apache.flink.client.program.ClusterClient
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.catalog.{Column, ResolvedSchema}
-import org.apache.flink.table.planner.utils.TestTableSourceSinks
-import org.apache.flink.test.util.AbstractTestBase
-import org.apache.flink.test.util.AbstractTestBase.MINI_CLUSTER_RESOURCE
+import org.apache.flink.table.planner.utils.{TableITCaseBase, TestTableSourceSinks}
+import org.apache.flink.test.junit5.InjectClusterClient
+import org.apache.flink.testutils.junit.extensions.parameterized.{Parameter, ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.{Row, RowKind}
 import org.apache.flink.util.CollectionUtil
 
@@ -32,32 +33,31 @@ import _root_.java.lang.{Long => JLong}
 import _root_.java.util
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.containsInAnyOrder
-import org.junit.{Before, Rule, Test}
-import org.junit.Assert.{assertEquals, assertTrue}
-import org.junit.rules.TemporaryFolder
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.time.Instant
 
-@RunWith(classOf[Parameterized])
-class TableITCase(tableEnvName: String, isStreaming: Boolean) extends AbstractTestBase {
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
+class TableITCase extends TableITCaseBase {
 
-  private val _tempFolder = new TemporaryFolder()
+  @Parameter(0)
+  var tableEnvName: String = _
 
-  @Rule
-  def tempFolder: TemporaryFolder = _tempFolder
+  @Parameter(1)
+  var isStreaming: Boolean = _
 
   var tEnv: TableEnvironment = _
 
-  private val settings = if (isStreaming) {
-    EnvironmentSettings.newInstance().inStreamingMode().build()
-  } else {
-    EnvironmentSettings.newInstance().inBatchMode().build()
-  }
-
-  @Before
+  @BeforeEach
   def setup(): Unit = {
+    val settings = if (isStreaming) {
+      EnvironmentSettings.newInstance().inStreamingMode().build()
+    } else {
+      EnvironmentSettings.newInstance().inBatchMode().build()
+    }
+
     tableEnvName match {
       case "TableEnvironment" =>
         tEnv = TableEnvironmentImpl.create(settings)
@@ -70,7 +70,7 @@ class TableITCase(tableEnvName: String, isStreaming: Boolean) extends AbstractTe
     TestTableSourceSinks.createPersonCsvTemporaryTable(tEnv, "MyTable")
   }
 
-  @Test
+  @TestTemplate
   def testExecute(): Unit = {
     val query =
       """
@@ -107,8 +107,8 @@ class TableITCase(tableEnvName: String, isStreaming: Boolean) extends AbstractTe
     assertEquals(expected, actual)
   }
 
-  @Test
-  def testCollectWithClose(): Unit = {
+  @TestTemplate
+  def testCollectWithClose(@InjectClusterClient clusterClient: ClusterClient[_]): Unit = {
     val sourceDdl =
       """
         |create table unbounded_source (
@@ -132,12 +132,11 @@ class TableITCase(tableEnvName: String, isStreaming: Boolean) extends AbstractTe
     // wait for mini cluster to shut down
     val jobClient = tableResult.getJobClient.get()
     val jobId = jobClient.getJobID
-    MINI_CLUSTER_RESOURCE.getClusterClient.requestJobResult(jobId).get()
-
+    clusterClient.requestJobResult(jobId).get()
     assertEquals(JobStatus.CANCELED, jobClient.getJobStatus.get())
   }
 
-  @Test
+  @TestTemplate
   def testExecuteWithUpdateChanges(): Unit = {
     val tableResult = tEnv.sqlQuery("select count(*) as c from MyTable").execute()
     assertTrue(tableResult.getJobClient.isPresent)
@@ -170,7 +169,7 @@ class TableITCase(tableEnvName: String, isStreaming: Boolean) extends AbstractTe
     assertEquals(expected, actual)
   }
 
-  @Test
+  @TestTemplate
   def testCollectWithMultiRowtime(): Unit = {
     tEnv.executeSql("""
                       |CREATE TABLE MyTableWithRowtime1 (
@@ -201,7 +200,8 @@ class TableITCase(tableEnvName: String, isStreaming: Boolean) extends AbstractTe
 }
 
 object TableITCase {
-  @Parameterized.Parameters(name = "{0}:isStream={1}")
+
+  @Parameters(name = "{0}:isStream={1}")
   def parameters(): util.Collection[Array[_]] = {
     util.Arrays.asList(
       Array("TableEnvironment", true),

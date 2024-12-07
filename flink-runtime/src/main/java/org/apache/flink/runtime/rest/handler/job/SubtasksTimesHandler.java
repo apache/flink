@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.job;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
@@ -40,6 +39,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.CollectionUtil;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -52,7 +52,7 @@ public class SubtasksTimesHandler
         implements OnlyExecutionGraphJsonArchivist {
     public SubtasksTimesHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             MessageHeaders<EmptyRequestBody, SubtasksTimesInfo, JobVertexMessageParameters>
                     messageHeaders,
@@ -113,7 +113,8 @@ public class SubtasksTimesHandler
             long duration = start >= 0 ? end - start : -1L;
 
             TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
-            String locationString = location == null ? "(unassigned)" : location.getHostname();
+            String host = location == null ? "(unassigned)" : location.getHostname();
+            String endpoint = location == null ? "(unassigned)" : location.getEndpoint();
 
             Map<ExecutionState, Long> timestampMap =
                     CollectionUtil.newHashMapWithExpectedSize(ExecutionState.values().length);
@@ -122,8 +123,7 @@ public class SubtasksTimesHandler
             }
 
             subtasks.add(
-                    new SubtasksTimesInfo.SubtaskTimeInfo(
-                            num++, locationString, duration, timestampMap));
+                    new SubtasksTimesInfo.SubtaskTimeInfo(num++, endpoint, duration, timestampMap));
         }
         return new SubtasksTimesInfo(id, name, now, subtasks);
     }

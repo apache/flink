@@ -20,8 +20,8 @@ package org.apache.flink.runtime.dispatcher.cleanup;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -32,7 +32,6 @@ import org.apache.flink.runtime.checkpoint.TestingCompletedCheckpointStore;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.UnavailableDispatcherOperationException;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobmaster.JobManagerRunnerResult;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
@@ -46,6 +45,7 @@ import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -63,7 +63,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 class CheckpointResourcesCleanupRunnerTest {
 
-    private static final Time TIMEOUT_FOR_REQUESTS = Time.milliseconds(0);
+    private static final Duration TIMEOUT_FOR_REQUESTS = Duration.ofMillis(0);
 
     private static final ThrowingConsumer<CheckpointResourcesCleanupRunner, ? extends Exception>
             BEFORE_START = ignored -> {};
@@ -617,7 +617,7 @@ class CheckpointResourcesCleanupRunnerTest {
                 int maxNumberOfCheckpointsToRetain,
                 SharedStateRegistryFactory sharedStateRegistryFactory,
                 Executor ioExecutor,
-                RestoreMode restoreMode)
+                RecoveryClaimMode recoveryClaimMode)
                 throws Exception {
             creationLatch.await();
             return completedCheckpointStore;

@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -35,22 +35,22 @@ import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializer
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeSerializerTest.SimpleTypes;
 import org.apache.flink.util.StringUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Random;
 
-public class TupleSerializerTest {
+class TupleSerializerTest {
 
     @Test
-    public void testTuple0() {
+    void testTuple0() {
         Tuple0[] testTuples = new Tuple0[] {Tuple0.INSTANCE, Tuple0.INSTANCE, Tuple0.INSTANCE};
 
         runTests(1, testTuples);
     }
 
     @Test
-    public void testTuple1Int() {
+    void testTuple1Int() {
         @SuppressWarnings({"unchecked", "rawtypes"})
         Tuple1<Integer>[] testTuples =
                 new Tuple1[] {
@@ -66,7 +66,7 @@ public class TupleSerializerTest {
     }
 
     @Test
-    public void testTuple1String() {
+    void testTuple1String() {
         Random rnd = new Random(68761564135413L);
 
         @SuppressWarnings({"unchecked", "rawtypes"})
@@ -84,7 +84,7 @@ public class TupleSerializerTest {
     }
 
     @Test
-    public void testTuple1StringArray() {
+    void testTuple1StringArray() {
         Random rnd = new Random(289347567856686223L);
 
         String[] arr1 =
@@ -117,7 +117,7 @@ public class TupleSerializerTest {
     }
 
     @Test
-    public void testTuple2StringDouble() {
+    void testTuple2StringDouble() {
         Random rnd = new Random(807346528946L);
 
         @SuppressWarnings("unchecked")
@@ -140,7 +140,7 @@ public class TupleSerializerTest {
     }
 
     @Test
-    public void testTuple2StringStringArray() {
+    void testTuple2StringStringArray() {
         Random rnd = new Random(289347567856686223L);
 
         String[] arr1 =
@@ -179,7 +179,7 @@ public class TupleSerializerTest {
     }
 
     @Test
-    public void testTuple5CustomObjects() {
+    void testTuple5CustomObjects() {
         Random rnd = new Random(807346528946L);
 
         SimpleTypes a = new SimpleTypes();
@@ -316,7 +316,7 @@ public class TupleSerializerTest {
     private <T extends Tuple> void runTests(int length, T... instances) {
         TupleTypeInfo<T> tupleTypeInfo =
                 (TupleTypeInfo<T>) TypeExtractor.getForObject(instances[0]);
-        TypeSerializer<T> serializer = tupleTypeInfo.createSerializer(new ExecutionConfig());
+        TypeSerializer<T> serializer = tupleTypeInfo.createSerializer(new SerializerConfigImpl());
 
         Class<T> tupleClass = tupleTypeInfo.getTypeClass();
 

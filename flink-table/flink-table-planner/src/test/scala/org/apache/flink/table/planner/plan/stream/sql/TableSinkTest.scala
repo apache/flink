@@ -17,19 +17,21 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.configuration.ConfigOption
-import org.apache.flink.streaming.api.functions.source.{ParallelSourceFunction, SourceFunction}
+import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider
+import org.apache.flink.streaming.api.functions.source.legacy.{ParallelSourceFunction, SourceFunction}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.connector.ChangelogMode
-import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSource, SourceFunctionProvider}
+import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSource}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.factories.{DynamicTableFactory, DynamicTableSourceFactory}
-import org.apache.flink.table.planner.utils.{TableTestBase, TestingTableEnvironment}
+import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil, TestingTableEnvironment}
 
 import org.assertj.core.api.Assertions
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 import java.util
 
@@ -86,11 +88,13 @@ class TableSinkTest extends TableTestBase {
                      |  'connector' = 'values'
                      |)
                      |""".stripMargin)
-    thrown.expect(classOf[ValidationException])
-    thrown.expectMessage(
-      "Query schema: [a: INT, EXPR$1: CHAR(0) NOT NULL, EXPR$2: CHAR(0) NOT NULL]\n" +
-        "Sink schema:  [name: STRING, email: STRING, message_offset: BIGINT]")
-    util.verifyExecPlanInsert("INSERT INTO my_sink SELECT a, '', '' FROM MyTable")
+
+    assertThatThrownBy(
+      () => util.verifyExecPlanInsert("INSERT INTO my_sink SELECT a, '', '' FROM MyTable"))
+      .hasMessageContaining(
+        "Query schema: [a: INT, EXPR$1: CHAR(0) NOT NULL, EXPR$2: CHAR(0) NOT NULL]\n" +
+          "Sink schema:  [name: STRING, email: STRING, message_offset: BIGINT]")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -106,12 +110,12 @@ class TableSinkTest extends TableTestBase {
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql("INSERT INTO appendSink SELECT COUNT(*) AS cnt FROM MyTable GROUP BY a")
 
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "Table sink 'default_catalog.default_database.appendSink' doesn't " +
-        "support consuming update changes which is produced by node " +
-        "GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])")
-    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    assertThatThrownBy(() => util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE))
+      .hasMessageContaining(
+        "Table sink 'default_catalog.default_database.appendSink' doesn't " +
+          "support consuming update changes which is produced by node " +
+          "GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -141,11 +145,10 @@ class TableSinkTest extends TableTestBase {
     stmtSet.addInsertSql(
       "INSERT INTO retractSink2 SELECT cnt, SUM(cnt) OVER (ORDER BY PROCTIME()) FROM TempTable")
 
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "OverAggregate doesn't support consuming update changes " +
+    assertThatThrownBy(() => util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE))
+      .hasMessageContaining("OverAggregate doesn't support consuming update changes " +
         "which is produced by node Calc(select=[cnt])")
-    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -360,12 +363,11 @@ class TableSinkTest extends TableTestBase {
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql(sql)
 
-    thrown.expect(classOf[ValidationException])
-    thrown.expectMessage(
-      "Query schema: [a: INT, m_3: INT, m_2: INT, b: BIGINT, c: INT, metadata_1: STRING]\n" +
-        "Sink schema:  [a: INT, m_2: INT, b: BIGINT, c: INT, metadata_1: STRING]")
-
-    util.verifyRelPlan(stmtSet)
+    assertThatThrownBy(() => util.verifyRelPlan(stmtSet))
+      .hasMessageContaining(
+        "Query schema: [a: INT, m_3: INT, m_2: INT, b: BIGINT, c: INT, metadata_1: STRING]\n" +
+          "Sink schema:  [a: INT, m_2: INT, b: BIGINT, c: INT, metadata_1: STRING]")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -389,13 +391,12 @@ class TableSinkTest extends TableTestBase {
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql(sql)
 
-    thrown.expect(classOf[ValidationException])
-    thrown.expectMessage(
-      "Invalid data type for metadata column 'metadata_1' of table " +
-        "'default_catalog.default_database.MetadataTable'. The column cannot be declared as " +
-        "'TIMESTAMP(3)' because the type must be castable to metadata type 'BOOLEAN'.")
-
-    util.verifyRelPlan(stmtSet)
+    assertThatThrownBy(() => util.verifyRelPlan(stmtSet))
+      .hasMessageContaining(
+        "Invalid data type for metadata column 'metadata_1' of table " +
+          "'default_catalog.default_database.MetadataTable'. The column cannot be declared as " +
+          "'TIMESTAMP(3)' because the type must be castable to metadata type 'BOOLEAN'.")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -754,13 +755,13 @@ class TableSinkTest extends TableTestBase {
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql("INSERT INTO sink SELECT * FROM MyTable")
 
-    expectedException.expect(classOf[TableException])
-    expectedException.expectMessage(
-      s"You should enable the checkpointing for sinking to managed table " +
-        s"'default_catalog.default_database.sink', " +
-        s"managed table relies on checkpoint to commit and " +
-        s"the data is visible only after commit.")
-    util.verifyAstPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    assertThatThrownBy(() => util.verifyAstPlan(stmtSet, ExplainDetail.CHANGELOG_MODE))
+      .hasMessageContaining(
+        s"You should enable the checkpointing for sinking to managed table " +
+          s"'default_catalog.default_database.sink', " +
+          s"managed table relies on checkpoint to commit and " +
+          s"the data is visible only after commit.")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -800,14 +801,144 @@ class TableSinkTest extends TableTestBase {
   }
 
   @Test
-  def testCreateTableAsSelect(): Unit = {
-    // TODO: support explain CreateTableASOperation
-    // Flink does not support explain CreateTableASOperation yet, we will fix it in FLINK-28770.
+  def testDistribution(): Unit = {
+    util.addTable(s"""
+                     |CREATE TABLE sink (
+                     |  `a` INT,
+                     |  `b` BIGINT
+                     |) DISTRIBUTED BY (
+                     |  `b`
+                     |) WITH (
+                     |  'connector' = 'values'
+                     |)
+                     |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO sink SELECT a,b FROM MyTable ORDER BY a")
+    util.verifyExecPlan(stmtSet)
+  }
+
+  @Test
+  def testDistributionWithRequiredBucketCount(): Unit = {
+    util.addTable(s"""
+                     |CREATE TABLE sink (
+                     |  `a` INT,
+                     |  `b` BIGINT
+                     |) DISTRIBUTED BY (
+                     |  `b`
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink.bucket-count-required' = 'true'
+                     |)
+                     |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO sink SELECT a,b FROM MyTable ORDER BY a")
+
     Assertions
-      .assertThatThrownBy(
-        () => util.tableEnv.explainSql("CREATE TABLE zm_ctas_test AS SELECT * FROM MyTable"))
+      .assertThatThrownBy(() => util.verifyExecPlan(stmtSet))
       .hasMessageContaining(
-        "Unsupported ModifyOperation: org.apache.flink.table.operations.CreateTableASOperation")
+        "Table 'default_catalog.default_database.sink' is a bucketed table, but the underlying DynamicTableSink requires the number of buckets to be set.")
+  }
+
+  @Test
+  def testDistributionWithUnsupportedDistributionAlgorithm(): Unit = {
+    util.addTable(s"""
+                     |CREATE TABLE sink (
+                     |  `a` INT,
+                     |  `b` BIGINT
+                     |) DISTRIBUTED BY RANGE (
+                     |  `b`
+                     |) WITH (
+                     |  'connector' = 'values'
+                     |)
+                     |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO sink SELECT a,b FROM MyTable ORDER BY a")
+    Assertions
+      .assertThatThrownBy(() => util.verifyExecPlan(stmtSet))
+      .hasMessageContaining(
+        "Table 'default_catalog.default_database.sink' is a bucketed table and it supports [HASH, UNKNOWN], but algorithm RANGE was requested.")
+  }
+
+  @Test
+  def testExplainCreateTableAsSelect(): Unit = {
+    val actual = util.tableEnv.explainSql("""
+                                            |CREATE TABLE MyCtasTable
+                                            | WITH (
+                                            |   'connector' = 'values'
+                                            |) AS
+                                            |  SELECT
+                                            |    `a`,
+                                            |    `b`
+                                            |  FROM
+                                            |    MyTable
+                                            |""".stripMargin)
+
+    val expected = TableTestUtil.readFromResource("/explain/testExplainCtas.out")
+
+    assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
+  }
+
+  @Test
+  def testExplainReplaceTableAsSelect(): Unit = {
+    val actual = util.tableEnv.explainSql("""
+                                            |REPLACE TABLE MyCtasTable
+                                            | WITH (
+                                            |   'connector' = 'values'
+                                            |) AS
+                                            |  SELECT
+                                            |    `a`,
+                                            |    `b`
+                                            |  FROM
+                                            |    MyTable
+                                            |""".stripMargin)
+
+    // Same as CTAS
+    val expected = TableTestUtil.readFromResource("/explain/testExplainCtas.out")
+
+    assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
+  }
+
+  @Test
+  def testExplainCreateTableAsSelectWithColumnsInCreateAndQueryParts(): Unit = {
+    val actual =
+      util.tableEnv.explainSql("""
+                                 |CREATE TABLE MyCtasTable(`votes` INT, `votes_2x` AS `b` * 2)
+                                 | WITH (
+                                 |   'connector' = 'values'
+                                 |) AS
+                                 |  SELECT
+                                 |    `a`,
+                                 |    `b`
+                                 |  FROM
+                                 |    MyTable
+                                 |""".stripMargin)
+
+    val expected =
+      TableTestUtil.readFromResource("/explain/testExplainCtasWithColumnsInCreateAndQueryParts.out")
+
+    assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
+  }
+
+  @Test
+  def testExplainReplaceTableAsSelectWithColumnsInCreateAndQueryParts(): Unit = {
+    val actual =
+      util.tableEnv.explainSql("""
+                                 |REPLACE TABLE MyCtasTable(`votes` INT, `votes_2x` AS `b` * 2)
+                                 | WITH (
+                                 |   'connector' = 'values'
+                                 |) AS
+                                 |  SELECT
+                                 |    `a`,
+                                 |    `b`
+                                 |  FROM
+                                 |    MyTable
+                                 |""".stripMargin)
+
+    // Same as CTAS
+    val expected =
+      TableTestUtil.readFromResource("/explain/testExplainCtasWithColumnsInCreateAndQueryParts.out")
+
+    assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
   }
 }
 

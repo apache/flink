@@ -1,6 +1,6 @@
 ---
 title: "Metrics"
-weight: 6
+weight: 5
 type: docs
 aliases:
   - /ops/metrics.html
@@ -52,7 +52,7 @@ public class MyMapper extends RichMapFunction<String, String> {
   private transient Counter counter;
 
   @Override
-  public void open(Configuration config) {
+  public void open(OpenContext ctx) {
     this.counter = getRuntimeContext()
       .getMetricGroup()
       .counter("myCounter");
@@ -116,7 +116,7 @@ public class MyMapper extends RichMapFunction<String, String> {
   private transient Counter counter;
 
   @Override
-  public void open(Configuration config) {
+  public void open(OpenContext ctx) {
     this.counter = getRuntimeContext()
       .getMetricGroup()
       .counter("myCustomCounter", new CustomCounter());
@@ -173,7 +173,7 @@ public class MyMapper extends RichMapFunction<String, String> {
   private transient int valueToExpose = 0;
 
   @Override
-  public void open(Configuration config) {
+  public void open(OpenContext ctx) {
     getRuntimeContext()
       .getMetricGroup()
       .gauge("MyGauge", new Gauge<Integer>() {
@@ -247,7 +247,7 @@ public class MyMapper extends RichMapFunction<Long, Long> {
   private transient Histogram histogram;
 
   @Override
-  public void open(Configuration config) {
+  public void open(OpenContext ctx) {
     this.histogram = getRuntimeContext()
       .getMetricGroup()
       .histogram("myHistogram", new MyHistogram());
@@ -307,7 +307,7 @@ public class MyMapper extends RichMapFunction<Long, Long> {
   private transient Histogram histogram;
 
   @Override
-  public void open(Configuration config) {
+  public void open(OpenContext ctx) {
     com.codahale.metrics.Histogram dropwizardHistogram =
       new com.codahale.metrics.Histogram(new SlidingWindowReservoir(500));
 
@@ -315,7 +315,7 @@ public class MyMapper extends RichMapFunction<Long, Long> {
       .getMetricGroup()
       .histogram("myHistogram", new DropwizardHistogramWrapper(dropwizardHistogram));
   }
-  
+
   @Override
   public Long map(Long value) throws Exception {
     this.histogram.update(value);
@@ -333,12 +333,12 @@ class MyMapper extends RichMapFunction[Long, Long] {
   override def open(config: Configuration): Unit = {
     val dropwizardHistogram =
       new com.codahale.metrics.Histogram(new SlidingWindowReservoir(500))
-        
+
     histogram = getRuntimeContext()
       .getMetricGroup()
       .histogram("myHistogram", new DropwizardHistogramWrapper(dropwizardHistogram))
   }
-  
+
   override def map(value: Long): Long = {
     histogram.update(value)
     value
@@ -366,7 +366,7 @@ public class MyMapper extends RichMapFunction<Long, Long> {
   private transient Meter meter;
 
   @Override
-  public void open(Configuration config) {
+  public void open(OpenContext ctx) {
     this.meter = getRuntimeContext()
       .getMetricGroup()
       .meter("myMeter", new MyMeter());
@@ -440,7 +440,7 @@ public class MyMapper extends RichMapFunction<Long, Long> {
   private transient Meter meter;
 
   @Override
-  public void open(Configuration config) {
+  public void open(OpenContext ctx) {
     com.codahale.metrics.Meter dropwizardMeter = new com.codahale.metrics.Meter();
 
     this.meter = getRuntimeContext()
@@ -464,7 +464,7 @@ class MyMapper extends RichMapFunction[Long,Long] {
 
   override def open(config: Configuration): Unit = {
     val dropwizardMeter: com.codahale.metrics.Meter = new com.codahale.metrics.Meter()
-  
+
     meter = getRuntimeContext()
       .getMetricGroup()
       .meter("myMeter", new DropwizardMeterWrapper(dropwizardMeter))
@@ -492,7 +492,7 @@ Every metric is assigned an identifier and a set of key-value pairs under which 
 The identifier is based on 3 components: a user-defined name when registering the metric, an optional user-defined scope and a system-provided scope.
 For example, if `A.B` is the system scope, `C.D` the user scope and `E` the name, then the identifier for the metric will be `A.B.C.D.E`.
 
-You can configure which delimiter to use for the identifier (default: `.`) by setting the `metrics.scope.delimiter` key in `conf/flink-conf.yaml`.
+You can configure which delimiter to use for the identifier (default: `.`) by setting the `metrics.scope.delimiter` key in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
 
 ### User Scope
 
@@ -551,7 +551,7 @@ counter = runtime_context \
 
 The system scope contains context information about the metric, for example in which task it was registered or what job that task belongs to.
 
-Which context information should be included can be configured by setting the following keys in `conf/flink-conf.yaml`.
+Which context information should be included can be configured by setting the following keys in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}).
 Each of these keys expect a format string that may contain constants (e.g. "taskmanager") and variables (e.g. "&lt;task_id&gt;") which will be replaced at runtime.
 
 - `metrics.scope.jm`
@@ -687,7 +687,7 @@ Thus, in order to infer the metric identifier:
 </table>
 
 ### Memory
-The memory-related metrics require Oracle's memory management (also included in OpenJDK's Hotspot implementation) to be in place. 
+The memory-related metrics require Oracle's memory management (also included in OpenJDK's Hotspot implementation) to be in place.
 Some metrics might not be exposed when using other JVM implementations (e.g. IBM's J9).
 <table class="table table-bordered">                               
   <thead>                                                          
@@ -715,8 +715,8 @@ Some metrics might not be exposed when using other JVM implementations (e.g. IBM
     <tr>
       <td>Heap.Max</td>
       <td>The maximum amount of heap memory that can be used for memory management (in bytes). <br/>
-      This value might not be necessarily equal to the maximum value specified through -Xmx or 
-      the equivalent Flink configuration parameter. Some GC algorithms allocate heap memory that won't 
+      This value might not be necessarily equal to the maximum value specified through -Xmx or
+      the equivalent Flink configuration parameter. Some GC algorithms allocate heap memory that won't
       be available to the user code and, therefore, not being exposed through the heap metrics.</td>
       <td>Gauge</td>
     </tr>
@@ -829,15 +829,20 @@ Some metrics might not be exposed when using other JVM implementations (e.g. IBM
   </thead>
   <tbody>
     <tr>
-      <th rowspan="2"><strong>Job-/TaskManager</strong></th>
-      <td rowspan="2">Status.JVM.GarbageCollector</td>
-      <td>&lt;GarbageCollector&gt;.Count</td>
-      <td>The total number of collections that have occurred.</td>
+      <th rowspan="3"><strong>Job-/TaskManager</strong></th>
+      <td rowspan="3">Status.JVM.GarbageCollector</td>
+      <td>&lt;Collector/All&gt;.Count</td>
+      <td>The total number of collections that have occurred for the given (or all) collector.</td>
       <td>Gauge</td>
     </tr>
     <tr>
-      <td>&lt;GarbageCollector&gt;.Time</td>
-      <td>The total time spent performing garbage collection.</td>
+      <td>&lt;Collector/All&gt;.Time</td>
+      <td>The total time spent performing garbage collection for the given (or all) collector.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>&lt;Collector/All&gt;.TimeMsPerSecond</td>
+      <td>The time (in milliseconds) spent garbage collecting per second for the given (or all) collector.</td>
       <td>Gauge</td>
     </tr>
   </tbody>
@@ -1256,11 +1261,6 @@ Whether these metrics are reported depends on the [metrics.job.status.enable]({{
       <td>Gauge</td>
     </tr>
     <tr>
-      <td>fullRestarts</td>
-      <td><span class="label label-danger">Attention:</span> deprecated, use <b>numRestarts</b>.</td>
-      <td>Gauge</td>
-    </tr>
-    <tr>
       <td>numRestarts</td>
       <td>The total number of restarts since this job was submitted, including full restarts and fine-grained restarts.</td>
       <td>Gauge</td>
@@ -1295,6 +1295,11 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
     <tr>
       <td>lastCompletedCheckpointId</td>
       <td>The identifier of the last completed checkpoint.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastCheckpointCompletedTimestamp</td>
+      <td>The timestamp of the last completed checkpoint (in milliseconds).</td>
       <td>Gauge</td>
     </tr>
     <tr>
@@ -1341,6 +1346,27 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
     <tr>
       <td>checkpointStartDelayNanos</td>
       <td>The time in nanoseconds that elapsed between the creation of the last checkpoint and the time when the checkpointing process has started by this Task. This delay shows how long it takes for the first checkpoint barrier to reach the task. A high value indicates back-pressure. If only a specific task has a long start delay, the most likely reason is data skew.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <th rowspan="4"><strong>Job (only available on TaskManager)</strong></th>
+      <td>fileMerging.logicalFileCount</td>
+      <td>The number of logical files of file merging mechanism.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>fileMerging.logicalFileSize</td>
+      <td>The total size of logical files of file merging mechanism on one task manager for one job.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>fileMerging.physicalFileCount</td>
+      <td>The number of physical files of file merging mechanism.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>fileMerging.physicalFileSize</td>
+      <td>The total size of physical files of file merging mechanism on one task manager for one job, usually larger than <samp>fileMerging.logicalFileSize</samp>.</td>
       <td>Gauge</td>
     </tr>
   </tbody>
@@ -1617,7 +1643,7 @@ Note that the metrics are only available via reporters.
       <td>Histogram</td>
     </tr>
     <tr>
-      <th rowspan="25"><strong>Task</strong></th>
+      <th rowspan="27"><strong>Task</strong></th>
       <td>numBytesInLocal</td>
       <td><span class="label label-danger">Attention:</span> deprecated, use <a href="{{< ref "docs/ops/metrics" >}}#default-shuffle-service">Default shuffle service metrics</a>.</td>
       <td>Counter</td>
@@ -1678,6 +1704,16 @@ Note that the metrics are only available via reporters.
       <td>Meter</td>
     </tr>
     <tr>
+      <td>numFiredTimers</td>
+      <td>The total number of timers this task has fired.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>numFiredTimersPerSecond</td>
+      <td>The number of timers this task fires per second.</td>
+      <td>Meter</td>
+    </tr>
+    <tr>
       <td>isBackPressured</td>
       <td>Whether the task is back-pressured.</td>
       <td>Gauge</td>
@@ -1719,7 +1755,7 @@ Note that the metrics are only available via reporters.
     </tr>
     <tr>
       <td>changelogBusyTimeMsPerSecond</td>
-      <td>The time (in milliseconds) taken by the Changelog state backend to do IO operations, only positive when Changelog state backend is enabled. Please check 'dstl.dfs.upload.max-in-flight' for more information.</td>
+      <td>The time (in milliseconds) taken by the Changelog state backend to do IO operations, only positive when Changelog state backend is enabled. Please check 'state.changelog.dstl.dfs.upload.max-in-flight' for more information.</td>
       <td>Gauge</td>
     </tr>
     <tr>
@@ -1904,7 +1940,7 @@ Please refer to [Kafka monitoring]({{< ref "docs/connectors/datastream/kafka" >}
       <th rowspan="1">Operator</th>
       <td>loopFrequencyHz</td>
       <td>stream, shardId</td>
-      <td>The number of calls to getRecords in one second. 
+      <td>The number of calls to getRecords in one second.
       </td>
       <td>Gauge</td>
     </tr>
@@ -2147,7 +2183,7 @@ Metrics below can be used to measure the effectiveness of speculative execution.
     </tr>
     <tr>
       <td>numEffectiveSpeculativeExecutions</td>
-      <td>Number of effective speculative execution attempts, i.e. speculative execution attempts which 
+      <td>Number of effective speculative execution attempts, i.e. speculative execution attempts which
       finish earlier than their corresponding original attempts.</td>
       <td>Counter</td>
     </tr>
@@ -2162,7 +2198,7 @@ To enable the latency tracking you must set the `latencyTrackingInterval` to a p
 
 At the `latencyTrackingInterval`, the sources will periodically emit a special record, called a `LatencyMarker`.
 The marker contains a timestamp from the time when the record has been emitted at the sources.
-Latency markers can not overtake regular user records, thus if records are queuing up in front of an operator, 
+Latency markers can not overtake regular user records, thus if records are queuing up in front of an operator,
 it will add to the latency tracked by the marker.
 
 Note that the latency markers are not accounting for the time user records spend in operators as they are
@@ -2170,31 +2206,31 @@ bypassing them. In particular the markers are not accounting for the time record
 Only if operators are not able to accept new records, thus they are queuing up, the latency measured using
 the markers will reflect that.
 
-The `LatencyMarker`s are used to derive a distribution of the latency between the sources of the topology and each 
-downstream operator. These distributions are reported as histogram metrics. The granularity of these distributions can 
-be controlled in the [Flink configuration]({{< ref "docs/deployment/config" >}}#metrics-latency-interval). For the highest 
-granularity `subtask` Flink will derive the latency distribution between every source subtask and every downstream 
-subtask, which results in quadratic (in the terms of the parallelism) number of histograms. 
+The `LatencyMarker`s are used to derive a distribution of the latency between the sources of the topology and each
+downstream operator. These distributions are reported as histogram metrics. The granularity of these distributions can
+be controlled in the [Flink configuration]({{< ref "docs/deployment/config" >}}#metrics-latency-interval). For the highest
+granularity `subtask` Flink will derive the latency distribution between every source subtask and every downstream
+subtask, which results in quadratic (in the terms of the parallelism) number of histograms.
 
 Currently, Flink assumes that the clocks of all machines in the cluster are in sync. We recommend setting
 up an automated clock synchronisation service (like NTP) to avoid false latency results.
 
 <span class="label label-danger">Warning</span> Enabling latency metrics can significantly impact the performance
-of the cluster (in particular for `subtask` granularity). It is highly recommended to only use them for debugging 
+of the cluster (in particular for `subtask` granularity). It is highly recommended to only use them for debugging
 purposes.
 
 ## State access latency tracking
 
 Flink also allows to track the keyed state access latency for standard Flink state-backends or customized state backends which extending from `AbstractStateBackend`. This feature is disabled by default.
-To enable this feature you must set the `state.backend.latency-track.keyed-state-enabled` to true in the [Flink configuration]({{< ref "docs/deployment/config" >}}#state-backends-latency-tracking-options).
+To enable this feature you must set the `state.latency-track.keyed-state-enabled` to true in the [Flink configuration]({{< ref "docs/deployment/config" >}}#state-backends-latency-tracking-options).
 
-Once tracking keyed state access latency is enabled, Flink will sample the state access latency every `N` access, in which `N` is defined by `state.backend.latency-track.sample-interval`.
+Once tracking keyed state access latency is enabled, Flink will sample the state access latency every `N` access, in which `N` is defined by `state.latency-track.sample-interval`.
 This configuration has a default value of 100. A smaller value will get more accurate results but have a higher performance impact since it is sampled more frequently.
 
-As the type of this latency metrics is histogram, `state.backend.latency-track.history-size` will control the maximum number of recorded values in history, which has the default value of 128.
+As the type of this latency metrics is histogram, `state.latency-track.history-size` will control the maximum number of recorded values in history, which has the default value of 128.
 A larger value of this configuration will require more memory, but will provide a more accurate result.
 
-<span class="label label-danger">Warning</span> Enabling state-access-latency metrics may impact the performance. 
+<span class="label label-danger">Warning</span> Enabling state-access-latency metrics may impact the performance.
 It is recommended to only use them for debugging purposes.
 
 ## REST API integration
@@ -2217,6 +2253,7 @@ Request metrics aggregated across all entities of the respective type:
   - `/taskmanagers/metrics`
   - `/jobs/metrics`
   - `/jobs/<jobid>/vertices/<vertexid>/subtasks/metrics`
+  - `/jobs/<jobid>/vertices/<vertexid>/jm-operator-metrics`
 
 Request metrics aggregated over a subset of all entities of the respective type:
 

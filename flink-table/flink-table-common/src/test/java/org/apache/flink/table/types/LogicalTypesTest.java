@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.types;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -27,6 +27,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
+import org.apache.flink.table.legacy.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -53,7 +54,6 @@ import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
-import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -605,7 +605,7 @@ public class LogicalTypesTest {
     void testRawType() {
         final RawType<Human> rawType =
                 new RawType<>(
-                        Human.class, new KryoSerializer<>(Human.class, new ExecutionConfig()));
+                        Human.class, new KryoSerializer<>(Human.class, new SerializerConfigImpl()));
         final String className = "org.apache.flink.table.types.LogicalTypesTest$Human";
         // use rawType.getSerializerString() to regenerate the following string
         final String serializerString =
@@ -631,7 +631,8 @@ public class LogicalTypesTest {
                                 new LogicalType[] {},
                                 new RawType<>(
                                         User.class,
-                                        new KryoSerializer<>(User.class, new ExecutionConfig()))));
+                                        new KryoSerializer<>(
+                                                User.class, new SerializerConfigImpl()))));
 
         assertThat(
                         RawType.restore(

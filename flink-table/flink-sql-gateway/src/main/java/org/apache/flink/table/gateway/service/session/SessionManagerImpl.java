@@ -155,6 +155,7 @@ public class SessionManagerImpl implements SessionManager {
                         defaultContext, sessionId, environment, operationExecutorService);
 
         session = new Session(sessionContext);
+        session.open();
         sessions.put(sessionId, session);
 
         LOG.info(

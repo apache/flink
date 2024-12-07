@@ -37,9 +37,12 @@ public interface TierProducerAgent extends AutoCloseable {
      *
      * @param subpartitionId subpartition id that the new segment belongs to
      * @param segmentId id of the new segment
+     * @param minNumBuffers the minimum number of buffers that are expected to be written to the
+     *     newly created segment.
      * @return true if the segment can be started, false otherwise.
      */
-    boolean tryStartNewSegment(TieredStorageSubpartitionId subpartitionId, int segmentId);
+    boolean tryStartNewSegment(
+            TieredStorageSubpartitionId subpartitionId, int segmentId, int minNumBuffers);
 
     /**
      * Writes the finished {@link Buffer} to the consumer.
@@ -51,12 +54,18 @@ public interface TierProducerAgent extends AutoCloseable {
      * @param subpartitionId the subpartition id that the buffer is writing to
      * @param finishedBuffer the writing buffer
      * @param bufferOwner the current owner of this writing buffer
+     * @param numRemainingConsecutiveBuffers number of buffers that would be passed in the following
+     *     invocations and should be written to the same segment as this one
      * @return return true if the buffer is written successfully, return false if the current
-     *     segment can not store this buffer and the current segment is finished. When returning
-     *     false, the agent should try start a new segment before writing the buffer.
+     *     segment can not store this buffer(and the following consecutive ones) and the current
+     *     segment is finished. When returning false, the agent should try start a new segment
+     *     before writing the buffer.
      */
     boolean tryWrite(
-            TieredStorageSubpartitionId subpartitionId, Buffer finishedBuffer, Object bufferOwner);
+            TieredStorageSubpartitionId subpartitionId,
+            Buffer finishedBuffer,
+            Object bufferOwner,
+            int numRemainingConsecutiveBuffers);
 
     /**
      * Close the agent.

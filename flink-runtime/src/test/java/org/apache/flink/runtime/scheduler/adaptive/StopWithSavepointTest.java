@@ -32,16 +32,16 @@ import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry
 import org.apache.flink.runtime.scheduler.exceptionhistory.TestingAccessExecution;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointStoppingException;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -53,7 +53,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /** Tests for the {@link StopWithSavepoint} state. */
-@ExtendWith(TestLoggerExtension.class)
 class StopWithSavepointTest {
     private static final Logger LOG = LoggerFactory.getLogger(StopWithSavepointTest.class);
 
@@ -265,7 +264,11 @@ class StopWithSavepointTest {
             ctx.setStopWithSavepoint(sws);
             ctx.setHowToHandleFailure(failure -> FailureResult.canRestart(failure, Duration.ZERO));
 
-            ctx.setExpectRestarting(assertNonNull());
+            ctx.setExpectRestarting(
+                    (restartingArguments) -> {
+                        assertThat(restartingArguments).isNotNull();
+                        assertThat(restartingArguments.isForcedRestart()).isFalse();
+                    });
 
             Exception exception = new RuntimeException();
             TestingAccessExecution execution =
@@ -381,7 +384,9 @@ class StopWithSavepointTest {
 
             ctx.setHowToHandleFailure(failure -> FailureResult.canRestart(failure, Duration.ZERO));
 
-            sws.onFailure(new Exception("task failure"));
+            sws.onFailure(
+                    new Exception("task failure"),
+                    CompletableFuture.completedFuture(Collections.emptyMap()));
             // this is a sanity check that we haven't scheduled a state transition
             ctx.triggerExecutors();
 
@@ -404,7 +409,9 @@ class StopWithSavepointTest {
 
             ctx.setHowToHandleFailure(failure -> FailureResult.canRestart(failure, Duration.ZERO));
 
-            sws.onFailure(new Exception("task failure"));
+            sws.onFailure(
+                    new Exception("task failure"),
+                    CompletableFuture.completedFuture(Collections.emptyMap()));
             // this is a sanity check that we haven't scheduled a state transition
             ctx.triggerExecutors();
 
@@ -538,7 +545,8 @@ class StopWithSavepointTest {
         }
 
         @Override
-        public FailureResult howToHandleFailure(Throwable failure) {
+        public FailureResult howToHandleFailure(
+                Throwable failure, CompletableFuture<Map<String, String>> failureLabels) {
             return howToHandleFailure.apply(failure);
         }
 
@@ -572,6 +580,7 @@ class StopWithSavepointTest {
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Duration backoffTime,
+                boolean forcedRestart,
                 List<ExceptionHistoryEntry> failureCollection) {
             if (hadStateTransition) {
                 throw new IllegalStateException("Only one state transition is allowed.");
@@ -582,7 +591,8 @@ class StopWithSavepointTest {
                             executionGraph,
                             executionGraphHandler,
                             operatorCoordinatorHandler,
-                            backoffTime));
+                            backoffTime,
+                            forcedRestart));
             hadStateTransition = true;
         }
 

@@ -34,15 +34,16 @@ import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.tools.RuleSets;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.time.ZoneId;
 
 /** Test for {@link PushFilterInCalcIntoTableSourceRuleTest}. */
-public class PushFilterInCalcIntoTableSourceRuleTest
-        extends PushFilterIntoTableSourceScanRuleTestBase {
+class PushFilterInCalcIntoTableSourceRuleTest extends PushFilterIntoTableSourceScanRuleTestBase {
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
 
         FlinkChainedProgram<StreamOptimizeContext> program = new FlinkChainedProgram<>();
@@ -53,7 +54,7 @@ public class PushFilterInCalcIntoTableSourceRuleTest
                                 RuleSets.ofList(
                                         CoreRules.PROJECT_TO_CALC,
                                         CoreRules.FILTER_TO_CALC,
-                                        FlinkCalcMergeRule$.MODULE$.INSTANCE(),
+                                        FlinkCalcMergeRule.INSTANCE,
                                         FlinkLogicalCalc.CONVERTER(),
                                         FlinkLogicalTableSourceScan.CONVERTER(),
                                         FlinkLogicalWatermarkAssigner.CONVERTER()))
@@ -112,12 +113,12 @@ public class PushFilterInCalcIntoTableSourceRuleTest
     }
 
     @Test
-    public void testFailureToPushFilterIntoSourceWithoutWatermarkPushdown() {
+    void testFailureToPushFilterIntoSourceWithoutWatermarkPushdown() {
         util.verifyRelPlan("SELECT * FROM WithWatermark WHERE LOWER(name) = 'foo'");
     }
 
     @Test
-    public void testLowerUpperPushdown() {
+    void testLowerUpperPushdown() {
         String ddl =
                 "CREATE TABLE MTable (\n"
                         + "  a STRING,\n"
@@ -132,7 +133,7 @@ public class PushFilterInCalcIntoTableSourceRuleTest
     }
 
     @Test
-    public void testWithInterval() {
+    void testWithInterval() {
         String ddl =
                 "CREATE TABLE MTable (\n"
                         + "a TIMESTAMP(3),\n"
@@ -146,5 +147,28 @@ public class PushFilterInCalcIntoTableSourceRuleTest
 
         util.tableEnv().executeSql(ddl);
         super.testWithInterval();
+    }
+
+    @Test
+    public void testWithTimestampWithTimeZone() {
+        String ddl =
+                "CREATE TABLE MTable (\n"
+                        + "a TIMESTAMP_LTZ(3),\n"
+                        + "b TIMESTAMP(3)\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'false',\n"
+                        + " 'filterable-fields' = 'a',\n"
+                        + " 'disable-lookup' = 'true'"
+                        + ")";
+
+        util.tableEnv().executeSql(ddl);
+        ZoneId preZoneId = util.tableEnv().getConfig().getLocalTimeZone();
+        util.tableEnv().getConfig().setLocalTimeZone(ZoneId.of("Asia/Shanghai"));
+        try {
+            super.testWithTimestampWithTimeZone();
+        } finally {
+            util.tableEnv().getConfig().setLocalTimeZone(preZoneId);
+        }
     }
 }

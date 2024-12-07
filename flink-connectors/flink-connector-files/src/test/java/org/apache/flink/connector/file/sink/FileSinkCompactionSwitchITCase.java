@@ -19,7 +19,7 @@
 package org.apache.flink.connector.file.sink;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.configuration.Configuration;
@@ -34,6 +34,7 @@ import org.apache.flink.connector.file.sink.utils.IntegerFileSinkTestDataUtils.I
 import org.apache.flink.connector.file.sink.utils.IntegerFileSinkTestDataUtils.IntEncoder;
 import org.apache.flink.connector.file.sink.utils.IntegerFileSinkTestDataUtils.ModuloBucketAssigner;
 import org.apache.flink.connector.file.sink.utils.PartSizeAndCheckpointRollingPolicy;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -42,17 +43,15 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
-import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.util.CheckpointStorageUtils;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
@@ -78,6 +77,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 
+import static org.apache.flink.streaming.util.StateBackendUtils.configureHashMapStateBackend;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
@@ -222,9 +222,9 @@ public class FileSinkCompactionSwitchITCase {
         env.configure(config, getClass().getClassLoader());
 
         env.enableCheckpointing(100, CheckpointingMode.EXACTLY_ONCE);
-        env.setRestartStrategy(RestartStrategies.noRestart());
-        env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage(cpPath));
-        env.setStateBackend(new HashMapStateBackend());
+        RestartStrategyUtils.configureNoRestartStrategy(env);
+        CheckpointStorageUtils.configureFileSystemCheckpointStorage(env, cpPath);
+        configureHashMapStateBackend(env);
 
         env.addSource(new CountingTestSource(latchId, NUM_RECORDS, isFinite, sendCountMap))
                 .setParallelism(NUM_SOURCES)
@@ -409,7 +409,10 @@ public class FileSinkCompactionSwitchITCase {
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
             nextValueState.update(Collections.singletonList(nextValue));
             sendCountMap.consumeSync(
-                    m -> m.put(getRuntimeContext().getIndexOfThisSubtask(), nextValue));
+                    m ->
+                            m.put(
+                                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                                    nextValue));
 
             if (isWaitingCheckpointComplete) {
                 snapshottedAfterAllRecordsOutput = true;

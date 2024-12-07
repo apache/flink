@@ -23,7 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.util.FlinkException;
@@ -66,13 +66,13 @@ class AbstractHaServicesTest {
                         () -> closeOperations.offer(CloseOperations.HA_CLEANUP),
                         ignored -> {});
 
-        haServices.closeAndCleanupAllData();
+        haServices.closeWithOptionalClean(true);
 
         assertThat(closeOperations)
                 .contains(
                         CloseOperations.HA_CLEANUP,
                         CloseOperations.HA_CLOSE,
-                        CloseOperations.BLOB_CLEANUP_AND_CLOSE);
+                        CloseOperations.BLOB_CLEANUP);
     }
 
     /**
@@ -97,7 +97,8 @@ class AbstractHaServicesTest {
                         },
                         ignored -> {});
 
-        assertThatThrownBy(haServices::closeAndCleanupAllData).isInstanceOf(FlinkException.class);
+        assertThatThrownBy(() -> haServices.closeWithOptionalClean(true))
+                .isInstanceOf(FlinkException.class);
         assertThat(closeOperations).contains(CloseOperations.HA_CLOSE, CloseOperations.BLOB_CLOSE);
     }
 
@@ -127,7 +128,7 @@ class AbstractHaServicesTest {
     private enum CloseOperations {
         HA_CLEANUP,
         HA_CLOSE,
-        BLOB_CLEANUP_AND_CLOSE,
+        BLOB_CLEANUP,
         BLOB_CLOSE,
     }
 
@@ -140,8 +141,8 @@ class AbstractHaServicesTest {
         }
 
         @Override
-        public void closeAndCleanupAllData() {
-            closeOperations.offer(CloseOperations.BLOB_CLEANUP_AND_CLOSE);
+        public void cleanupAllData() {
+            closeOperations.offer(CloseOperations.BLOB_CLEANUP);
         }
 
         @Override
@@ -211,7 +212,7 @@ class AbstractHaServicesTest {
         }
 
         @Override
-        protected JobGraphStore createJobGraphStore() throws Exception {
+        protected ExecutionPlanStore createExecutionPlanStore() throws Exception {
             throw new UnsupportedOperationException("Not supported by this test implementation.");
         }
 

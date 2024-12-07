@@ -19,13 +19,14 @@ package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.MyPojo
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.{JavaTableFunc1, StringSplit}
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.{Before, Test}
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.sql.{Date, Time, Timestamp}
 
@@ -33,10 +34,10 @@ class CalcTest extends TableTestBase {
 
   private val util = batchTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.addTableSource[(Long, Int, String)]("MyTable", 'a, 'b, 'c)
-    util.addFunction("random_udf", new NonDeterministicUdf)
+    util.addTemporarySystemFunction("random_udf", new NonDeterministicUdf)
   }
 
   @Test
@@ -103,9 +104,10 @@ class CalcTest extends TableTestBase {
     util.verifyExecPlan("SELECT MyTable2.a.*, c, MyTable2.b.* FROM MyTable2")
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidFields(): Unit = {
-    util.tableEnv.sqlQuery("SELECT a, foo FROM MyTable")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.tableEnv.sqlQuery("SELECT a, foo FROM MyTable"))
   }
 
   @Test
@@ -203,6 +205,21 @@ class CalcTest extends TableTestBase {
   @Test
   def testCalcMergeWithNonDeterministicExpr2(): Unit = {
     val sqlQuery = "SELECT a FROM (SELECT a, b FROM MyTable) t WHERE random_udf(b) > 10"
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testCalcMergeWithCorrelate(): Unit = {
+    util.addTemporarySystemFunction("str_split", new StringSplit())
+    val sqlQuery =
+      """
+        |SELECT a, r FROM (
+        | SELECT a, random_udf(b) r FROM (
+        |  select a, b, c1 FROM MyTable, LATERAL TABLE(str_split(c)) AS T(c1)
+        | ) t
+        |)
+        |WHERE r > 10
+        |""".stripMargin
     util.verifyRelPlan(sqlQuery)
   }
 }

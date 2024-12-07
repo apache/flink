@@ -134,7 +134,8 @@ public class WindowReaderOperator<S extends State, KEY, IN, W extends Window, OU
         @SuppressWarnings({"unchecked", "rawtypes"})
         TypeSerializer<StreamRecord<T>> streamRecordSerializer =
                 (TypeSerializer<StreamRecord<T>>)
-                        new StreamElementSerializer(stateType.createSerializer(config));
+                        new StreamElementSerializer(
+                                stateType.createSerializer(config.getSerializerConfig()));
 
         StateDescriptor<ListState<StreamRecord<T>>, List<StreamRecord<T>>> descriptor =
                 new ListStateDescriptor<>(WINDOW_STATE_NAME, streamRecordSerializer);
@@ -202,7 +203,7 @@ public class WindowReaderOperator<S extends State, KEY, IN, W extends Window, OU
         private Context(
                 KeyedStateBackend<KEY> keyedStateBackend, InternalTimerService<W> timerService)
                 throws Exception {
-            keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, getExecutionConfig());
+            keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, getSerializerFactory());
             perWindowKeyedStateStore = new PerWindowKeyedStateStore(keyedStateBackend);
 
             eventTimers =
@@ -280,7 +281,7 @@ public class WindowReaderOperator<S extends State, KEY, IN, W extends Window, OU
         W window;
 
         PerWindowKeyedStateStore(KeyedStateBackend<?> keyedStateBackend) {
-            super(keyedStateBackend, WindowReaderOperator.this.getExecutionConfig());
+            super(keyedStateBackend, WindowReaderOperator.this.getSerializerFactory());
         }
 
         @Override

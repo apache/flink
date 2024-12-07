@@ -119,10 +119,12 @@ public class SavepointMetadataV2 {
         operatorStateIndex.put(
                 id,
                 OperatorStateSpecV2.newWithTransformation(
-                        new StateBootstrapTransformationWithID<>(id, transformation)));
+                        new StateBootstrapTransformationWithID<>(identifier, transformation)));
     }
 
-    /** @return List of {@link OperatorState} that already exists within the savepoint. */
+    /**
+     * @return List of {@link OperatorState} that already exists within the savepoint.
+     */
     public List<OperatorState> getExistingOperators() {
         return operatorStateIndex.values().stream()
                 .filter(OperatorStateSpecV2::isExistingState)

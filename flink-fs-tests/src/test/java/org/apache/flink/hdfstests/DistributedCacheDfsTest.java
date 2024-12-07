@@ -168,7 +168,7 @@ public class DistributedCacheDfsTest extends TestLogger {
         env.registerCachedFile(testFile.toString(), "test_data", false);
         env.registerCachedFile(testDir.toString(), "test_dir", false);
 
-        env.fromElements(1).map(new TestMapFunction()).sinkTo(new DiscardingSink<>());
+        env.fromData(1).map(new TestMapFunction()).sinkTo(new DiscardingSink<>());
         return env;
     }
 

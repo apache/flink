@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.source.coordinator;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.connector.source.ReaderInfo;
 import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
@@ -25,6 +26,7 @@ import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
+import org.apache.flink.runtime.source.event.IsProcessingBacklogEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 
 import org.junit.jupiter.api.Test;
@@ -159,6 +161,7 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
                 new ManuallyTriggeredScheduledExecutorService();
         SourceCoordinatorContext<MockSourceSplit> testingContext =
                 new SourceCoordinatorContext<>(
+                        new JobID(),
                         coordinatorExecutorWithExceptionHandler,
                         manualWorkerExecutor,
                         new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
@@ -194,6 +197,7 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
 
         SourceCoordinatorContext<MockSourceSplit> testingContext =
                 new SourceCoordinatorContext<>(
+                        new JobID(),
                         manualCoordinatorExecutor,
                         manualWorkerExecutor,
                         new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
@@ -260,5 +264,27 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
         waitForCoordinatorToProcessActions();
 
         return infos;
+    }
+
+    @Test
+    void testSetIsProcessingBacklog() throws Exception {
+        sourceReady();
+        registerReader(0, 0);
+        context.setIsProcessingBacklog(true);
+
+        for (int i = 0; i < context.currentParallelism(); ++i) {
+            final List<OperatorEvent> events = receivingTasks.getSentEventsForSubtask(i);
+            assertThat(events.get(events.size() - 1)).isEqualTo(new IsProcessingBacklogEvent(true));
+        }
+
+        registerReader(1, 0);
+        context.setIsProcessingBacklog(false);
+        registerReader(2, 0);
+
+        for (int i = 0; i < context.currentParallelism(); ++i) {
+            final List<OperatorEvent> events = receivingTasks.getSentEventsForSubtask(i);
+            assertThat(events.get(events.size() - 1))
+                    .isEqualTo(new IsProcessingBacklogEvent(false));
+        }
     }
 }

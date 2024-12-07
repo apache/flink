@@ -19,7 +19,7 @@
 package org.apache.flink.queryablestate.client;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -66,7 +66,7 @@ public class VoidNamespaceTypeInfo extends TypeInformation<VoidNamespace> {
     }
 
     @Override
-    public TypeSerializer<VoidNamespace> createSerializer(ExecutionConfig config) {
+    public TypeSerializer<VoidNamespace> createSerializer(SerializerConfig config) {
         return VoidNamespaceSerializer.INSTANCE;
     }
 

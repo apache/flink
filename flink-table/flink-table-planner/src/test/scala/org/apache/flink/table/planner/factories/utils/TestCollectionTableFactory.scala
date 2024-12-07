@@ -17,23 +17,24 @@
  */
 package org.apache.flink.table.planner.factories.utils
 
-import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.OpenContext
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.java.io.CollectionInputFormat
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, StreamTableSink}
+import org.apache.flink.legacy.table.sources.StreamTableSource
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink, DataStreamSource}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
-import org.apache.flink.table.api.TableSchema
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction
+import org.apache.flink.streaming.api.legacy.io.CollectionInputFormat
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
-import org.apache.flink.table.factories.{TableSinkFactory, TableSourceFactory}
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
+import org.apache.flink.table.legacy.api.TableSchema
+import org.apache.flink.table.legacy.factories.{TableSinkFactory, TableSourceFactory}
+import org.apache.flink.table.legacy.sinks.TableSink
+import org.apache.flink.table.legacy.sources.LookupableTableSource
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory.{getCollectionSink, getCollectionSource}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
-import org.apache.flink.table.sinks.{AppendStreamTableSink, StreamTableSink, TableSink}
-import org.apache.flink.table.sources.{LookupableTableSource, StreamTableSource}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.TableSchemaUtils.getPhysicalSchema
 import org.apache.flink.types.Row
@@ -126,7 +127,7 @@ object TestCollectionTableFactory {
         new TestCollectionInputFormat[Row](
           emitIntervalMs,
           SOURCE_DATA,
-          typeInfo.createSerializer(new ExecutionConfig)),
+          typeInfo.createSerializer(new SerializerConfigImpl)),
         typeInfo)
     }
 
@@ -168,7 +169,7 @@ object TestCollectionTableFactory {
     private var serializer: TypeSerializer[Row] = _
 
     override def open(openContext: OpenContext): Unit = {
-      serializer = outputType.createSerializer(new ExecutionConfig)
+      serializer = outputType.createSerializer(new SerializerConfigImpl)
     }
 
     @throws[Exception]

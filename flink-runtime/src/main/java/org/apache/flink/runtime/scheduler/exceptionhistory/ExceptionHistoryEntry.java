@@ -46,6 +46,7 @@ public class ExceptionHistoryEntry extends ErrorInfo {
     @Nullable private final String failingTaskName;
     @Nullable private final ArchivedTaskManagerLocation taskManagerLocation;
     private final transient CompletableFuture<Map<String, String>> failureLabelsFuture;
+
     /** Labels associated with the failure, set as soon as failureLabelsFuture is completed. */
     private Map<String, String> failureLabels;
 
@@ -235,6 +236,10 @@ public class ExceptionHistoryEntry extends ErrorInfo {
 
         public String getFQDNHostname() {
             return fqdnHostname;
+        }
+
+        public String getEndpoint() {
+            return String.format("%s:%d", fqdnHostname, port);
         }
 
         @Override

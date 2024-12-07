@@ -18,15 +18,16 @@
 
 package org.apache.flink.runtime.testutils;
 
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.util.Preconditions;
+
+import java.time.Duration;
 
 /** Mini cluster resource configuration object. */
 public class MiniClusterResourceConfiguration {
@@ -37,7 +38,7 @@ public class MiniClusterResourceConfiguration {
 
     private final int numberSlotsPerTaskManager;
 
-    private final Time shutdownTimeout;
+    private final Duration shutdownTimeout;
 
     private final RpcServiceSharing rpcServiceSharing;
 
@@ -47,7 +48,7 @@ public class MiniClusterResourceConfiguration {
             Configuration configuration,
             int numberTaskManagers,
             int numberSlotsPerTaskManager,
-            Time shutdownTimeout,
+            Duration shutdownTimeout,
             RpcServiceSharing rpcServiceSharing,
             MiniCluster.HaServices haServices) {
 
@@ -72,7 +73,7 @@ public class MiniClusterResourceConfiguration {
         return numberSlotsPerTaskManager;
     }
 
-    public Time getShutdownTimeout() {
+    public Duration getShutdownTimeout() {
         return shutdownTimeout;
     }
 
@@ -90,8 +91,7 @@ public class MiniClusterResourceConfiguration {
         private Configuration configuration = new Configuration();
         private int numberTaskManagers = 1;
         private int numberSlotsPerTaskManager = 1;
-        private Time shutdownTimeout =
-                Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
+        private Duration shutdownTimeout = configuration.get(RpcOptions.ASK_TIMEOUT_DURATION);
 
         private RpcServiceSharing rpcServiceSharing = RpcServiceSharing.SHARED;
         private MiniCluster.HaServices haServices = MiniCluster.HaServices.CONFIGURED;
@@ -111,7 +111,7 @@ public class MiniClusterResourceConfiguration {
             return this;
         }
 
-        public Builder setShutdownTimeout(Time shutdownTimeout) {
+        public Builder setShutdownTimeout(Duration shutdownTimeout) {
             this.shutdownTimeout = shutdownTimeout;
             return this;
         }

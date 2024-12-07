@@ -18,11 +18,13 @@
 
 package org.apache.flink.runtime.fs.hdfs;
 
+import org.apache.flink.core.fs.ByteBufferReadable;
 import org.apache.flink.core.fs.FSDataInputStream;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -30,7 +32,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Concrete implementation of the {@link FSDataInputStream} for Hadoop's input streams. This
  * supports all file systems supported by Hadoop, such as HDFS and S3 (S3a/S3n).
  */
-public final class HadoopDataInputStream extends FSDataInputStream {
+public final class HadoopDataInputStream extends FSDataInputStream implements ByteBufferReadable {
 
     /**
      * Minimum amount of bytes to skip forward before we issue a seek instead of discarding read.
@@ -138,6 +140,52 @@ public final class HadoopDataInputStream extends FSDataInputStream {
     public void skipFully(long bytes) throws IOException {
         while (bytes > 0) {
             bytes -= fsDataInputStream.skip(bytes);
+        }
+    }
+
+    @Override
+    public int read(ByteBuffer byteBuffer) throws IOException {
+        // TODO: Use org.apache.hadoop.fs.FSDataInputStream#read(ByteBuffer) to improve the
+        //  performance after updating hadoop version to 3.3.0 and above.
+        if (byteBuffer.hasArray()) {
+            int len = byteBuffer.remaining();
+            fsDataInputStream.readFully(byteBuffer.array(), byteBuffer.arrayOffset(), len);
+            return len;
+        } else {
+            // Fallback to read byte then put
+            int c = read();
+            if (c == -1) {
+                return -1;
+            }
+            byteBuffer.put((byte) c);
+
+            int n = 1, len = byteBuffer.remaining() + 1;
+            for (; n < len; n++) {
+                c = read();
+                if (c == -1) {
+                    break;
+                }
+                byteBuffer.put((byte) c);
+            }
+            return n;
+        }
+    }
+
+    @Override
+    public int read(long position, ByteBuffer byteBuffer) throws IOException {
+        // TODO: Use org.apache.hadoop.fs.FSDataInputStream#read(long, ByteBuffer) to improve the
+        //  performance after updating hadoop version to 3.3.0 and above.
+        if (byteBuffer.hasArray()) {
+            int len = byteBuffer.remaining();
+            fsDataInputStream.readFully(
+                    position, byteBuffer.array(), byteBuffer.arrayOffset(), len);
+            return len;
+        } else {
+            // Fallback to positionable read bytes then put
+            byte[] tmp = new byte[byteBuffer.remaining()];
+            fsDataInputStream.readFully(position, tmp, 0, tmp.length);
+            byteBuffer.put(tmp);
+            return tmp.length;
         }
     }
 }

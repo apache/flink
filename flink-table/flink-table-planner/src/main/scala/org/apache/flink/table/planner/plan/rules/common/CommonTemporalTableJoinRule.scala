@@ -19,16 +19,16 @@ package org.apache.flink.table.planner.plan.rules.common
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.connector.source.LookupTableSource
+import org.apache.flink.table.legacy.sources.LookupableTableSource
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalLegacyTableSourceScan, FlinkLogicalRel, FlinkLogicalSnapshot, FlinkLogicalTableSourceScan}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalLookupJoin, StreamPhysicalTemporalJoin}
 import org.apache.flink.table.planner.plan.schema.{LegacyTableSourceTable, TableSourceTable, TimeIndicatorRelDataType}
-import org.apache.flink.table.planner.plan.utils.TemporalTableJoinUtil
-import org.apache.flink.table.sources.LookupableTableSource
 
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.logical.{LogicalProject, LogicalTableScan}
+import org.apache.calcite.rex.{RexCorrelVariable, RexFieldAccess}
 
 /**
  * Base implementation that matches temporal join node.
@@ -42,12 +42,15 @@ trait CommonTemporalTableJoinRule {
   protected def matches(snapshot: FlinkLogicalSnapshot): Boolean = {
 
     // period specification check
-    val isTemporalJoinSnapshot =
-      TemporalTableJoinUtil.isTemporalJoinSupportPeriod(snapshot.getPeriod)
-    if (!isTemporalJoinSnapshot) {
-      throw new TableException(
-        "Temporal table join currently only supports " +
-          "'FOR SYSTEM_TIME AS OF' left table's time attribute field.")
+    snapshot.getPeriod match {
+      // it should be left table's field and is a time attribute
+      case r: RexFieldAccess
+          if r.getType.isInstanceOf[TimeIndicatorRelDataType] &&
+            r.getReferenceExpr.isInstanceOf[RexCorrelVariable] => // pass
+      case _ =>
+        throw new TableException(
+          "Temporal table join currently only supports " +
+            "'FOR SYSTEM_TIME AS OF' left table's time attribute field.")
     }
 
     true

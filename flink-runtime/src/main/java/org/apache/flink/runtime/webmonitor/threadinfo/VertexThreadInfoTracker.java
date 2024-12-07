@@ -20,7 +20,6 @@ package org.apache.flink.runtime.webmonitor.threadinfo;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
@@ -35,8 +34,8 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.stats.VertexStatsTracker;
 
-import org.apache.flink.shaded.guava31.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableSet;
+import org.apache.flink.shaded.guava32.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableSet;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,7 +106,7 @@ public class VertexThreadInfoTracker implements VertexStatsTracker<VertexThreadI
     /** Flag indicating whether the stats tracker has been shut down. */
     private boolean shutDown;
 
-    private final Time rpcTimeout;
+    private final Duration rpcTimeout;
 
     VertexThreadInfoTracker(
             ThreadInfoRequestCoordinator coordinator,
@@ -118,7 +117,7 @@ public class VertexThreadInfoTracker implements VertexStatsTracker<VertexThreadI
             Duration statsRefreshInterval,
             Duration delayBetweenSamples,
             int maxStackTraceDepth,
-            Time rpcTimeout,
+            Duration rpcTimeout,
             Cache<JobVertexKey, VertexThreadInfoStats> jobVertexStatsCache,
             Cache<ExecutionVertexKey, VertexThreadInfoStats> executionVertexStatsCache) {
 

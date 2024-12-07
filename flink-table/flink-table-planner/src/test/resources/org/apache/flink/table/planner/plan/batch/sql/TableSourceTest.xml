@@ -109,7 +109,7 @@ FROM T
       <![CDATA[
 LogicalProject(id=[$0], nested1=[$1.nested1], results=[+(+($1.nested1.value, $1.nested2.num), $2)])
 +- LogicalProject(id=[$0], deepNested=[$1], metadata_1=[$2], metadata_2=[$3])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T, metadata=[metadata_1, metadata_2]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

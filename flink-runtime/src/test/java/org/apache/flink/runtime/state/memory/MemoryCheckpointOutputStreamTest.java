@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state.memory;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory.MemoryCheckpointOutputStream;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 
 import org.junit.jupiter.api.Test;
 
@@ -61,7 +62,8 @@ class MemoryCheckpointOutputStreamTest {
                 77);
 
         CheckpointStateOutputStream outStream =
-                new MemoryCheckpointOutputStream(MemoryStateBackend.DEFAULT_MAX_STATE_SIZE);
+                new MemoryCheckpointOutputStream(
+                        JobManagerCheckpointStorage.DEFAULT_MAX_STATE_SIZE);
         ObjectOutputStream oos = new ObjectOutputStream(outStream);
         oos.writeObject(state);
         oos.flush();

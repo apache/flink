@@ -19,9 +19,10 @@ package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.{Expression, TimeIntervalUnit, TimePointUnit}
+import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.expressions.utils.ScalarTypesTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class ScalarFunctionsTest extends ScalarTypesTestBase {
 
@@ -324,38 +325,34 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   def testLTrim(): Unit = {
     testAllApis('f8.ltrim(), "LTRIM(f8)", "This is a test String. ")
 
-    testSqlApi("LTRIM(f8)", "This is a test String. ")
+    testAllApis('f0.ltrim("This "), "LTRIM(f0, 'This ')", "a test String.")
 
-    testSqlApi("LTRIM(f0, 'This ')", "a test String.")
+    testAllApis("abcddcba".ltrim("abc"), "ltrim('abcddcba', 'abc')", "ddcba")
 
-    testSqlApi("ltrim('abcddcba', 'abc')", "ddcba")
+    testAllApis("abcddcba".ltrim("abd"), "LTRIM('abcddcba', 'abd')", "cddcba")
 
-    testSqlApi("LTRIM('abcddcba', 'abd')", "cddcba")
+    testAllApis("心情开开心心".ltrim("开心"), "ltrim('心情开开心心', '开心')", "情开开心心")
 
-    testSqlApi("ltrim('心情开开心心', '开心')", "情开开心心")
+    testAllApis("abcddcba".ltrim('f33), "LTRIM('abcddcba', f33)", "NULL")
 
-    testSqlApi("LTRIM('abcddcba', CAST(null as VARCHAR))", "NULL")
-
-    testSqlApi("LTRIM(CAST(null as VARCHAR), 'abcddcba')", "NULL")
+    testAllApis('f33.ltrim("abcddcba"), "LTRIM(f33, 'abcddcba')", "NULL")
   }
 
   @Test
   def testRTrim(): Unit = {
     testAllApis('f8.rtrim(), "rtrim(f8)", " This is a test String.")
 
-    testSqlApi("rtrim(f8)", " This is a test String.")
+    testAllApis('f0.rtrim("String. "), "RTRIM(f0, 'String. ')", "This is a tes")
 
-    testSqlApi("rtrim(f0, 'String. ')", "This is a tes")
+    testAllApis("abcddcba".rtrim("abc"), "rtrim('abcddcba', 'abc')", "abcdd")
 
-    testSqlApi("rtrim('abcddcba', 'abc')", "abcdd")
+    testAllApis("abcddcba".rtrim("abd"), "RTRIM('abcddcba', 'abd')", "abcddc")
 
-    testSqlApi("rtrim('abcddcba', 'abd')", "abcddc")
+    testAllApis("心情开开心心".rtrim("开心"), "rtrim('心情开开心心', '开心')", "心情")
 
-    testSqlApi("rtrim('心情开开心心', '开心')", "心情")
+    testAllApis("abcddcba".rtrim('f33), "RTRIM('abcddcba', f33)", "NULL")
 
-    testSqlApi("rtrim('abcddcba', CAST(null as VARCHAR))", "NULL")
-
-    testSqlApi("rtrim(CAST(null as VARCHAR), 'abcddcba')", "NULL")
+    testAllApis('f33.rtrim("abcddcba"), "RTRIM(f33, 'abcddcba')", "NULL")
   }
 
   @Test
@@ -391,55 +388,153 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testLike(): Unit = {
+    // true
     testAllApis('f0.like("Th_s%"), "f0 LIKE 'Th_s%'", "TRUE")
-
     testAllApis('f0.like("%is a%"), "f0 LIKE '%is a%'", "TRUE")
-
-    testSqlApi("'abcxxxdef' LIKE 'abcx%'", "TRUE")
-    testSqlApi("'abcxxxdef' LIKE '%%def'", "TRUE")
-    testSqlApi("'abcxxxdef' LIKE 'abcxxxdef'", "TRUE")
-    testSqlApi("'abcxxxdef' LIKE '%xdef'", "TRUE")
-    testSqlApi("'abcxxxdef' LIKE 'abc%def%'", "TRUE")
-    testSqlApi("'abcxxxdef' LIKE '%abc%def'", "TRUE")
-    testSqlApi("'abcxxxdef' LIKE '%abc%def%'", "TRUE")
-    testSqlApi("'abcxxxdef' LIKE 'abc%def'", "TRUE")
+    testAllApis("abcxxxdef".like("abcx%"), "'abcxxxdef' LIKE 'abcx%'", "TRUE")
+    testAllApis("abcxxxdef".like("%%def"), "'abcxxxdef' LIKE '%%def'", "TRUE")
+    testAllApis("abcxxxdef".like("abcxxxdef"), "'abcxxxdef' LIKE 'abcxxxdef'", "TRUE")
+    testAllApis("abcxxxdef".like("%xdef"), "'abcxxxdef' LIKE '%xdef'", "TRUE")
+    testAllApis("abcxxxdef".like("abc%def%"), "'abcxxxdef' LIKE 'abc%def%'", "TRUE")
+    testAllApis("abcxxxdef".like("%abc%def"), "'abcxxxdef' LIKE '%abc%def'", "TRUE")
+    testAllApis("abcxxxdef".like("%abc%def%"), "'abcxxxdef' LIKE '%abc%def%'", "TRUE")
+    testAllApis("abcxxxdef".like("abc%def"), "'abcxxxdef' LIKE 'abc%def'", "TRUE")
 
     // false
-    testSqlApi("'abcxxxdef' LIKE 'abdxxxdef'", "FALSE")
-    testSqlApi("'abcxxxdef' LIKE '%xqef'", "FALSE")
-    testSqlApi("'abcxxxdef' LIKE 'abc%qef%'", "FALSE")
-    testSqlApi("'abcxxxdef' LIKE '%abc%qef'", "FALSE")
-    testSqlApi("'abcxxxdef' LIKE '%abc%qef%'", "FALSE")
-    testSqlApi("'abcxxxdef' LIKE 'abc%qef'", "FALSE")
+    testAllApis("abcxxxdef".like("abdxxxdef"), "'abcxxxdef' LIKE 'abdxxxdef'", "FALSE")
+    testAllApis("abcxxxdef".like("%xqef"), "'abcxxxdef' LIKE '%xqef'", "FALSE")
+    testAllApis("abcxxxdef".like("abc%qef%"), "'abcxxxdef' LIKE 'abc%qef%'", "FALSE")
+    testAllApis("abcxxxdef".like("%abc%qef"), "'abcxxxdef' LIKE '%abc%qef'", "FALSE")
+    testAllApis("abcxxxdef".like("%abc%qef%"), "'abcxxxdef' LIKE '%abc%qef%'", "FALSE")
+    testAllApis("abcxxxdef".like("abc%qef"), "'abcxxxdef' LIKE 'abc%qef'", "FALSE")
+
+    // reported in FLINK-36100
+    testAllApis("TE_ST".like("%E_S%"), "'TE_ST' LIKE '%E_S%'", "TRUE")
+    testAllApis("TE-ST".like("%E_S%"), "'TE-ST' LIKE '%E_S%'", "TRUE")
+    testAllApis("TE_ST".like("%E\\_S%"), "'TE_ST' LIKE '%E\\_S%'", "TRUE")
+    testAllApis("TE-ST".like("%E\\_S%"), "'TE-ST' LIKE '%E\\_S%'", "FALSE")
   }
 
   @Test
   def testNotLike(): Unit = {
     testAllApis(!'f0.like("Th_s%"), "f0 NOT LIKE 'Th_s%'", "FALSE")
-
     testAllApis(!'f0.like("%is a%"), "f0 NOT LIKE '%is a%'", "FALSE")
+
+    // reported in FLINK-36100
+    testSqlApi("'TE_ST' NOT LIKE '%E_S%'", "FALSE")
+    testSqlApi("'TE-ST' NOT LIKE '%E_S%'", "FALSE")
+    testSqlApi("'TE_ST' NOT LIKE '%E\\_S%'", "FALSE")
+    testSqlApi("'TE-ST' NOT LIKE '%E\\_S%'", "TRUE")
   }
 
   @Test
   def testLikeWithEscape(): Unit = {
-    testSqlApi("f23 LIKE '&%Th_s%' ESCAPE '&'", "TRUE")
+    testAllApis('f23.like("&%Th_s%", "&"), "f23 LIKE '&%Th_s%' ESCAPE '&'", "TRUE")
+    testAllApis('f23.like("&%%is a%", "&"), "f23 LIKE '&%%is a%' ESCAPE '&'", "TRUE")
+    testAllApis('f0.like("Th_s%", "&"), "f0 LIKE 'Th_s%' ESCAPE '&'", "TRUE")
+    testAllApis('f0.like("%is a%", "&"), "f0 LIKE '%is a%' ESCAPE '&'", "TRUE")
 
-    testSqlApi("f23 LIKE '&%%is a%' ESCAPE '&'", "TRUE")
+    // normal escape character
+    testAllApis("TE-ST".like("%E#_S%", "#"), "'TE-ST' LIKE '%E#_S%' ESCAPE '#'", "FALSE")
+    testAllApis("TE_ST".like("%E#_S%", "#"), "'TE_ST' LIKE '%E#_S%' ESCAPE '#'", "TRUE")
 
-    testSqlApi("f0 LIKE 'Th_s%' ESCAPE '&'", "TRUE")
+    // special character in SQL
+    testAllApis("TE-ST".like("%E__S%", "_"), "'TE-ST' LIKE '%E__S%' ESCAPE '_'", "FALSE")
+    testAllApis("TE_ST".like("%E__S%", "_"), "'TE_ST' LIKE '%E__S%' ESCAPE '_'", "TRUE")
+    testAllApis("TE-ST".like("TE%_ST", "%"), "'TE-ST' LIKE 'TE%_ST' ESCAPE '%'", "FALSE")
+    testAllApis("TE_ST".like("TE%_ST", "%"), "'TE_ST' LIKE 'TE%_ST' ESCAPE '%'", "TRUE")
 
-    testSqlApi("f0 LIKE '%is a%' ESCAPE '&'", "TRUE")
+    // special character in Java Regex
+    testAllApis("TE-ST".like("%E\\_S%", "\\"), "'TE-ST' LIKE '%E\\_S%' ESCAPE '\\'", "FALSE")
+    testAllApis("TE_ST".like("%E\\_S%", "\\"), "'TE_ST' LIKE '%E\\_S%' ESCAPE '\\'", "TRUE")
+    testAllApis("TE-ST".like("%E._S%", "."), "'TE-ST' LIKE '%E._S%' ESCAPE '.'", "FALSE")
+    testAllApis("TE_ST".like("%E._S%", "."), "'TE_ST' LIKE '%E._S%' ESCAPE '.'", "TRUE")
+
+    // invalid escape character
+    testExpectedAllApisException(
+      "TE-ST".like("%E_S%", "ab"),
+      "'TE-ST' LIKE '%E_S%' ESCAPE 'ab'",
+      "Invalid escape",
+      classOf[RuntimeException])
+    testExpectedAllApisException(
+      "TE-ST".like("%E_S%", "\\c"),
+      "'TE-ST' LIKE '%E_S%' ESCAPE '\\c'",
+      "Invalid escape",
+      classOf[RuntimeException])
+
+    // escape character at the end
+    testExpectedAllApisException(
+      "TE-ST".like("%E_S%&", "&"),
+      "'TE-ST' LIKE '%E_S%&' ESCAPE '&'",
+      "",
+      classOf[RuntimeException])
+
+    // invalid character after escape character
+    testExpectedAllApisException(
+      "TE-ST".like("%E&-S%", "&"),
+      "'TE-ST' LIKE '%E&-S%' ESCAPE '&'",
+      "Invalid escape",
+      classOf[RuntimeException])
+    testExpectedAllApisException(
+      "TE-ST".like("%E_S%", "_"),
+      "'TE-ST' LIKE '%E_S%' ESCAPE '_'",
+      "Invalid escape",
+      classOf[RuntimeException])
   }
 
   @Test
   def testNotLikeWithEscape(): Unit = {
     testSqlApi("f23 NOT LIKE '&%Th_s%' ESCAPE '&'", "FALSE")
-
     testSqlApi("f23 NOT LIKE '&%%is a%' ESCAPE '&'", "FALSE")
-
     testSqlApi("f0 NOT LIKE 'Th_s%' ESCAPE '&'", "FALSE")
-
     testSqlApi("f0 NOT LIKE '%is a%' ESCAPE '&'", "FALSE")
+
+    // normal escape character
+    testSqlApi("'TE-ST' NOT LIKE '%E#_S%' ESCAPE '#'", "TRUE")
+    testSqlApi("'TE_ST' NOT LIKE '%E#_S%' ESCAPE '#'", "FALSE")
+
+    // special character in SQL
+    testSqlApi("'TE-ST' NOT LIKE '%E__S%' ESCAPE '_'", "TRUE")
+    testSqlApi("'TE_ST' NOT LIKE '%E__S%' ESCAPE '_'", "FALSE")
+    testSqlApi("'TE-ST' NOT LIKE 'TE%_ST' ESCAPE '%'", "TRUE")
+    testSqlApi("'TE_ST' NOT LIKE 'TE%_ST' ESCAPE '%'", "FALSE")
+
+    // special character in Java Regex
+    testSqlApi("'TE-ST' NOT LIKE '%E\\_S%' ESCAPE '\\'", "TRUE")
+    testSqlApi("'TE_ST' NOT LIKE '%E\\_S%' ESCAPE '\\'", "FALSE")
+    testSqlApi("'TE-ST' NOT LIKE '%E._S%' ESCAPE '.'", "TRUE")
+    testSqlApi("'TE_ST' NOT LIKE '%E._S%' ESCAPE '.'", "FALSE")
+
+    // invalid character
+    testExpectedAllApisException(
+      !"TE-ST".like("%E_S%", "ab"),
+      "'TE-ST' NOT LIKE '%E_S%' ESCAPE 'ab'",
+      "Invalid escape",
+      classOf[RuntimeException])
+    testExpectedAllApisException(
+      !"TE-ST".like("%E_S%", "\\c"),
+      "'TE-ST' NOT LIKE '%E_S%' ESCAPE '\\c'",
+      "Invalid escape",
+      classOf[RuntimeException])
+
+    // escape character at the end
+    testExpectedAllApisException(
+      !"TE-ST".like("%E_S%&", "&"),
+      "'TE-ST' NOT LIKE '%E_S%&' ESCAPE '&'",
+      "",
+      classOf[RuntimeException])
+
+    // invalid character after escape character
+    testExpectedAllApisException(
+      !"TE-ST".like("%E&-S%", "&"),
+      "'TE-ST' NOT LIKE '%E&-S%' ESCAPE '&'",
+      "Invalid escape",
+      classOf[RuntimeException])
+    testExpectedAllApisException(
+      !"TE-ST".like("%E_S%", "_"),
+      "'TE-ST' NOT LIKE '%E_S%' ESCAPE '_'",
+      "Invalid escape",
+      classOf[RuntimeException])
   }
 
   @Test
@@ -602,6 +697,82 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "foothebar".regexpExtract("foo(.*?)(bar)"),
       "REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)')",
       "foothebar")
+  }
+
+  @Test
+  def testJsonQuote(): Unit = {
+    testSqlApi("JSON_QUOTE('null')", "\"null\"")
+    testSqlApi("JSON_QUOTE('\"null\"')", "\"\\\"null\\\"\"")
+    testSqlApi("JSON_QUOTE('[1,2,3]')", "\"[1,2,3]\"")
+    testSqlApi(
+      "JSON_QUOTE('This is a \\t test \\n with special characters: \" \\ \\b \\f \\r \\u0041')",
+      "\"This is a \\\\t test \\\\n with special characters: \\\" \\\\ \\\\b \\\\f \\\\r \\\\u0041\""
+    )
+    testSqlApi(
+      "JSON_QUOTE('\"special\": \"\\b\\f\\r\"')",
+      "\"\\\"special\\\": \\\"\\\\b\\\\f\\\\r\\\"\"")
+    testSqlApi(
+      "JSON_QUOTE('skipping backslash \\')",
+      "\"skipping backslash \\\\\""
+    )
+    testSqlApi(
+      "JSON_QUOTE('≠ will be escaped')",
+      "\"\\u2260 will be escaped\""
+    )
+    testSqlApi(
+      "JSON_QUOTE('\\u006z will not be escaped')",
+      "\"\\\\u006z will not be escaped\""
+    )
+    testSqlApi("JSON_QUOTE('1')", "\"1\"")
+    testSqlApi("JSON_QUOTE('\"1\"')", "\"\\\"1\\\"\"")
+  }
+
+  @Test
+  def testJsonUnquoteWithValidInput(): Unit = {
+    testSqlApi("JSON_UNQUOTE('\"\\\\u00aa\"')", "\\u00aa")
+    testSqlApi("JSON_UNQUOTE('\"\\u00aa\"')", "\u00aa")
+    testSqlApi("JSON_UNQUOTE('\"\\u00aa\"')", "ª")
+    testSqlApi("JSON_UNQUOTE('\"abc\"')", "abc")
+    testSqlApi("JSON_UNQUOTE('\"[abc]\"')", "[abc]")
+    testSqlApi("JSON_UNQUOTE('\"[\\u0041]\"')", "[A]")
+    testSqlApi("JSON_UNQUOTE('\"\\u0041\"')", "A")
+    testSqlApi("JSON_UNQUOTE('\"[\\t\\u0032]\"')", "[\t2]")
+    testSqlApi(
+      "JSON_UNQUOTE('\"This is a \\t test \\n with special characters: \\b \\f \\r \\u0041\"')",
+      "This is a \t test \n with special characters: \b \f \r A"
+    )
+    testSqlApi("JSON_UNQUOTE('\"\"')", "")
+    testSqlApi("JSON_UNQUOTE('\"\"\"')", "\"")
+    testSqlApi("JSON_UNQUOTE('[]')", "[]")
+    testSqlApi("JSON_UNQUOTE('\"\"\\ufffa\"')", "\"\ufffa")
+    testSqlApi("JSON_UNQUOTE('{\"key\":1}')", "{\"key\":1}")
+    testSqlApi("JSON_UNQUOTE('true')", "true")
+  }
+
+  @Test
+  def testJsonQuoteFollowedByUnquoteReturnsOriginal(): Unit = {
+    testSqlApi("JSON_UNQUOTE(JSON_QUOTE('test'))", "test")
+    testSqlApi("JSON_UNQUOTE(JSON_QUOTE('3'))", "3")
+    testSqlApi("JSON_UNQUOTE(JSON_QUOTE('[]'))", "[]")
+    testSqlApi("JSON_UNQUOTE(JSON_QUOTE('{}'))", "{}")
+    testSqlApi("JSON_UNQUOTE(JSON_QUOTE('{\"key\":\"value\"}'))", "{\"key\":\"value\"}")
+    testSqlApi("JSON_UNQUOTE(JSON_QUOTE('\"this is not a json'))", "\"this is not a json")
+    testSqlApi("JSON_UNQUOTE(JSON_QUOTE(''))", "")
+    testSqlApi("JSON_UNQUOTE(JSON_QUOTE('\"'))", "\"")
+  }
+
+  @Test
+  def testJsonUnquoteWithInvalidInput(): Unit = {
+    testSqlApi("JSON_UNQUOTE('\"[1, 2, 3}')", "\"[1, 2, 3}")
+    testSqlApi("JSON_UNQUOTE('\"')", "\"")
+    testSqlApi("JSON_UNQUOTE('[}')", "[}")
+    testSqlApi("JSON_UNQUOTE('1\"')", "1\"")
+    testSqlApi("JSON_UNQUOTE('[')", "[")
+    testSqlApi("JSON_UNQUOTE('')", "")
+    testSqlApi(
+      "JSON_UNQUOTE('\"invalid unicode literal but valid json pass through \"\"\\uzzzz\"')",
+      "\"invalid unicode literal but valid json pass through \"\"\\uzzzz\""
+    )
   }
 
   @Test
@@ -2614,8 +2785,12 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   def testIf(): Unit = {
     // test IF(BOOL, INT, BIGINT), will do implicit type coercion.
     testSqlApi("IF(f7 > 5, f14, f4)", "44")
+
     // test input with null
     testSqlApi("IF(f7 < 5, cast(null as int), f4)", "NULL")
+
+    // test IF(BOOLEAN, INT, INT NOT NULL)
+    testSqlApi("IF(f7 < 5, cast(null as int), 0)", "NULL")
 
     // f0 is a STRING, cast(f0 as double) should never be ran
     testSqlApi("IF(1 = 1, f6, cast(f0 as double))", "4.6")
@@ -2659,6 +2834,47 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     //    testSqlApi(
     //      "IF(f7 < 5, f18, f52)",
     //      "1996-11-10 06:55:44.333")
+  }
+
+  @Test
+  def testRandAndIf(): Unit = {
+    // test RAND
+    testSqlApi("IF(1 = 1, RAND(), cast(1.0 as double))")
+
+    // test RAND(INT) and IF(BOOLEAN, DOUBLE, DOUBLE NOT NULL)
+    testSqlApi("IF(1 = 1, RAND(f7), cast(1.0 as double))", "0.731057369148862")
+
+    // test RAND(NULL) and IF(BOOLEAN, NULL, DOUBLE NOT NULL)
+    testSqlApi("IF(1 = 1, RAND(cast(null as int)), cast(1.0 as double))", "NULL")
+
+    // test RAND(INT NOT NULL) and IF(BOOLEAN, DOUBLE NOT NULL, DOUBLE NOT NULL)
+    testSqlApi("IF(1 = 1, RAND(1), cast(1.0 as double))", "0.7308781907032909")
+
+    // test RAND_INTEGER
+
+    // test RAND_INTEGER(INT) and IF(BOOLEAN, INT, INT NOT NULL)
+    testSqlApi("IF(1 = 1, RAND_INTEGER(f7), 1)")
+
+    // test RAND_INTEGER(INT NOT NULL) and IF(BOOLEAN, INT NOT NULL, INT NOT NULL)
+    testSqlApi("IF(1 = 1, RAND_INTEGER(10), 1)")
+
+    // test RAND_INTEGER(NULL) and IF(BOOLEAN, NULL, INT NOT NULL)
+    testSqlApi("IF(1 = 1, RAND_INTEGER(cast(null as int)), 1)")
+
+    // test RAND_INTEGER(INT, INT NOT NULL) and IF(BOOLEAN, INT, INT NOT NULL)
+    testSqlApi("IF(1 = 1, RAND_INTEGER(f7, 10), 1)", "4")
+
+    // test RAND_INTEGER(INT NOT NULL, INT) and IF(BOOLEAN, INT, INT NOT NULL)
+    testSqlApi("IF(1 = 1, RAND_INTEGER(3, f7), 1)", "2")
+
+    // test RAND_INTEGER(NULL, INT NOT NULL) and IF(BOOLEAN, NULL, INT NOT NULL)
+    testSqlApi("IF(1 = 1, RAND_INTEGER(cast(null as int), 10), 1)", "NULL")
+
+    // test RAND_INTEGER(INT NOT NULL, INT) and IF(BOOLEAN, NULL, INT NOT NULL)
+    testSqlApi("IF(1 = 1, RAND_INTEGER(3, cast(null as int)), 1)", "NULL")
+
+    // test RAND_INTEGER(INT NOT NULL, INT NOT NULL) and IF(BOOLEAN, INT NOT NULL, INT NOT NULL)
+    testSqlApi("IF(1 = 1, RAND_INTEGER(3, 99), 1)", "50")
   }
 
   @Test
@@ -2741,10 +2957,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     val url = "CAST('http://user:pass@host' AS VARCHAR(50))"
     val base64 = "CAST('aGVsbG8gd29ybGQ=' AS VARCHAR(20))"
 
-    testSqlApi(s"IFNULL(SUBSTR($str1, 2, 3), $str2)", "el")
-    testSqlApi(s"IFNULL(SUBSTRING($str1, 2, 3), $str2)", "el")
-    testSqlApi(s"IFNULL(LEFT($str1, 3), $str2)", "He")
-    testSqlApi(s"IFNULL(RIGHT($str1, 3), $str2)", "ll")
+    testSqlApi(s"IFNULL(SUBSTR($str1, 2, 3), $str2)", "ell")
+    testSqlApi(s"IFNULL(SUBSTRING($str1, 2, 3), $str2)", "ell")
+    testSqlApi(s"IFNULL(LEFT($str1, 3), $str2)", "Hel")
+    testSqlApi(s"IFNULL(RIGHT($str1, 3), $str2)", "llo")
     testSqlApi(s"IFNULL(REGEXP_EXTRACT($str1, 'H(.+?)l(.+?)$$', 2), $str2)", "lo")
     testSqlApi(s"IFNULL(REGEXP_REPLACE($str1, 'e.l', 'EXL'), $str2)", "HEXLo")
     testSqlApi(s"IFNULL(UPPER($str1), $str2)", "HELLO")
@@ -2754,9 +2970,9 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(s"IFNULL(LPAD($str1, 7, $str3), $str2)", "heHello")
     testSqlApi(s"IFNULL(RPAD($str1, 7, $str3), $str2)", "Hellohe")
     testSqlApi(s"IFNULL(REPEAT($str1, 2), $str2)", "HelloHello")
-    testSqlApi(s"IFNULL(REVERSE($str1), $str2)", "ol")
+    testSqlApi(s"IFNULL(REVERSE($str1), $str2)", "olleH")
     testSqlApi(s"IFNULL(REPLACE($str3, ' ', '_'), $str2)", "hello_world")
-    testSqlApi(s"IFNULL(SPLIT_INDEX($str3, ' ', 1), $str2)", "wo")
+    testSqlApi(s"IFNULL(SPLIT_INDEX($str3, ' ', 1), $str2)", "world")
     testSqlApi(s"IFNULL(MD5($str1), $str2)", "8b1a9953c4611296a827abf8c47804d7")
     testSqlApi(s"IFNULL(SHA1($str1), $str2)", "f7ff9e8b7bb2e09b70935a5d785e0cc5d9d0abf0")
     testSqlApi(
@@ -2777,7 +2993,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       s"IFNULL(SHA2($str1, 256), $str2)",
       "185f8db32271fe25f561a6fc938b2e264306ec304eda518007d1764826381969")
-    testSqlApi(s"IFNULL(PARSE_URL($url, 'HOST'), $str2)", "ho")
+    testSqlApi(s"IFNULL(PARSE_URL($url, 'HOST'), $str2)", "host")
     testSqlApi(s"IFNULL(FROM_BASE64($base64), $str2)", "hello world")
     testSqlApi(s"IFNULL(TO_BASE64($str3), $str2)", "aGVsbG8gd29ybGQ=")
     testSqlApi(s"IFNULL(CHR(65), $str2)", "A")
@@ -2789,7 +3005,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(s"IFNULL(RTRIM($str4), $str2)", " hello")
     testSqlApi(s"IFNULL($str1 || $str2, $str2)", "HelloHi")
     testSqlApi(s"IFNULL(SUBSTRING(UUID(), 9, 1), $str2)", "-")
-    testSqlApi(s"IFNULL(DECODE(ENCODE($str1, 'utf-8'), 'utf-8'), $str2)", "He")
+    testSqlApi(s"IFNULL(DECODE(ENCODE($str1, 'utf-8'), 'utf-8'), $str2)", "Hello")
 
     testSqlApi(s"IFNULL(CAST(DATE '2021-04-06' AS VARCHAR(10)), $str2)", "2021-04-06")
     testSqlApi(s"IFNULL(CAST(TIME '11:05:30' AS VARCHAR(8)), $str2)", "11:05:30")

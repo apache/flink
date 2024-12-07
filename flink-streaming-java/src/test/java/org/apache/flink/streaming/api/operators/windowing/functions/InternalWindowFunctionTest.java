@@ -46,7 +46,7 @@ import org.apache.flink.streaming.util.functions.StreamingFunctionUtils;
 import org.apache.flink.util.Collector;
 
 import org.hamcrest.collection.IsIterableContainingInOrder;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -58,10 +58,10 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.collection.IsMapContaining.hasEntry;
 import static org.hamcrest.core.AllOf.allOf;
-import static org.mockito.Mockito.anyObject;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -69,11 +69,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
 /** Tests for {@link InternalWindowFunction}. */
-public class InternalWindowFunctionTest {
+class InternalWindowFunctionTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testInternalIterableAllWindowFunction() throws Exception {
+    void testInternalIterableAllWindowFunction() throws Exception {
 
         AllWindowFunctionMock mock = mock(AllWindowFunctionMock.class);
         InternalIterableAllWindowFunction<Long, String, TimeWindow> windowFunction =
@@ -117,7 +117,7 @@ public class InternalWindowFunctionTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testInternalIterableProcessAllWindowFunction() throws Exception {
+    void testInternalIterableProcessAllWindowFunction() throws Exception {
 
         ProcessAllWindowFunctionMock mock = mock(ProcessAllWindowFunctionMock.class);
         InternalIterableProcessAllWindowFunction<Long, String, TimeWindow> windowFunction =
@@ -151,7 +151,7 @@ public class InternalWindowFunctionTest {
         InternalWindowFunction.InternalWindowContext ctx =
                 mock(InternalWindowFunction.InternalWindowContext.class);
         windowFunction.process(((byte) 0), w, ctx, i, c);
-        verify(mock).process((ProcessAllWindowFunctionMock.Context) anyObject(), eq(i), eq(c));
+        verify(mock).process(any(), eq(i), eq(c));
 
         // check close
         windowFunction.close();
@@ -160,7 +160,7 @@ public class InternalWindowFunctionTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testInternalIterableWindowFunction() throws Exception {
+    void testInternalIterableWindowFunction() throws Exception {
 
         WindowFunctionMock mock = mock(WindowFunctionMock.class);
         InternalIterableWindowFunction<Long, String, Long, TimeWindow> windowFunction =
@@ -203,7 +203,7 @@ public class InternalWindowFunctionTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testInternalIterableProcessWindowFunction() throws Exception {
+    void testInternalIterableProcessWindowFunction() throws Exception {
 
         ProcessWindowFunctionMock mock = mock(ProcessWindowFunctionMock.class);
         InternalIterableProcessWindowFunction<Long, String, Long, TimeWindow> windowFunction =
@@ -252,7 +252,7 @@ public class InternalWindowFunctionTest {
                             }
                         })
                 .when(mock)
-                .process(eq(42L), (ProcessWindowFunctionMock.Context) anyObject(), eq(i), eq(c));
+                .process(eq(42L), any(), eq(i), eq(c));
 
         windowFunction.process(42L, w, ctx, i, c);
         verify(ctx).currentProcessingTime();
@@ -267,7 +267,7 @@ public class InternalWindowFunctionTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testInternalSingleValueWindowFunction() throws Exception {
+    void testInternalSingleValueWindowFunction() throws Exception {
 
         WindowFunctionMock mock = mock(WindowFunctionMock.class);
         InternalSingleValueWindowFunction<Long, String, Long, TimeWindow> windowFunction =
@@ -315,7 +315,7 @@ public class InternalWindowFunctionTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testInternalSingleValueAllWindowFunction() throws Exception {
+    void testInternalSingleValueAllWindowFunction() throws Exception {
 
         AllWindowFunctionMock mock = mock(AllWindowFunctionMock.class);
         InternalSingleValueAllWindowFunction<Long, String, TimeWindow> windowFunction =
@@ -362,7 +362,7 @@ public class InternalWindowFunctionTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testInternalSingleValueProcessAllWindowFunction() throws Exception {
+    void testInternalSingleValueProcessAllWindowFunction() throws Exception {
 
         ProcessAllWindowFunctionMock mock = mock(ProcessAllWindowFunctionMock.class);
         InternalSingleValueProcessAllWindowFunction<Long, String, TimeWindow> windowFunction =
@@ -398,7 +398,7 @@ public class InternalWindowFunctionTest {
         windowFunction.process(((byte) 0), w, ctx, 23L, c);
         verify(mock)
                 .process(
-                        (ProcessAllWindowFunctionMock.Context) anyObject(),
+                        (ProcessAllWindowFunctionMock.Context) any(),
                         (Iterable<Long>) argThat(IsIterableContainingInOrder.contains(23L)),
                         eq(c));
 
@@ -409,7 +409,7 @@ public class InternalWindowFunctionTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testInternalSingleValueProcessWindowFunction() throws Exception {
+    void testInternalSingleValueProcessWindowFunction() throws Exception {
 
         ProcessWindowFunctionMock mock = mock(ProcessWindowFunctionMock.class);
         InternalSingleValueProcessWindowFunction<Long, String, Long, TimeWindow> windowFunction =
@@ -459,7 +459,7 @@ public class InternalWindowFunctionTest {
                 .when(mock)
                 .process(
                         eq(42L),
-                        (ProcessWindowFunctionMock.Context) anyObject(),
+                        (ProcessWindowFunctionMock.Context) any(),
                         (Iterable<Long>) argThat(IsIterableContainingInOrder.contains(23L)),
                         eq(c));
 
@@ -476,7 +476,7 @@ public class InternalWindowFunctionTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testInternalAggregateProcessWindowFunction() throws Exception {
+    void testInternalAggregateProcessWindowFunction() throws Exception {
 
         AggregateProcessWindowFunctionMock mock = mock(AggregateProcessWindowFunctionMock.class);
 
@@ -563,10 +563,10 @@ public class InternalWindowFunctionTest {
                 .when(mock)
                 .process(
                         eq(42L),
-                        (AggregateProcessWindowFunctionMock.Context) anyObject(),
+                        any(),
                         (Iterable)
                                 argThat(
-                                        containsInAnyOrder(
+                                        contains(
                                                 allOf(
                                                         hasEntry(is(23L), is(23L)),
                                                         hasEntry(is(24L), is(24L))))),
@@ -585,7 +585,7 @@ public class InternalWindowFunctionTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testInternalAggregateProcessAllWindowFunction() throws Exception {
+    void testInternalAggregateProcessAllWindowFunction() throws Exception {
 
         AggregateProcessAllWindowFunctionMock mock =
                 mock(AggregateProcessAllWindowFunctionMock.class);
@@ -658,10 +658,10 @@ public class InternalWindowFunctionTest {
         windowFunction.process(((byte) 0), w, ctx, args, c);
         verify(mock)
                 .process(
-                        (AggregateProcessAllWindowFunctionMock.Context) anyObject(),
+                        any(),
                         (Iterable)
                                 argThat(
-                                        containsInAnyOrder(
+                                        contains(
                                                 allOf(
                                                         hasEntry(is(23L), is(23L)),
                                                         hasEntry(is(24L), is(24L))))),

@@ -17,6 +17,7 @@
 package org.apache.calcite.sql.validate;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.planner.calcite.FlinkSqlCallBinding;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCall;
@@ -24,6 +25,7 @@ import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlTableFunction;
+import org.apache.calcite.sql.SqlWindowTableFunction;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 
 import static java.util.Objects.requireNonNull;
@@ -55,13 +57,16 @@ public final class ProcedureNamespace extends AbstractNamespace {
 
     public RelDataType validateImpl(RelDataType targetRowType) {
         validator.inferUnknownTypes(validator.unknownType, scope, call);
-        // The result is ignored but the type is derived to trigger the validation
-        validator.deriveTypeImpl(scope, call);
         final SqlOperator operator = call.getOperator();
-        final SqlCallBinding callBinding = new SqlCallBinding(validator, scope, call);
+        final SqlCallBinding callBinding = new FlinkSqlCallBinding(validator, scope, call);
+        // The result is ignored but the type is derived to trigger the function resolution
+        validator.deriveTypeImpl(scope, callBinding.permutedCall());
         if (!(operator instanceof SqlTableFunction)) {
             throw new IllegalArgumentException(
                     "Argument must be a table function: " + operator.getNameAsId());
+        }
+        if (operator instanceof SqlWindowTableFunction) {
+            callBinding.permutedCall().validate(validator, scope);
         }
         final SqlTableFunction tableFunction = (SqlTableFunction) operator;
         final SqlReturnTypeInference rowTypeInference = tableFunction.getRowTypeInference();

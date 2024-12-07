@@ -32,7 +32,7 @@
     </appender>
 
     <logger name="ch.qos.logback" level="WARN" />
-    <root level="INFO">
+    <root level="${ROOT_LOG_LEVEL:-INFO}">
         <appender-ref ref="file"/>
         <appender-ref ref="console"/>
     </root>

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.typeutils;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.table.api.DataTypes;
@@ -35,11 +35,11 @@ class ExternalTypeInfoTest extends TypeInformationTestBase<ExternalTypeInfo<?>> 
             ExternalTypeInfo.of(
                     DataTypes.RAW(
                             DayOfWeek.class,
-                            new KryoSerializer<>(DayOfWeek.class, new ExecutionConfig()))),
+                            new KryoSerializer<>(DayOfWeek.class, new SerializerConfigImpl()))),
             ExternalTypeInfo.of(
                     DataTypes.RAW(
                             ByteBuffer.class,
-                            new KryoSerializer<>(ByteBuffer.class, new ExecutionConfig()))),
+                            new KryoSerializer<>(ByteBuffer.class, new SerializerConfigImpl()))),
             ExternalTypeInfo.of(DataTypes.INT()),
             ExternalTypeInfo.of(
                     DataTypes.ROW(

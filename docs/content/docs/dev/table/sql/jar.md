@@ -48,10 +48,10 @@ The following examples show how to run `JAR` statements in [SQL CLI]({{< ref "do
 {{< tab "SQL CLI" >}}
 ```sql
 Flink SQL> ADD JAR '/path/hello.jar';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> ADD JAR 'hdfs:///udf/common-udf.jar';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> SHOW JARS;
 +----------------------------+

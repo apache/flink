@@ -31,7 +31,7 @@ import java.util.Collections;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TieredStorageUtils}. */
-public class TieredStorageUtilsTest {
+class TieredStorageUtilsTest {
 
     @Test
     void testGenerateBufferWithHeaders() {

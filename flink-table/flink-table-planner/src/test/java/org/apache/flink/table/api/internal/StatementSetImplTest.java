@@ -23,27 +23,25 @@ import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
-import org.junit.Before;
-import org.junit.Test;
-
-import java.io.IOException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link StatementSetImpl}. */
-public class StatementSetImplTest {
+class StatementSetImplTest {
 
     TableEnvironmentInternal tableEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         tableEnv =
                 (TableEnvironmentInternal)
                         TableEnvironment.create(EnvironmentSettings.inStreamingMode());
     }
 
     @Test
-    public void testGetJsonPlan() throws IOException {
+    void testGetJsonPlan() {
         String srcTableDdl =
                 "CREATE TABLE MyTable (\n"
                         + "  a bigint,\n"
@@ -67,15 +65,8 @@ public class StatementSetImplTest {
         StatementSet stmtSet = tableEnv.createStatementSet();
         stmtSet.addInsertSql("INSERT INTO MySink SELECT * FROM MyTable");
         String jsonPlan = stmtSet.compilePlan().asJsonString();
-        String actual = TableTestUtil.readFromResource("/jsonplan/testGetJsonPlan.out");
-        assertThat(
-                        TableTestUtil.getFormattedJson(
-                                TableTestUtil.replaceExecNodeId(
-                                        TableTestUtil.getFormattedJson(actual))))
-                .isEqualTo(
-                        TableTestUtil.getFormattedJson(
-                                TableTestUtil.replaceExecNodeId(
-                                        TableTestUtil.replaceFlinkVersion(
-                                                TableTestUtil.getFormattedJson(jsonPlan)))));
+        String expected = TableTestUtil.readFromResource("/jsonplan/testGetJsonPlan.out");
+        assertThat(TableTestUtil.replaceFlinkVersion(TableTestUtil.replaceExecNodeId(jsonPlan)))
+                .isEqualTo(TableTestUtil.replaceExecNodeId(expected));
     }
 }

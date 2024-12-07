@@ -43,11 +43,11 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
 
     @Override
     public Optional<SlotInfoAndLocality> selectBestSlotForProfile(
-            @Nonnull FreeSlotInfoTracker freeSlotInfoTracker, @Nonnull SlotProfile slotProfile) {
+            @Nonnull FreeSlotTracker freeSlotTracker, @Nonnull SlotProfile slotProfile) {
 
         Collection<TaskManagerLocation> locationPreferences = slotProfile.getPreferredLocations();
 
-        if (freeSlotInfoTracker.getAvailableSlots().isEmpty()) {
+        if (freeSlotTracker.getAvailableSlots().isEmpty()) {
             return Optional.empty();
         }
 
@@ -55,14 +55,14 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
 
         // if we have no location preferences, we can only filter by the additional requirements.
         return locationPreferences.isEmpty()
-                ? selectWithoutLocationPreference(freeSlotInfoTracker, resourceProfile)
+                ? selectWithoutLocationPreference(freeSlotTracker, resourceProfile)
                 : selectWithLocationPreference(
-                        freeSlotInfoTracker, locationPreferences, resourceProfile);
+                        freeSlotTracker, locationPreferences, resourceProfile);
     }
 
     @Nonnull
     private Optional<SlotInfoAndLocality> selectWithLocationPreference(
-            @Nonnull FreeSlotInfoTracker freeSlotInfoTracker,
+            @Nonnull FreeSlotTracker freeSlotTracker,
             @Nonnull Collection<TaskManagerLocation> locationPreferences,
             @Nonnull ResourceProfile resourceProfile) {
 
@@ -82,8 +82,8 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
         Locality bestCandidateLocality = Locality.UNKNOWN;
         double bestCandidateScore = Double.NEGATIVE_INFINITY;
 
-        for (AllocationID allocationId : freeSlotInfoTracker.getAvailableSlots()) {
-            SlotInfo candidate = freeSlotInfoTracker.getSlotInfo(allocationId);
+        for (AllocationID allocationId : freeSlotTracker.getAvailableSlots()) {
+            SlotInfo candidate = freeSlotTracker.getSlotInfo(allocationId);
 
             if (candidate.getResourceProfile().isMatching(resourceProfile)) {
 
@@ -101,7 +101,7 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
                         calculateCandidateScore(
                                 localWeigh,
                                 hostLocalWeigh,
-                                () -> freeSlotInfoTracker.getTaskExecutorUtilization(candidate));
+                                () -> freeSlotTracker.getTaskExecutorUtilization(candidate));
                 if (candidateScore > bestCandidateScore) {
                     bestCandidateScore = candidateScore;
                     bestCandidate = candidate;
@@ -121,8 +121,7 @@ public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSel
 
     @Nonnull
     protected abstract Optional<SlotInfoAndLocality> selectWithoutLocationPreference(
-            @Nonnull FreeSlotInfoTracker freeSlotInfoTracker,
-            @Nonnull ResourceProfile resourceProfile);
+            @Nonnull FreeSlotTracker freeSlotTracker, @Nonnull ResourceProfile resourceProfile);
 
     protected abstract double calculateCandidateScore(
             int localWeigh, int hostLocalWeigh, Supplier<Double> taskExecutorUtilizationSupplier);

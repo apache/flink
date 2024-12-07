@@ -50,6 +50,18 @@ TEST_INFRA_DIR=`pwd -P`
 cd $TEST_ROOT
 
 source "${TEST_INFRA_DIR}/common_utils.sh"
+source "${FLINK_DIR}/bin/bash-java-utils.sh"
+
+if [[ -z "${FLINK_CONF_DIR:-}" ]]; then
+    FLINK_CONF_DIR="$FLINK_DIR/conf"
+fi
+FLINK_CONF=${FLINK_CONF_DIR}/config.yaml
+setJavaRun "$FLINK_CONF"
+
+# Flatten the configuration file config.yaml to enable end-to-end test cases which will modify 
+# it directly through shell scripts.
+output=$(updateAndGetFlinkConfiguration "${FLINK_CONF_DIR}" "${FLINK_DIR}/bin" "${FLINK_DIR}/lib" -flatten)
+echo "$output" > $FLINK_CONF
 
 NODENAME=${NODENAME:-"localhost"}
 
@@ -143,14 +155,14 @@ function swap_planner_scala_with_planner_loader() {
 
 function delete_config_key() {
     local config_key=$1
-    sed -i -e "/^${config_key}: /d" ${FLINK_DIR}/conf/flink-conf.yaml
+    sed -i -e "/^${config_key}: /d" $FLINK_CONF
 }
 
 function set_config_key() {
     local config_key=$1
     local value=$2
     delete_config_key ${config_key}
-    echo "$config_key: $value" >> $FLINK_DIR/conf/flink-conf.yaml
+    echo "$config_key: $value" >> $FLINK_CONF
 }
 
 function create_ha_config() {
@@ -166,7 +178,7 @@ function create_ha_config() {
     # This must have all the masters to be used in HA.
     echo "localhost:8081" > ${FLINK_DIR}/conf/masters
 
-    # then move on to create the flink-conf.yaml
+    # then move on to create the config.yaml
     #==============================================================================
     # Common
     #==============================================================================
@@ -281,11 +293,11 @@ function wait_rest_endpoint_up {
   exit 1
 }
 
-function relocate_rocksdb_logs {
-  # After FLINK-24785, RocksDB's log would be created under Flink's log directory by default,
-  # this would make e2e tests' artifacts containing too many log files.
-  # As RocksDB's log would not help much in e2e tests, move the location back to its own folder.
-  set_config_key "state.backend.rocksdb.log.dir" "/dev/null"
+function reset_rocksdb_log_level {
+  # After upgrading RocksDB to 8.10 in FLINK-35573, the log dir of RocksDB cannot be set to/dev/null.
+  # To avoid the problem of large logs, we can set the log level of rocksdb to HEADER_LOG in e2e test,
+  # and then continue to keep it under tm's log dir
+  set_config_key "state.backend.rocksdb.log.level" "HEADER_LEVEL"
 }
 
 function wait_dispatcher_running {
@@ -294,7 +306,7 @@ function wait_dispatcher_running {
 }
 
 function start_cluster {
-  relocate_rocksdb_logs
+  reset_rocksdb_log_level
   "$FLINK_DIR"/bin/start-cluster.sh
   wait_dispatcher_running
 }
@@ -688,7 +700,7 @@ function setup_flink_slf4j_metric_reporter() {
   METRIC_NAME_PATTERN="${1:-"*"}"
   set_config_key "metrics.reporter.slf4j.factory.class" "org.apache.flink.metrics.slf4j.Slf4jReporterFactory"
   set_config_key "metrics.reporter.slf4j.interval" "1 SECONDS"
-  set_config_key "metrics.reporter.slf4j.filter.includes" "*:${METRIC_NAME_PATTERN}"
+  set_config_key "metrics.reporter.slf4j.filter.includes" "'*:${METRIC_NAME_PATTERN}'"
 }
 
 function get_job_exceptions {
@@ -730,9 +742,9 @@ function get_num_metric_samples {
 
 function wait_oper_metric_num_in_records {
     OPERATOR=$1
-    MAX_NUM_METRICS="${2:-200}"
+    MAX_NUM_RECORDS="${2:-200}"
     JOB_NAME="${3:-General purpose test job}"
-    NUM_METRICS=$(get_num_metric_samples ${OPERATOR} '${JOB_NAME}')
+    NUM_METRICS=$(get_num_metric_samples ${OPERATOR} "${JOB_NAME}")
     OLD_NUM_METRICS=${4:-${NUM_METRICS}}
     local timeout="${5:-600}"
     local i=0
@@ -747,12 +759,12 @@ function wait_oper_metric_num_in_records {
         NUM_RECORDS=0
       fi
 
-      if (( $NUM_RECORDS < $MAX_NUM_METRICS )); then
-        echo "Waiting for job to process up to ${MAX_NUM_METRICS} records, current progress: ${NUM_RECORDS} records ..."
+      if (( $NUM_RECORDS < $MAX_NUM_RECORDS )); then
+        echo "Waiting for job to process up to ${MAX_NUM_RECORDS} records, current progress: ${NUM_RECORDS} records ..."
         sleep 1
         ((i++))
         if ((i > timeout)); then
-            echo "A timeout occurred waiting for job to process up to ${MAX_NUM_METRICS} records"
+            echo "A timeout occurred waiting for job to process up to ${MAX_NUM_RECORDS} records"
             exit 1
         fi
       else
@@ -866,7 +878,7 @@ function wait_for_restart_to_complete {
     while [[ ${current_num_restarts} -lt ${expected_num_restarts} ]]; do
         echo "Still waiting for restarts. Expected: $expected_num_restarts Current: $current_num_restarts"
         sleep 5
-        current_num_restarts=$(get_job_metric ${jobid} "fullRestarts")
+        current_num_restarts=$(get_job_metric ${jobid} "numRestarts")
         if [[ -z ${current_num_restarts} ]]; then
             current_num_restarts=${base_num_restarts}
         fi

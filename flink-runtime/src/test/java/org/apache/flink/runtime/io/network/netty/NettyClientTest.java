@@ -37,13 +37,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for {@link NettyClient}. */
-public class NettyClientTest {
+class NettyClientTest {
     @Test
     void testSetKeepaliveOptionWithNioConfigurable() throws Exception {
         assumeThat(keepaliveForNioConfigurable()).isTrue();
+        assumeThat(Epoll.isAvailable()).isFalse();
 
         final Configuration config = new Configuration();
-        config.set(NettyShuffleEnvironmentOptions.TRANSPORT_TYPE, "nio");
         config.set(NettyShuffleEnvironmentOptions.CLIENT_TCP_KEEP_IDLE_SECONDS, 300);
         config.set(NettyShuffleEnvironmentOptions.CLIENT_TCP_KEEP_INTERVAL_SECONDS, 10);
         config.set(NettyShuffleEnvironmentOptions.CLIENT_TCP_KEEP_COUNT, 8);
@@ -67,9 +67,9 @@ public class NettyClientTest {
     @Test
     void testSetKeepaliveOptionWithNioNotConfigurable() throws Exception {
         assumeThat(keepaliveForNioConfigurable()).isFalse();
+        assumeThat(Epoll.isAvailable()).isFalse();
 
         final Configuration config = new Configuration();
-        config.set(NettyShuffleEnvironmentOptions.TRANSPORT_TYPE, "nio");
         config.set(NettyShuffleEnvironmentOptions.CLIENT_TCP_KEEP_IDLE_SECONDS, 300);
         config.set(NettyShuffleEnvironmentOptions.CLIENT_TCP_KEEP_INTERVAL_SECONDS, 10);
         config.set(NettyShuffleEnvironmentOptions.CLIENT_TCP_KEEP_COUNT, 8);
@@ -92,7 +92,6 @@ public class NettyClientTest {
         assumeThat(Epoll.isAvailable()).isTrue();
 
         final Configuration config = new Configuration();
-        config.set(NettyShuffleEnvironmentOptions.TRANSPORT_TYPE, "epoll");
         config.set(NettyShuffleEnvironmentOptions.CLIENT_TCP_KEEP_IDLE_SECONDS, 300);
         config.set(NettyShuffleEnvironmentOptions.CLIENT_TCP_KEEP_INTERVAL_SECONDS, 10);
         config.set(NettyShuffleEnvironmentOptions.CLIENT_TCP_KEEP_COUNT, 8);

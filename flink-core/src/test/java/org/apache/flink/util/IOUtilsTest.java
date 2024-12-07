@@ -18,38 +18,39 @@
 
 package org.apache.flink.util;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+
 /** Tests for the {@link IOUtils}. */
-public class IOUtilsTest extends TestLogger {
+class IOUtilsTest {
 
     @Test
-    public void testTryReadFullyFromLongerStream() throws IOException {
+    void testTryReadFullyFromLongerStream() throws IOException {
         ByteArrayInputStream inputStream =
                 new ByteArrayInputStream("test-data".getBytes(StandardCharsets.UTF_8));
 
         byte[] out = new byte[4];
         int read = IOUtils.tryReadFully(inputStream, out);
 
-        Assert.assertArrayEquals(
-                "test".getBytes(StandardCharsets.UTF_8), Arrays.copyOfRange(out, 0, read));
+        assertThat(Arrays.copyOfRange(out, 0, read))
+                .containsExactly("test".getBytes(StandardCharsets.UTF_8));
     }
 
     @Test
-    public void testTryReadFullyFromShorterStream() throws IOException {
+    void testTryReadFullyFromShorterStream() throws IOException {
         ByteArrayInputStream inputStream =
                 new ByteArrayInputStream("t".getBytes(StandardCharsets.UTF_8));
 
         byte[] out = new byte[4];
         int read = IOUtils.tryReadFully(inputStream, out);
 
-        Assert.assertArrayEquals(
-                "t".getBytes(StandardCharsets.UTF_8), Arrays.copyOfRange(out, 0, read));
+        assertThat(Arrays.copyOfRange(out, 0, read))
+                .containsExactly("t".getBytes(StandardCharsets.UTF_8));
     }
 }

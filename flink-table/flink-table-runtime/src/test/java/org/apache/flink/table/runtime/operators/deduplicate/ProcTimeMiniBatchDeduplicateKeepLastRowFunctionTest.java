@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.deduplicate;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
@@ -27,7 +27,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,11 +38,11 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBefore
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ProcTimeMiniBatchDeduplicateKeepLastRowFunction}. */
-public class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
+class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
         extends ProcTimeDeduplicateFunctionTestBase {
 
     private TypeSerializer<RowData> typeSerializer =
-            inputRowType.createSerializer(new ExecutionConfig());
+            inputRowType.createSerializer(new SerializerConfigImpl());
 
     private ProcTimeMiniBatchDeduplicateKeepLastRowFunction createFunction(
             boolean generateUpdateBefore, boolean generateInsert, long minRetentionTime) {
@@ -66,9 +66,9 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
     }
 
     @Test
-    public void testWithoutGenerateUpdateBefore() throws Exception {
+    void testWithoutGenerateUpdateBefore() throws Exception {
         ProcTimeMiniBatchDeduplicateKeepLastRowFunction func =
-                createFunction(false, true, minTime.toMilliseconds());
+                createFunction(false, true, minTime.toMillis());
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.open();
         testHarness.processElement(insertRecord("book", 1L, 10));
@@ -95,9 +95,9 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
     }
 
     @Test
-    public void testWithoutGenerateUpdateBeforeAndInsert() throws Exception {
+    void testWithoutGenerateUpdateBeforeAndInsert() throws Exception {
         ProcTimeMiniBatchDeduplicateKeepLastRowFunction func =
-                createFunction(false, false, minTime.toMilliseconds());
+                createFunction(false, false, minTime.toMillis());
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.open();
         testHarness.processElement(insertRecord("book", 1L, 10));
@@ -124,9 +124,9 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
     }
 
     @Test
-    public void testWithGenerateUpdateBefore() throws Exception {
+    void testWithGenerateUpdateBefore() throws Exception {
         ProcTimeMiniBatchDeduplicateKeepLastRowFunction func =
-                createFunction(true, true, minTime.toMilliseconds());
+                createFunction(true, true, minTime.toMillis());
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.open();
         testHarness.processElement(insertRecord("book", 1L, 10));
@@ -156,9 +156,9 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
     }
 
     @Test
-    public void testWithGenerateUpdateBeforeAndStateTtl() throws Exception {
+    void testWithGenerateUpdateBeforeAndStateTtl() throws Exception {
         ProcTimeMiniBatchDeduplicateKeepLastRowFunction func =
-                createFunction(true, true, minTime.toMilliseconds());
+                createFunction(true, true, minTime.toMillis());
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.setup();
         testHarness.open();

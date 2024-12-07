@@ -291,6 +291,23 @@ FlinkLogicalCalc(select=[a, b], where=[OR(>=(+(a, *(3600000:INTERVAL DAY TO SECO
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testWithTimestampWithTimeZone">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MTable WHERE a > '2024-05-13 08:00:00']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[>($0, CAST(_UTF-16LE'2024-05-13 08:00:00'):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MTable, filter=[>(a, 2024-05-13 00:00:00:TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testPartialPushDown2">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE amount > 2 OR price > 10]]>

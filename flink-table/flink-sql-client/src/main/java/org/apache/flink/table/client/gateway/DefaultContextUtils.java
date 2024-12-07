@@ -54,16 +54,16 @@ public class DefaultContextUtils {
         }
         Configuration sessionConfig = options.getPythonConfiguration();
         sessionConfig.addAll(ConfigurationUtils.createConfiguration(options.getSessionConfig()));
-        return DefaultContext.load(sessionConfig, discoverDependencies(jars, libDirs), true, true);
+        return DefaultContext.load(sessionConfig, discoverDependencies(jars, libDirs), true);
     }
 
     public static DefaultContext buildDefaultContext(CliOptions.GatewayCliOptions options) {
         return DefaultContext.load(
                 ConfigurationUtils.createConfiguration(options.getSessionConfig()),
                 Collections.emptyList(),
-                false,
                 false);
     }
+
     // --------------------------------------------------------------------------------------------
 
     private static List<URL> discoverDependencies(List<URL> jars, List<URL> libraries) {

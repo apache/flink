@@ -18,9 +18,10 @@
 package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.ParameterTool;
 
 /**
  * End-to-end test program for verifying that the {@link
@@ -37,13 +38,18 @@ public class FailureEnricherTestProgram {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        env.fromElements("Hello")
+        env.fromData("Hello")
                 .map(
                         (MapFunction<String, String>)
                                 value -> {
                                     throw new RuntimeException("Expect exception");
                                 })
-                .writeAsText(params.getRequired("output"), FileSystem.WriteMode.OVERWRITE);
+                .sinkTo(
+                        FileSink.forRowFormat(
+                                        new org.apache.flink.core.fs.Path(
+                                                params.getRequired("output")),
+                                        new SimpleStringEncoder<String>())
+                                .build());
 
         env.execute("Failure Enricher Test");
     }

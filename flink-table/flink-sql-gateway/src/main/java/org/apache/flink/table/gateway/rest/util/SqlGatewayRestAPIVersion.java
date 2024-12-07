@@ -48,7 +48,13 @@ public enum SqlGatewayRestAPIVersion
 
     // V2 adds support for configuring Session and allows to serialize the RowData with PLAIN_TEXT
     // or JSON format.
-    V2(true, true);
+    V2(false, true),
+
+    // V3 introduces materialized table related APIs
+    V3(false, true),
+
+    // V4 supports to deploy script to application cluster
+    V4(true, true);
 
     private final boolean isDefaultVersion;
 
@@ -135,5 +141,14 @@ public enum SqlGatewayRestAPIVersion
                         versions.size()));
 
         return versions.get(0);
+    }
+
+    /** Get higher versions comparing to the input version. */
+    public static List<SqlGatewayRestAPIVersion> getHigherVersions(
+            SqlGatewayRestAPIVersion version) {
+        return Arrays.stream(SqlGatewayRestAPIVersion.values())
+                .filter(SqlGatewayRestAPIVersion::isStableVersion)
+                .filter(v -> v.compareTo(version) > 0)
+                .collect(Collectors.toList());
     }
 }

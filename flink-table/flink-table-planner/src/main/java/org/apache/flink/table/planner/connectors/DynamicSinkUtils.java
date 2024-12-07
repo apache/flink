@@ -30,16 +30,20 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.Column.MetadataColumn;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ExternalCatalogTable;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.connector.RowLevelModificationScanContext;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.abilities.SupportsBucketing;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
@@ -50,9 +54,11 @@ import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata
 import org.apache.flink.table.operations.CollectModifyOperation;
 import org.apache.flink.table.operations.ExternalModifyOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
+import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
+import org.apache.flink.table.planner.plan.abilities.sink.BucketingSpec;
 import org.apache.flink.table.planner.plan.abilities.sink.OverwriteSpec;
 import org.apache.flink.table.planner.plan.abilities.sink.RowLevelDeleteSpec;
 import org.apache.flink.table.planner.plan.abilities.sink.RowLevelUpdateSpec;
@@ -148,7 +154,8 @@ public final class DynamicSinkUtils {
                         zoneId,
                         configuration
                                 .get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR)
-                                .isEnabled());
+                                .isEnabled(),
+                        configuration);
         collectModifyOperation.setSelectResultProvider(tableSink.getSelectResultProvider());
         collectModifyOperation.setConsumedDataType(consumedDataType);
         return convertSinkToRel(
@@ -202,6 +209,42 @@ public final class DynamicSinkUtils {
                 sinkModifyOperation.getStaticPartitions(),
                 sinkModifyOperation.getTargetColumns(),
                 sinkModifyOperation.isOverwrite(),
+                sink);
+    }
+
+    /**
+     * Converts a given {@link DynamicTableSink} to a {@link RelNode}. It adds helper projections if
+     * necessary.
+     */
+    public static RelNode convertCreateTableAsToRel(
+            FlinkRelBuilder relBuilder,
+            RelNode input,
+            Catalog catalog,
+            CreateTableOperation createTableOperation,
+            Map<String, String> staticPartitions,
+            boolean isOverwrite,
+            DynamicTableSink sink) {
+        final ResolvedCatalogTable catalogTable =
+                (ResolvedCatalogTable) createTableOperation.getCatalogTable();
+
+        final ObjectIdentifier identifier = createTableOperation.getTableIdentifier();
+
+        final ContextResolvedTable contextResolvedTable;
+        if (createTableOperation.isTemporary()) {
+            contextResolvedTable = ContextResolvedTable.temporary(identifier, catalogTable);
+        } else {
+            contextResolvedTable =
+                    ContextResolvedTable.permanent(identifier, catalog, catalogTable);
+        }
+
+        return convertSinkToRel(
+                relBuilder,
+                input,
+                Collections.emptyMap(),
+                contextResolvedTable,
+                staticPartitions,
+                null,
+                isOverwrite,
                 sink);
     }
 
@@ -804,8 +847,10 @@ public final class DynamicSinkUtils {
             project.replaceInput(0, newTableScan);
         }
         // validate and apply metadata
+        // TODO FLINK-33083 we should not ignore the produced abilities but actually put those into
+        //  the table scan
         DynamicSourceUtils.validateAndApplyMetadata(
-                tableDebugName, resolvedSchema, newTableSourceTab.tableSource());
+                tableDebugName, resolvedSchema, newTableSourceTab.tableSource(), new ArrayList<>());
         return resolvedSchema;
     }
 
@@ -942,8 +987,8 @@ public final class DynamicSinkUtils {
     }
 
     /**
-     * Prepares the given {@link DynamicTableSink}. It check whether the sink is compatible with the
-     * INSERT INTO clause and applies initial parameters.
+     * Prepares the given {@link DynamicTableSink}. It checks whether the sink is compatible with
+     * the INSERT INTO clause and applies initial parameters.
      */
     private static void prepareDynamicSink(
             String tableDebugName,
@@ -952,6 +997,12 @@ public final class DynamicSinkUtils {
             DynamicTableSink sink,
             ResolvedCatalogTable table,
             List<SinkAbilitySpec> sinkAbilitySpecs) {
+        table.getDistribution()
+                .ifPresent(
+                        distribution ->
+                                validateBucketing(
+                                        tableDebugName, sink, distribution, sinkAbilitySpecs));
+
         validatePartitioning(tableDebugName, staticPartitions, sink, table.getPartitionKeys());
 
         validateAndApplyOverwrite(tableDebugName, isOverwrite, sink, sinkAbilitySpecs);
@@ -1025,6 +1076,51 @@ public final class DynamicSinkUtils {
                 TypeTransformations.legacyRawToTypeInfoRaw(),
                 TypeTransformations.legacyToNonLegacy(),
                 TypeTransformations.toNullable());
+    }
+
+    private static void validateBucketing(
+            String tableDebugName,
+            DynamicTableSink sink,
+            TableDistribution distribution,
+            List<SinkAbilitySpec> sinkAbilitySpecs) {
+        if (!(sink instanceof SupportsBucketing)) {
+            throw new TableException(
+                    String.format(
+                            "Table '%s' is distributed into buckets, but the underlying %s doesn't "
+                                    + "implement the %s interface.",
+                            tableDebugName,
+                            DynamicTableSink.class.getSimpleName(),
+                            SupportsBucketing.class.getSimpleName()));
+        }
+        SupportsBucketing sinkWithBucketing = (SupportsBucketing) sink;
+        if (sinkWithBucketing.requiresBucketCount() && !distribution.getBucketCount().isPresent()) {
+            throw new ValidationException(
+                    String.format(
+                            "Table '%s' is a bucketed table, but the underlying %s requires the number of buckets to be set.",
+                            tableDebugName, DynamicTableSink.class.getSimpleName()));
+        }
+        if (!sinkWithBucketing.listAlgorithms().contains(distribution.getKind())) {
+            if (distribution.getKind() == TableDistribution.Kind.UNKNOWN) {
+                throw new ValidationException(
+                        String.format(
+                                "Bucketed table '%s' must specify an algorithm. Supported algorithms: %s",
+                                tableDebugName,
+                                sinkWithBucketing.listAlgorithms().stream()
+                                        .map(TableDistribution.Kind::toString)
+                                        .sorted()
+                                        .collect(Collectors.toList())));
+            }
+            throw new ValidationException(
+                    String.format(
+                            "Table '%s' is a bucketed table and it supports %s, but algorithm %s was requested.",
+                            tableDebugName,
+                            sinkWithBucketing.listAlgorithms().stream()
+                                    .map(TableDistribution.Kind::toString)
+                                    .sorted()
+                                    .collect(Collectors.toList()),
+                            distribution.getKind()));
+        }
+        sinkAbilitySpecs.add(new BucketingSpec());
     }
 
     private static void validatePartitioning(

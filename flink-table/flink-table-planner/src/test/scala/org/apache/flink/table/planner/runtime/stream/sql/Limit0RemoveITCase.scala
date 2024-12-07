@@ -17,20 +17,19 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
-import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendTableSink, TestingRetractTableSink, TestSinkUtil}
+import org.apache.flink.table.planner.runtime.utils._
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
 class Limit0RemoveITCase extends StreamingTestBase() {
 
   @Test
   def testSimpleLimitRemove(): Unit = {
-    val ds = env.fromCollection(Seq(1, 2, 3, 4, 5, 6))
+    val ds = StreamingEnvUtil.fromCollection(env, Seq(1, 2, 3, 4, 5, 6))
     val table = ds.toTable(tEnv, 'a)
     tEnv.createTemporaryView("MyTable", table)
 
@@ -41,12 +40,12 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     result.executeInsert("MySink").await()
 
-    assertEquals(0, sink.getAppendResults.size)
+    assertThat(sink.getAppendResults.size).isZero
   }
 
   @Test
   def testLimitRemoveWithOrderBy(): Unit = {
-    val ds = env.fromCollection(Seq(1, 2, 3, 4, 5, 6))
+    val ds = StreamingEnvUtil.fromCollection(env, Seq(1, 2, 3, 4, 5, 6))
     val table = ds.toTable(tEnv, 'a)
     tEnv.createTemporaryView("MyTable", table)
 
@@ -57,12 +56,12 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     result.executeInsert("MySink").await()
 
-    assertEquals(0, sink.getAppendResults.size)
+    assertThat(sink.getAppendResults.size).isZero
   }
 
   @Test
   def testLimitRemoveWithSelect(): Unit = {
-    val ds = env.fromCollection(Seq(1, 2, 3, 4, 5, 6))
+    val ds = StreamingEnvUtil.fromCollection(env, Seq(1, 2, 3, 4, 5, 6))
     val table = ds.toTable(tEnv, 'a)
     tEnv.createTemporaryView("MyTable", table)
 
@@ -73,16 +72,16 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     result.executeInsert("MySink").await()
 
-    assertEquals(0, sink.getAppendResults.size)
+    assertThat(sink.getAppendResults.size).isZero
   }
 
   @Test
   def testLimitRemoveWithIn(): Unit = {
-    val ds1 = env.fromCollection(Seq(1, 2, 3, 4, 5, 6))
+    val ds1 = StreamingEnvUtil.fromCollection(env, Seq(1, 2, 3, 4, 5, 6))
     val table1 = ds1.toTable(tEnv, 'a)
     tEnv.createTemporaryView("MyTable1", table1)
 
-    val ds2 = env.fromCollection(Seq(1, 2, 3))
+    val ds2 = StreamingEnvUtil.fromCollection(env, Seq(1, 2, 3))
     val table2 = ds2.toTable(tEnv, 'a)
     tEnv.createTemporaryView("MyTable2", table2)
 
@@ -93,16 +92,16 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     result.executeInsert("MySink").await()
 
-    assertEquals(0, sink.getAppendResults.size)
+    assertThat(sink.getAppendResults.size).isZero
   }
 
   @Test
   def testLimitRemoveWithNotIn(): Unit = {
-    val ds1 = env.fromCollection(Seq(1, 2, 3, 4, 5, 6))
+    val ds1 = StreamingEnvUtil.fromCollection(env, Seq(1, 2, 3, 4, 5, 6))
     val table1 = ds1.toTable(tEnv, 'a)
     tEnv.createTemporaryView("MyTable1", table1)
 
-    val ds2 = env.fromCollection(Seq(1, 2, 3))
+    val ds2 = StreamingEnvUtil.fromCollection(env, Seq(1, 2, 3))
     val table2 = ds2.toTable(tEnv, 'a)
     tEnv.createTemporaryView("MyTable2", table2)
 
@@ -114,16 +113,16 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     result.executeInsert("MySink").await()
 
     val expected = Seq("1", "2", "3", "4", "5", "6")
-    assertEquals(expected, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected)
   }
 
   @Test
   def testLimitRemoveWithExists(): Unit = {
-    val ds1 = env.fromCollection(Seq(1, 2, 3, 4, 5, 6))
+    val ds1 = StreamingEnvUtil.fromCollection(env, Seq(1, 2, 3, 4, 5, 6))
     val table1 = ds1.toTable(tEnv, 'a)
     tEnv.createTemporaryView("MyTable1", table1)
 
-    val ds2 = env.fromCollection(Seq(1, 2, 3))
+    val ds2 = StreamingEnvUtil.fromCollection(env, Seq(1, 2, 3))
     val table2 = ds2.toTable(tEnv, 'a)
     tEnv.createTemporaryView("MyTable2", table2)
 
@@ -134,16 +133,16 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     result.executeInsert("MySink").await()
 
-    assertEquals(0, sink.getRawResults.size)
+    assertThat(sink.getRawResults.size).isZero
   }
 
   @Test
   def testLimitRemoveWithNotExists(): Unit = {
-    val ds1 = env.fromCollection(Seq(1, 2, 3, 4, 5, 6))
+    val ds1 = StreamingEnvUtil.fromCollection(env, Seq(1, 2, 3, 4, 5, 6))
     val table1 = ds1.toTable(tEnv, 'a)
     tEnv.createTemporaryView("MyTable1", table1)
 
-    val ds2 = env.fromCollection(Seq(1, 2, 3))
+    val ds2 = StreamingEnvUtil.fromCollection(env, Seq(1, 2, 3))
     val table2 = ds2.toTable(tEnv, 'a)
     tEnv.createTemporaryView("MyTable2", table2)
 
@@ -155,16 +154,16 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     result.executeInsert("MySink").await()
 
     val expected = Seq("1", "2", "3", "4", "5", "6")
-    assertEquals(expected, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
   }
 
   @Test
   def testLimitRemoveWithJoin(): Unit = {
-    val ds1 = env.fromCollection(Seq(1, 2, 3, 4, 5, 6))
+    val ds1 = StreamingEnvUtil.fromCollection(env, Seq(1, 2, 3, 4, 5, 6))
     val table1 = ds1.toTable(tEnv, 'a1)
     tEnv.createTemporaryView("MyTable1", table1)
 
-    val ds2 = env.fromCollection(Seq(1, 2, 3))
+    val ds2 = StreamingEnvUtil.fromCollection(env, Seq(1, 2, 3))
     val table2 = ds2.toTable(tEnv, 'a2)
     tEnv.createTemporaryView("MyTable2", table2)
 
@@ -175,6 +174,6 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     result.executeInsert("MySink").await()
 
-    assertEquals(0, sink.getAppendResults.size)
+    assertThat(sink.getAppendResults.size).isZero
   }
 }

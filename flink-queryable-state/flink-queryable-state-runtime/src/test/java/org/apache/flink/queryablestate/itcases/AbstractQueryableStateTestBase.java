@@ -23,7 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.CheckpointListener;
@@ -50,15 +50,16 @@ import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
 import org.apache.flink.queryablestate.exceptions.UnknownKeyOrNamespaceException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.QueryableStateStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.Collector;
@@ -114,8 +115,8 @@ public abstract class AbstractQueryableStateTestBase {
     private final ScheduledExecutor executor =
             new ScheduledExecutorServiceAdapter(EXECUTOR_EXTENSION.getExecutor());
 
-    /** State backend to use. */
-    private StateBackend stateBackend;
+    /** StreamExecutionEnvironment to use. */
+    private StreamExecutionEnvironment env;
 
     /** Client shared between all the test. */
     protected static QueryableStateClient client;
@@ -128,21 +129,14 @@ public abstract class AbstractQueryableStateTestBase {
 
     @BeforeEach
     void setUp() throws Exception {
-        // NOTE: do not use a shared instance for all tests as the tests may break
-        this.stateBackend = createStateBackend();
+        this.env = createEnv();
 
         assertThat(clusterClient).isNotNull();
 
         maxParallelism = 4;
     }
 
-    /**
-     * Creates a state backend instance which is used in the {@link #setUp()} method before each
-     * test case.
-     *
-     * @return a state backend instance for each unit test
-     */
-    protected abstract StateBackend createStateBackend() throws Exception;
+    protected abstract StreamExecutionEnvironment createEnv() throws Exception;
 
     /**
      * Runs a simple topology producing random (key, 1) pairs at the sources (where number of keys
@@ -157,14 +151,11 @@ public abstract class AbstractQueryableStateTestBase {
         final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
         final int numKeys = 256;
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(stateBackend);
         env.setParallelism(maxParallelism);
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
-
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
         DataStream<Tuple2<Integer, Long>> source = env.addSource(new TestKeyRangeSource(numKeys));
 
         ReducingStateDescriptor<Tuple2<Integer, Long>> reducingState =
@@ -261,13 +252,11 @@ public abstract class AbstractQueryableStateTestBase {
     void testDuplicateRegistrationFailsJob() throws Exception {
         final int numKeys = 256;
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(stateBackend);
         env.setParallelism(maxParallelism);
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         DataStream<Tuple2<Integer, Long>> source = env.addSource(new TestKeyRangeSource(numKeys));
 
@@ -337,13 +326,11 @@ public abstract class AbstractQueryableStateTestBase {
         final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
         final long numElements = 1024L;
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(stateBackend);
         env.setParallelism(maxParallelism);
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -385,19 +372,17 @@ public abstract class AbstractQueryableStateTestBase {
         final URLClassLoader userClassLoader =
                 createLoaderWithCustomKryoSerializer(customSerializerClassName);
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(stateBackend);
         env.setParallelism(maxParallelism);
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         // Custom serializer is not needed, it's used just to check if serialization works.
-        env.getConfig()
-                .addDefaultKryoSerializer(
-                        Byte.class,
-                        (Serializer<?> & Serializable) createSerializer(userClassLoader));
+        Class<Serializer<?>> customSerializerClass =
+                (Class<Serializer<?>>) userClassLoader.loadClass("CustomKryo");
+        ((SerializerConfigImpl) env.getConfig().getSerializerConfig())
+                .addDefaultKryoSerializer(Byte.class, customSerializerClass);
 
         // Here we *force* using Kryo, to check if custom serializers are handled correctly WRT
         // classloading
@@ -454,10 +439,8 @@ public abstract class AbstractQueryableStateTestBase {
         final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
         final long numElements = 1024L;
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(stateBackend);
         env.setParallelism(maxParallelism);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -545,13 +528,11 @@ public abstract class AbstractQueryableStateTestBase {
         final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
         final long numElements = 1024L;
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(stateBackend);
         env.setParallelism(maxParallelism);
         // Very important, because clusterClient is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -606,13 +587,11 @@ public abstract class AbstractQueryableStateTestBase {
         final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
         final long numElements = 1024L;
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(stateBackend);
         env.setParallelism(maxParallelism);
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -675,13 +654,11 @@ public abstract class AbstractQueryableStateTestBase {
         final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
         final long numElements = 1024L;
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(stateBackend);
         env.setParallelism(maxParallelism);
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -725,13 +702,11 @@ public abstract class AbstractQueryableStateTestBase {
         final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
         final long numElements = 1024L;
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(stateBackend);
         env.setParallelism(maxParallelism);
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -802,13 +777,11 @@ public abstract class AbstractQueryableStateTestBase {
         final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
         final long numElements = 1024L;
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(stateBackend);
         env.setParallelism(maxParallelism);
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -827,7 +800,7 @@ public abstract class AbstractQueryableStateTestBase {
                             }
                         })
                 .process(
-                        new ProcessFunction<Tuple2<Integer, Long>, Object>() {
+                        new KeyedProcessFunction<Integer, Tuple2<Integer, Long>, Object>() {
                             private static final long serialVersionUID = -805125545438296619L;
 
                             private transient MapState<Integer, Tuple2<Integer, Long>> mapState;
@@ -840,7 +813,11 @@ public abstract class AbstractQueryableStateTestBase {
 
                             @Override
                             public void processElement(
-                                    Tuple2<Integer, Long> value, Context ctx, Collector<Object> out)
+                                    Tuple2<Integer, Long> value,
+                                    KeyedProcessFunction<Integer, Tuple2<Integer, Long>, Object>
+                                                    .Context
+                                            ctx,
+                                    Collector<Object> out)
                                     throws Exception {
                                 Tuple2<Integer, Long> v = mapState.get(value.f0);
                                 if (v == null) {
@@ -905,13 +882,11 @@ public abstract class AbstractQueryableStateTestBase {
         final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
         final long numElements = 1024L;
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(stateBackend);
         env.setParallelism(maxParallelism);
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -930,7 +905,7 @@ public abstract class AbstractQueryableStateTestBase {
                             }
                         })
                 .process(
-                        new ProcessFunction<Tuple2<Integer, Long>, Object>() {
+                        new KeyedProcessFunction<Integer, Tuple2<Integer, Long>, Object>() {
                             private static final long serialVersionUID = -805125545438296619L;
 
                             private transient ListState<Long> listState;
@@ -1009,13 +984,11 @@ public abstract class AbstractQueryableStateTestBase {
         final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
         final long numElements = 1024L;
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(stateBackend);
         env.setParallelism(maxParallelism);
         // Very important, because cluster is shared between tests and we
         // don't explicitly check that all slots are available before
         // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 1000L);
 
         DataStream<Tuple2<Integer, Long>> source =
                 env.addSource(new TestAscendingValueSource(numElements));
@@ -1107,7 +1080,7 @@ public abstract class AbstractQueryableStateTestBase {
         @Override
         public void run(SourceContext<Tuple2<Integer, Long>> ctx) throws Exception {
             // f0 => key
-            int key = getRuntimeContext().getIndexOfThisSubtask();
+            int key = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             Tuple2<Integer, Long> record = new Tuple2<>(key, 0L);
 
             long currentValue = 0;
@@ -1157,7 +1130,7 @@ public abstract class AbstractQueryableStateTestBase {
         @Override
         public void open(OpenContext openContext) throws Exception {
             super.open(openContext);
-            if (getRuntimeContext().getIndexOfThisSubtask() == 0) {
+            if (getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0) {
                 LATEST_CHECKPOINT_ID.set(0L);
             }
         }
@@ -1188,7 +1161,7 @@ public abstract class AbstractQueryableStateTestBase {
 
         @Override
         public void notifyCheckpointComplete(long checkpointId) throws Exception {
-            if (getRuntimeContext().getIndexOfThisSubtask() == 0) {
+            if (getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0) {
                 LATEST_CHECKPOINT_ID.set(checkpointId);
             }
         }

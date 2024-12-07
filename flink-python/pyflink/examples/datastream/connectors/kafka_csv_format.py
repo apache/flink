@@ -21,8 +21,7 @@ import sys
 from pyflink.common import Types
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.datastream.connectors.kafka import FlinkKafkaProducer, FlinkKafkaConsumer
-from pyflink.datastream.formats.csv import CsvRowSerializationSchema
-from pyflink.datastream.formats.json import JsonRowDeserializationSchema
+from pyflink.datastream.formats.csv import CsvRowSerializationSchema, CsvRowDeserializationSchema
 
 
 # Make sure that the Kafka cluster is started and the topic 'test_csv_topic' is
@@ -46,9 +45,8 @@ def write_to_kafka(env):
 
 
 def read_from_kafka(env):
-    deserialization_schema = JsonRowDeserializationSchema.Builder() \
-        .type_info(Types.ROW([Types.INT(), Types.STRING()])) \
-        .build()
+    type_info = Types.ROW([Types.INT(), Types.STRING()])
+    deserialization_schema = CsvRowDeserializationSchema.Builder(type_info).build()
 
     kafka_consumer = FlinkKafkaConsumer(
         topics='test_csv_topic',

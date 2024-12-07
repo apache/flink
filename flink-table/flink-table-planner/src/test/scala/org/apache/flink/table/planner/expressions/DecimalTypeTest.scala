@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class DecimalTypeTest extends ExpressionTestBase {
 
@@ -385,11 +385,11 @@ class DecimalTypeTest extends ExpressionTestBase {
 
     testAllApis((-'f51).round(1), "round(-f51,1)", "-100.0")
 
-    testAllApis(('f51).round(-1), "round(f51,-1)", "100")
+    testAllApis('f51.round(-1), "round(f51,-1)", "100")
 
     testAllApis((-'f51).round(-1), "round(-f51,-1)", "-100")
 
-    testAllApis(('f52).round(-1), "round(f52,-1)", "NULL")
+    testAllApis('f52.round(-1), "round(f52,-1)", "NULL")
   }
 
   @Test // functions e.g. sin() that treat Decimal as double

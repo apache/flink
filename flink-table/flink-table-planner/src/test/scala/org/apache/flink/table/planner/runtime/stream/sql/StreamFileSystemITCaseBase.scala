@@ -17,8 +17,7 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.functions.sink.SinkFunction
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.FileSystemITCaseBase
@@ -47,7 +46,7 @@ abstract class StreamFileSystemITCaseBase extends StreamingTestBase with FileSys
   }
 
   override def check(sqlQuery: String, expectedResult: Seq[Row]): Unit = {
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink()
     result.addSink(sink)
     env.execute()

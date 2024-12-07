@@ -61,7 +61,7 @@ This file is based on the checkstyle file of Apache Beam.
 	-->
 
 	<module name="FileLength">
-		<property name="max" value="3000"/>
+		<property name="max" value="3100"/>
 	</module>
 
 	<!-- All Java AST specific tests live under TreeWalker module. -->
@@ -194,6 +194,10 @@ This file is based on the checkstyle file of Apache Beam.
 			<message key="import.illegal" value="{0}; Use flink-shaded-jackson instead."/>
 		</module>
 		<module name="IllegalImport">
+			<property name="illegalPkgs" value="com.jayway.jsonpath"/>
+			<message key="import.illegal" value="{0}; Use flink-shaded-jsonpath instead."/>
+		</module>
+		<module name="IllegalImport">
 			<property name="illegalPkgs" value="org.objectweb.asm"/>
 			<message key="import.illegal" value="{0}; Use flink-shaded-asm instead."/>
 		</module>
@@ -208,7 +212,7 @@ This file is based on the checkstyle file of Apache Beam.
 
 		<module name="RedundantModifier">
 			<!-- Checks for redundant modifiers on various symbol definitions.
-			  See: http://checkstyle.sourceforge.net/config_modifier.html#RedundantModifier
+			  See: https://checkstyle.sourceforge.io/checks/modifier/redundantmodifier.html#RedundantModifier
 
 			  We exclude METHOD_DEF to allow final methods in final classes to make them more future-proof.
 			-->
@@ -230,24 +234,31 @@ This file is based on the checkstyle file of Apache Beam.
 		</module>
 
 		<!--
+			The Nullable & Nonnull annotations check.
+		-->
+		<module name="RegexpSinglelineJava">
+			<property name="format" value="^import org.jetbrains.annotations.Nullable;$"/>
+			<property name="message" value="Use import javax.annotation.Nullable"/>
+		</module>
+
+		<module name="RegexpSinglelineJava">
+			<property name="format" value="^import org.jetbrains.annotations.NotNull;$"/>
+			<property name="message" value="Use import javax.annotation.Nonnull"/>
+		</module>
+
+		<!--
 
 		JAVADOC CHECKS
 
 		-->
 
 		<!-- Checks for Javadoc comments.                     -->
-		<!-- See http://checkstyle.sf.net/config_javadoc.html -->
+		<!-- See https://checkstyle.sourceforge.io/checks/javadoc/javadocmethod.html -->
 		<module name="JavadocMethod">
-			<property name="scope" value="protected"/>
+			<property name="accessModifiers" value="protected"/>
 			<property name="severity" value="error"/>
-			<property name="allowMissingJavadoc" value="true"/>
 			<property name="allowMissingParamTags" value="true"/>
 			<property name="allowMissingReturnTag" value="true"/>
-			<property name="allowMissingThrowsTags" value="true"/>
-			<property name="allowThrowsTagsForSubclasses" value="true"/>
-			<property name="allowUndeclaredRTE" value="true"/>
-			<!-- This check sometimes failed for with "Unable to get class information for @throws tag" for custom exceptions -->
-			<property name="suppressLoadErrors" value="true"/>
 		</module>
 
 		<!-- Check that paragraph tags are used correctly in Javadoc. -->

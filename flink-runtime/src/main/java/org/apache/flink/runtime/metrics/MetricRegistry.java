@@ -22,6 +22,8 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
+import org.apache.flink.traces.Span;
+import org.apache.flink.traces.SpanBuilder;
 
 import javax.annotation.Nullable;
 
@@ -37,6 +39,9 @@ public interface MetricRegistry {
 
     /** Returns the number of registered reporters. */
     int getNumberReporters();
+
+    /** Add and log a {@link Span}. */
+    void addSpan(SpanBuilder spanBuilder);
 
     /**
      * Registers a new {@link Metric} with this registry.

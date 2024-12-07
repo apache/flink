@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark
 import org.apache.flink.table.expressions.{ApiExpressionUtils, Expression, TableSymbol, TimePointUnit}
 import org.apache.flink.table.expressions.ApiExpressionUtils.{unresolvedCall, unresolvedRef, valueLiteral}
-import org.apache.flink.table.functions.{ImperativeAggregateFunction, ScalarFunction, TableFunction, UserDefinedFunctionHelper, _}
+import org.apache.flink.table.functions._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{DISTINCT, RANGE_TO}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
@@ -33,6 +33,7 @@ import java.sql.{Date, Time, Timestamp}
 import java.time.{LocalDate, LocalDateTime, LocalTime}
 import java.util.{List => JList, Map => JMap}
 
+import scala.language.experimental.macros
 import scala.language.implicitConversions
 
 /**
@@ -46,7 +47,7 @@ import scala.language.implicitConversions
  * @see
  *   <a href="https://s.apache.org/flip-265">FLIP-265 Deprecate and remove Scala API support</a>
  */
-@deprecated(since = "1.18.0")
+@Deprecated
 @PublicEvolving
 trait ImplicitExpressionConversions {
 
@@ -58,28 +59,27 @@ trait ImplicitExpressionConversions {
    * Offset constant to be used in the `preceding` clause of unbounded [[Over]] windows. Use this
    * constant for a time interval. Unbounded over windows start with the first row of a partition.
    */
-  implicit val UNBOUNDED_ROW: Expression = unresolvedCall(BuiltInFunctionDefinitions.UNBOUNDED_ROW)
+  implicit val UNBOUNDED_ROW: Expression = lit(OverWindowRange.UNBOUNDED_ROW)
 
   /**
    * Offset constant to be used in the `preceding` clause of unbounded [[Over]] windows. Use this
    * constant for a row-count interval. Unbounded over windows start with the first row of a
    * partition.
    */
-  implicit val UNBOUNDED_RANGE: Expression =
-    unresolvedCall(BuiltInFunctionDefinitions.UNBOUNDED_RANGE)
+  implicit val UNBOUNDED_RANGE: Expression = lit(OverWindowRange.UNBOUNDED_RANGE)
 
   /**
    * Offset constant to be used in the `following` clause of [[Over]] windows. Use this for setting
    * the upper bound of the window to the current row.
    */
-  implicit val CURRENT_ROW: Expression = unresolvedCall(BuiltInFunctionDefinitions.CURRENT_ROW)
+  implicit val CURRENT_ROW: Expression = lit(OverWindowRange.CURRENT_ROW)
 
   /**
    * Offset constant to be used in the `following` clause of [[Over]] windows. Use this for setting
    * the upper bound of the window to the sort key of the current row, i.e., all rows with the same
    * sort key as the current row are included in the window.
    */
-  implicit val CURRENT_RANGE: Expression = unresolvedCall(BuiltInFunctionDefinitions.CURRENT_RANGE)
+  implicit val CURRENT_RANGE: Expression = lit(OverWindowRange.CURRENT_RANGE)
 
   // ----------------------------------------------------------------------------------------------
   // Implicit conversions

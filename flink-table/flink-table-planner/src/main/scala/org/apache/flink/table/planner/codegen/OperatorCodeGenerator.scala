@@ -50,7 +50,7 @@ object OperatorCodeGenerator extends Logging {
       lazyInputUnboxingCode: Boolean = false,
       converter: String => String = a => a): GeneratedOperator[OneInputStreamOperator[IN, OUT]] = {
     addReuseOutElement(ctx)
-    val operatorName = newName(name)
+    val operatorName = newName(ctx, name)
     val abstractBaseClass = ctx.getOperatorBaseClass
     val baseClass = classOf[OneInputStreamOperator[IN, OUT]]
     val inputTypeTerm = boxedTypeTermForType(inputType)
@@ -144,7 +144,7 @@ object OperatorCodeGenerator extends Logging {
       endInputCode2: Option[String] = None,
       useTimeCollect: Boolean = false): GeneratedOperator[TwoInputStreamOperator[IN1, IN2, OUT]] = {
     addReuseOutElement(ctx)
-    val operatorName = newName(name)
+    val operatorName = newName(ctx, name)
     val abstractBaseClass = ctx.getOperatorBaseClass
     val baseClass = classOf[TwoInputStreamOperator[IN1, IN2, OUT]]
     val inputTypeTerm1 = boxedTypeTermForType(input1Type)

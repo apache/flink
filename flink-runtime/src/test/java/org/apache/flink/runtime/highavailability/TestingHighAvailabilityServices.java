@@ -23,7 +23,7 @@ import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.ExecutionPlanStore;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -66,13 +66,13 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
     private volatile CheckpointRecoveryFactory checkpointRecoveryFactory;
 
-    private volatile JobGraphStore jobGraphStore;
+    private volatile ExecutionPlanStore executionPlanStore;
 
     private volatile JobResultStore jobResultStore = new EmbeddedJobResultStore();
 
     private CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
-    private CompletableFuture<Void> closeAndCleanupAllDataFuture = new CompletableFuture<>();
+    private CompletableFuture<Void> cleanupAllDataFuture = new CompletableFuture<>();
 
     private volatile CompletableFuture<JobID> globalCleanupFuture;
 
@@ -120,8 +120,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
         this.checkpointRecoveryFactory = checkpointRecoveryFactory;
     }
 
-    public void setJobGraphStore(JobGraphStore jobGraphStore) {
-        this.jobGraphStore = jobGraphStore;
+    public void setExecutionPlanStore(ExecutionPlanStore executionPlanStore) {
+        this.executionPlanStore = executionPlanStore;
     }
 
     public void setJobResultStore(JobResultStore jobResultStore) {
@@ -142,9 +142,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
         this.closeFuture = closeFuture;
     }
 
-    public void setCloseAndCleanupAllDataFuture(
-            CompletableFuture<Void> closeAndCleanupAllDataFuture) {
-        this.closeAndCleanupAllDataFuture = closeAndCleanupAllDataFuture;
+    public void setCleanupAllDataFuture(CompletableFuture<Void> cleanupAllDataFuture) {
+        this.cleanupAllDataFuture = cleanupAllDataFuture;
     }
 
     public void setGlobalCleanupFuture(CompletableFuture<JobID> globalCleanupFuture) {
@@ -250,13 +249,13 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
     }
 
     @Override
-    public JobGraphStore getJobGraphStore() {
-        JobGraphStore store = jobGraphStore;
+    public ExecutionPlanStore getExecutionPlanStore() {
+        ExecutionPlanStore store = executionPlanStore;
 
         if (store != null) {
             return store;
         } else {
-            throw new IllegalStateException("JobGraphStore has not been set");
+            throw new IllegalStateException("ExecutionPlanStore has not been set");
         }
     }
 
@@ -280,8 +279,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
     }
 
     @Override
-    public void closeAndCleanupAllData() throws Exception {
-        closeAndCleanupAllDataFuture.complete(null);
+    public void cleanupAllData() throws Exception {
+        cleanupAllDataFuture.complete(null);
     }
 
     @Override

@@ -17,23 +17,23 @@
  */
 package org.apache.flink.table.planner.runtime.harness
 
-import org.apache.flink.api.scala._
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
 import org.apache.flink.table.api.{EnvironmentSettings, _}
-import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.bridge.scala.{dataStreamConversions, tableConversions}
 import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.data.RowData
+import org.apache.flink.table.planner.runtime.utils.StreamingEnvUtil
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.utils.{Top3WithMapView, Top3WithRetractInput}
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.{deleteRecord, insertRecord}
 import org.apache.flink.table.types.logical.LogicalType
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Integer => JInt}
 import java.time.Duration
@@ -41,10 +41,10 @@ import java.util.concurrent.ConcurrentLinkedQueue
 
 import scala.collection.mutable
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     val setting = EnvironmentSettings.newInstance().inStreamingMode().build()
@@ -53,11 +53,11 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
 
   val data = new mutable.MutableList[(Int, Int)]
 
-  @Test
+  @TestTemplate
   def testTableAggregate(): Unit = {
     val top3 = new Top3WithMapView
-    tEnv.registerFunction("top3", top3)
-    val source = env.fromCollection(data).toTable(tEnv, 'a, 'b)
+    tEnv.createTemporarySystemFunction("top3", top3)
+    val source = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b)
     val resultTable = source
       .groupBy('a)
       .flatAggregate(top3('b).as('b1, 'b2))
@@ -116,7 +116,7 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
     testHarness.close()
   }
 
-  @Test
+  @TestTemplate
   def testTableAggregateWithRetractInput(): Unit = {
     val (testHarness, outputTypes) = createTableAggregateWithRetract
     val assertor = new RowDataHarnessAssertor(outputTypes)
@@ -161,8 +161,8 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
   private def createTableAggregateWithRetract()
       : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], Array[LogicalType]) = {
     val top3 = new Top3WithRetractInput
-    tEnv.registerFunction("top3", top3)
-    val source = env.fromCollection(data).toTable(tEnv, 'a, 'b)
+    tEnv.createTemporarySystemFunction("top3", top3)
+    val source = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b)
     val resultTable = source
       .groupBy('a)
       .select('b.sum.as('b))
@@ -175,7 +175,7 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
     (testHarness, outputTypes)
   }
 
-  @Test
+  @TestTemplate
   def testCloseWithoutOpen(): Unit = {
     val (testHarness, outputTypes) = createTableAggregateWithRetract
     testHarness.setup(new RowDataSerializer(outputTypes: _*))

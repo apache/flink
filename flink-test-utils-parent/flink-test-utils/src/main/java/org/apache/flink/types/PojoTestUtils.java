@@ -18,7 +18,8 @@
 package org.apache.flink.types;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
@@ -44,7 +45,7 @@ public class PojoTestUtils {
     public static <T> void assertSerializedAsPojo(Class<T> clazz) throws AssertionError {
         final TypeInformation<T> typeInformation = TypeInformation.of(clazz);
         final TypeSerializer<T> actualSerializer =
-                typeInformation.createSerializer(new ExecutionConfig());
+                typeInformation.createSerializer(new SerializerConfigImpl());
 
         assertThat(actualSerializer)
                 .withFailMessage(
@@ -68,13 +69,13 @@ public class PojoTestUtils {
      *     Kryo for one or more fields
      */
     public static <T> void assertSerializedAsPojoWithoutKryo(Class<T> clazz) throws AssertionError {
-        final ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.disableGenericTypes();
+        final SerializerConfig serializerConfig = new SerializerConfigImpl();
+        serializerConfig.setGenericTypes(false);
 
         final TypeInformation<T> typeInformation = TypeInformation.of(clazz);
         final TypeSerializer<T> actualSerializer;
         try {
-            actualSerializer = typeInformation.createSerializer(executionConfig);
+            actualSerializer = typeInformation.createSerializer(serializerConfig);
         } catch (UnsupportedOperationException e) {
             throw new AssertionError(e);
         }

@@ -1,0 +1,42 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>execution.checkpointing.file-merging.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to enable merging multiple checkpoint files into one, which will greatly reduce the number of small checkpoint files. This is an experimental feature under evaluation, make sure you're aware of the possible effects of enabling it.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.file-merging.across-checkpoint-boundary</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Only relevant if <code class="highlighter-rouge">execution.checkpointing.file-merging.enabled</code> is enabled.<br />Whether to allow merging data of multiple checkpoints into one physical file. If this option is set to false, only merge files within checkpoint boundaries. Otherwise, it is possible for the logical files of different checkpoints to share the same physical file.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.file-merging.max-file-size</h5></td>
+            <td style="word-wrap: break-word;">32 mb</td>
+            <td>MemorySize</td>
+            <td>Max size of a physical file for merged checkpoints.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.file-merging.pool-blocking</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to use Blocking or Non-Blocking pool for merging physical files. A Non-Blocking pool will always provide usable physical file without blocking. It may create many physical files if poll file frequently. When poll a small file from a Blocking pool, it may be blocked until the file is returned.</td>
+        </tr>
+        <tr>
+            <td><h5>execution.checkpointing.file-merging.max-space-amplification</h5></td>
+            <td style="word-wrap: break-word;">2.0</td>
+            <td>Float</td>
+            <td>Space amplification stands for the magnification of the occupied space compared to the amount of valid data. The more space amplification is, the more waste of space will be. This configs a space amplification above which a re-uploading for physical files will be triggered to reclaim space. Any value below 1f means disabling the space control.</td>
+        </tr>
+    </tbody>
+</table>

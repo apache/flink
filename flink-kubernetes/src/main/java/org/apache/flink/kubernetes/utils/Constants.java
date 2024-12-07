@@ -62,8 +62,6 @@ public class Constants {
     public static final String LABEL_COMPONENT_KEY = "component";
     public static final String LABEL_COMPONENT_JOB_MANAGER = "jobmanager";
     public static final String LABEL_COMPONENT_TASK_MANAGER = "taskmanager";
-    public static final String LABEL_CONFIGMAP_TYPE_KEY = "configmap-type";
-    public static final String LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY = "high-availability";
 
     // Use fixed port in kubernetes, it needs to be exposed.
     public static final int REST_PORT = 8081;
@@ -96,8 +94,8 @@ public class Constants {
     // Constants for Kubernetes high availability
     public static final String LEADER_ADDRESS_KEY = "address";
     public static final String LEADER_SESSION_ID_KEY = "sessionId";
-    public static final String JOB_GRAPH_STORE_KEY_PREFIX = "jobGraph-";
-    public static final String SUBMITTED_JOBGRAPH_FILE_PREFIX = "submittedJobGraph";
+    public static final String EXECUTION_PLAN_STORE_KEY_PREFIX = "executionPlan-";
+    public static final String SUBMITTED_EXECUTION_PLAN_FILE_PREFIX = "submittedExecutionPlan";
     public static final String CHECKPOINT_COUNTER_KEY = "counter";
     public static final String CHECKPOINT_ID_KEY_PREFIX = "checkpointID-";
     public static final String COMPLETED_CHECKPOINT_FILE_SUFFIX = "completedCheckpoint";
@@ -120,4 +118,6 @@ public class Constants {
     // performance.
     // https://kubernetes.io/docs/reference/using-api/api-concepts/#the-resourceversion-parameter
     public static final String KUBERNETES_ZERO_RESOURCE_VERSION = "0";
+
+    public static final String USER_ARTIFACTS_VOLUME = "user-artifacts-volume";
 }

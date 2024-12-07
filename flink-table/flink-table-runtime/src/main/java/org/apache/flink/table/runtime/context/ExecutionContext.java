@@ -29,7 +29,9 @@ public interface ExecutionContext {
 
     // TODO add create state method.
 
-    /** @return key of the current processed element. */
+    /**
+     * @return key of the current processed element.
+     */
     RowData currentKey();
 
     /** Sets current key. */

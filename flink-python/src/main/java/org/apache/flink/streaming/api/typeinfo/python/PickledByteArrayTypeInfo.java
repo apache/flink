@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.api.typeinfo.python;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
@@ -68,7 +68,7 @@ public class PickledByteArrayTypeInfo extends TypeInformation<byte[]> {
     }
 
     @Override
-    public TypeSerializer<byte[]> createSerializer(ExecutionConfig config) {
+    public TypeSerializer<byte[]> createSerializer(SerializerConfig config) {
         return BytePrimitiveArraySerializer.INSTANCE;
     }
 

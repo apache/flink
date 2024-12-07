@@ -91,7 +91,7 @@ Application Mode will launch a Flink cluster on YARN, where the main() method of
 The cluster will shut down as soon as the application has finished. You can manually stop the cluster using `yarn application -kill <ApplicationId>` or by cancelling the Flink job.
 
 ```bash
-./bin/flink run-application -t yarn-application ./examples/streaming/TopSpeedWindowing.jar
+./bin/flink run -t yarn-application ./examples/streaming/TopSpeedWindowing.jar
 ```
 
 
@@ -111,7 +111,7 @@ and pre-upload your application jar to a location accessible by all nodes in you
 command could look like: 
 
 ```bash
-./bin/flink run-application -t yarn-application \
+./bin/flink run -t yarn-application \
 	-Dyarn.provided.lib.dirs="hdfs://myhdfs/my-remote-flink-dist-dir" \
 	hdfs://myhdfs/jars/my-application.jar
 ```
@@ -166,7 +166,7 @@ You can **re-attach to a YARN session** using the following command:
 ./bin/yarn-session.sh -id application_XXXX_YY
 ```
 
-Besides passing [configuration]({{< ref "docs/deployment/config" >}}) via the `conf/flink-conf.yaml` file, you can also pass any configuration at submission time to the `./bin/yarn-session.sh` client using `-Dkey=value` arguments.
+Besides passing [configuration]({{< ref "docs/deployment/config" >}}) via the [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}) , you can also pass any configuration at submission time to the `./bin/yarn-session.sh` client using `-Dkey=value` arguments.
 
 The YARN session client also has a few "shortcut arguments" for commonly used settings. They can be listed with `./bin/yarn-session.sh -h`.
 

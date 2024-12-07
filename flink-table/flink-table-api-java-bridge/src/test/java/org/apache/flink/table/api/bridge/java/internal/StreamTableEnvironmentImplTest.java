@@ -47,14 +47,14 @@ class StreamTableEnvironmentImplTest {
     @Test
     void testAppendStreamDoesNotOverwriteTableConfig() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStreamSource<Integer> elements = env.fromElements(1, 2, 3);
+        DataStreamSource<Integer> elements = env.fromData(1, 2, 3);
 
         StreamTableEnvironmentImpl tEnv = getStreamTableEnvironment(env, elements);
 
         Duration minRetention = Duration.ofMinutes(1);
         tEnv.getConfig().setIdleStateRetention(minRetention);
         Table table = tEnv.fromDataStream(elements);
-        tEnv.toAppendStream(table, Row.class);
+        tEnv.toDataStream(table);
 
         assertThat(tEnv.getConfig().getIdleStateRetention()).isEqualTo(minRetention);
     }
@@ -62,7 +62,7 @@ class StreamTableEnvironmentImplTest {
     @Test
     void testRetractStreamDoesNotOverwriteTableConfig() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStreamSource<Integer> elements = env.fromElements(1, 2, 3);
+        DataStreamSource<Integer> elements = env.fromData(1, 2, 3);
 
         StreamTableEnvironmentImpl tEnv = getStreamTableEnvironment(env, elements);
 

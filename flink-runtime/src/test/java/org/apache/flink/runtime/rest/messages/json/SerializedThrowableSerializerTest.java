@@ -19,25 +19,23 @@
 package org.apache.flink.runtime.rest.messages.json;
 
 import org.apache.flink.util.SerializedThrowable;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SerializedThrowableSerializer} and {@link SerializedThrowableDeserializer}. */
-public class SerializedThrowableSerializerTest extends TestLogger {
+class SerializedThrowableSerializerTest {
 
     private ObjectMapper objectMapper;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         final SimpleModule simpleModule = new SimpleModule();
         simpleModule.addDeserializer(
                 SerializedThrowable.class, new SerializedThrowableDeserializer());
@@ -48,7 +46,7 @@ public class SerializedThrowableSerializerTest extends TestLogger {
     }
 
     @Test
-    public void testSerializationDeserialization() throws Exception {
+    void testSerializationDeserialization() throws Exception {
         Exception cause = new Exception("cause");
         Exception root = new Exception("message", cause);
         Exception suppressed = new Exception("suppressed");
@@ -60,19 +58,18 @@ public class SerializedThrowableSerializerTest extends TestLogger {
         final SerializedThrowable deserializedSerializedThrowable =
                 objectMapper.readValue(json, SerializedThrowable.class);
 
-        assertEquals("java.lang.Exception: message", deserializedSerializedThrowable.getMessage());
-        assertEquals(
-                serializedThrowable.getFullStringifiedStackTrace(),
-                deserializedSerializedThrowable.getFullStringifiedStackTrace());
-        assertEquals(
-                "java.lang.Exception: cause",
-                deserializedSerializedThrowable.getCause().getMessage());
-        assertTrue(deserializedSerializedThrowable.getCause() instanceof SerializedThrowable);
-        assertEquals(1, deserializedSerializedThrowable.getSuppressed().length);
-        assertEquals(
-                "java.lang.Exception: suppressed",
-                deserializedSerializedThrowable.getSuppressed()[0].getMessage());
-        assertTrue(
-                deserializedSerializedThrowable.getSuppressed()[0] instanceof SerializedThrowable);
+        assertThat(deserializedSerializedThrowable.getMessage())
+                .isEqualTo("java.lang.Exception: message");
+        assertThat(serializedThrowable.getFullStringifiedStackTrace())
+                .isEqualTo(deserializedSerializedThrowable.getFullStringifiedStackTrace());
+        assertThat(deserializedSerializedThrowable.getCause().getMessage())
+                .isEqualTo("java.lang.Exception: cause");
+        assertThat(deserializedSerializedThrowable.getCause())
+                .isInstanceOf(SerializedThrowable.class);
+        assertThat(deserializedSerializedThrowable.getSuppressed().length).isOne();
+        assertThat(deserializedSerializedThrowable.getSuppressed()[0].getMessage())
+                .isEqualTo("java.lang.Exception: suppressed");
+        assertThat(deserializedSerializedThrowable.getSuppressed()[0])
+                .isInstanceOf(SerializedThrowable.class);
     }
 }

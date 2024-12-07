@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-test-utils-parent</artifactId>
-		<version>1.19-SNAPSHOT</version>
+		<version>2.0-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-test-utils</artifactId>
@@ -161,6 +161,17 @@ under the License.
 			<version>${project.version}</version>
 			<!-- the dependency should be transitive -->
 			<scope>runtime</scope>
+		</dependency>
+
+		<!-- This dependency is added for `flink-benchmarks` project which will
+		use zookeeper testing server to benchmark olap performance. This dependency
+		is added here to ensure that its version is consistent with the flink
+		version in the `flink-benchmarks` and to avoid conflicts. Removing this
+		dependency may cause failure of `flink-benchmarks`. -->
+		<dependency>
+			<groupId>org.apache.curator</groupId>
+			<artifactId>curator-test</artifactId>
+			<version>${curator.version}</version>
 		</dependency>
 
 	</dependencies>

@@ -19,12 +19,22 @@
 package org.apache.flink.architecture.common;
 
 import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaAnnotation;
 import com.tngtech.archunit.core.domain.JavaField;
 import com.tngtech.archunit.core.domain.JavaModifier;
 
 import java.lang.annotation.Annotation;
+import java.util.function.Predicate;
 
-/** Fine-grained predicates focus on the JavaField. */
+import static org.apache.flink.architecture.common.Predicates.getClassSimpleNameFromFqName;
+
+/**
+ * Fine-grained predicates focus on the JavaField.
+ *
+ * <p>NOTE: it is recommended to use methods that accept fully qualified class names instead of
+ * {@code Class} objects to reduce the risks of introducing circular dependencies between the
+ * project submodules.
+ */
 public class JavaFieldPredicates {
 
     /**
@@ -74,13 +84,25 @@ public class JavaFieldPredicates {
     /**
      * Match the {@link Class} of the {@link JavaField}.
      *
-     * @return A {@link DescribedPredicate} returning true, if and only if the tested {@link
-     *     JavaField} has the same type of the given {@code clazz}.
+     * @return A {@link DescribedPredicate} returning true, if the tested {@link JavaField} has the
+     *     same type of the given {@code clazz}.
      */
     public static DescribedPredicate<JavaField> ofType(Class<?> clazz) {
         return DescribedPredicate.describe(
                 "of type " + clazz.getSimpleName(),
                 field -> field.getRawType().isEquivalentTo(clazz));
+    }
+
+    /**
+     * Match the {@link Class} of the {@link JavaField}.
+     *
+     * @return A {@link DescribedPredicate} returning true, if and only if the tested {@link
+     *     JavaField} has the same type of the given {@code clazz}.
+     */
+    public static DescribedPredicate<JavaField> ofType(String fqClassName) {
+        String className = getClassSimpleNameFromFqName(fqClassName);
+        return DescribedPredicate.describe(
+                "of type " + className, field -> field.getType().getName().equals(fqClassName));
     }
 
     /**
@@ -104,15 +126,32 @@ public class JavaFieldPredicates {
      */
     public static DescribedPredicate<JavaField> annotatedWith(
             Class<? extends Annotation> annotationType) {
+        return matchAnnotationType(
+                annotationType.getSimpleName(),
+                annotation -> annotation.getRawType().isEquivalentTo(annotationType));
+    }
+
+    /**
+     * Match the single Annotation of the {@link JavaField}.
+     *
+     * @return A {@link DescribedPredicate} returning true, if the tested {@link JavaField} is
+     *     annotated with the annotation identified by the fully qualified name {@code
+     *     fqAnnotationTypeName}.
+     */
+    public static DescribedPredicate<JavaField> annotatedWith(String fqAnnotationTypeName) {
+        String className = getClassSimpleNameFromFqName(fqAnnotationTypeName);
+        return matchAnnotationType(
+                className,
+                annotation -> annotation.getRawType().getName().equals(fqAnnotationTypeName));
+    }
+
+    private static DescribedPredicate<JavaField> matchAnnotationType(
+            String annotationName, Predicate<JavaAnnotation<JavaField>> annotationTypeEquality) {
         return DescribedPredicate.describe(
-                "annotated with @" + annotationType.getSimpleName(),
+                "annotated with @" + annotationName,
                 field ->
                         field.getAnnotations().stream()
-                                .map(
-                                        annotation ->
-                                                annotation
-                                                        .getRawType()
-                                                        .isEquivalentTo(annotationType))
+                                .map(annotationTypeEquality::test)
                                 .reduce(false, Boolean::logicalOr));
     }
 }

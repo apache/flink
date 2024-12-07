@@ -47,7 +47,9 @@
           <th [nzSortFn]="sortAttemptFn" (nzSortOrderChange)="collapseAll()" nzWidth="100px">
             Attempt
           </th>
-          <th [nzSortFn]="sortHostFn" (nzSortOrderChange)="collapseAll()" nzWidth="200px">Host</th>
+          <th [nzSortFn]="sortEndpointFn" (nzSortOrderChange)="collapseAll()" nzWidth="200px">
+            Endpoint
+          </th>
           <th [nzSortFn]="sortStartTimeFn" (nzSortOrderChange)="collapseAll()" nzWidth="150px">
             Start Time
           </th>
@@ -98,7 +100,7 @@
                 </span>
               </td>
               <td>{{ subtask.attempt + 1 }}</td>
-              <td>{{ subtask.host }}</td>
+              <td>{{ subtask.endpoint }}</td>
               <td>{{ subtask['start_time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
               <td>{{ subtask.duration | humanizeDuration }}</td>
               <td>{{ subtask['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
@@ -164,7 +166,7 @@
                     </span>
                   </td>
                   <td>{{ attempt.attempt + 1 }}</td>
-                  <td>{{ attempt.host }}</td>
+                  <td>{{ attempt.endpoint }}</td>
                   <td>{{ attempt['start_time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
                   <td>{{ attempt.duration | humanizeDuration }}</td>
                   <td>{{ attempt['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>

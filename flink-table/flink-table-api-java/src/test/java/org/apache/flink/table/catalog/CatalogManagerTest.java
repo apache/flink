@@ -20,28 +20,37 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.listener.AlterDatabaseEvent;
+import org.apache.flink.table.catalog.listener.AlterModelEvent;
 import org.apache.flink.table.catalog.listener.AlterTableEvent;
 import org.apache.flink.table.catalog.listener.CatalogModificationEvent;
 import org.apache.flink.table.catalog.listener.CatalogModificationListener;
 import org.apache.flink.table.catalog.listener.CreateDatabaseEvent;
+import org.apache.flink.table.catalog.listener.CreateModelEvent;
 import org.apache.flink.table.catalog.listener.CreateTableEvent;
 import org.apache.flink.table.catalog.listener.DropDatabaseEvent;
+import org.apache.flink.table.catalog.listener.DropModelEvent;
 import org.apache.flink.table.catalog.listener.DropTableEvent;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.junit.jupiter.api.Test;
 
+import javax.annotation.Nullable;
+
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -116,25 +125,13 @@ class CatalogManagerTest {
         CompletableFuture<DropTableEvent> dropFuture = new CompletableFuture<>();
         CompletableFuture<DropTableEvent> dropTemporaryFuture = new CompletableFuture<>();
         CatalogManager catalogManager =
-                CatalogManager.newBuilder()
-                        .defaultCatalog("default", new GenericInMemoryCatalog("default"))
-                        .classLoader(CatalogManagerTest.class.getClassLoader())
-                        .config(new Configuration())
-                        .catalogModificationListeners(
-                                Collections.singletonList(
-                                        new TestingTableModificationListener(
-                                                createFuture,
-                                                createTemporaryFuture,
-                                                alterFuture,
-                                                dropFuture,
-                                                dropTemporaryFuture)))
-                        .catalogStoreHolder(
-                                CatalogStoreHolder.newBuilder()
-                                        .classloader(CatalogManagerTest.class.getClassLoader())
-                                        .catalogStore(new GenericInMemoryCatalogStore())
-                                        .config(new Configuration())
-                                        .build())
-                        .build();
+                createCatalogManager(
+                        new TestingTableModificationListener(
+                                createFuture,
+                                createTemporaryFuture,
+                                alterFuture,
+                                dropFuture,
+                                dropTemporaryFuture));
 
         catalogManager.initSchemaResolver(true, ExpressionResolverMocks.dummyResolver());
         // Create a view
@@ -250,19 +247,149 @@ class CatalogManagerTest {
         assertThat(dropTemporaryEvent.identifier().getObjectName()).isEqualTo("table2");
     }
 
-    private CatalogManager createCatalogManager(CatalogModificationListener listener) {
-        return CatalogManager.newBuilder()
-                .classLoader(CatalogManagerTest.class.getClassLoader())
-                .config(new Configuration())
-                .defaultCatalog("default", new GenericInMemoryCatalog("default"))
-                .catalogModificationListeners(Collections.singletonList(listener))
-                .catalogStoreHolder(
-                        CatalogStoreHolder.newBuilder()
-                                .catalogStore(new GenericInMemoryCatalogStore())
-                                .config(new Configuration())
-                                .classloader(CatalogManagerTest.class.getClassLoader())
-                                .build())
-                .build();
+    @Test
+    public void testDropCurrentDatabase() throws Exception {
+        CatalogManager catalogManager = createCatalogManager(null);
+
+        catalogManager.createDatabase(
+                "default", "dummy", new CatalogDatabaseImpl(new HashMap<>(), null), false);
+        catalogManager.setCurrentDatabase("dummy");
+
+        assertThatThrownBy(() -> catalogManager.dropDatabase("default", "dummy", false, false))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Cannot drop a database which is currently in use.");
+    }
+
+    @Test
+    public void testModelModificationListener() throws Exception {
+        CompletableFuture<CreateModelEvent> createFuture = new CompletableFuture<>();
+        CompletableFuture<CreateModelEvent> createTemporaryFuture = new CompletableFuture<>();
+        CompletableFuture<AlterModelEvent> alterFuture = new CompletableFuture<>();
+        CompletableFuture<DropModelEvent> dropFuture = new CompletableFuture<>();
+        CompletableFuture<DropModelEvent> dropTemporaryFuture = new CompletableFuture<>();
+        CatalogManager catalogManager =
+                CatalogManagerMocks.preparedCatalogManager()
+                        .defaultCatalog("default", new GenericInMemoryCatalog("default"))
+                        .classLoader(CatalogManagerTest.class.getClassLoader())
+                        .config(new Configuration())
+                        .catalogModificationListeners(
+                                Collections.singletonList(
+                                        new TestingModelModificationListener(
+                                                createFuture,
+                                                createTemporaryFuture,
+                                                alterFuture,
+                                                dropFuture,
+                                                dropTemporaryFuture)))
+                        .catalogStoreHolder(
+                                CatalogStoreHolder.newBuilder()
+                                        .classloader(CatalogManagerTest.class.getClassLoader())
+                                        .catalogStore(new GenericInMemoryCatalogStore())
+                                        .config(new Configuration())
+                                        .build())
+                        .build();
+
+        catalogManager.initSchemaResolver(true, ExpressionResolverMocks.dummyResolver());
+
+        HashMap<String, String> options =
+                new HashMap<String, String>() {
+                    {
+                        put("provider", "openai");
+                        put("task", "TEXT_GENERATION");
+                    }
+                };
+
+        // Create a model
+        catalogManager.createModel(
+                CatalogModel.of(Schema.derived(), Schema.derived(), options, null),
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "model1"),
+                true);
+        CreateModelEvent createModelEvent = createFuture.get(10, TimeUnit.SECONDS);
+        assertThat(createModelEvent.identifier().getObjectName()).isEqualTo("model1");
+        assertThat(createModelEvent.ignoreIfExists()).isTrue();
+
+        // Create a temporary table
+        catalogManager.createTemporaryModel(
+                CatalogModel.of(
+                        Schema.newBuilder().build(), Schema.newBuilder().build(), options, null),
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "model2"),
+                false);
+        CreateModelEvent createTemporaryEvent = createTemporaryFuture.get(10, TimeUnit.SECONDS);
+        assertThat(createTemporaryEvent.isTemporary()).isTrue();
+        assertThat(createTemporaryEvent.identifier().getObjectName()).isEqualTo("model2");
+        assertThat(createTemporaryEvent.ignoreIfExists()).isFalse();
+
+        HashMap<String, String> azureOptions =
+                new HashMap<String, String>() {
+                    {
+                        put("provider", "azure");
+                        put("endpoint", "some-endpoint");
+                    }
+                };
+        // Alter a model
+        catalogManager.alterModel(
+                CatalogModel.of(Schema.derived(), Schema.derived(), azureOptions, "model1 comment"),
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "model1"),
+                false);
+        Map<String, String> expectedOptions = new HashMap<>();
+        expectedOptions.put("provider", "azure");
+        expectedOptions.put("endpoint", "some-endpoint");
+        AlterModelEvent alterEvent = alterFuture.get(10, TimeUnit.SECONDS);
+        assertThat(alterEvent.identifier().getObjectName()).isEqualTo("model1");
+        assertThat(alterEvent.newModel().getComment()).isEqualTo("model1 comment");
+        assertThat(alterEvent.newModel().getOptions()).isEqualTo(expectedOptions);
+        assertThat(alterEvent.ignoreIfNotExists()).isFalse();
+
+        // Drop a model
+        catalogManager.dropModel(
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "model1"),
+                true);
+        DropModelEvent dropEvent = dropFuture.get(10, TimeUnit.SECONDS);
+        assertThat(dropEvent.ignoreIfNotExists()).isTrue();
+        assertThat(dropEvent.identifier().getObjectName()).isEqualTo("model1");
+
+        // Drop a temporary model
+        catalogManager.dropTemporaryModel(
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "model2"),
+                false);
+        DropModelEvent dropTemporaryEvent = dropTemporaryFuture.get(10, TimeUnit.SECONDS);
+        assertThat(dropTemporaryEvent.isTemporary()).isTrue();
+        assertThat(dropTemporaryEvent.ignoreIfNotExists()).isFalse();
+        assertThat(dropTemporaryEvent.identifier().getObjectName()).isEqualTo("model2");
+    }
+
+    private CatalogManager createCatalogManager(@Nullable CatalogModificationListener listener) {
+        CatalogManager.Builder builder =
+                CatalogManager.newBuilder()
+                        .classLoader(CatalogManagerTest.class.getClassLoader())
+                        .config(new Configuration())
+                        .defaultCatalog("default", new GenericInMemoryCatalog("default"))
+                        .catalogStoreHolder(
+                                CatalogStoreHolder.newBuilder()
+                                        .catalogStore(new GenericInMemoryCatalogStore())
+                                        .config(new Configuration())
+                                        .classloader(CatalogManagerTest.class.getClassLoader())
+                                        .build());
+
+        if (listener != null) {
+            builder.catalogModificationListeners(Collections.singletonList(listener));
+        }
+
+        return builder.build();
     }
 
     /** Testing database modification listener. */
@@ -337,6 +464,49 @@ class CatalogManagerTest {
         }
     }
 
+    /** Testing model modification listener. */
+    static class TestingModelModificationListener implements CatalogModificationListener {
+        private final CompletableFuture<CreateModelEvent> createFuture;
+        private final CompletableFuture<CreateModelEvent> createTemporaryFuture;
+        private final CompletableFuture<AlterModelEvent> alterFuture;
+        private final CompletableFuture<DropModelEvent> dropFuture;
+        private final CompletableFuture<DropModelEvent> dropTemporaryFuture;
+
+        TestingModelModificationListener(
+                CompletableFuture<CreateModelEvent> createFuture,
+                CompletableFuture<CreateModelEvent> createTemporaryFuture,
+                CompletableFuture<AlterModelEvent> alterFuture,
+                CompletableFuture<DropModelEvent> dropFuture,
+                CompletableFuture<DropModelEvent> dropTemporaryFuture) {
+            this.createFuture = createFuture;
+            this.createTemporaryFuture = createTemporaryFuture;
+            this.alterFuture = alterFuture;
+            this.dropFuture = dropFuture;
+            this.dropTemporaryFuture = dropTemporaryFuture;
+        }
+
+        @Override
+        public void onEvent(CatalogModificationEvent event) {
+            if (event instanceof CreateModelEvent) {
+                if (((CreateModelEvent) event).isTemporary()) {
+                    createTemporaryFuture.complete((CreateModelEvent) event);
+                } else {
+                    createFuture.complete((CreateModelEvent) event);
+                }
+            } else if (event instanceof AlterModelEvent) {
+                alterFuture.complete((AlterModelEvent) event);
+            } else if (event instanceof DropModelEvent) {
+                if (((DropModelEvent) event).isTemporary()) {
+                    dropTemporaryFuture.complete((DropModelEvent) event);
+                } else {
+                    dropFuture.complete((DropModelEvent) event);
+                }
+            } else {
+                throw new UnsupportedOperationException();
+            }
+        }
+    }
+
     @Test
     void testCatalogStore() throws Exception {
         CatalogStore catalogStore = new GenericInMemoryCatalogStore();
@@ -357,14 +527,68 @@ class CatalogManagerTest {
         catalogManager.createCatalog("cat1", CatalogDescriptor.of("cat1", configuration));
         catalogManager.createCatalog("cat2", CatalogDescriptor.of("cat2", configuration));
         catalogManager.createCatalog("cat3", CatalogDescriptor.of("cat3", configuration));
+        catalogManager.createCatalog(
+                "cat_comment",
+                CatalogDescriptor.of("cat_comment", configuration.clone(), "comment for catalog"));
+        catalogManager.createCatalog(
+                "cat_comment",
+                CatalogDescriptor.of(
+                        "cat_comment", configuration.clone(), "second comment for catalog"),
+                true);
+        assertThatThrownBy(
+                        () ->
+                                catalogManager.createCatalog(
+                                        "cat_comment",
+                                        CatalogDescriptor.of(
+                                                "cat_comment",
+                                                configuration.clone(),
+                                                "third comment for catalog"),
+                                        false))
+                .isInstanceOf(CatalogException.class)
+                .hasMessage("Catalog cat_comment already exists.");
 
         assertTrue(catalogManager.getCatalog("cat1").isPresent());
         assertTrue(catalogManager.getCatalog("cat2").isPresent());
         assertTrue(catalogManager.getCatalog("cat3").isPresent());
+        assertTrue(catalogManager.getCatalog("cat_comment").isPresent());
+        assertTrue(catalogManager.getCatalogDescriptor("cat_comment").isPresent());
+        assertEquals(
+                "comment for catalog",
+                catalogManager.getCatalogDescriptor("cat_comment").get().getComment().get());
+        assertThat(catalogManager.getCatalog("cat_comment")).isPresent();
+        assertThat(catalogManager.getCatalogDescriptor("cat_comment"))
+                .isPresent()
+                .hasValueSatisfying(
+                        descriptor ->
+                                assertThat(descriptor.getComment())
+                                        .isPresent()
+                                        .hasValueSatisfying(
+                                                comment ->
+                                                        assertEquals(
+                                                                "comment for catalog", comment)));
+
+        catalogManager.alterCatalog(
+                "cat_comment",
+                new CatalogChange.CatalogConfigurationChange(
+                        conf -> conf.setString("default-database", "db")));
+        catalogManager.alterCatalog(
+                "cat_comment", new CatalogChange.CatalogCommentChange("new comment"));
+        assertThat(catalogManager.getCatalogDescriptor("cat_comment"))
+                .isPresent()
+                .hasValueSatisfying(
+                        descriptor -> {
+                            assertThat(descriptor.getConfiguration().toMap())
+                                    .containsEntry("default-database", "db");
+                            assertThat(descriptor.getComment())
+                                    .isPresent()
+                                    .hasValueSatisfying(
+                                            comment -> assertEquals("new comment", comment));
+                        });
 
         assertTrue(catalogManager.listCatalogs().contains("cat1"));
         assertTrue(catalogManager.listCatalogs().contains("cat2"));
         assertTrue(catalogManager.listCatalogs().contains("cat3"));
+        assertTrue(catalogManager.listCatalogs().contains("cat_comment"));
 
         catalogManager.registerCatalog("cat4", new GenericInMemoryCatalog("cat4"));
 
@@ -373,14 +597,14 @@ class CatalogManagerTest {
                                 catalogManager.createCatalog(
                                         "cat1", CatalogDescriptor.of("cat1", configuration)))
                 .isInstanceOf(CatalogException.class)
-                .hasMessageContaining("Catalog cat1 already exists in catalog store.");
+                .hasMessageContaining("Catalog cat1 already exists.");
 
         assertThatThrownBy(
                         () ->
                                 catalogManager.createCatalog(
                                         "cat4", CatalogDescriptor.of("cat4", configuration)))
                 .isInstanceOf(CatalogException.class)
-                .hasMessageContaining("Catalog cat4 already exists in initialized catalogs.");
+                .hasMessageContaining("Catalog cat4 already exists.");
 
         catalogManager.createDatabase(
                 "exist_cat",
@@ -395,10 +619,16 @@ class CatalogManagerTest {
                         Collections.emptyMap()),
                 ObjectIdentifier.of("exist_cat", "cat_db", "test_table"),
                 false);
+        catalogManager.createModel(
+                CatalogModel.of(Schema.derived(), Schema.derived(), Collections.emptyMap(), null),
+                ObjectIdentifier.of("exist_cat", "cat_db", "test_model"),
+                false);
         assertThat(catalogManager.listSchemas("exist_cat"))
                 .isEqualTo(new HashSet<>(Arrays.asList("default", "cat_db")));
         assertThat(catalogManager.listTables("exist_cat", "cat_db"))
                 .isEqualTo(Collections.singleton("test_table"));
+        assertThat(catalogManager.listModels("exist_cat", "cat_db"))
+                .isEqualTo(Collections.singleton("test_model"));
         catalogManager.setCurrentCatalog("exist_cat");
         assertThat(catalogManager.listSchemas())
                 .isEqualTo(
@@ -409,7 +639,8 @@ class CatalogManagerTest {
                                         "cat3",
                                         "cat4",
                                         "default_catalog",
-                                        "exist_cat")));
+                                        "exist_cat",
+                                        "cat_comment")));
         catalogManager.setCurrentDatabase("cat_db");
         assertThat(catalogManager.listTables()).isEqualTo(Collections.singleton("test_table"));
 

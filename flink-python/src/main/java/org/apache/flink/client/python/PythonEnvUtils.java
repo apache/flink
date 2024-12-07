@@ -22,8 +22,8 @@ import org.apache.flink.client.deployment.application.UnsuccessfulExecutionExcep
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.python.util.CompressionUtils;
 import org.apache.flink.python.util.PythonDependencyUtils;
+import org.apache.flink.util.CompressionUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.NetUtils;
@@ -31,7 +31,7 @@ import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
-import org.apache.flink.shaded.guava31.com.google.common.base.Strings;
+import org.apache.flink.shaded.guava32.com.google.common.base.Strings;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -426,7 +426,9 @@ final class PythonEnvUtils {
      * @param gatewayServer the gateway which creates the callback server.
      */
     private static void resetCallbackClientExecutorService(GatewayServer gatewayServer)
-            throws NoSuchFieldException, IllegalAccessException, NoSuchMethodException,
+            throws NoSuchFieldException,
+                    IllegalAccessException,
+                    NoSuchMethodException,
                     InvocationTargetException {
         CallbackClient callbackClient = (CallbackClient) gatewayServer.getCallbackClient();
         // The Java API of py4j does not provide approach to set "daemonize_connections" parameter.
@@ -451,8 +453,11 @@ final class PythonEnvUtils {
             GatewayServer gatewayServer,
             String callbackServerListeningAddress,
             int callbackServerListeningPort)
-            throws UnknownHostException, InvocationTargetException, NoSuchMethodException,
-                    IllegalAccessException, NoSuchFieldException {
+            throws UnknownHostException,
+                    InvocationTargetException,
+                    NoSuchMethodException,
+                    IllegalAccessException,
+                    NoSuchFieldException {
 
         gatewayServer.resetCallbackClient(
                 InetAddress.getByName(callbackServerListeningAddress), callbackServerListeningPort);

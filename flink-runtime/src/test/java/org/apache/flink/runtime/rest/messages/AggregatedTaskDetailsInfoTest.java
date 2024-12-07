@@ -21,18 +21,21 @@ package org.apache.flink.runtime.rest.messages;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link AggregatedTaskDetailsInfo}. */
-public class AggregatedTaskDetailsInfoTest
+@ExtendWith(NoOpTestExtension.class)
+class AggregatedTaskDetailsInfoTest
         extends RestResponseMarshallingTestBase<AggregatedTaskDetailsInfo> {
     @Override
     protected Class<AggregatedTaskDetailsInfo> getTestResponseClass() {
@@ -82,19 +85,19 @@ public class AggregatedTaskDetailsInfoTest
     }
 
     @Test
-    public void testMetricsStatistics() {
+    void testMetricsStatistics() {
         final AggregatedTaskDetailsInfo.MetricsStatistics metricsStatistics =
                 new AggregatedTaskDetailsInfo.MetricsStatistics("test");
         for (int i = 0; i < 100; ++i) {
             metricsStatistics.addValue(i);
         }
-        assertEquals(0L, metricsStatistics.getMin());
-        assertEquals(99L, metricsStatistics.getMax());
-        assertEquals(49L, metricsStatistics.getPercentile(50));
-        assertEquals(24L, metricsStatistics.getPercentile(25));
-        assertEquals(74L, metricsStatistics.getPercentile(75));
-        assertEquals(94L, metricsStatistics.getPercentile(95));
-        assertEquals(4950L, metricsStatistics.getSum());
-        assertEquals(49L, metricsStatistics.getAvg());
+        assertThat(metricsStatistics.getMin()).isZero();
+        assertThat(metricsStatistics.getMax()).isEqualTo(99L);
+        assertThat(metricsStatistics.getPercentile(50)).isEqualTo(49L);
+        assertThat(metricsStatistics.getPercentile(25)).isEqualTo(24L);
+        assertThat(metricsStatistics.getPercentile(75)).isEqualTo(74L);
+        assertThat(metricsStatistics.getPercentile(95)).isEqualTo(94L);
+        assertThat(metricsStatistics.getSum()).isEqualTo(4950L);
+        assertThat(metricsStatistics.getAvg()).isEqualTo(49L);
     }
 }

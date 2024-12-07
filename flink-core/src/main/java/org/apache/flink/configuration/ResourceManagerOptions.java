@@ -33,20 +33,12 @@ public class ResourceManagerOptions {
             "resourcemanager.start-worker.retry-interval";
 
     /** Timeout for jobs which don't have a job manager as leader assigned. */
-    public static final ConfigOption<String> JOB_TIMEOUT =
+    public static final ConfigOption<Duration> JOB_TIMEOUT =
             ConfigOptions.key("resourcemanager.job.timeout")
-                    .stringType()
-                    .defaultValue("5 minutes")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(5))
                     .withDescription(
                             "Timeout for jobs which don't have a job manager as leader assigned.");
-
-    /** This option is not used any more. */
-    @Deprecated
-    public static final ConfigOption<Integer> LOCAL_NUMBER_RESOURCE_MANAGER =
-            ConfigOptions.key("local.number-resourcemanager")
-                    .intType()
-                    .defaultValue(1)
-                    .withDescription("The number of resource managers start.");
 
     /**
      * Defines the network port to connect to for communication with the resource manager. By
@@ -63,6 +55,17 @@ public class ResourceManagerOptions {
                                     + " Its not possible to use this configuration key to define port ranges.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    public static final ConfigOption<Integer> MIN_SLOT_NUM =
+            ConfigOptions.key("slotmanager.number-of-slots.min")
+                    .intType()
+                    .defaultValue(0)
+                    .withDescription(
+                            "Defines the minimum number of slots that the Flink cluster allocates. This configuration option "
+                                    + "is meant for cluster to initialize certain workers in best efforts when starting. This can "
+                                    + "be used to speed up a job startup process. Note that this configuration option does not take "
+                                    + "effect for standalone clusters, where how many slots are allocated is not controlled by Flink.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
     @Documentation.OverrideDefault("infinite")
     public static final ConfigOption<Integer> MAX_SLOT_NUM =
             ConfigOptions.key("slotmanager.number-of-slots.max")
@@ -75,6 +78,18 @@ public class ResourceManagerOptions {
                                     + "effect for standalone clusters, where how many slots are allocated is not controlled by Flink.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    public static final ConfigOption<Double> MIN_TOTAL_CPU =
+            ConfigOptions.key("slotmanager.min-total-resource.cpu")
+                    .doubleType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Minimum cpu cores the Flink cluster allocates for slots. Resources "
+                                    + "for JobManager and TaskManager framework are excluded. If "
+                                    + "not configured, it will be derived from '"
+                                    + MIN_SLOT_NUM.key()
+                                    + "'.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
     public static final ConfigOption<Double> MAX_TOTAL_CPU =
             ConfigOptions.key("slotmanager.max-total-resource.cpu")
                     .doubleType()
@@ -84,6 +99,18 @@ public class ResourceManagerOptions {
                                     + "for JobManager and TaskManager framework are excluded. If "
                                     + "not configured, it will be derived from '"
                                     + MAX_SLOT_NUM.key()
+                                    + "'.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    public static final ConfigOption<MemorySize> MIN_TOTAL_MEM =
+            ConfigOptions.key("slotmanager.min-total-resource.memory")
+                    .memoryType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Minimum memory size the Flink cluster allocates for slots. Resources "
+                                    + "for JobManager and TaskManager framework are excluded. If "
+                                    + "not configured, it will be derived from '"
+                                    + MIN_SLOT_NUM.key()
                                     + "'.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
@@ -174,14 +201,14 @@ public class ResourceManagerOptions {
      * by registered slots. If not set, {@link JobManagerOptions#SLOT_REQUEST_TIMEOUT} will be used
      * by default.
      */
-    public static final ConfigOption<Long> STANDALONE_CLUSTER_STARTUP_PERIOD_TIME =
+    public static final ConfigOption<Duration> STANDALONE_CLUSTER_STARTUP_PERIOD_TIME =
             ConfigOptions.key("resourcemanager.standalone.start-up-time")
-                    .longType()
-                    .defaultValue(-1L)
+                    .durationType()
+                    .noDefaultValue()
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Time in milliseconds of the start-up period of a standalone cluster. During this time, "
+                                            "Time of the start-up period of a standalone cluster. During this time, "
                                                     + "resource manager of the standalone cluster expects new task executors to be registered, and will not "
                                                     + "fail slot requests that can not be satisfied by any current registered slots. After this time, it will "
                                                     + "fail pending and new coming requests immediately that can not be satisfied by registered slots. If not "
@@ -190,58 +217,21 @@ public class ResourceManagerOptions {
                                                     JobManagerOptions.SLOT_REQUEST_TIMEOUT.key()))
                                     .build());
 
-    /**
-     * The timeout for an idle task manager to be released, in milliseconds.
-     *
-     * @deprecated Use {@link #TASK_MANAGER_TIMEOUT}.
-     */
-    @Deprecated
-    public static final ConfigOption<Long> SLOT_MANAGER_TASK_MANAGER_TIMEOUT =
-            ConfigOptions.key("slotmanager.taskmanager-timeout")
-                    .longType()
-                    .defaultValue(30000L)
-                    .withDescription("The timeout for an idle task manager to be released.");
-
-    /** The timeout for an idle task manager to be released, in milliseconds. */
-    public static final ConfigOption<Long> TASK_MANAGER_TIMEOUT =
+    /** The timeout for an idle task manager to be released. */
+    public static final ConfigOption<Duration> TASK_MANAGER_TIMEOUT =
             ConfigOptions.key("resourcemanager.taskmanager-timeout")
-                    .longType()
-                    .defaultValue(30000L)
-                    .withDeprecatedKeys(SLOT_MANAGER_TASK_MANAGER_TIMEOUT.key())
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(30000L))
+                    .withDeprecatedKeys("slotmanager.taskmanager-timeout")
                     .withDescription(
                             Description.builder()
                                     .text("The timeout for an idle task manager to be released.")
                                     .build());
 
     /**
-     * Release task executor only when each produced result partition is either consumed or failed.
-     *
-     * <p>Currently, produced result partition is released when it fails or consumer sends close
-     * request to confirm successful end of consumption and to close the communication channel.
-     *
-     * @deprecated The default value should be reasonable enough in all cases, this option is to
-     *     fallback to older behaviour which will be removed or refactored in future.
-     */
-    @Deprecated
-    public static final ConfigOption<Boolean> TASK_MANAGER_RELEASE_WHEN_RESULT_CONSUMED =
-            ConfigOptions.key("resourcemanager.taskmanager-release.wait.result.consumed")
-                    .booleanType()
-                    .defaultValue(true)
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Release task executor only when each produced result partition is either consumed or failed. "
-                                                    + "'True' is default. 'False' means that idle task executor release is not blocked "
-                                                    + "by receiver confirming consumption of result partition "
-                                                    + "and can happen right away after 'resourcemanager.taskmanager-timeout' has elapsed. "
-                                                    + "Setting this option to 'false' can speed up task executor release but can lead to unexpected failures "
-                                                    + "if end of consumption is slower than 'resourcemanager.taskmanager-timeout'.")
-                                    .build());
-
-    /**
      * Prefix for passing custom environment variables to Flink's master process. For example for
      * passing LD_LIBRARY_PATH as an env variable to the AppMaster, set:
-     * containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native" in the flink-conf.yaml.
+     * containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native" in the config.yaml.
      */
     public static final String CONTAINERIZED_MASTER_ENV_PREFIX = "containerized.master.env.";
 

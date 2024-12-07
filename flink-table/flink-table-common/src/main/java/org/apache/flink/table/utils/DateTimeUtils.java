@@ -695,8 +695,8 @@ public class DateTimeUtils {
         LocalDateTime ldt = ts.toLocalDateTime();
 
         String fraction = pad(9, ldt.getNano());
-        while (fraction.length() > precision && fraction.endsWith("0")) {
-            fraction = fraction.substring(0, fraction.length() - 1);
+        if (fraction.length() > precision) {
+            fraction = fraction.substring(0, precision);
         }
 
         StringBuilder ymdhms =
@@ -735,12 +735,23 @@ public class DateTimeUtils {
 
     public static String formatTimestampString(
             String dateStr, String fromFormat, String toFormat, TimeZone tz) {
+        return formatTimestampStringWithOffset(dateStr, fromFormat, toFormat, tz, 0);
+    }
+
+    public static String formatTimestampStringWithOffset(
+            String dateStr, String fromFormat, String toFormat, TimeZone tz, long offsetMills) {
         SimpleDateFormat fromFormatter = FORMATTER_CACHE.get(fromFormat);
         fromFormatter.setTimeZone(tz);
         SimpleDateFormat toFormatter = FORMATTER_CACHE.get(toFormat);
         toFormatter.setTimeZone(tz);
         try {
-            return toFormatter.format(fromFormatter.parse(dateStr));
+            Date date = fromFormatter.parse(dateStr);
+
+            if (offsetMills != 0) {
+                date = new Date(date.getTime() + offsetMills);
+            }
+
+            return toFormatter.format(date);
         } catch (ParseException e) {
             LOG.error(
                     "Exception when formatting: '"
@@ -749,6 +760,8 @@ public class DateTimeUtils {
                             + fromFormat
                             + "' to: '"
                             + toFormat
+                            + "' with offsetMills: '"
+                            + offsetMills
                             + "'",
                     e);
             return null;

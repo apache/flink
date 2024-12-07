@@ -201,19 +201,19 @@ See [windows]({{< ref "docs/dev/datastream/operators/windows" >}}) for a complet
 ```java
 dataStream
   .keyBy(value -> value.f0)
-  .window(TumblingEventTimeWindows.of(Time.seconds(5))); 
+  .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))); 
 ```
 {{< /tab >}}
 {{< tab "Scala">}}
 ```scala
 dataStream
   .keyBy(_._1)
-  .window(TumblingEventTimeWindows.of(Time.seconds(5))) 
+  .window(TumblingEventTimeWindows.of(Duration.ofSeconds(5))) 
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-data_stream.key_by(lambda x: x[1]).window(TumblingEventTimeWindows.of(Time.seconds(5)))
+data_stream.key_by(lambda x: x[1]).window(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -231,18 +231,18 @@ This is in many cases a non-parallel transformation. All records will be gathere
 {{< tab "Java">}}
 ```java
 dataStream
-  .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)));
+  .windowAll(TumblingEventTimeWindows.of(Duration.ofSeconds(5)));
 ```
 {{< /tab >}}
 {{< tab "Scala">}}
 ```scala
 dataStream
-  .windowAll(TumblingEventTimeWindows.of(Time.seconds(5)))
+  .windowAll(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-data_stream.window_all(TumblingEventTimeWindows.of(Time.seconds(5)))
+data_stream.window_all(TumblingEventTimeWindows.of(Duration.ofSeconds(5)))
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -389,7 +389,7 @@ Join two data streams on a given key and a common window.
 ```java
 dataStream.join(otherStream)
     .where(<key selector>).equalTo(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(3)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
     .apply (new JoinFunction () {...});
 ```
 {{< /tab >}}
@@ -397,7 +397,7 @@ dataStream.join(otherStream)
 ```scala
 dataStream.join(otherStream)
     .where(<key selector>).equalTo(<key selector>)
-    .window(TumblingEventTimeWindows.of(Time.seconds(3)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
     .apply { ... }
 ```
 {{< /tab >}}
@@ -417,7 +417,7 @@ Join two elements e1 and e2 of two keyed streams with a common key over a given 
 // this will join the two streams so that
 // key1 == key2 && leftTs - 2 < rightTs < leftTs + 2
 keyedStream.intervalJoin(otherKeyedStream)
-    .between(Time.milliseconds(-2), Time.milliseconds(2)) // lower and upper bound
+    .between(Duration.ofMillis(-2), Duration.ofMillis(2)) // lower and upper bound
     .upperBoundExclusive(true) // optional
     .lowerBoundExclusive(true) // optional
     .process(new IntervalJoinFunction() {...});
@@ -428,7 +428,7 @@ keyedStream.intervalJoin(otherKeyedStream)
 // this will join the two streams so that
 // key1 == key2 && leftTs - 2 < rightTs < leftTs + 2
 keyedStream.intervalJoin(otherKeyedStream)
-    .between(Time.milliseconds(-2), Time.milliseconds(2)) 
+    .between(Duration.ofMillis(-2), Duration.ofMillis(2)) 
     // lower and upper bound
     .upperBoundExclusive(true) // optional
     .lowerBoundExclusive(true) // optional
@@ -450,7 +450,7 @@ Cogroups two data streams on a given key and a common window.
 ```java
 dataStream.coGroup(otherStream)
     .where(0).equalTo(1)
-    .window(TumblingEventTimeWindows.of(Time.seconds(3)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
     .apply (new CoGroupFunction () {...});
 ```
 {{< /tab >}}
@@ -458,7 +458,7 @@ dataStream.coGroup(otherStream)
 ```scala
 dataStream.coGroup(otherStream)
     .where(0).equalTo(1)
-    .window(TumblingEventTimeWindows.of(Time.seconds(3)))
+    .window(TumblingEventTimeWindows.of(Duration.ofSeconds(3)))
     .apply {}
 ```
 {{< /tab >}}
@@ -570,46 +570,6 @@ connectedStreams.flat_map(MyCoFlatMapFunction())
 {{< /tab >}}
 {{< /tabs>}}
 
-### Iterate
-#### DataStream &rarr; IterativeStream &rarr; ConnectedStream
-
-Creates a "feedback" loop in the flow, by redirecting the output of one operator to some previous operator. This is especially useful for defining algorithms that continuously update a model. The following code starts with a stream and applies the iteration body continuously. Elements that are greater than 0 are sent back to the feedback channel, and the rest of the elements are forwarded downstream.
-
-{{< tabs iterate >}}
-{{< tab "Java" >}}
-```java
-IterativeStream<Long> iteration = initialStream.iterate();
-DataStream<Long> iterationBody = iteration.map (/*do something*/);
-DataStream<Long> feedback = iterationBody.filter(new FilterFunction<Long>(){
-    @Override
-    public boolean filter(Long value) throws Exception {
-        return value > 0;
-    }
-});
-iteration.closeWith(feedback);
-DataStream<Long> output = iterationBody.filter(new FilterFunction<Long>(){
-    @Override
-    public boolean filter(Long value) throws Exception {
-        return value <= 0;
-    }
-});
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-initialStream.iterate {
-  iteration => {
-    val iterationBody = iteration.map {/*do something*/}
-    (iterationBody.filter(_ > 0), iterationBody.filter(_ <= 0))
-  }
-}
-```
-{{< /tab >}}
-{{< tab "Python" >}}
-This feature is not yet supported in Python
-{{< /tab >}}
-{{< /tabs>}}
-
 ### Cache
 #### DataStream &rarr; CachedDataStream
 
@@ -656,6 +616,34 @@ env.execute()
 ```
 {{< /tab >}}
 {{< /tabs>}}
+
+### Full Window Partition
+#### DataStream &rarr; PartitionWindowedStream
+
+Collects all records of each partition separately into a full window and processes them. The window 
+emission will be triggered at the end of inputs. 
+This approach is primarily applicable to batch processing scenarios.
+For non-keyed DataStream, a partition contains all records of a subtask. 
+For KeyedStream, a partition contains all records of a key. 
+
+```java
+DataStream<Integer> dataStream = //...
+PartitionWindowedStream<Integer> partitionWindowedDataStream = dataStream.fullWindowPartition();
+// do full window partition processing with PartitionWindowedStream
+DataStream<Integer> resultStream = partitionWindowedDataStream.mapPartition(
+    new MapPartitionFunction<Integer, Integer>() {
+        @Override
+        public void mapPartition(
+                Iterable<Integer> values, Collector<Integer> out) {
+            int result = 0;
+            for (Integer value : values) {
+                result += value;
+            }
+            out.collect(result);
+        }
+    }
+);
+```
 
 ## Physical Partitioning
 

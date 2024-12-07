@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * {@code MinioTestContainerTest} tests some basic functionality provided by {@link
  * MinioTestContainer}.
  */
-public class MinioTestContainerTest {
+class MinioTestContainerTest {
 
     private static final String DEFAULT_BUCKET_NAME = "test-bucket";
 
@@ -58,7 +58,7 @@ public class MinioTestContainerTest {
     }
 
     @Test
-    public void testBucketCreation() {
+    void testBucketCreation() {
         final String bucketName = "other-bucket";
         final Bucket otherBucket = getClient().createBucket(bucketName);
 
@@ -71,7 +71,7 @@ public class MinioTestContainerTest {
     }
 
     @Test
-    public void testPutObject() throws IOException {
+    void testPutObject() throws IOException {
         final String bucketName = "other-bucket";
 
         getClient().createBucket(bucketName);
@@ -87,23 +87,23 @@ public class MinioTestContainerTest {
     }
 
     @Test
-    public void testSetS3ConfigOptions() {
+    void testSetS3ConfigOptions() {
         final Configuration config = new Configuration();
         getTestContainer().setS3ConfigOptions(config);
 
         assertThat(config.containsKey("s3.endpoint")).isTrue();
         assertThat(config.containsKey("s3.path.style.access")).isTrue();
-        assertThat(config.containsKey("s3.access.key")).isTrue();
-        assertThat(config.containsKey("s3.secret.key")).isTrue();
+        assertThat(config.containsKey("s3.access-key")).isTrue();
+        assertThat(config.containsKey("s3.secret-key")).isTrue();
     }
 
     @Test
-    public void testGetDefaultBucketName() {
+    void testGetDefaultBucketName() {
         assertThat(getTestContainer().getDefaultBucketName()).isEqualTo(DEFAULT_BUCKET_NAME);
     }
 
     @Test
-    public void testDefaultBucketCreation() {
+    void testDefaultBucketCreation() {
         assertThat(getClient().listBuckets())
                 .singleElement()
                 .extracting(Bucket::getName)
@@ -111,7 +111,7 @@ public class MinioTestContainerTest {
     }
 
     @Test
-    public void testS3EndpointNeedsToBeSpecifiedBeforeInitializingFileSyste() {
+    void testS3EndpointNeedsToBeSpecifiedBeforeInitializingFileSyste() {
         assertThatThrownBy(() -> getTestContainer().initializeFileSystem(new Configuration()))
                 .isInstanceOf(IllegalArgumentException.class);
     }

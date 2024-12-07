@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.19-SNAPSHOT</version>
+		<version>2.0-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-runtime-web</artifactId>
@@ -37,6 +37,11 @@ under the License.
 		<test.parameterProgram.name>parameter-program</test.parameterProgram.name>
 		<test.ParameterProgramNoManifest.name>parameter-program-without-manifest</test.ParameterProgramNoManifest.name>
 		<test.ParameterProgramWithEagerSink.name>parameter-program-with-eager-sink</test.ParameterProgramWithEagerSink.name>
+		<surefire.module.config><!--
+			DataStream V2 use reflection to register sink transformation translator,
+			it's a final map, we need to set this to pass tests in jdk17 or higher.
+			-->--add-opens=java.base/java.util=ALL-UNNAMED
+		</surefire.module.config>
 	</properties>
 
 	<dependencies>
@@ -250,7 +255,7 @@ under the License.
 			<plugin>
 				<groupId>com.github.eirslett</groupId>
 				<artifactId>frontend-maven-plugin</artifactId>
-				<version>1.11.0</version>
+				<version>1.12.1</version>
 				<executions>
 					<execution>
 						<id>install node and npm</id>
@@ -258,8 +263,8 @@ under the License.
 							<goal>install-node-and-npm</goal>
 						</goals>
 						<configuration>
-							<nodeVersion>v16.13.2</nodeVersion>
-							<npmVersion>8.1.2</npmVersion>
+							<nodeVersion>v22.11.0</nodeVersion>
+							<npmVersion>10.9.0</npmVersion>
 						</configuration>
 					</execution>
 					<execution>

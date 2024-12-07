@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.lang.{Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong}
 import java.sql.Timestamp
@@ -986,6 +986,13 @@ class TemporalTypesTest extends ExpressionTestBase {
       "2000-02-02 00:59:59.123")
 
     testSqlApi("TO_TIMESTAMP('1234567', 'SSSSSSS')", "1970-01-01 00:00:00.123")
+
+    testSqlApi(
+      "TO_TIMESTAMP('2017-09-15 00:00:00.12345', 'yyyy-MM-dd HH:mm:ss.SSS')",
+      "2017-09-15 00:00:00.123")
+    testSqlApi(
+      "CAST(TO_TIMESTAMP('2017-09-15 00:00:00.12345', 'yyyy-MM-dd HH:mm:ss.SSS') AS STRING)",
+      "2017-09-15 00:00:00.123")
   }
 
   @Test
@@ -1441,7 +1448,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     testExpectedSqlException(
       s"TIMESTAMPDIFF(SECOND, ${timestampLtz("1970-01-01 00:00:00.123")}, 'test_string_type')",
       "Cannot apply 'TIMESTAMPDIFF' to arguments of type" +
-        " 'TIMESTAMPDIFF(<SYMBOL>, <TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)>, <CHAR(16)>)'." +
+        " 'TIMESTAMPDIFF(<INTERVAL SECOND>, <TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)>, <CHAR(16)>)'." +
         " Supported form(s): 'TIMESTAMPDIFF(<ANY>, <DATETIME>, <DATETIME>)'"
     )
   }

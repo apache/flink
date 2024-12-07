@@ -19,7 +19,7 @@
 package org.apache.flink.table.typeutils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -67,7 +67,7 @@ public class TimeIndicatorTypeInfo extends SqlTimeTypeInfo<Timestamp> {
     // be compatible with the corresponding SqlTimestampTypeInfo
     @Override
     @SuppressWarnings("unchecked")
-    public TypeSerializer<Timestamp> createSerializer(ExecutionConfig executionConfig) {
+    public TypeSerializer<Timestamp> createSerializer(SerializerConfig serializerConfig) {
         return (TypeSerializer) LongSerializer.INSTANCE;
     }
 

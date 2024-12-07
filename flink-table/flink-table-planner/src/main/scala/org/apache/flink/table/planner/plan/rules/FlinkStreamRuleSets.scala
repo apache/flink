@@ -36,7 +36,7 @@ object FlinkStreamRuleSets {
     FlinkRewriteSubQueryRule.FILTER,
     FlinkSubQueryRemoveRule.FILTER,
     JoinConditionTypeCoerceRule.INSTANCE,
-    FlinkJoinPushExpressionsRule.INSTANCE
+    CoreRules.JOIN_PUSH_EXPRESSIONS
   )
 
   /** Convert sub-queries before query decorrelation. */
@@ -126,6 +126,7 @@ object FlinkStreamRuleSets {
           CoreRules.FILTER_MERGE,
           // unnest rule
           LogicalUnnestRule.INSTANCE,
+          UncollectToTableFunctionScanRule.INSTANCE,
           // rewrite constant table function scan to correlate
           JoinTableFunctionScanToCorrelateRule.INSTANCE,
           // Wrap arguments for JSON aggregate functions
@@ -248,7 +249,7 @@ object FlinkStreamRuleSets {
     CoreRules.SORT_REMOVE,
 
     // join rules
-    FlinkJoinPushExpressionsRule.INSTANCE,
+    CoreRules.JOIN_PUSH_EXPRESSIONS,
     SimplifyJoinConditionRule.INSTANCE,
 
     // remove union with only a single child
@@ -372,17 +373,50 @@ object FlinkStreamRuleSets {
     PushFilterInCalcIntoTableSourceScanRule.INSTANCE,
     // Rule that rewrites temporal join with extracted primary key
     TemporalJoinRewriteWithUniqueKeyRule.INSTANCE,
-    // Rule that splits python ScalarFunctions from java/scala ScalarFunctions.
+    // Avoids accessing a field from the result (condition).
     PythonCalcSplitRule.SPLIT_CONDITION_REX_FIELD,
+    // Avoids accessing a field from the result (projection).
     PythonCalcSplitRule.SPLIT_PROJECTION_REX_FIELD,
+    // Avoids dealing with a python call in the condition.
     PythonCalcSplitRule.SPLIT_CONDITION,
+    // Avoids dealing with Java calls in the same Calc as python calls.
     PythonCalcSplitRule.SPLIT_PROJECT,
+    // Splits calcs which contain both general Python functions and pandas Python functions
     PythonCalcSplitRule.SPLIT_PANDAS_IN_PROJECT,
+    // Avoid accessing a field as input to an async call with a single calc.
     PythonCalcSplitRule.EXPAND_PROJECT,
+    // Avoid having any condition in a python calc by pushing it first.
     PythonCalcSplitRule.PUSH_CONDITION,
+    // Orders the projections so that input references are first, followed by python calls.
     PythonCalcSplitRule.REWRITE_PROJECT,
+    // Renames the field names of the Flatten calc which is right after a calc representing a
+    // Python Map operation to the output names of the map function
     PythonMapRenameRule.INSTANCE,
-    PythonMapMergeRule.INSTANCE
+    // Merges Python calc used in Map operation, Flatten calcs and Python calcs used in Map
+    // xoperation together
+    PythonMapMergeRule.INSTANCE,
+    // Similar to the python rules above, the goal is to limit complexity of calcs which
+    // have async calls so that the implementation can be simplified to handle a single async call.
+    // Avoids accessing a field from an asynchronous result (condition).
+    AsyncCalcSplitRule.SPLIT_CONDITION_REX_FIELD,
+    // Avoids accessing a field from an asynchronous result (projection).
+    AsyncCalcSplitRule.SPLIT_PROJECTION_REX_FIELD,
+    // Avoid having async calls in join conditions if they aren't already pushed down
+    AsyncCalcSplitRule.NO_ASYNC_JOIN_CONDITIONS,
+    // Avoids dealing with an async call in the condition.
+    AsyncCalcSplitRule.SPLIT_CONDITION,
+    // Avoids dealing with Java calls in the same Calc as Async calls.
+    AsyncCalcSplitRule.SPLIT_PROJECT,
+    // Avoid accessing a field as input to an async call with a single calc.
+    AsyncCalcSplitRule.EXPAND_PROJECT,
+    // Avoid having any condition in an async calc by pushing it first.
+    AsyncCalcSplitRule.PUSH_CONDITION,
+    // Orders the projections so that input references are first, followed by async calls.
+    AsyncCalcSplitRule.REWRITE_PROJECT,
+    // Avoid async calls which call async calls.
+    AsyncCalcSplitRule.NESTED_SPLIT,
+    // Avoid having async calls in multiple projections in a single calc.
+    AsyncCalcSplitRule.ONE_PER_CALC_SPLIT
   )
 
   /** RuleSet to do physical optimize for stream */
@@ -400,6 +434,7 @@ object FlinkStreamRuleSets {
     // calc
     StreamPhysicalCalcRule.INSTANCE,
     StreamPhysicalPythonCalcRule.INSTANCE,
+    StreamPhysicalAsyncCalcRule.INSTANCE,
     // union
     StreamPhysicalUnionRule.INSTANCE,
     // sort
@@ -409,7 +444,6 @@ object FlinkStreamRuleSets {
     StreamPhysicalTemporalSortRule.INSTANCE,
     // rank
     StreamPhysicalRankRule.INSTANCE,
-    StreamPhysicalDeduplicateRule.INSTANCE,
     // expand
     StreamPhysicalExpandRule.INSTANCE,
     // group agg

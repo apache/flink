@@ -50,7 +50,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Unit tests for {@link PipelinedRegionSchedulingStrategy}. */
 class PipelinedRegionSchedulingStrategyTest {
     @RegisterExtension
-    public static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
             TestingUtils.defaultExecutorExtension();
 
     private TestingSchedulerOperations testingSchedulerOperation;

@@ -26,12 +26,14 @@ import org.apache.flink.core.fs.RecoverableWriter;
 import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 import org.apache.flink.fs.gs.storage.MockBlobStorage;
 import org.apache.flink.fs.gs.writer.GSRecoverableWriter;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.StringUtils;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -39,26 +41,23 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Random;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assume.assumeFalse;
-import static org.junit.Assume.assumeTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests of various write and recovery scenarios. */
-@RunWith(Parameterized.class)
-public class GSFileSystemScenarioTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class GSFileSystemScenarioTest {
 
     /* The temporary bucket name to use. */
-    @Parameterized.Parameter(value = 0)
-    public String temporaryBucketName;
+    @Parameter private String temporaryBucketName;
 
     /* The chunk size to use for writing to GCS. */
-    @Parameterized.Parameter(value = 1)
-    public MemorySize writeChunkSize;
+    @Parameter(value = 1)
+    private MemorySize writeChunkSize;
 
-    @Parameterized.Parameters(name = "temporaryBucketName={0}")
-    public static Collection<Object[]> data() {
+    @Parameters(name = "temporaryBucketName={0}")
+    private static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
                     // no specified bucket, no chunk size
@@ -92,8 +91,8 @@ public class GSFileSystemScenarioTest {
 
     private boolean writeChunkSizeIsValid;
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
 
         random = new Random(TestUtils.RANDOM_SEED);
 
@@ -126,11 +125,11 @@ public class GSFileSystemScenarioTest {
     }
 
     /* Test writing a single array of bytes to a stream. */
-    @Test
-    public void simpleWriteTest() throws IOException {
+    @TestTemplate
+    void simpleWriteTest() throws IOException {
 
         // only run the test for valid chunk sizes
-        assumeTrue(writeChunkSizeIsValid);
+        assumeThat(writeChunkSizeIsValid).isTrue();
 
         // create the options and writer
         GSFileSystemOptions options = new GSFileSystemOptions(flinkConfig);
@@ -148,31 +147,31 @@ public class GSFileSystemScenarioTest {
         // there should be a single blob now, in the specified temporary bucket or, if no temporary
         // bucket
         // specified, in the final bucket
-        assertEquals(1, storage.blobs.size());
+        assertThat(storage.blobs).hasSize(1);
         GSBlobIdentifier temporaryBlobIdentifier =
                 (GSBlobIdentifier) storage.blobs.keySet().toArray()[0];
         String expectedTemporaryBucket =
                 StringUtils.isNullOrWhitespaceOnly(temporaryBucketName)
                         ? blobIdentifier.bucketName
                         : temporaryBucketName;
-        assertEquals(expectedTemporaryBucket, temporaryBlobIdentifier.bucketName);
+        assertThat(temporaryBlobIdentifier.bucketName).isEqualTo(expectedTemporaryBucket);
 
         // commit
         committer.commit();
 
         // there should be exactly one blob after commit, with the expected contents.
         // all temporary blobs should be removed.
-        assertEquals(1, storage.blobs.size());
+        assertThat(storage.blobs).hasSize(1);
         MockBlobStorage.BlobValue blobValue = storage.blobs.get(blobIdentifier);
-        assertArrayEquals(data, blobValue.content);
+        assertThat(blobValue.content).isEqualTo(data);
     }
 
     /* Test writing multiple arrays of bytes to a stream. */
-    @Test
-    public void compoundWriteTest() throws IOException {
+    @TestTemplate
+    void compoundWriteTest() throws IOException {
 
         // only run the test for valid chunk sizes
-        assumeTrue(writeChunkSizeIsValid);
+        assumeThat(writeChunkSizeIsValid).isTrue();
 
         // create the options and writer
         GSFileSystemOptions options = new GSFileSystemOptions(flinkConfig);
@@ -199,18 +198,18 @@ public class GSFileSystemScenarioTest {
 
             // there should be exactly one blob after commit, with the expected contents.
             // all temporary blobs should be removed.
-            assertEquals(1, storage.blobs.size());
+            assertThat(storage.blobs).hasSize(1);
             MockBlobStorage.BlobValue blobValue = storage.blobs.get(blobIdentifier);
-            assertArrayEquals(expectedData.toByteArray(), blobValue.content);
+            assertThat(blobValue.content).isEqualTo(expectedData.toByteArray());
         }
     }
 
     /* Test writing multiple arrays of bytes to a stream. */
-    @Test
-    public void compoundWriteTestWithRestore() throws IOException {
+    @TestTemplate
+    void compoundWriteTestWithRestore() throws IOException {
 
         // only run the test for valid chunk sizes
-        assumeTrue(writeChunkSizeIsValid);
+        assumeThat(writeChunkSizeIsValid).isTrue();
 
         // create the options and writer
         GSFileSystemOptions options = new GSFileSystemOptions(flinkConfig);
@@ -253,23 +252,20 @@ public class GSFileSystemScenarioTest {
 
             // there should be exactly one blob after commit, with the expected contents.
             // all temporary blobs should be removed.
-            assertEquals(1, storage.blobs.size());
+            assertThat(storage.blobs).hasSize(1);
             MockBlobStorage.BlobValue blobValue = storage.blobs.get(blobIdentifier);
-            assertArrayEquals(expectedData.toByteArray(), blobValue.content);
+            assertThat(blobValue.content).isEqualTo(expectedData.toByteArray());
         }
     }
 
-    @Test
-    public void invalidChunkSizeTest() {
+    @TestTemplate
+    void invalidChunkSizeTest() {
 
         // only run the test for invalid chunk sizes
-        assumeFalse(writeChunkSizeIsValid);
+        assumeThat(writeChunkSizeIsValid).isFalse();
 
         // create the options and writer
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> {
-                    GSFileSystemOptions options = new GSFileSystemOptions(flinkConfig);
-                });
+        assertThatThrownBy(() -> new GSFileSystemOptions(flinkConfig))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

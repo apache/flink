@@ -17,7 +17,7 @@
 
 package org.apache.flink.table.data.util;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
@@ -44,6 +44,7 @@ import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.binary.BinaryMapData;
 import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.table.data.writer.BinaryWriter;
+import org.apache.flink.table.legacy.types.logical.TypeInformationRawType;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
@@ -63,7 +64,6 @@ import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.Row;
@@ -348,7 +348,7 @@ public class DataFormatConverters {
                 if (clazz == RawValueData.class) {
                     return RawValueDataConverter.INSTANCE;
                 }
-                return new GenericConverter(typeInfo.createSerializer(new ExecutionConfig()));
+                return new GenericConverter(typeInfo.createSerializer(new SerializerConfigImpl()));
             default:
                 throw new RuntimeException("Not support dataType: " + dataType);
         }
@@ -1522,7 +1522,7 @@ public class DataFormatConverters {
         public CaseClassConverter(TupleTypeInfoBase t, DataType[] fieldTypes) {
             super(fieldTypes);
             this.t = t;
-            this.serializer = (TupleSerializerBase) t.createSerializer(new ExecutionConfig());
+            this.serializer = (TupleSerializerBase) t.createSerializer(new SerializerConfigImpl());
         }
 
         @Override

@@ -20,23 +20,29 @@ package org.apache.flink.cep.nfa.sharedbuffer;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
+import org.apache.flink.api.common.typeutils.TypeSerializerConditions;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.test.util.MigrationTest;
 
-import org.hamcrest.Matcher;
+import org.assertj.core.api.Condition;
 
 import java.util.ArrayList;
 import java.util.Collection;
-
-import static org.hamcrest.Matchers.is;
 
 /** A {@link TypeSerializerUpgradeTestBase} for {@link Lockable.LockableTypeSerializer}. */
 class LockableTypeSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<Lockable<String>, Lockable<String>> {
 
     private static final String SPEC_NAME = "lockable-type-serializer";
+
+    // we dropped support for old versions and only test against versions since 1.20.
+    @Override
+    public Collection<FlinkVersion> getMigrationVersions() {
+        return FlinkVersion.rangeOf(
+                FlinkVersion.v1_20, MigrationTest.getMostRecentlyPublishedVersion());
+    }
 
     public Collection<TestSpecification<?, ?>> createTestSpecifications(FlinkVersion flinkVersion)
             throws Exception {
@@ -84,14 +90,14 @@ class LockableTypeSerializerUpgradeTest
         }
 
         @Override
-        public Matcher<Lockable<String>> testDataMatcher() {
-            return is(new Lockable<>("flink", 10));
+        public Condition<Lockable<String>> testDataCondition() {
+            return new Condition<>(value -> new Lockable<>("flink", 10).equals(value), "");
         }
 
         @Override
-        public Matcher<TypeSerializerSchemaCompatibility<Lockable<String>>>
-                schemaCompatibilityMatcher(FlinkVersion version) {
-            return TypeSerializerMatchers.isCompatibleAsIs();
+        public Condition<TypeSerializerSchemaCompatibility<Lockable<String>>>
+                schemaCompatibilityCondition(FlinkVersion version) {
+            return TypeSerializerConditions.isCompatibleAsIs();
         }
     }
 }

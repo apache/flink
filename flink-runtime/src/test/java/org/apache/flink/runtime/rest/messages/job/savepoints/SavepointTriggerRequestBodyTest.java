@@ -21,17 +21,18 @@ package org.apache.flink.runtime.rest.messages.job.savepoints;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.rest.messages.RestRequestMarshallingTestBase;
 import org.apache.flink.runtime.rest.messages.TriggerId;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SavepointTriggerRequestBody}. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class SavepointTriggerRequestBodyTest
         extends RestRequestMarshallingTestBase<SavepointTriggerRequestBody> {
 
@@ -42,7 +43,7 @@ public class SavepointTriggerRequestBodyTest
         this.savepointTriggerRequestBody = savepointTriggerRequestBody;
     }
 
-    @Parameterized.Parameters
+    @Parameters
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
@@ -94,8 +95,8 @@ public class SavepointTriggerRequestBodyTest
     @Override
     protected void assertOriginalEqualsToUnmarshalled(
             final SavepointTriggerRequestBody expected, final SavepointTriggerRequestBody actual) {
-        assertEquals(expected.getTargetDirectory(), actual.getTargetDirectory());
-        assertEquals(expected.getTriggerId(), actual.getTriggerId());
-        assertEquals(expected.getFormatType(), actual.getFormatType());
+        assertThat(actual.getTargetDirectory()).isEqualTo(expected.getTargetDirectory());
+        assertThat(actual.getTriggerId()).isEqualTo(expected.getTriggerId());
+        assertThat(actual.getFormatType()).isEqualTo(expected.getFormatType());
     }
 }

@@ -47,7 +47,7 @@ import java.util.regex.Pattern;
  * {@code serializeToDataOutputView} and {@code deserializeFromDataInputView} instead.
  */
 @Public
-public class Path implements IOReadableWritable, Serializable {
+public class Path implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -62,6 +62,9 @@ public class Path implements IOReadableWritable, Serializable {
 
     /** A pre-compiled regex/state-machine to match the windows drive pattern. */
     private static final Pattern WINDOWS_ROOT_DIR_REGEX = Pattern.compile("/\\p{Alpha}+:/");
+
+    /** A pre-compiled regex to identify duplicate consecutive slashes. */
+    private static final Pattern DUPLICATE_CONSECUTIVE_SLASHES = Pattern.compile("/{2,}");
 
     /** The internal representation of the path, a hierarchical URI. */
     private URI uri;
@@ -245,7 +248,9 @@ public class Path implements IOReadableWritable, Serializable {
     private String normalizePath(String path) {
         // remove consecutive slashes & backslashes
         path = path.replace("\\", "/");
-        path = path.replaceAll("/+", "/");
+        if (path.contains("//")) {
+            path = DUPLICATE_CONSECUTIVE_SLASHES.matcher(path).replaceAll("/");
+        }
 
         // remove tailing separator
         if (path.endsWith(SEPARATOR)
@@ -442,49 +447,6 @@ public class Path implements IOReadableWritable, Serializable {
         }
 
         return new Path(scheme + ":" + "//" + authority + pathUri.getPath());
-    }
-
-    // ------------------------------------------------------------------------
-    //  Legacy Serialization
-    // ------------------------------------------------------------------------
-
-    /**
-     * Read uri from {@link DataInputView}.
-     *
-     * @param in the input view to read the uri.
-     * @throws IOException if an error happened.
-     * @deprecated the method is deprecated since Flink 1.19 because Path will no longer implement
-     *     {@link IOReadableWritable} in future versions. Please use {@code
-     *     deserializeFromDataInputView} instead.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-347%3A+Remove+IOReadableWritable
-     *     +serialization+in+Path"> FLIP-347: Remove IOReadableWritable serialization in Path </a>
-     */
-    @Deprecated
-    @Override
-    public void read(DataInputView in) throws IOException {
-        Path path = deserializeFromDataInputView(in);
-        if (path != null) {
-            uri = path.toUri();
-        }
-    }
-
-    /**
-     * Write uri to {@link DataOutputView}.
-     *
-     * @param out the output view to be written the uri.
-     * @throws IOException if an error happened.
-     * @deprecated the method is deprecated since Flink 1.19 because Path will no longer implement
-     *     {@link IOReadableWritable} in future versions. Please use {@code
-     *     serializeToDataOutputView} instead.
-     * @see <a
-     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-347%3A+Remove+IOReadableWritable
-     *     +serialization+in+Path"> FLIP-347: Remove IOReadableWritable serialization in Path </a>
-     */
-    @Deprecated
-    @Override
-    public void write(DataOutputView out) throws IOException {
-        serializeToDataOutputView(this, out);
     }
 
     // ------------------------------------------------------------------------

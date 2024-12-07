@@ -6,7 +6,7 @@ info:
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
-  version: v1/1.18-SNAPSHOT
+  version: v1/2.0-SNAPSHOT
 paths:
   /cluster:
     delete:
@@ -138,14 +138,6 @@ paths:
         required: true
         schema:
           type: string
-      - name: program-args
-        in: query
-        description: "Deprecated, please use 'programArg' instead. String value that\
-          \ specifies the arguments for the program or plan"
-        required: false
-        style: form
-        schema:
-          type: string
       - name: programArg
         in: query
         description: Comma-separated list of program arguments.
@@ -210,14 +202,6 @@ paths:
         in: query
         description: String value that specifies the path of the savepoint to restore
           the job from.
-        required: false
-        style: form
-        schema:
-          type: string
-      - name: program-args
-        in: query
-        description: "Deprecated, please use 'programArg' instead. String value that\
-          \ specifies the arguments for the program or plan"
         required: false
         style: form
         schema:
@@ -334,32 +318,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/JobIdsWithStatusOverview'
-    post:
-      description: "Submits a job. This call is primarily intended to be used by the\
-        \ Flink client. This call expects a multipart/form-data request that consists\
-        \ of file uploads for the serialized JobGraph, jars and distributed cache\
-        \ artifacts and an attribute named \"request\" for the JSON payload."
-      operationId: submitJob
-      requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              properties:
-                request:
-                  $ref: '#/components/schemas/JobSubmitRequestBody'
-                filename:
-                  type: array
-                  items:
-                    type: string
-                    format: binary
-        required: true
-      responses:
-        "202":
-          description: The request was successful.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/JobSubmitResponseBody'
   /jobs/metrics:
     get:
       description: Provides access to aggregated job metrics.
@@ -375,7 +333,7 @@ paths:
       - name: agg
         in: query
         description: "Comma-separated list of aggregation modes which should be calculated.\
-          \ Available aggregations are: \"min, max, sum, avg\"."
+          \ Available aggregations are: \"min, max, sum, avg, skew\"."
         required: false
         style: form
         schema:
@@ -491,8 +449,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/CheckpointingStatistics'
     post:
-      description: Triggers a checkpoint. This async operation would return a 'triggerid'
-        for further query identifier.
+      description: Triggers a checkpoint. The 'checkpointType' parameter does not
+        support 'INCREMENTAL' option for now. See FLINK-33723. This async operation
+        would return a 'triggerid' for further query identifier.
       operationId: triggerCheckpoint
       parameters:
       - name: jobid
@@ -1129,6 +1088,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VertexFlameGraph'
+  /jobs/{jobid}/vertices/{vertexid}/jm-operator-metrics:
+    get:
+      description: Provides access to jobmanager operator metrics. This is an operator
+        that executes on the jobmanager and the coordinator for FLIP 27 sources is
+        one example of such an operator.
+      operationId: getJobManagerOperatorMetrics
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      - name: vertexid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job vertex.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobVertexID'
+      - name: get
+        in: query
+        description: Comma-separated list of string values to select specific metrics.
+        required: false
+        style: form
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricCollectionResponseBody'
   /jobs/{jobid}/vertices/{vertexid}/metrics:
     get:
       description: Provides access to task metrics.
@@ -1211,7 +1203,7 @@ paths:
       - name: agg
         in: query
         description: "Comma-separated list of aggregation modes which should be calculated.\
-          \ Available aggregations are: \"min, max, sum, avg\"."
+          \ Available aggregations are: \"min, max, sum, avg, skew\"."
         required: false
         style: form
         schema:
@@ -1524,7 +1516,7 @@ paths:
       - name: agg
         in: query
         description: "Comma-separated list of aggregation modes which should be calculated.\
-          \ Available aggregations are: \"min, max, sum, avg\"."
+          \ Available aggregations are: \"min, max, sum, avg, skew\"."
         required: false
         style: form
         schema:
@@ -1546,9 +1538,7 @@ paths:
                 $ref: '#/components/schemas/AggregatedMetricsResponseBody'
   /taskmanagers/{taskmanagerid}:
     get:
-      description: Returns details for a task manager. "metrics.memorySegmentsAvailable"
-        and "metrics.memorySegmentsTotal" are deprecated. Please use "metrics.nettyShuffleMemorySegmentsAvailable"
-        and "metrics.nettyShuffleMemorySegmentsTotal" instead.
+      description: Returns details for a task manager.
       operationId: getTaskManagerDetails
       parameters:
       - name: taskmanagerid
@@ -1653,6 +1643,7 @@ components:
       - MAX
       - SUM
       - AVG
+      - SKEW
     ApplicationStatus:
       type: string
       enum:
@@ -1819,6 +1810,10 @@ components:
           format: int64
       discriminator:
         propertyName: className
+        mapping:
+          completed: '#/components/schemas/CompletedCheckpointStatistics'
+          failed: '#/components/schemas/FailedCheckpointStatistics'
+          in_progress: '#/components/schemas/PendingCheckpointStatistics'
     CheckpointStatisticsSummary:
       type: object
       properties:
@@ -2018,14 +2013,14 @@ components:
     ExceptionInfo:
       type: object
       properties:
+        endpoint:
+          type: string
         exceptionName:
           type: string
         failureLabels:
           type: object
           additionalProperties:
             type: string
-        location:
-          type: string
         stacktrace:
           type: string
         taskManagerId:
@@ -2038,8 +2033,6 @@ components:
     ExecutionConfigInfo:
       type: object
       properties:
-        execution-mode:
-          type: string
         job-parallelism:
           type: integer
           format: int32
@@ -2051,20 +2044,6 @@ components:
           type: object
           additionalProperties:
             type: string
-    ExecutionExceptionInfo:
-      type: object
-      properties:
-        exception:
-          type: string
-        location:
-          type: string
-        task:
-          type: string
-        taskManagerId:
-          type: string
-        timestamp:
-          type: integer
-          format: int64
     ExecutionState:
       type: string
       enum:
@@ -2235,8 +2214,6 @@ components:
         parallelism:
           type: integer
           format: int32
-        programArgs:
-          type: string
         programArgsList:
           type: array
           items:
@@ -2246,6 +2223,8 @@ components:
       properties:
         allowNonRestoredState:
           type: boolean
+        claimMode:
+          $ref: '#/components/schemas/RecoveryClaimMode'
         entryClass:
           type: string
         flinkConfiguration:
@@ -2257,14 +2236,12 @@ components:
         parallelism:
           type: integer
           format: int32
-        programArgs:
-          type: string
         programArgsList:
           type: array
           items:
             type: string
         restoreMode:
-          $ref: '#/components/schemas/RestoreMode'
+          $ref: '#/components/schemas/RecoveryClaimMode'
         savepointPath:
           type: string
     JarRunResponseBody:
@@ -2350,6 +2327,8 @@ components:
           type: boolean
         jid:
           $ref: '#/components/schemas/JobID'
+        job-type:
+          $ref: '#/components/schemas/JobType'
         maxParallelism:
           type: integer
           format: int64
@@ -2400,6 +2379,8 @@ components:
         parallelism:
           type: integer
           format: int32
+        slotSharingGroupId:
+          $ref: '#/components/schemas/SlotSharingGroupId'
         start-time:
           type: integer
           format: int64
@@ -2422,19 +2403,8 @@ components:
     JobExceptionsInfoWithHistory:
       type: object
       properties:
-        all-exceptions:
-          type: array
-          items:
-            $ref: '#/components/schemas/ExecutionExceptionInfo'
         exceptionHistory:
           $ref: '#/components/schemas/JobExceptionHistory'
-        root-exception:
-          type: string
-        timestamp:
-          type: integer
-          format: int64
-        truncated:
-          type: boolean
     JobExecutionResultResponseBody:
       required:
       - status
@@ -2507,24 +2477,11 @@ components:
       properties:
         status:
           $ref: '#/components/schemas/JobStatus'
-    JobSubmitRequestBody:
-      type: object
-      properties:
-        jobArtifactFileNames:
-          type: array
-          items:
-            $ref: '#/components/schemas/DistributedCacheFile'
-        jobGraphFileName:
-          type: string
-        jobJarFileNames:
-          type: array
-          items:
-            type: string
-    JobSubmitResponseBody:
-      type: object
-      properties:
-        jobUrl:
-          type: string
+    JobType:
+      type: string
+      enum:
+      - BATCH
+      - STREAMING
     JobVertexAccumulatorsInfo:
       type: object
       properties:
@@ -2589,7 +2546,7 @@ components:
         end-time:
           type: integer
           format: int64
-        host:
+        endpoint:
           type: string
         metrics:
           $ref: '#/components/schemas/IOMetricsInfo'
@@ -2719,6 +2676,12 @@ components:
           $ref: '#/components/schemas/Id'
     RawJson:
       type: object
+    RecoveryClaimMode:
+      type: string
+      enum:
+      - CLAIM
+      - NO_CLAIM
+      - LEGACY
     ResourceID:
       pattern: "[0-9a-f]{32}"
       type: string
@@ -2752,12 +2715,6 @@ components:
       - UNALIGNED_CHECKPOINT
       - SAVEPOINT
       - SYNC_SAVEPOINT
-    RestoreMode:
-      type: string
-      enum:
-      - CLAIM
-      - NO_CLAIM
-      - LEGACY
     RestoredCheckpointStatistics:
       type: object
       properties:
@@ -2778,14 +2735,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ExceptionInfo'
+        endpoint:
+          type: string
         exceptionName:
           type: string
         failureLabels:
           type: object
           additionalProperties:
             type: string
-        location:
-          type: string
         stacktrace:
           type: string
         taskManagerId:
@@ -2844,6 +2801,20 @@ components:
           $ref: '#/components/schemas/JobID'
         resource:
           $ref: '#/components/schemas/ResourceProfileInfo'
+    SlotSharingGroupId:
+      type: object
+      properties:
+        bytes:
+          type: array
+          items:
+            type: string
+            format: byte
+        lowerPart:
+          type: integer
+          format: int64
+        upperPart:
+          type: integer
+          format: int64
     StatsSummaryDto:
       type: object
       properties:
@@ -2888,7 +2859,7 @@ components:
         attempt:
           type: integer
           format: int32
-        host:
+        endpoint:
           type: string
         subtask:
           type: integer
@@ -2935,6 +2906,9 @@ components:
           type: string
       discriminator:
         propertyName: className
+        mapping:
+          completed: '#/components/schemas/CompletedSubtaskCheckpointStatistics'
+          pending: '#/components/schemas/PendingSubtaskCheckpointStatistics'
     SubtaskExecutionAttemptAccumulatorsInfo:
       type: object
       properties:
@@ -2962,7 +2936,7 @@ components:
         end-time:
           type: integer
           format: int64
-        host:
+        endpoint:
           type: string
         metrics:
           $ref: '#/components/schemas/IOMetricsInfo'
@@ -2991,7 +2965,7 @@ components:
         duration:
           type: integer
           format: int64
-        host:
+        endpoint:
           type: string
         subtask:
           type: integer
@@ -3253,12 +3227,6 @@ components:
           type: integer
           format: int64
         mappedUsed:
-          type: integer
-          format: int64
-        memorySegmentsAvailable:
-          type: integer
-          format: int64
-        memorySegmentsTotal:
           type: integer
           format: int64
         nettyShuffleMemoryAvailable:

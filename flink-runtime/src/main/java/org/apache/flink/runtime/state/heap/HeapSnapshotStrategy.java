@@ -119,7 +119,7 @@ class HeapSnapshotStrategy<K>
 
         final SupplierWithException<CheckpointStreamWithResultProvider, Exception>
                 checkpointStreamSupplier =
-                        localRecoveryConfig.isLocalRecoveryEnabled()
+                        localRecoveryConfig.isLocalBackupEnabled()
                                         && !checkpointOptions.getCheckpointType().isSavepoint()
                                 ? () ->
                                         createDuplicatingStream(

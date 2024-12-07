@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.runtime.batch.table
 
-import org.apache.flink.table.api.TableSchema
+import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.utils.TestLegacyLimitableTableSource

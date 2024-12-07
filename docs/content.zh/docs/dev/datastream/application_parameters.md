@@ -125,8 +125,7 @@ public static final class Tokenizer extends RichFlatMapFunction<String, Tuple2<S
 
     @Override
     public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
-        ParameterTool parameters = (ParameterTool)
-                getRuntimeContext().getExecutionConfig().getGlobalJobParameters();
+        ParameterTool parameters = ParameterTool.fromMap(getRuntimeContext().getGlobalJobParameters());
         parameters.getRequired("input");
         // .. do more ..
 ```

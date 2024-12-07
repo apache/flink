@@ -32,8 +32,7 @@ import java.io.IOException;
 public class DoubleValue
         implements Comparable<DoubleValue>,
                 ResettableValue<DoubleValue>,
-                CopyableValue<DoubleValue>,
-                Key<DoubleValue> {
+                CopyableValue<DoubleValue> {
     private static final long serialVersionUID = 1L;
 
     private double value;

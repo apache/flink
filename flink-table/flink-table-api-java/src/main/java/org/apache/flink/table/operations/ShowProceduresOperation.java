@@ -20,130 +20,84 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
-import org.apache.flink.table.functions.SqlLikeUtils;
+import org.apache.flink.table.operations.utils.ShowLikeOperator;
 
 import javax.annotation.Nullable;
 
-import java.util.List;
-
-import static java.util.Objects.requireNonNull;
-import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
+import java.util.Collection;
 
 /**
- * Operation to describe a SHOW PROCEDURES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT]
- * (LIKE | ILIKE) &lt;sql_like_pattern&gt; ] statement.
+ * Operation to describe a SHOW PROCEDURES statement. The full syntax for SHOW PROCEDURES is as
+ * followings:
+ *
+ * <pre>{@code
+ * SHOW PROCEDURES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] (LIKE | ILIKE)
+ * &lt;sql_like_pattern&gt; ] statement
+ * }</pre>
  */
 @Internal
-public class ShowProceduresOperation implements ExecutableOperation {
-
-    private final @Nullable String catalogName;
+public class ShowProceduresOperation extends AbstractShowOperation {
 
     private final @Nullable String databaseName;
-    private final @Nullable String preposition;
 
-    private final boolean notLike;
-
-    // different like type such as like, ilike
-    private final LikeType likeType;
-
-    @Nullable private final String sqlLikePattern;
-
-    public ShowProceduresOperation(boolean isNotLike, String likeType, String sqlLikePattern) {
-        this(null, null, null, isNotLike, likeType, sqlLikePattern);
+    public ShowProceduresOperation(
+            @Nullable String catalogName,
+            @Nullable String databaseName,
+            @Nullable String preposition,
+            @Nullable ShowLikeOperator likeOp) {
+        super(catalogName, preposition, likeOp);
+        this.databaseName = databaseName;
     }
 
     public ShowProceduresOperation(
-            @Nullable String preposition,
             @Nullable String catalogName,
             @Nullable String databaseName,
-            boolean notLike,
-            @Nullable String likeType,
-            @Nullable String sqlLikePattern) {
-        this.preposition = preposition;
-        this.catalogName = catalogName;
-        this.databaseName = databaseName;
-
-        if (likeType != null) {
-            this.likeType = LikeType.of(likeType);
-            this.sqlLikePattern = requireNonNull(sqlLikePattern, "Like pattern must not be null");
-            this.notLike = notLike;
-        } else {
-            this.likeType = null;
-            this.sqlLikePattern = null;
-            this.notLike = false;
-        }
-    }
-
-    public boolean isWithLike() {
-        return likeType != null;
+            @Nullable ShowLikeOperator likeOp) {
+        this(catalogName, databaseName, null, likeOp);
     }
 
     @Override
-    public TableResultInternal execute(Context ctx) {
-        final List<String> procedures;
-        CatalogManager catalogManager = ctx.getCatalogManager();
+    protected Collection<String> retrieveDataForTableResult(Context ctx) {
+        final CatalogManager catalogManager = ctx.getCatalogManager();
+        final String qualifiedCatalogName = catalogManager.qualifyCatalog(catalogName);
+        final String qualifiedDatabaseName = catalogManager.qualifyDatabase(databaseName);
         try {
             if (preposition == null) {
                 // it's to show current_catalog.current_database
-                procedures =
-                        catalogManager
-                                .getCatalogOrError(catalogManager.getCurrentCatalog())
-                                .listProcedures(catalogManager.getCurrentDatabase());
+                return catalogManager
+                        .getCatalogOrError(qualifiedCatalogName)
+                        .listProcedures(qualifiedDatabaseName);
             } else {
-                Catalog catalog = catalogManager.getCatalogOrThrowException(catalogName);
-                procedures = catalog.listProcedures(databaseName);
+                Catalog catalog = catalogManager.getCatalogOrThrowException(qualifiedCatalogName);
+                return catalog.listProcedures(qualifiedDatabaseName);
             }
         } catch (DatabaseNotExistException e) {
             throw new TableException(
                     String.format(
                             "Fail to show procedures because the Database `%s` to show from/in does not exist in Catalog `%s`.",
-                            preposition == null
-                                    ? catalogManager.getCurrentDatabase()
-                                    : databaseName,
-                            preposition == null
-                                    ? catalogManager.getCurrentCatalog()
-                                    : catalogName));
+                            qualifiedDatabaseName, qualifiedCatalogName),
+                    e);
         }
-
-        final String[] rows;
-        if (isWithLike()) {
-            rows =
-                    procedures.stream()
-                            .filter(
-                                    row -> {
-                                        boolean likeMatch =
-                                                likeType == LikeType.ILIKE
-                                                        ? SqlLikeUtils.ilike(
-                                                                row, sqlLikePattern, "\\")
-                                                        : SqlLikeUtils.like(
-                                                                row, sqlLikePattern, "\\");
-                                        return notLike != likeMatch;
-                                    })
-                            .sorted()
-                            .toArray(String[]::new);
-        } else {
-            rows = procedures.stream().sorted().toArray(String[]::new);
-        }
-        return buildStringArrayResult("procedure name", rows);
     }
 
     @Override
-    public String asSummaryString() {
-        StringBuilder builder = new StringBuilder().append("SHOW PROCEDURES");
-        if (this.preposition != null) {
-            builder.append(String.format(" %s %s.%s", preposition, catalogName, databaseName));
+    protected String getOperationName() {
+        return "SHOW PROCEDURES";
+    }
+
+    @Override
+    protected String getColumnName() {
+        return "procedure name";
+    }
+
+    @Override
+    public String getPrepositionSummaryString() {
+        if (databaseName == null) {
+            return super.getPrepositionSummaryString();
         }
-        if (isWithLike()) {
-            if (notLike) {
-                builder.append(String.format(" %s %s %s", "NOT", likeType.name(), sqlLikePattern));
-            } else {
-                builder.append(String.format(" %s %s", likeType.name(), sqlLikePattern));
-            }
-        }
-        return builder.toString();
+        return super.getPrepositionSummaryString() + "." + databaseName;
     }
 }

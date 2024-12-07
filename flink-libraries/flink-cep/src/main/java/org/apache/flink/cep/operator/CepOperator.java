@@ -161,7 +161,12 @@ public class CepOperator<IN, KEY, OUT>
     }
 
     @Override
-    public void setup(
+    public boolean useSplittableTimers() {
+        return true;
+    }
+
+    @Override
+    protected void setup(
             StreamTask<?, ?> containingTask,
             StreamConfig config,
             Output<StreamRecord<OUT>> output) {
@@ -194,10 +199,6 @@ public class CepOperator<IN, KEY, OUT>
                                         EVENT_QUEUE_STATE_NAME,
                                         LongSerializer.INSTANCE,
                                         new ListSerializer<>(inputSerializer)));
-
-        if (context.isRestored()) {
-            partialMatches.migrateOldState(getKeyedStateBackend(), computationStates);
-        }
     }
 
     @Override
@@ -326,6 +327,11 @@ public class CepOperator<IN, KEY, OUT>
 
         // STEP 4
         updateNFA(nfaState);
+
+        // In order to remove dangling partial matches.
+        if (nfaState.getPartialMatches().size() == 1 && nfaState.getCompletedMatches().isEmpty()) {
+            computationStates.clear();
+        }
     }
 
     @Override

@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -185,7 +185,7 @@ class GenericWriteAheadSinkTest
             super(
                     new SimpleCommitter(),
                     TypeExtractor.getForObject(new Tuple1<>(1))
-                            .createSerializer(new ExecutionConfig()),
+                            .createSerializer(new SerializerConfigImpl()),
                     "job");
         }
 
@@ -237,7 +237,7 @@ class GenericWriteAheadSinkTest
             super(
                     new FailingCommitter(),
                     TypeExtractor.getForObject(new Tuple1<>(1))
-                            .createSerializer(new ExecutionConfig()),
+                            .createSerializer(new SerializerConfigImpl()),
                     "job");
         }
 

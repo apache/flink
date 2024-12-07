@@ -24,8 +24,8 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayInputStream;
@@ -49,13 +49,14 @@ import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for the {@link FileUtils}. */
-@ExtendWith(TestLoggerExtension.class)
 public class FileUtilsTest {
 
     @TempDir private java.nio.file.Path temporaryFolder;
@@ -120,13 +121,16 @@ public class FileUtilsTest {
     }
 
     @Test
-    void testDeleteDirectory() throws Exception {
-
+    void testDeleteNonExistentDirectory() throws Exception {
         // deleting a non-existent file should not cause an error
 
         File doesNotExist = TempDirUtils.newFolder(temporaryFolder, "abc");
         FileUtils.deleteDirectory(doesNotExist);
+    }
 
+    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
+    @Test
+    void testDeleteProtectedDirectory() throws Exception {
         // deleting a write protected file should throw an error
 
         File cannotDeleteParent = TempDirUtils.newFolder(temporaryFolder);
@@ -178,7 +182,7 @@ public class FileUtilsTest {
         }
 
         FileUtils.deleteDirectory(symbolicLink);
-        assertThat(fileInLinkedDirectory.exists()).isTrue();
+        assertThat(fileInLinkedDirectory).exists();
     }
 
     @Test
@@ -199,7 +203,7 @@ public class FileUtilsTest {
         t3.sync();
 
         // assert is empty
-        assertThat(parent.exists()).isFalse();
+        assertThat(parent).doesNotExist();
     }
 
     @Test
@@ -245,14 +249,14 @@ public class FileUtilsTest {
 
         final java.nio.file.Path rootPath = temporaryFolder.getRoot();
         final java.nio.file.Path relativePath = FileUtils.relativizePath(rootPath, absolutePath);
-        assertThat(relativePath.isAbsolute()).isFalse();
+        assertThat(relativePath).isRelative();
         assertThat(absolutePath).isEqualTo(rootPath.resolve(relativePath));
     }
 
     @Test
     void testRelativizeOfRelativePath() {
         final java.nio.file.Path path = Paths.get("foobar");
-        assertThat(path.isAbsolute()).isFalse();
+        assertThat(path).isRelative();
 
         final java.nio.file.Path relativePath =
                 FileUtils.relativizePath(temporaryFolder.getRoot(), path);
@@ -271,7 +275,7 @@ public class FileUtilsTest {
     @Test
     void testRelativePathToURL() throws MalformedURLException {
         final java.nio.file.Path relativePath = Paths.get("foobar");
-        assertThat(relativePath.isAbsolute()).isFalse();
+        assertThat(relativePath).isRelative();
 
         final URL relativeURL = FileUtils.toURL(relativePath);
         final java.nio.file.Path transformedPath = Paths.get(relativeURL.getPath());
@@ -357,6 +361,18 @@ public class FileUtilsTest {
                         // path contains multiple symlink : xxx/symlink1/symlink3/one
                         symlink3.resolve("one"));
         assertThat(targetPath).isEqualTo(dirInLinked2);
+    }
+
+    @Test
+    void testGetDirectorySize() throws Exception {
+        final File parent = TempDirUtils.newFolder(temporaryFolder);
+
+        // Empty directory should have size 0
+        assertThat(FileUtils.getDirectoryFilesSize(parent.toPath())).isZero();
+
+        // Expected size: (20*5^0 + 20*5^1 + 20*5^2 + 20*5^3) * 1 byte = 3120 bytes
+        generateRandomDirs(parent, 20, 5, 3);
+        assertThat(FileUtils.getDirectoryFilesSize(parent.toPath())).isEqualTo(3120);
     }
 
     // ------------------------------------------------------------------------
@@ -498,6 +514,50 @@ public class FileUtilsTest {
         FileUtils.expandDirectory(zip, new Path(extractDir.toAbsolutePath().toString()));
 
         assertDirEquals(compressDir.resolve(originalDir), extractDir.resolve(originalDir));
+    }
+
+    /**
+     * Generates zip archive, containing path to file/dir passed in, un-archives the generated zip
+     * using {@link org.apache.flink.util.FileUtils#expandDirectory(org.apache.flink.core.fs.Path,
+     * org.apache.flink.core.fs.Path)} and returns path to expanded folder.
+     *
+     * @param prefix prefix to use for creating source and destination folders
+     * @param path path to contents of zip
+     * @return Path to folder containing unzipped contents
+     * @throws IOException if I/O error in file creation, un-archiving detects unsafe access outside
+     *     target folder
+     */
+    private Path writeZipAndFetchExpandedPath(String prefix, String path) throws IOException {
+        // random source folder
+        String sourcePath = prefix + "src";
+        String dstPath = prefix + "dst";
+        java.nio.file.Path srcFolder = TempDirUtils.newFolder(temporaryFolder, sourcePath).toPath();
+        java.nio.file.Path zippedFile = srcFolder.resolve("file.zip");
+        ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(zippedFile));
+        ZipEntry e1 = new ZipEntry(path);
+        out.putNextEntry(e1);
+        out.close();
+        java.nio.file.Path dstFolder = TempDirUtils.newFolder(temporaryFolder, dstPath).toPath();
+        return FileUtils.expandDirectory(
+                new Path(zippedFile.toString()), new Path(dstFolder.toString()));
+    }
+
+    @Test
+    void testExpandDirWithValidPaths() throws IOException {
+        writeZipAndFetchExpandedPath("t0", "/level1/level2/");
+        writeZipAndFetchExpandedPath("t1", "/level1/level2/file.txt");
+        writeZipAndFetchExpandedPath("t2", "/level1/../level1/file.txt");
+        writeZipAndFetchExpandedPath("t3", "/level1/level2/level3/../");
+        assertThatThrownBy(() -> writeZipAndFetchExpandedPath("t2", "/level1/level2/../../pass"))
+                .isInstanceOf(IOException.class);
+    }
+
+    @Test
+    void testExpandDirWithForbiddenEscape() {
+        assertThatThrownBy(() -> writeZipAndFetchExpandedPath("t1", "/../../"))
+                .isInstanceOf(IOException.class);
+        assertThatThrownBy(() -> writeZipAndFetchExpandedPath("t2", "../"))
+                .isInstanceOf(IOException.class);
     }
 
     /**

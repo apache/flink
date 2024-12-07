@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.async;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
@@ -39,16 +38,16 @@ import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -57,15 +56,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the {@link AbstractAsynchronousOperationHandlers}. */
-public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
+class AbstractAsynchronousOperationHandlersTest {
 
-    private static final Time TIMEOUT = Time.seconds(10L);
+    private static final Duration TIMEOUT = Duration.ofSeconds(10L);
 
     // Not actually used by the tests in this class, but required as a parameter
     private static final TestingRestfulGateway DUMMY_GATEWAY = new TestingRestfulGateway();
@@ -74,8 +71,8 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 
     private TestingAsynchronousOperationHandlers.TestingStatusHandler testingStatusHandler;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         TestingAsynchronousOperationHandlers testingAsynchronousOperationHandlers =
                 new TestingAsynchronousOperationHandlers();
 
@@ -98,7 +95,7 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 
     /** Tests the triggering and successful completion of an asynchronous operation. */
     @Test
-    public void testOperationCompletion() throws Exception {
+    void testOperationCompletion() throws Exception {
         final CompletableFuture<Acknowledge> acknowledgeFuture = new CompletableFuture<>();
         testingTriggerHandler.setGatewayCallback((request, gateway) -> acknowledgeFuture);
 
@@ -114,7 +111,8 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
                         .handleRequest(statusOperationRequest(triggerId), DUMMY_GATEWAY)
                         .get();
 
-        assertThat(operationResult.queueStatus().getId(), is(QueueStatus.inProgress().getId()));
+        assertThat(operationResult.queueStatus().getId())
+                .isEqualTo(QueueStatus.inProgress().getId());
 
         // complete the operation
         acknowledgeFuture.complete(Acknowledge.get());
@@ -124,14 +122,15 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
                         .handleRequest(statusOperationRequest(triggerId), DUMMY_GATEWAY)
                         .get();
 
-        assertThat(operationResult.queueStatus().getId(), is(QueueStatus.completed().getId()));
+        assertThat(operationResult.queueStatus().getId())
+                .isEqualTo(QueueStatus.completed().getId());
 
-        assertThat(operationResult.resource().value, is(Acknowledge.get()));
+        assertThat(operationResult.resource().value).isEqualTo(Acknowledge.get());
     }
 
     /** Tests the triggering and exceptional completion of an asynchronous operation. */
     @Test
-    public void testOperationFailure() throws Exception {
+    void testOperationFailure() throws Exception {
         final FlinkException testException = new FlinkException("Test exception");
         testingTriggerHandler.setGatewayCallback(
                 (request, gateway) -> FutureUtils.completedExceptionally(testException));
@@ -148,17 +147,18 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
                         .handleRequest(statusOperationRequest(triggerId), DUMMY_GATEWAY)
                         .get();
 
-        assertThat(operationResult.queueStatus().getId(), is(QueueStatus.completed().getId()));
+        assertThat(operationResult.queueStatus().getId())
+                .isEqualTo(QueueStatus.completed().getId());
 
         final OperationResult resource = operationResult.resource();
-        assertThat(resource.throwable, is(testException));
+        assertThat(resource.throwable).isEqualTo(testException);
     }
 
     /**
      * Tests that an querying an unknown trigger id will return an exceptionally completed future.
      */
     @Test
-    public void testUnknownTriggerId() throws Exception {
+    void testUnknownTriggerId() throws Exception {
         try {
             testingStatusHandler
                     .handleRequest(statusOperationRequest(new TriggerId()), DUMMY_GATEWAY)
@@ -169,13 +169,13 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
             final Optional<RestHandlerException> optionalRestHandlerException =
                     ExceptionUtils.findThrowable(ee, RestHandlerException.class);
 
-            assertThat(optionalRestHandlerException.isPresent(), is(true));
+            assertThat(optionalRestHandlerException).isPresent();
 
             final RestHandlerException restHandlerException = optionalRestHandlerException.get();
 
-            assertThat(restHandlerException.getMessage(), containsString("Operation not found"));
-            assertThat(
-                    restHandlerException.getHttpResponseStatus(), is(HttpResponseStatus.NOT_FOUND));
+            assertThat(restHandlerException.getMessage()).contains("Operation not found");
+            assertThat(restHandlerException.getHttpResponseStatus())
+                    .isEqualTo(HttpResponseStatus.NOT_FOUND);
         }
     }
 
@@ -185,7 +185,7 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
      * of the asynchronous operation is served.
      */
     @Test
-    public void testCloseShouldFinishOnFirstServedResult() throws Exception {
+    void testCloseShouldFinishOnFirstServedResult() throws Exception {
         final CompletableFuture<Acknowledge> acknowledgeFuture = new CompletableFuture<>();
         testingTriggerHandler.setGatewayCallback((request, gateway) -> acknowledgeFuture);
 
@@ -198,12 +198,12 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 
         testingStatusHandler.handleRequest(statusOperationRequest(triggerId), DUMMY_GATEWAY).get();
 
-        assertThat(closeFuture.isDone(), is(false));
+        assertThat(closeFuture).isNotDone();
 
         acknowledgeFuture.complete(Acknowledge.get());
         testingStatusHandler.handleRequest(statusOperationRequest(triggerId), DUMMY_GATEWAY).get();
 
-        assertThat(closeFuture.isDone(), is(true));
+        assertThat(closeFuture).isDone();
     }
 
     private static HandlerRequest<EmptyRequestBody> triggerOperationRequest() {
@@ -355,7 +355,7 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 
             protected TestingTriggerHandler(
                     GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-                    Time timeout,
+                    Duration timeout,
                     Map<String, String> responseHeaders,
                     MessageHeaders<EmptyRequestBody, TriggerResponse, EmptyMessageParameters>
                             messageHeaders) {
@@ -399,7 +399,7 @@ public class AbstractAsynchronousOperationHandlersTest extends TestLogger {
 
             protected TestingStatusHandler(
                     GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-                    Time timeout,
+                    Duration timeout,
                     Map<String, String> responseHeaders,
                     MessageHeaders<
                                     EmptyRequestBody,

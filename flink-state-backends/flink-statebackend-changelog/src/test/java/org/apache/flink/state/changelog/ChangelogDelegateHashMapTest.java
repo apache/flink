@@ -19,10 +19,9 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.StateBackendOptions;
+import org.apache.flink.configuration.StateLatencyTrackOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
@@ -38,6 +37,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Duration;
 
 /** Tests for {@link ChangelogStateBackend} delegating {@link HashMapStateBackendTest}. */
 public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
@@ -92,13 +92,13 @@ public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
         Configuration configuration = new Configuration();
-        configuration.set(StateBackendOptions.LATENCY_TRACK_ENABLED, true);
+        configuration.set(StateLatencyTrackOptions.LATENCY_TRACK_ENABLED, true);
         StateBackend stateBackend =
                 getStateBackend()
                         .configure(configuration, Thread.currentThread().getContextClassLoader());
         ChangelogStateBackendTestUtils.testMaterializedRestore(
                 stateBackend,
-                StateTtlConfig.newBuilder(Time.minutes(1)).build(),
+                StateTtlConfig.newBuilder(Duration.ofMinutes(1)).build(),
                 env,
                 streamFactory);
     }

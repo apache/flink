@@ -18,8 +18,8 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
+import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.TableTestBase
@@ -28,13 +28,13 @@ import com.google.common.collect.ImmutableSet
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.RuleSets
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Test for [[FlinkAggregateJoinTransposeRule]]. */
 class FlinkAggregateJoinTransposeRuleTest extends TableTestBase {
   private val util = batchTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     val program = new FlinkChainedProgram[BatchOptimizeContext]()
     program.addLast(

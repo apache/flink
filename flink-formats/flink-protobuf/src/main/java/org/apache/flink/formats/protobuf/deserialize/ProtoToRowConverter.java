@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.protobuf.deserialize;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbConstant;
 import org.apache.flink.formats.protobuf.PbFormatConfig;
@@ -54,6 +55,7 @@ public class ProtoToRowConverter {
     private static final Logger LOG = LoggerFactory.getLogger(ProtoToRowConverter.class);
     private final Method parseFromMethod;
     private final Method decodeMethod;
+    private boolean isCodeSplit = false;
 
     public ProtoToRowConverter(RowType rowType, PbFormatConfig formatConfig)
             throws PbCodegenException {
@@ -66,18 +68,15 @@ public class ProtoToRowConverter {
                             true,
                             Thread.currentThread().getContextClassLoader());
             String fullMessageClassName = PbFormatUtils.getFullJavaName(descriptor);
+            boolean readDefaultValuesForPrimitiveTypes = formatConfig.isReadDefaultValues();
             if (descriptor.getFile().getSyntax() == Syntax.PROTO3) {
-                // pb3 always read default values
-                formatConfig =
-                        new PbFormatConfig(
-                                formatConfig.getMessageClassName(),
-                                formatConfig.isIgnoreParseErrors(),
-                                true,
-                                formatConfig.getWriteNullStringLiterals());
+                // pb3 always read default values for primitive types
+                readDefaultValuesForPrimitiveTypes = true;
             }
             PbCodegenAppender codegenAppender = new PbCodegenAppender();
-            PbFormatContext pbFormatContext = new PbFormatContext(formatConfig);
-            String uuid = UUID.randomUUID().toString().replaceAll("\\-", "");
+            PbFormatContext pbFormatContext =
+                    new PbFormatContext(formatConfig, readDefaultValuesForPrimitiveTypes);
+            String uuid = UUID.randomUUID().toString().replace("-", "");
             String generatedClassName = "GeneratedProtoToRow_" + uuid;
             String generatedPackageName = ProtoToRowConverter.class.getPackage().getName();
             codegenAppender.appendLine("package " + generatedPackageName);
@@ -108,6 +107,12 @@ public class ProtoToRowConverter {
             codegenAppender.appendSegment(genCode);
             codegenAppender.appendLine("return rowData");
             codegenAppender.appendSegment("}");
+            if (!pbFormatContext.getSplitMethodStack().isEmpty()) {
+                isCodeSplit = true;
+                for (String splitMethod : pbFormatContext.getSplitMethodStack()) {
+                    codegenAppender.appendSegment(splitMethod);
+                }
+            }
             codegenAppender.appendSegment("}");
 
             String printCode = codegenAppender.printWithLineNumber();
@@ -128,5 +133,10 @@ public class ProtoToRowConverter {
     public RowData convertProtoBinaryToRow(byte[] data) throws Exception {
         Object messageObj = parseFromMethod.invoke(null, data);
         return (RowData) decodeMethod.invoke(null, messageObj);
+    }
+
+    @VisibleForTesting
+    protected boolean isCodeSplit() {
+        return isCodeSplit;
     }
 }

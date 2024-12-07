@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
-import org.apache.flink.core.fs.DuplicatingFileSystem;
+import org.apache.flink.core.fs.ICloseableRegistry;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.PathsCopyingFileSystem;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.testutils.TestFileSystem;
 
 import org.junit.jupiter.api.Test;
 
@@ -90,14 +92,16 @@ class FsCheckpointStateToolsetTest {
                                 new Path("test-path", "test-file3"), "test-file3", 0));
     }
 
-    private static final class TestDuplicatingFileSystem implements DuplicatingFileSystem {
+    private static final class TestDuplicatingFileSystem extends TestFileSystem
+            implements PathsCopyingFileSystem {
 
         @Override
-        public boolean canFastDuplicate(Path source, Path destination) throws IOException {
+        public boolean canCopyPaths(Path source, Path destination) throws IOException {
             return !source.equals(destination);
         }
 
         @Override
-        public void duplicate(List<CopyRequest> requests) throws IOException {}
+        public void copyFiles(List<CopyRequest> requests, ICloseableRegistry closeableRegistry)
+                throws IOException {}
     }
 }

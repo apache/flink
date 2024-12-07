@@ -22,42 +22,37 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.LimitedConnectionsFileSystem;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.configuration.ConfigurationUtils.getIntConfigOption;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test that the Hadoop file system wrapper correctly picks up connection limiting settings for the
  * correct file systems.
  */
-public class LimitedConnectionsConfigurationTest {
-
-    @Rule public final TemporaryFolder tempDir = new TemporaryFolder();
+class LimitedConnectionsConfigurationTest {
 
     @Test
-    public void testConfiguration() throws Exception {
+    void testConfiguration() throws Exception {
 
         // nothing configured, we should get a regular file system
         FileSystem hdfs = FileSystem.get(URI.create("hdfs://localhost:12345/a/b/c"));
         FileSystem ftpfs = FileSystem.get(URI.create("ftp://localhost:12345/a/b/c"));
 
-        assertFalse(hdfs instanceof LimitedConnectionsFileSystem);
-        assertFalse(ftpfs instanceof LimitedConnectionsFileSystem);
+        assertThat(hdfs).isNotInstanceOf(LimitedConnectionsFileSystem.class);
+        assertThat(ftpfs).isNotInstanceOf(LimitedConnectionsFileSystem.class);
 
         // configure some limits, which should cause "fsScheme" to be limited
 
         final Configuration config = new Configuration();
-        config.setInteger("fs.hdfs.limit.total", 40);
-        config.setInteger("fs.hdfs.limit.input", 39);
-        config.setInteger("fs.hdfs.limit.output", 38);
-        config.setInteger("fs.hdfs.limit.timeout", 23456);
-        config.setInteger("fs.hdfs.limit.stream-timeout", 34567);
+        config.set(getIntConfigOption("fs.hdfs.limit.total"), 40);
+        config.set(getIntConfigOption("fs.hdfs.limit.input"), 39);
+        config.set(getIntConfigOption("fs.hdfs.limit.output"), 38);
+        config.set(getIntConfigOption("fs.hdfs.limit.timeout"), 23456);
+        config.set(getIntConfigOption("fs.hdfs.limit.stream-timeout"), 34567);
 
         try {
             FileSystem.initialize(config);
@@ -65,15 +60,15 @@ public class LimitedConnectionsConfigurationTest {
             hdfs = FileSystem.get(URI.create("hdfs://localhost:12345/a/b/c"));
             ftpfs = FileSystem.get(URI.create("ftp://localhost:12345/a/b/c"));
 
-            assertTrue(hdfs instanceof LimitedConnectionsFileSystem);
-            assertFalse(ftpfs instanceof LimitedConnectionsFileSystem);
+            assertThat(hdfs).isInstanceOf(LimitedConnectionsFileSystem.class);
+            assertThat(ftpfs).isNotInstanceOf(LimitedConnectionsFileSystem.class);
 
             LimitedConnectionsFileSystem limitedFs = (LimitedConnectionsFileSystem) hdfs;
-            assertEquals(40, limitedFs.getMaxNumOpenStreamsTotal());
-            assertEquals(39, limitedFs.getMaxNumOpenInputStreams());
-            assertEquals(38, limitedFs.getMaxNumOpenOutputStreams());
-            assertEquals(23456, limitedFs.getStreamOpenTimeout());
-            assertEquals(34567, limitedFs.getStreamInactivityTimeout());
+            assertThat(limitedFs.getMaxNumOpenStreamsTotal()).isEqualTo(40);
+            assertThat(limitedFs.getMaxNumOpenInputStreams()).isEqualTo(39);
+            assertThat(limitedFs.getMaxNumOpenOutputStreams()).isEqualTo(38);
+            assertThat(limitedFs.getStreamOpenTimeout()).isEqualTo(23456);
+            assertThat(limitedFs.getStreamInactivityTimeout()).isEqualTo(34567);
         } finally {
             // clear all settings
             FileSystem.initialize(new Configuration());

@@ -52,7 +52,7 @@ class ZKCheckpointIDCounterMultiServersTest {
     void testRecoveredAfterConnectionLoss() throws Exception {
 
         final Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
                 zookeeperExtensionWrapper.getCustomExtension().getConnectString());
 

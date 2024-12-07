@@ -22,9 +22,9 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
 
@@ -36,7 +36,7 @@ import java.util.ArrayList;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link StreamExecutionEnvironment#setBufferTimeout(long)}. */
-public class BufferTimeoutITCase extends AbstractTestBase {
+public class BufferTimeoutITCase extends AbstractTestBaseJUnit4 {
 
     @Rule public final SharedObjects sharedObjects = SharedObjects.create();
 

@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.operators.bundle;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -71,7 +70,6 @@ public abstract class AbstractMapBundleOperator<K, V, IN, OUT> extends AbstractS
 
     AbstractMapBundleOperator(
             MapBundleFunction<K, V, IN, OUT> function, BundleTrigger<IN> bundleTrigger) {
-        chainingStrategy = ChainingStrategy.ALWAYS;
         this.function = checkNotNull(function, "function is null");
         this.bundleTrigger = checkNotNull(bundleTrigger, "bundleTrigger is null");
     }

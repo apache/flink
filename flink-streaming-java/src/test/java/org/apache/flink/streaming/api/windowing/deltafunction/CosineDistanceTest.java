@@ -19,16 +19,17 @@ package org.apache.flink.streaming.api.windowing.deltafunction;
 
 import org.apache.flink.streaming.api.functions.windowing.delta.CosineDistance;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.offset;
 
 /** Tests for {@link CosineDistance}. */
-public class CosineDistanceTest {
+class CosineDistanceTest {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     @Test
-    public void testCosineDistance() {
+    void testCosineDistance() {
 
         // Reference calculated using wolfram alpha
         double[][][] testdata = {
@@ -47,14 +48,13 @@ public class CosineDistanceTest {
         };
 
         for (int i = 0; i < testdata.length; i++) {
-            assertEquals(
-                    "Wrong result for inputs "
-                            + arrayToString(testdata[i][0])
-                            + " and "
-                            + arrayToString(testdata[i][0]),
-                    referenceSolutions[i],
-                    new CosineDistance().getDelta(testdata[i][0], testdata[i][1]),
-                    0.000001);
+            assertThat(new CosineDistance().getDelta(testdata[i][0], testdata[i][1]))
+                    .as(
+                            "Wrong result for inputs "
+                                    + arrayToString(testdata[i][0])
+                                    + " and "
+                                    + arrayToString(testdata[i][0]))
+                    .isCloseTo(referenceSolutions[i], offset(0.000001));
         }
     }
 

@@ -18,12 +18,12 @@
 
 package org.apache.flink.streaming.api.functions.source.datagen;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,8 +36,7 @@ import javax.annotation.Nullable;
  *
  * @deprecated Use {@code org.apache.flink.connector.datagen.source.DataGeneratorSource} instead.
  */
-@Experimental
-@Deprecated
+@Internal
 public class DataGeneratorSource<T> extends RichParallelSourceFunction<T>
         implements CheckpointedFunction {
 
@@ -85,8 +84,8 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T>
         super.open(openContext);
 
         if (numberOfRows != null) {
-            final int stepSize = getRuntimeContext().getNumberOfParallelSubtasks();
-            final int taskIdx = getRuntimeContext().getIndexOfThisSubtask();
+            final int stepSize = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
+            final int taskIdx = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
 
             final int baseSize = (int) (numberOfRows / stepSize);
             toOutput = (numberOfRows % stepSize > taskIdx) ? baseSize + 1 : baseSize;
@@ -107,7 +106,8 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T>
     @Override
     public void run(SourceContext<T> ctx) throws Exception {
         double taskRowsPerSecond =
-                (double) rowsPerSecond / getRuntimeContext().getNumberOfParallelSubtasks();
+                (double) rowsPerSecond
+                        / getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
         long nextReadTime = System.currentTimeMillis();
 
         while (isRunning) {

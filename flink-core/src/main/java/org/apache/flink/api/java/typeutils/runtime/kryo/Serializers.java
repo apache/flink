@@ -19,7 +19,8 @@
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.typeutils.AvroUtils;
@@ -57,7 +58,7 @@ import java.util.Set;
 public class Serializers {
 
     public static void recursivelyRegisterType(
-            TypeInformation<?> typeInfo, ExecutionConfig config, Set<Class<?>> alreadySeen) {
+            TypeInformation<?> typeInfo, SerializerConfig config, Set<Class<?>> alreadySeen) {
         if (typeInfo instanceof GenericTypeInfo) {
             GenericTypeInfo<?> genericTypeInfo = (GenericTypeInfo<?>) typeInfo;
             Serializers.recursivelyRegisterType(
@@ -75,7 +76,7 @@ public class Serializers {
     }
 
     public static void recursivelyRegisterType(
-            Class<?> type, ExecutionConfig config, Set<Class<?>> alreadySeen) {
+            Class<?> type, SerializerConfig config, Set<Class<?>> alreadySeen) {
         // don't register or remember primitives
         if (type == null || type.isPrimitive() || type == Object.class) {
             return;
@@ -89,7 +90,7 @@ public class Serializers {
         if (type.isArray()) {
             recursivelyRegisterType(type.getComponentType(), config, alreadySeen);
         } else {
-            config.registerKryoType(type);
+            ((SerializerConfigImpl) config).registerKryoType(type);
             // add serializers for Avro type if necessary
             AvroUtils.getAvroUtils().addAvroSerializersIfRequired(config, type);
 
@@ -106,7 +107,7 @@ public class Serializers {
     }
 
     private static void recursivelyRegisterGenericType(
-            Type fieldType, ExecutionConfig config, Set<Class<?>> alreadySeen) {
+            Type fieldType, SerializerConfig config, Set<Class<?>> alreadySeen) {
         if (fieldType instanceof ParameterizedType) {
             // field has generics
             ParameterizedType parameterizedFieldType = (ParameterizedType) fieldType;

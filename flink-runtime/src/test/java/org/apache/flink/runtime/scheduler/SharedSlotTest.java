@@ -28,23 +28,22 @@ import org.apache.flink.runtime.jobmaster.slotpool.DummyPayload;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createRandomExecutionVertexId;
 import static org.apache.flink.runtime.scheduler.SharedSlotTestingUtils.createExecutionSlotSharingGroup;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test suite for {@link SharedSlot}. */
-public class SharedSlotTest extends TestLogger {
+class SharedSlotTest {
     private static final ExecutionVertexID EV1 = createRandomExecutionVertexId();
     private static final ExecutionVertexID EV2 = createRandomExecutionVertexId();
     private static final ExecutionSlotSharingGroup SG = createExecutionSlotSharingGroup(EV1, EV2);
@@ -52,27 +51,27 @@ public class SharedSlotTest extends TestLogger {
     private static final ResourceProfile RP = ResourceProfile.newBuilder().setCpuCores(2.0).build();
 
     @Test
-    public void testCreation() {
+    void testCreation() {
         SharedSlot sharedSlot =
                 SharedSlotBuilder.newBuilder().slotWillBeOccupiedIndefinitely().build();
-        assertThat(sharedSlot.getPhysicalSlotRequestId(), is(PHYSICAL_SLOT_REQUEST_ID));
-        assertThat(sharedSlot.getPhysicalSlotResourceProfile(), is(RP));
-        assertThat(sharedSlot.willOccupySlotIndefinitely(), is(true));
-        assertThat(sharedSlot.isEmpty(), is(true));
+        assertThat(sharedSlot.getPhysicalSlotRequestId()).isEqualTo(PHYSICAL_SLOT_REQUEST_ID);
+        assertThat(sharedSlot.getPhysicalSlotResourceProfile()).isEqualTo(RP);
+        assertThat(sharedSlot.willOccupySlotIndefinitely()).isTrue();
+        assertThat(sharedSlot.isEmpty()).isTrue();
     }
 
     @Test
-    public void testAssignAsPayloadToPhysicalSlot() {
+    void testAssignAsPayloadToPhysicalSlot() {
         CompletableFuture<PhysicalSlot> slotContextFuture = new CompletableFuture<>();
         SharedSlot sharedSlot =
                 SharedSlotBuilder.newBuilder().withSlotContextFuture(slotContextFuture).build();
         TestingPhysicalSlot physicalSlot = new TestingPhysicalSlot(RP, new AllocationID());
         slotContextFuture.complete(physicalSlot);
-        assertThat(physicalSlot.getPayload(), is(sharedSlot));
+        assertThat(physicalSlot.getPayload()).isEqualTo(sharedSlot);
     }
 
     @Test
-    public void testLogicalSlotAllocation() {
+    void testLogicalSlotAllocation() {
         CompletableFuture<PhysicalSlot> slotContextFuture = new CompletableFuture<>();
         CompletableFuture<ExecutionSlotSharingGroup> released = new CompletableFuture<>();
         SharedSlot sharedSlot =
@@ -83,7 +82,7 @@ public class SharedSlotTest extends TestLogger {
                         .build();
         CompletableFuture<LogicalSlot> logicalSlotFuture = sharedSlot.allocateLogicalSlot(EV1);
 
-        assertThat(logicalSlotFuture.isDone(), is(false));
+        assertThatFuture(logicalSlotFuture).isNotDone();
 
         AllocationID allocationId = new AllocationID();
         LocalTaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
@@ -92,18 +91,18 @@ public class SharedSlotTest extends TestLogger {
                 new TestingPhysicalSlot(
                         allocationId, taskManagerLocation, 3, taskManagerGateway, RP));
 
-        assertThat(sharedSlot.isEmpty(), is(false));
-        assertThat(released.isDone(), is(false));
-        assertThat(logicalSlotFuture.isDone(), is(true));
+        assertThat(sharedSlot.isEmpty()).isFalse();
+        assertThatFuture(released).isNotDone();
+        assertThat(logicalSlotFuture).isDone();
         LogicalSlot logicalSlot = logicalSlotFuture.join();
-        assertThat(logicalSlot.getAllocationId(), is(allocationId));
-        assertThat(logicalSlot.getTaskManagerLocation(), is(taskManagerLocation));
-        assertThat(logicalSlot.getTaskManagerGateway(), is(taskManagerGateway));
-        assertThat(logicalSlot.getLocality(), is(Locality.UNKNOWN));
+        assertThat(logicalSlot.getAllocationId()).isEqualTo(allocationId);
+        assertThat(logicalSlot.getTaskManagerLocation()).isEqualTo(taskManagerLocation);
+        assertThat(logicalSlot.getTaskManagerGateway()).isEqualTo(taskManagerGateway);
+        assertThat(logicalSlot.getLocality()).isEqualTo(Locality.UNKNOWN);
     }
 
     @Test
-    public void testLogicalSlotFailureDueToPhysicalSlotFailure() throws InterruptedException {
+    void testLogicalSlotFailureDueToPhysicalSlotFailure() {
         CompletableFuture<PhysicalSlot> slotContextFuture = new CompletableFuture<>();
         CompletableFuture<ExecutionSlotSharingGroup> released = new CompletableFuture<>();
         SharedSlot sharedSlot =
@@ -115,18 +114,16 @@ public class SharedSlotTest extends TestLogger {
         Throwable cause = new Throwable();
         slotContextFuture.completeExceptionally(cause);
 
-        assertThat(logicalSlotFuture.isCompletedExceptionally(), is(true));
-        try {
-            logicalSlotFuture.get();
-        } catch (ExecutionException e) {
-            assertThat(e.getCause(), is(cause));
-        }
-        assertThat(sharedSlot.isEmpty(), is(true));
-        assertThat(released.isDone(), is(true));
+        assertThat(logicalSlotFuture.isCompletedExceptionally()).isTrue();
+        assertThatThrownBy(logicalSlotFuture::get)
+                .isInstanceOf(ExecutionException.class)
+                .hasCause(cause);
+        assertThat(sharedSlot.isEmpty()).isTrue();
+        assertThat(released).isDone();
     }
 
     @Test
-    public void testCancelCompletedLogicalSlotRequest() {
+    void testCancelCompletedLogicalSlotRequest() {
         CompletableFuture<PhysicalSlot> slotContextFuture = new CompletableFuture<>();
         CompletableFuture<ExecutionSlotSharingGroup> released = new CompletableFuture<>();
         SharedSlot sharedSlot =
@@ -138,13 +135,13 @@ public class SharedSlotTest extends TestLogger {
         slotContextFuture.complete(new TestingPhysicalSlot(RP, new AllocationID()));
         sharedSlot.cancelLogicalSlotRequest(EV1, new Throwable());
 
-        assertThat(logicalSlotFuture.isCompletedExceptionally(), is(false));
-        assertThat(sharedSlot.isEmpty(), is(false));
-        assertThat(released.isDone(), is(false));
+        assertThatFuture(logicalSlotFuture).isNotCompletedExceptionally();
+        assertThat(sharedSlot.isEmpty()).isFalse();
+        assertThat(released).isNotDone();
     }
 
     @Test
-    public void testCancelPendingLogicalSlotRequest() throws InterruptedException {
+    void testCancelPendingLogicalSlotRequest() {
         CompletableFuture<ExecutionSlotSharingGroup> released = new CompletableFuture<>();
         SharedSlot sharedSlot =
                 SharedSlotBuilder.newBuilder()
@@ -154,18 +151,16 @@ public class SharedSlotTest extends TestLogger {
         Throwable cause = new Throwable();
         sharedSlot.cancelLogicalSlotRequest(EV1, cause);
 
-        assertThat(logicalSlotFuture.isCompletedExceptionally(), is(true));
-        try {
-            logicalSlotFuture.get();
-        } catch (ExecutionException e) {
-            assertThat(e.getCause(), is(cause));
-        }
-        assertThat(sharedSlot.isEmpty(), is(true));
-        assertThat(released.isDone(), is(true));
+        assertThat(logicalSlotFuture.isCompletedExceptionally()).isTrue();
+        assertThatThrownBy(logicalSlotFuture::get)
+                .isInstanceOf(ExecutionException.class)
+                .hasCause(cause);
+        assertThat(sharedSlot.isEmpty()).isTrue();
+        assertThatFuture(released).isDone();
     }
 
     @Test
-    public void testReturnAllocatedLogicalSlot() {
+    void testReturnAllocatedLogicalSlot() {
         CompletableFuture<PhysicalSlot> slotContextFuture = new CompletableFuture<>();
         CompletableFuture<ExecutionSlotSharingGroup> released = new CompletableFuture<>();
         SharedSlot sharedSlot =
@@ -177,12 +172,12 @@ public class SharedSlotTest extends TestLogger {
         slotContextFuture.complete(new TestingPhysicalSlot(RP, new AllocationID()));
         sharedSlot.returnLogicalSlot(logicalSlotFuture.join());
 
-        assertThat(sharedSlot.isEmpty(), is(true));
-        assertThat(released.isDone(), is(true));
+        assertThat(sharedSlot.isEmpty()).isTrue();
+        assertThatFuture(released).isDone();
     }
 
     @Test
-    public void testReleaseIfPhysicalSlotRequestIsIncomplete() {
+    void testReleaseIfPhysicalSlotRequestIsIncomplete() {
         CompletableFuture<PhysicalSlot> slotContextFuture = new CompletableFuture<>();
         CompletableFuture<ExecutionSlotSharingGroup> released = new CompletableFuture<>();
         SharedSlot sharedSlot =
@@ -192,19 +187,16 @@ public class SharedSlotTest extends TestLogger {
                         .build();
         sharedSlot.allocateLogicalSlot(EV1);
 
-        try {
-            sharedSlot.release(new Throwable());
-            fail(
-                    "IllegalStateException is expected trying to release a shared slot with incomplete physical slot request");
-        } catch (IllegalStateException e) {
-            // expected
-        }
-        assertThat(sharedSlot.isEmpty(), is(false));
-        assertThat(released.isDone(), is(false));
+        assertThatThrownBy(() -> sharedSlot.release(new Throwable()))
+                .withFailMessage(
+                        "IllegalStateException is expected trying to release a shared slot with incomplete physical slot request")
+                .isInstanceOf(IllegalStateException.class);
+        assertThat(sharedSlot.isEmpty()).isFalse();
+        assertThatFuture(released).isNotDone();
     }
 
     @Test
-    public void testReleaseIfPhysicalSlotIsAllocated() {
+    void testReleaseIfPhysicalSlotIsAllocated() {
         CompletableFuture<PhysicalSlot> slotContextFuture =
                 CompletableFuture.completedFuture(new TestingPhysicalSlot(RP, new AllocationID()));
         CompletableFuture<ExecutionSlotSharingGroup> released = new CompletableFuture<>();
@@ -216,16 +208,16 @@ public class SharedSlotTest extends TestLogger {
         LogicalSlot logicalSlot = sharedSlot.allocateLogicalSlot(EV1).join();
         CompletableFuture<Object> terminalFuture = new CompletableFuture<>();
         logicalSlot.tryAssignPayload(new DummyPayload(terminalFuture));
-        assertThat(terminalFuture.isDone(), is(false));
+        assertThatFuture(terminalFuture).isNotDone();
         sharedSlot.release(new Throwable());
 
-        assertThat(terminalFuture.isDone(), is(true));
-        assertThat(sharedSlot.isEmpty(), is(true));
-        assertThat(released.isDone(), is(true));
+        assertThatFuture(terminalFuture).isDone();
+        assertThat(sharedSlot.isEmpty()).isTrue();
+        assertThatFuture(released).isDone();
     }
 
     @Test
-    public void tesDuplicatedReturnLogicalSlotFails() {
+    void tesDuplicatedReturnLogicalSlotFails() {
         CompletableFuture<PhysicalSlot> slotContextFuture =
                 CompletableFuture.completedFuture(new TestingPhysicalSlot(RP, new AllocationID()));
         AtomicInteger released = new AtomicInteger(0);
@@ -236,16 +228,14 @@ public class SharedSlotTest extends TestLogger {
                         .build();
         LogicalSlot logicalSlot = sharedSlot.allocateLogicalSlot(EV1).join();
         sharedSlot.returnLogicalSlot(logicalSlot);
-        try {
-            sharedSlot.returnLogicalSlot(logicalSlot);
-            fail("Duplicated 'returnLogicalSlot' call should fail with IllegalStateException");
-        } catch (IllegalStateException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> sharedSlot.returnLogicalSlot(logicalSlot))
+                .withFailMessage(
+                        "Duplicated 'returnLogicalSlot' call should fail with IllegalStateException")
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void testReleaseEmptyDoesNotCallAllocatorReleaseBack() {
+    void testReleaseEmptyDoesNotCallAllocatorReleaseBack() {
         CompletableFuture<PhysicalSlot> slotContextFuture =
                 CompletableFuture.completedFuture(new TestingPhysicalSlot(RP, new AllocationID()));
         CompletableFuture<SharedSlot> sharedSlotReleaseFuture = new CompletableFuture<>();
@@ -265,18 +255,18 @@ public class SharedSlotTest extends TestLogger {
         sharedSlotReleaseFuture.complete(sharedSlot);
         LogicalSlot logicalSlot = sharedSlot.allocateLogicalSlot(EV1).join();
 
-        assertThat(released.get(), is(0));
+        assertThat(released).hasValue(0);
         // returns the only and last slot, calling the external release callback
         sharedSlot.returnLogicalSlot(logicalSlot);
-        assertThat(released.get(), is(1));
+        assertThat(released).hasValue(1);
 
         // slot is already released, it should not get released again
         sharedSlot.release(new Throwable());
-        assertThat(released.get(), is(1));
+        assertThat(released).hasValue(1);
     }
 
     @Test
-    public void testReturnLogicalSlotWhileReleasingDoesNotCauseConcurrentModificationException() {
+    void testReturnLogicalSlotWhileReleasingDoesNotCauseConcurrentModificationException() {
         CompletableFuture<PhysicalSlot> slotContextFuture =
                 CompletableFuture.completedFuture(new TestingPhysicalSlot(RP, new AllocationID()));
         SharedSlot sharedSlot =

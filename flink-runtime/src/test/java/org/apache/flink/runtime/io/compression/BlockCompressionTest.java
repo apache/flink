@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.io.compression;
 
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
+
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -32,9 +34,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class BlockCompressionTest {
     private static Stream<BlockCompressionFactory> compressCodecGenerator() {
         return Stream.of(
-                BlockCompressionFactory.createBlockCompressionFactory("LZ4"),
-                BlockCompressionFactory.createBlockCompressionFactory("LZO"),
-                BlockCompressionFactory.createBlockCompressionFactory("ZSTD"));
+                BlockCompressionFactory.createBlockCompressionFactory(CompressionCodec.LZ4),
+                BlockCompressionFactory.createBlockCompressionFactory(CompressionCodec.LZO),
+                BlockCompressionFactory.createBlockCompressionFactory(CompressionCodec.ZSTD));
     }
 
     @ParameterizedTest

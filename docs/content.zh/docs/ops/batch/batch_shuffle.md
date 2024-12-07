@@ -131,16 +131,6 @@ These could be configured via [jobmanager.partition.hybrid.partition-data-consum
 
 Hybrid shuffle supports to store the shuffle data to the remote storage. The remote storage path can be configured by [taskmanager.network.hybrid-shuffle.remote.path]({{< ref "docs/deployment/config" >}}#taskmanager-network-hybrid-shuffle-remote-path). This feature supports various remote storage systems, including OSS, HDFS, S3, etc. See [Flink Filesystem]({{< ref "docs/deployment/filesystems/overview" >}}) for more information about the Flink supported filesystems.
 
-Note: The remote storage is only supported in the new hybrid shuffle mode. For more details about the new mode, please refer to the following [The New Mode And The Legacy Mode]({{< ref "docs/ops/batch/batch_shuffle#the-new-mode-and-the-legacy-mode" >}}).
-
-### The New Mode And The Legacy Mode
-
-We have refactored the architecture of Hybrid shuffle in Flink 1.18 (new mode), to resolve some existing issues. It has several advantages compared to the original architecture (legacy mode), such as requiring less network memory and supporting remote storage.
-
-The new mode is enabled by default. To switch back to the legacy mode, set [taskmanager.network.hybrid-shuffle.enable-new-mode]({{< ref "docs/deployment/config" >}}#taskmanager-network-hybrid-shuffle-enable-new-mode) to `false`.
-
-Note: The legacy mode is deprecated and can be removed in future releases.
-
 ### Limitations
 
 Hybrid shuffle mode is still experimental and has some known limitations, which the Flink community is still working on eliminating.

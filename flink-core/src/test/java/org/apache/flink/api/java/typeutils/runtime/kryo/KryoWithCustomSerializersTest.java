@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
@@ -29,16 +29,16 @@ import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.joda.time.LocalDate;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
 import java.util.HashSet;
 
 @SuppressWarnings("unchecked")
-public class KryoWithCustomSerializersTest extends AbstractGenericTypeSerializerTest {
+class KryoWithCustomSerializersTest extends AbstractGenericTypeSerializerTest {
 
     @Test
-    public void testJodaTime() {
+    void testJodaTime() {
         Collection<LocalDate> b = new HashSet<LocalDate>();
 
         b.add(new LocalDate(1L));
@@ -49,7 +49,7 @@ public class KryoWithCustomSerializersTest extends AbstractGenericTypeSerializer
 
     @Override
     protected <T> TypeSerializer<T> createSerializer(Class<T> type) {
-        ExecutionConfig conf = new ExecutionConfig();
+        SerializerConfigImpl conf = new SerializerConfigImpl();
         conf.registerTypeWithKryoSerializer(LocalDate.class, LocalDateSerializer.class);
         TypeInformation<T> typeInfo = new GenericTypeInfo<T>(type);
         return typeInfo.createSerializer(conf);

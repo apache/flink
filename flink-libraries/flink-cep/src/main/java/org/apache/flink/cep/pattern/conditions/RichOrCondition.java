@@ -40,12 +40,16 @@ public class RichOrCondition<T> extends RichCompositeIterativeCondition<T> {
         return getLeft().filter(value, ctx) || getRight().filter(value, ctx);
     }
 
-    /** @return One of the {@link IterativeCondition conditions} combined in this condition. */
+    /**
+     * @return One of the {@link IterativeCondition conditions} combined in this condition.
+     */
     public IterativeCondition<T> getLeft() {
         return getNestedConditions()[0];
     }
 
-    /** @return One of the {@link IterativeCondition conditions} combined in this condition. */
+    /**
+     * @return One of the {@link IterativeCondition conditions} combined in this condition.
+     */
     public IterativeCondition<T> getRight() {
         return getNestedConditions()[1];
     }

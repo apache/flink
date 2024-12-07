@@ -23,7 +23,6 @@ import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import org.apache.commons.collections.CollectionUtils;
@@ -123,7 +122,7 @@ public enum PackagedProgramUtils {
             Configuration configuration,
             int parallelism,
             boolean suppressOutput)
-            throws CompilerException, ProgramInvocationException {
+            throws ProgramInvocationException {
         final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
 
         Thread.currentThread().setContextClassLoader(program.getUserCodeClassLoader());
@@ -145,10 +144,6 @@ public enum PackagedProgramUtils {
         }
 
         // temporary hack to support the optimizer plan preview
-        OptimizerPlanEnvironment benv =
-                new OptimizerPlanEnvironment(
-                        configuration, program.getUserCodeClassLoader(), parallelism);
-        benv.setAsContext();
         StreamPlanEnvironment senv =
                 new StreamPlanEnvironment(
                         configuration, program.getUserCodeClassLoader(), parallelism);
@@ -157,10 +152,6 @@ public enum PackagedProgramUtils {
         try {
             program.invokeInteractiveModeForExecution();
         } catch (Throwable t) {
-            if (benv.getPipeline() != null) {
-                return benv.getPipeline();
-            }
-
             if (senv.getPipeline() != null) {
                 return senv.getPipeline();
             }
@@ -172,7 +163,6 @@ public enum PackagedProgramUtils {
             throw generateException(
                     program, "The program caused an error: ", t, stdOutBuffer, stdErrBuffer);
         } finally {
-            benv.unsetAsContext();
             senv.unsetAsContext();
             if (suppressOutput) {
                 System.setOut(originalOut);

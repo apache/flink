@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava31.com.google.common.util.concurrent.FutureCallback;
+import org.apache.flink.shaded.guava32.com.google.common.util.concurrent.FutureCallback;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +64,7 @@ public abstract class OutputFormatBase<OUT, V> extends RichOutputFormat<OUT> {
 
     /** Open the format and initializes the flush system. */
     @Override
-    public final void open(int taskNumber, int numTasks) {
+    public final void open(InitializationContext context) {
         throwable = new AtomicReference<>();
         this.semaphore = new Semaphore(maxConcurrentRequests);
         this.callback =
@@ -86,7 +86,7 @@ public abstract class OutputFormatBase<OUT, V> extends RichOutputFormat<OUT> {
 
     /**
      * Initialize the OutputFormat. This method is called at the end of {@link
-     * OutputFormatBase#open(int, int)}.
+     * OutputFormatBase#open(InitializationContext context)}.
      */
     protected void postOpen() {}
 

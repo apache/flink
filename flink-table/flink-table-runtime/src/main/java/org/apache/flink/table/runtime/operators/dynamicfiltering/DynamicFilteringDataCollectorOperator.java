@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.dynamicfiltering;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArrayComparator;
@@ -27,6 +27,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.connector.source.DynamicFilteringData;
 import org.apache.flink.table.connector.source.DynamicFilteringEvent;
@@ -72,10 +73,12 @@ public class DynamicFilteringDataCollectorOperator extends AbstractStreamOperato
     private transient FieldGetter[] fieldGetters;
 
     public DynamicFilteringDataCollectorOperator(
+            StreamOperatorParameters<Object> parameters,
             RowType dynamicFilteringFieldType,
             List<Integer> dynamicFilteringFieldIndices,
             long threshold,
             OperatorEventGateway operatorEventGateway) {
+        super(parameters);
         this.dynamicFilteringFieldType = checkNotNull(dynamicFilteringFieldType);
         this.dynamicFilteringFieldIndices = checkNotNull(dynamicFilteringFieldIndices);
         this.threshold = threshold;
@@ -86,7 +89,7 @@ public class DynamicFilteringDataCollectorOperator extends AbstractStreamOperato
     public void open() throws Exception {
         super.open();
         this.typeInfo = InternalTypeInfo.of(dynamicFilteringFieldType);
-        this.serializer = typeInfo.createSerializer(new ExecutionConfig());
+        this.serializer = typeInfo.createSerializer(new SerializerConfigImpl());
         this.buffer = new TreeSet<>(new BytePrimitiveArrayComparator(true)::compare);
         this.currentSize = 0L;
         this.fieldGetters =

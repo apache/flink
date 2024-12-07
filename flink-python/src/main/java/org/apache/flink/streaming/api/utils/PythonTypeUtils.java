@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo;
@@ -53,7 +54,6 @@ import org.apache.flink.api.common.typeutils.base.array.FloatPrimitiveArraySeria
 import org.apache.flink.api.common.typeutils.base.array.IntPrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.ShortPrimitiveArraySerializer;
-import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
@@ -65,6 +65,7 @@ import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.streaming.api.legacy.io.CollectionInputFormat;
 import org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
@@ -91,7 +92,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Sets;
 
 import javax.annotation.Nullable;
 
@@ -823,7 +824,7 @@ public class PythonTypeUtils {
                         .getCanonicalName()
                         .equals(
                                 "org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo")) {
-                    return typeInformation.createSerializer(new ExecutionConfig());
+                    return typeInformation.createSerializer(new SerializerConfigImpl());
                 }
             }
 
@@ -1519,7 +1520,7 @@ public class PythonTypeUtils {
                 data.stream()
                         .map(objects -> (T) converter.apply(objects))
                         .collect(Collectors.toList()),
-                dataType.createSerializer(config));
+                dataType.createSerializer(config.getSerializerConfig()));
     }
 
     private static BiFunction<Integer, Function<Integer, Object>, Object> arrayConstructor(
@@ -1970,7 +1971,8 @@ public class PythonTypeUtils {
 
             // other typeinfos will use the corresponding serializer to deserialize data.
             byte[] b = (byte[]) c;
-            TypeSerializer<?> dataSerializer = dataType.createSerializer(config);
+            TypeSerializer<?> dataSerializer =
+                    dataType.createSerializer(config.getSerializerConfig());
             ByteArrayInputStreamWithPos bais = new ByteArrayInputStreamWithPos();
             DataInputViewStreamWrapper baisWrapper = new DataInputViewStreamWrapper(bais);
             bais.setBuffer(b, 0, b.length);

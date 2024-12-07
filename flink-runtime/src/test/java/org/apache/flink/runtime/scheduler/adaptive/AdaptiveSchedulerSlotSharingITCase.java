@@ -30,19 +30,18 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** SlotSharing tests for the adaptive scheduler. */
-public class AdaptiveSchedulerSlotSharingITCase extends TestLogger {
+class AdaptiveSchedulerSlotSharingITCase {
 
     private static final int NUMBER_TASK_MANAGERS = 1;
     private static final int NUMBER_SLOTS_PER_TASK_MANAGER = 1;
@@ -69,9 +68,9 @@ public class AdaptiveSchedulerSlotSharingITCase extends TestLogger {
         return configuration;
     }
 
-    @ClassRule
-    public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterResource(
+    @RegisterExtension
+    private static final InternalMiniClusterExtension INTERNAL_MINI_CLUSTER_EXTENSION =
+            new InternalMiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getConfiguration())
                             .setNumberTaskManagers(NUMBER_TASK_MANAGERS)
@@ -79,14 +78,14 @@ public class AdaptiveSchedulerSlotSharingITCase extends TestLogger {
                             .build());
 
     @Test
-    public void testSchedulingOfJobRequiringSlotSharing() throws Exception {
+    void testSchedulingOfJobRequiringSlotSharing() throws Exception {
         // run job multiple times to ensure slots are cleaned up properly
         runJob();
         runJob();
     }
 
     private void runJob() throws Exception {
-        final MiniCluster miniCluster = MINI_CLUSTER_RESOURCE.getMiniCluster();
+        final MiniCluster miniCluster = INTERNAL_MINI_CLUSTER_EXTENSION.getMiniCluster();
         final JobGraph jobGraph = createJobGraphWithSlotSharingGroup();
 
         miniCluster.submitJob(jobGraph).join();
@@ -96,7 +95,7 @@ public class AdaptiveSchedulerSlotSharingITCase extends TestLogger {
         // this throws an exception if the job failed
         jobResult.toJobExecutionResult(getClass().getClassLoader());
 
-        assertTrue(jobResult.isSuccess());
+        assertThat(jobResult.isSuccess()).isTrue();
     }
 
     /**

@@ -52,7 +52,7 @@ The configuration keys `jobmanager.archive.fs.dir` and `historyserver.archive.fs
 
 **JobManager**
 
-The archiving of completed jobs happens on the JobManager, which uploads the archived job information to a file system directory. You can configure the directory to archive completed jobs in `flink-conf.yaml` by setting a directory via `jobmanager.archive.fs.dir`.
+The archiving of completed jobs happens on the JobManager, which uploads the archived job information to a file system directory. You can configure the directory to archive completed jobs in [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) by setting a directory via `jobmanager.archive.fs.dir`.
 
 ```yaml
 # Directory to upload completed job information

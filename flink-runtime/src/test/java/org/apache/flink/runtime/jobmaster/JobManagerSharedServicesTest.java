@@ -25,33 +25,32 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.ThrowingRunnable;
 
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nonnull;
 
+import java.io.File;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests auxiliary shared services created by {@link JobManagerSharedServices} and used by the
  * {@link JobMaster}.
  */
-public class JobManagerSharedServicesTest extends TestLogger {
+class JobManagerSharedServicesTest {
 
     private static final int CPU_CORES = Hardware.getNumberCPUCores();
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @TempDir private File TEMPORARY_FOLDER;
 
     @Test
-    public void testFutureExecutorNoConfiguration() throws Exception {
+    void testFutureExecutorNoConfiguration() throws Exception {
         final Configuration config = new Configuration();
 
         final JobManagerSharedServices jobManagerSharedServices =
@@ -67,10 +66,10 @@ public class JobManagerSharedServicesTest extends TestLogger {
     }
 
     @Test
-    public void testFutureExecutorConfiguration() throws Exception {
+    void testFutureExecutorConfiguration() throws Exception {
         final int futurePoolSize = 8;
         final Configuration config = new Configuration();
-        config.setInteger(JobManagerOptions.JOB_MANAGER_FUTURE_POOL_SIZE, futurePoolSize);
+        config.set(JobManagerOptions.JOB_MANAGER_FUTURE_POOL_SIZE, futurePoolSize);
 
         final JobManagerSharedServices jobManagerSharedServices =
                 buildJobManagerSharedServices(config);
@@ -81,7 +80,7 @@ public class JobManagerSharedServicesTest extends TestLogger {
     }
 
     @Test
-    public void testIoExecutorNoConfiguration() throws Exception {
+    void testIoExecutorNoConfiguration() throws Exception {
         final Configuration config = new Configuration();
 
         final JobManagerSharedServices jobManagerSharedServices =
@@ -95,10 +94,10 @@ public class JobManagerSharedServicesTest extends TestLogger {
     }
 
     @Test
-    public void testIoExecutorConfiguration() throws Exception {
+    void testIoExecutorConfiguration() throws Exception {
         final int ioPoolSize = 5;
         final Configuration config = new Configuration();
-        config.setInteger(JobManagerOptions.JOB_MANAGER_IO_POOL_SIZE, ioPoolSize);
+        config.set(JobManagerOptions.JOB_MANAGER_IO_POOL_SIZE, ioPoolSize);
 
         final JobManagerSharedServices jobManagerSharedServices =
                 buildJobManagerSharedServices(config);
@@ -115,7 +114,7 @@ public class JobManagerSharedServicesTest extends TestLogger {
             throws Exception {
         return JobManagerSharedServices.fromConfiguration(
                 configuration,
-                new BlobServer(configuration, TEMPORARY_FOLDER.newFolder(), new VoidBlobStore()),
+                new BlobServer(configuration, TEMPORARY_FOLDER, new VoidBlobStore()),
                 new TestingFatalErrorHandler());
     }
 
@@ -141,7 +140,7 @@ public class JobManagerSharedServicesTest extends TestLogger {
 
         // the expected pool size latch should complete since we expect to have enough threads
         expectedPoolSizeLatch.await();
-        assertEquals(1, expectedPoolSizePlusOneLatch.getCount());
+        assertThat(expectedPoolSizePlusOneLatch.getCount()).isOne();
 
         // unblock the runnables
         releaseLatch.trigger();

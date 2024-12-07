@@ -265,8 +265,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
         builder.setMetricEnabled(config.get(PYTHON_METRIC_ENABLED));
         builder.setProfileEnabled(config.get(PYTHON_PROFILE_ENABLED));
         builder.addAllJobParameters(
-                getRuntimeContext().getExecutionConfig().getGlobalJobParameters().toMap().entrySet()
-                        .stream()
+                getRuntimeContext().getGlobalJobParameters().entrySet().stream()
                         .map(
                                 entry ->
                                         FlinkFnApi.JobParameter.newBuilder()

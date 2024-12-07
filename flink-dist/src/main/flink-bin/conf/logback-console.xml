@@ -46,7 +46,7 @@
     </appender>
 
     <!-- This affects logging for both user code and Flink -->
-    <root level="INFO">
+    <root level="${ROOT_LOG_LEVEL:-INFO}">
         <appender-ref ref="console"/>
         <appender-ref ref="rolling"/>
     </root>

@@ -19,22 +19,22 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JavaType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
 
 import java.util.Collection;
 import java.util.Collections;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test base for verifying that marshalling / unmarshalling REST {@link ResponseBody}s work
  * properly.
  */
-public abstract class RestResponseMarshallingTestBase<R extends ResponseBody> extends TestLogger {
+public abstract class RestResponseMarshallingTestBase<R extends ResponseBody> {
 
     /**
      * Returns the class of the test response.
@@ -55,7 +55,7 @@ public abstract class RestResponseMarshallingTestBase<R extends ResponseBody> ex
     protected abstract R getTestResponseInstance() throws Exception;
 
     /** Tests that we can marshal and unmarshal the response. */
-    @Test
+    @TestTemplate
     public void testJsonMarshalling() throws Exception {
         final R expected = getTestResponseInstance();
 
@@ -87,6 +87,6 @@ public abstract class RestResponseMarshallingTestBase<R extends ResponseBody> ex
      * @param actual the value to check against expected
      */
     protected void assertOriginalEqualsToUnmarshalled(R expected, R actual) {
-        Assert.assertEquals(expected, actual);
+        assertThat(expected).isEqualTo(actual);
     }
 }

@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.batch.table
 
-import org.apache.flink.api.scala._
 import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase}
@@ -361,7 +360,7 @@ class GroupWindowITCase extends BatchTestBase {
 
     // UDAGG
     val countFunc = new CountAggFunction()
-    registerFunction("countFun", countFunc)
+    tEnv.createTemporarySystemFunction("countFun", countFunc)
 
     val windowedTable = table
       .window(Slide.over(3.milli).every(10.milli).on('long).as('w))

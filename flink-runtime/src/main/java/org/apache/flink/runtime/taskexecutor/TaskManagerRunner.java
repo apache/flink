@@ -19,11 +19,10 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JMXServerOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptionsInternal;
 import org.apache.flink.core.fs.FileSystem;
@@ -51,6 +50,7 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.ReporterSetup;
+import org.apache.flink.runtime.metrics.TraceReporterSetup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.rpc.AddressResolution;
@@ -122,7 +122,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
     private final Configuration configuration;
 
-    private final Time timeout;
+    private final Duration timeout;
 
     private final PluginManager pluginManager;
 
@@ -170,7 +170,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
         this.pluginManager = checkNotNull(pluginManager);
         this.taskExecutorServiceFactory = checkNotNull(taskExecutorServiceFactory);
 
-        timeout = Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
+        timeout = configuration.get(RpcOptions.ASK_TIMEOUT_DURATION);
 
         this.terminationFuture = new CompletableFuture<>();
         this.shutdown = false;
@@ -199,7 +199,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
                             rpcSystem,
                             this);
 
-            JMXService.startInstance(configuration.getString(JMXServerOptions.JMX_SERVER_PORT));
+            JMXService.startInstance(configuration.get(JMXServerOptions.JMX_SERVER_PORT));
 
             rpcService = createRpcService(configuration, highAvailabilityServices, rpcSystem);
 
@@ -221,13 +221,14 @@ public class TaskManagerRunner implements FatalErrorHandler {
                             MetricRegistryConfiguration.fromConfiguration(
                                     configuration,
                                     rpcSystem.getMaximumMessageSizeInBytes(configuration)),
-                            ReporterSetup.fromConfiguration(configuration, pluginManager));
+                            ReporterSetup.fromConfiguration(configuration, pluginManager),
+                            TraceReporterSetup.fromConfiguration(configuration, pluginManager));
 
             final RpcService metricQueryServiceRpcService =
                     MetricUtils.startRemoteMetricsRpcService(
                             configuration,
                             rpcService.getAddress(),
-                            configuration.getString(TaskManagerOptions.BIND_HOST),
+                            configuration.get(TaskManagerOptions.BIND_HOST),
                             rpcSystem);
             metricRegistry.startQueryService(metricQueryServiceRpcService, resourceId.unwrap());
 
@@ -406,7 +407,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
             if (executor != null) {
                 terminationFutures.add(
                         ExecutorUtils.nonBlockingShutdown(
-                                timeout.toMilliseconds(), TimeUnit.MILLISECONDS, executor));
+                                timeout.toMillis(), TimeUnit.MILLISECONDS, executor));
             }
 
             if (exception != null) {
@@ -606,6 +607,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
         LOG.info("Starting TaskManager with ResourceID: {}", resourceID.getStringWithMetadata());
 
+        SystemOutRedirectionUtils.redirectSystemOutAndError(configuration);
+
         String externalAddress = rpcService.getAddress();
 
         final TaskExecutorResourceSpec taskExecutorResourceSpec =
@@ -638,6 +641,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         taskExecutorBlobService.getPermanentBlobService(),
                         taskManagerMetricGroup.f1,
                         ioExecutor,
+                        rpcService.getScheduledExecutor(),
                         fatalErrorHandler,
                         workingDirectory);
 
@@ -690,8 +694,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
                 rpcSystem,
                 configuration,
                 determineTaskManagerBindAddress(configuration, haServices, rpcSystem),
-                configuration.getString(TaskManagerOptions.RPC_PORT),
-                configuration.getString(TaskManagerOptions.BIND_HOST),
+                configuration.get(TaskManagerOptions.RPC_PORT),
+                configuration.get(TaskManagerOptions.BIND_HOST),
                 configuration.getOptional(TaskManagerOptions.RPC_BIND_PORT));
     }
 
@@ -701,8 +705,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
             RpcSystemUtils rpcSystemUtils)
             throws Exception {
 
-        final String configuredTaskManagerHostname =
-                configuration.getString(TaskManagerOptions.HOST);
+        final String configuredTaskManagerHostname = configuration.get(TaskManagerOptions.HOST);
 
         if (configuredTaskManagerHostname != null) {
             LOG.info(
@@ -721,7 +724,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
             RpcSystemUtils rpcSystemUtils)
             throws LeaderRetrievalException {
 
-        final Duration lookupTimeout = configuration.get(AkkaOptions.LOOKUP_TIMEOUT_DURATION);
+        final Duration lookupTimeout = configuration.get(RpcOptions.LOOKUP_TIMEOUT_DURATION);
 
         final InetAddress taskManagerAddress =
                 LeaderRetrievalUtils.findConnectingAddress(
@@ -735,8 +738,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
                 taskManagerAddress.getHostAddress());
 
         HostBindPolicy bindPolicy =
-                HostBindPolicy.fromString(
-                        configuration.getString(TaskManagerOptions.HOST_BIND_POLICY));
+                HostBindPolicy.fromString(configuration.get(TaskManagerOptions.HOST_BIND_POLICY));
         return bindPolicy == HostBindPolicy.IP
                 ? taskManagerAddress.getHostAddress()
                 : taskManagerAddress.getHostName();
@@ -747,7 +749,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
             Configuration config, String rpcAddress, int rpcPort) {
 
         final String metadata =
-                config.getString(TaskManagerOptionsInternal.TASK_MANAGER_RESOURCE_ID_METADATA, "");
+                config.get(TaskManagerOptionsInternal.TASK_MANAGER_RESOURCE_ID_METADATA, "");
         return config.getOptional(TaskManagerOptions.TASK_MANAGER_RESOURCE_ID)
                 .map(
                         value ->

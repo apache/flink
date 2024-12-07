@@ -30,7 +30,7 @@ import org.apache.flink.table.runtime.operators.join.lookup.RetryableLookupFunct
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -42,7 +42,7 @@ import java.util.Map;
 import static org.apache.flink.table.data.StringData.fromString;
 
 /** Harness tests for {@link RetryableLookupFunctionDelegator}. */
-public class RetryableLookupFunctionDelegatorTest {
+class RetryableLookupFunctionDelegatorTest {
 
     private final LookupFunction userLookupFunc = new TestingLookupFunction();
 
@@ -75,8 +75,8 @@ public class RetryableLookupFunctionDelegatorTest {
                     });
 
     @Test
-    public void testLookupWithRetry() throws Exception {
-        delegator.open(new FunctionContext(new MockStreamingRuntimeContext(false, 1, 1)));
+    void testLookupWithRetry() throws Exception {
+        delegator.open(new FunctionContext(new MockStreamingRuntimeContext(false, 1, 0)));
         for (int i = 1; i <= 5; i++) {
             RowData key = GenericRowData.of(i);
             assertor.assertOutputEquals(

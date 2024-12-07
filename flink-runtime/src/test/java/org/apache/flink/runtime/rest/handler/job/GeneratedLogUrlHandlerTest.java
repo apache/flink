@@ -18,27 +18,25 @@
 
 package org.apache.flink.runtime.rest.handler.job;
 
-import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for the {@link GeneratedLogUrlHandler}. */
-public class GeneratedLogUrlHandlerTest extends TestLogger {
+class GeneratedLogUrlHandlerTest {
 
     @Test
-    public void testGenerateJobManagerLogUrl() {
+    void testGenerateJobManagerLogUrl() {
         final String pattern = "http://localhost/<jobid>/log";
         final String jobId = "jobid";
 
         final String generatedUrl = GeneratedLogUrlHandler.generateLogUrl(pattern, jobId, null);
 
-        assertEquals(pattern.replace("<jobid>", jobId), generatedUrl);
+        assertThat(generatedUrl).isEqualTo(pattern.replace("<jobid>", jobId));
     }
 
     @Test
-    public void testGenerateTaskManagerLogUrl() {
+    void testGenerateTaskManagerLogUrl() {
         final String pattern = "http://localhost/<jobid>/tm/<tmid>/log";
         final String jobId = "jobid";
         final String taskManagerId = "tmid";
@@ -46,7 +44,7 @@ public class GeneratedLogUrlHandlerTest extends TestLogger {
         final String generatedUrl =
                 GeneratedLogUrlHandler.generateLogUrl(pattern, jobId, taskManagerId);
 
-        assertEquals(
-                pattern.replace("<jobid>", jobId).replace("<tmid>", taskManagerId), generatedUrl);
+        assertThat(pattern.replace("<jobid>", jobId).replace("<tmid>", taskManagerId))
+                .isEqualTo(generatedUrl);
     }
 }

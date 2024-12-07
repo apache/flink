@@ -20,6 +20,7 @@ package org.apache.flink.api.common.typeutils.base;
 
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 
 import java.util.List;
 
@@ -30,9 +31,7 @@ public class ListSerializerSnapshot<T>
     private static final int CURRENT_VERSION = 1;
 
     /** Constructor for read instantiation. */
-    public ListSerializerSnapshot() {
-        super(ListSerializer.class);
-    }
+    public ListSerializerSnapshot() {}
 
     /** Constructor to create the snapshot for writing. */
     public ListSerializerSnapshot(ListSerializer<T> listSerializer) {
@@ -55,5 +54,10 @@ public class ListSerializerSnapshot<T>
     @Override
     protected TypeSerializer<?>[] getNestedSerializers(ListSerializer<T> outerSerializer) {
         return new TypeSerializer<?>[] {outerSerializer.getElementSerializer()};
+    }
+
+    @SuppressWarnings("unchecked")
+    public TypeSerializerSnapshot<T> getElementSerializerSnapshot() {
+        return (TypeSerializerSnapshot<T>) getNestedSerializerSnapshots()[0];
     }
 }

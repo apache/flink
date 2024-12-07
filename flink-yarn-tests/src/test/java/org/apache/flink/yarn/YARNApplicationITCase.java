@@ -21,12 +21,12 @@ package org.apache.flink.yarn;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.application.ApplicationConfiguration;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
@@ -40,6 +40,7 @@ import java.io.FileNotFoundException;
 import java.time.Duration;
 import java.util.Collections;
 
+import static org.apache.flink.configuration.CoreOptions.FLINK_JVM_OPTIONS;
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
 import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
 
@@ -50,7 +51,7 @@ class YARNApplicationITCase extends YarnTestBase {
     private static final int sleepIntervalInMS = 100;
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, "flink-yarn-tests-application");
         startYARNWithConfig(YARN_CONFIGURATION, true);
     }
@@ -131,10 +132,13 @@ class YARNApplicationITCase extends YarnTestBase {
         Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(768));
         configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
-        configuration.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(30));
+        configuration.set(RpcOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(30));
         configuration.set(DeploymentOptions.TARGET, YarnDeploymentTarget.APPLICATION.getName());
         configuration.set(CLASSPATH_INCLUDE_USER_JAR, userJarInclusion);
         configuration.set(PipelineOptions.JARS, Collections.singletonList(userJar.toString()));
+
+        // Apply the JVM arguments that were set for unit tests to any Flink JVMs
+        configuration.set(FLINK_JVM_OPTIONS, System.getProperty("surefire.module.config"));
 
         return configuration;
     }

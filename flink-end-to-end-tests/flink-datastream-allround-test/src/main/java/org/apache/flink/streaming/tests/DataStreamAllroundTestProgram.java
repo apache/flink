@@ -22,11 +22,10 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.formats.avro.typeutils.AvroSerializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.tests.artificialstate.ComplexPayload;
@@ -34,6 +33,7 @@ import org.apache.flink.streaming.tests.artificialstate.StatefulComplexPayloadSe
 import org.apache.flink.streaming.tests.avro.ComplexPayloadAvro;
 import org.apache.flink.streaming.tests.avro.InnerPayLoadAvro;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.ParameterTool;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -49,7 +49,7 @@ import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSemanticsCheckMapper;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSlidingWindow;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createSlidingWindowCheckMapper;
-import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createTimestampExtractor;
+import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.createWatermarkStrategy;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.isSimulateFailures;
 import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.setupEnvironment;
 import static org.apache.flink.streaming.tests.TestOperatorEnum.EVENT_SOURCE;
@@ -94,7 +94,7 @@ public class DataStreamAllroundTestProgram {
                 env.addSource(createEventSource(pt))
                         .name(EVENT_SOURCE.getName())
                         .uid(EVENT_SOURCE.getUid())
-                        .assignTimestampsAndWatermarks(createTimestampExtractor(pt))
+                        .assignTimestampsAndWatermarks(createWatermarkStrategy(pt))
                         .keyBy(Event::getKey)
                         .map(
                                 createArtificialKeyedStateMapper(
@@ -127,7 +127,8 @@ public class DataStreamAllroundTestProgram {
                                         Arrays.asList(
                                                 new KryoSerializer<>(
                                                         ComplexPayload.class,
-                                                        env.getConfig()), // KryoSerializer
+                                                        env.getConfig()
+                                                                .getSerializerConfig()), // KryoSerializer
                                                 new StatefulComplexPayloadSerializer()), // custom
                                         // stateful
                                         // serializer

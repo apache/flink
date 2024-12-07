@@ -98,7 +98,7 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
         final Map<ExecutionVertexID, Collection<ExecutionAttemptID>> slowTasks =
                 slowTaskDetector.findSlowTasks(executionGraph);
 
-        assertThat(slowTasks.size()).isZero();
+        assertThat(slowTasks).isEmpty();
     }
 
     @Test
@@ -214,7 +214,7 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
         final JobVertex jobVertex2 = new JobVertex("vertex2");
         jobVertex2.setInvokableClass(NoOpInvokable.class);
         jobVertex2.connectNewDataSetAsInput(
-                jobVertex1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+                jobVertex1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
         final ExecutionGraph executionGraph = createDynamicExecutionGraph(jobVertex1, jobVertex2);
 
         final ExecutionTimeBasedSlowTaskDetector slowTaskDetector =
@@ -316,7 +316,7 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
                 slowTaskDetector.findSlowTasks(executionGraph);
 
         // no task will be detected as slow task
-        assertThat(slowTasks).hasSize(0);
+        assertThat(slowTasks).isEmpty();
     }
 
     @Test
@@ -368,15 +368,13 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
         ExecutionTimeWithInputBytes executionTimeWithInputBytes7 =
                 new ExecutionTimeWithInputBytes(1, 0);
 
-        assertThat(executionTimeWithInputBytes7.compareTo(executionTimeWithInputBytes1))
-                .isEqualTo(1);
+        assertThat(executionTimeWithInputBytes7).isGreaterThan(executionTimeWithInputBytes1);
 
         // executions with 0 input bytes and 0 execution time
         ExecutionTimeWithInputBytes executionTimeWithInputBytes8 =
                 new ExecutionTimeWithInputBytes(0, 0);
 
-        assertThat(executionTimeWithInputBytes8.compareTo(executionTimeWithInputBytes1))
-                .isEqualTo(-1);
+        assertThat(executionTimeWithInputBytes8).isLessThan(executionTimeWithInputBytes1);
 
         // executions with assigned input bytes mixed with UNKNOWN input bytes
         ExecutionTimeWithInputBytes executionTimeWithInputBytes9 =
@@ -431,7 +429,7 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
     }
 
     private ExecutionGraph createDynamicExecutionGraph(JobVertex... jobVertices) throws Exception {
-        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(jobVertices);
+        final JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(jobVertices);
 
         final SchedulerBase scheduler =
                 new DefaultSchedulerBuilder(

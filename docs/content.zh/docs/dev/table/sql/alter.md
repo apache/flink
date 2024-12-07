@@ -28,7 +28,7 @@ under the License.
 
 
 
-ALTER 语句用于修改一个已经在 [Catalog]({{< ref "docs/dev/table/catalogs" >}}) 中注册的表、视图或函数定义。
+ALTER 语句用于修改一个已经在 [Catalog]({{< ref "docs/dev/table/catalogs" >}}) 中注册的表、视图或函数定义，或 catalog 本身的定义。
 
 Flink SQL 目前支持以下 ALTER 语句：
 
@@ -36,6 +36,7 @@ Flink SQL 目前支持以下 ALTER 语句：
 - ALTER VIEW
 - ALTER DATABASE
 - ALTER FUNCTION
+- ALTER CATALOG
 
 ## 执行 ALTER 语句
 
@@ -102,6 +103,12 @@ tableEnv.executeSql("ALTER TABLE Orders RENAME TO NewOrders");
 // 字符串数组：["NewOrders"]
 String[] tables = tableEnv.listTables();
 // or tableEnv.executeSql("SHOW TABLES").print();
+
+// 注册名为 "cat2" 的 catalog
+tableEnv.executeSql("CREATE CATALOG cat2 WITH ('type'='generic_in_memory')");
+
+// 增加属性 `default-database`
+tableEnv.executeSql("ALTER CATALOG cat2 SET ('default-database'='db')");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -139,6 +146,12 @@ tableEnv.executeSql("ALTER TABLE Orders RENAME TO NewOrders")
 // 字符串数组：["NewOrders"]
 val tables = tableEnv.listTables()
 // or tableEnv.executeSql("SHOW TABLES").print()
+
+// 注册名为 "cat2" 的 catalog
+tableEnv.executeSql("CREATE CATALOG cat2 WITH ('type'='generic_in_memory')")
+
+// 增加属性 `default-database`
+tableEnv.executeSql("ALTER CATALOG cat2 SET ('default-database'='db')")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -150,38 +163,44 @@ tables = table_env.list_tables()
 # or table_env.execute_sql("SHOW TABLES").print()
 
 # 新增列 `order` 并置于第一位
-table_env.execute_sql("ALTER TABLE Orders ADD `order` INT COMMENT 'order identifier' FIRST");
+table_env.execute_sql("ALTER TABLE Orders ADD `order` INT COMMENT 'order identifier' FIRST")
 
 # 新增更多列, 主键及 watermark
-table_env.execute_sql("ALTER TABLE Orders ADD (ts TIMESTAMP(3), category STRING AFTER product, PRIMARY KEY(`order`) NOT ENFORCED, WATERMARK FOR ts AS ts - INTERVAL '1' HOUR)");
+table_env.execute_sql("ALTER TABLE Orders ADD (ts TIMESTAMP(3), category STRING AFTER product, PRIMARY KEY(`order`) NOT ENFORCED, WATERMARK FOR ts AS ts - INTERVAL '1' HOUR)")
 
 # 修改列类型, 列注释, 主键及 watermark
-table_env.execute_sql("ALTER TABLE Orders MODIFY (amount DOUBLE NOT NULL, category STRING COMMENT 'category identifier' AFTER `order`, WATERMARK FOR ts AS ts)");
+table_env.execute_sql("ALTER TABLE Orders MODIFY (amount DOUBLE NOT NULL, category STRING COMMENT 'category identifier' AFTER `order`, WATERMARK FOR ts AS ts)")
 
 # 删除 watermark
-table_env.execute_sql("ALTER TABLE Orders DROP WATERMARK");
+table_env.execute_sql("ALTER TABLE Orders DROP WATERMARK")
 
 # 删除列
-table_env.execute_sql("ALTER TABLE Orders DROP (amount, ts, category)");
+table_env.execute_sql("ALTER TABLE Orders DROP (amount, ts, category)")
 
 # 重命名列
-table_env.execute_sql("ALTER TABLE Orders RENAME `order` TO order_id");
+table_env.execute_sql("ALTER TABLE Orders RENAME `order` TO order_id")
 
 # 把 "Orders" 的表名改为 "NewOrders"
-table_env.execute_sql("ALTER TABLE Orders RENAME TO NewOrders");
+table_env.execute_sql("ALTER TABLE Orders RENAME TO NewOrders")
 
 # 字符串数组：["NewOrders"]
 tables = table_env.list_tables()
 # or table_env.execute_sql("SHOW TABLES").print()
+
+# 注册名为 "cat2" 的 catalog
+table_env.execute_sql("CREATE CATALOG cat2 WITH ('type'='generic_in_memory')")
+
+# 增加属性 `default-database`
+table_env.execute_sql("ALTER CATALOG cat2 SET ('default-database'='db')")
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 ```sql
 Flink SQL> CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> ALTER TABLE Orders ADD `order` INT COMMENT 'order identifier' FIRST;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> DESCRIBE Orders;
 +---------+--------+------+-----+--------+-----------+------------------+
@@ -195,7 +214,7 @@ Flink SQL> DESCRIBE Orders;
 4 rows in set
 
 Flink SQL> ALTER TABLE Orders ADD (ts TIMESTAMP(3), category STRING AFTER product, PRIMARY KEY(`order`) NOT ENFORCED, WATERMARK FOR ts AS ts - INTERVAL '1' HOUR);
-[INFO] Execute statement succeed. 
+[INFO] Execute statement succeeded. 
 
 Flink SQL> DESCRIBE Orders;
 +----------+------------------------+-------+------------+--------+--------------------------+------------------+
@@ -211,7 +230,7 @@ Flink SQL> DESCRIBE Orders;
 6 rows in set
 
 Flink SQL> ALTER TABLE Orders MODIFY (amount DOUBLE NOT NULL, category STRING COMMENT 'category identifier' AFTER `order`, WATERMARK FOR ts AS ts);
-[INFO] Execute statement succeed. 
+[INFO] Execute statement succeeded. 
 
 Flink SQL> DESCRIBE Orders;
 +----------+------------------------+-------+------------+--------+-----------+---------------------+
@@ -227,7 +246,7 @@ Flink SQL> DESCRIBE Orders;
 6 rows in set
 
 Flink SQL> ALTER TABLE Orders DROP WATERMARK;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> DESCRIBE Orders;
 +----------+--------------+-------+------------+--------+-----------+---------------------+
@@ -243,7 +262,7 @@ Flink SQL> DESCRIBE Orders;
 6 rows in set
 
 Flink SQL> ALTER TABLE Orders DROP (amount, ts, category);
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> DESCRIBE Orders;
 +---------+--------+-------+------------+--------+-----------+------------------+
@@ -256,7 +275,7 @@ Flink SQL> DESCRIBE Orders;
 3 rows in set
 
 Flink SQL> ALTER TABLE Orders RENAME `order` to `order_id`;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> DESCRIBE Orders;
 +----------+--------+-------+---------------+--------+-----------+------------------+
@@ -277,7 +296,7 @@ Flink SQL> SHOW TABLES;
 1 row in set
 
 Flink SQL> ALTER TABLE Orders RENAME TO NewOrders;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> SHOW TABLES;
 +------------+
@@ -286,6 +305,23 @@ Flink SQL> SHOW TABLES;
 |  NewOrders |
 +------------+
 1 row in set
+
+Flink SQL> CREATE CATALOG cat2 WITH ('type'='generic_in_memory');
+[INFO] Execute statement succeeded.
+
+Flink SQL> ALTER CATALOG cat2 SET ('default-database'='db_new');
+[INFO] Execute statement succeeded.
+
+Flink SQL> DESC CATALOG EXTENDED cat2;
++-------------------------+-------------------+
+|               info name |        info value |
++-------------------------+-------------------+
+|                    name |              cat2 |
+|                    type | generic_in_memory |
+|                 comment |                   |
+| option:default-database |            db_new |
++-------------------------+-------------------+
+4 rows in set
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -297,9 +333,9 @@ Flink SQL> SHOW TABLES;
 当前支持的 ALTER TABLE 语法如下
 ```text
 ALTER TABLE [IF EXISTS] table_name {
-    ADD { <schema_component> | (<schema_component> [, ...]) | [IF NOT EXISTS] <partition_component> [<partition_component> ...]}
-  | MODIFY { <schema_component> | (<schema_component> [, ...]) }
-  | DROP {column_name | (column_name, column_name, ....) | PRIMARY KEY | CONSTRAINT constraint_name | WATERMARK | [IF EXISTS] <partition_component> [, ...]}
+    ADD { <schema_component> | (<schema_component> [, ...]) | [IF NOT EXISTS] <partition_component> [<partition_component> ...] | <distribution> }
+  | MODIFY { <schema_component> | (<schema_component> [, ...]) | <distribution> }
+  | DROP {column_name | (column_name, column_name, ....) | PRIMARY KEY | CONSTRAINT constraint_name | WATERMARK | [IF EXISTS] <partition_component> [, ...] | DISTRIBUTION }
   | RENAME old_column_name TO new_column_name
   | RENAME TO new_table_name
   | SET (key1=val1, ...)
@@ -332,6 +368,12 @@ ALTER TABLE [IF EXISTS] table_name {
   
 <partition_component>:
   PARTITION (key1=val1, key2=val2, ...) [WITH (key1=val1, key2=val2, ...)]
+  
+<distribution>:
+{
+    DISTRIBUTION BY [ { HASH | RANGE } ] (bucket_column_name1, bucket_column_name2, ...) ] [INTO n BUCKETS]
+  | DISTRIBUTION INTO n BUCKETS
+} 
 ```
 
 **IF EXISTS**
@@ -339,7 +381,7 @@ ALTER TABLE [IF EXISTS] table_name {
 若表不存在，则不进行任何操作。
 
 ### ADD
-使用 `ADD` 语句向已有表中增加 [columns]({{< ref "docs/dev/table/sql/create" >}}#columns)， [constraints]({{< ref "docs/dev/table/sql/create" >}}#primary-key)，[watermark]({{< ref "docs/dev/table/sql/create" >}}#watermark), [partitions]({{< ref "docs/dev/table/sql/create" >}}#partitioned-by)。
+使用 `ADD` 语句向已有表中增加 [columns]({{< ref "docs/dev/table/sql/create" >}}#columns)， [constraints]({{< ref "docs/dev/table/sql/create" >}}#primary-key)，[watermark]({{< ref "docs/dev/table/sql/create" >}}#watermark), [partitions]({{< ref "docs/dev/table/sql/create" >}}#partitioned-by), and a distribution]({{< ref "docs/dev/table/sql/create" >}}#distributed)。
 
 向表新增列时可通过 `FIRST` or `AFTER col_name` 指定位置，不指定位置时默认追加在最后。
 
@@ -362,6 +404,18 @@ ALTER TABLE MyTable ADD PARTITION (p1=1,p2='a') with ('k1'='v1');
 
 -- 新增两个分区
 ALTER TABLE MyTable ADD PARTITION (p1=1,p2='a') with ('k1'='v1') PARTITION (p1=1,p2='b') with ('k2'='v2');
+
+-- add new distribution using a hash on uid into 4 buckets
+ALTER TABLE MyTable ADD DISTRIBUTION BY HASH(uid) INTO 4 BUCKETS;
+
+-- add new distribution on uid into 4 buckets
+CREATE TABLE MyTable ADD DISTRIBUTION BY (uid) INTO 4 BUCKETS;
+
+-- add new distribution on uid.
+CREATE TABLE MyTable ADD DISTRIBUTION BY (uid);
+
+-- add new distribution into 4 buckets
+CREATE TABLE MyTable ADD DISTRIBUTION INTO 4 BUCKETS;
 ```
 <span class="label label-danger">注意</span> 指定列为主键列时会隐式修改该列的 nullability 为 false。
 
@@ -409,6 +463,9 @@ ALTER TABLE MyTable DROP PARTITION (`id` = 1), PARTITION (`id` = 2);
 
 -- 删除 watermark
 ALTER TABLE MyTable DROP WATERMARK;
+
+-- drop distribution
+ALTER TABLE MyTable DROP DISTRIBUTION;
 ```
 
 ### RENAME
@@ -502,3 +559,48 @@ ALTER [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
 **LANGUAGE JAVA\|SCALA\|PYTHON**
 
 Language tag 用于指定 Flink runtime 如何执行这个函数。目前，只支持 JAVA，SCALA 和 PYTHON，且函数的默认语言为 JAVA。
+
+{{< top >}}
+
+## ALTER CATALOG
+
+```sql
+ALTER CATALOG catalog_name 
+    SET (key1=val1, ...)
+  | RESET (key1, ...)
+  | COMMENT 'comment'
+```
+
+### SET
+
+为指定的 catalog 设置一个或多个属性。若个别属性已经存在，则使用新值覆盖旧值。
+
+`SET` 语句示例如下。
+
+```sql
+-- set 'default-database'
+ALTER CATALOG cat2 SET ('default-database'='db');
+```
+
+### RESET
+
+为指定的 catalog 重置一个或多个属性。
+
+`RESET` 语句示例如下。
+
+```sql
+-- reset 'default-database'
+ALTER CATALOG cat2 RESET ('default-database');
+```
+
+### COMMENT
+
+为指定的 catalog 设置注释。若注释已经存在，则使用新值覆盖旧值。
+
+`COMMENT` 语句示例如下。
+
+```sql
+ALTER CATALOG cat2 COMMENT 'comment for catalog ''cat2''';
+```
+
+{{< top >}}

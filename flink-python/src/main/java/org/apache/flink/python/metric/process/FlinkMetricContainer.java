@@ -60,7 +60,7 @@ public final class FlinkMetricContainer {
     private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
 
     private static final String METRIC_KEY_SEPARATOR =
-            GlobalConfiguration.loadConfiguration().getString(MetricOptions.SCOPE_DELIMITER);
+            GlobalConfiguration.loadConfiguration().get(MetricOptions.SCOPE_DELIMITER);
 
     private final MetricsContainerStepMap metricsContainers;
     private final MetricGroup baseMetricGroup;

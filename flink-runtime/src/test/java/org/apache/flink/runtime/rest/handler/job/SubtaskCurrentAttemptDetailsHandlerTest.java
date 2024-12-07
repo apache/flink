@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
@@ -43,23 +42,23 @@ import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetails
 import org.apache.flink.runtime.rest.messages.job.SubtaskMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests of {@link SubtaskCurrentAttemptDetailsHandler}. */
-public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
+class SubtaskCurrentAttemptDetailsHandlerTest {
 
     @Test
-    public void testHandleRequest() throws Exception {
+    void testHandleRequest() throws Exception {
 
         // Prepare the execution graph.
         final JobID jobID = new JobID();
@@ -128,18 +127,18 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
                         () -> null,
                         address -> null,
                         Executors.directExecutor(),
-                        Time.milliseconds(1000L),
-                        MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
+                        Duration.ofMillis(1000L),
+                        MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue().toMillis());
 
         final SubtaskCurrentAttemptDetailsHandler handler =
                 new SubtaskCurrentAttemptDetailsHandler(
                         () -> null,
-                        Time.milliseconds(100),
+                        Duration.ofMillis(100),
                         Collections.emptyMap(),
                         SubtaskCurrentAttemptDetailsHeaders.getInstance(),
                         new DefaultExecutionGraphCache(
                                 restHandlerConfiguration.getTimeout(),
-                                Time.milliseconds(restHandlerConfiguration.getRefreshInterval())),
+                                Duration.ofMillis(restHandlerConfiguration.getRefreshInterval())),
                         Executors.directExecutor(),
                         metricFetcher);
 
@@ -186,7 +185,7 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
                         subtaskIndex,
                         expectedState,
                         attempt,
-                        assignedResourceLocation.getHostname(),
+                        assignedResourceLocation.getEndpoint(),
                         deployingTs,
                         finishedTs,
                         finishedTs - deployingTs,
@@ -195,6 +194,6 @@ public class SubtaskCurrentAttemptDetailsHandlerTest extends TestLogger {
                         statusDuration,
                         null);
 
-        assertEquals(expectedDetailsInfo, detailsInfo);
+        assertThat(detailsInfo).isEqualTo(expectedDetailsInfo);
     }
 }

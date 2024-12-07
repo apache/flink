@@ -31,12 +31,14 @@ import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.types.Row;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.sql.Timestamp;
 import java.util.Arrays;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Test Temporal join of hive tables.
@@ -45,13 +47,13 @@ import java.util.Arrays;
  * 3.1.1. To run this test, please use mvn command: mvn test -Phive-3.1.1
  * -Dtest=org.apache.flink.connectors.hive.HiveTemporalJoinITCase
  */
-public class HiveTemporalJoinITCase extends TableTestBase {
+class HiveTemporalJoinITCase extends TableTestBase {
 
     private static TableEnvironment tableEnv;
     private static HiveCatalog hiveCatalog;
 
-    @BeforeClass
-    public static void setup() {
+    @BeforeAll
+    static void setup() {
         if (!HiveVersionTestUtil.HIVE_310_OR_LATER) {
             return;
         }
@@ -96,7 +98,7 @@ public class HiveTemporalJoinITCase extends TableTestBase {
     }
 
     @Test
-    public void testProcTimeTemporalJoinHiveTable() throws Exception {
+    void testProcTimeTemporalJoinHiveTable() throws Exception {
         if (!HiveVersionTestUtil.HIVE_310_OR_LATER) {
             return;
         }
@@ -104,16 +106,18 @@ public class HiveTemporalJoinITCase extends TableTestBase {
         tableEnv.executeSql("insert into build values (1,'a',10),(2,'a',21),(2,'b',22),(3,'c',33)")
                 .await();
 
-        expectedException().expect(TableException.class);
-        expectedException().expectMessage("Processing-time temporal join is not supported yet.");
-        tableEnv.executeSql(
-                "select p.x, p.y, b.z from "
-                        + " default_catalog.default_database.probe as p "
-                        + " join build for system_time as of p.p as b on p.x=b.x and p.y=b.y");
+        assertThatThrownBy(
+                        () ->
+                                tableEnv.executeSql(
+                                        "select p.x, p.y, b.z from "
+                                                + " default_catalog.default_database.probe as p "
+                                                + " join build for system_time as of p.p as b on p.x=b.x and p.y=b.y"))
+                .hasMessageContaining("Processing-time temporal join is not supported yet.")
+                .isInstanceOf(TableException.class);
     }
 
     @Test
-    public void testRowTimeTemporalJoinHiveTable() throws Exception {
+    void testRowTimeTemporalJoinHiveTable() throws Exception {
         if (!HiveVersionTestUtil.HIVE_310_OR_LATER) {
             return;
         }
@@ -122,19 +126,20 @@ public class HiveTemporalJoinITCase extends TableTestBase {
                 .await();
 
         // Streaming hive table does not support defines watermark
-        expectedException().expect(ValidationException.class);
-        expectedException()
-                .expectMessage(
+        assertThatThrownBy(
+                        () ->
+                                tableEnv.executeSql(
+                                        "select p.x, p.y, b.z from "
+                                                + " default_catalog.default_database.probe as p "
+                                                + " join build for system_time as of p.rowtime as b on p.x=b.x and p.y=b.y"))
+                .hasMessageContaining(
                         "Event-Time Temporal Table Join requires both primary key"
-                                + " and row time attribute in versioned table, but no row time attribute can be found.");
-        tableEnv.executeSql(
-                "select p.x, p.y, b.z from "
-                        + " default_catalog.default_database.probe as p "
-                        + " join build for system_time as of p.rowtime as b on p.x=b.x and p.y=b.y");
+                                + " and row time attribute in versioned table, but no row time attribute can be found.")
+                .isInstanceOf(ValidationException.class);
     }
 
-    @AfterClass
-    public static void tearDown() {
+    @AfterAll
+    static void tearDown() {
         if (!HiveVersionTestUtil.HIVE_310_OR_LATER) {
             return;
         }

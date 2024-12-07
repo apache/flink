@@ -44,14 +44,14 @@ public class EmbeddedHaServicesWithLeadershipControl extends EmbeddedHaServices
                                 previous,
                                 stateRegistryFactory,
                                 ioExecutor,
-                                restoreMode) -> {
+                                recoveryClaimMode) -> {
                             List<CompletedCheckpoint> checkpoints =
                                     previous != null
                                             ? previous.getAllCheckpoints()
                                             : Collections.emptyList();
                             SharedStateRegistry stateRegistry =
                                     stateRegistryFactory.create(
-                                            ioExecutor, checkpoints, restoreMode);
+                                            ioExecutor, checkpoints, recoveryClaimMode);
                             if (previous != null) {
                                 if (!previous.getShutdownStatus().isPresent()) {
                                     throw new IllegalStateException(

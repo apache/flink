@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
-import org.apache.flink.runtime.jobgraph.OperatorID;
-
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -31,10 +29,15 @@ public interface CoordinationRequestGateway {
     /**
      * Send out a request to a specified coordinator and return the response.
      *
-     * @param operatorId specifies which coordinator to receive the request
+     * <p>On the client side, a unique operatorUid must be defined to identify an operator.
+     * Otherwise, the query cannot be executed correctly. Note that we use operatorUid instead of
+     * operatorID because the latter is an internal runtime concept that cannot be recognized by the
+     * client.
+     *
+     * @param operatorUid specifies which coordinator to receive the request
      * @param request the request to send
      * @return the response from the coordinator
      */
     CompletableFuture<CoordinationResponse> sendCoordinationRequest(
-            OperatorID operatorId, CoordinationRequest request);
+            String operatorUid, CoordinationRequest request);
 }

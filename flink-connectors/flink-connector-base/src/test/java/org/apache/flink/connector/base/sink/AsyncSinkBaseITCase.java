@@ -17,23 +17,19 @@
 
 package org.apache.flink.connector.base.sink;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.junit5.MiniClusterExtension;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Integration tests of a baseline generic sink that implements the AsyncSinkBase. */
-@ExtendWith(TestLoggerExtension.class)
-public class AsyncSinkBaseITCase {
+class AsyncSinkBaseITCase {
 
     @RegisterExtension
     private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
@@ -46,13 +42,13 @@ public class AsyncSinkBaseITCase {
     final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
     @Test
-    public void testWriteTwentyThousandRecordsToGenericSink() throws Exception {
+    void testWriteTwentyThousandRecordsToGenericSink() throws Exception {
         env.fromSequence(1, 20000).map(Object::toString).sinkTo(new ArrayListAsyncSink());
         env.execute("Integration Test: AsyncSinkBaseITCase").getJobExecutionResult();
     }
 
     @Test
-    public void testFailuresOnPersistingToDestinationAreCaughtAndRaised() {
+    void testFailuresOnPersistingToDestinationAreCaughtAndRaised() {
         env.fromSequence(999_999, 1_000_100)
                 .map(Object::toString)
                 .sinkTo(new ArrayListAsyncSink(1, 1, 2, 10, 1000, 10));
@@ -64,9 +60,9 @@ public class AsyncSinkBaseITCase {
     }
 
     @Test
-    public void testThatNoIssuesOccurWhenCheckpointingIsEnabled() throws Exception {
+    void testThatNoIssuesOccurWhenCheckpointingIsEnabled() throws Exception {
         env.enableCheckpointing(20);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, Time.milliseconds(200)));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 200);
         env.fromSequence(1, 10_000).map(Object::toString).sinkTo(new ArrayListAsyncSink());
         env.execute("Integration Test: AsyncSinkBaseITCase");
     }

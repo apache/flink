@@ -20,9 +20,7 @@ package org.apache.flink.runtime.util.bash;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
@@ -61,12 +59,15 @@ public class BashJavaUtils {
 
     private static List<String> runCommand(Command command, String[] commandArgs)
             throws FlinkException {
-        Configuration configuration = FlinkConfigLoader.loadConfiguration(commandArgs);
         switch (command) {
             case GET_TM_RESOURCE_PARAMS:
-                return getTmResourceParams(configuration);
+                return getTmResourceParams(FlinkConfigLoader.loadConfiguration(commandArgs));
             case GET_JM_RESOURCE_PARAMS:
-                return getJmResourceParams(configuration);
+                return getJmResourceParams(FlinkConfigLoader.loadConfiguration(commandArgs));
+            case UPDATE_AND_GET_FLINK_CONFIGURATION:
+                return FlinkConfigLoader.loadAndModifyConfiguration(commandArgs);
+            case MIGRATE_LEGACY_FLINK_CONFIGURATION_TO_STANDARD_YAML:
+                return FlinkConfigLoader.migrateLegacyConfigurationToStandardYaml(commandArgs);
             default:
                 // unexpected, Command#valueOf should fail if a unknown command is passed in
                 throw new RuntimeException("Unexpected, something is wrong.");
@@ -78,11 +79,8 @@ public class BashJavaUtils {
      * two lines of the output should be JVM parameters and dynamic configs respectively.
      */
     private static List<String> getTmResourceParams(Configuration configuration) {
-        Configuration configurationWithFallback =
-                TaskExecutorProcessUtils.getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
-                        configuration, TaskManagerOptions.TOTAL_FLINK_MEMORY);
         TaskExecutorProcessSpec taskExecutorProcessSpec =
-                TaskExecutorProcessUtils.processSpecFromConfig(configurationWithFallback);
+                TaskExecutorProcessUtils.processSpecFromConfig(configuration);
 
         logTaskExecutorConfiguration(taskExecutorProcessSpec);
 
@@ -95,8 +93,7 @@ public class BashJavaUtils {
     @VisibleForTesting
     static List<String> getJmResourceParams(Configuration configuration) {
         JobManagerProcessSpec jobManagerProcessSpec =
-                JobManagerProcessUtils.processSpecFromConfigWithNewOptionToInterpretLegacyHeap(
-                        configuration, JobManagerOptions.JVM_HEAP_MEMORY);
+                JobManagerProcessUtils.processSpecFromConfig(configuration);
 
         logMasterConfiguration(jobManagerProcessSpec);
 
@@ -175,6 +172,12 @@ public class BashJavaUtils {
         GET_TM_RESOURCE_PARAMS,
 
         /** Get JVM parameters and dynamic configs of job manager resources. */
-        GET_JM_RESOURCE_PARAMS
+        GET_JM_RESOURCE_PARAMS,
+
+        /** Update and get configuration from conf file and dynamic configs of the FLINK cluster. */
+        UPDATE_AND_GET_FLINK_CONFIGURATION,
+
+        /** Load configuration from legacy conf file and return standard yaml config file. */
+        MIGRATE_LEGACY_FLINK_CONFIGURATION_TO_STANDARD_YAML
     }
 }

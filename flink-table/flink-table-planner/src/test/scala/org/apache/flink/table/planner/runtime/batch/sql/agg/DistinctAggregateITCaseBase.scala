@@ -23,8 +23,6 @@ import org.apache.flink.table.planner.runtime.utils.TestData._
 
 import org.junit.jupiter.api.{BeforeEach, Test}
 
-import scala.collection.Seq
-
 /** Distinct Aggregate IT case base class. */
 abstract class DistinctAggregateITCaseBase extends BatchTestBase {
 

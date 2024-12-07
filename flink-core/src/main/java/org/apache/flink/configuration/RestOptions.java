@@ -18,7 +18,7 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
@@ -29,7 +29,7 @@ import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
 
 /** Configuration parameters for REST communication. */
-@Internal
+@PublicEvolving
 public class RestOptions {
 
     private static final String REST_PORT_KEY = "rest.port";
@@ -40,9 +40,8 @@ public class RestOptions {
             key("rest.bind-address")
                     .stringType()
                     .noDefaultValue()
-                    .withFallbackKeys(WebOptions.ADDRESS.key())
-                    .withDeprecatedKeys(
-                            ConfigConstants.DEFAULT_JOB_MANAGER_WEB_FRONTEND_ADDRESS.key())
+                    .withFallbackKeys("web.address")
+                    .withDeprecatedKeys("jobmanager.web.address")
                     .withDescription("The address that the server binds itself.");
 
     /** The port range that the server could bind itself to. */
@@ -52,8 +51,7 @@ public class RestOptions {
                     .stringType()
                     .defaultValue("8081")
                     .withFallbackKeys(REST_PORT_KEY)
-                    .withDeprecatedKeys(
-                            WebOptions.PORT.key(), ConfigConstants.JOB_MANAGER_WEB_PORT_KEY)
+                    .withDeprecatedKeys("web.port", "jobmanager.web.port")
                     .withDescription(
                             "The port that the server binds itself. Accepts a list of ports (“50100,50101”), ranges"
                                     + " (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid"
@@ -80,6 +78,15 @@ public class RestOptions {
                     .withDescription(
                             "The address that should be used by clients to connect to the server. Attention: This option is respected only if the high-availability configuration is NONE.");
 
+    /** The path that should be used by clients to interact with the server. */
+    @Documentation.Section(Documentation.Sections.COMMON_HOST_PORT)
+    public static final ConfigOption<String> PATH =
+            key("rest.path")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            "The path that should be used by clients to interact to the server which is accessible via URL.");
+
     /**
      * The port that the REST client connects to and the REST server binds to if {@link #BIND_PORT}
      * has not been specified.
@@ -89,7 +96,7 @@ public class RestOptions {
             key(REST_PORT_KEY)
                     .intType()
                     .defaultValue(8081)
-                    .withDeprecatedKeys(WebOptions.PORT.key())
+                    .withDeprecatedKeys("web.port")
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -102,12 +109,12 @@ public class RestOptions {
      * WebMonitorEndpoint.
      */
     @Documentation.Section(Documentation.Sections.EXPERT_REST)
-    public static final ConfigOption<Long> AWAIT_LEADER_TIMEOUT =
+    public static final ConfigOption<Duration> AWAIT_LEADER_TIMEOUT =
             key("rest.await-leader-timeout")
-                    .longType()
-                    .defaultValue(30_000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(30_000L))
                     .withDescription(
-                            "The time in ms that the client waits for the leader address, e.g., "
+                            "The time that the client waits for the leader address, e.g., "
                                     + "Dispatcher or WebMonitorEndpoint");
 
     /**
@@ -130,33 +137,33 @@ public class RestOptions {
      * @see #RETRY_MAX_ATTEMPTS
      */
     @Documentation.Section(Documentation.Sections.EXPERT_REST)
-    public static final ConfigOption<Long> RETRY_DELAY =
+    public static final ConfigOption<Duration> RETRY_DELAY =
             key("rest.retry.delay")
-                    .longType()
-                    .defaultValue(3_000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(3_000L))
                     .withDescription(
                             String.format(
-                                    "The time in ms that the client waits between retries "
+                                    "The time that the client waits between retries "
                                             + "(See also `%s`).",
                                     RETRY_MAX_ATTEMPTS.key()));
 
     /** The maximum time in ms for the client to establish a TCP connection. */
     @Documentation.Section(Documentation.Sections.EXPERT_REST)
-    public static final ConfigOption<Long> CONNECTION_TIMEOUT =
+    public static final ConfigOption<Duration> CONNECTION_TIMEOUT =
             key("rest.connection-timeout")
-                    .longType()
-                    .defaultValue(15_000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(15_000L))
                     .withDescription(
-                            "The maximum time in ms for the client to establish a TCP connection.");
+                            "The maximum time for the client to establish a TCP connection.");
 
     /** The maximum time in ms for a connection to stay idle before failing. */
     @Documentation.Section(Documentation.Sections.EXPERT_REST)
-    public static final ConfigOption<Long> IDLENESS_TIMEOUT =
+    public static final ConfigOption<Duration> IDLENESS_TIMEOUT =
             key("rest.idleness-timeout")
-                    .longType()
-                    .defaultValue(5L * 60L * 1_000L) // 5 minutes
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(5))
                     .withDescription(
-                            "The maximum time in ms for a connection to stay idle before failing.");
+                            "The maximum time for a connection to stay idle before failing.");
 
     /** The maximum content length that the server will handle. */
     @Documentation.Section(Documentation.Sections.EXPERT_REST)
@@ -199,7 +206,7 @@ public class RestOptions {
     public static final ConfigOption<Duration> CACHE_CHECKPOINT_STATISTICS_TIMEOUT =
             key("rest.cache.checkpoint-statistics.timeout")
                     .durationType()
-                    .defaultValue(Duration.ofMillis(WebOptions.REFRESH_INTERVAL.defaultValue()))
+                    .defaultValue(WebOptions.REFRESH_INTERVAL.defaultValue())
                     .withFallbackKeys(WebOptions.REFRESH_INTERVAL.key())
                     .withDescription(
                             Description.builder()
@@ -286,4 +293,41 @@ public class RestOptions {
                     .defaultValue(Duration.ofMinutes(5))
                     .withDescription(
                             "Maximum duration that the result of an async operation is stored. Once elapsed the result of the operation can no longer be retrieved.");
+
+    /** Enables the experimental profiler feature. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Boolean> ENABLE_PROFILER =
+            key("rest.profiling.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Enables the experimental profiler feature.");
+
+    /** Maximum history size of profiling list. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Integer> MAX_PROFILING_HISTORY_SIZE =
+            key("rest.profiling.history-size")
+                    .intType()
+                    .defaultValue(10)
+                    .withDescription(
+                            "Maximum profiling history instance to be maintained for JobManager or each TaskManager. "
+                                    + "The oldest instance will be removed on a rolling basis when the history size exceeds this value.");
+
+    /** Maximum profiling duration for profiling function. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Duration> MAX_PROFILING_DURATION =
+            key("rest.profiling.duration-max")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(300))
+                    .withDescription(
+                            "Maximum profiling duration for each profiling request. "
+                                    + "Any profiling request's duration exceeding this value will not be accepted.");
+
+    /** Directory for storing the profiling results. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    @Documentation.OverrideDefault("System.getProperty(\"java.io.tmpdir\")")
+    public static final ConfigOption<String> PROFILING_RESULT_DIR =
+            key("rest.profiling.dir")
+                    .stringType()
+                    .defaultValue(System.getProperty("java.io.tmpdir"))
+                    .withDescription("Profiling result storing directory.");
 }

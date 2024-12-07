@@ -38,8 +38,8 @@ public class BlobCacheRecoveryTest {
     @Test
     void testBlobCacheRecovery() throws Exception {
         Configuration config = new Configuration();
-        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-        config.setString(
+        config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.set(
                 HighAvailabilityOptions.HA_STORAGE_PATH, TempDirUtils.newFolder(tempDir).getPath());
 
         BlobStoreService blobStoreService = null;
@@ -51,7 +51,8 @@ public class BlobCacheRecoveryTest {
                     config, blobStoreService, TempDirUtils.newFolder(tempDir));
         } finally {
             if (blobStoreService != null) {
-                blobStoreService.closeAndCleanupAllData();
+                blobStoreService.cleanupAllData();
+                blobStoreService.close();
             }
         }
     }

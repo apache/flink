@@ -75,7 +75,6 @@ import java.util.Map;
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.checkAndExtractLambda;
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getAllDeclaredMethods;
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.getTypeHierarchy;
-import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.hasSuperclass;
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.isClassType;
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.sameTypeVars;
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.typeToClass;
@@ -121,9 +120,6 @@ public class TypeExtractor {
     private static final String HADOOP_WRITABLE_TYPEINFO_CLASS =
             "org.apache.flink.api.java.typeutils.WritableTypeInfo";
 
-    private static final String AVRO_SPECIFIC_RECORD_BASE_CLASS =
-            "org.apache.avro.specific.SpecificRecordBase";
-
     private static final Logger LOG = LoggerFactory.getLogger(TypeExtractor.class);
 
     private static final String GENERIC_TYPE_DOC_HINT =
@@ -133,6 +129,38 @@ public class TypeExtractor {
 
     protected TypeExtractor() {
         // only create instances for special use cases
+    }
+
+    // --------------------------------------------------------------------------------------------
+    //  TypeInfoFactory registry
+    // --------------------------------------------------------------------------------------------
+
+    private static final Map<Type, Class<? extends TypeInfoFactory<?>>>
+            registeredTypeInfoFactories = new HashMap<>();
+
+    /**
+     * Registers a type information factory globally for a certain type. Every following type
+     * extraction operation will use the provided factory for this type. The factory will have the
+     * highest precedence for this type. In a hierarchy of types the registered factory has higher
+     * precedence than annotations at the same level but lower precedence than factories defined
+     * down the hierarchy.
+     *
+     * @param t type for which a new factory is registered
+     * @param factory type information factory that will produce {@link TypeInformation}
+     */
+    @Internal
+    public static void registerFactory(Type t, Class<? extends TypeInfoFactory<?>> factory) {
+        Preconditions.checkNotNull(t, "Type parameter must not be null.");
+        Preconditions.checkNotNull(factory, "Factory parameter must not be null.");
+
+        if (!TypeInfoFactory.class.isAssignableFrom(factory)) {
+            throw new IllegalArgumentException("Class is not a TypeInfoFactory.");
+        }
+        if (registeredTypeInfoFactories.containsKey(t)) {
+            throw new InvalidTypesException(
+                    "A TypeInfoFactory for type '" + t + "' is already registered.");
+        }
+        registeredTypeInfoFactories.put(t, factory);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -1699,15 +1727,19 @@ public class TypeExtractor {
     @SuppressWarnings("unchecked")
     public static <OUT> TypeInfoFactory<OUT> getTypeInfoFactory(Type t) {
         final Class<?> factoryClass;
-        if (!isClassType(t) || !typeToClass(t).isAnnotationPresent(TypeInfo.class)) {
-            return null;
-        }
-        final TypeInfo typeInfoAnnotation = typeToClass(t).getAnnotation(TypeInfo.class);
-        factoryClass = typeInfoAnnotation.value();
-        // check for valid factory class
-        if (!TypeInfoFactory.class.isAssignableFrom(factoryClass)) {
-            throw new InvalidTypesException(
-                    "TypeInfo annotation does not specify a valid TypeInfoFactory.");
+        if (registeredTypeInfoFactories.containsKey(t)) {
+            factoryClass = registeredTypeInfoFactories.get(t);
+        } else {
+            if (!isClassType(t) || !typeToClass(t).isAnnotationPresent(TypeInfo.class)) {
+                return null;
+            }
+            final TypeInfo typeInfoAnnotation = typeToClass(t).getAnnotation(TypeInfo.class);
+            factoryClass = typeInfoAnnotation.value();
+            // check for valid factory class
+            if (!TypeInfoFactory.class.isAssignableFrom(factoryClass)) {
+                throw new InvalidTypesException(
+                        "TypeInfo annotation does not specify a valid TypeInfoFactory.");
+            }
         }
 
         // instantiate
@@ -1731,7 +1763,9 @@ public class TypeExtractor {
         return (TypeInfoFactory<OUT>) InstantiationUtil.instantiate(factoryClass);
     }
 
-    /** @return number of items with equal type or same raw type */
+    /**
+     * @return number of items with equal type or same raw type
+     */
     private static int countTypeInHierarchy(List<Type> typeHierarchy, Type type) {
         int count = 0;
         for (Type t : typeHierarchy) {
@@ -1935,7 +1969,7 @@ public class TypeExtractor {
         }
 
         // special case for POJOs generated by Avro.
-        if (hasSuperclass(clazz, AVRO_SPECIFIC_RECORD_BASE_CLASS)) {
+        if (AvroUtils.isAvroSpecificRecord(clazz)) {
             return AvroUtils.getAvroUtils().createAvroTypeInfo(clazz);
         }
 
@@ -2072,10 +2106,11 @@ public class TypeExtractor {
             return new GenericTypeInfo<>(clazz);
         }
 
+        boolean isRecord = isRecord(clazz);
         List<PojoField> pojoFields = new ArrayList<>();
         for (Field field : fields) {
             Type fieldType = field.getGenericType();
-            if (!isValidPojoField(field, clazz, typeHierarchy) && clazz != Row.class) {
+            if (!isRecord && !isValidPojoField(field, clazz, typeHierarchy) && clazz != Row.class) {
                 LOG.info(
                         "Class "
                                 + clazz
@@ -2140,6 +2175,11 @@ public class TypeExtractor {
             }
         }
 
+        if (isRecord) {
+            // no default constructor extraction needs to be applied for Java records
+            return pojoType;
+        }
+
         // Try retrieving the default constructor, if it does not have one
         // we cannot use this because the serializer uses it.
         Constructor<OUT> defaultConstructor = null;
@@ -2172,6 +2212,20 @@ public class TypeExtractor {
 
         // everything is checked, we return the pojo
         return pojoType;
+    }
+
+    /**
+     * Determine whether the given class is a valid Java record.
+     *
+     * @param clazz class to check
+     * @return True if the class is a Java record
+     */
+    @PublicEvolving
+    public static boolean isRecord(Class<?> clazz) {
+        Class<?> superclass = clazz.getSuperclass();
+        return superclass != null
+                && superclass.getName().equals("java.lang.Record")
+                && (clazz.getModifiers() & Modifier.FINAL) != 0;
     }
 
     /**

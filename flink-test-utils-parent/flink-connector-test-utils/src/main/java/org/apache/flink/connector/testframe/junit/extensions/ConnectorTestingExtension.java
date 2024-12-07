@@ -26,7 +26,7 @@ import org.apache.flink.connector.testframe.junit.annotations.TestContext;
 import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
 import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem;
 import org.apache.flink.connector.testframe.junit.annotations.TestSemantics;
-import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.core.execution.CheckpointingMode;
 
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
@@ -36,6 +36,7 @@ import org.junit.platform.commons.support.AnnotationSupport;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -97,11 +98,32 @@ public class ConnectorTestingExtension implements BeforeAllCallback, AfterAllCal
         }
 
         // Store supported semantic
-        final List<CheckpointingMode[]> semantics =
+        List<CheckpointingMode[]> semantics =
                 AnnotationSupport.findAnnotatedFieldValues(
                         context.getRequiredTestInstance(),
                         TestSemantics.class,
                         CheckpointingMode[].class);
+        // Fallback part start.
+        // This is for compatibility of org.apache.flink.streaming.api.CheckpointingMode, which can
+        // be removed if we drop the support of 1.19 and old CheckpointingMode.
+        final List<org.apache.flink.streaming.api.CheckpointingMode[]> fallbackSemantics =
+                AnnotationSupport.findAnnotatedFieldValues(
+                        context.getRequiredTestInstance(),
+                        TestSemantics.class,
+                        org.apache.flink.streaming.api.CheckpointingMode[].class);
+        if (!fallbackSemantics.isEmpty()) {
+            semantics = new ArrayList<>(semantics);
+        }
+        for (org.apache.flink.streaming.api.CheckpointingMode[] oldModes : fallbackSemantics) {
+            semantics.add(
+                    Arrays.stream(oldModes)
+                            .sequential()
+                            .map(
+                                    org.apache.flink.streaming.api.CheckpointingMode
+                                            ::convertToCheckpointingMode)
+                            .toArray(CheckpointingMode[]::new));
+        }
+        // Fallback part ends.
         checkExactlyOneAnnotatedField(semantics, TestSemantics.class);
         context.getStore(TEST_RESOURCE_NAMESPACE)
                 .put(SUPPORTED_SEMANTIC_STORE_KEY, semantics.get(0));

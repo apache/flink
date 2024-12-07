@@ -19,29 +19,30 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link JobVertexBackPressureInfo.VertexBackPressureStatus}. */
-public class VertexBackPressureStatusTest extends TestLogger {
+class VertexBackPressureStatusTest {
 
     /**
      * Tests that the enum values are serialized correctly. Clients, such as the Web UI, expect
      * values to be lower case.
      */
     @Test
-    public void testJsonValue() throws Exception {
-        assertEquals(
-                "\"ok\"",
-                RestMapperUtils.getStrictObjectMapper()
-                        .writeValueAsString(JobVertexBackPressureInfo.VertexBackPressureStatus.OK));
-        assertEquals(
-                "\"deprecated\"",
-                RestMapperUtils.getStrictObjectMapper()
-                        .writeValueAsString(
-                                JobVertexBackPressureInfo.VertexBackPressureStatus.DEPRECATED));
+    void testJsonValue() throws Exception {
+        assertThat(
+                        RestMapperUtils.getStrictObjectMapper()
+                                .writeValueAsString(
+                                        JobVertexBackPressureInfo.VertexBackPressureStatus.OK))
+                .isEqualTo("\"ok\"");
+        assertThat(
+                        RestMapperUtils.getStrictObjectMapper()
+                                .writeValueAsString(
+                                        JobVertexBackPressureInfo.VertexBackPressureStatus
+                                                .DEPRECATED))
+                .isEqualTo("\"deprecated\"");
     }
 }

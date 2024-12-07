@@ -44,7 +44,7 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -60,7 +60,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterR
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 
 /** Harness tests for {@link KeyedLookupJoinWrapper}. */
-public class KeyedLookupJoinHarnessTest {
+class KeyedLookupJoinHarnessTest {
 
     private final InternalTypeInfo<RowData> inputRowType =
             InternalTypeInfo.ofFields(new IntType(), VarCharType.STRING_TYPE);
@@ -74,10 +74,8 @@ public class KeyedLookupJoinHarnessTest {
                         DataTypes.STRING().getLogicalType()
                     });
 
-    StateTtlConfig ttlConfig = StateConfigUtil.createTtlConfig(10_000_000);
-
     @Test
-    public void testTemporalInnerJoin() throws Exception {
+    void testTemporalInnerJoin() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.INNER_JOIN, FilterOnTable.WITHOUT_FILTER, false);
 
@@ -114,7 +112,7 @@ public class KeyedLookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalInnerJoinLookupKeyContainsPk() throws Exception {
+    void testTemporalInnerJoinLookupKeyContainsPk() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.INNER_JOIN, FilterOnTable.WITHOUT_FILTER, true);
 
@@ -148,7 +146,7 @@ public class KeyedLookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalInnerJoinWithFilter() throws Exception {
+    void testTemporalInnerJoinWithFilter() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.INNER_JOIN, FilterOnTable.WITH_FILTER, false);
 
@@ -181,7 +179,7 @@ public class KeyedLookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalInnerJoinWithFilterLookupKeyContainsPk() throws Exception {
+    void testTemporalInnerJoinWithFilterLookupKeyContainsPk() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.INNER_JOIN, FilterOnTable.WITH_FILTER, true);
 
@@ -200,7 +198,6 @@ public class KeyedLookupJoinHarnessTest {
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
         expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
-        expectedOutput.add(deleteRecord(3, "c", null, null));
         expectedOutput.add(insertRecord(3, "c2", 6, "Jark-2"));
         expectedOutput.add(deleteRecord(3, "c2", 6, "Jark-2"));
         expectedOutput.add(insertRecord(3, "c3", 9, "Jark-3"));
@@ -210,7 +207,7 @@ public class KeyedLookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalLeftJoin() throws Exception {
+    void testTemporalLeftJoin() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITHOUT_FILTER, false);
 
@@ -241,7 +238,7 @@ public class KeyedLookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalLeftJoinLookupKeyContainsPk() throws Exception {
+    void testTemporalLeftJoinLookupKeyContainsPk() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITHOUT_FILTER, true);
 
@@ -271,7 +268,7 @@ public class KeyedLookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalLeftJoinWithFilter() throws Exception {
+    void testTemporalLeftJoinWithFilter() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITH_FILTER, false);
 
@@ -288,6 +285,7 @@ public class KeyedLookupJoinHarnessTest {
         testHarness.processElement(updateAfterRecord(3, "c2"));
         testHarness.processElement(deleteRecord(3, "c2"));
         testHarness.processElement(insertRecord(3, "c3"));
+        testHarness.processElement(deleteRecord(4, "d"));
         testHarness.processElement(insertRecord(4, null));
 
         List<Object> expectedOutput = new ArrayList<>();
@@ -305,6 +303,7 @@ public class KeyedLookupJoinHarnessTest {
         expectedOutput.add(deleteRecord(3, "c2", 6, "Jackson-2"));
         expectedOutput.add(insertRecord(3, "c3", 9, "Jark-3"));
         expectedOutput.add(insertRecord(3, "c3", 9, "Jackson-3"));
+        expectedOutput.add(deleteRecord(4, "d", 4, "Fabian"));
         expectedOutput.add(insertRecord(4, null, null, null));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
@@ -312,7 +311,7 @@ public class KeyedLookupJoinHarnessTest {
     }
 
     @Test
-    public void testTemporalLeftJoinWithFilterLookupKeyContainsPk() throws Exception {
+    void testTemporalLeftJoinWithFilterLookupKeyContainsPk() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITH_FILTER, true);
 
@@ -329,6 +328,7 @@ public class KeyedLookupJoinHarnessTest {
         testHarness.processElement(updateAfterRecord(3, "c2"));
         testHarness.processElement(deleteRecord(3, "c2"));
         testHarness.processElement(insertRecord(3, "c3"));
+        testHarness.processElement(deleteRecord(4, "d"));
         testHarness.processElement(insertRecord(4, null));
 
         List<Object> expectedOutput = new ArrayList<>();
@@ -343,18 +343,92 @@ public class KeyedLookupJoinHarnessTest {
         expectedOutput.add(insertRecord(3, "c2", 6, "Jark-2"));
         expectedOutput.add(deleteRecord(3, "c2", 6, "Jark-2"));
         expectedOutput.add(insertRecord(3, "c3", 9, "Jark-3"));
+        expectedOutput.add(deleteRecord(4, "d", 4, "Fabian"));
         expectedOutput.add(insertRecord(4, null, null, null));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
         testHarness.close();
     }
 
-    // ---------------------------------------------------------------------------------
+    @Test
+    void testTemporalLeftJoinWithTtlLookupKeyContainsPk() throws Exception {
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITH_FILTER, true, 1_000);
 
-    @SuppressWarnings("unchecked")
+        testHarness.open();
+        // set TtlTimeProvider with 1
+        testHarness.setStateTtlProcessingTime(1);
+        testHarness.processElement(insertRecord(1, "a"));
+        testHarness.processElement(insertRecord(2, "b"));
+        testHarness.processElement(insertRecord(3, "c"));
+
+        // set TtlTimeProvider with 1001 to trigger expired state cleanup
+        testHarness.setStateTtlProcessingTime(1002);
+        // should output a delete message (pad null) since it's left join
+        testHarness.processElement(deleteRecord(2, "b"));
+
+        testHarness.processElement(insertRecord(2, "b2"));
+        testHarness.processElement(updateBeforeRecord(3, "c"));
+        testHarness.processElement(updateAfterRecord(3, "c2"));
+
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
+        expectedOutput.add(insertRecord(2, "b", null, null));
+        expectedOutput.add(insertRecord(3, "c", null, null));
+        expectedOutput.add(deleteRecord(2, "b", null, null));
+        expectedOutput.add(insertRecord(2, "b2", 2, "default-2"));
+        expectedOutput.add(deleteRecord(3, "c", null, null));
+        expectedOutput.add(insertRecord(3, "c2", 6, "Jark-2"));
+
+        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
+    @Test
+    void testTemporalInnerJoinWithTtlLookupKeyContainsPk() throws Exception {
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createHarness(JoinType.INNER_JOIN, FilterOnTable.WITH_FILTER, true, 1_000);
+
+        testHarness.open();
+        // set TtlTimeProvider with 1
+        testHarness.setStateTtlProcessingTime(1);
+        testHarness.processElement(insertRecord(1, "a"));
+        testHarness.processElement(insertRecord(2, "b"));
+        testHarness.processElement(insertRecord(3, "c"));
+
+        // set TtlTimeProvider with 1001 to trigger expired state cleanup
+        testHarness.setStateTtlProcessingTime(1002);
+        // should not output a delete message (pad null) since it's inner join
+        testHarness.processElement(deleteRecord(2, "b"));
+
+        testHarness.processElement(insertRecord(2, "b2"));
+        testHarness.processElement(updateBeforeRecord(3, "c"));
+        testHarness.processElement(updateAfterRecord(3, "c2"));
+
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
+        expectedOutput.add(insertRecord(2, "b2", 2, "default-2"));
+        expectedOutput.add(insertRecord(3, "c2", 6, "Jark-2"));
+
+        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
+    // ---------------------------------------------------------------------------------
     private KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData> createHarness(
             JoinType joinType, FilterOnTable filterOnTable, boolean lookupKeyContainsPrimaryKey)
             throws Exception {
+        return createHarness(joinType, filterOnTable, lookupKeyContainsPrimaryKey, -1);
+    }
+
+    private KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData> createHarness(
+            JoinType joinType,
+            FilterOnTable filterOnTable,
+            boolean lookupKeyContainsPrimaryKey,
+            long stateTtl)
+            throws Exception {
+        StateTtlConfig ttlConfig =
+                StateConfigUtil.createTtlConfig(stateTtl < 1 ? 1_000_000 : stateTtl);
         boolean isLeftJoin = joinType == JoinType.LEFT_JOIN;
         LookupJoinRunner joinRunner;
         TestingEvolvingOutputFetcherFunction fetcher;
@@ -369,7 +443,7 @@ public class KeyedLookupJoinHarnessTest {
                             new GeneratedFunctionWrapper<>(fetcher),
                             new GeneratedCollectorWrapper<>(
                                     new LookupJoinHarnessTest.TestingFetcherCollector()),
-                            new GeneratedFunctionWrapper(
+                            new GeneratedFunctionWrapper<>(
                                     new LookupJoinHarnessTest.TestingPreFilterCondition()),
                             isLeftJoin,
                             2);
@@ -381,7 +455,7 @@ public class KeyedLookupJoinHarnessTest {
                                     new LookupJoinHarnessTest.CalculateOnTemporalTable()),
                             new GeneratedCollectorWrapper<>(
                                     new LookupJoinHarnessTest.TestingFetcherCollector()),
-                            new GeneratedFunctionWrapper(
+                            new GeneratedFunctionWrapper<>(
                                     new LookupJoinHarnessTest.TestingPreFilterCondition()),
                             isLeftJoin,
                             2);
@@ -494,8 +568,8 @@ public class KeyedLookupJoinHarnessTest {
             int currentCnt = counter(id);
             List<GenericRowData> rows = lookup(id);
             if (rows != null) {
-                for (int i = 0; i < rows.size(); i++) {
-                    collectUpdatedRow(rows.get(i), currentCnt, out);
+                for (GenericRowData row : rows) {
+                    collectUpdatedRow(row, currentCnt, out);
                 }
             } else if (currentCnt > 1) {
                 // return a default value for which lookup miss at 1st time

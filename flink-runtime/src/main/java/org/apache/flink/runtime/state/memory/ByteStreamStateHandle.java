@@ -79,6 +79,11 @@ public class ByteStreamStateHandle implements StreamStateHandle {
     }
 
     @Override
+    public void collectSizeStats(StateObjectSizeStatsCollector collector) {
+        collector.add(StateObjectLocation.LOCAL_MEMORY, getStateSize());
+    }
+
+    @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;

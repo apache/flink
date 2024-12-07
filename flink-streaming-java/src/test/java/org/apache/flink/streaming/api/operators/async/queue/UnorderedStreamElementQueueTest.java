@@ -21,22 +21,20 @@ package org.apache.flink.streaming.api.operators.async.queue;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
-import java.util.Collections;
 
 import static org.apache.flink.streaming.api.operators.async.queue.QueueUtil.popCompleted;
 import static org.apache.flink.streaming.api.operators.async.queue.QueueUtil.putSuccessfully;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@link UnorderedStreamElementQueue} specific tests. */
-public class UnorderedStreamElementQueueTest extends TestLogger {
+class UnorderedStreamElementQueueTest {
     /** Tests that only elements before the oldest watermark are returned if they are completed. */
     @Test
-    public void testCompletionOrder() {
+    void testCompletionOrder() {
         final UnorderedStreamElementQueue<Integer> queue = new UnorderedStreamElementQueue<>(8);
 
         ResultFuture<Integer> record1 = putSuccessfully(queue, new StreamRecord<>(1, 0L));
@@ -48,52 +46,51 @@ public class UnorderedStreamElementQueueTest extends TestLogger {
         ResultFuture<Integer> record5 = putSuccessfully(queue, new StreamRecord<>(5, 6L));
         ResultFuture<Integer> record6 = putSuccessfully(queue, new StreamRecord<>(6, 7L));
 
-        Assert.assertEquals(Collections.emptyList(), popCompleted(queue));
-        Assert.assertEquals(8, queue.size());
-        Assert.assertFalse(queue.isEmpty());
+        assertThat(popCompleted(queue)).isEmpty();
+        assertThat(queue.size()).isEqualTo(8);
+        assertThat(queue.isEmpty()).isFalse();
 
         // this should not make any item completed, because R3 is behind W1
         record3.complete(Arrays.asList(13));
 
-        Assert.assertEquals(Collections.emptyList(), popCompleted(queue));
-        Assert.assertEquals(8, queue.size());
-        Assert.assertFalse(queue.isEmpty());
+        assertThat(popCompleted(queue)).isEmpty();
+        assertThat(queue.size()).isEqualTo(8);
+        assertThat(queue.isEmpty()).isFalse();
 
         record2.complete(Arrays.asList(12));
 
-        Assert.assertEquals(Arrays.asList(new StreamRecord<>(12, 1L)), popCompleted(queue));
-        Assert.assertEquals(7, queue.size());
-        Assert.assertFalse(queue.isEmpty());
+        assertThat(popCompleted(queue)).containsExactly(new StreamRecord<>(12, 1L));
+        assertThat(queue.size()).isEqualTo(7);
+        assertThat(queue.isEmpty()).isFalse();
 
         // Should not be completed because R1 has not been completed yet
         record6.complete(Arrays.asList(16));
         record4.complete(Arrays.asList(14));
 
-        Assert.assertEquals(Collections.emptyList(), popCompleted(queue));
-        Assert.assertEquals(7, queue.size());
-        Assert.assertFalse(queue.isEmpty());
+        assertThat(popCompleted(queue)).isEmpty();
+        assertThat(queue.size()).isEqualTo(7);
+        assertThat(queue.isEmpty()).isFalse();
 
         // Now W1, R3, R4 and W2 are completed and should be pollable
         record1.complete(Arrays.asList(11));
 
-        Assert.assertEquals(
-                Arrays.asList(
+        assertThat(popCompleted(queue))
+                .containsExactly(
                         new StreamRecord<>(11, 0L),
                         new Watermark(2L),
                         new StreamRecord<>(13, 3L),
                         new StreamRecord<>(14, 4L),
                         new Watermark(5L),
-                        new StreamRecord<>(16, 7L)),
-                popCompleted(queue));
-        Assert.assertEquals(1, queue.size());
-        Assert.assertFalse(queue.isEmpty());
+                        new StreamRecord<>(16, 7L));
+        assertThat(queue.size()).isOne();
+        assertThat(queue.isEmpty()).isFalse();
 
         // only R5 left in the queue
         record5.complete(Arrays.asList(15));
 
-        Assert.assertEquals(Arrays.asList(new StreamRecord<>(15, 6L)), popCompleted(queue));
-        Assert.assertEquals(0, queue.size());
-        Assert.assertTrue(queue.isEmpty());
-        Assert.assertEquals(Collections.emptyList(), popCompleted(queue));
+        assertThat(popCompleted(queue)).containsExactly(new StreamRecord<>(15, 6L));
+        assertThat(queue.size()).isZero();
+        assertThat(queue.isEmpty()).isTrue();
+        assertThat(popCompleted(queue)).isEmpty();
     }
 }

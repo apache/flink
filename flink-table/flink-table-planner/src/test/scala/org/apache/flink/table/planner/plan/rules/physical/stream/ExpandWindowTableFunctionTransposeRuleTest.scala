@@ -27,13 +27,13 @@ import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Tests for [[ExpandWindowTableFunctionTransposeRule]]. */
 class ExpandWindowTableFunctionTransposeRuleTest extends TableTestBase {
   private val util: StreamTableTestUtil = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.buildStreamProgram(PHYSICAL)
     val chainedProgram = util.getStreamProgram()

@@ -263,6 +263,9 @@ ij_java_variable_annotation_wrap = normal
 ij_java_wrap_first_method_in_call_chain = true
 # ij_java_wrap_long_lines = false
 
+[*.out]
+insert_final_newline = false
+
 [*.xml]
 indent_style = tab
 indent_size = 4

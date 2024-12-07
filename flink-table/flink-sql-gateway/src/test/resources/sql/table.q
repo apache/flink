@@ -90,8 +90,9 @@ CREATE TABLE `default_catalog`.`default_database`.`orders` (
   `ts` TIMESTAMP(3),
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
-  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
-) WITH (
+  CONSTRAINT `PK_user` PRIMARY KEY (`user`) NOT ENFORCED
+)
+WITH (
   'connector' = 'datagen'
 )
 !ok
@@ -340,8 +341,9 @@ CREATE TABLE `default_catalog`.`default_database`.`orders2` (
   `ts` TIMESTAMP(3),
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
-  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
-) WITH (
+  CONSTRAINT `PK_user` PRIMARY KEY (`user`) NOT ENFORCED
+)
+WITH (
   'connector' = 'kafka',
   'scan.startup.mode' = 'earliest-offset'
 )
@@ -368,8 +370,9 @@ CREATE TABLE `default_catalog`.`default_database`.`orders2` (
   `ts` TIMESTAMP(3),
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
-  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
-) WITH (
+  CONSTRAINT `PK_user` PRIMARY KEY (`user`) NOT ENFORCED
+)
+WITH (
   'connector' = 'datagen',
   'scan.startup.mode' = 'earliest-offset'
 )
@@ -400,6 +403,7 @@ fields.amount.null-rate
 fields.product.kind
 fields.product.length
 fields.product.null-rate
+fields.product.var-len
 fields.ts.kind
 fields.ts.max-past
 fields.ts.null-rate
@@ -409,6 +413,7 @@ fields.user.min
 fields.user.null-rate
 number-of-rows
 rows-per-second
+scan.parallelism
 !error
 
 # ==========================================================================
@@ -436,8 +441,9 @@ CREATE TABLE `default_catalog`.`default_database`.`orders2` (
   `ts` TIMESTAMP(3),
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
-  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
-) WITH (
+  CONSTRAINT `PK_user` PRIMARY KEY (`user`) NOT ENFORCED
+)
+WITH (
   'connector' = 'datagen'
 )
 !ok
@@ -556,7 +562,8 @@ CREATE TEMPORARY TABLE `default_catalog`.`default_database`.`tbl1` (
   `user` BIGINT NOT NULL,
   `product` VARCHAR(32),
   `amount` INT
-) WITH (
+)
+WITH (
   'connector' = 'datagen'
 )
 !ok

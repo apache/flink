@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.LocalTime;
 import java.util.Arrays;
@@ -38,12 +38,13 @@ import static org.apache.flink.table.api.Expressions.map;
 import static org.apache.flink.table.api.Expressions.nullOf;
 import static org.apache.flink.table.api.Expressions.pi;
 import static org.apache.flink.table.api.Expressions.row;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link org.apache.flink.table.api.TableEnvironment#fromValues}. */
-public class ValuesTest extends TableTestBase {
+class ValuesTest extends TableTestBase {
 
     @Test
-    public void testValuesAllEqualTypes() {
+    void testValuesAllEqualTypes() {
         JavaStreamTableTestUtil util = javaStreamTestUtil();
         Table t =
                 util.getTableEnv()
@@ -56,14 +57,14 @@ public class ValuesTest extends TableTestBase {
     }
 
     @Test
-    public void testValuesFromLiterals() {
+    void testValuesFromLiterals() {
         JavaStreamTableTestUtil util = javaStreamTestUtil();
         Table t = util.getTableEnv().fromValues(1, 3.1f, 99L, null);
         util.verifyExecPlan(t);
     }
 
     @Test
-    public void testValuesFromRowExpression() {
+    void testValuesFromRowExpression() {
         JavaStreamTableTestUtil util = javaStreamTestUtil();
         Table t =
                 util.getTableEnv()
@@ -84,7 +85,7 @@ public class ValuesTest extends TableTestBase {
     }
 
     @Test
-    public void testValuesFromRowObject() {
+    void testValuesFromRowObject() {
         JavaStreamTableTestUtil util = javaStreamTestUtil();
         Table t =
                 util.getTableEnv()
@@ -98,7 +99,7 @@ public class ValuesTest extends TableTestBase {
     }
 
     @Test
-    public void testValuesFromMixedObjectsAndExpressions() {
+    void testValuesFromMixedObjectsAndExpressions() {
         JavaStreamTableTestUtil util = javaStreamTestUtil();
         Table t =
                 util.getTableEnv()
@@ -112,7 +113,7 @@ public class ValuesTest extends TableTestBase {
     }
 
     @Test
-    public void testValuesFromRowObjectInCollection() {
+    void testValuesFromRowObjectInCollection() {
         JavaStreamTableTestUtil util = javaStreamTestUtil();
         List<Object> data =
                 Arrays.asList(
@@ -132,7 +133,7 @@ public class ValuesTest extends TableTestBase {
     }
 
     @Test
-    public void testValuesFromNestedRowObject() {
+    void testValuesFromNestedRowObject() {
         JavaStreamTableTestUtil util = javaStreamTestUtil();
         Table t =
                 util.getTableEnv()
@@ -143,7 +144,7 @@ public class ValuesTest extends TableTestBase {
     }
 
     @Test
-    public void testValuesOverrideSchema() {
+    void testValuesOverrideSchema() {
         JavaStreamTableTestUtil util = javaStreamTestUtil();
         Table t =
                 util.getTableEnv()
@@ -157,7 +158,7 @@ public class ValuesTest extends TableTestBase {
     }
 
     @Test
-    public void testValuesOverrideNullability() {
+    void testValuesOverrideNullability() {
         JavaStreamTableTestUtil util = javaStreamTestUtil();
         Table t =
                 util.getTableEnv()
@@ -171,7 +172,7 @@ public class ValuesTest extends TableTestBase {
     }
 
     @Test
-    public void testValuesWithComplexNesting() {
+    void testValuesWithComplexNesting() {
         JavaStreamTableTestUtil util = javaStreamTestUtil();
         Table t =
                 util.getTableEnv()
@@ -210,39 +211,54 @@ public class ValuesTest extends TableTestBase {
     }
 
     @Test
-    public void testNoCommonType() {
-        thrown().expect(ValidationException.class);
-        thrown().expectMessage(
+    void testNoCommonType() {
+        JavaStreamTableTestUtil util = javaStreamTestUtil();
+
+        assertThatThrownBy(
+                        () ->
+                                util.getTableEnv()
+                                        .fromValues(
+                                                row("ABC", 1L),
+                                                row("ABC", lit(LocalTime.of(0, 0, 0))),
+                                                row("ABC", 2)))
+                .hasMessageContaining(
                         "Types in fromValues(...) must have a common super type. Could not"
-                                + " find a common type for all rows at column 1.");
-        JavaStreamTableTestUtil util = javaStreamTestUtil();
-        util.getTableEnv()
-                .fromValues(row("ABC", 1L), row("ABC", lit(LocalTime.of(0, 0, 0))), row("ABC", 2));
+                                + " find a common type for all rows at column 1.")
+                .isInstanceOf(ValidationException.class);
     }
 
     @Test
-    public void testCannotCast() {
-        thrown().expect(ValidationException.class);
-        thrown().expectMessage(
+    void testCannotCast() {
+        JavaStreamTableTestUtil util = javaStreamTestUtil();
+
+        assertThatThrownBy(
+                        () ->
+                                util.getTableEnv()
+                                        .fromValues(
+                                                DataTypes.ROW(
+                                                        DataTypes.FIELD("f1", DataTypes.BINARY(3))),
+                                                row(4)))
+                .hasMessageContaining(
                         "Could not cast the value of the 0 column: [ 4 ] of a row: [ 4 ]"
-                                + " to the requested type: BINARY(3)");
-        JavaStreamTableTestUtil util = javaStreamTestUtil();
-        util.getTableEnv()
-                .fromValues(DataTypes.ROW(DataTypes.FIELD("f1", DataTypes.BINARY(3))), row(4));
+                                + " to the requested type: BINARY(3)")
+                .isInstanceOf(ValidationException.class);
     }
 
     @Test
-    public void testWrongRowTypeLength() {
-        thrown().expect(ValidationException.class);
-        thrown().expectMessage(
-                        "All rows in a fromValues(...) clause must have the same fields number. Row [4] has a different"
-                                + " length than the expected size: 2.");
+    void testWrongRowTypeLength() {
         JavaStreamTableTestUtil util = javaStreamTestUtil();
-        util.getTableEnv()
-                .fromValues(
-                        DataTypes.ROW(
-                                DataTypes.FIELD("f1", DataTypes.BINARY(3)),
-                                DataTypes.FIELD("f2", DataTypes.STRING())),
-                        row(4));
+
+        assertThatThrownBy(
+                        () ->
+                                util.getTableEnv()
+                                        .fromValues(
+                                                DataTypes.ROW(
+                                                        DataTypes.FIELD("f1", DataTypes.BINARY(3)),
+                                                        DataTypes.FIELD("f2", DataTypes.STRING())),
+                                                row(4)))
+                .hasMessageContaining(
+                        "All rows in a fromValues(...) clause must have the same fields number. Row [4] has a different"
+                                + " length than the expected size: 2.")
+                .isInstanceOf(ValidationException.class);
     }
 }

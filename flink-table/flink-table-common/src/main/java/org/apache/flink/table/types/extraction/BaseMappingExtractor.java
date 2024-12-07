@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.types.extraction;
 
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
@@ -33,6 +35,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -141,6 +144,9 @@ abstract class BaseMappingExtractor {
 
                 // check if the method can be called
                 verifyMappingForMethod(correctMethod, collectedMappingsPerMethod, verification);
+
+                // check if we declare optional on a primitive type parameter
+                verifyOptionalOnPrimitiveParameter(correctMethod, collectedMappingsPerMethod);
 
                 // check if method strategies conflict with function strategies
                 collectedMappingsPerMethod.forEach(
@@ -322,6 +328,40 @@ abstract class BaseMappingExtractor {
                         verification.verify(method, signature.toClass(), result.toClass()));
     }
 
+    private void verifyOptionalOnPrimitiveParameter(
+            Method method,
+            Map<FunctionSignatureTemplate, FunctionResultTemplate> collectedMappingsPerMethod) {
+        collectedMappingsPerMethod
+                .keySet()
+                .forEach(
+                        signature -> {
+                            Boolean[] argumentOptional = signature.argumentOptionals;
+                            // Here we restrict that the argument must contain optional parameters
+                            // in order to obtain the FunctionSignatureTemplate of the method for
+                            // verification. Therefore, the extract method will only be called once.
+                            // If no function hint is set, this verify will not be executed.
+                            if (argumentOptional != null
+                                    && Arrays.stream(argumentOptional)
+                                            .anyMatch(Boolean::booleanValue)) {
+                                FunctionSignatureTemplate functionResultTemplate =
+                                        signatureExtraction.extract(this, method);
+                                for (int i = 0; i < argumentOptional.length; i++) {
+                                    DataType dataType =
+                                            functionResultTemplate.argumentTemplates.get(i)
+                                                    .dataType;
+                                    if (dataType != null
+                                            && argumentOptional[i]
+                                            && dataType.getConversionClass() != null
+                                            && dataType.getConversionClass().isPrimitive()) {
+                                        throw extractionError(
+                                                "Argument at position %d is optional but a primitive type doesn't accept null value.",
+                                                i);
+                                    }
+                                }
+                            }
+                        });
+    }
+
     // --------------------------------------------------------------------------------------------
     // Context sensitive extraction and verification logic
     // --------------------------------------------------------------------------------------------
@@ -337,7 +377,10 @@ abstract class BaseMappingExtractor {
 
             final String[] argumentNames = extractArgumentNames(method, offset);
 
-            return FunctionSignatureTemplate.of(parameterTypes, method.isVarArgs(), argumentNames);
+            final Boolean[] argumentOptionals = extractArgumentOptionals(method, offset);
+
+            return FunctionSignatureTemplate.of(
+                    parameterTypes, method.isVarArgs(), argumentNames, argumentOptionals);
         };
     }
 
@@ -362,7 +405,18 @@ abstract class BaseMappingExtractor {
             Method method, int paramPos) {
         final Parameter parameter = method.getParameters()[paramPos];
         final DataTypeHint hint = parameter.getAnnotation(DataTypeHint.class);
-        if (hint != null) {
+        final ArgumentHint argumentHint = parameter.getAnnotation(ArgumentHint.class);
+        if (hint != null && argumentHint != null) {
+            throw extractionError(
+                    "Argument and dataType hints cannot be declared in the same parameter at position %d.",
+                    paramPos);
+        }
+        if (argumentHint != null) {
+            final DataTypeTemplate template = DataTypeTemplate.fromAnnotation(argumentHint, null);
+            if (template.inputGroup != null) {
+                return Optional.of(FunctionArgumentTemplate.of(template.inputGroup));
+            }
+        } else if (hint != null) {
             final DataTypeTemplate template = DataTypeTemplate.fromAnnotation(hint, null);
             if (template.inputGroup != null) {
                 return Optional.of(FunctionArgumentTemplate.of(template.inputGroup));
@@ -402,6 +456,25 @@ abstract class BaseMappingExtractor {
         } else {
             return null;
         }
+    }
+
+    static Boolean[] extractArgumentOptionals(Method method, int offset) {
+        return Arrays.stream(method.getParameters())
+                .skip(offset)
+                .map(parameter -> parameter.getAnnotation(ArgumentHint.class))
+                .map(
+                        h -> {
+                            if (h == null) {
+                                return false;
+                            }
+                            final ArgumentTrait[] traits = h.value();
+                            if (traits.length != 1 || traits[0] != ArgumentTrait.SCALAR) {
+                                throw extractionError(
+                                        "Only scalar arguments are supported so far.");
+                            }
+                            return h.isOptional();
+                        })
+                .toArray(Boolean[]::new);
     }
 
     protected static ValidationException createMethodNotFoundError(

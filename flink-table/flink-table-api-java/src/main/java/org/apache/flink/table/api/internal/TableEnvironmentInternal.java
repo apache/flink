@@ -28,12 +28,12 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.delegation.InternalPlan;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.legacy.sinks.TableSink;
+import org.apache.flink.table.legacy.sources.TableSource;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
-import org.apache.flink.table.sinks.TableSink;
-import org.apache.flink.table.sources.TableSource;
 
 import java.util.List;
 
@@ -134,6 +134,14 @@ public interface TableEnvironmentInternal extends TableEnvironment {
      * @param configuredSink The configured {@link TableSink} to register.
      */
     void registerTableSinkInternal(String name, TableSink<?> configuredSink);
+
+    /**
+     * Execute the given {@link CachedPlan} and return the execution result.
+     *
+     * @param cachedPlan The CachedPlan to be executed.
+     * @return the content of the execution result.
+     */
+    TableResultInternal executeCachedPlanInternal(CachedPlan cachedPlan);
 
     @Experimental
     CompiledPlan compilePlan(List<ModifyOperation> operations);

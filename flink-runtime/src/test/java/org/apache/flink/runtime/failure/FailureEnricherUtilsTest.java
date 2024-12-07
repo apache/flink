@@ -55,31 +55,30 @@ class FailureEnricherUtilsTest {
         Configuration conf = new Configuration();
 
         // Disabled feature
-        conf.setString(JobManagerOptions.FAILURE_ENRICHERS_LIST, "");
+        conf.set(JobManagerOptions.FAILURE_ENRICHERS_LIST, "");
         Set<String> result = FailureEnricherUtils.getIncludedFailureEnrichers(conf);
         assertThat(result).hasSize(0);
 
         // Single enricher
-        conf.setString(JobManagerOptions.FAILURE_ENRICHERS_LIST, "enricher1");
+        conf.set(JobManagerOptions.FAILURE_ENRICHERS_LIST, "enricher1");
         result = FailureEnricherUtils.getIncludedFailureEnrichers(conf);
         assertThat(result).hasSize(1);
         assertThat(result).contains("enricher1");
 
         // Multiple enrichers with spaces
-        conf.setString(JobManagerOptions.FAILURE_ENRICHERS_LIST, "enricher1, enricher2, enricher3");
+        conf.set(JobManagerOptions.FAILURE_ENRICHERS_LIST, "enricher1, enricher2, enricher3");
         result = FailureEnricherUtils.getIncludedFailureEnrichers(conf);
         assertThat(result).hasSize(3);
         assertThat(result).contains("enricher1", "enricher2", "enricher3");
 
         // Bad delimiter
-        conf.setString(JobManagerOptions.FAILURE_ENRICHERS_LIST, "enricher1. enricher2. enricher3");
+        conf.set(JobManagerOptions.FAILURE_ENRICHERS_LIST, "enricher1. enricher2. enricher3");
         result = FailureEnricherUtils.getIncludedFailureEnrichers(conf);
         assertThat(result).hasSize(1);
         assertThat(result).contains("enricher1. enricher2. enricher3");
 
         // Multiple enrichers with spaces and empty values
-        conf.setString(
-                JobManagerOptions.FAILURE_ENRICHERS_LIST, "enricher1, ,enricher2,   enricher3");
+        conf.set(JobManagerOptions.FAILURE_ENRICHERS_LIST, "enricher1, ,enricher2,   enricher3");
         result = FailureEnricherUtils.getIncludedFailureEnrichers(conf);
         assertThat(result).hasSize(3);
         assertThat(result).contains("enricher1", "enricher2", "enricher3");

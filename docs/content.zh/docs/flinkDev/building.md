@@ -35,7 +35,7 @@ under the License.
 
 首先需要准备源码。可以[从发布版本下载源码]({{< downloads >}}) 或者[从 Git 库克隆 Flink 源码]({{< github_repo >}})。
 
-还需要准备 **Maven 3** 和 **JDK** (Java开发套件)。Flink 依赖 **Java 8 (deprecated) 或 Java 11** 来进行构建。
+还需要准备 **Maven 3.8.6** 和 **JDK** (Java开发套件)。Flink 依赖 **Java 8 (deprecated) 或 Java 11** 来进行构建。
 
 输入以下命令从 Git 克隆代码
 
@@ -128,7 +128,7 @@ Flink 有使用 [Scala](http://scala-lang.org) 来写的 API，库和运行时�
 
 要针对特定的二进制 Scala 版本进行构建，可以使用
 ```bash
-mvn clean install -DskipTests -Dscala-2.12 -Dscala.version=<scala version>
+mvn clean install -DskipTests -Dscala.version=<scala version>
 ```
 
 {{< top >}}

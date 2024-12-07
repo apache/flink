@@ -18,6 +18,8 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -29,14 +31,24 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager.SubtaskKey;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManagerBuilder;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingType;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.state.filemerging.FileMergingOperatorStreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
+import org.apache.flink.runtime.state.filesystem.FsMergingCheckpointStorageLocation;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
-import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
 import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
 import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
@@ -46,6 +58,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -63,6 +76,8 @@ import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.core.fs.Path.fromLocalFile;
+import static org.apache.flink.core.fs.local.LocalFileSystem.getSharedInstance;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
@@ -80,14 +95,13 @@ class OperatorStateBackendTest {
     @Test
     void testCreateOnAbstractStateBackend() throws Exception {
         // we use the memory state backend as a subclass of the AbstractStateBackend
-        final AbstractStateBackend abstractStateBackend = new MemoryStateBackend();
+        final AbstractStateBackend abstractStateBackend = new HashMapStateBackend();
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
+        Environment env = createMockEnvironment();
         final OperatorStateBackend operatorStateBackend =
                 abstractStateBackend.createOperatorStateBackend(
-                        createMockEnvironment(),
-                        "test-operator",
-                        emptyStateHandles,
-                        cancelStreamRegistry);
+                        new OperatorStateBackendParametersImpl(
+                                env, "test-operator", emptyStateHandles, cancelStreamRegistry));
 
         assertThat(operatorStateBackend).isNotNull();
         assertThat(operatorStateBackend.getRegisteredStateNames()).isEmpty();
@@ -103,15 +117,16 @@ class OperatorStateBackendTest {
         // different
         // example serializer
         assertThat(
-                        new KryoSerializer<>(File.class, new ExecutionConfig())
+                        new KryoSerializer<>(File.class, new SerializerConfigImpl())
                                         .getKryo()
                                         .getDefaultSerializer(registeredType)
                                 instanceof com.esotericsoftware.kryo.serializers.JavaSerializer)
                 .isFalse();
 
         final ExecutionConfig cfg = new ExecutionConfig();
-        cfg.registerTypeWithKryoSerializer(
-                registeredType, com.esotericsoftware.kryo.serializers.JavaSerializer.class);
+        ((SerializerConfigImpl) cfg.getSerializerConfig())
+                .registerTypeWithKryoSerializer(
+                        registeredType, com.esotericsoftware.kryo.serializers.JavaSerializer.class);
 
         final OperatorStateBackend operatorStateBackend =
                 new DefaultOperatorStateBackendBuilder(
@@ -241,13 +256,14 @@ class OperatorStateBackendTest {
     @Test
     void testCorrectClassLoaderUsedOnSnapshot() throws Exception {
 
-        AbstractStateBackend abstractStateBackend = new MemoryStateBackend(4096);
+        AbstractStateBackend abstractStateBackend = new HashMapStateBackend();
 
         final Environment env = createMockEnvironment();
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         OperatorStateBackend operatorStateBackend =
                 abstractStateBackend.createOperatorStateBackend(
-                        env, "test-op-name", emptyStateHandles, cancelStreamRegistry);
+                        new OperatorStateBackendParametersImpl(
+                                env, "test-op-name", emptyStateHandles, cancelStreamRegistry));
 
         AtomicInteger copyCounter = new AtomicInteger(0);
         TypeSerializer<Integer> serializer =
@@ -392,15 +408,14 @@ class OperatorStateBackendTest {
 
     @Test
     void testSnapshotEmpty() throws Exception {
-        final AbstractStateBackend abstractStateBackend = new MemoryStateBackend(4096);
+        final AbstractStateBackend abstractStateBackend = new HashMapStateBackend();
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
 
+        Environment env = createMockEnvironment();
         final OperatorStateBackend operatorStateBackend =
                 abstractStateBackend.createOperatorStateBackend(
-                        createMockEnvironment(),
-                        "testOperator",
-                        emptyStateHandles,
-                        cancelStreamRegistry);
+                        new OperatorStateBackendParametersImpl(
+                                env, "testOperator", emptyStateHandles, cancelStreamRegistry));
 
         CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(4096);
 
@@ -418,15 +433,72 @@ class OperatorStateBackendTest {
     }
 
     @Test
-    void testSnapshotBroadcastStateWithEmptyOperatorState() throws Exception {
-        final AbstractStateBackend abstractStateBackend = new MemoryStateBackend(4096);
+    void testFileMergingSnapshotEmpty(@TempDir File tmpFolder) throws Exception {
+        final AbstractStateBackend abstractStateBackend = new HashMapStateBackend();
+        CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
 
+        Environment env = createMockEnvironment();
+        final OperatorStateBackend operatorStateBackend =
+                abstractStateBackend.createOperatorStateBackend(
+                        new OperatorStateBackendParametersImpl(
+                                env, "testOperator", emptyStateHandles, cancelStreamRegistry));
+
+        Path checkpointBaseDir = new Path(tmpFolder.toString());
+        Path sharedStateDir =
+                new Path(
+                        checkpointBaseDir,
+                        AbstractFsCheckpointStorageAccess.CHECKPOINT_SHARED_STATE_DIR);
+        Path taskOwnedStateDir =
+                new Path(
+                        checkpointBaseDir,
+                        AbstractFsCheckpointStorageAccess.CHECKPOINT_TASK_OWNED_STATE_DIR);
+
+        JobID jobId = JobID.generate();
+        final FileMergingSnapshotManager.SubtaskKey subtaskKey =
+                new FileMergingSnapshotManager.SubtaskKey(jobId.toHexString(), "opId", 1, 1);
+        LocalFileSystem fs = getSharedInstance();
+        CheckpointStorageLocationReference cslReference =
+                AbstractFsCheckpointStorageAccess.encodePathAsReference(
+                        fromLocalFile(fs.pathToFile(checkpointBaseDir)));
+        FileMergingSnapshotManager snapshotManager =
+                createFileMergingSnapshotManager(
+                        checkpointBaseDir, sharedStateDir, taskOwnedStateDir, subtaskKey);
+        CheckpointStreamFactory streamFactory =
+                new FsMergingCheckpointStorageLocation(
+                        subtaskKey,
+                        fs,
+                        checkpointBaseDir,
+                        sharedStateDir,
+                        taskOwnedStateDir,
+                        cslReference,
+                        1024,
+                        1024,
+                        snapshotManager,
+                        0);
+
+        RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot =
+                operatorStateBackend.snapshot(
+                        0L,
+                        0L,
+                        streamFactory,
+                        CheckpointOptions.forCheckpointWithDefaultLocation());
+
+        SnapshotResult<OperatorStateHandle> snapshotResult =
+                FutureUtils.runIfNotDoneAndGet(snapshot);
+        OperatorStateHandle stateHandle = snapshotResult.getJobManagerOwnedSnapshot();
+        assertThat(stateHandle).isInstanceOf(FileMergingOperatorStreamStateHandle.class);
+    }
+
+    @Test
+    void testSnapshotBroadcastStateWithEmptyOperatorState() throws Exception {
+        final AbstractStateBackend abstractStateBackend = new HashMapStateBackend();
+
+        Environment env = createMockEnvironment();
+        CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         OperatorStateBackend operatorStateBackend =
                 abstractStateBackend.createOperatorStateBackend(
-                        createMockEnvironment(),
-                        "testOperator",
-                        emptyStateHandles,
-                        new CloseableRegistry());
+                        new OperatorStateBackendParametersImpl(
+                                env, "testOperator", emptyStateHandles, cancelStreamRegistry));
 
         final MapStateDescriptor<Integer, Integer> broadcastStateDesc =
                 new MapStateDescriptor<>(
@@ -541,14 +613,14 @@ class OperatorStateBackendTest {
 
     @Test
     void testSnapshotRestoreSync() throws Exception {
-        AbstractStateBackend abstractStateBackend = new MemoryStateBackend(2 * 4096);
+        AbstractStateBackend abstractStateBackend = new HashMapStateBackend();
 
+        Environment env1 = createMockEnvironment();
+        CloseableRegistry cancelStreamRegistry1 = new CloseableRegistry();
         OperatorStateBackend operatorStateBackend =
                 abstractStateBackend.createOperatorStateBackend(
-                        createMockEnvironment(),
-                        "test-op-name",
-                        emptyStateHandles,
-                        new CloseableRegistry());
+                        new OperatorStateBackendParametersImpl(
+                                env1, "test-op-name", emptyStateHandles, cancelStreamRegistry1));
         ListStateDescriptor<Serializable> stateDescriptor1 =
                 new ListStateDescriptor<>("test1", new JavaSerializer<>());
         ListStateDescriptor<Serializable> stateDescriptor2 =
@@ -609,12 +681,14 @@ class OperatorStateBackendTest {
             operatorStateBackend.close();
             operatorStateBackend.dispose();
 
+            Environment env = createMockEnvironment();
+            Collection<OperatorStateHandle> stateHandles =
+                    StateObjectCollection.singleton(stateHandle);
+            CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
             operatorStateBackend =
                     abstractStateBackend.createOperatorStateBackend(
-                            createMockEnvironment(),
-                            "testOperator",
-                            StateObjectCollection.singleton(stateHandle),
-                            new CloseableRegistry());
+                            new OperatorStateBackendParametersImpl(
+                                    env, "testOperator", stateHandles, cancelStreamRegistry));
 
             assertThat(operatorStateBackend.getRegisteredStateNames()).hasSize(3);
             assertThat(operatorStateBackend.getRegisteredBroadcastStateNames()).hasSize(3);
@@ -792,15 +866,16 @@ class OperatorStateBackendTest {
             operatorStateBackend.close();
             operatorStateBackend.dispose();
 
-            AbstractStateBackend abstractStateBackend = new MemoryStateBackend(4096);
+            AbstractStateBackend abstractStateBackend = new HashMapStateBackend();
             CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
 
+            Environment env = createMockEnvironment();
+            Collection<OperatorStateHandle> stateHandles =
+                    StateObjectCollection.singleton(stateHandle);
             operatorStateBackend =
                     abstractStateBackend.createOperatorStateBackend(
-                            createMockEnvironment(),
-                            "testOperator",
-                            StateObjectCollection.singleton(stateHandle),
-                            cancelStreamRegistry);
+                            new OperatorStateBackendParametersImpl(
+                                    env, "testOperator", stateHandles, cancelStreamRegistry));
 
             assertThat(operatorStateBackend.getRegisteredStateNames()).hasSize(3);
             assertThat(operatorStateBackend.getRegisteredBroadcastStateNames()).hasSize(3);
@@ -1038,7 +1113,28 @@ class OperatorStateBackendTest {
             throws Exception {
         oldOperatorStateBackend.close();
         oldOperatorStateBackend.dispose();
+        Environment env = createMockEnvironment();
         return abstractStateBackend.createOperatorStateBackend(
-                createMockEnvironment(), "testOperator", toRestore, new CloseableRegistry());
+                new OperatorStateBackendParametersImpl(
+                        env, "testOperator", toRestore, new CloseableRegistry()));
+    }
+
+    private FileMergingSnapshotManager createFileMergingSnapshotManager(
+            Path checkpointBaseDir,
+            Path sharedStateDir,
+            Path taskOwnedStateDir,
+            SubtaskKey subtaskKey) {
+        FileMergingSnapshotManager mgr =
+                new FileMergingSnapshotManagerBuilder(
+                                JobID.fromHexString(subtaskKey.getJobIDString()),
+                                new ResourceID("test-1"),
+                                FileMergingType.MERGE_WITHIN_CHECKPOINT)
+                        .build();
+
+        mgr.initFileSystem(
+                getSharedInstance(), checkpointBaseDir, sharedStateDir, taskOwnedStateDir, 1024);
+
+        mgr.registerSubtaskForSharedStates(subtaskKey);
+        return mgr;
     }
 }

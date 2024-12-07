@@ -53,16 +53,17 @@ public class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
         SharedReference<MiniCluster> miniCluster = sharedObjects.add(cluster.getMiniCluster());
         SharedReference<AtomicBoolean> hasMaterialization =
                 sharedObjects.add(new AtomicBoolean(true));
-        StreamExecutionEnvironment env =
-                getEnv(delegatedStateBackend, checkpointFolder, 1000, 1, -1, 0);
+        StreamExecutionEnvironment env = getEnv(checkpointFolder, 1000, 1, 10, 0);
+        env.getConfig().enablePeriodicMaterialize(false);
         waitAndAssert(
                 buildJobGraph(
+                        delegatedStateBackend,
                         env,
                         new ControlledSource() {
                             @Override
                             protected void beforeElement(SourceContext<Integer> ctx)
                                     throws Exception {
-                                if (getRuntimeContext().getAttemptNumber() == 0
+                                if (getRuntimeContext().getTaskInfo().getAttemptNumber() == 0
                                         && currentIndex == TOTAL_ELEMENTS / 2) {
                                     waitWhile(() -> completedCheckpointNum.get() <= 0);
                                     hasMaterialization
@@ -90,18 +91,18 @@ public class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
                 sharedObjects.add(new AtomicInteger());
         SharedReference<Set<StateHandleID>> currentMaterializationId =
                 sharedObjects.add(ConcurrentHashMap.newKeySet());
-        StreamExecutionEnvironment env =
-                getEnv(delegatedStateBackend, checkpointFolder, 100, 2, 50, 0);
+        StreamExecutionEnvironment env = getEnv(checkpointFolder, 100, 2, 200, 0);
         waitAndAssert(
                 buildJobGraph(
+                        delegatedStateBackend,
                         env,
                         new ControlledSource() {
                             @Override
                             protected void beforeElement(SourceContext<Integer> ctx)
                                     throws Exception {
                                 Preconditions.checkState(
-                                        getRuntimeContext().getAttemptNumber() <= 2);
-                                if (getRuntimeContext().getAttemptNumber() == 0
+                                        getRuntimeContext().getTaskInfo().getAttemptNumber() <= 2);
+                                if (getRuntimeContext().getTaskInfo().getAttemptNumber() == 0
                                         && currentIndex == TOTAL_ELEMENTS / 4) {
                                     waitWhile(
                                             () -> {
@@ -126,7 +127,7 @@ public class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
                                             });
 
                                     throwArtificialFailure();
-                                } else if (getRuntimeContext().getAttemptNumber() == 1
+                                } else if (getRuntimeContext().getTaskInfo().getAttemptNumber() == 1
                                         && currentIndex == TOTAL_ELEMENTS / 2) {
                                     waitWhile(
                                             () -> {
@@ -157,8 +158,11 @@ public class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
         SharedReference<AtomicBoolean> hasFailed = sharedObjects.add(new AtomicBoolean());
         SharedReference<Set<StateHandleID>> currentMaterializationId =
                 sharedObjects.add(ConcurrentHashMap.newKeySet());
-        StreamExecutionEnvironment env =
-                getEnv(
+        StreamExecutionEnvironment env = getEnv(checkpointFolder, 100, 0, 10, 1);
+
+        env.setParallelism(1);
+        waitAndAssert(
+                buildJobGraph(
                         StateBackendTestUtils.wrapStateBackendWithSnapshotFunction(
                                 delegatedStateBackend,
                                 snapshotResultFuture -> {
@@ -168,14 +172,6 @@ public class ChangelogRecoveryITCase extends ChangelogRecoveryITCaseBase {
                                         return snapshotResultFuture;
                                     }
                                 }),
-                        checkpointFolder,
-                        100,
-                        0,
-                        10,
-                        1);
-        env.setParallelism(1);
-        waitAndAssert(
-                buildJobGraph(
                         env,
                         new ControlledSource() {
                             @Override

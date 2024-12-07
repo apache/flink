@@ -31,6 +31,10 @@ under the License.
 
 通常，窗口关联和 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 一起使用。而且，窗口关联可以在其他基于 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 的操作后使用，例如 [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})，[窗口 Top-N]({{< ref "docs/dev/table/sql/queries/window-topn">}}) 和 [窗口关联]({{< ref "docs/dev/table/sql/queries/window-join">}})。
 
+{{< hint info >}}
+注意：`SESSION` 窗口关联目前不支持批模式。
+{{< /hint >}}
+
 目前，窗口关联需要在 join on 条件中包含两个输入表的 `window_start` 等值条件和 `window_end` 等值条件。
 
 窗口关联支持 INNER/LEFT/RIGHT/FULL OUTER/ANTI/SEMI JOIN。

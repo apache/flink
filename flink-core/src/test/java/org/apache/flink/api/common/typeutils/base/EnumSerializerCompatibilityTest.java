@@ -24,21 +24,22 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotSerialization
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.testutils.ClassLoaderUtils;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.file.Path;
 
-public class EnumSerializerCompatibilityTest extends TestLogger {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+class EnumSerializerCompatibilityTest {
 
+    @TempDir private static Path tempDir;
     private static final String ENUM_NAME = "EnumSerializerUpgradeTestEnum";
 
     private static final String ENUM_A = "public enum " + ENUM_NAME + " { A, B, C }";
@@ -48,28 +49,29 @@ public class EnumSerializerCompatibilityTest extends TestLogger {
 
     /** Check that identical enums don't require migration */
     @Test
-    public void checkIndenticalEnums() throws Exception {
-        Assert.assertTrue(checkCompatibility(ENUM_A, ENUM_A).isCompatibleAsIs());
+    void checkIndenticalEnums() throws Exception {
+        assertThat(checkCompatibility(ENUM_A, ENUM_A).isCompatibleAsIs()).isTrue();
     }
 
     /** Check that appending fields to the enum does not require migration */
     @Test
-    public void checkAppendedField() throws Exception {
-        Assert.assertTrue(
-                checkCompatibility(ENUM_A, ENUM_B).isCompatibleWithReconfiguredSerializer());
+    void checkAppendedField() throws Exception {
+        assertThat(checkCompatibility(ENUM_A, ENUM_B).isCompatibleWithReconfiguredSerializer())
+                .isTrue();
     }
 
     /** Check that removing enum fields makes the snapshot incompatible */
-    @Test(expected = IllegalStateException.class)
-    public void removingFieldShouldBeIncompatible() throws Exception {
-        Assert.assertTrue(checkCompatibility(ENUM_A, ENUM_C).isIncompatible());
+    @Test
+    void removingFieldShouldBeIncompatible() throws Exception {
+        assertThatThrownBy(() -> checkCompatibility(ENUM_B, ENUM_A))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     /** Check that changing the enum field order don't require migration */
     @Test
-    public void checkDifferentFieldOrder() throws Exception {
-        Assert.assertTrue(
-                checkCompatibility(ENUM_A, ENUM_D).isCompatibleWithReconfiguredSerializer());
+    void checkDifferentFieldOrder() throws Exception {
+        assertThat(checkCompatibility(ENUM_A, ENUM_D).isCompatibleWithReconfiguredSerializer())
+                .isTrue();
     }
 
     @SuppressWarnings("unchecked")
@@ -78,7 +80,7 @@ public class EnumSerializerCompatibilityTest extends TestLogger {
 
         ClassLoader classLoader =
                 ClassLoaderUtils.compileAndLoadJava(
-                        temporaryFolder.newFolder(), ENUM_NAME + ".java", enumSourceA);
+                        TempDirUtils.newFolder(tempDir), ENUM_NAME + ".java", enumSourceA);
 
         EnumSerializer enumSerializer = new EnumSerializer(classLoader.loadClass(ENUM_NAME));
 
@@ -95,7 +97,7 @@ public class EnumSerializerCompatibilityTest extends TestLogger {
 
         ClassLoader classLoader2 =
                 ClassLoaderUtils.compileAndLoadJava(
-                        temporaryFolder.newFolder(), ENUM_NAME + ".java", enumSourceB);
+                        TempDirUtils.newFolder(tempDir), ENUM_NAME + ".java", enumSourceB);
 
         TypeSerializerSnapshot restoredSnapshot;
         try (ByteArrayInputStream inBuffer = new ByteArrayInputStream(snapshotBytes);
@@ -108,6 +110,6 @@ public class EnumSerializerCompatibilityTest extends TestLogger {
         }
 
         EnumSerializer enumSerializer2 = new EnumSerializer(classLoader2.loadClass(ENUM_NAME));
-        return restoredSnapshot.resolveSchemaCompatibility(enumSerializer2);
+        return enumSerializer2.snapshotConfiguration().resolveSchemaCompatibility(restoredSnapshot);
     }
 }

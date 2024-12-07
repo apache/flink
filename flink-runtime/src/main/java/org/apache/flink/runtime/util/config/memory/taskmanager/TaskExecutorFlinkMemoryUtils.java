@@ -21,9 +21,7 @@ package org.apache.flink.runtime.util.config.memory.taskmanager;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.runtime.util.config.memory.FlinkMemoryUtils;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.runtime.util.config.memory.RangeFraction;
@@ -84,10 +82,8 @@ public class TaskExecutorFlinkMemoryUtils implements FlinkMemoryUtils<TaskExecut
         } else {
             // derive network memory from network configs
             networkMemorySize =
-                    isUsingLegacyNetworkConfigs(config)
-                            ? getNetworkMemorySizeWithLegacyConfig(config)
-                            : deriveNetworkMemoryWithInverseFraction(
-                                    config, totalFlinkExcludeNetworkMemorySize);
+                    deriveNetworkMemoryWithInverseFraction(
+                            config, totalFlinkExcludeNetworkMemorySize);
         }
 
         final TaskExecutorFlinkMemory flinkInternalMemory =
@@ -152,10 +148,7 @@ public class TaskExecutorFlinkMemoryUtils implements FlinkMemoryUtils<TaskExecut
             managedMemorySize =
                     deriveManagedMemoryAbsoluteOrWithFraction(config, totalFlinkMemorySize);
 
-            networkMemorySize =
-                    isUsingLegacyNetworkConfigs(config)
-                            ? getNetworkMemorySizeWithLegacyConfig(config)
-                            : deriveNetworkMemoryWithFraction(config, totalFlinkMemorySize);
+            networkMemorySize = deriveNetworkMemoryWithFraction(config, totalFlinkMemorySize);
             final MemorySize totalFlinkExcludeTaskHeapMemorySize =
                     frameworkHeapMemorySize
                             .add(frameworkOffHeapMemorySize)
@@ -249,15 +242,6 @@ public class TaskExecutorFlinkMemoryUtils implements FlinkMemoryUtils<TaskExecut
                 config);
     }
 
-    private static MemorySize getNetworkMemorySizeWithLegacyConfig(final Configuration config) {
-        checkArgument(isUsingLegacyNetworkConfigs(config));
-        @SuppressWarnings("deprecation")
-        final long numOfBuffers =
-                config.getInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS);
-        final long pageSize = ConfigurationParserUtils.getPageSize(config);
-        return new MemorySize(numOfBuffers * pageSize);
-    }
-
     private static RangeFraction getNetworkMemoryRangeFraction(final Configuration config) {
         final MemorySize minSize =
                 ProcessMemoryUtils.getMemorySizeFromConfig(
@@ -281,18 +265,6 @@ public class TaskExecutorFlinkMemoryUtils implements FlinkMemoryUtils<TaskExecut
 
     private static boolean isManagedMemorySizeExplicitlyConfigured(final Configuration config) {
         return config.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE);
-    }
-
-    private static boolean isUsingLegacyNetworkConfigs(final Configuration config) {
-        // use the legacy number-of-buffer config option only when it is explicitly configured and
-        // none of new config options is explicitly configured
-        final boolean anyNetworkConfigured =
-                config.contains(TaskManagerOptions.NETWORK_MEMORY_MIN)
-                        || config.contains(TaskManagerOptions.NETWORK_MEMORY_MAX)
-                        || config.contains(TaskManagerOptions.NETWORK_MEMORY_FRACTION);
-        final boolean legacyConfigured =
-                config.contains(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS);
-        return !anyNetworkConfigured && legacyConfigured;
     }
 
     private static boolean isNetworkMemoryFractionExplicitlyConfigured(final Configuration config) {
@@ -353,42 +325,29 @@ public class TaskExecutorFlinkMemoryUtils implements FlinkMemoryUtils<TaskExecut
             final Configuration config,
             final MemorySize derivedNetworkMemorySize,
             final MemorySize totalFlinkMemorySize) {
-        if (isUsingLegacyNetworkConfigs(config)) {
-            final MemorySize configuredNetworkMemorySize =
-                    getNetworkMemorySizeWithLegacyConfig(config);
-            if (!configuredNetworkMemorySize.equals(derivedNetworkMemorySize)) {
-                throw new IllegalConfigurationException(
-                        "Derived Network Memory size ("
-                                + derivedNetworkMemorySize.toHumanReadableString()
-                                + ") does not match configured Network Memory size ("
-                                + configuredNetworkMemorySize.toHumanReadableString()
-                                + ").");
-            }
-        } else {
-            final RangeFraction networkRangeFraction = getNetworkMemoryRangeFraction(config);
-            if (derivedNetworkMemorySize.getBytes() > networkRangeFraction.getMaxSize().getBytes()
-                    || derivedNetworkMemorySize.getBytes()
-                            < networkRangeFraction.getMinSize().getBytes()) {
-                throw new IllegalConfigurationException(
-                        "Derived Network Memory size ("
-                                + derivedNetworkMemorySize.toHumanReadableString()
-                                + ") is not in configured Network Memory range ["
-                                + networkRangeFraction.getMinSize().toHumanReadableString()
-                                + ", "
-                                + networkRangeFraction.getMaxSize().toHumanReadableString()
-                                + "].");
-            }
-            if (isNetworkMemoryFractionExplicitlyConfigured(config)
-                    && !derivedNetworkMemorySize.equals(
-                            totalFlinkMemorySize.multiply(networkRangeFraction.getFraction()))) {
-                LOG.info(
-                        "The derived Network Memory size ({}) does not match "
-                                + "the configured Network Memory fraction ({}) from the configured Total Flink Memory size ({}). "
-                                + "The derived Network Memory size will be used.",
-                        derivedNetworkMemorySize.toHumanReadableString(),
-                        networkRangeFraction.getFraction(),
-                        totalFlinkMemorySize.toHumanReadableString());
-            }
+        final RangeFraction networkRangeFraction = getNetworkMemoryRangeFraction(config);
+        if (derivedNetworkMemorySize.getBytes() > networkRangeFraction.getMaxSize().getBytes()
+                || derivedNetworkMemorySize.getBytes()
+                        < networkRangeFraction.getMinSize().getBytes()) {
+            throw new IllegalConfigurationException(
+                    "Derived Network Memory size ("
+                            + derivedNetworkMemorySize.toHumanReadableString()
+                            + ") is not in configured Network Memory range ["
+                            + networkRangeFraction.getMinSize().toHumanReadableString()
+                            + ", "
+                            + networkRangeFraction.getMaxSize().toHumanReadableString()
+                            + "].");
+        }
+        if (isNetworkMemoryFractionExplicitlyConfigured(config)
+                && !derivedNetworkMemorySize.equals(
+                        totalFlinkMemorySize.multiply(networkRangeFraction.getFraction()))) {
+            LOG.info(
+                    "The derived Network Memory size ({}) does not match "
+                            + "the configured Network Memory fraction ({}) from the configured Total Flink Memory size ({}). "
+                            + "The derived Network Memory size will be used.",
+                    derivedNetworkMemorySize.toHumanReadableString(),
+                    networkRangeFraction.getFraction(),
+                    totalFlinkMemorySize.toHumanReadableString());
         }
     }
 }

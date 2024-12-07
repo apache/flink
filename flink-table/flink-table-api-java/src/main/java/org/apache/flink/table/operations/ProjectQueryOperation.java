@@ -20,13 +20,20 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Table operation that computes new table using given {@link Expression}s from its input relational
@@ -35,6 +42,7 @@ import java.util.Map;
 @Internal
 public class ProjectQueryOperation implements QueryOperation {
 
+    private static final String INPUT_ALIAS = "$$T_PROJECT";
     private final List<ResolvedExpression> projectList;
     private final QueryOperation child;
     private final ResolvedSchema resolvedSchema;
@@ -64,6 +72,36 @@ public class ProjectQueryOperation implements QueryOperation {
 
         return OperationUtils.formatWithChildren(
                 "Project", args, getChildren(), Operation::asSummaryString);
+    }
+
+    @Override
+    public String asSerializableString() {
+        return String.format(
+                "SELECT %s FROM (%s\n) " + INPUT_ALIAS,
+                IntStream.range(0, projectList.size())
+                        .mapToObj(this::alias)
+                        .map(
+                                expr ->
+                                        OperationExpressionsUtils.scopeReferencesWithAlias(
+                                                INPUT_ALIAS, expr))
+                        .map(ResolvedExpression::asSerializableString)
+                        .collect(Collectors.joining(", ")),
+                OperationUtils.indent(child.asSerializableString()));
+    }
+
+    private ResolvedExpression alias(int index) {
+        final ResolvedExpression expression = projectList.get(index);
+        final String columnName = resolvedSchema.getColumnNames().get(index);
+        if (OperationExpressionsUtils.extractName(expression)
+                .map(n -> n.equals(columnName))
+                .orElse(false)) {
+            return expression;
+        } else {
+            return CallExpression.permanent(
+                    BuiltInFunctionDefinitions.AS,
+                    Arrays.asList(expression, new ValueLiteralExpression(columnName)),
+                    expression.getOutputDataType());
+        }
     }
 
     @Override

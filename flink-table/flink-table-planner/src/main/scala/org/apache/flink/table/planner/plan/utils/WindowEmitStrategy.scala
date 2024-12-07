@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.{JBoolean, JLong}
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SessionGroupWindow}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.isRowtimeAttribute
 import org.apache.flink.table.runtime.operators.window.TimeWindow
-import org.apache.flink.table.runtime.operators.window.triggers._
+import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.{ElementTriggers, EventTimeTriggers, ProcessingTimeTriggers, Trigger}
 
 import java.time.Duration
 
@@ -191,7 +191,10 @@ object WindowEmitStrategy {
     }
   }
 
-  // It is a experimental config, will may be removed later.
+  /**
+   * It is an experimental config, and its removal will be consistently monitored and addressed
+   * through FLINK-29692.
+   */
   @Experimental
   val TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED: ConfigOption[JBoolean] =
     key("table.exec.emit.early-fire.enabled")
@@ -200,7 +203,10 @@ object WindowEmitStrategy {
       .withDescription("Specifies whether to enable early-fire emit." +
         "Early-fire is an emit strategy before watermark advanced to end of window.")
 
-  // It is a experimental config, will may be removed later.
+  /**
+   * It is an experimental config, and its removal will be consistently monitored and addressed
+   * through FLINK-29692.
+   */
   @Experimental
   val TABLE_EXEC_EMIT_EARLY_FIRE_DELAY: ConfigOption[Duration] =
     key("table.exec.emit.early-fire.delay")
@@ -213,7 +219,10 @@ object WindowEmitStrategy {
           "0 means no delay (fire on every element). " +
           "> 0 means the fire interval. ")
 
-  // It is a experimental config, will may be removed later.
+  /**
+   * It is an experimental config, and its removal will be consistently monitored and addressed
+   * through FLINK-29692.
+   */
   @Experimental
   val TABLE_EXEC_EMIT_LATE_FIRE_ENABLED: ConfigOption[JBoolean] =
     key("table.exec.emit.late-fire.enabled")
@@ -222,7 +231,10 @@ object WindowEmitStrategy {
       .withDescription("Specifies whether to enable late-fire emit. " +
         "Late-fire is an emit strategy after watermark advanced to end of window.")
 
-  // It is a experimental config, will may be removed later.
+  /**
+   * It is an experimental config, and its removal will be consistently monitored and addressed
+   * through FLINK-29692.
+   */
   @Experimental
   val TABLE_EXEC_EMIT_LATE_FIRE_DELAY: ConfigOption[Duration] =
     key("table.exec.emit.late-fire.delay")
@@ -235,7 +247,10 @@ object WindowEmitStrategy {
           "0 means no delay (fire on every element). " +
           "> 0 means the fire interval.")
 
-  // It is a experimental config, will may be removed later.
+  /**
+   * It is an experimental config, and its removal will be consistently monitored and addressed
+   * through FLINK-29692.
+   */
   @Experimental
   val TABLE_EXEC_EMIT_ALLOW_LATENESS: ConfigOption[Duration] =
     key("table.exec.emit.allow-lateness")

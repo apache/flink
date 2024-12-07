@@ -72,7 +72,7 @@ public class PythonFunctionFactoryTest {
         tableEnv = StreamTableEnvironment.create(sEnv);
         tableEnv.getConfig().set(PYTHON_FILES, pyFilePath.getAbsolutePath());
         tableEnv.getConfig().set(TASK_OFF_HEAP_MEMORY, MemorySize.parse("80mb"));
-        sourceTable = tableEnv.fromDataStream(sEnv.fromElements("1", "2", "3")).as("str");
+        sourceTable = tableEnv.fromDataStream(sEnv.fromData("1", "2", "3")).as("str");
     }
 
     public static void cleanEnvironment() throws Exception {

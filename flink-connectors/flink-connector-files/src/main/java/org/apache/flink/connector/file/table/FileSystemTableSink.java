@@ -43,9 +43,9 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.streaming.api.functions.sink.filesystem.PartFileInfo;
 import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink.BucketsBuilder;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
+import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink.BucketsBuilder;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.CheckpointRollingPolicy;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
@@ -184,7 +184,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
                 .setMetaStoreFactory(new EmptyMetaStoreFactory(path))
                 .setOverwrite(overwrite)
                 .setStaticPartitions(staticPartitions)
-                .setTempPath(toStagingPath())
+                .setPath(path)
                 .setOutputFileConfig(
                         OutputFileConfig.builder()
                                 .withPartPrefix("part-" + UUID.randomUUID())
@@ -218,7 +218,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         FileSystemFactory fsFactory = FileSystem::get;
         RowDataPartitionComputer computer = partitionComputer();
 
-        boolean autoCompaction = tableOptions.getBoolean(AUTO_COMPACTION);
+        boolean autoCompaction = tableOptions.get(AUTO_COMPACTION);
         Object writer = createWriter(sinkContext);
         boolean isEncoder = writer instanceof Encoder;
         TableBucketAssigner assigner = new TableBucketAssigner(computer);
@@ -373,19 +373,6 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         };
     }
 
-    private Path toStagingPath() {
-        Path stagingDir = new Path(path, ".staging_" + System.currentTimeMillis());
-        try {
-            FileSystem fs = stagingDir.getFileSystem();
-            Preconditions.checkState(
-                    fs.exists(stagingDir) || fs.mkdirs(stagingDir),
-                    "Failed to create staging dir " + stagingDir);
-            return stagingDir;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     @SuppressWarnings("unchecked")
     private OutputFormatFactory<RowData> createOutputFormatFactory(Context sinkContext) {
         Object writer = createWriter(sinkContext);
@@ -442,7 +429,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
             public void configure(Configuration parameters) {}
 
             @Override
-            public void open(int taskNumber, int numTasks) throws IOException {
+            public void open(InitializationContext context) throws IOException {
                 this.stream = path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE);
                 this.writer = factory.create(stream);
             }
@@ -473,7 +460,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
             public void configure(Configuration parameters) {}
 
             @Override
-            public void open(int taskNumber, int numTasks) throws IOException {
+            public void open(InitializationContext context) throws IOException {
                 this.output = path.getFileSystem().create(path, FileSystem.WriteMode.OVERWRITE);
             }
 

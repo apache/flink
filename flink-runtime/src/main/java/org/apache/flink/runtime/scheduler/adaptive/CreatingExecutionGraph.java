@@ -67,7 +67,7 @@ public class CreatingExecutionGraph extends StateWithoutExecutionGraph {
                     executionGraphWithParallelismFuture,
             Logger logger,
             OperatorCoordinatorHandlerFactory operatorCoordinatorFactory,
-            ExecutionGraph previousExecutionGraph1) {
+            @Nullable ExecutionGraph previousExecutionGraph) {
         super(context, logger);
         this.context = context;
         this.operatorCoordinatorHandlerFactory = operatorCoordinatorFactory;
@@ -83,7 +83,7 @@ public class CreatingExecutionGraph extends StateWithoutExecutionGraph {
                                     Duration.ZERO);
                             return null;
                         }));
-        previousExecutionGraph = previousExecutionGraph1;
+        this.previousExecutionGraph = previousExecutionGraph;
     }
 
     private void handleExecutionGraphCreation(
@@ -123,7 +123,6 @@ public class CreatingExecutionGraph extends StateWithoutExecutionGraph {
                         operatorCoordinatorHandlerFactory.create(executionGraph, context);
                 operatorCoordinatorHandler.initializeOperatorCoordinators(
                         context.getMainThreadExecutor());
-                operatorCoordinatorHandler.startAllOperatorCoordinators();
                 final String updatedPlan =
                         JsonPlanGenerator.generatePlan(
                                 executionGraph.getJobID(),
@@ -137,6 +136,10 @@ public class CreatingExecutionGraph extends StateWithoutExecutionGraph {
                                                 .iterator(),
                                 executionGraphWithVertexParallelism.getVertexParallelism());
                 executionGraph.setJsonPlan(updatedPlan);
+
+                executionGraph.transitionToRunning();
+                operatorCoordinatorHandler.startAllOperatorCoordinators();
+
                 context.goToExecuting(
                         result.getExecutionGraph(),
                         executionGraphHandler,

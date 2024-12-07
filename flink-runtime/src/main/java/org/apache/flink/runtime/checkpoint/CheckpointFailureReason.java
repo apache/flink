@@ -34,6 +34,8 @@ public enum CheckpointFailureReason {
     IO_EXCEPTION(
             true, "An Exception occurred while triggering the checkpoint. IO-problem detected."),
 
+    BLOCKING_OUTPUT_EXIST(true, "Blocking output edge exists in running tasks."),
+
     CHECKPOINT_ASYNC_EXCEPTION(false, "Asynchronous task checkpoint failed."),
 
     CHANNEL_STATE_SHARED_STREAM_EXCEPTION(

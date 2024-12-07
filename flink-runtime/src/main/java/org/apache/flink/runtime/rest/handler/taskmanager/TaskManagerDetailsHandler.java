@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.handler.taskmanager;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.TaskManagerInfoWithSlots;
@@ -43,6 +42,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +62,7 @@ public class TaskManagerDetailsHandler
 
     public TaskManagerDetailsHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             MessageHeaders<EmptyRequestBody, TaskManagerDetailsInfo, TaskManagerMessageParameters>
                     messageHeaders,

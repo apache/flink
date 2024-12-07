@@ -24,17 +24,17 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, UpsertStreamTableSink}
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext}
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
-import org.apache.flink.table.api.Types
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.data.util.DataFormatConverters
+import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.runtime.util.RowDataTestUtil
-import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
 
@@ -98,7 +98,7 @@ abstract class AbstractExactlyOnceSink[T] extends RichSinkFunction[T] with Check
       }
     }
 
-    val taskId = getRuntimeContext.getIndexOfThisSubtask
+    val taskId = getRuntimeContext.getTaskInfo.getIndexOfThisSubtask
     StreamTestSink.synchronized(
       StreamTestSink.globalResults(idx) += (taskId -> localResults)
     )
@@ -200,7 +200,7 @@ final class TestingUpsertSink(keys: Array[Int], tz: TimeZone)
       }
     }
 
-    val taskId = getRuntimeContext.getIndexOfThisSubtask
+    val taskId = getRuntimeContext.getTaskInfo.getIndexOfThisSubtask
     StreamTestSink.synchronized {
       StreamTestSink.globalUpsertResults(idx) += (taskId -> localUpsertResults)
     }
@@ -383,10 +383,10 @@ class TestingOutputFormat[T](tz: TimeZone) extends OutputFormat[T] {
 
   def configure(var1: Configuration): Unit = {}
 
-  override def open(taskNumber: Int, numTasks: Int): Unit = {
+  override def open(context: OutputFormat.InitializationContext): Unit = {
     localRetractResults = mutable.ArrayBuffer.empty[String]
     StreamTestSink.synchronized {
-      StreamTestSink.globalResults(index) += (taskNumber -> localRetractResults)
+      StreamTestSink.globalResults(index) += (context.getTaskNumber -> localRetractResults)
     }
   }
 
@@ -438,7 +438,7 @@ class TestingRetractSink(tz: TimeZone) extends AbstractExactlyOnceSink[(Boolean,
       }
     }
 
-    val taskId = getRuntimeContext.getIndexOfThisSubtask
+    val taskId = getRuntimeContext.getTaskInfo.getIndexOfThisSubtask
     StreamTestSink.synchronized {
       StreamTestSink.globalRetractResults(idx) += (taskId -> localRetractResults)
     }

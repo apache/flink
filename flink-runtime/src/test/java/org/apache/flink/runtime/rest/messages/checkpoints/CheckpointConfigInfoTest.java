@@ -19,10 +19,13 @@
 package org.apache.flink.runtime.rest.messages.checkpoints;
 
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /** Tests for the {@link CheckpointConfigInfo}. */
-public class CheckpointConfigInfoTest
-        extends RestResponseMarshallingTestBase<CheckpointConfigInfo> {
+@ExtendWith(NoOpTestExtension.class)
+class CheckpointConfigInfoTest extends RestResponseMarshallingTestBase<CheckpointConfigInfo> {
     @Override
     protected Class<CheckpointConfigInfo> getTestResponseClass() {
         return CheckpointConfigInfo.class;

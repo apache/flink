@@ -18,7 +18,7 @@
 
 package org.apache.flink.types.parser;
 
-public class FloatParserTest extends ParserTestBase<Float> {
+class FloatParserTest extends ParserTestBase<Float> {
 
     @Override
     public String[] getValidTestValues() {

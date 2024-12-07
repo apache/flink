@@ -99,7 +99,7 @@ public abstract class RankLikeAggFunctionBase extends DeclarativeAggregateFuncti
                             equalTo(lasValue, operand(i)));
         }
         Optional<Expression> ret = Arrays.stream(orderKeyEquals).reduce(ExpressionBuilder::and);
-        return ret.orElseGet(() -> literal(true));
+        return ret.orElseGet(() -> literal(false));
     }
 
     protected Expression generateInitLiteral(LogicalType orderType) {

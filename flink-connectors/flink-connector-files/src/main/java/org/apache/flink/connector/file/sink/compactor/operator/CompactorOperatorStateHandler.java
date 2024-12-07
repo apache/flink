@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.types.Either;
@@ -71,8 +72,10 @@ public class CompactorOperatorStateHandler
     private Iterable<Map<Long, List<CompactorRequest>>> stateRemaining;
 
     public CompactorOperatorStateHandler(
+            StreamOperatorParameters<CommittableMessage<FileSinkCommittable>> parameters,
             SimpleVersionedSerializer<FileSinkCommittable> committableSerializer,
             BucketWriter<?, String> bucketWriter) {
+        super(parameters);
         this.committableSerializer = committableSerializer;
         this.bucketWriter = bucketWriter;
     }
@@ -171,16 +174,15 @@ public class CompactorOperatorStateHandler
                         new CommittableSummary<>(
                                 summary.getSubtaskId(),
                                 summary.getNumberOfSubtasks(),
-                                getCheckpointId(summary),
+                                summary.getCheckpointIdOrEOI(),
                                 summary.getNumberOfCommittables() + results.size(),
-                                summary.getNumberOfPendingCommittables() + results.size(),
                                 summary.getNumberOfFailedCommittables())));
         for (FileSinkCommittable committable : results) {
             output.collect(
                     new StreamRecord<>(
                             new CommittableWithLineage<>(
                                     committable,
-                                    getCheckpointId(summary),
+                                    summary.getCheckpointIdOrEOI(),
                                     summary.getSubtaskId())));
         }
     }
@@ -204,7 +206,7 @@ public class CompactorOperatorStateHandler
         // cleanup request to the next summary, since the count of pending committable
         // for this checkpoint is immutable now
         Iterable<FileSinkCommittable> result = submit(request).get();
-        Long checkpointId = getCheckpointId(message);
+        Long checkpointId = message.getCheckpointIdOrEOI();
         boolean pendingFileSent = false;
         for (FileSinkCommittable c : result) {
             if (c.hasPendingFile()) {
@@ -273,10 +275,6 @@ public class CompactorOperatorStateHandler
         Map<Long, List<CompactorRequest>> requestsMap = new HashMap<>();
         requestsMap.put(-1L, remainingRequests);
         remainingRequestsState.update(Collections.singletonList(requestsMap));
-    }
-
-    private Long getCheckpointId(CommittableMessage<FileSinkCommittable> message) {
-        return message.getCheckpointId().isPresent() ? message.getCheckpointId().getAsLong() : null;
     }
 
     private CompletableFuture<Iterable<FileSinkCommittable>> submit(CompactorRequest request) {

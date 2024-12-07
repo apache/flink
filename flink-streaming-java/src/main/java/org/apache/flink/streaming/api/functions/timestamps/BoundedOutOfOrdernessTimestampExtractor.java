@@ -18,20 +18,22 @@
 
 package org.apache.flink.streaming.api.functions.timestamps;
 
-import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.runtime.operators.util.WatermarkStrategyWithPeriodicWatermarks;
+
+import java.time.Duration;
 
 /**
- * This is a {@link AssignerWithPeriodicWatermarks} used to emit Watermarks that lag behind the
- * element with the maximum timestamp (in event time) seen so far by a fixed amount of time, <code>
+ * This is a {@link WatermarkStrategyWithPeriodicWatermarks} used to emit Watermarks that lag behind
+ * the element with the maximum timestamp (in event time) seen so far by a fixed amount of time,
+ * <code>
  * t_late</code>. This can help reduce the number of elements that are ignored due to lateness when
  * computing the final result for a given window, in the case where we know that elements arrive no
  * later than <code>t_late</code> units of time after the watermark that signals that the system
  * event-time has advanced past their (event-time) timestamp.
  */
 public abstract class BoundedOutOfOrdernessTimestampExtractor<T>
-        implements AssignerWithPeriodicWatermarks<T> {
+        implements WatermarkStrategyWithPeriodicWatermarks<T> {
 
     private static final long serialVersionUID = 1L;
 
@@ -47,15 +49,15 @@ public abstract class BoundedOutOfOrdernessTimestampExtractor<T>
      */
     private final long maxOutOfOrderness;
 
-    public BoundedOutOfOrdernessTimestampExtractor(Time maxOutOfOrderness) {
-        if (maxOutOfOrderness.toMilliseconds() < 0) {
-            throw new RuntimeException(
-                    "Tried to set the maximum allowed "
-                            + "lateness to "
-                            + maxOutOfOrderness
-                            + ". This parameter cannot be negative.");
+    public BoundedOutOfOrdernessTimestampExtractor(Duration maxOutOfOrderness) {
+        if (maxOutOfOrderness.isNegative()) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Tried to set the maximum allowed lateness to %s. This parameter cannot be negative.",
+                            maxOutOfOrderness));
         }
-        this.maxOutOfOrderness = maxOutOfOrderness.toMilliseconds();
+
+        this.maxOutOfOrderness = maxOutOfOrderness.toMillis();
         this.currentMaxTimestamp = Long.MIN_VALUE + this.maxOutOfOrderness;
     }
 

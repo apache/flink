@@ -20,10 +20,10 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -60,7 +60,7 @@ class YARNFileReplicationITCase extends YarnTestBase {
     private static final int sleepIntervalInMS = 100;
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, "flink-yarn-tests-per-job");
         startYARNWithConfig(YARN_CONFIGURATION, true);
     }
@@ -68,7 +68,7 @@ class YARNFileReplicationITCase extends YarnTestBase {
     @Test
     void testPerJobModeWithCustomizedFileReplication() throws Exception {
         final Configuration configuration = getDefaultConfiguration();
-        configuration.setInteger(YarnConfigOptions.FILE_REPLICATION, 4);
+        configuration.set(YarnConfigOptions.FILE_REPLICATION, 4);
 
         runTest(() -> deployPerJob(configuration, getTestingJobGraph()));
     }
@@ -152,7 +152,7 @@ class YARNFileReplicationITCase extends YarnTestBase {
         final Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(768));
         configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
-        configuration.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(30));
+        configuration.set(RpcOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(30));
         configuration.set(CLASSPATH_INCLUDE_USER_JAR, YarnConfigOptions.UserJarInclusion.DISABLED);
 
         return configuration;
@@ -174,8 +174,7 @@ class YARNFileReplicationITCase extends YarnTestBase {
 
         FileStatus fsStatus = fs.getFileStatus(uberJarHDFSPath);
 
-        final int flinkFileReplication =
-                configuration.getInteger(YarnConfigOptions.FILE_REPLICATION);
+        final int flinkFileReplication = configuration.get(YarnConfigOptions.FILE_REPLICATION);
         final int replication =
                 YARN_CONFIGURATION.getInt(
                         DFSConfigKeys.DFS_REPLICATION_KEY, DFSConfigKeys.DFS_REPLICATION_DEFAULT);

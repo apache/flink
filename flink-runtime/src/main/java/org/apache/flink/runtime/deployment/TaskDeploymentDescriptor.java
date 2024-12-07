@@ -23,19 +23,22 @@ import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
-import org.apache.flink.runtime.taskexecutor.ShuffleDescriptorsCache;
-import org.apache.flink.util.FileUtils;
+import org.apache.flink.runtime.util.GroupCache;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.file.Files;
 import java.util.List;
 
 /**
@@ -97,11 +100,23 @@ public final class TaskDeploymentDescriptor implements Serializable {
         }
     }
 
-    /** Serialized job information or <tt>null</tt> if offloaded. */
-    private MaybeOffloaded<JobInformation> serializedJobInformation;
+    /** Serialized job information if non-offloaded or <tt>PermanentBlobKey</tt> if offloaded. */
+    private final MaybeOffloaded<JobInformation> serializedJobInformation;
 
-    /** Serialized task information or <tt>null</tt> if offloaded. */
-    private MaybeOffloaded<TaskInformation> serializedTaskInformation;
+    /** Serialized task information if non-offloaded or <tt>PermanentBlobKey</tt> if offloaded. */
+    private final MaybeOffloaded<TaskInformation> serializedTaskInformation;
+
+    /**
+     * The job information, it isn't null when serializedJobInformation is offloaded and after
+     * {@link #loadBigData}.
+     */
+    private transient JobInformation jobInformation;
+
+    /**
+     * The task information, it isn't null when serializedTaskInformation is offloaded and after
+     * {@link #loadBigData}.
+     */
+    private transient TaskInformation taskInformation;
 
     /**
      * The ID referencing the job this task belongs to.
@@ -151,39 +166,43 @@ public final class TaskDeploymentDescriptor implements Serializable {
     }
 
     /**
-     * Return the sub task's serialized job information.
+     * Return the sub task's job information.
      *
-     * @return serialized job information (may throw {@link IllegalStateException} if {@link
-     *     #loadBigData} is not called beforehand).
+     * @return job information (may throw {@link IllegalStateException} if {@link #loadBigData} is
+     *     not called beforehand).
      * @throws IllegalStateException If job information is offloaded to BLOB store.
      */
-    public SerializedValue<JobInformation> getSerializedJobInformation() {
+    public JobInformation getJobInformation() throws IOException, ClassNotFoundException {
+        if (jobInformation != null) {
+            return jobInformation;
+        }
         if (serializedJobInformation instanceof NonOffloaded) {
             NonOffloaded<JobInformation> jobInformation =
                     (NonOffloaded<JobInformation>) serializedJobInformation;
-            return jobInformation.serializedValue;
-        } else {
-            throw new IllegalStateException(
-                    "Trying to work with offloaded serialized job information.");
+            return jobInformation.serializedValue.deserializeValue(getClass().getClassLoader());
         }
+        throw new IllegalStateException(
+                "Trying to work with offloaded serialized job information.");
     }
 
     /**
-     * Return the sub task's serialized task information.
+     * Return the sub task's task information.
      *
-     * @return serialized task information (may throw {@link IllegalStateException} if {@link
-     *     #loadBigData} is not called beforehand)).
+     * @return task information (may throw {@link IllegalStateException} if {@link #loadBigData} is
+     *     not called beforehand)).
      * @throws IllegalStateException If job information is offloaded to BLOB store.
      */
-    public SerializedValue<TaskInformation> getSerializedTaskInformation() {
+    public TaskInformation getTaskInformation() throws IOException, ClassNotFoundException {
+        if (taskInformation != null) {
+            return taskInformation;
+        }
         if (serializedTaskInformation instanceof NonOffloaded) {
             NonOffloaded<TaskInformation> taskInformation =
                     (NonOffloaded<TaskInformation>) serializedTaskInformation;
-            return taskInformation.serializedValue;
-        } else {
-            throw new IllegalStateException(
-                    "Trying to work with offloaded serialized job information.");
+            return taskInformation.serializedValue.deserializeValue(getClass().getClassLoader());
         }
+        throw new IllegalStateException(
+                "Trying to work with offloaded serialized task information.");
     }
 
     /**
@@ -242,7 +261,9 @@ public final class TaskDeploymentDescriptor implements Serializable {
      */
     public void loadBigData(
             @Nullable PermanentBlobService blobService,
-            ShuffleDescriptorsCache shuffleDescriptorsCache)
+            GroupCache<JobID, PermanentBlobKey, JobInformation> jobInformationCache,
+            GroupCache<JobID, PermanentBlobKey, TaskInformation> taskInformationCache,
+            GroupCache<JobID, PermanentBlobKey, ShuffleDescriptorGroup> shuffleDescriptorsCache)
             throws IOException, ClassNotFoundException {
 
         // re-integrate offloaded job info from blob
@@ -253,13 +274,19 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
             Preconditions.checkNotNull(blobService);
 
-            final File dataFile = blobService.getFile(jobId, jobInfoKey);
-            // NOTE: Do not delete the job info BLOB since it may be needed again during recovery.
-            //       (it is deleted automatically on the BLOB server and cache when the job
-            //       enters a terminal state)
-            SerializedValue<JobInformation> serializedValue =
-                    SerializedValue.fromBytes(FileUtils.readAllBytes(dataFile.toPath()));
-            serializedJobInformation = new NonOffloaded<>(serializedValue);
+            JobInformation jobInformation = jobInformationCache.get(jobId, jobInfoKey);
+            if (jobInformation == null) {
+                final File dataFile = blobService.getFile(jobId, jobInfoKey);
+                // NOTE: Do not delete the job info BLOB since it may be needed again during
+                // recovery. (it is deleted automatically on the BLOB server and cache when the job
+                // enters a terminal state)
+                jobInformation =
+                        InstantiationUtil.deserializeObject(
+                                new BufferedInputStream(Files.newInputStream(dataFile.toPath())),
+                                getClass().getClassLoader());
+                jobInformationCache.put(jobId, jobInfoKey, jobInformation);
+            }
+            this.jobInformation = jobInformation.deepCopy();
         }
 
         // re-integrate offloaded task info from blob
@@ -269,23 +296,25 @@ public final class TaskDeploymentDescriptor implements Serializable {
 
             Preconditions.checkNotNull(blobService);
 
-            final File dataFile = blobService.getFile(jobId, taskInfoKey);
-            // NOTE: Do not delete the task info BLOB since it may be needed again during recovery.
-            //       (it is deleted automatically on the BLOB server and cache when the job
-            //       enters a terminal state)
-            SerializedValue<TaskInformation> serializedValue =
-                    SerializedValue.fromBytes(FileUtils.readAllBytes(dataFile.toPath()));
-            serializedTaskInformation = new NonOffloaded<>(serializedValue);
+            TaskInformation taskInformation = taskInformationCache.get(jobId, taskInfoKey);
+            if (taskInformation == null) {
+                final File dataFile = blobService.getFile(jobId, taskInfoKey);
+                // NOTE: Do not delete the task info BLOB since it may be needed again during
+                // recovery. (it is deleted automatically on the BLOB server and cache when the job
+                // enters a terminal state)
+                taskInformation =
+                        InstantiationUtil.deserializeObject(
+                                new BufferedInputStream(Files.newInputStream(dataFile.toPath())),
+                                getClass().getClassLoader());
+                taskInformationCache.put(jobId, taskInfoKey, taskInformation);
+            }
+            this.taskInformation = taskInformation.deepCopy();
         }
 
         for (InputGateDeploymentDescriptor inputGate : inputGates) {
             inputGate.tryLoadAndDeserializeShuffleDescriptors(
                     blobService, jobId, shuffleDescriptorsCache);
         }
-
-        // make sure that the serialized job and task information fields are filled
-        Preconditions.checkNotNull(serializedJobInformation);
-        Preconditions.checkNotNull(serializedTaskInformation);
     }
 
     @Override

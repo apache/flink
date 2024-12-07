@@ -16,37 +16,13 @@
 
 # Utility for invoking Maven in CI
 function run_mvn {
-	MVN_CMD="mvn"
-	if [[ "$M2_HOME" != "" ]]; then
-		MVN_CMD="${M2_HOME}/bin/mvn"
-	fi
-
 	if [[ "$MVN_RUN_VERBOSE" != "false" ]]; then
+		$MAVEN_WRAPPER --version
 		echo "Invoking mvn with '$MVN_GLOBAL_OPTIONS ${@}'"
 	fi
-	$MVN_CMD $MVN_GLOBAL_OPTIONS "${@}"
+	$MAVEN_WRAPPER $MVN_GLOBAL_OPTIONS "${@}"
 }
 export -f run_mvn
-
-function setup_maven {
-	set -e # fail if there was an error setting up maven
-	if [ ! -d "${MAVEN_VERSIONED_DIR}" ]; then
-	  wget -nv https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/${MAVEN_VERSION}/apache-maven-${MAVEN_VERSION}-bin.zip
-	  unzip -d "${MAVEN_CACHE_DIR}" -qq "apache-maven-${MAVEN_VERSION}-bin.zip"
-	  rm "apache-maven-${MAVEN_VERSION}-bin.zip"
-	fi
-
-	export M2_HOME="${MAVEN_VERSIONED_DIR}"
-	echo "##vso[task.setvariable variable=M2_HOME]$M2_HOME"
-
-	# just in case: clean up the .m2 home and remove invalid jar files
-	if [ -d "${HOME}/.m2/repository/" ]; then
-	  find ${HOME}/.m2/repository/ -name "*.jar" -exec sh -c 'if ! zip -T {} >/dev/null ; then echo "deleting invalid file: {}"; rm -f {} ; fi' \;
-	fi
-
-	echo "Installed Maven ${MAVEN_VERSION} to ${M2_HOME}"
-	set +e
-}
 
 function set_mirror_config {
 	if [[ "$MAVEN_MIRROR_CONFIG_FILE" != "" ]]; then
@@ -81,10 +57,13 @@ function collect_coredumps {
 
 CI_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-MAVEN_VERSION="3.8.6"
-MAVEN_CACHE_DIR=${HOME}/maven_cache
-MAVEN_VERSIONED_DIR=${MAVEN_CACHE_DIR}/apache-maven-${MAVEN_VERSION}
+if [[ ! "${CI_DIR}" =~ .*/tools/ci[/]{0,1}$ ]]; then
+  echo "Error: ${BASH_SOURCE[0]} is expected to be located in the './tools/ci/' subfolder to make the Maven wrapper path resolution work."
+  exit 1
+fi
+MAVEN_WRAPPER="${CI_DIR}/../../mvnw"
 
+export MAVEN_WRAPPER
 
 MAVEN_MIRROR_CONFIG_FILE=""
 NPM_PROXY_PROFILE_ACTIVATION=""

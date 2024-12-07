@@ -26,12 +26,16 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParserFixture;
 import org.apache.calcite.sql.parser.SqlParserTest;
+import org.apache.calcite.sql.validate.SqlConformanceEnum;
+import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -49,6 +53,20 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     void testShowCatalogs() {
         sql("show catalogs").ok("SHOW CATALOGS");
+
+        sql("show catalogs like '%'").ok("SHOW CATALOGS LIKE '%'");
+        sql("show catalogs not like '%'").ok("SHOW CATALOGS NOT LIKE '%'");
+
+        sql("show catalogs ilike '%'").ok("SHOW CATALOGS ILIKE '%'");
+        sql("show catalogs not ilike '%'").ok("SHOW CATALOGS NOT ILIKE '%'");
+
+        sql("show catalogs ^likes^").fails("(?s).*Encountered \"likes\" at line 1, column 15.\n.*");
+        sql("show catalogs not ^likes^")
+                .fails("(?s).*Encountered \"likes\" at line 1, column 19" + ".\n" + ".*");
+        sql("show catalogs ^ilikes^")
+                .fails("(?s).*Encountered \"ilikes\" at line 1, column 15.\n.*");
+        sql("show catalogs not ^ilikes^")
+                .fails("(?s).*Encountered \"ilikes\" at line 1, column 19" + ".\n" + ".*");
     }
 
     @Test
@@ -59,16 +77,37 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     void testDescribeCatalog() {
         sql("describe catalog a").ok("DESCRIBE CATALOG `A`");
+        sql("describe catalog extended a").ok("DESCRIBE CATALOG EXTENDED `A`");
 
         sql("desc catalog a").ok("DESCRIBE CATALOG `A`");
+        sql("desc catalog extended a").ok("DESCRIBE CATALOG EXTENDED `A`");
     }
 
-    // ignore test methods that we don't support
-    // BEGIN
-    // ARRAY_AGG
-    @Disabled
     @Test
-    void testArrayAgg() {}
+    void testAlterCatalog() {
+        sql("alter catalog a set ('k1'='v1', 'k2'='v2')")
+                .ok("ALTER CATALOG `A` SET (\n" + "  'k1' = 'v1',\n" + "  'k2' = 'v2'\n" + ")");
+        sql("alter catalog a reset ('k1')").ok("ALTER CATALOG `A` RESET (\n" + "  'k1'\n" + ")");
+        sql("alter catalog a comment 'comment1'").ok("ALTER CATALOG `A` COMMENT 'comment1'");
+    }
+
+    @Test
+    void testArrayAgg() {
+        sql("select\n"
+                        + "  array_agg(ename respect nulls order by deptno, ename) as c1,\n"
+                        + "  array_agg(ename order by deptno, ename desc) as c2,\n"
+                        + "  array_agg(distinct ename) as c3,\n"
+                        + "  array_agg(ename) as c4\n"
+                        + "from emp group by gender")
+                .ok(
+                        "SELECT"
+                                + " ARRAY_AGG(`ENAME` ORDER BY `DEPTNO`, `ENAME`) RESPECT NULLS AS `C1`,"
+                                + " ARRAY_AGG(`ENAME` ORDER BY `DEPTNO`, `ENAME` DESC) AS `C2`,"
+                                + " ARRAY_AGG(DISTINCT `ENAME`) AS `C3`,"
+                                + " ARRAY_AGG(`ENAME`) AS `C4`\n"
+                                + "FROM `EMP`\n"
+                                + "GROUP BY `GENDER`");
+    }
 
     // DESCRIBE SCHEMA
     @Disabled
@@ -94,6 +133,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Disabled
     @Test
     void testStringAgg() {}
+
     // END
 
     @Test
@@ -101,19 +141,34 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("use catalog a").ok("USE CATALOG `A`");
     }
 
-    @Test
-    void testCreateCatalog() {
-        sql("create catalog c1\n"
+    @ParameterizedTest
+    @CsvSource({"true,true", "true,false", "false,true", "false,false"})
+    void testCreateCatalog(boolean ifNotExists, boolean comment) {
+        String ifNotExistsClause = ifNotExists ? "if not exists " : "";
+        String commentClause = comment ? "\ncomment 'HELLO' " : " ";
+
+        sql("create catalog "
+                        + ifNotExistsClause
+                        + "c1"
+                        + commentClause
                         + " WITH (\n"
                         + "  'key1'='value1',\n"
                         + "  'key2'='value2'\n"
                         + " )\n")
                 .ok(
-                        "CREATE CATALOG `C1` "
+                        "CREATE CATALOG "
+                                + StringUtils.upperCase(ifNotExistsClause)
+                                + "`C1`"
+                                + StringUtils.upperCase(commentClause)
                                 + "WITH (\n"
                                 + "  'key1' = 'value1',\n"
                                 + "  'key2' = 'value2'\n"
                                 + ")");
+    }
+
+    @Test
+    void testShowCreateCatalog() {
+        sql("show create catalog c1").ok("SHOW CREATE CATALOG `C1`");
     }
 
     @Test
@@ -124,6 +179,31 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     void testShowDataBases() {
         sql("show databases").ok("SHOW DATABASES");
+
+        sql("show databases like '%'").ok("SHOW DATABASES LIKE '%'");
+        sql("show databases not like '%'").ok("SHOW DATABASES NOT LIKE '%'");
+
+        sql("show databases from c1").ok("SHOW DATABASES FROM `C1`");
+        sql("show databases in c1").ok("SHOW DATABASES IN `C1`");
+
+        sql("show databases from c1 like '%'").ok("SHOW DATABASES FROM `C1` LIKE '%'");
+        sql("show databases from c1 ilike '%'").ok("SHOW DATABASES FROM `C1` ILIKE '%'");
+        sql("show databases in c1 like '%'").ok("SHOW DATABASES IN `C1` LIKE '%'");
+        sql("show databases in c1 ilike '%'").ok("SHOW DATABASES IN `C1` ILIKE '%'");
+
+        sql("show databases from c1 not like '%'").ok("SHOW DATABASES FROM `C1` NOT LIKE '%'");
+        sql("show databases from c1 not ilike '%'").ok("SHOW DATABASES FROM `C1` NOT ILIKE '%'");
+        sql("show databases in c1 not like '%'").ok("SHOW DATABASES IN `C1` NOT LIKE '%'");
+        sql("show databases in c1 not ilike '%'").ok("SHOW DATABASES IN `C1` NOT ILIKE '%'");
+
+        sql("show databases ^likes^")
+                .fails("(?s).*Encountered \"likes\" at line 1, column 16.\n.*");
+        sql("show databases not ^likes^")
+                .fails("(?s).*Encountered \"likes\" at line 1, column 20" + ".\n" + ".*");
+        sql("show databases ^ilikes^")
+                .fails("(?s).*Encountered \"ilikes\" at line 1, column 16.\n.*");
+        sql("show databases not ^ilikes^")
+                .fails("(?s).*Encountered \"ilikes\" at line 1, column 20" + ".\n" + ".*");
     }
 
     @Test
@@ -346,6 +426,12 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testShowCreateModel() {
+        sql("show create model m1").ok("SHOW CREATE MODEL `M1`");
+        sql("show create model catalog1.db1.m1").ok("SHOW CREATE MODEL `CATALOG1`.`DB1`.`M1`");
+    }
+
+    @Test
     void testShowCreateTable() {
         sql("show create table tbl").ok("SHOW CREATE TABLE `TBL`");
         sql("show create table catalog1.db1.tbl").ok("SHOW CREATE TABLE `CATALOG1`.`DB1`.`TBL`");
@@ -367,6 +453,26 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("desc tbl").ok("DESCRIBE `TBL`");
         sql("desc catalog1.db1.tbl").ok("DESCRIBE `CATALOG1`.`DB1`.`TBL`");
         sql("desc extended db1").ok("DESCRIBE EXTENDED `DB1`");
+    }
+
+    @Test
+    void testDescribeModel() {
+        sql("describe model mdl").ok("DESCRIBE MODEL `MDL`");
+        sql("describe model catalog1.db1.mdl").ok("DESCRIBE MODEL `CATALOG1`.`DB1`.`MDL`");
+
+        sql("desc model mdl").ok("DESCRIBE MODEL `MDL`");
+        sql("desc model catalog1.db1.mdl").ok("DESCRIBE MODEL `CATALOG1`.`DB1`.`MDL`");
+    }
+
+    @Test
+    void testDescribeFunction() {
+        sql("describe function fn").ok("DESCRIBE FUNCTION `FN`");
+        sql("describe function catalog1.db1.fn").ok("DESCRIBE FUNCTION `CATALOG1`.`DB1`.`FN`");
+        sql("describe function extended fn").ok("DESCRIBE FUNCTION EXTENDED `FN`");
+
+        sql("desc function fn").ok("DESCRIBE FUNCTION `FN`");
+        sql("desc function catalog1.db1.fn").ok("DESCRIBE FUNCTION `CATALOG1`.`DB1`.`FN`");
+        sql("desc function extended fn").ok("DESCRIBE FUNCTION EXTENDED `FN`");
     }
 
     @Test
@@ -545,6 +651,59 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "^watermark^ for f1 as now()\n"
                         + ")")
                 .fails("Multiple WATERMARK statements is not supported yet.");
+    }
+
+    @Test
+    void testAlterTableAddDistribution() {
+        sql("alter table t1 add DISTRIBUTION BY HASH(a) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `T1` ADD DISTRIBUTION BY HASH(`A`) INTO 6 BUCKETS");
+
+        sql("alter table t1 add DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `T1` ADD DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 add DISTRIBUTION BY RANGE(a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `TBL1` ADD DISTRIBUTION BY RANGE(`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 add DISTRIBUTION BY ^RANDOM^(a, h) INTO 6 BUCKETS")
+                .fails("(?s).*Encountered \"RANDOM\" at line 1, column 38.*");
+
+        sql("alter table tbl1 add DISTRIBUTION BY (a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `TBL1` ADD DISTRIBUTION BY (`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 add DISTRIBUTION BY RANGE(a, h)")
+                .ok("ALTER TABLE `TBL1` ADD DISTRIBUTION BY RANGE(`A`, `H`)");
+
+        sql("alter table tbl1 add DISTRIBUTION BY (a, h)")
+                .ok("ALTER TABLE `TBL1` ADD DISTRIBUTION BY (`A`, `H`)");
+    }
+
+    @Test
+    void testAlterTableModifyDistribution() {
+        sql("alter table t1 modify DISTRIBUTION BY HASH(a) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `T1` MODIFY DISTRIBUTION BY HASH(`A`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `TBL1` MODIFY DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY RANGE(a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `TBL1` MODIFY DISTRIBUTION BY RANGE(`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY ^RANDOM^(a, h) INTO 6 BUCKETS")
+                .fails("(?s).*Encountered \"RANDOM\" at line 1, column 41.*");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY (a, h) INTO 6 BUCKETS")
+                .ok("ALTER TABLE `TBL1` MODIFY DISTRIBUTION BY (`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY RANGE(a, h)")
+                .ok("ALTER TABLE `TBL1` MODIFY DISTRIBUTION BY RANGE(`A`, `H`)");
+
+        sql("alter table tbl1 modify DISTRIBUTION BY (a, h)")
+                .ok("ALTER TABLE `TBL1` MODIFY DISTRIBUTION BY (`A`, `H`)");
+    }
+
+    @Test
+    void testAlterTableDropDistribution() {
+        sql("alter table t1 drop DISTRIBUTION").ok("ALTER TABLE `T1` DROP DISTRIBUTION");
     }
 
     @Test
@@ -875,16 +1034,154 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql(sql).ok(expected);
     }
 
+    String buildDistributionInput(final String distributionClause) {
+        return "CREATE TABLE tbl1 (\n"
+                + "  a bigint,\n"
+                + "  h varchar, \n"
+                + "  b varchar,\n"
+                + "  PRIMARY KEY (a, b)\n"
+                + ")\n"
+                + distributionClause
+                + "  with (\n"
+                + "    'connector' = 'kafka', \n"
+                + "    'kafka.topic' = 'log.test'\n"
+                + ")\n";
+    }
+
+    String buildDistributionOutput(final String distributionClause) {
+        return "CREATE TABLE `TBL1` (\n"
+                + "  `A` BIGINT,\n"
+                + "  `H` VARCHAR,\n"
+                + "  `B` VARCHAR,\n"
+                + "  PRIMARY KEY (`A`, `B`)\n"
+                + ")\n"
+                + distributionClause
+                + "WITH (\n"
+                + "  'connector' = 'kafka',\n"
+                + "  'kafka.topic' = 'log.test'\n"
+                + ")";
+    }
+
     @Test
-    void testCreateTableIfNotExists() {
+    void testCreateTableWithDistribution() {
+        final String sql = buildDistributionInput("DISTRIBUTED BY HASH(a, h) INTO 6 BUCKETS");
+        final String expected =
+                buildDistributionOutput("DISTRIBUTED BY HASH(`A`, `H`) INTO 6 BUCKETS\n");
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testCreateTableWithRangeDistribution() {
+        final String sql = buildDistributionInput("DISTRIBUTED BY RANGE(a, h) INTO 6 BUCKETS\n");
+        final String expected =
+                buildDistributionOutput("DISTRIBUTED BY RANGE(`A`, `H`) INTO 6 BUCKETS\n");
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testCreateTableWithRandomDistribution() {
+        final String sql = buildDistributionInput("DISTRIBUTED BY ^RANDOM^(a, h) INTO 6 BUCKETS\n");
+        sql(sql).fails("(?s).*Encountered \"RANDOM\" at line 7, column 16.*");
+    }
+
+    @Test
+    void testCreateTableWithDistributionNoAlgorithm() {
+        final String sql = buildDistributionInput("DISTRIBUTED BY (a, h) INTO 6 BUCKETS\n");
+        final String expected =
+                buildDistributionOutput("DISTRIBUTED BY (`A`, `H`) INTO 6 BUCKETS\n");
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testCreateTableWithDistributionAlgorithmWithoutBuckets() {
+        final String sql = buildDistributionInput("DISTRIBUTED BY RANGE(a, h)\n");
+        final String expected = buildDistributionOutput("DISTRIBUTED BY RANGE(`A`, `H`)\n");
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testCreateTableWithDistributionNoAlgorithmWithoutBuckets() {
+        final String sql = buildDistributionInput("DISTRIBUTED BY (a, h)\n");
+        final String expected = buildDistributionOutput("DISTRIBUTED BY (`A`, `H`)\n");
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testCreateTableWithDistributionIntoBuckets() {
+        final String sql = buildDistributionInput("DISTRIBUTED INTO 3 BUCKETS\n");
+        final String expected = buildDistributionOutput("DISTRIBUTED INTO 3 BUCKETS\n");
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testCreateTableWithDistributionIntoNegativeBuckets() {
+        final String sql = buildDistributionInput("DISTRIBUTED INTO ^-^3 BUCKETS\n");
+        sql(sql).fails("(?s).*Encountered \"-\" at line 7, column 18.*");
+    }
+
+    @Test
+    void testCreateTableWithDistributionIntoDecimalBuckets() {
+        final String sql = buildDistributionInput("DISTRIBUTED INTO ^3.2^ BUCKETS\n");
+        sql(sql).fails("(?s).*Bucket count must be a positive integer.*");
+    }
+
+    @Test
+    void testCreateTableWithBadDistribution() {
         final String sql =
-                "CREATE TABLE IF NOT EXISTS tbl1 (\n"
+                "CREATE TABLE tbl1 (\n"
                         + "  a bigint,\n"
                         + "  h varchar, \n"
                         + "  g as 2 * (a + 1), \n"
                         + "  ts as toTimestamp(b, 'yyyy-MM-dd HH:mm:ss'), \n"
                         + "  b varchar,\n"
                         + "  proc as PROCTIME(), \n"
+                        + "  meta STRING METADATA, \n"
+                        + "  my_meta STRING METADATA FROM 'meta', \n"
+                        + "  my_meta STRING METADATA FROM 'meta' VIRTUAL, \n"
+                        + "  meta STRING METADATA VIRTUAL, \n"
+                        + "  PRIMARY KEY (a, b)\n"
+                        + ")\n"
+                        + "DISTRIBUTED \n"
+                        + "  ^with^ (\n"
+                        + "    'connector' = 'kafka', \n"
+                        + "    'kafka.topic' = 'log.test'\n"
+                        + ")\n";
+        sql(sql).fails("(?s).*Encountered \"with\" at line 15, column 3.*");
+    }
+
+    @Test
+    void testCreateTableWithDistributionIfNotExists() {
+        final String sql =
+                "CREATE TABLE if not exists tbl1 (\n"
+                        + "  a bigint,\n"
+                        + "  h varchar, \n"
+                        + "  PRIMARY KEY (a, b)\n"
+                        + ")\n"
+                        + "DISTRIBUTED BY HASH(a, h) INTO 6 BUCKETS"
+                        + "  with (\n"
+                        + "    'connector' = 'kafka', \n"
+                        + "    'kafka.topic' = 'log.test'\n"
+                        + ")\n";
+        final String expected =
+                "CREATE TABLE IF NOT EXISTS `TBL1` (\n"
+                        + "  `A` BIGINT,\n"
+                        + "  `H` VARCHAR,\n"
+                        + "  PRIMARY KEY (`A`, `B`)\n"
+                        + ")\n"
+                        + "DISTRIBUTED BY HASH(`A`, `H`) INTO 6 BUCKETS\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'kafka',\n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testCreateTableIfNotExists() {
+        final String sql =
+                "CREATE TABLE IF NOT EXISTS tbl1 (\n"
+                        + "  a bigint,\n"
+                        + "  h varchar, \n"
                         + "  PRIMARY KEY (a, b)\n"
                         + ")\n"
                         + "PARTITIONED BY (a, h)\n"
@@ -896,10 +1193,6 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 "CREATE TABLE IF NOT EXISTS `TBL1` (\n"
                         + "  `A` BIGINT,\n"
                         + "  `H` VARCHAR,\n"
-                        + "  `G` AS (2 * (`A` + 1)),\n"
-                        + "  `TS` AS `TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss'),\n"
-                        + "  `B` VARCHAR,\n"
-                        + "  `PROC` AS `PROCTIME`(),\n"
                         + "  PRIMARY KEY (`A`, `B`)\n"
                         + ")\n"
                         + "PARTITIONED BY (`A`, `H`)\n"
@@ -1657,6 +1950,72 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testCreateTableWithLikeClauseIncludingDistribution() {
+        final String sql =
+                "create table source_table(\n"
+                        + "  a int,\n"
+                        + "  b bigint,\n"
+                        + "  c string\n"
+                        + ")\n"
+                        + "LIKE parent_table (\n"
+                        + "   INCLUDING ALL\n"
+                        + "   OVERWRITING OPTIONS\n"
+                        + "   INCLUDING DISTRIBUTION\n"
+                        + "   EXCLUDING PARTITIONS\n"
+                        + "   INCLUDING GENERATED\n"
+                        + "   INCLUDING METADATA\n"
+                        + ")";
+        final String expected =
+                "CREATE TABLE `SOURCE_TABLE` (\n"
+                        + "  `A` INTEGER,\n"
+                        + "  `B` BIGINT,\n"
+                        + "  `C` STRING\n"
+                        + ")\n"
+                        + "LIKE `PARENT_TABLE` (\n"
+                        + "  INCLUDING ALL\n"
+                        + "  OVERWRITING OPTIONS\n"
+                        + "  INCLUDING DISTRIBUTION\n"
+                        + "  EXCLUDING PARTITIONS\n"
+                        + "  INCLUDING GENERATED\n"
+                        + "  INCLUDING METADATA\n"
+                        + ")";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testCreateTableWithLikeClauseExcludingDistribution() {
+        final String sql =
+                "create table source_table(\n"
+                        + "  a int,\n"
+                        + "  b bigint,\n"
+                        + "  c string\n"
+                        + ")\n"
+                        + "LIKE parent_table (\n"
+                        + "   INCLUDING ALL\n"
+                        + "   OVERWRITING OPTIONS\n"
+                        + "   EXCLUDING DISTRIBUTION\n"
+                        + "   INCLUDING PARTITIONS\n"
+                        + "   INCLUDING GENERATED\n"
+                        + "   INCLUDING METADATA\n"
+                        + ")";
+        final String expected =
+                "CREATE TABLE `SOURCE_TABLE` (\n"
+                        + "  `A` INTEGER,\n"
+                        + "  `B` BIGINT,\n"
+                        + "  `C` STRING\n"
+                        + ")\n"
+                        + "LIKE `PARENT_TABLE` (\n"
+                        + "  INCLUDING ALL\n"
+                        + "  OVERWRITING OPTIONS\n"
+                        + "  EXCLUDING DISTRIBUTION\n"
+                        + "  INCLUDING PARTITIONS\n"
+                        + "  INCLUDING GENERATED\n"
+                        + "  INCLUDING METADATA\n"
+                        + ")";
+        sql(sql).ok(expected);
+    }
+
+    @Test
     void testCreateTableWithLikeClauseWithoutColumns() {
         final String sql =
                 ""
@@ -1774,8 +2133,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 "INSERT INTO `EMPS` "
                         + "PARTITION (`X` = 'ab', `Y` = 'bc')\n"
                         + "(`X`, `Y`)\n"
-                        + "(SELECT *\n"
-                        + "FROM `EMPS`)";
+                        + "SELECT *\n"
+                        + "FROM `EMPS`";
         sql(sql1).ok(expected);
         final String sql2 =
                 "insert into emp\n"
@@ -1791,8 +2150,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + "PARTITION (`EMPNO` = '1', `JOB` = 'job')\n"
                                 + "(`EMPNO`, `ENAME`, `JOB`, `MGR`, `HIREDATE`, `SAL`,"
                                 + " `COMM`, `DEPTNO`, `SLACKER`)\n"
-                                + "(SELECT 'nom', 0, TIMESTAMP '1970-01-01 00:00:00', 1, 1, 1, FALSE\n"
-                                + "FROM (VALUES (ROW('a'))))");
+                                + "SELECT 'nom', 0, TIMESTAMP '1970-01-01 00:00:00', 1, 1, 1, FALSE\n"
+                                + "FROM (VALUES (ROW('a')))");
         final String sql3 =
                 "insert into empnullables\n"
                         + "partition(ename='b')\n"
@@ -1803,8 +2162,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         "INSERT INTO `EMPNULLABLES` "
                                 + "PARTITION (`ENAME` = 'b')\n"
                                 + "(`EMPNO`, `ENAME`)\n"
-                                + "(SELECT 1\n"
-                                + "FROM (VALUES (ROW('a'))))");
+                                + "SELECT 1\n"
+                                + "FROM (VALUES (ROW('a')))");
     }
 
     @Test
@@ -1813,8 +2172,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 "INSERT INTO `emps` "
                         + "PARTITION (`x` = 'ab', `y` = 'bc')\n"
                         + "(`x`, `y`)\n"
-                        + "(SELECT *\n"
-                        + "FROM `EMPS`)";
+                        + "SELECT *\n"
+                        + "FROM `EMPS`";
         sql("insert into \"emps\" "
                         + "partition (\"x\"='ab', \"y\"='bc')(\"x\",\"y\") select * from emps")
                 .ok(expected);
@@ -1826,8 +2185,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 "INSERT INTO `EMPS` EXTEND (`Z` BOOLEAN) "
                         + "PARTITION (`Z` = 'ab')\n"
                         + "(`X`, `Y`)\n"
-                        + "(SELECT *\n"
-                        + "FROM `EMPS`)";
+                        + "SELECT *\n"
+                        + "FROM `EMPS`";
         sql("insert into emps(z boolean) partition (z='ab') (x,y) select * from emps").ok(expected);
     }
 
@@ -1847,7 +2206,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     void testInsertOverwrite() {
         // non-partitioned
         final String sql = "INSERT OVERWRITE myDB.myTbl SELECT * FROM src";
-        final String expected = "INSERT OVERWRITE `MYDB`.`MYTBL`\n" + "(SELECT *\n" + "FROM `SRC`)";
+        final String expected = "INSERT OVERWRITE `MYDB`.`MYTBL`\n" + "SELECT *\n" + "FROM `SRC`";
         sql(sql).ok(expected);
 
         // partitioned
@@ -1856,8 +2215,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 "INSERT OVERWRITE `MYTBL` "
                         + "PARTITION (`P1` = 'v1', `P2` = 'v2')\n"
                         + "\n"
-                        + "(SELECT *\n"
-                        + "FROM `SRC`)";
+                        + "SELECT *\n"
+                        + "FROM `SRC`";
         sql(sql1).ok(expected1);
     }
 
@@ -1969,6 +2328,38 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     void testShowViews() {
         sql("show views").ok("SHOW VIEWS");
+        sql("show views not like '%'").ok("SHOW VIEWS NOT LIKE '%'");
+
+        sql("show views from db1").ok("SHOW VIEWS FROM `DB1`");
+        sql("show views in db1").ok("SHOW VIEWS IN `DB1`");
+
+        sql("show views from catalog1.db1").ok("SHOW VIEWS FROM `CATALOG1`.`DB1`");
+        sql("show views in catalog1.db1").ok("SHOW VIEWS IN `CATALOG1`.`DB1`");
+
+        sql("show views from db1 like '%'").ok("SHOW VIEWS FROM `DB1` LIKE '%'");
+        sql("show views in db1 like '%'").ok("SHOW VIEWS IN `DB1` LIKE '%'");
+
+        sql("show views from catalog1.db1 like '%'")
+                .ok("SHOW VIEWS FROM `CATALOG1`.`DB1` LIKE '%'");
+        sql("show views in catalog1.db1 like '%'").ok("SHOW VIEWS IN `CATALOG1`.`DB1` LIKE '%'");
+
+        sql("show views from db1 not like '%'").ok("SHOW VIEWS FROM `DB1` NOT LIKE '%'");
+        sql("show views in db1 not like '%'").ok("SHOW VIEWS IN `DB1` NOT LIKE '%'");
+
+        sql("show views from catalog1.db1 not like '%'")
+                .ok("SHOW VIEWS FROM `CATALOG1`.`DB1` NOT LIKE '%'");
+        sql("show views in catalog1.db1 not like '%'")
+                .ok("SHOW VIEWS IN `CATALOG1`.`DB1` NOT LIKE '%'");
+
+        sql("show views ^db1^").fails("(?s).*Encountered \"db1\" at line 1, column 12.\n.*");
+        sql("show views ^catalog1^.db1")
+                .fails("(?s).*Encountered \"catalog1\" at line 1, column 12.\n.*");
+
+        sql("show views ^search^ db1")
+                .fails("(?s).*Encountered \"search\" at line 1, column 12.\n.*");
+
+        sql("show views from db1 ^likes^ '%t'")
+                .fails("(?s).*Encountered \"likes\" at line 1, column 21.\n.*");
     }
 
     @Test
@@ -2163,12 +2554,12 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .ok(
                         "EXECUTE STATEMENT SET BEGIN\n"
                                 + "INSERT INTO `T1`\n"
-                                + "(SELECT *\n"
-                                + "FROM `T2`)\n"
+                                + "SELECT *\n"
+                                + "FROM `T2`\n"
                                 + ";\n"
                                 + "INSERT INTO `T2`\n"
-                                + "(SELECT *\n"
-                                + "FROM `T3`)\n"
+                                + "SELECT *\n"
+                                + "FROM `T3`\n"
                                 + ";\n"
                                 + "END");
     }
@@ -2179,12 +2570,12 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .ok(
                         "EXPLAIN STATEMENT SET BEGIN\n"
                                 + "INSERT INTO `T1`\n"
-                                + "(SELECT *\n"
-                                + "FROM `T2`)\n"
+                                + "SELECT *\n"
+                                + "FROM `T2`\n"
                                 + ";\n"
                                 + "INSERT INTO `T2`\n"
-                                + "(SELECT *\n"
-                                + "FROM `T3`)\n"
+                                + "SELECT *\n"
+                                + "FROM `T3`\n"
                                 + ";\n"
                                 + "END");
     }
@@ -2228,11 +2619,11 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     void testExplainUnion() {
         String sql = "explain estimated_cost select * from emps union all select * from emps";
         String expected =
-                "EXPLAIN ESTIMATED_COST (SELECT *\n"
+                "EXPLAIN ESTIMATED_COST SELECT *\n"
                         + "FROM `EMPS`\n"
                         + "UNION ALL\n"
                         + "SELECT *\n"
-                        + "FROM `EMPS`)";
+                        + "FROM `EMPS`";
         this.sql(sql).ok(expected);
     }
 
@@ -2292,13 +2683,13 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     void testExplainInsert() {
-        String expected = "EXPLAIN INSERT INTO `EMPS1`\n" + "(SELECT *\n" + "FROM `EMPS2`)";
+        String expected = "EXPLAIN INSERT INTO `EMPS1`\n" + "SELECT *\n" + "FROM `EMPS2`";
         this.sql("explain plan for insert into emps1 select * from emps2").ok(expected);
     }
 
     @Test
     void testExecuteInsert() {
-        String expected = "EXECUTE INSERT INTO `EMPS1`\n" + "(SELECT *\n" + "FROM `EMPS2`)";
+        String expected = "EXECUTE INSERT INTO `EMPS1`\n" + "SELECT *\n" + "FROM `EMPS2`";
         this.sql("execute insert into emps1 select * from emps2").ok(expected);
     }
 
@@ -2316,30 +2707,30 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("compile plan './test.json' for insert into t1 select * from t2")
                 .ok(
                         "COMPILE PLAN './test.json' FOR INSERT INTO `T1`\n"
-                                + "(SELECT *\n"
-                                + "FROM `T2`)");
+                                + "SELECT *\n"
+                                + "FROM `T2`");
         sql("compile plan './test.json' if not exists for insert into t1 select * from t2")
                 .ok(
                         "COMPILE PLAN './test.json' IF NOT EXISTS FOR INSERT INTO `T1`\n"
-                                + "(SELECT *\n"
-                                + "FROM `T2`)");
+                                + "SELECT *\n"
+                                + "FROM `T2`");
         sql("compile plan 'file:///foo/bar/test.json' if not exists for insert into t1 select * from t2")
                 .ok(
                         "COMPILE PLAN 'file:///foo/bar/test.json' IF NOT EXISTS FOR INSERT INTO `T1`\n"
-                                + "(SELECT *\n"
-                                + "FROM `T2`)");
+                                + "SELECT *\n"
+                                + "FROM `T2`");
 
         sql("compile plan './test.json' for statement set "
                         + "begin insert into t1 select * from t2; insert into t2 select * from t3; end")
                 .ok(
                         "COMPILE PLAN './test.json' FOR STATEMENT SET BEGIN\n"
                                 + "INSERT INTO `T1`\n"
-                                + "(SELECT *\n"
-                                + "FROM `T2`)\n"
+                                + "SELECT *\n"
+                                + "FROM `T2`\n"
                                 + ";\n"
                                 + "INSERT INTO `T2`\n"
-                                + "(SELECT *\n"
-                                + "FROM `T3`)\n"
+                                + "SELECT *\n"
+                                + "FROM `T3`\n"
                                 + ";\n"
                                 + "END");
         sql("compile plan './test.json' if not exists for statement set "
@@ -2347,12 +2738,12 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .ok(
                         "COMPILE PLAN './test.json' IF NOT EXISTS FOR STATEMENT SET BEGIN\n"
                                 + "INSERT INTO `T1`\n"
-                                + "(SELECT *\n"
-                                + "FROM `T2`)\n"
+                                + "SELECT *\n"
+                                + "FROM `T2`\n"
                                 + ";\n"
                                 + "INSERT INTO `T2`\n"
-                                + "(SELECT *\n"
-                                + "FROM `T3`)\n"
+                                + "SELECT *\n"
+                                + "FROM `T3`\n"
                                 + ";\n"
                                 + "END");
 
@@ -2361,12 +2752,12 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .ok(
                         "COMPILE PLAN 'file:///foo/bar/test.json' IF NOT EXISTS FOR STATEMENT SET BEGIN\n"
                                 + "INSERT INTO `T1`\n"
-                                + "(SELECT *\n"
-                                + "FROM `T2`)\n"
+                                + "SELECT *\n"
+                                + "FROM `T2`\n"
                                 + ";\n"
                                 + "INSERT INTO `T2`\n"
-                                + "(SELECT *\n"
-                                + "FROM `T3`)\n"
+                                + "SELECT *\n"
+                                + "FROM `T3`\n"
                                 + ";\n"
                                 + "END");
     }
@@ -2376,27 +2767,27 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("compile and execute plan './test.json' for insert into t1 select * from t2")
                 .ok(
                         "COMPILE AND EXECUTE PLAN './test.json' FOR INSERT INTO `T1`\n"
-                                + "(SELECT *\n"
-                                + "FROM `T2`)");
+                                + "SELECT *\n"
+                                + "FROM `T2`");
 
         sql("compile and execute plan './test.json' for statement set "
                         + "begin insert into t1 select * from t2; insert into t2 select * from t3; end")
                 .ok(
                         "COMPILE AND EXECUTE PLAN './test.json' FOR STATEMENT SET BEGIN\n"
                                 + "INSERT INTO `T1`\n"
-                                + "(SELECT *\n"
-                                + "FROM `T2`)\n"
+                                + "SELECT *\n"
+                                + "FROM `T2`\n"
                                 + ";\n"
                                 + "INSERT INTO `T2`\n"
-                                + "(SELECT *\n"
-                                + "FROM `T3`)\n"
+                                + "SELECT *\n"
+                                + "FROM `T3`\n"
                                 + ";\n"
                                 + "END");
         sql("compile and execute plan 'file:///foo/bar/test.json' for insert into t1 select * from t2")
                 .ok(
                         "COMPILE AND EXECUTE PLAN 'file:///foo/bar/test.json' FOR INSERT INTO `T1`\n"
-                                + "(SELECT *\n"
-                                + "FROM `T2`)");
+                                + "SELECT *\n"
+                                + "FROM `T2`");
     }
 
     @Test
@@ -2440,10 +2831,10 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     void testSetReset() {
-        sql("SET").ok("SET");
-        sql("SET 'test-key' = 'test-value'").ok("SET 'test-key' = 'test-value'");
-        sql("RESET").ok("RESET");
-        sql("RESET 'test-key'").ok("RESET 'test-key'");
+        sql("SET").same();
+        sql("SET 'test-key' = 'test-value'").same();
+        sql("RESET").same();
+        sql("RESET 'test-key'").same();
     }
 
     @Test
@@ -2493,6 +2884,31 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testExplainCreateTableNoSupported() {
+        this.sql("EXPLAIN CREATE TABLE t (id int^)^")
+                .fails(
+                        "Unsupported CREATE OR REPLACE statement for EXPLAIN\\. The statement must define a query using the AS clause \\(i\\.e\\. CTAS/RTAS statements\\)\\.");
+    }
+
+    @Test
+    void testExplainCreateTableAsSelect() {
+        this.sql("EXPLAIN CREATE TABLE t AS SELECT * FROM b")
+                .ok("EXPLAIN CREATE TABLE `T`\nAS\nSELECT *\nFROM `B`");
+    }
+
+    @Test
+    void testExplainCreateOrReplaceTableAsSelect() {
+        this.sql("EXPLAIN CREATE OR REPLACE TABLE t AS SELECT * FROM b")
+                .ok("EXPLAIN CREATE OR REPLACE TABLE `T`\nAS\nSELECT *\nFROM `B`");
+    }
+
+    @Test
+    void testExplainReplaceTableAsSelect() {
+        this.sql("EXPLAIN REPLACE TABLE t AS SELECT * FROM b")
+                .ok("EXPLAIN REPLACE TABLE `T`\nAS\nSELECT *\nFROM `B`");
+    }
+
+    @Test
     void testCreateTableAsSelectWithoutOptions() {
         sql("CREATE TABLE t AS SELECT * FROM b").ok("CREATE TABLE `T`\nAS\nSELECT *\nFROM `B`");
     }
@@ -2521,23 +2937,20 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     void testCreateTableAsSelectWithExplicitColumns() {
         sql("CREATE TABLE t (col1 string) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "CREATE TABLE AS SELECT syntax does not support to specify explicit columns yet."));
+                .node(new ValidationMatcher().ok());
     }
 
     @Test
     void testCreateTableAsSelectWithWatermark() {
-        sql("CREATE TABLE t (watermark FOR ts AS ts - interval '3' second) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "CREATE TABLE AS SELECT syntax does not support to specify explicit watermark yet."));
+        sql("CREATE TABLE t (watermark FOR col1 AS col1 - interval '3' second) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().ok());
     }
 
     @Test
     void testCreateTableAsSelectWithConstraints() {
+        sql("CREATE TABLE t (PRIMARY KEY (col1) NOT ENFORCED) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().ok());
+
         sql("CREATE TABLE t (PRIMARY KEY (col1)) WITH ('test' = 'zm') AS SELECT col1 FROM b")
                 .node(
                         new ValidationMatcher()
@@ -2554,12 +2967,52 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testCreateTableAsSelectWithDistribution() {
+        sql("CREATE TABLE t DISTRIBUTED BY(col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().ok());
+    }
+
+    @Test
     void testCreateTableAsSelectWithPartitionKey() {
         sql("CREATE TABLE t PARTITIONED BY(col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "CREATE TABLE AS SELECT syntax does not support to create partitioned table yet."));
+                .node(new ValidationMatcher().ok());
+    }
+
+    @Test
+    void testCreateTableAsSelectWithColumnIdentifiers() {
+        // test with only column identifiers
+        sql("CREATE TABLE t (col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().ok());
+
+        // test mix of column identifiers and column with types is not allowed
+        sql("CREATE TABLE t (col1, col2 ^int^) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .fails("(?s).*Encountered \"int\" at line 1, column 28.*");
+    }
+
+    @Test
+    void testUnsupportedCreateTableStatementsWithColumnIdentifiers() {
+        String expectedErrorMsg =
+                "Columns identifiers without types in the schema are "
+                        + "supported on CTAS/RTAS statements only.";
+
+        sql("CREATE TABLE t ^(a, h^) WITH " + "('connector' = 'kafka', 'kafka.topic' = 'log.test')")
+                .fails(expectedErrorMsg);
+
+        sql("CREATE TABLE t ^(a, h^) WITH "
+                        + "('connector' = 'kafka', 'kafka.topic' = 'log.test') "
+                        + "LIKE parent_table")
+                .fails(expectedErrorMsg);
+    }
+
+    @Test
+    void testReplaceTableAsSelectWithColumnIdentifiers() {
+        // test with only column identifiers
+        sql("REPLACE TABLE t (col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().ok());
+
+        // test mix of column identifiers and column with types is not allowed
+        sql("REPLACE TABLE t (col1, col2 ^int^) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .fails("(?s).*Encountered \"int\" at line 1, column 29.*");
     }
 
     @Test
@@ -2580,17 +3033,11 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
         // test replace table as select with explicit columns
         sql("REPLACE TABLE t (col1 string) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "REPLACE TABLE AS SELECT syntax does not support to specify explicit columns yet."));
+                .node(new ValidationMatcher().ok());
 
         // test replace table as select with watermark
         sql("REPLACE TABLE t (watermark FOR ts AS ts - interval '3' second) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "REPLACE TABLE AS SELECT syntax does not support to specify explicit watermark yet."));
+                .node(new ValidationMatcher().ok());
 
         // test replace table as select with constraints
         sql("REPLACE TABLE t (PRIMARY KEY (col1)) WITH ('test' = 'zm') AS SELECT col1 FROM b")
@@ -2609,10 +3056,11 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
         // test replace table as select with partition key
         sql("REPLACE TABLE t PARTITIONED BY(col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "REPLACE TABLE AS SELECT syntax does not support to create partitioned table yet."));
+                .node(new ValidationMatcher().ok());
+
+        // test replace table as select with distribution
+        sql("REPLACE TABLE t DISTRIBUTED BY(col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().ok());
     }
 
     @Test
@@ -2639,17 +3087,12 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
         // test create or replace table as select with explicit columns
         sql("CREATE OR REPLACE TABLE t (col1 string) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "CREATE OR REPLACE TABLE AS SELECT syntax does not support to specify explicit columns yet."));
+                .node(new ValidationMatcher().ok());
 
         // test create or replace table as select with watermark
         sql("CREATE OR REPLACE TABLE t (watermark FOR ts AS ts - interval '3' second) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "CREATE OR REPLACE TABLE AS SELECT syntax does not support to specify explicit watermark yet."));
+                .node(new ValidationMatcher().ok());
+
         // test create or replace table as select with constraints
         sql("CREATE OR REPLACE TABLE t (PRIMARY KEY (col1)) WITH ('test' = 'zm') AS SELECT col1 FROM b")
                 .node(
@@ -2667,10 +3110,10 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
         // test create or replace table as select with partition key
         sql("CREATE OR REPLACE TABLE t PARTITIONED BY(col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "CREATE OR REPLACE TABLE AS SELECT syntax does not support to create partitioned table yet."));
+                .node(new ValidationMatcher().ok());
+
+        sql("CREATE OR REPLACE TABLE t DISTRIBUTED BY(col1) WITH ('test' = 'zm') AS SELECT col1 FROM b")
+                .node(new ValidationMatcher().ok());
     }
 
     @Test
@@ -2680,14 +3123,19 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     void testStopJob() {
-        sql("STOP JOB 'myjob'").ok("STOP JOB 'myjob'");
-        sql("STOP JOB 'myjob' WITH SAVEPOINT").ok("STOP JOB 'myjob' WITH SAVEPOINT");
-        sql("STOP JOB 'myjob' WITH SAVEPOINT WITH DRAIN")
-                .ok("STOP JOB 'myjob' WITH SAVEPOINT WITH DRAIN");
+        sql("STOP JOB 'myjob'").same();
+        sql("STOP JOB 'myjob' WITH SAVEPOINT").same();
+        sql("STOP JOB 'myjob' WITH SAVEPOINT WITH DRAIN").same();
         sql("STOP JOB 'myjob' ^WITH DRAIN^")
                 .fails("WITH DRAIN could only be used after WITH SAVEPOINT.");
         sql("STOP JOB 'myjob' ^WITH DRAIN^ WITH SAVEPOINT")
                 .fails("WITH DRAIN could only be used after WITH SAVEPOINT.");
+    }
+
+    @Test
+    void testDescribeJob() {
+        sql("DESCRIBE JOB 'myjob'").same();
+        sql("DESC JOB 'myjob'").ok("DESCRIBE JOB 'myjob'");
     }
 
     @Test
@@ -2725,10 +3173,274 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         };
     }
 
+    @Test
+    void testShowModels() {
+        sql("show models").ok("SHOW MODELS");
+        sql("show models from db1").ok("SHOW MODELS FROM `DB1`");
+        sql("show models from catalog1.db1").ok("SHOW MODELS FROM `CATALOG1`.`DB1`");
+        sql("show models in db1").ok("SHOW MODELS IN `DB1`");
+        sql("show models in catalog1.db1").ok("SHOW MODELS IN `CATALOG1`.`DB1`");
+    }
+
+    @Test
+    void testDropModel() {
+        sql("drop model m1").ok("DROP MODEL `M1`");
+        sql("drop model db1.m1").ok("DROP MODEL `DB1`.`M1`");
+        sql("drop model catalog1.db1.m1").ok("DROP MODEL `CATALOG1`.`DB1`.`M1`");
+    }
+
+    @Test
+    void testDropModelIfExists() {
+        sql("drop model if exists catalog1.db1.m1")
+                .ok("DROP MODEL IF EXISTS `CATALOG1`.`DB1`.`M1`");
+    }
+
+    @Test
+    void testAlterModel() {
+        final String sql = "alter model m1 set ('key1' = 'value1','key2' = 'value2')";
+        final String expected =
+                "ALTER MODEL `M1` SET (\n"
+                        + "  'key1' = 'value1',\n"
+                        + "  'key2' = 'value2'\n"
+                        + ")";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testAlterModelIfExists() {
+        final String sql = "alter model if exists m1 set ('key1' = 'value1','key2' = 'value2')";
+        final String expected =
+                "ALTER MODEL IF EXISTS `M1` SET (\n"
+                        + "  'key1' = 'value1',\n"
+                        + "  'key2' = 'value2'\n"
+                        + ")";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testAlterModelRename() {
+        final String sql = "alter model m1 rename to m2";
+        final String expected = "ALTER MODEL `M1` RENAME TO `M2`";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testAlterModelRenameIfExists() {
+        final String sql = "alter model if exists m1 rename to m2";
+        final String expected = "ALTER MODEL IF EXISTS `M1` RENAME TO `M2`";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testCreateModel() {
+        sql("create model m1\n"
+                        + " INPUT(col1 INT, col2 STRING)\n"
+                        + " OUTPUT(label DOUBLE)\n"
+                        + " COMMENT 'model_comment'\n"
+                        + " WITH (\n"
+                        + "  'key1'='value1',\n"
+                        + "  'key2'='value2'\n"
+                        + " )\n")
+                .ok(
+                        "CREATE MODEL `M1` INPUT (\n"
+                                + "  `COL1` INTEGER,\n"
+                                + "  `COL2` STRING\n"
+                                + ") OUTPUT (\n"
+                                + "  `LABEL` DOUBLE\n"
+                                + ")\n"
+                                + "COMMENT 'model_comment' WITH (\n"
+                                + "  'key1' = 'value1',\n"
+                                + "  'key2' = 'value2'\n"
+                                + ")");
+    }
+
+    @Test
+    void testCreateModelIfNotExists() {
+        sql("create model if not exists m1\n"
+                        + " INPUT(col1 INT, col2 STRING)\n"
+                        + " OUTPUT(label DOUBLE)\n"
+                        + " COMMENT 'model_comment'\n"
+                        + " WITH (\n"
+                        + "  'key1'='value1',\n"
+                        + "  'key2'='value2'\n"
+                        + " )\n")
+                .ok(
+                        "CREATE MODEL IF NOT EXISTS `M1` INPUT (\n"
+                                + "  `COL1` INTEGER,\n"
+                                + "  `COL2` STRING\n"
+                                + ") OUTPUT (\n"
+                                + "  `LABEL` DOUBLE\n"
+                                + ")\n"
+                                + "COMMENT 'model_comment' WITH (\n"
+                                + "  'key1' = 'value1',\n"
+                                + "  'key2' = 'value2'\n"
+                                + ")");
+    }
+
+    @Test
+    void testCreateModelAs() {
+        sql("create model m1\n"
+                        + " WITH (\n"
+                        + "  'key1'='value1',\n"
+                        + "  'key2'='value2'\n"
+                        + " ) as select f1, f2 from t1\n")
+                .ok(
+                        "CREATE MODEL `M1` WITH (\n"
+                                + "  'key1' = 'value1',\n"
+                                + "  'key2' = 'value2'\n"
+                                + ")\n"
+                                + "AS\n"
+                                + "SELECT `F1`, `F2`\n"
+                                + "FROM `T1`");
+    }
+
+    @Test
+    void testCreateModelAsIfNotExists() {
+        sql("create model if not exists m1\n"
+                        + " WITH (\n"
+                        + "  'key1'='value1',\n"
+                        + "  'key2'='value2'\n"
+                        + " ) as select f1, f2 from t1\n")
+                .ok(
+                        "CREATE MODEL IF NOT EXISTS `M1` WITH (\n"
+                                + "  'key1' = 'value1',\n"
+                                + "  'key2' = 'value2'\n"
+                                + ")\n"
+                                + "AS\n"
+                                + "SELECT `F1`, `F2`\n"
+                                + "FROM `T1`");
+    }
+
+    @Test
+    void testCreateModelAsWithInput() {
+        sql("create model if not exists m1\n"
+                        + " INPUT(col1 INT, col2 STRING)\n"
+                        + " OUTPUT(label DOUBLE)\n"
+                        + " WITH (\n"
+                        + "  'key1'='value1',\n"
+                        + "  'key2'='value2'\n"
+                        + " ) as select f1, f2 from t1\n")
+                .ok(
+                        "CREATE MODEL IF NOT EXISTS `M1` INPUT (\n"
+                                + "  `COL1` INTEGER,\n"
+                                + "  `COL2` STRING\n"
+                                + ") OUTPUT (\n"
+                                + "  `LABEL` DOUBLE\n"
+                                + ") WITH (\n"
+                                + "  'key1' = 'value1',\n"
+                                + "  'key2' = 'value2'\n"
+                                + ")\n"
+                                + "AS\n"
+                                + "SELECT `F1`, `F2`\n"
+                                + "FROM `T1`")
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "CREATE MODEL AS SELECT syntax does not support to specify explicit input columns."));
+    }
+
+    @Test
+    void testCreateModelAsWithOutput() {
+        sql("create model if not exists m1\n"
+                        + " OUTPUT(label DOUBLE)\n"
+                        + " WITH (\n"
+                        + "  'key1'='value1',\n"
+                        + "  'key2'='value2'\n"
+                        + " ) as select f1, f2 from t1\n")
+                .ok(
+                        "CREATE MODEL IF NOT EXISTS `M1` OUTPUT (\n"
+                                + "  `LABEL` DOUBLE\n"
+                                + ") WITH (\n"
+                                + "  'key1' = 'value1',\n"
+                                + "  'key2' = 'value2'\n"
+                                + ")\n"
+                                + "AS\n"
+                                + "SELECT `F1`, `F2`\n"
+                                + "FROM `T1`")
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "CREATE MODEL AS SELECT syntax does not support to specify explicit output columns."));
+    }
+
+    /*
+     * This test was backported from Calcite 1.38 (CALCITE-6266).
+     * Remove it together with upgrade to Calcite 1.38.
+     */
+    @Test
+    void testFromValuesWithoutParens() {
+        sql("select 1 from ^values^('x')")
+                .fails(
+                        "(?s)Encountered \"values\" at line 1, column 15\\.\n"
+                                + "Was expecting one of:\n"
+                                + "    \"LATERAL\" \\.\\.\\.\n"
+                                + "    \"TABLE\" \\.\\.\\.\n"
+                                + "    <IDENTIFIER> \\.\\.\\.\n"
+                                + "    <HYPHENATED_IDENTIFIER> \\.\\.\\.\n"
+                                + "    <QUOTED_IDENTIFIER> \\.\\.\\.\n"
+                                + "    <BACK_QUOTED_IDENTIFIER> \\.\\.\\.\n"
+                                + "    <BIG_QUERY_BACK_QUOTED_IDENTIFIER> \\.\\.\\.\n"
+                                + "    <BRACKET_QUOTED_IDENTIFIER> \\.\\.\\.\n"
+                                + "    <UNICODE_QUOTED_IDENTIFIER> \\.\\.\\.\n"
+                                + "    \"\\(\" \\.\\.\\.\n.*"
+                                + "    \"UNNEST\" \\.\\.\\.\n.*");
+    }
+
+    /*
+     * This test was backported from Calcite 1.38 (CALCITE-6266).
+     * Remove it together with upgrade to Calcite 1.38.
+     */
+    @Test
+    void testUnnest() {
+        sql("select*from unnest(x)").ok("SELECT *\n" + "FROM UNNEST(`X`)");
+        sql("select*from unnest(x) AS T").ok("SELECT *\n" + "FROM UNNEST(`X`) AS `T`");
+        // UNNEST cannot be first word in query
+        sql("^unnest^(x)").fails("(?s)Encountered \"unnest\" at.*");
+        // UNNEST with more than one argument
+        final String sql = "select * from dept,\n" + "unnest(dept.employees, dept.managers)";
+        final String expected =
+                "SELECT *\n" + "FROM `DEPT`,\n" + "UNNEST(`DEPT`.`EMPLOYEES`, `DEPT`.`MANAGERS`)";
+        sql(sql).ok(expected);
+
+        // LATERAL UNNEST is the same as UNNEST
+        // (LATERAL is implicit for UNNEST, so the parser just ignores it)
+        sql("select * from dept, lateral unnest(dept.employees)")
+                .ok("SELECT *\n" + "FROM `DEPT`,\n" + "UNNEST(`DEPT`.`EMPLOYEES`)");
+        sql("select * from dept, unnest(dept.employees)")
+                .ok("SELECT *\n" + "FROM `DEPT`,\n" + "UNNEST(`DEPT`.`EMPLOYEES`)");
+
+        // Does not generate extra parentheses around UNNEST because UNNEST is
+        // a table expression.
+        final String sql1 =
+                ""
+                        + "SELECT\n"
+                        + "  item.name,\n"
+                        + "  relations.*\n"
+                        + "FROM dfs.tmp item\n"
+                        + "JOIN (\n"
+                        + "  SELECT * FROM UNNEST(item.related) i(rels)\n"
+                        + ") relations\n"
+                        + "ON TRUE";
+        final String expected1 =
+                "SELECT `ITEM`.`NAME`, `RELATIONS`.*\n"
+                        + "FROM `DFS`.`TMP` AS `ITEM`\n"
+                        + "INNER JOIN (SELECT *\n"
+                        + "FROM UNNEST(`ITEM`.`RELATED`) AS `I` (`RELS`)) AS `RELATIONS` ON TRUE";
+        sql(sql1).ok(expected1);
+    }
+
+    @Test
+    void testOuterApplyFunctionFails() {
+        final String sql = "select * from dept outer apply ramp(deptno)^)^";
+        sql(sql).withConformance(SqlConformanceEnum.SQL_SERVER_2008)
+                .fails("(?s).*Encountered \"\\)\" at .*");
+    }
+
     /** Matcher that invokes the #validate() of the {@link ExtendedSqlNode} instance. * */
     private static class ValidationMatcher extends BaseMatcher<SqlNode> {
         private String expectedColumnSql;
         private String failMsg;
+        private boolean ok;
 
         public ValidationMatcher expectColumnSql(String s) {
             this.expectedColumnSql = s;
@@ -2737,6 +3449,13 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
         public ValidationMatcher fails(String failMsg) {
             this.failMsg = failMsg;
+            this.ok = false;
+            return this;
+        }
+
+        public ValidationMatcher ok() {
+            this.failMsg = null;
+            this.ok = true;
             return this;
         }
 
@@ -2749,7 +3468,14 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         public boolean matches(Object item) {
             if (item instanceof ExtendedSqlNode) {
                 ExtendedSqlNode createTable = (ExtendedSqlNode) item;
-                if (failMsg != null) {
+
+                if (ok) {
+                    try {
+                        createTable.validate();
+                    } catch (SqlValidateException e) {
+                        fail("unexpected exception", e);
+                    }
+                } else if (failMsg != null) {
                     try {
                         createTable.validate();
                         fail("expected exception");
@@ -2757,6 +3483,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         assertThat(e).hasMessage(failMsg);
                     }
                 }
+
                 if (expectedColumnSql != null && item instanceof SqlCreateTable) {
                     assertThat(((SqlCreateTable) createTable).getColumnSqlString())
                             .isEqualTo(expectedColumnSql);

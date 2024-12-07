@@ -19,14 +19,12 @@ import atexit
 import os
 import sys
 import tempfile
-import warnings
-from typing import Union, List, Tuple, Iterable
+from typing import Union, List, Tuple, Iterable, Optional
 
 from py4j.java_gateway import get_java_class, get_method
 
 from pyflink.common.configuration import Configuration
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table.sources import TableSource
 
 from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.data_stream import DataStream
@@ -34,7 +32,7 @@ from pyflink.datastream.data_stream import DataStream
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table import Table, EnvironmentSettings, Expression, ExplainDetail, \
-    Module, ModuleEntry, TableSink, Schema, ChangelogMode
+    Module, ModuleEntry, Schema, ChangelogMode
 from pyflink.table.catalog import Catalog
 from pyflink.table.serializers import ArrowSerializer
 from pyflink.table.statement_set import StatementSet
@@ -47,7 +45,6 @@ from pyflink.table.types import _create_type_verifier, RowType, DataType, \
 from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, udaf, \
     udtaf, TableAggregateFunction
 from pyflink.table.utils import to_expression_jarray
-from pyflink.util import java_utils
 from pyflink.util.java_utils import get_j_env_configuration, is_local_deployment, load_java_class, \
     to_j_explain_detail_arr, to_jarray, get_field
 
@@ -119,23 +116,6 @@ class TableEnvironment(object):
 
         j_tenv = gateway.jvm.TableEnvironment.create(environment_settings._j_environment_settings)
         return TableEnvironment(j_tenv)
-
-    def from_table_source(self, table_source: 'TableSource') -> 'Table':
-        """
-        Creates a table from a table source.
-
-        Example:
-        ::
-
-            >>> csv_table_source = CsvTableSource(
-            ...     csv_file_path, ['a', 'b'], [DataTypes.STRING(), DataTypes.BIGINT()])
-            >>> table_env.from_table_source(csv_table_source)
-
-        :param table_source: The table source used as table.
-        :return: The result table.
-        """
-        warnings.warn("Deprecated in 1.11.", DeprecationWarning)
-        return Table(self._j_tenv.fromTableSource(table_source._j_table_source), self)
 
     def register_catalog(self, catalog_name: str, catalog: Catalog):
         """
@@ -425,7 +405,8 @@ class TableEnvironment(object):
         """
         return self._j_tenv.dropTemporaryFunction(path)
 
-    def create_temporary_table(self, path: str, descriptor: TableDescriptor):
+    def create_temporary_table(self, path: str, descriptor: TableDescriptor,
+                               ignoreIfExists: Optional[bool] = False):
         """
         Registers the given :class:`~pyflink.table.TableDescriptor` as a temporary catalog table.
 
@@ -444,16 +425,20 @@ class TableEnvironment(object):
             ...         .build())
             ...     .option("rows-per-second", 10)
             ...     .option("fields.f0.kind", "random")
-            ...     .build())
+            ...     .build(),
+            ...  True)
 
         :param path: The path under which the table will be registered.
         :param descriptor: Template for creating a CatalogTable instance.
+        :param ignoreIfExists: If a table exists under the given path and this flag is set,
+                               no operation is executed. An exception is thrown otherwise.
 
         .. versionadded:: 1.14.0
         """
-        self._j_tenv.createTemporaryTable(path, descriptor._j_table_descriptor)
+        self._j_tenv.createTemporaryTable(path, descriptor._j_table_descriptor, ignoreIfExists)
 
-    def create_table(self, path: str, descriptor: TableDescriptor):
+    def create_table(self, path: str, descriptor: TableDescriptor,
+                     ignoreIfExists: Optional[bool] = False):
         """
         Registers the given :class:`~pyflink.table.TableDescriptor` as a catalog table.
 
@@ -471,112 +456,17 @@ class TableEnvironment(object):
             ...                   .build())
             ...     .option("rows-per-second", 10)
             ...     .option("fields.f0.kind", "random")
-            ...     .build())
+            ...     .build(),
+            ...  True)
 
         :param path: The path under which the table will be registered.
         :param descriptor: Template for creating a CatalogTable instance.
+        :param ignoreIfExists: If a table exists under the given path and this flag is set,
+                               no operation is executed. An exception is thrown otherwise.
 
         .. versionadded:: 1.14.0
         """
-        self._j_tenv.createTable(path, descriptor._j_table_descriptor)
-
-    def register_table(self, name: str, table: Table):
-        """
-        Registers a :class:`~pyflink.table.Table` under a unique name in the TableEnvironment's
-        catalog. Registered tables can be referenced in SQL queries.
-
-        Example:
-        ::
-
-            >>> tab = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['a', 'b'])
-            >>> table_env.register_table("source", tab)
-
-        :param name: The name under which the table will be registered.
-        :param table: The table to register.
-
-        .. note:: Deprecated in 1.10. Use :func:`create_temporary_view` instead.
-        """
-        warnings.warn("Deprecated in 1.10. Use create_temporary_view instead.", DeprecationWarning)
-        self._j_tenv.registerTable(name, table._j_table)
-
-    def register_table_source(self, name: str, table_source: TableSource):
-        """
-        Registers an external :class:`~pyflink.table.TableSource` in this
-        :class:`~pyflink.table.TableEnvironment`'s catalog. Registered tables can be referenced in
-        SQL queries.
-
-        Example:
-        ::
-
-            >>> table_env.register_table_source("source",
-            ...                                 CsvTableSource("./1.csv",
-            ...                                                ["a", "b"],
-            ...                                                [DataTypes.INT(),
-            ...                                                 DataTypes.STRING()]))
-
-        :param name: The name under which the table source is registered.
-        :param table_source: The table source to register.
-
-        .. note:: Deprecated in 1.10. Use :func:`execute_sql` instead.
-        """
-        warnings.warn("Deprecated in 1.10. Use create_table instead.", DeprecationWarning)
-        self._j_tenv.registerTableSourceInternal(name, table_source._j_table_source)
-
-    def register_table_sink(self, name: str, table_sink: TableSink):
-        """
-        Registers an external :class:`~pyflink.table.TableSink` with given field names and types in
-        this :class:`~pyflink.table.TableEnvironment`'s catalog. Registered sink tables can be
-        referenced in SQL DML statements.
-
-        Example:
-        ::
-
-            >>> table_env.register_table_sink("sink",
-            ...                               CsvTableSink(["a", "b"],
-            ...                                            [DataTypes.INT(),
-            ...                                             DataTypes.STRING()],
-            ...                                            "./2.csv"))
-
-        :param name: The name under which the table sink is registered.
-        :param table_sink: The table sink to register.
-
-        .. note:: Deprecated in 1.10. Use :func:`execute_sql` instead.
-        """
-        warnings.warn("Deprecated in 1.10. Use create_table instead.", DeprecationWarning)
-        self._j_tenv.registerTableSinkInternal(name, table_sink._j_table_sink)
-
-    def scan(self, *table_path: str) -> Table:
-        """
-        Scans a registered table and returns the resulting :class:`~pyflink.table.Table`.
-        A table to scan must be registered in the TableEnvironment. It can be either directly
-        registered or be an external member of a :class:`~pyflink.table.catalog.Catalog`.
-
-        See the documentation of :func:`~pyflink.table.TableEnvironment.use_database` or
-        :func:`~pyflink.table.TableEnvironment.use_catalog` for the rules on the path resolution.
-
-        Examples:
-
-        Scanning a directly registered table
-        ::
-
-            >>> tab = table_env.scan("tableName")
-
-        Scanning a table from a registered catalog
-        ::
-
-            >>> tab = table_env.scan("catalogName", "dbName", "tableName")
-
-        :param table_path: The path of the table to scan.
-        :throws: Exception if no table is found using the given table path.
-        :return: The resulting table.
-
-        .. note:: Deprecated in 1.10. Use :func:`from_path` instead.
-        """
-        warnings.warn("Deprecated in 1.10. Use from_path instead.", DeprecationWarning)
-        gateway = get_gateway()
-        j_table_paths = java_utils.to_jarray(gateway.jvm.String, table_path)
-        j_table = self._j_tenv.scan(j_table_paths)
-        return Table(j_table, self)
+        self._j_tenv.createTable(path, descriptor._j_table_descriptor, ignoreIfExists)
 
     def from_path(self, path: str) -> Table:
         """
@@ -978,86 +868,6 @@ class TableEnvironment(object):
             table_config._j_table_config = self._j_tenv.getConfig()
             setattr(self, "table_config", table_config)
         return getattr(self, "table_config")
-
-    def register_java_function(self, name: str, function_class_name: str):
-        """
-        Registers a java user defined function under a unique name. Replaces already existing
-        user-defined functions under this name. The acceptable function type contains
-        **ScalarFunction**, **TableFunction** and **AggregateFunction**.
-
-        Example:
-        ::
-
-            >>> table_env.register_java_function("func1", "java.user.defined.function.class.name")
-
-        :param name: The name under which the function is registered.
-        :param function_class_name: The java full qualified class name of the function to register.
-                                    The function must have a public no-argument constructor and can
-                                    be founded in current Java classloader.
-
-        .. note:: Deprecated in 1.12. Use :func:`create_java_temporary_system_function` instead.
-        """
-        warnings.warn("Deprecated in 1.12. Use :func:`create_java_temporary_system_function` "
-                      "instead.", DeprecationWarning)
-        gateway = get_gateway()
-        java_function = gateway.jvm.Thread.currentThread().getContextClassLoader()\
-            .loadClass(function_class_name).newInstance()
-        # this is a temporary solution and will be unified later when we use the new type
-        # system(DataType) to replace the old type system(TypeInformation).
-        if not isinstance(self, StreamTableEnvironment) or self.__class__ == TableEnvironment:
-            if self._is_table_function(java_function):
-                self._register_table_function(name, java_function)
-            elif self._is_aggregate_function(java_function):
-                self._register_aggregate_function(name, java_function)
-            else:
-                self._j_tenv.registerFunction(name, java_function)
-        else:
-            self._j_tenv.registerFunction(name, java_function)
-
-    def register_function(self, name: str, function: UserDefinedFunctionWrapper):
-        """
-        Registers a python user-defined function under a unique name. Replaces already existing
-        user-defined function under this name.
-
-        Example:
-        ::
-
-            >>> table_env.register_function(
-            ...     "add_one", udf(lambda i: i + 1, result_type=DataTypes.BIGINT()))
-
-            >>> @udf(result_type=DataTypes.BIGINT())
-            ... def add(i, j):
-            ...     return i + j
-            >>> table_env.register_function("add", add)
-
-            >>> class SubtractOne(ScalarFunction):
-            ...     def eval(self, i):
-            ...         return i - 1
-            >>> table_env.register_function(
-            ...     "subtract_one", udf(SubtractOne(), result_type=DataTypes.BIGINT()))
-
-        :param name: The name under which the function is registered.
-        :param function: The python user-defined function to register.
-
-        .. versionadded:: 1.10.0
-
-        .. note:: Deprecated in 1.12. Use :func:`create_temporary_system_function` instead.
-        """
-        warnings.warn("Deprecated in 1.12. Use :func:`create_temporary_system_function` "
-                      "instead.", DeprecationWarning)
-        function = self._wrap_aggregate_function_if_needed(function)
-        java_function = function._java_user_defined_function()
-        # this is a temporary solution and will be unified later when we use the new type
-        # system(DataType) to replace the old type system(TypeInformation).
-        if self.__class__ == TableEnvironment:
-            if self._is_table_function(java_function):
-                self._register_table_function(name, java_function)
-            elif self._is_aggregate_function(java_function):
-                self._register_aggregate_function(name, java_function)
-            else:
-                self._j_tenv.registerFunction(name, java_function)
-        else:
-            self._j_tenv.registerFunction(name, java_function)
 
     def create_temporary_view(self,
                               view_path: str,
@@ -1540,22 +1350,32 @@ class TableEnvironment(object):
             j_config.setString(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), sys.executable)
 
     def _add_jars_to_j_env_config(self, config_key):
-        jvm = get_gateway().jvm
         jar_urls = self.get_config().get(config_key, None)
-        if jar_urls is not None:
-            # normalize
+
+        if jar_urls:
+            jvm = get_gateway().jvm
             jar_urls_list = []
-            for url in jar_urls.split(";"):
-                url = url.strip()
-                if url != "":
-                    jar_urls_list.append(jvm.java.net.URL(url).toString())
+            parsed_jar_urls = Configuration.parse_jars_value(jar_urls, jvm)
+            url_strings = [
+                jvm.java.net.URL(url).toString() if url else ""
+                for url in parsed_jar_urls
+            ]
+            self._parse_urls(url_strings, jar_urls_list)
+
             j_configuration = get_j_env_configuration(self._get_j_env())
-            if j_configuration.containsKey(config_key):
-                for url in j_configuration.getString(config_key, "").split(";"):
-                    url = url.strip()
-                    if url != "" and url not in jar_urls_list:
-                        jar_urls_list.append(url)
+            parsed_jar_urls = Configuration.parse_jars_value(
+                j_configuration.getString(config_key, ""),
+                jvm
+            )
+            self._parse_urls(parsed_jar_urls, jar_urls_list)
+
             j_configuration.setString(config_key, ";".join(jar_urls_list))
+
+    def _parse_urls(self, jar_urls, jar_urls_list):
+        for url in jar_urls:
+            url = url.strip()
+            if url != "" and url not in jar_urls_list:
+                jar_urls_list.append(url)
 
     def _get_j_env(self):
         return self._j_tenv.getPlanner().getExecEnv()

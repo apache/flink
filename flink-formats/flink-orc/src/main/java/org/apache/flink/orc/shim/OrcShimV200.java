@@ -18,7 +18,6 @@
 
 package org.apache.flink.orc.shim;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.orc.OrcFilters.Predicate;
 import org.apache.flink.orc.vector.HiveOrcBatchWrapper;
@@ -166,7 +165,6 @@ public class OrcShimV200 implements OrcShim<VectorizedRowBatch> {
         }
     }
 
-    @VisibleForTesting
     public static Tuple2<Long, Long> getOffsetAndLengthForSplit(
             long splitStart, long splitLength, List<StripeInformation> stripes) {
         long splitEnd = splitStart + splitLength;

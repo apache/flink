@@ -17,9 +17,8 @@
  */
 package org.apache.flink.table.planner.plan.optimize
 
-import org.apache.flink.annotation.Experimental
-import org.apache.flink.configuration.{ConfigOption, ReadableConfig}
-import org.apache.flink.configuration.ConfigOptions.key
+import org.apache.flink.configuration.ReadableConfig
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.plan.`trait`.MiniBatchInterval
 import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
 import org.apache.flink.table.planner.plan.reuse.SubplanReuser.{SubplanReuseContext, SubplanReuseShuttle}
@@ -29,10 +28,9 @@ import org.apache.flink.util.Preconditions
 
 import com.google.common.collect.Sets
 import org.apache.calcite.rel._
-import org.apache.calcite.rel.core.{Aggregate, Project, Snapshot, TableFunctionScan, Union}
+import org.apache.calcite.rel.core._
 import org.apache.calcite.rex.RexNode
 
-import java.lang.{Boolean => JBoolean}
 import java.util
 
 import scala.collection.JavaConversions._
@@ -50,7 +48,7 @@ import scala.collection.mutable
  *      root to leaf again, if meet a RelNode which has multiple sink RelNode, the RelNode is the
  *      output node of a new block (or named break-point). There are several special cases that a
  *      RelNode can not be a break-point. (1). UnionAll is not a break-point when
- *      [[RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED]] is false (2).
+ *      [[OptimizerConfigOptions.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED]] is false (2).
  *      [[TableFunctionScan]], [[Snapshot]] or window aggregate ([[Aggregate]] on a [[Project]] with
  *      window attribute) are not a break-point because their physical RelNodes are a composite
  *      RelNode, each of them cannot be optimized individually. e.g. FlinkLogicalTableFunctionScan
@@ -229,7 +227,7 @@ class RelNodeBlockPlanBuilder private (tableConfig: ReadableConfig) {
   private val node2Block = new util.IdentityHashMap[RelNode, RelNodeBlock]()
 
   private val isUnionAllAsBreakPointEnabled = tableConfig
-    .get(RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED)
+    .get(OptimizerConfigOptions.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED)
 
   /**
    * Decompose the [[RelNode]] plan into many [[RelNodeBlock]]s, and rebuild [[RelNodeBlock]] plan.
@@ -352,28 +350,6 @@ class RelNodeBlockPlanBuilder private (tableConfig: ReadableConfig) {
 
 object RelNodeBlockPlanBuilder {
 
-  // It is a experimental config, will may be removed later.
-  @Experimental
-  val TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED: ConfigOption[JBoolean] =
-    key("table.optimizer.union-all-as-breakpoint-enabled")
-      .booleanType()
-      .defaultValue(JBoolean.valueOf(true))
-      .withDescription(
-        "When true, the optimizer will breakup the graph at union-all node " +
-          "when it's a breakpoint. When false, the optimizer will skip the union-all node " +
-          "even it's a breakpoint, and will try find the breakpoint in its inputs.")
-
-  // It is a experimental config, will may be removed later.
-  @Experimental
-  val TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED: ConfigOption[JBoolean] =
-    key("table.optimizer.reuse-optimize-block-with-digest-enabled")
-      .booleanType()
-      .defaultValue(JBoolean.valueOf(false))
-      .withDescription(
-        "When true, the optimizer will try to find out duplicated sub-plan by " +
-          "digest to build optimize block(a.k.a. common sub-graph). " +
-          "Each optimize block will be optimized independently.")
-
   /**
    * Decompose the [[RelNode]] trees into [[RelNodeBlock]] trees. First, convert LogicalNode trees
    * to RelNode trees. Second, reuse same sub-plan in different trees. Third, decompose the RelNode
@@ -413,7 +389,7 @@ object RelNodeBlockPlanBuilder {
    */
   private def reuseRelNodes(relNodes: Seq[RelNode], tableConfig: ReadableConfig): Seq[RelNode] = {
     val findOpBlockWithDigest = tableConfig
-      .get(RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED)
+      .get(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED)
     if (!findOpBlockWithDigest) {
       return relNodes
     }

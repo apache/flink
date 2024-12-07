@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-examples</artifactId>
-		<version>1.19-SNAPSHOT</version>
+		<version>2.0-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-examples-streaming</artifactId>
@@ -123,25 +123,6 @@ under the License.
 
 	<build>
 		<plugins>
-			<!-- Fail compilation on deprecation warnings to prevent from showing users outdated examples. -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>compile</id>
-						<phase>process-sources</phase>
-						<goals>
-							<goal>compile</goal>
-						</goals>
-						<configuration>
-							<compilerArgument>-Xlint:deprecation</compilerArgument>
-							<failOnWarning>true</failOnWarning>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
 			<!-- self-contained jars for each example -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -176,30 +157,6 @@ under the License.
 							<includes>
 								<include>org/apache/flink/streaming/examples/join/*.class</include>
 								<include>org/apache/flink/streaming/examples/utils/ThrottledIterator.class</include>
-								<include>META-INF/LICENSE</include>
-								<include>META-INF/NOTICE</include>
-							</includes>
-						</configuration>
-					</execution>
-
-					<!-- Async I/O -->
-					<execution>
-						<id>AsyncIO</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-							<classifier>AsyncIO</classifier>
-
-							<archive>
-								<manifestEntries>
-									<program-class>org.apache.flink.streaming.examples.async.AsyncIOExample</program-class>
-								</manifestEntries>
-							</archive>
-
-							<includes>
-								<include>org/apache/flink/streaming/examples/async/*.class</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>
@@ -268,7 +225,45 @@ under the License.
 					<createDependencyReducedPom>false</createDependencyReducedPom>
 				</configuration>
 				<executions>
-					<!-- MatrixVectorMul -->
+					<!-- Async I/O -->
+					<execution>
+						<id>AsyncIO</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<finalName>AsyncIO</finalName>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>AsyncIO</shadedClassifierName>
+							<artifactSet>
+								<includes>
+									<include>org.apache.flink:flink-connector-datagen</include>
+								</includes>
+							</artifactSet>
+							<filters>
+								<filter>
+									<artifact>org.apache.flink:*</artifact>
+									<includes>
+										<include>org/apache/flink/connector/datagen/**</include>
+										<include>org/apache/flink/streaming/examples/async/*.class</include>
+										<include>META-INF/LICENSE</include>
+										<include>META-INF/NOTICE</include>
+									</includes>
+								</filter>
+							</filters>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.streaming.examples.async.AsyncIOExample</mainClass>
+								</transformer>
+							</transformers>
+						</configuration>
+					</execution>
+
+					<!-- MatrixVectorMul. It is not bundled with Flink dist, nor deployed in Maven repo,
+					as it is platform-dependent. Users are expected to compile and run it with custom
+					jcuda version specified by themselves with the "jcuda.version" property.-->
 					<execution>
 						<id>MatrixVectorMul</id>
 						<phase>package</phase>
@@ -302,40 +297,6 @@ under the License.
 						</configuration>
 					</execution>
 
-					<!-- Iteration -->
-					<execution>
-						<id>Iteration</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<shadeTestJar>false</shadeTestJar>
-							<finalName>Iteration</finalName>
-							<artifactSet>
-								<includes>
-									<include>org.apache.flink:flink-connector-datagen</include>
-								</includes>
-							</artifactSet>
-							<filters>
-								<filter>
-									<artifact>org.apache.flink:*</artifact>
-									<includes>
-										<include>org/apache/flink/connector/datagen/**</include>
-										<include>org/apache/flink/streaming/examples/iteration/*.class</include>
-										<include>META-INF/LICENSE</include>
-										<include>META-INF/NOTICE</include>
-									</includes>
-								</filter>
-							</filters>
-							<transformers>
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-									<mainClass>org.apache.flink.streaming.examples.iteration.IterateExample</mainClass>
-								</transformer>
-							</transformers>
-						</configuration>
-					</execution>
-
 					<!-- TopSpeedWindowing -->
 					<execution>
 						<id>TopSpeedWindowing</id>
@@ -346,6 +307,8 @@ under the License.
 						<configuration>
 							<shadeTestJar>false</shadeTestJar>
 							<finalName>TopSpeedWindowing</finalName>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>TopSpeedWindowing</shadedClassifierName>
 							<artifactSet>
 								<includes>
 									<include>org.apache.flink:flink-connector-datagen</include>
@@ -383,6 +346,8 @@ under the License.
 						<configuration>
 							<shadeTestJar>false</shadeTestJar>
 							<finalName>SessionWindowing</finalName>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<shadedClassifierName>SessionWindowing</shadedClassifierName>
 							<artifactSet>
 								<includes>
 									<include>org.apache.flink:flink-connector-datagen</include>

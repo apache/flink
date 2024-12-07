@@ -51,6 +51,8 @@ public class GroupTableAggFunction extends KeyedProcessFunction<RowData, RowData
     /** Whether this operator will generate UPDATE_BEFORE messages. */
     private final boolean generateUpdateBefore;
 
+    private final boolean incrementalUpdate;
+
     /** State idle retention time which unit is MILLISECONDS. */
     private final long stateRetentionTime;
 
@@ -69,6 +71,7 @@ public class GroupTableAggFunction extends KeyedProcessFunction<RowData, RowData
      *     contain COUNT(*), i.e. doesn't contain retraction messages. We make sure there is a
      *     COUNT(*) if input stream contains retraction.
      * @param generateUpdateBefore Whether this operator will generate UPDATE_BEFORE messages.
+     * @param incrementalUpdate Whether to update acc result incrementally.
      * @param stateRetentionTime state idle retention time which unit is MILLISECONDS.
      */
     public GroupTableAggFunction(
@@ -76,11 +79,13 @@ public class GroupTableAggFunction extends KeyedProcessFunction<RowData, RowData
             LogicalType[] accTypes,
             int indexOfCountStar,
             boolean generateUpdateBefore,
+            boolean incrementalUpdate,
             long stateRetentionTime) {
         this.genAggsHandler = genAggsHandler;
         this.accTypes = accTypes;
         this.recordCounter = RecordCounter.of(indexOfCountStar);
         this.generateUpdateBefore = generateUpdateBefore;
+        this.incrementalUpdate = incrementalUpdate;
         this.stateRetentionTime = stateRetentionTime;
     }
 
@@ -117,7 +122,9 @@ public class GroupTableAggFunction extends KeyedProcessFunction<RowData, RowData
         // set accumulators to handler first
         function.setAccumulators(accumulators);
 
-        if (!firstRow && generateUpdateBefore) {
+        // when incrementalUpdate is required, there is no need to retract
+        // previous sent data which is not changed
+        if (!firstRow && !incrementalUpdate && generateUpdateBefore) {
             function.emitValue(out, currentKey, true);
         }
 

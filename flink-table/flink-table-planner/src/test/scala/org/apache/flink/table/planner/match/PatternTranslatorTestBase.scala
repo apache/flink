@@ -21,8 +21,8 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.cep.pattern.Pattern
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
-import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
@@ -36,21 +36,13 @@ import org.apache.flink.table.planner.plan.utils.MatchUtil
 import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.table.types.logical.{IntType, RowType}
 import org.apache.flink.types.Row
-import org.apache.flink.util.TestLogger
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.tools.RelBuilder
-import org.junit.{ComparisonFailure, Rule}
-import org.junit.Assert._
-import org.junit.rules.ExpectedException
+import org.assertj.core.api.Assertions.fail
 import org.mockito.Mockito.{mock, when}
 
-abstract class PatternTranslatorTestBase extends TestLogger {
-
-  private val expectedException = ExpectedException.none()
-
-  @Rule
-  def thrown: ExpectedException = expectedException
+abstract class PatternTranslatorTestBase {
 
   // setup test utils
   private val testTableTypeInfo = new RowTypeInfo(BasicTypeInfo.INT_TYPE_INFO)
@@ -64,17 +56,15 @@ abstract class PatternTranslatorTestBase extends TestLogger {
       typeInfo: TypeInformation[Row]): (RelBuilder, PlannerBase, StreamExecutionEnvironment) = {
     // create DataStreamTable
     val dataStreamMock = mock(classOf[DataStream[Row]])
-    val jDataStreamMock = mock(classOf[JDataStream[Row]])
-    when(dataStreamMock.javaStream).thenReturn(jDataStreamMock)
-    when(jDataStreamMock.getType).thenReturn(typeInfo)
-    when(jDataStreamMock.getId).thenReturn(0)
+    when(dataStreamMock.getType).thenReturn(typeInfo)
+    when(dataStreamMock.getId).thenReturn(0)
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     TableTestUtil.createTemporaryView(
       tEnv,
       tableName,
-      dataStreamMock.javaStream,
+      dataStreamMock,
       Some(Array[Expression]('f0, 'proctime.proctime)))
 
     // prepare RelBuilder
@@ -129,26 +119,24 @@ abstract class PatternTranslatorTestBase extends TestLogger {
       val sameSkipStrategy = currentLeft.getAfterMatchSkipStrategy ==
         currentRight.getAfterMatchSkipStrategy
 
-      val sameTimeWindow = if (currentLeft.getWindowTime != null && currentRight != null) {
-        currentLeft.getWindowTime.toMilliseconds == currentRight.getWindowTime.toMilliseconds
+      val sameTimeWindow = if (currentLeft.getWindowSize.isPresent && currentRight != null) {
+        currentLeft.getWindowSize.get.toMillis == currentRight.getWindowSize.get.toMillis
       } else {
-        currentLeft.getWindowTime == null && currentRight.getWindowTime == null
+        !currentLeft.getWindowSize.isPresent && !currentRight.getWindowSize.isPresent
       }
 
       currentLeft = currentLeft.getPrevious
       currentRight = currentRight.getPrevious
 
       if (!sameName || !sameQuantifier || !sameTimes || !sameSkipStrategy || !sameTimeWindow) {
-        throw new ComparisonFailure(
-          "Compiled different pattern.",
-          expected.toString,
-          actual.toString)
+        throw new AssertionError(
+          s"Compiled different pattern. expected: $expected, actual: $actual")
       }
 
     } while (currentLeft != null)
 
     if (currentRight != null) {
-      throw new ComparisonFailure("Compiled different pattern.", expected.toString, actual.toString)
+      throw new AssertionError(s"Compiled different pattern. expected: $expected, actual: $actual")
     }
   }
 }

@@ -69,7 +69,9 @@ class VertexFinishedStateCheckerTest {
         final JobVertexID jobVertexID1 = new JobVertexID();
         final JobVertexID jobVertexID2 = new JobVertexID();
         // The op1 has uidHash set.
-        OperatorIDPair op1 = OperatorIDPair.of(new OperatorID(), new OperatorID());
+        OperatorIDPair op1 =
+                OperatorIDPair.of(
+                        new OperatorID(), new OperatorID(), "operatorName", "operatorUid");
         OperatorIDPair op2 = OperatorIDPair.generatedIDOnly(new OperatorID());
         OperatorIDPair op3 = OperatorIDPair.generatedIDOnly(new OperatorID());
 
@@ -82,10 +84,10 @@ class VertexFinishedStateCheckerTest {
         Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
         operatorStates.put(
                 useUidHash ? op1.getUserDefinedOperatorID().get() : op1.getGeneratedOperatorID(),
-                new FullyFinishedOperatorState(op1.getGeneratedOperatorID(), 1, 1));
+                new FullyFinishedOperatorState(null, null, op1.getGeneratedOperatorID(), 1, 1));
         operatorStates.put(
                 op2.getGeneratedOperatorID(),
-                new OperatorState(op2.getGeneratedOperatorID(), 1, 1));
+                new OperatorState(null, null, op2.getGeneratedOperatorID(), 1, 1));
 
         Set<ExecutionJobVertex> vertices = new HashSet<>();
         vertices.add(graph.getJobVertex(jobVertexID1));
@@ -292,13 +294,13 @@ class VertexFinishedStateCheckerTest {
             OperatorID operatorId, VertexFinishedStateChecker.VertexFinishedState finishedState) {
         switch (finishedState) {
             case ALL_RUNNING:
-                return new OperatorState(operatorId, 2, 2);
+                return new OperatorState(null, null, operatorId, 2, 2);
             case PARTIALLY_FINISHED:
-                OperatorState operatorState = new OperatorState(operatorId, 2, 2);
+                OperatorState operatorState = new OperatorState(null, null, operatorId, 2, 2);
                 operatorState.putState(0, FinishedOperatorSubtaskState.INSTANCE);
                 return operatorState;
             case FULLY_FINISHED:
-                return new FullyFinishedOperatorState(operatorId, 2, 2);
+                return new FullyFinishedOperatorState(null, null, operatorId, 2, 2);
             default:
                 throw new UnsupportedOperationException(
                         "Not supported finished state: " + finishedState);

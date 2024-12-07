@@ -145,8 +145,8 @@ public final class DecimalDataSerializer extends TypeSerializer<DecimalData> {
 
         private static final int CURRENT_VERSION = 3;
 
-        private int previousPrecision;
-        private int previousScale;
+        private int precision;
+        private int scale;
 
         @SuppressWarnings("unused")
         public DecimalSerializerSnapshot() {
@@ -154,8 +154,8 @@ public final class DecimalDataSerializer extends TypeSerializer<DecimalData> {
         }
 
         DecimalSerializerSnapshot(int precision, int scale) {
-            this.previousPrecision = precision;
-            this.previousScale = scale;
+            this.precision = precision;
+            this.scale = scale;
         }
 
         @Override
@@ -165,32 +165,33 @@ public final class DecimalDataSerializer extends TypeSerializer<DecimalData> {
 
         @Override
         public void writeSnapshot(DataOutputView out) throws IOException {
-            out.writeInt(previousPrecision);
-            out.writeInt(previousScale);
+            out.writeInt(precision);
+            out.writeInt(scale);
         }
 
         @Override
         public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader)
                 throws IOException {
-            this.previousPrecision = in.readInt();
-            this.previousScale = in.readInt();
+            this.precision = in.readInt();
+            this.scale = in.readInt();
         }
 
         @Override
         public TypeSerializer<DecimalData> restoreSerializer() {
-            return new DecimalDataSerializer(previousPrecision, previousScale);
+            return new DecimalDataSerializer(precision, scale);
         }
 
         @Override
         public TypeSerializerSchemaCompatibility<DecimalData> resolveSchemaCompatibility(
-                TypeSerializer<DecimalData> newSerializer) {
-            if (!(newSerializer instanceof DecimalDataSerializer)) {
+                TypeSerializerSnapshot<DecimalData> oldSerializerSnapshot) {
+            if (!(oldSerializerSnapshot instanceof DecimalSerializerSnapshot)) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             }
 
-            DecimalDataSerializer newDecimalDataSerializer = (DecimalDataSerializer) newSerializer;
-            if (previousPrecision != newDecimalDataSerializer.precision
-                    || previousScale != newDecimalDataSerializer.scale) {
+            DecimalSerializerSnapshot oldDecimalSerializerSnapshot =
+                    (DecimalSerializerSnapshot) oldSerializerSnapshot;
+            if (precision != oldDecimalSerializerSnapshot.precision
+                    || scale != oldDecimalSerializerSnapshot.scale) {
                 return TypeSerializerSchemaCompatibility.incompatible();
             } else {
                 return TypeSerializerSchemaCompatibility.compatibleAsIs();

@@ -287,6 +287,24 @@ LogicalProject(a=[$0], b=[$1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testWithTimestampWithTimeZone">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MTable WHERE a > '2024-05-13 08:00:00']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[>($0, CAST(_UTF-16LE'2024-05-13 08:00:00'):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) NOT NULL)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, MTable, filter=[>(a, 2024-05-13 00:00:00:TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))]]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testPartialPushDown2">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE amount > 2 OR price > 10]]>
@@ -414,4 +432,96 @@ LogicalProject(a=[$0])
 ]]>
     </Resource>
   </TestCase>
+	<TestCase name="testBasicNestedFilter">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM NestedTable WHERE deepNested.nested1.`value` > 2]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(id=[$0], deepNested=[$1], nested=[$2], deepNestedWith.=[$3], name=[$4], testMap=[$5])
++- LogicalFilter(condition=[>($1.nested1.value, 2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, NestedTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(id=[$0], deepNested=[$1], nested=[$2], deepNestedWith.=[$3], name=[$4], testMap=[$5])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, filter=[>(deepNested.nested1.value, 2)]]])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testNestedFilterWithDotInTheName">
+		<Resource name="sql">
+			<![CDATA[SELECT id FROM NestedTable WHERE `deepNestedWith.`.nested.`.value` > 5]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(id=[$0])
++- LogicalFilter(condition=[>($3.nested..value, 5)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, NestedTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(id=[$0])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, filter=[>(deepNestedWith..nested..value, 5)]]])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testNestedFilterWithBacktickInTheName">
+		<Resource name="sql">
+			<![CDATA[SELECT id FROM NestedTable WHERE `deepNestedWith.`.nested.```name` = 'foo']]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(id=[$0])
++- LogicalFilter(condition=[=($3.nested.`name, _UTF-16LE'foo')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, NestedTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(id=[$0])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, filter=[=(deepNestedWith..nested.`name, _UTF-16LE'foo':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")]]])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testNestedFilterOnMapKey">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM NestedItemTable WHERE `Result`.`Mid`.data_map['item'].`value` = 3]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(ID=[$0], Timestamp=[$1], Result=[$2])
++- LogicalFilter(condition=[=(ITEM($2.Mid.data_map, _UTF-16LE'item').value, 3)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(ID=[$0], Timestamp=[$1], Result=[$2])
++- LogicalFilter(condition=[=(ITEM($2.Mid.data_map, _UTF-16LE'item').value, 3)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable]])
+]]>
+		</Resource>
+	</TestCase>
+	<TestCase name="testNestedFilterOnArrayField">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM NestedItemTable WHERE `Result`.`Mid`.data_arr[2].`value` = 3]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(ID=[$0], Timestamp=[$1], Result=[$2])
++- LogicalFilter(condition=[=(ITEM($2.Mid.data_arr, 2).value, 3)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(ID=[$0], Timestamp=[$1], Result=[$2])
++- LogicalFilter(condition=[=(ITEM($2.Mid.data_arr, 2).value, 3)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable]])
+]]>
+		</Resource>
+	</TestCase>
 </Root>

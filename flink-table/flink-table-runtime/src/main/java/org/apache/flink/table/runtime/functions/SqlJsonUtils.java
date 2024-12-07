@@ -23,12 +23,23 @@ import org.apache.flink.table.api.JsonExistsOnError;
 import org.apache.flink.table.api.JsonQueryOnEmptyOrError;
 import org.apache.flink.table.api.JsonQueryWrapper;
 import org.apache.flink.table.api.JsonValueOnEmptyOrError;
-import org.apache.flink.table.api.TableException;
-import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.table.api.TableRuntimeException;
+import org.apache.flink.table.data.GenericArrayData;
+import org.apache.flink.table.data.StringData;
 
+import org.apache.flink.shaded.com.jayway.jsonpath.Configuration;
+import org.apache.flink.shaded.com.jayway.jsonpath.DocumentContext;
+import org.apache.flink.shaded.com.jayway.jsonpath.InvalidPathException;
+import org.apache.flink.shaded.com.jayway.jsonpath.JsonPath;
+import org.apache.flink.shaded.com.jayway.jsonpath.Option;
+import org.apache.flink.shaded.com.jayway.jsonpath.spi.cache.CacheProvider;
+import org.apache.flink.shaded.com.jayway.jsonpath.spi.json.JacksonJsonProvider;
+import org.apache.flink.shaded.com.jayway.jsonpath.spi.mapper.JacksonMappingProvider;
+import org.apache.flink.shaded.com.jayway.jsonpath.spi.mapper.MappingProvider;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonValue;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializationFeature;
@@ -36,18 +47,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Arra
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
-import com.jayway.jsonpath.Configuration;
-import com.jayway.jsonpath.DocumentContext;
-import com.jayway.jsonpath.InvalidPathException;
-import com.jayway.jsonpath.JsonPath;
-import com.jayway.jsonpath.Option;
-import com.jayway.jsonpath.spi.cache.CacheProvider;
-import com.jayway.jsonpath.spi.json.JacksonJsonProvider;
-import com.jayway.jsonpath.spi.mapper.JacksonMappingProvider;
-import com.jayway.jsonpath.spi.mapper.MappingProvider;
-
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -65,13 +67,19 @@ public class SqlJsonUtils {
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
     private static final ObjectMapper MAPPER =
             new ObjectMapper(JSON_FACTORY)
-                    .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
+                    .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
+                    .configure(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS, true);
     private static final Pattern JSON_PATH_BASE =
             Pattern.compile(
                     "^\\s*(?<mode>strict|lax)\\s+(?<spec>.+)$",
                     Pattern.CASE_INSENSITIVE | Pattern.DOTALL | Pattern.MULTILINE);
-    private static final JacksonJsonProvider JSON_PATH_JSON_PROVIDER = new JacksonJsonProvider();
-    private static final MappingProvider JSON_PATH_MAPPING_PROVIDER = new JacksonMappingProvider();
+    private static final JacksonJsonProvider JSON_PATH_JSON_PROVIDER =
+            new JacksonJsonProvider(MAPPER);
+    private static final MappingProvider JSON_PATH_MAPPING_PROVIDER =
+            new JacksonMappingProvider(MAPPER);
+    private static final String JSON_QUERY_FUNCTION_NAME = "JSON_QUERY";
+    private static final String JSON_VALUE_FUNCTION_NAME = "JSON_VALUE";
+    private static final String JSON_EXISTS_FUNCTION_NAME = "JSON_EXISTS";
 
     private SqlJsonUtils() {}
 
@@ -103,7 +111,8 @@ public class SqlJsonUtils {
             final Object convertedNode = MAPPER.treeToValue(node, Object.class);
             return MAPPER.writeValueAsString(convertedNode);
         } catch (JsonProcessingException e) {
-            throw new TableException("JSON object could not be serialized: " + node.asText(), e);
+            throw new TableRuntimeException(
+                    "JSON object could not be serialized: " + node.asText(), e);
         }
     }
 
@@ -128,7 +137,8 @@ public class SqlJsonUtils {
                 case UNKNOWN:
                     return null;
                 default:
-                    throw illegalErrorBehaviorInJsonExistsFunc(errorBehavior.toString());
+                    throw illegalErrorBehaviorFunc(
+                            errorBehavior.toString(), JSON_EXISTS_FUNCTION_NAME);
             }
         } else {
             return context.obj != null;
@@ -170,7 +180,8 @@ public class SqlJsonUtils {
                     case DEFAULT:
                         return defaultValueOnEmpty;
                     default:
-                        throw illegalEmptyBehaviorInJsonValueFunc(emptyBehavior.toString());
+                        throw illegalEmptyBehaviorFunc(
+                                emptyBehavior.toString(), JSON_VALUE_FUNCTION_NAME);
                 }
             } else if (context.mode == PathMode.STRICT && !isScalarObject(value)) {
                 exc = scalarValueRequiredInStrictModeOfJsonValueFunc(value.toString());
@@ -186,25 +197,33 @@ public class SqlJsonUtils {
             case DEFAULT:
                 return defaultValueOnError;
             default:
-                throw illegalErrorBehaviorInJsonValueFunc(errorBehavior.toString());
+                throw illegalErrorBehaviorFunc(errorBehavior.toString(), JSON_VALUE_FUNCTION_NAME);
         }
     }
 
-    public static String jsonQuery(
+    public enum JsonQueryReturnType {
+        STRING,
+        ARRAY
+    }
+
+    public static Object jsonQuery(
             String input,
             String pathSpec,
+            JsonQueryReturnType returnType,
             JsonQueryWrapper wrapperBehavior,
             JsonQueryOnEmptyOrError emptyBehavior,
             JsonQueryOnEmptyOrError errorBehavior) {
         return jsonQuery(
                 jsonApiCommonSyntax(input, pathSpec),
+                returnType,
                 wrapperBehavior,
                 emptyBehavior,
                 errorBehavior);
     }
 
-    private static String jsonQuery(
+    private static Object jsonQuery(
             JsonPathContext context,
+            JsonQueryReturnType returnType,
             JsonQueryWrapper wrapperBehavior,
             JsonQueryOnEmptyOrError emptyBehavior,
             JsonQueryOnEmptyOrError errorBehavior) {
@@ -235,39 +254,91 @@ public class SqlJsonUtils {
                 }
             }
             if (value == null || context.mode == PathMode.LAX && isScalarObject(value)) {
-                switch (emptyBehavior) {
-                    case ERROR:
-                        throw emptyResultOfJsonQueryFuncNotAllowed();
-                    case NULL:
-                        return null;
-                    case EMPTY_ARRAY:
-                        return "[]";
-                    case EMPTY_OBJECT:
-                        return "{}";
-                    default:
-                        throw illegalEmptyBehaviorInJsonQueryFunc(emptyBehavior.toString());
-                }
+                return emptyResultForJsonQuery(emptyBehavior, returnType);
             } else if (context.mode == PathMode.STRICT && isScalarObject(value)) {
                 exc = arrayOrObjectValueRequiredInStrictModeOfJsonQueryFunc(value.toString());
             } else {
                 try {
-                    return jsonize(value);
+                    switch (returnType) {
+                        case STRING:
+                            return jsonize(value);
+                        case ARRAY:
+                            final List<Object> list = (List<Object>) value;
+                            final Object[] arr = new Object[list.size()];
+                            for (int i = 0; i < list.size(); i++) {
+                                final Object el = list.get(i);
+                                if (el != null) {
+                                    final String stringifiedEl;
+                                    if (isScalarObject(el)) {
+                                        stringifiedEl = String.valueOf(el);
+                                    } else {
+                                        stringifiedEl = jsonize(el);
+                                    }
+                                    arr[i] = StringData.fromString(stringifiedEl);
+                                }
+                            }
+
+                            return new GenericArrayData(arr);
+                        default:
+                            throw new TableRuntimeException("illegal return type");
+                    }
                 } catch (Exception e) {
                     exc = e;
                 }
             }
         }
-        switch (errorBehavior) {
+        return errorResultForJsonQuery(errorBehavior, returnType, exc);
+    }
+
+    private static Object emptyResultForJsonQuery(
+            JsonQueryOnEmptyOrError emptyBehavior, JsonQueryReturnType returnType) {
+        switch (emptyBehavior) {
+            case ERROR:
+                throw emptyResultOfJsonQueryFuncNotAllowed();
+            case NULL:
+                return null;
+            case EMPTY_ARRAY:
+                switch (returnType) {
+                    case ARRAY:
+                        return new GenericArrayData(new StringData[0]);
+                    case STRING:
+                        return "[]";
+                    default:
+                        throw new RuntimeException("illegal return type");
+                }
+            case EMPTY_OBJECT:
+                if (Objects.requireNonNull(returnType) == JsonQueryReturnType.STRING) {
+                    return "{}";
+                }
+                throw illegalEmptyBehaviorFunc(emptyBehavior.toString(), JSON_QUERY_FUNCTION_NAME);
+            default:
+                throw illegalEmptyBehaviorFunc(emptyBehavior.toString(), JSON_QUERY_FUNCTION_NAME);
+        }
+    }
+
+    private static Object errorResultForJsonQuery(
+            JsonQueryOnEmptyOrError errorBehaviour, JsonQueryReturnType returnType, Exception exc) {
+        switch (errorBehaviour) {
             case ERROR:
                 throw toUnchecked(exc);
             case NULL:
                 return null;
             case EMPTY_ARRAY:
-                return "[]";
+                switch (returnType) {
+                    case ARRAY:
+                        return new GenericArrayData(new StringData[0]);
+                    case STRING:
+                        return "[]";
+                    default:
+                        throw new TableRuntimeException("illegal return type");
+                }
             case EMPTY_OBJECT:
-                return "{}";
+                if (Objects.requireNonNull(returnType) == JsonQueryReturnType.STRING) {
+                    return "{}";
+                }
+                throw illegalErrorBehaviorFunc(errorBehaviour.toString(), JSON_QUERY_FUNCTION_NAME);
             default:
-                throw illegalErrorBehaviorInJsonQueryFunc(errorBehavior.toString());
+                throw illegalErrorBehaviorFunc(errorBehaviour.toString(), JSON_QUERY_FUNCTION_NAME);
         }
     }
 
@@ -389,100 +460,81 @@ public class SqlJsonUtils {
         }
     }
 
-    private static RuntimeException toUnchecked(Exception e) {
-        if (e instanceof RuntimeException) {
-            return (RuntimeException) e;
+    private static TableRuntimeException toUnchecked(Exception e) {
+        if (e instanceof TableRuntimeException) {
+            return (TableRuntimeException) e;
         }
-        return new RuntimeException(e);
+        return new TableRuntimeException(e.getMessage(), e);
     }
 
     private static RuntimeException illegalJsonPathModeInPathSpec(
             String pathMode, String pathSpec) {
-        return new FlinkRuntimeException(
+        return new TableRuntimeException(
                 String.format(
                         "Illegal jsonpath mode ''%s'' in jsonpath spec: ''%s''",
                         pathMode, pathSpec));
     }
 
     private static RuntimeException illegalJsonPathMode(String pathMode) {
-        return new FlinkRuntimeException(String.format("Illegal jsonpath mode ''%s''", pathMode));
+        return new TableRuntimeException(String.format("Illegal jsonpath mode ''%s''", pathMode));
     }
 
     private static RuntimeException illegalJsonPathSpec(String pathSpec) {
-        return new FlinkRuntimeException(
+        return new TableRuntimeException(
                 String.format(
                         "Illegal jsonpath spec ''%s'', format of the spec should be: ''<lax|strict> $'{'expr'}'''",
                         pathSpec));
     }
 
     private static RuntimeException strictPathModeRequiresNonEmptyValue() {
-        return new FlinkRuntimeException(
+        return new TableRuntimeException(
                 "Strict jsonpath mode requires a non empty returned value, but is null");
     }
 
-    private static RuntimeException illegalErrorBehaviorInJsonExistsFunc(String errorBehavior) {
-        return new FlinkRuntimeException(
-                String.format(
-                        "Illegal error behavior ''{0}'' specified in JSON_EXISTS function",
-                        errorBehavior));
-    }
-
     private static RuntimeException emptyResultOfJsonValueFuncNotAllowed() {
-        return new FlinkRuntimeException("Empty result of JSON_VALUE function is not allowed");
+        return new TableRuntimeException("Empty result of JSON_VALUE function is not allowed");
     }
 
-    private static RuntimeException illegalEmptyBehaviorInJsonValueFunc(String emptyBehavior) {
-        return new FlinkRuntimeException(
+    private static RuntimeException illegalEmptyBehaviorFunc(
+            String emptyBehavior, String functionName) {
+        return new TableRuntimeException(
                 String.format(
-                        "Illegal empty behavior ''{0}'' specified in JSON_VALUE function",
-                        emptyBehavior));
+                        "Illegal empty behavior ''{0}'' specified in %s function",
+                        emptyBehavior, functionName));
     }
 
-    private static RuntimeException illegalErrorBehaviorInJsonValueFunc(String errorBehavior) {
-        return new FlinkRuntimeException(
+    private static RuntimeException illegalErrorBehaviorFunc(
+            String errorBehavior, String functionName) {
+        return new TableRuntimeException(
                 String.format(
-                        "Illegal error behavior ''%s'' specified in JSON_VALUE function",
-                        errorBehavior));
+                        "Illegal error behavior ''%s'' specified in %s function",
+                        errorBehavior, functionName));
     }
 
     private static RuntimeException scalarValueRequiredInStrictModeOfJsonValueFunc(String value) {
-        return new FlinkRuntimeException(
+        return new TableRuntimeException(
                 String.format(
                         "Strict jsonpath mode requires scalar value, and the actual value is: ''%s''",
                         value));
     }
 
     private static RuntimeException illegalWrapperBehaviorInJsonQueryFunc(String wrapperBehavior) {
-        return new FlinkRuntimeException(
+        return new TableRuntimeException(
                 String.format(
                         "Illegal wrapper behavior ''%s'' specified in JSON_QUERY function",
                         wrapperBehavior));
     }
 
     private static RuntimeException emptyResultOfJsonQueryFuncNotAllowed() {
-        return new FlinkRuntimeException("Empty result of JSON_QUERY function is not allowed");
-    }
-
-    private static RuntimeException illegalEmptyBehaviorInJsonQueryFunc(String emptyBehavior) {
-        return new FlinkRuntimeException(
-                String.format(
-                        "Illegal empty behavior ''%s'' specified in JSON_VALUE function",
-                        emptyBehavior));
+        return new TableRuntimeException("Empty result of JSON_QUERY function is not allowed");
     }
 
     private static RuntimeException arrayOrObjectValueRequiredInStrictModeOfJsonQueryFunc(
             String value) {
-        return new FlinkRuntimeException(
+        return new TableRuntimeException(
                 String.format(
                         "Strict jsonpath mode requires array or object value, and the actual value is: ''%s''",
                         value));
-    }
-
-    private static RuntimeException illegalErrorBehaviorInJsonQueryFunc(String errorBehavior) {
-        return new FlinkRuntimeException(
-                String.format(
-                        "Illegal error behavior ''%s'' specified in JSON_VALUE function",
-                        errorBehavior));
     }
 
     /**

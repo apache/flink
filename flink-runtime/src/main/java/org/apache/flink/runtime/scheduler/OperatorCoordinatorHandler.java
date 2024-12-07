@@ -78,5 +78,6 @@ public interface OperatorCoordinatorHandler {
      */
     void registerAndStartNewCoordinators(
             Collection<OperatorCoordinatorHolder> coordinators,
-            ComponentMainThreadExecutor mainThreadExecutor);
+            ComponentMainThreadExecutor mainThreadExecutor,
+            final int parallelism);
 }

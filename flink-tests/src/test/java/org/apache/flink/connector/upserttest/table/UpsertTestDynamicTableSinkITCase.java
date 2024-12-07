@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.upserttest.table;
 
+import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.connector.upserttest.sink.UpsertTestFileUtil;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -31,6 +33,8 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -92,5 +96,17 @@ class UpsertTestDynamicTableSinkITCase {
 
         int numberOfResultRecords = UpsertTestFileUtil.getNumberOfRecords(outputFile);
         assertThat(numberOfResultRecords).isEqualTo(3);
+
+        DeserializationSchema<String> deserializationSchema = new SimpleStringSchema();
+        Map<String, String> records =
+                UpsertTestFileUtil.readRecords(
+                        outputFile, deserializationSchema, deserializationSchema);
+
+        Map<String, String> expected = new HashMap<>();
+        expected.put("{\"user_id\":1}", "{\"user_id\":1,\"user_name\":\"Bob\",\"user_count\":2}");
+        expected.put("{\"user_id\":22}", "{\"user_id\":22,\"user_name\":\"Tom\",\"user_count\":1}");
+        expected.put("{\"user_id\":42}", "{\"user_id\":42,\"user_name\":\"Kim\",\"user_count\":3}");
+
+        assertThat(records).isEqualTo(expected);
     }
 }

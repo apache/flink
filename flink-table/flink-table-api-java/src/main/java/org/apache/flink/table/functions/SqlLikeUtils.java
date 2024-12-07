@@ -96,7 +96,7 @@ public class SqlLikeUtils {
             }
             escapeChar = escapeStr.charAt(0);
         } else {
-            escapeChar = 0;
+            escapeChar = '\\';
         }
         return sqlToRegexLike(sqlPattern, escapeChar);
     }
@@ -108,15 +108,18 @@ public class SqlLikeUtils {
         final StringBuilder javaPattern = new StringBuilder(len + len);
         for (i = 0; i < len; i++) {
             char c = sqlPattern.charAt(i);
-            if (JAVA_REGEX_SPECIALS.indexOf(c) >= 0) {
-                javaPattern.append('\\');
-            }
             if (c == escapeChar) {
                 if (i == (sqlPattern.length() - 1)) {
                     throw invalidEscapeSequence(sqlPattern, i);
                 }
                 char nextChar = sqlPattern.charAt(i + 1);
-                if ((nextChar == '_') || (nextChar == '%') || (nextChar == escapeChar)) {
+                if ((nextChar == '_') || (nextChar == '%')) {
+                    javaPattern.append(nextChar);
+                    i++;
+                } else if (nextChar == escapeChar) {
+                    if (JAVA_REGEX_SPECIALS.indexOf(nextChar) >= 0) {
+                        javaPattern.append('\\');
+                    }
                     javaPattern.append(nextChar);
                     i++;
                 } else {
@@ -127,6 +130,9 @@ public class SqlLikeUtils {
             } else if (c == '%') {
                 javaPattern.append("(?s:.*)");
             } else {
+                if (JAVA_REGEX_SPECIALS.indexOf(c) >= 0) {
+                    javaPattern.append('\\');
+                }
                 javaPattern.append(c);
             }
         }

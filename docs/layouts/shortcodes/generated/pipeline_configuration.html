@@ -39,12 +39,6 @@
             <td>Configures the mode in which the closure cleaner works.<br /><br />Possible values:<ul><li>"NONE": Disables the closure cleaner completely.</li><li>"TOP_LEVEL": Cleans only the top-level class without recursing into fields.</li><li>"RECURSIVE": Cleans all fields recursively.</li></ul></td>
         </tr>
         <tr>
-            <td><h5>pipeline.default-kryo-serializers</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>List&lt;String&gt;</td>
-            <td>Semicolon separated list of pairs of class names and Kryo serializers class names to be used as Kryo default serializers<br /><br />Example:<br /><code class="highlighter-rouge">class:org.example.ExampleClass,serializer:org.example.ExampleSerializer1; class:org.example.ExampleClass2,serializer:org.example.ExampleSerializer2</code></td>
-        </tr>
-        <tr>
             <td><h5>pipeline.force-avro</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
@@ -55,6 +49,12 @@
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>If enabled, forces TypeExtractor to use Kryo serializer for POJOS even though we could analyze as POJO. In some cases this might be preferable. For example, when using interfaces with subclasses that cannot be analyzed as POJO.</td>
+        </tr>
+        <tr>
+            <td><h5>pipeline.force-kryo-avro</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Boolean</td>
+            <td>Forces Flink to register avro classes in kryo serializer.<br /><br />Important: Make sure to include the flink-avro module. Otherwise, nothing will be registered. For backward compatibility, the default value is empty to conform to the behavior of the older version. That is, always register avro with kryo, and if flink-avro is not in the class path, register a dummy serializer. In Flink-2.0, we will set the default value to true.</td>
         </tr>
         <tr>
             <td><h5>pipeline.generic-types</h5></td>
@@ -111,16 +111,10 @@
             <td>Operator chaining allows non-shuffle operations to be co-located in the same thread fully avoiding serialization and de-serialization.</td>
         </tr>
         <tr>
-            <td><h5>pipeline.registered-kryo-types</h5></td>
+            <td><h5>pipeline.serialization-config</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;String&gt;</td>
-            <td>Semicolon separated list of types to be registered with the serialization stack. If the type is eventually serialized as a POJO, then the type is registered with the POJO serializer. If the type ends up being serialized with Kryo, then it will be registered at Kryo to make sure that only tags are written.</td>
-        </tr>
-        <tr>
-            <td><h5>pipeline.registered-pojo-types</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>List&lt;String&gt;</td>
-            <td>Semicolon separated list of types to be registered with the serialization stack. If the type is eventually serialized as a POJO, then the type is registered with the POJO serializer. If the type ends up being serialized with Kryo, then it will be registered at Kryo to make sure that only tags are written.</td>
+            <td>List of pairs of class names and serializer configs to be used. There is a <code class="highlighter-rouge">type</code> field in the serializer config and each type has its own configuration. Note: only standard YAML config parser is supported, please use "config.yaml" as the config file. The fields involved are:<ul><li><code class="highlighter-rouge">type</code>: the serializer type which could be "pojo", "kryo" or "typeinfo". If the serializer type is "pojo" or "kryo" without field <code class="highlighter-rouge">kryo-type</code>, it means the data type will use POJO or Kryo serializer directly.</li><li><code class="highlighter-rouge">kryo-type</code>: the Kryo serializer type which could be "default" or "registered". The Kryo serializer will use the serializer for the data type  as default serializers when the kryo-type is "default", and register the data type and its serializer to Kryo serializer when the kryo-type is registered. When the field exists, there must be a field <code class="highlighter-rouge">class</code> to specify the serializer class name.</li><li><code class="highlighter-rouge">class</code>: the serializer class name for type "kryo" or "typeinfo". For "kryo", it should be a subclass of <code class="highlighter-rouge">com.esotericsoftware.kryo.Serializer</code>. For "typeinfo", it should be a subclass of <code class="highlighter-rouge">org.apache.flink.api.common.typeinfo.TypeInfoFactory</code>.</li></ul>Example:<br /><code class="highlighter-rouge">[org.example.ExampleClass1: {type: pojo}, org.example.ExampleClass2: {type: kryo}, org.example.ExampleClass3: {type: kryo, kryo-type: default, class: org.example.Class3KryoSerializer}, org.example.ExampleClass4: {type: kryo, kryo-type: registered, class: org.example.Class4KryoSerializer}, org.example.ExampleClass5: {type: typeinfo, class: org.example.Class5TypeInfoFactory}]</code></td>
         </tr>
         <tr>
             <td><h5>pipeline.vertex-description-mode</h5></td>

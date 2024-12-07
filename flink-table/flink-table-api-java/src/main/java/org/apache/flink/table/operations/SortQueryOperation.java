@@ -21,11 +21,13 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Expresses sort operation of rows of the underlying relational operation with given order. It also
@@ -34,6 +36,7 @@ import java.util.Map;
 @Internal
 public class SortQueryOperation implements QueryOperation {
 
+    private static final String INPUT_ALIAS = "$$T_SORT";
     private final List<ResolvedExpression> order;
     private final QueryOperation child;
     private final int offset;
@@ -81,6 +84,38 @@ public class SortQueryOperation implements QueryOperation {
 
         return OperationUtils.formatWithChildren(
                 "Sort", args, getChildren(), Operation::asSummaryString);
+    }
+
+    @Override
+    public String asSerializableString() {
+        final StringBuilder s =
+                new StringBuilder(
+                        String.format(
+                                "SELECT %s FROM (%s\n) %s ORDER BY %s",
+                                OperationUtils.formatSelectColumns(
+                                        getResolvedSchema(), INPUT_ALIAS),
+                                OperationUtils.indent(child.asSerializableString()),
+                                INPUT_ALIAS,
+                                order.stream()
+                                        .map(
+                                                expr ->
+                                                        OperationExpressionsUtils
+                                                                .scopeReferencesWithAlias(
+                                                                        INPUT_ALIAS, expr))
+                                        .map(ResolvedExpression::asSerializableString)
+                                        .collect(Collectors.joining(", "))));
+
+        if (offset >= 0) {
+            s.append(" OFFSET ");
+            s.append(offset);
+            s.append(" ROWS");
+        }
+        if (fetch >= 0) {
+            s.append(" FETCH NEXT ");
+            s.append(fetch);
+            s.append(" ROWS ONLY");
+        }
+        return s.toString();
     }
 
     @Override

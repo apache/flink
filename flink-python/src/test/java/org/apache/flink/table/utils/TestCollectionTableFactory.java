@@ -18,17 +18,17 @@
 
 package org.apache.flink.table.utils;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
+import org.apache.flink.streaming.api.legacy.io.CollectionInputFormat;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.ProviderContext;
@@ -38,11 +38,11 @@ import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
-import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.legacy.connector.source.TableFunctionProvider;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
@@ -170,7 +170,7 @@ public class TestCollectionTableFactory
         @Override
         public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
             TypeInformation<RowData> type = runtimeProviderContext.createTypeInformation(rowType);
-            TypeSerializer<RowData> serializer = type.createSerializer(new ExecutionConfig());
+            TypeSerializer<RowData> serializer = type.createSerializer(new SerializerConfigImpl());
             DataStructureConverter converter =
                     runtimeProviderContext.createDataStructureConverter(rowType);
             List<RowData> rowData =
@@ -310,7 +310,7 @@ public class TestCollectionTableFactory
 
         @Override
         public void open(OpenContext openContext) throws Exception {
-            serializer = outputType.createSerializer(new ExecutionConfig());
+            serializer = outputType.createSerializer(new SerializerConfigImpl());
         }
 
         @Override

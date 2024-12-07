@@ -240,7 +240,8 @@ public class WindowSavepointReader<W extends Window> {
                         metadata.getOperatorState(OperatorIdentifier.forUid(uid)),
                         stateBackend,
                         MutableConfig.of(env.getConfiguration()),
-                        operator);
+                        operator,
+                        env.getConfig());
 
         return SourceBuilder.fromFormat(env, format, outputType);
     }

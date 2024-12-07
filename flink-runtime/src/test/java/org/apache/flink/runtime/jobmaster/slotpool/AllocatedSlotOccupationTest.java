@@ -18,31 +18,28 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.util.TestLogger;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotTestUtils.createPhysicalSlot;
 import static org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotTestUtils.occupyPhysicalSlot;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests whether the slot occupation state of {@link AllocatedSlot} is correctly. */
-public class AllocatedSlotOccupationTest extends TestLogger {
+class AllocatedSlotOccupationTest {
 
     @Test
-    public void testSingleTaskOccupyingSlotIndefinitely() {
+    void testSingleTaskOccupyingSlotIndefinitely() {
         final PhysicalSlot physicalSlot = createPhysicalSlot();
         occupyPhysicalSlot(physicalSlot, true);
 
-        assertThat(physicalSlot.willBeOccupiedIndefinitely(), is(true));
+        assertThat(physicalSlot.willBeOccupiedIndefinitely()).isTrue();
     }
 
     @Test
-    public void testSingleTaskNotOccupyingSlotIndefinitely() {
+    void testSingleTaskNotOccupyingSlotIndefinitely() {
         final PhysicalSlot physicalSlot = createPhysicalSlot();
         occupyPhysicalSlot(physicalSlot, false);
 
-        assertThat(physicalSlot.willBeOccupiedIndefinitely(), is(false));
+        assertThat(physicalSlot.willBeOccupiedIndefinitely()).isFalse();
     }
 }

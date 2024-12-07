@@ -24,12 +24,14 @@ import org.apache.flink.fs.gs.TestUtils;
 import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 import org.apache.flink.fs.gs.storage.MockBlobStorage;
 import org.apache.flink.fs.gs.utils.BlobUtils;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nullable;
 
@@ -41,31 +43,28 @@ import java.util.Collection;
 import java.util.Random;
 import java.util.UUID;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test {@link GSRecoverableWriterCommitter}. */
-@RunWith(Parameterized.class)
-public class GSRecoverableWriterCommitterTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class GSRecoverableWriterCommitterTest {
 
-    @Parameterized.Parameter(value = 0)
-    @Nullable
-    public String temporaryBucketName;
+    @Parameter @Nullable private String temporaryBucketName;
 
-    @Parameterized.Parameter(value = 1)
-    public int composeMaxBlobs;
+    @Parameter(value = 1)
+    private int composeMaxBlobs;
 
-    @Parameterized.Parameter(value = 2)
-    public int[] blobSizes;
+    @Parameter(value = 2)
+    private int[] blobSizes;
 
-    @Parameterized.Parameter(value = 3)
-    public int commitBlobCount;
+    @Parameter(value = 3)
+    private int commitBlobCount;
 
-    @Parameterized.Parameters(
+    @Parameters(
             name =
                     "temporaryBucketName={0}, composeMaxBlobs={1}, blobSizes={2}, commitBlobCount={3}")
-    public static Collection<Object[]> data() {
+    private static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
                     // no specified temporary bucket, compose up to 4 blobs at once, compose no
@@ -105,8 +104,8 @@ public class GSRecoverableWriterCommitterTest {
 
     private GSBlobIdentifier blobIdentifier;
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         Configuration flinkConfig = new Configuration();
         if (temporaryBucketName != null) {
             flinkConfig.set(GSFileSystemOptions.WRITER_TEMPORARY_BUCKET_NAME, temporaryBucketName);
@@ -122,8 +121,8 @@ public class GSRecoverableWriterCommitterTest {
         expectedBytes = new ByteArrayOutputStream();
     }
 
-    @After
-    public void after() throws IOException {
+    @AfterEach
+    void after() throws IOException {
         expectedBytes.close();
     }
 
@@ -132,16 +131,16 @@ public class GSRecoverableWriterCommitterTest {
      *
      * @throws IOException On underlying failure
      */
-    @Test
-    public void commitTest() throws IOException {
+    @TestTemplate
+    void commitTest() throws IOException {
         GSRecoverableWriterCommitter committer = commitTestInternal();
         committer.commit();
 
         // there should be exactly one blob left, the final blob identifier. validate its contents.
-        assertEquals(1, blobStorage.blobs.size());
+        assertThat(blobStorage.blobs).hasSize(1);
         MockBlobStorage.BlobValue blobValue = blobStorage.blobs.get(blobIdentifier);
-        assertNotNull(blobValue);
-        assertArrayEquals(expectedBytes.toByteArray(), blobValue.content);
+        assertThat(blobValue).isNotNull();
+        assertThat(blobValue.content).isEqualTo(expectedBytes.toByteArray());
     }
 
     /**
@@ -149,11 +148,12 @@ public class GSRecoverableWriterCommitterTest {
      *
      * @throws IOException On underlying failure
      */
-    @Test(expected = IOException.class)
-    public void commitOverwriteShouldFailTest() throws IOException {
+    @TestTemplate
+    void commitOverwriteShouldFailTest() throws IOException {
         blobStorage.createBlob(blobIdentifier);
         GSRecoverableWriterCommitter committer = commitTestInternal();
-        committer.commit();
+
+        assertThatThrownBy(() -> committer.commit()).isInstanceOf(IOException.class);
     }
 
     /**
@@ -162,8 +162,8 @@ public class GSRecoverableWriterCommitterTest {
      *
      * @throws IOException On underlying failure
      */
-    @Test
-    public void commitWithRecoveryOverwriteShouldSucceedTest() throws IOException {
+    @TestTemplate
+    void commitWithRecoveryOverwriteShouldSucceedTest() throws IOException {
         blobStorage.createBlob(blobIdentifier);
         GSRecoverableWriterCommitter committer = commitTestInternal();
         committer.commitAfterRecovery();

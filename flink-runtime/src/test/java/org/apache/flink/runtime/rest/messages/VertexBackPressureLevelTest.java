@@ -19,33 +19,34 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link JobVertexBackPressureInfo.VertexBackPressureLevel}. */
-public class VertexBackPressureLevelTest extends TestLogger {
+class VertexBackPressureLevelTest {
 
     /**
      * Tests that the enum values are serialized correctly. Clients, such as the Web UI, expect
      * values to be lower case.
      */
     @Test
-    public void testJsonValue() throws Exception {
-        assertEquals(
-                "\"ok\"",
-                RestMapperUtils.getStrictObjectMapper()
-                        .writeValueAsString(JobVertexBackPressureInfo.VertexBackPressureLevel.OK));
-        assertEquals(
-                "\"low\"",
-                RestMapperUtils.getStrictObjectMapper()
-                        .writeValueAsString(JobVertexBackPressureInfo.VertexBackPressureLevel.LOW));
-        assertEquals(
-                "\"high\"",
-                RestMapperUtils.getStrictObjectMapper()
-                        .writeValueAsString(
-                                JobVertexBackPressureInfo.VertexBackPressureLevel.HIGH));
+    void testJsonValue() throws Exception {
+        assertThat(
+                        RestMapperUtils.getStrictObjectMapper()
+                                .writeValueAsString(
+                                        JobVertexBackPressureInfo.VertexBackPressureLevel.OK))
+                .isEqualTo("\"ok\"");
+        assertThat(
+                        RestMapperUtils.getStrictObjectMapper()
+                                .writeValueAsString(
+                                        JobVertexBackPressureInfo.VertexBackPressureLevel.LOW))
+                .isEqualTo("\"low\"");
+        assertThat(
+                        RestMapperUtils.getStrictObjectMapper()
+                                .writeValueAsString(
+                                        JobVertexBackPressureInfo.VertexBackPressureLevel.HIGH))
+                .isEqualTo("\"high\"");
     }
 }

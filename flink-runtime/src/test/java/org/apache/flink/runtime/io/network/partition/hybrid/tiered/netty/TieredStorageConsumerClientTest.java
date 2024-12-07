@@ -21,13 +21,16 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageIdMappingUtils;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageInputChannelId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TestingTierFactory;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerClient;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierConsumerAgent;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.remote.TestingAvailabilityNotifier;
 
 import org.junit.jupiter.api.Test;
@@ -47,6 +50,12 @@ class TieredStorageConsumerClientTest {
     private static final TieredStorageSubpartitionId DEFAULT_SUBPARTITION_ID =
             new TieredStorageSubpartitionId(0);
 
+    private static final TieredStorageInputChannelId DEFAULT_INPUT_CHANNEL_ID =
+            new TieredStorageInputChannelId(0);
+
+    private static final ResultSubpartitionIndexSet DEFAULT_SUBPARTITION_ID_SET =
+            new ResultSubpartitionIndexSet(0);
+
     @Test
     void testStart() {
         CompletableFuture<Void> future = new CompletableFuture<>();
@@ -61,7 +70,7 @@ class TieredStorageConsumerClientTest {
     }
 
     @Test
-    void testGetNextBuffer() {
+    void testGetNextBuffer() throws IOException {
         Buffer buffer = BufferBuilderTestUtils.buildSomeBuffer(0);
         TestingTierConsumerAgent tierConsumerAgent =
                 new TestingTierConsumerAgent.Builder().setBufferSupplier(() -> buffer).build();
@@ -86,6 +95,27 @@ class TieredStorageConsumerClientTest {
     }
 
     @Test
+    void testUpdateTierShuffleDescriptor() {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        TestingTierConsumerAgent tierConsumerAgent =
+                new TestingTierConsumerAgent.Builder()
+                        .setUpdateTierShuffleDescriptorRunnable(() -> future.complete(null))
+                        .build();
+        assertThat(future).isNotDone();
+        TieredStorageConsumerClient consumerClient =
+                createTieredStorageConsumerClient(tierConsumerAgent);
+        consumerClient.updateTierShuffleDescriptors(
+                DEFAULT_PARTITION_ID,
+                DEFAULT_INPUT_CHANNEL_ID,
+                DEFAULT_SUBPARTITION_ID,
+                Collections.singletonList(
+                        new TierShuffleDescriptor() {
+                            private static final long serialVersionUID = 1L;
+                        }));
+        assertThat(future).isDone();
+    }
+
+    @Test
     void testClose() throws IOException {
         CompletableFuture<Void> future = new CompletableFuture<>();
         TestingTierConsumerAgent tierConsumerAgent =
@@ -100,6 +130,10 @@ class TieredStorageConsumerClientTest {
 
     private TieredStorageConsumerClient createTieredStorageConsumerClient(
             TierConsumerAgent tierConsumerAgent) {
+        TierShuffleDescriptor emptyTierShuffleDescriptor =
+                new TierShuffleDescriptor() {
+                    private static final long serialVersionUID = 1L;
+                };
         return new TieredStorageConsumerClient(
                 Collections.singletonList(
                         new TestingTierFactory.Builder()
@@ -109,7 +143,11 @@ class TieredStorageConsumerClientTest {
                                 .build()),
                 Collections.singletonList(
                         new TieredStorageConsumerSpec(
-                                DEFAULT_PARTITION_ID, DEFAULT_SUBPARTITION_ID)),
+                                0,
+                                DEFAULT_PARTITION_ID,
+                                DEFAULT_INPUT_CHANNEL_ID,
+                                DEFAULT_SUBPARTITION_ID_SET)),
+                Collections.singletonList(Collections.singletonList(emptyTierShuffleDescriptor)),
                 new TestingTieredStorageNettyService.Builder().build());
     }
 }

@@ -23,6 +23,6 @@ import java.io.Closeable;
 /** Service interface for the BlobStore which allows to close and clean up its data. */
 public interface BlobStoreService extends BlobStore, Closeable {
 
-    /** Closes and cleans up the store. This entails the deletion of all blobs. */
-    void closeAndCleanupAllData();
+    /** Cleans up the store. This entails the deletion of all blobs. */
+    void cleanupAllData();
 }

@@ -147,6 +147,14 @@ Format Options
       <td>Encode all decimals as plain numbers instead of possible scientific notations. By default, decimals may be written using scientific notation. For example, <code>0.000000027</code> is encoded as <code>2.7E-8</code> by default, and will be written as <code>0.000000027</code> if set this option to true.</td>
     </tr>
     <tr>
+      <td><h5>json.encode.ignore-null-fields</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Encode only non-null fields. By default, all fields will be included.</td>
+    </tr>
+    <tr>
       <td><h5>decode.json-parser.enabled</h5></td>
       <td>optional</td>
       <td></td>

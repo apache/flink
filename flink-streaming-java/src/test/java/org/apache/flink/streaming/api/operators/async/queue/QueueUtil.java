@@ -26,21 +26,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Utility for putting elements inside a {@link StreamElementQueue}. */
 class QueueUtil {
     static ResultFuture<Integer> putSuccessfully(
             StreamElementQueue<Integer> queue, StreamElement streamElement) {
         Optional<ResultFuture<Integer>> resultFuture = queue.tryPut(streamElement);
-        assertTrue(resultFuture.isPresent());
+        assertThat(resultFuture).isPresent();
         return resultFuture.get();
     }
 
     static void putUnsuccessfully(StreamElementQueue<Integer> queue, StreamElement streamElement) {
         Optional<ResultFuture<Integer>> resultFuture = queue.tryPut(streamElement);
-        assertFalse(resultFuture.isPresent());
+        assertThat(resultFuture).isNotPresent();
     }
 
     /**

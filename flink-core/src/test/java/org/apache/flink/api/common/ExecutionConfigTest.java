@@ -18,14 +18,14 @@
 
 package org.apache.flink.api.common;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.SerializedValue;
 
@@ -35,7 +35,6 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -51,20 +50,20 @@ public class ExecutionConfigTest {
     @Test
     void testDoubleTypeRegistration() {
         ExecutionConfig config = new ExecutionConfig();
-        List<Class<?>> types = Arrays.<Class<?>>asList(Double.class, Integer.class, Double.class);
-        List<Class<?>> expectedTypes = Arrays.<Class<?>>asList(Double.class, Integer.class);
+        List<Class<?>> types = Arrays.asList(Double.class, Integer.class, Double.class);
+        List<Class<?>> expectedTypes = Arrays.asList(Double.class, Integer.class);
 
         for (Class<?> tpe : types) {
-            config.registerKryoType(tpe);
+            ((SerializerConfigImpl) config.getSerializerConfig()).registerKryoType(tpe);
         }
 
         int counter = 0;
 
-        for (Class<?> tpe : config.getRegisteredKryoTypes()) {
+        for (Class<?> tpe : config.getSerializerConfig().getRegisteredKryoTypes()) {
             assertThat(tpe).isEqualTo(expectedTypes.get(counter++));
         }
 
-        assertThat(expectedTypes.size()).isEqualTo(counter);
+        assertThat(expectedTypes).hasSize(counter);
     }
 
     @Test
@@ -86,15 +85,15 @@ public class ExecutionConfigTest {
 
     @Test
     void testDisableGenericTypes() {
-        ExecutionConfig conf = new ExecutionConfig();
-        TypeInformation<Object> typeInfo = new GenericTypeInfo<Object>(Object.class);
+        SerializerConfigImpl conf = new SerializerConfigImpl();
+        TypeInformation<Object> typeInfo = new GenericTypeInfo<>(Object.class);
 
         // by default, generic types are supported
         TypeSerializer<Object> serializer = typeInfo.createSerializer(conf);
-        assertThat(serializer instanceof KryoSerializer).isTrue();
+        assertThat(serializer).isInstanceOf(KryoSerializer.class);
 
         // expect an exception when generic types are disabled
-        conf.disableGenericTypes();
+        conf.setGenericTypes(false);
         assertThatThrownBy(
                         () -> typeInfo.createSerializer(conf),
                         "should have failed with an exception")
@@ -102,7 +101,7 @@ public class ExecutionConfigTest {
     }
 
     @Test
-    void testExecutionConfigSerialization() throws IOException, ClassNotFoundException {
+    void testExecutionConfigSerialization() throws Exception {
         final Random r = new Random();
 
         final int parallelism = 1 + r.nextInt(10);
@@ -119,21 +118,9 @@ public class ExecutionConfigTest {
         } else {
             config.disableClosureCleaner();
         }
-        if (forceAvroEnabled) {
-            config.enableForceAvro();
-        } else {
-            config.disableForceAvro();
-        }
-        if (forceKryoEnabled) {
-            config.enableForceKryo();
-        } else {
-            config.disableForceKryo();
-        }
-        if (disableGenericTypes) {
-            config.disableGenericTypes();
-        } else {
-            config.enableGenericTypes();
-        }
+        config.getSerializerConfig().setForceAvro(forceAvroEnabled);
+        config.getSerializerConfig().setForceKryo(forceKryoEnabled);
+        config.getSerializerConfig().setGenericTypes(!disableGenericTypes);
         if (objectReuseEnabled) {
             config.enableObjectReuse();
         } else {
@@ -152,9 +139,10 @@ public class ExecutionConfigTest {
         assertThat(config).isEqualTo(copy2);
 
         assertThat(closureCleanerEnabled).isEqualTo(copy1.isClosureCleanerEnabled());
-        assertThat(forceAvroEnabled).isEqualTo(copy1.isForceAvroEnabled());
-        assertThat(forceKryoEnabled).isEqualTo(copy1.isForceKryoEnabled());
-        assertThat(disableGenericTypes).isEqualTo(copy1.hasGenericTypesDisabled());
+        assertThat(forceAvroEnabled).isEqualTo(copy1.getSerializerConfig().isForceAvroEnabled());
+        assertThat(forceKryoEnabled).isEqualTo(copy1.getSerializerConfig().isForceKryoEnabled());
+        assertThat(disableGenericTypes)
+                .isEqualTo(copy1.getSerializerConfig().hasGenericTypesDisabled());
         assertThat(objectReuseEnabled).isEqualTo(copy1.isObjectReuseEnabled());
         assertThat(parallelism).isEqualTo(copy1.getParallelism());
     }
@@ -188,92 +176,42 @@ public class ExecutionConfigTest {
 
     @Test
     void testLoadingRegisteredKryoTypesFromConfiguration() {
-        ExecutionConfig configFromSetters = new ExecutionConfig();
-        configFromSetters.registerKryoType(ExecutionConfigTest.class);
-        configFromSetters.registerKryoType(TestSerializer1.class);
-
         ExecutionConfig configFromConfiguration = new ExecutionConfig();
 
         Configuration configuration = new Configuration();
-        configuration.setString(
-                "pipeline.registered-kryo-types",
-                "org.apache.flink.api.common.ExecutionConfigTest;"
-                        + "org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1");
+        String serializationConfigStr =
+                "{org.apache.flink.api.common.ExecutionConfigTest: {type: kryo}, "
+                        + "org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1: {type: kryo}}";
+        configuration.setString("pipeline.serialization-config", serializationConfigStr);
 
         // mutate config according to configuration
         configFromConfiguration.configure(
                 configuration, Thread.currentThread().getContextClassLoader());
 
-        assertThat(configFromConfiguration).isEqualTo(configFromSetters);
+        assertThat(configFromConfiguration.getSerializerConfig().getRegisteredKryoTypes())
+                .containsExactlyInAnyOrder(ExecutionConfigTest.class, TestSerializer1.class);
     }
 
     @Test
     void testLoadingRegisteredPojoTypesFromConfiguration() {
-        ExecutionConfig configFromSetters = new ExecutionConfig();
-        configFromSetters.registerPojoType(ExecutionConfigTest.class);
-        configFromSetters.registerPojoType(TestSerializer1.class);
-
         ExecutionConfig configFromConfiguration = new ExecutionConfig();
 
         Configuration configuration = new Configuration();
-        configuration.setString(
-                "pipeline.registered-pojo-types",
-                "org.apache.flink.api.common.ExecutionConfigTest;"
-                        + "org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1");
+        String serializationConfigStr =
+                "{org.apache.flink.api.common.ExecutionConfigTest: {type: pojo}, "
+                        + "org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1: {type: pojo}}";
+        configuration.setString("pipeline.serialization-config", serializationConfigStr);
 
         // mutate config according to configuration
         configFromConfiguration.configure(
                 configuration, Thread.currentThread().getContextClassLoader());
 
-        assertThat(configFromConfiguration).isEqualTo(configFromSetters);
+        assertThat(configFromConfiguration.getSerializerConfig().getRegisteredPojoTypes())
+                .containsExactlyInAnyOrder(ExecutionConfigTest.class, TestSerializer1.class);
     }
 
     @Test
-    void testLoadingRestartStrategyFromConfiguration() {
-        ExecutionConfig configFromSetters = new ExecutionConfig();
-        configFromSetters.setRestartStrategy(
-                RestartStrategies.fixedDelayRestart(10, Time.minutes(2)));
-
-        ExecutionConfig configFromConfiguration = new ExecutionConfig();
-
-        Configuration configuration = new Configuration();
-        configuration.setString("restart-strategy", "fixeddelay");
-        configuration.setString("restart-strategy.fixed-delay.attempts", "10");
-        configuration.setString("restart-strategy.fixed-delay.delay", "2 min");
-
-        // mutate config according to configuration
-        configFromConfiguration.configure(
-                configuration, Thread.currentThread().getContextClassLoader());
-
-        assertThat(configFromConfiguration).isEqualTo(configFromSetters);
-    }
-
-    @Test
-    void testLoadingDefaultKryoSerializersFromConfiguration() {
-        ExecutionConfig configFromSetters = new ExecutionConfig();
-        configFromSetters.addDefaultKryoSerializer(
-                ExecutionConfigTest.class, TestSerializer1.class);
-        configFromSetters.addDefaultKryoSerializer(TestSerializer1.class, TestSerializer2.class);
-
-        ExecutionConfig configFromConfiguration = new ExecutionConfig();
-
-        Configuration configuration = new Configuration();
-        configuration.setString(
-                "pipeline.default-kryo-serializers",
-                "class:org.apache.flink.api.common.ExecutionConfigTest,"
-                        + "serializer:org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1;"
-                        + "class:org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1,"
-                        + "serializer:org.apache.flink.api.common.ExecutionConfigTest$TestSerializer2");
-
-        // mutate config according to configuration
-        configFromConfiguration.configure(
-                configuration, Thread.currentThread().getContextClassLoader());
-
-        assertThat(configFromConfiguration).isEqualTo(configFromSetters);
-    }
-
-    @Test
-    public void testLoadingSchedulerTypeFromConfiguration() {
+    void testLoadingSchedulerTypeFromConfiguration() {
         testLoadingSchedulerTypeFromConfiguration(JobManagerOptions.SchedulerType.AdaptiveBatch);
         testLoadingSchedulerTypeFromConfiguration(JobManagerOptions.SchedulerType.Default);
         testLoadingSchedulerTypeFromConfiguration(JobManagerOptions.SchedulerType.Adaptive);
@@ -288,14 +226,16 @@ public class ExecutionConfigTest {
         configFromConfiguration.configure(
                 configuration, Thread.currentThread().getContextClassLoader());
 
-        assertThat(configFromConfiguration.getSchedulerType().get()).isEqualTo(schedulerType);
+        assertThat(configFromConfiguration.getSchedulerType()).hasValue(schedulerType);
     }
 
     @Test
     void testNotOverridingRegisteredKryoTypesWithDefaultsFromConfiguration() {
         ExecutionConfig config = new ExecutionConfig();
-        config.registerKryoType(ExecutionConfigTest.class);
-        config.registerKryoType(TestSerializer1.class);
+        ((SerializerConfigImpl) config.getSerializerConfig())
+                .registerKryoType(ExecutionConfigTest.class);
+        ((SerializerConfigImpl) config.getSerializerConfig())
+                .registerKryoType(TestSerializer1.class);
 
         Configuration configuration = new Configuration();
 
@@ -305,16 +245,17 @@ public class ExecutionConfigTest {
         LinkedHashSet<Object> set = new LinkedHashSet<>();
         set.add(ExecutionConfigTest.class);
         set.add(TestSerializer1.class);
-        assertThat(config.getRegisteredKryoTypes()).isEqualTo(set);
+        assertThat(config.getSerializerConfig().getRegisteredKryoTypes()).isEqualTo(set);
     }
 
     @Test
     void testNotOverridingRegisteredPojoTypesWithDefaultsFromConfiguration() {
         ExecutionConfig config = new ExecutionConfig();
-        config.registerPojoType(ExecutionConfigTest.class);
-        config.registerPojoType(TestSerializer1.class);
-
         Configuration configuration = new Configuration();
+        String serializationConfigStr =
+                "{org.apache.flink.api.common.ExecutionConfigTest: {type: pojo}, "
+                        + "org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1: {type: pojo}}";
+        configuration.setString("pipeline.serialization-config", serializationConfigStr);
 
         // mutate config according to configuration
         config.configure(configuration, Thread.currentThread().getContextClassLoader());
@@ -322,27 +263,30 @@ public class ExecutionConfigTest {
         LinkedHashSet<Object> set = new LinkedHashSet<>();
         set.add(ExecutionConfigTest.class);
         set.add(TestSerializer1.class);
-        assertThat(config.getRegisteredPojoTypes()).isEqualTo(set);
+        assertThat(config.getSerializerConfig().getRegisteredPojoTypes()).isEqualTo(set);
     }
 
     @Test
     void testNotOverridingRestartStrategiesWithDefaultsFromConfiguration() {
         ExecutionConfig config = new ExecutionConfig();
-        RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration =
-                RestartStrategies.fixedDelayRestart(10, Time.minutes(2));
-        config.setRestartStrategy(restartStrategyConfiguration);
+        Configuration configuration = new Configuration();
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 10);
+        config.configure(configuration, Thread.currentThread().getContextClassLoader());
 
         // mutate config according to configuration
         config.configure(new Configuration(), Thread.currentThread().getContextClassLoader());
 
-        assertThat(config.getRestartStrategy()).isEqualTo(restartStrategyConfiguration);
+        assertThat(config.toConfiguration().get(RestartStrategyOptions.RESTART_STRATEGY))
+                .isEqualTo("fixed-delay");
     }
 
     @Test
     void testNotOverridingDefaultKryoSerializersFromConfiguration() {
         ExecutionConfig config = new ExecutionConfig();
-        config.addDefaultKryoSerializer(ExecutionConfigTest.class, TestSerializer1.class);
-        config.addDefaultKryoSerializer(TestSerializer1.class, TestSerializer2.class);
+        SerializerConfigImpl serializerConfig = (SerializerConfigImpl) config.getSerializerConfig();
+        serializerConfig.addDefaultKryoSerializer(ExecutionConfigTest.class, TestSerializer1.class);
+        serializerConfig.addDefaultKryoSerializer(TestSerializer1.class, TestSerializer2.class);
 
         Configuration configuration = new Configuration();
 
@@ -352,7 +296,8 @@ public class ExecutionConfigTest {
         LinkedHashMap<Class<?>, Class<? extends Serializer>> serialiers = new LinkedHashMap<>();
         serialiers.put(ExecutionConfigTest.class, TestSerializer1.class);
         serialiers.put(TestSerializer1.class, TestSerializer2.class);
-        assertThat(config.getDefaultKryoSerializerClasses()).isEqualTo(serialiers);
+        assertThat(config.getSerializerConfig().getDefaultKryoSerializerClasses())
+                .isEqualTo(serialiers);
     }
 
     private static class TestSerializer1 extends Serializer<ExecutionConfigTest>

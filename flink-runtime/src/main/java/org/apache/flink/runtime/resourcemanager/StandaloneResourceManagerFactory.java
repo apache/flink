@@ -19,11 +19,10 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.blocklist.BlocklistUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -40,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 
@@ -72,7 +72,7 @@ public final class StandaloneResourceManagerFactory extends ResourceManagerFacto
             ResourceManagerRuntimeServices resourceManagerRuntimeServices,
             Executor ioExecutor) {
 
-        final Time standaloneClusterStartupPeriodTime =
+        final Duration standaloneClusterStartupPeriodTime =
                 ConfigurationUtils.getStandaloneClusterStartupPeriodTime(configuration);
 
         return new StandaloneResourceManager(
@@ -89,7 +89,7 @@ public final class StandaloneResourceManagerFactory extends ResourceManagerFacto
                 fatalErrorHandler,
                 resourceManagerMetricGroup,
                 standaloneClusterStartupPeriodTime,
-                Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION)),
+                configuration.get(RpcOptions.ASK_TIMEOUT_DURATION),
                 ioExecutor);
     }
 
@@ -98,7 +98,7 @@ public final class StandaloneResourceManagerFactory extends ResourceManagerFacto
             createResourceManagerRuntimeServicesConfiguration(Configuration configuration)
                     throws ConfigurationException {
         return ResourceManagerRuntimeServicesConfiguration.fromConfiguration(
-                getConfigurationWithoutMaxResourceIfSet(configuration),
+                getConfigurationWithoutResourceLimitationIfSet(configuration),
                 ArbitraryWorkerResourceSpecFactory.INSTANCE);
     }
 
@@ -109,19 +109,35 @@ public final class StandaloneResourceManagerFactory extends ResourceManagerFacto
      * @return the configuration for standalone ResourceManager
      */
     @VisibleForTesting
-    public static Configuration getConfigurationWithoutMaxResourceIfSet(
+    public static Configuration getConfigurationWithoutResourceLimitationIfSet(
             Configuration configuration) {
         final Configuration copiedConfig = new Configuration(configuration);
-        removeMaxResourceConfig(copiedConfig);
+        removeResourceLimitationConfig(copiedConfig);
 
         return copiedConfig;
     }
 
-    private static void removeMaxResourceConfig(Configuration configuration) {
-        // The max slot/cpu/memory limit should not take effect for standalone cluster, we
-        // overwrite the
-        // configure in case user
-        // sets this value by mistake.
+    private static void removeResourceLimitationConfig(Configuration configuration) {
+        // The slot/cpu/memory limit should not take effect for standalone cluster, we overwrite the
+        // configure in case user sets this value by mistake.
+        if (configuration.removeConfig(ResourceManagerOptions.MIN_SLOT_NUM)) {
+            LOG.warn(
+                    "Config option {} will be ignored in standalone mode.",
+                    ResourceManagerOptions.MIN_SLOT_NUM.key());
+        }
+
+        if (configuration.removeConfig(ResourceManagerOptions.MIN_TOTAL_CPU)) {
+            LOG.warn(
+                    "Config option {} will be ignored in standalone mode.",
+                    ResourceManagerOptions.MIN_TOTAL_CPU.key());
+        }
+
+        if (configuration.removeConfig(ResourceManagerOptions.MIN_TOTAL_MEM)) {
+            LOG.warn(
+                    "Config option {} will be ignored in standalone mode.",
+                    ResourceManagerOptions.MIN_TOTAL_MEM.key());
+        }
+
         if (configuration.removeConfig(ResourceManagerOptions.MAX_SLOT_NUM)) {
             LOG.warn(
                     "Config option {} will be ignored in standalone mode.",

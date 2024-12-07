@@ -22,10 +22,10 @@ import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.HashJoinType;
 import org.apache.flink.table.runtime.operators.join.Int2HashJoinOperatorTest;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Test for {@link LongHashJoinGenerator}. */
-public class LongHashJoinGeneratorTest extends Int2HashJoinOperatorTest {
+class LongHashJoinGeneratorTest extends Int2HashJoinOperatorTest {
 
     @Override
     public Object newOperator(

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.utils.CastExecutor;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -42,9 +43,15 @@ public final class RowDataToStringConverterImpl implements RowDataToStringConver
     private Function<RowData, String>[] columnConverters;
 
     public RowDataToStringConverterImpl(
-            DataType dataType, ZoneId zoneId, ClassLoader classLoader, boolean legacyBehaviour) {
+            DataType dataType,
+            ZoneId zoneId,
+            ClassLoader classLoader,
+            boolean legacyBehaviour,
+            CodeGeneratorContext codeGeneratorContext) {
         this.dataType = dataType;
-        this.castRuleContext = CastRule.Context.create(true, legacyBehaviour, zoneId, classLoader);
+        this.castRuleContext =
+                CastRule.Context.create(
+                        true, legacyBehaviour, zoneId, classLoader, codeGeneratorContext);
     }
 
     @SuppressWarnings("unchecked")

@@ -169,16 +169,16 @@ Flink 有一些内置的窗口分配器，如下所示：
 
 * 滚动时间窗口
   * _每分钟页面浏览量_
-  * `TumblingEventTimeWindows.of(Time.minutes(1))`
+  * `TumblingEventTimeWindows.of(Duration.ofMinutes(1))`
 * 滑动时间窗口
   * _每10秒钟计算前1分钟的页面浏览量_
-  * `SlidingEventTimeWindows.of(Time.minutes(1), Time.seconds(10))`
+  * `SlidingEventTimeWindows.of(Duration.ofMinutes(1), Duration.ofSeconds(10))`
 * 会话窗口
   * _每个会话的网页浏览量，其中会话之间的间隔至少为30分钟_
-  * `EventTimeSessionWindows.withGap(Time.minutes(30))`
+  * `EventTimeSessionWindows.withGap(Duration.ofMinutes(30))`
 
-以下都是一些可以使用的间隔时间 `Time.milliseconds(n)`, `Time.seconds(n)`, `Time.minutes(n)`,
- `Time.hours(n)`, 和 `Time.days(n)`。
+以下都是一些可以使用的间隔时间 `Duration.ofMillis(n)`, `Duration.ofSeconds(n)`, `Duration.ofMinutes(n)`,
+ `Duration.ofHours(n)`, 和 `Duration.ofDays(n)`。
 
 基于时间的窗口分配器（包括会话时间）既可以处理 `事件时间`，也可以处理 `处理时间`。这两种基于时间的处理没有哪一个更好，我们必须折衷。使用 `处理时间`，我们必须接受以下限制：
 
@@ -214,7 +214,7 @@ DataStream<SensorReading> input = ...;
 
 input
     .keyBy(x -> x.key)
-    .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+    .window(TumblingEventTimeWindows.of(Duration.ofMinutes(1)))
     .process(new MyWastefulMax());
 
 public static class MyWastefulMax extends ProcessWindowFunction<
@@ -254,6 +254,8 @@ public abstract class Context implements java.io.Serializable {
 
     public abstract KeyedStateStore windowState();
     public abstract KeyedStateStore globalState();
+
+    public abstract <X> void output(OutputTag<X> outputTag, X value);
 }
 ```
 
@@ -268,7 +270,7 @@ DataStream<SensorReading> input = ...;
 
 input
     .keyBy(x -> x.key)
-    .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+    .window(TumblingEventTimeWindows.of(Duration.ofMinutes(1)))
     .reduce(new MyReducingMax(), new MyWindowFunction());
 
 private static class MyReducingMax implements ReduceFunction<SensorReading> {
@@ -325,7 +327,7 @@ DataStream<Event> lateStream = result.getSideOutput(lateTag);
 stream
     .keyBy(...)
     .window(...)
-    .allowedLateness(Time.seconds(10))
+    .allowedLateness(Duration.ofSeconds(10))
     .process(...);
 ```
 
@@ -366,7 +368,7 @@ stream
 
 可能我们会猜测以 Flink 的能力，想要做到这样看起来是可行的（前提是你使用的是 ReduceFunction 或 AggregateFunction ），但不是。
 
-之所以可行，是因为时间窗口产生的事件是根据窗口结束时的时间分配时间戳的。例如，一个小时小时的窗口所产生的所有事件都将带有标记一个小时结束的时间戳。后面的窗口内的数据消费和前面的流产生的数据是一致的。
+之所以可行，是因为时间窗口产生的事件是根据窗口结束时的时间分配时间戳的。例如，一个小时的窗口所产生的所有事件都将带有标记一个小时结束的时间戳。后面的窗口内的数据消费和前面的流产生的数据是一致的。
 
 <a name="no-results-for-empty-timewindows"></a>
 

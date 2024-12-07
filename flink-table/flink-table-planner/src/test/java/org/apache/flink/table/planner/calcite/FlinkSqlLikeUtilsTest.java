@@ -20,18 +20,48 @@ package org.apache.flink.table.planner.calcite;
 
 import org.apache.flink.table.functions.SqlLikeUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for the SqlLikeUtils. */
-public class FlinkSqlLikeUtilsTest {
+class FlinkSqlLikeUtilsTest {
     @Test
-    public void testSqlLike() {
+    void testSqlLike() {
+        // ------------------------------------- like ---------------------------------------------
+
         assertThat(SqlLikeUtils.like("abc", "a.c", "\\")).isEqualTo(false);
         assertThat(SqlLikeUtils.like("a.c", "a.c", "\\")).isEqualTo(true);
         assertThat(SqlLikeUtils.like("abcd", "a.*d", "\\")).isEqualTo(false);
         assertThat(SqlLikeUtils.like("abcde", "%c.e", "\\")).isEqualTo(false);
+
+        // default escape character
+        assertThat(SqlLikeUtils.like("a-c", "a\\_c")).isEqualTo(false);
+        assertThat(SqlLikeUtils.like("a_c", "a\\_c")).isEqualTo(true);
+
+        // -------------------------------- sqlToRegexLike ----------------------------------------
+
+        assertThat(SqlLikeUtils.sqlToRegexLike(".", "\\")).isEqualTo("\\.");
+        assertThat(SqlLikeUtils.sqlToRegexLike("c", "\\")).isEqualTo("c");
+        assertThat(SqlLikeUtils.sqlToRegexLike("_", "\\")).isEqualTo(".");
+        assertThat(SqlLikeUtils.sqlToRegexLike("%", "\\")).isEqualTo("(?s:.*)");
+
+        // escape
+        assertThat(SqlLikeUtils.sqlToRegexLike("\\_", "\\")).isEqualTo("_");
+        assertThat(SqlLikeUtils.sqlToRegexLike("\\%", "\\")).isEqualTo("%");
+        assertThat(SqlLikeUtils.sqlToRegexLike("\\\\", "\\")).isEqualTo("\\\\");
+        assertThat(SqlLikeUtils.sqlToRegexLike("&&", "&")).isEqualTo("&");
+
+        // exception
+        assertThatThrownBy(() -> SqlLikeUtils.sqlToRegexLike("\\a", "\\"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Invalid escape");
+        assertThatThrownBy(() -> SqlLikeUtils.sqlToRegexLike("\\", "\\"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Invalid escape");
+
+        // --------------------------------- similar ----------------------------------------------
 
         assertThat(SqlLikeUtils.similar("abc", "a.c", "\\")).isEqualTo(true);
         assertThat(SqlLikeUtils.similar("a.c", "a.c", "\\")).isEqualTo(true);

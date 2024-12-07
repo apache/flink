@@ -19,30 +19,35 @@ package org.apache.flink.table.planner.delegation
 
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.legacy.table.sources.{InputFormatTableSource, StreamTableSource}
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.PlanReference.{ContentPlanReference, FilePlanReference, ResourcePlanReference}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.catalog.ManagedTableListener.isManagedTable
 import org.apache.flink.table.connector.sink.DynamicTableSink
-import org.apache.flink.table.delegation.{Executor, Parser, ParserFactory, Planner}
+import org.apache.flink.table.delegation._
 import org.apache.flink.table.factories.{DynamicTableSinkFactory, FactoryUtil, TableFactoryUtil}
+import org.apache.flink.table.legacy.sinks.TableSink
 import org.apache.flink.table.module.{Module, ModuleManager}
 import org.apache.flink.table.operations._
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
+import org.apache.flink.table.operations.ddl.CreateTableOperation
 import org.apache.flink.table.planner.JMap
 import org.apache.flink.table.planner.calcite._
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.connectors.DynamicSinkUtils
 import org.apache.flink.table.planner.connectors.DynamicSinkUtils.validateSchemaAndApplyImplicitCast
-import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
+import org.apache.flink.table.planner.plan.ExecNodeGraphInternalPlan
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeGraph, ExecNodeGraphGenerator}
 import org.apache.flink.table.planner.plan.nodes.exec.processor.{ExecNodeGraphProcessor, ProcessorContext}
-import org.apache.flink.table.planner.plan.nodes.exec.serde.SerdeContext
+import org.apache.flink.table.planner.plan.nodes.exec.serde.{JsonSerdeUtil, SerdeContext}
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
@@ -51,7 +56,6 @@ import org.apache.flink.table.planner.utils.InternalConfigOptions.{TABLE_QUERY_C
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.{toJava, toScala}
 import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.runtime.generated.CompileUtils
-import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
 
 import _root_.scala.collection.JavaConversions._
@@ -61,6 +65,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalTableModify
 
+import java.io.{File, IOException}
 import java.lang.{Long => JLong}
 import java.util
 import java.util.{Collections, TimeZone}
@@ -69,12 +74,12 @@ import scala.collection.mutable
 
 /**
  * Implementation of a [[Planner]]. It supports only streaming use cases. (The new
- * [[org.apache.flink.table.sources.InputFormatTableSource]] should work, but will be handled as
- * streaming sources, and no batch specific optimizations will be applied).
+ * [[InputFormatTableSource]] should work, but will be handled as streaming sources, and no batch
+ * specific optimizations will be applied).
  *
  * @param executor
  *   instance of [[Executor]], needed to extract [[StreamExecutionEnvironment]] for
- *   [[org.apache.flink.table.sources.StreamTableSource.getDataStream]]
+ *   [[StreamTableSource.getDataStream]]
  * @param tableConfig
  *   mutable configuration passed from corresponding [[TableEnvironment]]
  * @param moduleManager
@@ -95,9 +100,6 @@ abstract class PlannerBase(
     isStreamingMode: Boolean,
     classLoader: ClassLoader)
   extends Planner {
-
-  // temporary utility until we don't use planner expressions anymore
-  functionCatalog.setPlannerTypeInferenceUtil(PlannerTypeInferenceUtilImpl.INSTANCE)
 
   private var parserFactory: ParserFactory = _
   private var parser: Parser = _
@@ -186,6 +188,57 @@ abstract class PlannerBase(
     transformations
   }
 
+  override def loadPlan(planReference: PlanReference): InternalPlan = {
+    val ctx = createSerdeContext
+    val objectReader: ObjectReader = JsonSerdeUtil.createObjectReader(ctx)
+    val execNodeGraph = planReference match {
+      case filePlanReference: FilePlanReference =>
+        objectReader.readValue(filePlanReference.getFile, classOf[ExecNodeGraph])
+      case contentPlanReference: ContentPlanReference =>
+        objectReader.readValue(contentPlanReference.getContent, classOf[ExecNodeGraph])
+      case resourcePlanReference: ResourcePlanReference =>
+        val url = resourcePlanReference.getClassLoader
+          .getResource(resourcePlanReference.getResourcePath)
+        if (url == null) {
+          throw new IOException("Cannot load the plan reference from classpath: " + planReference)
+        }
+        objectReader.readValue(new File(url.toURI), classOf[ExecNodeGraph])
+      case _ =>
+        throw new IllegalStateException(
+          "Unknown PlanReference. This is a bug, please contact the developers")
+    }
+    compileExecNodeGraphToInternalPlan(ctx, execNodeGraph)
+  }
+
+  override def compilePlan(modifyOperations: util.List[ModifyOperation]): InternalPlan = {
+    beforeTranslation()
+    val relNodes = modifyOperations.map(translateToRel)
+    val optimizedRelNodes = optimize(relNodes)
+    val execGraph = translateToExecNodeGraph(optimizedRelNodes, isCompiled = true)
+    afterTranslation()
+    compileExecNodeGraphToInternalPlan(createSerdeContext, execGraph)
+  }
+
+  override def translatePlan(plan: InternalPlan): util.List[Transformation[_]] = {
+    beforeTranslation()
+    val execGraph = plan.asInstanceOf[ExecNodeGraphInternalPlan].getExecNodeGraph
+    val transformations = translateToPlan(execGraph)
+    afterTranslation()
+    transformations
+  }
+
+  private def compileExecNodeGraphToInternalPlan(
+      ctx: SerdeContext,
+      execNodeGraph: ExecNodeGraph) = {
+    new ExecNodeGraphInternalPlan(
+      () =>
+        JsonSerdeUtil
+          .createObjectWriter(ctx)
+          .withDefaultPrettyPrinter()
+          .writeValueAsString(execNodeGraph),
+      execNodeGraph)
+  }
+
   /** Converts a relational tree of [[ModifyOperation]] into a Calcite relational expression. */
   @VisibleForTesting
   private[flink] def translateToRel(modifyOperation: ModifyOperation): RelNode = {
@@ -216,6 +269,20 @@ abstract class PlannerBase(
           getTableConfig,
           getFlinkContext.getClassLoader
         )
+
+      case ctasOperation: CreateTableASOperation =>
+        convertCreateTableAsToRel(
+          ctasOperation.getCreateTableOperation,
+          ctasOperation.getChild,
+          ctasOperation.getSinkModifyStaticPartitions(),
+          ctasOperation.getSinkModifyOverwrite())
+
+      case rtasOperation: ReplaceTableAsOperation =>
+        convertCreateTableAsToRel(
+          rtasOperation.getCreateTableOperation,
+          rtasOperation.getChild,
+          Collections.emptyMap(),
+          false)
 
       case stagedSink: StagedSinkModifyOperation =>
         val input = createRelBuilder.queryOperation(modifyOperation.getChild).build()
@@ -431,32 +498,65 @@ abstract class PlannerBase(
             isTemporary)
           Option(resolvedTable, tableSink)
         } else {
-          val factoryFromCatalog = catalog.flatMap(f => toScala(f.getFactory)) match {
-            case Some(f: DynamicTableSinkFactory) => Some(f)
-            case _ => None
-          }
-
-          val factoryFromModule = toScala(
-            plannerContext.getFlinkContext.getModuleManager
-              .getFactory(toJava((m: Module) => m.getTableSinkFactory)))
-
-          // Since the catalog is more specific, we give it precedence over a factory provided by
-          // any modules.
-          val factory = factoryFromCatalog.orElse(factoryFromModule).orNull
-
-          val tableSink = FactoryUtil.createDynamicTableSink(
-            factory,
-            objectIdentifier,
-            tableToFind,
-            Collections.emptyMap(),
-            getTableConfig,
-            getFlinkContext.getClassLoader,
-            isTemporary)
+          val tableSink =
+            createDynamicTableSink(objectIdentifier, catalog, tableToFind, isTemporary)
           Option(resolvedTable, tableSink)
         }
 
       case _ => None
     }
+  }
+
+  private def createDynamicTableSink(
+      tableIdentifier: ObjectIdentifier,
+      catalog: Option[Catalog],
+      resolvedCatalogTable: ResolvedCatalogTable,
+      isTemporary: Boolean): DynamicTableSink = {
+    val factoryFromCatalog = catalog.flatMap(f => toScala(f.getFactory)) match {
+      case Some(f: DynamicTableSinkFactory) => Some(f)
+      case _ => None
+    }
+
+    val factoryFromModule = toScala(
+      plannerContext.getFlinkContext.getModuleManager
+        .getFactory(toJava((m: Module) => m.getTableSinkFactory)))
+
+    // Since the catalog is more specific, we give it precedence over a factory provided by
+    // any modules.
+    val factory = factoryFromCatalog.orElse(factoryFromModule).orNull
+
+    FactoryUtil.createDynamicTableSink(
+      factory,
+      tableIdentifier,
+      resolvedCatalogTable,
+      Collections.emptyMap(),
+      getTableConfig,
+      getFlinkContext.getClassLoader,
+      isTemporary)
+  }
+
+  private def convertCreateTableAsToRel(
+      createTableOperation: CreateTableOperation,
+      queryOperation: QueryOperation,
+      staticPartitions: JMap[String, String],
+      isOverwrite: Boolean): RelNode = {
+    val input = createRelBuilder.queryOperation(queryOperation).build()
+    val table = catalogManager.resolveCatalogTable(createTableOperation.getCatalogTable)
+
+    val identifier = createTableOperation.getTableIdentifier
+    val catalog = toScala(catalogManager.getCatalog(identifier.getCatalogName))
+
+    val tableSink =
+      createDynamicTableSink(identifier, catalog, table, createTableOperation.isTemporary)
+
+    DynamicSinkUtils.convertCreateTableAsToRel(
+      createRelBuilder,
+      input,
+      catalog.orNull,
+      createTableOperation,
+      staticPartitions,
+      isOverwrite,
+      tableSink);
   }
 
   protected def createSerdeContext: SerdeContext = {
@@ -523,7 +623,9 @@ abstract class PlannerBase(
             val contextResolvedTable = catalogManager.getTableOrError(objectIdentifier)
             val modifyOperation = new SinkModifyOperation(
               contextResolvedTable,
-              new PlannerQueryOperation(modify.getInput)
+              new PlannerQueryOperation(
+                modify.getInput,
+                () => queryOperation.asSerializableString())
             )
             translateToRel(modifyOperation)
           case _ =>

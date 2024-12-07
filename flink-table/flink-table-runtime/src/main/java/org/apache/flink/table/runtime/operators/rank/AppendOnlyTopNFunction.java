@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.rank;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.StateTtlConfig;
@@ -31,8 +31,8 @@ import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.util.Collector;
 
-import org.apache.flink.shaded.guava31.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava31.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava32.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava32.com.google.common.cache.CacheBuilder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,7 +88,7 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
                 generateUpdateBefore,
                 outputRankNumber);
         this.sortKeyType = sortKeySelector.getProducedType();
-        this.inputRowSer = inputRowType.createSerializer(new ExecutionConfig());
+        this.inputRowSer = inputRowType.createSerializer(new SerializerConfigImpl());
         this.cacheSize = cacheSize;
     }
 
@@ -99,7 +99,7 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
         CacheBuilder<Object, Object> cacheBuilder = CacheBuilder.newBuilder();
         if (ttlConfig.isEnabled()) {
             cacheBuilder.expireAfterWrite(
-                    ttlConfig.getTtl().toMilliseconds(), TimeUnit.MILLISECONDS);
+                    ttlConfig.getTimeToLive().toMillis(), TimeUnit.MILLISECONDS);
         }
         kvSortedMap = cacheBuilder.maximumSize(lruCacheSize).build();
         LOG.info(

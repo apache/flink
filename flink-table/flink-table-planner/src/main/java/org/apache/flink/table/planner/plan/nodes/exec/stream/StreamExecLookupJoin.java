@@ -42,7 +42,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSp
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
-import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.lookup.KeyedLookupJoinWrapper;
@@ -62,10 +61,11 @@ import org.apache.calcite.tools.RelBuilder;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSink.PARTITIONER_TRANSFORMATION;
 
@@ -84,6 +84,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
             "lookupKeyContainsPrimaryKey";
 
     public static final String STATE_NAME = "lookupJoinState";
+    public static final String FIELD_NAME_INPUT_UPSERT_KEY = "inputUpsertKey";
 
     @JsonProperty(FIELD_NAME_LOOKUP_KEY_CONTAINS_PRIMARY_KEY)
     private final boolean lookupKeyContainsPrimaryKey;
@@ -96,6 +97,11 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
     @JsonProperty(FIELD_NAME_STATE)
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private final List<StateMetadata> stateMetadataList;
+
+    @Nullable
+    @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEY)
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+    private final int[] inputUpsertKey;
 
     public StreamExecLookupJoin(
             ReadableConfig tableConfig,
@@ -111,6 +117,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
             @Nullable LookupJoinUtil.AsyncLookupOptions asyncLookupOptions,
             @Nullable LookupJoinUtil.RetryLookupOptions retryOptions,
             ChangelogMode inputChangelogMode,
+            @Nullable int[] inputUpsertKey,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -130,6 +137,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
                 asyncLookupOptions,
                 retryOptions,
                 inputChangelogMode,
+                inputUpsertKey,
                 // serialize state meta only when upsert materialize is enabled
                 upsertMaterialize
                         ? StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME)
@@ -164,6 +172,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
                     LookupJoinUtil.RetryLookupOptions retryOptions,
             @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODE) @Nullable
                     ChangelogMode inputChangelogMode,
+            @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEY) @Nullable int[] inputUpsertKey,
             @JsonProperty(FIELD_NAME_STATE) @Nullable List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
@@ -187,11 +196,11 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
                 description);
         this.lookupKeyContainsPrimaryKey = lookupKeyContainsPrimaryKey;
         this.upsertMaterialize = upsertMaterialize;
+        this.inputUpsertKey = inputUpsertKey;
         this.stateMetadataList = stateMetadataList;
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public Transformation<RowData> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
         return createJoinTransformation(
@@ -246,27 +255,20 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(keyedLookupJoinWrapper);
 
-        List<Integer> refKeys =
-                allLookupKeys.values().stream()
-                        .filter(key -> key instanceof LookupJoinUtil.FieldRefLookupKey)
-                        .map(key -> ((LookupJoinUtil.FieldRefLookupKey) key).index)
-                        .collect(Collectors.toList());
-        RowDataKeySelector keySelector;
-
-        // use single parallelism for empty key shuffle
-        boolean singleParallelism = refKeys.isEmpty();
-        if (singleParallelism) {
-            // all lookup keys are constants, then use an empty key selector
-            keySelector = EmptyRowDataKeySelector.INSTANCE;
+        int[] shuffleKeys;
+        if (inputUpsertKey == null || inputUpsertKey.length == 0) {
+            // input has no upsertKeys, then use all columns for key selector
+            shuffleKeys = IntStream.range(0, inputRowType.getFieldCount()).toArray();
         } else {
+            shuffleKeys = inputUpsertKey;
             // make it a deterministic asc order
-            Collections.sort(refKeys);
-            keySelector =
-                    KeySelectorUtil.getRowDataSelector(
-                            classLoader,
-                            refKeys.stream().mapToInt(Integer::intValue).toArray(),
-                            InternalTypeInfo.of(inputRowType));
+            Arrays.sort(shuffleKeys);
         }
+
+        RowDataKeySelector keySelector;
+        keySelector =
+                KeySelectorUtil.getRowDataSelector(
+                        classLoader, shuffleKeys, InternalTypeInfo.of(inputRowType));
         final KeyGroupStreamPartitioner<RowData, RowData> partitioner =
                 new KeyGroupStreamPartitioner<>(
                         keySelector, KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM);
@@ -274,11 +276,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
                 new PartitionTransformation<>(inputTransformation, partitioner);
         createTransformationMeta(PARTITIONER_TRANSFORMATION, "Partitioner", "Partitioner", config)
                 .fill(partitionedTransform);
-        if (singleParallelism) {
-            setSingletonParallelism(partitionedTransform);
-        } else {
-            partitionedTransform.setParallelism(inputTransformation.getParallelism(), false);
-        }
+        partitionedTransform.setParallelism(inputTransformation.getParallelism(), false);
 
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
@@ -290,14 +288,6 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
                         false);
         transform.setStateKeySelector(keySelector);
         transform.setStateKeyType(keySelector.getProducedType());
-        if (singleParallelism) {
-            setSingletonParallelism(transform);
-        }
         return transform;
-    }
-
-    private void setSingletonParallelism(Transformation<RowData> transformation) {
-        transformation.setParallelism(1);
-        transformation.setMaxParallelism(1);
     }
 }

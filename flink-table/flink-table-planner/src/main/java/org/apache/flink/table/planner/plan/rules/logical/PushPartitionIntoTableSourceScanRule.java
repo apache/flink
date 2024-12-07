@@ -38,16 +38,15 @@ import org.apache.flink.table.planner.plan.abilities.source.PartitionPushDownSpe
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilityContext;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
 import org.apache.flink.table.planner.plan.utils.PartitionPruner;
 import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
 import org.apache.flink.table.planner.plan.utils.RexNodeToExpressionConverter;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
-import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.type.RelDataType;
@@ -63,7 +62,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.TimeZone;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -127,7 +125,6 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
         Tuple2<Seq<RexNode>, Seq<RexNode>> allPredicates =
                 RexNodeExtractor.extractPartitionPredicateList(
                         filter.getCondition(),
-                        FlinkRelOptUtil.getMaxCnfNodeCount(scan),
                         inputFieldNames.toArray(new String[0]),
                         rexBuilder,
                         partitionFieldNames.toArray(new String[0]));
@@ -176,6 +173,15 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
                         defaultPruner,
                         allPredicates._1(),
                         inputFieldNames);
+
+        // If remaining partitions are empty, it means that there are no partitions are selected
+        // after partition prune. We can directly optimize the RelNode to Empty FlinkLogicalValues.
+        if (remainingPartitions.isEmpty()) {
+            RelNode emptyValue = relBuilder.push(filter).empty().build();
+            call.transformTo(emptyValue);
+            return;
+        }
+
         // apply push down
         DynamicTableSource dynamicTableSource = tableSourceTable.tableSource().copy();
         PartitionPushDownSpec partitionPushDownSpec =
@@ -310,9 +316,7 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
                         rexBuilder,
                         allFieldNames.toArray(new String[0]),
                         context.getFunctionCatalog(),
-                        context.getCatalogManager(),
-                        TimeZone.getTimeZone(
-                                TableConfigUtils.getLocalTimeZone(context.getTableConfig())));
+                        context.getCatalogManager());
         ArrayList<Expression> partitionFilters = new ArrayList<>();
         Option<ResolvedExpression> subExpr;
         for (RexNode node : JavaConversions.seqAsJavaList(partitionPredicate)) {

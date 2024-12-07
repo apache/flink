@@ -84,6 +84,20 @@ Format 参数
       <td>Boolean</td>
       <td>使用 UTC 时区或本地时区在纪元时间和 LocalDateTime 之间进行转换。Hive 0.x/1.x/2.x 使用本地时区，但 Hive 3.x 使用 UTC 时区。</td>
     </tr>
+    <tr>
+      <td><h5>timestamp.time.unit</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">micros</td>
+      <td>String</td>
+      <td>根据TimeUnit在Timestamp和int64之间进行转换，可选值nanos/micros/millis。</td>
+    </tr>
+    <tr>
+      <td><h5>write.int64.timestamp</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>以int64替代int96存储parquet Timestamp。 注意：Timestamp将于时区无关（从不转换为不同时区）。</td>
+    </tr>
     </tbody>
 </table>
 

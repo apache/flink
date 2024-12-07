@@ -47,7 +47,7 @@ class ShuffleServiceLoaderTest {
     @Test
     void testLoadCustomShuffleServiceFactory() throws FlinkException {
         Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 SHUFFLE_SERVICE_FACTORY_CLASS,
                 "org.apache.flink.runtime.shuffle.ShuffleServiceLoaderTest$CustomShuffleServiceFactory");
         ShuffleServiceFactory<?, ?, ?> shuffleServiceFactory =
@@ -61,7 +61,7 @@ class ShuffleServiceLoaderTest {
     @Test
     public void testLoadShuffleServiceFactoryFailure() {
         Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 SHUFFLE_SERVICE_FACTORY_CLASS,
                 "org.apache.flink.runtime.shuffle.UnavailableShuffleServiceFactory");
         assertThatThrownBy(() -> ShuffleServiceLoader.loadShuffleServiceFactory(configuration))

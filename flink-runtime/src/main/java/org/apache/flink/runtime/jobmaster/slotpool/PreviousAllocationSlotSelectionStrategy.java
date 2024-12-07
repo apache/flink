@@ -48,7 +48,7 @@ public class PreviousAllocationSlotSelectionStrategy implements SlotSelectionStr
 
     @Override
     public Optional<SlotInfoAndLocality> selectBestSlotForProfile(
-            @Nonnull FreeSlotInfoTracker freeSlotInfoTracker, @Nonnull SlotProfile slotProfile) {
+            @Nonnull FreeSlotTracker freeSlotTracker, @Nonnull SlotProfile slotProfile) {
 
         LOG.debug("Select best slot for profile {}.", slotProfile);
 
@@ -56,19 +56,18 @@ public class PreviousAllocationSlotSelectionStrategy implements SlotSelectionStr
 
         // First, if there was a prior allocation try to schedule to the same/old slot
         if (!priorAllocations.isEmpty()) {
-            for (AllocationID availableSlot : freeSlotInfoTracker.getAvailableSlots()) {
+            for (AllocationID availableSlot : freeSlotTracker.getAvailableSlots()) {
                 if (priorAllocations.contains(availableSlot)) {
                     return Optional.of(
                             SlotInfoAndLocality.of(
-                                    freeSlotInfoTracker.getSlotInfo(availableSlot),
-                                    Locality.LOCAL));
+                                    freeSlotTracker.getSlotInfo(availableSlot), Locality.LOCAL));
                 }
             }
         }
 
         // Second, select based on location preference, excluding blacklisted allocations
         return fallbackSlotSelectionStrategy.selectBestSlotForProfile(
-                freeSlotInfoTracker.createNewFreeSlotInfoTrackerWithoutBlockedSlots(
+                freeSlotTracker.createNewFreeSlotTrackerWithoutBlockedSlots(
                         slotProfile.getReservedAllocations()),
                 slotProfile);
     }

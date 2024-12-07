@@ -41,9 +41,7 @@ public final class TupleSerializerSnapshot<T extends Tuple>
     private Class<T> tupleClass;
 
     @SuppressWarnings("unused")
-    public TupleSerializerSnapshot() {
-        super(TupleSerializer.class);
-    }
+    public TupleSerializerSnapshot() {}
 
     TupleSerializerSnapshot(TupleSerializer<T> serializerInstance) {
         super(serializerInstance);
@@ -56,7 +54,6 @@ public final class TupleSerializerSnapshot<T extends Tuple>
      * TupleSerializer#resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass}.
      */
     TupleSerializerSnapshot(Class<T> tupleClass) {
-        super(TupleSerializer.class);
         this.tupleClass = checkNotNull(tupleClass, "tuple class can not be NULL");
     }
 

@@ -18,71 +18,70 @@
 package org.apache.flink.runtime.io.disk;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.testutils.CheckedThread;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link BatchShuffleReadBufferPool}. */
-public class BatchShuffleReadBufferPoolTest {
+@Timeout(value = 60)
+class BatchShuffleReadBufferPoolTest {
 
-    @Rule public Timeout timeout = new Timeout(60, TimeUnit.SECONDS);
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testIllegalTotalBytes() {
-        createBufferPool(0, 1024);
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testIllegalBufferSize() {
-        createBufferPool(32 * 1024 * 1024, 0);
+    @Test
+    void testIllegalTotalBytes() {
+        assertThatThrownBy(() -> createBufferPool(0, 1024))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testLargeTotalBytes() {
+    void testIllegalBufferSize() {
+        assertThatThrownBy(() -> createBufferPool(32 * 1024 * 1024, 0))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testLargeTotalBytes() {
         BatchShuffleReadBufferPool bufferPool = createBufferPool(Long.MAX_VALUE, 1024);
-        assertEquals(Integer.MAX_VALUE, bufferPool.getNumTotalBuffers());
+        assertThat(bufferPool.getNumTotalBuffers()).isEqualTo(Integer.MAX_VALUE);
         bufferPool.destroy();
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testTotalBytesSmallerThanBufferSize() {
-        createBufferPool(4096, 32 * 1024);
+    @Test
+    void testTotalBytesSmallerThanBufferSize() {
+        assertThatThrownBy(() -> createBufferPool(4096, 32 * 1024))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testBufferCalculation() {
+    void testBufferCalculation() {
         long totalBytes = 32 * 1024 * 1024;
         for (int bufferSize = 4 * 1024; bufferSize <= totalBytes; bufferSize += 1024) {
             BatchShuffleReadBufferPool bufferPool = createBufferPool(totalBytes, bufferSize);
 
-            assertEquals(totalBytes, bufferPool.getTotalBytes());
-            assertEquals(totalBytes / bufferSize, bufferPool.getNumTotalBuffers());
-            assertTrue(bufferPool.getNumBuffersPerRequest() <= bufferPool.getNumTotalBuffers());
-            assertTrue(bufferPool.getNumBuffersPerRequest() > 0);
+            assertThat(bufferPool.getTotalBytes()).isEqualTo(totalBytes);
+            assertThat(bufferPool.getNumTotalBuffers()).isEqualTo(totalBytes / bufferSize);
+            assertThat(bufferPool.getNumBuffersPerRequest())
+                    .isLessThanOrEqualTo(bufferPool.getNumTotalBuffers());
+            assertThat(bufferPool.getNumBuffersPerRequest()).isGreaterThan(0);
         }
     }
 
     @Test
-    public void testRequestBuffers() throws Exception {
+    void testRequestBuffers() throws Exception {
         BatchShuffleReadBufferPool bufferPool = createBufferPool();
         List<MemorySegment> buffers = new ArrayList<>();
 
         try {
             buffers.addAll(bufferPool.requestBuffers());
-            assertEquals(bufferPool.getNumBuffersPerRequest(), buffers.size());
+            assertThat(buffers).hasSize(bufferPool.getNumBuffersPerRequest());
         } finally {
             bufferPool.recycle(buffers);
             bufferPool.destroy();
@@ -90,46 +89,45 @@ public class BatchShuffleReadBufferPoolTest {
     }
 
     @Test
-    public void testRecycle() throws Exception {
+    void testRecycle() throws Exception {
         BatchShuffleReadBufferPool bufferPool = createBufferPool();
         List<MemorySegment> buffers = bufferPool.requestBuffers();
 
         bufferPool.recycle(buffers);
-        assertEquals(bufferPool.getNumTotalBuffers(), bufferPool.getAvailableBuffers());
+        assertThat(bufferPool.getAvailableBuffers()).isEqualTo(bufferPool.getNumTotalBuffers());
     }
 
     @Test
-    public void testBufferOperationTimestampUpdated() throws Exception {
+    void testBufferOperationTimestampUpdated() throws Exception {
         BatchShuffleReadBufferPool bufferPool = new BatchShuffleReadBufferPool(1024, 1024);
         long oldTimestamp = bufferPool.getLastBufferOperationTimestamp();
         Thread.sleep(100);
         List<MemorySegment> buffers = bufferPool.requestBuffers();
-        assertEquals(1, buffers.size());
+        assertThat(buffers).hasSize(1);
         // The timestamp is updated when requesting buffers successfully
-        assertTrue(bufferPool.getLastBufferOperationTimestamp() > oldTimestamp);
+        assertThat(bufferPool.getLastBufferOperationTimestamp()).isGreaterThan(oldTimestamp);
 
         oldTimestamp = bufferPool.getLastBufferOperationTimestamp();
         Thread.sleep(100);
         bufferPool.recycle(buffers);
         // The timestamp is updated when recycling buffers
-        assertTrue(bufferPool.getLastBufferOperationTimestamp() > oldTimestamp);
+        assertThat(bufferPool.getLastBufferOperationTimestamp()).isGreaterThan(oldTimestamp);
 
         buffers = bufferPool.requestBuffers();
 
         oldTimestamp = bufferPool.getLastBufferOperationTimestamp();
         Thread.sleep(100);
-        assertEquals(0, bufferPool.requestBuffers().size());
+        assertThat(bufferPool.requestBuffers()).isEmpty();
         // The timestamp is not updated when requesting buffers is failed
-        assertEquals(oldTimestamp, bufferPool.getLastBufferOperationTimestamp());
+        assertThat(bufferPool.getLastBufferOperationTimestamp()).isEqualTo(oldTimestamp);
 
         bufferPool.recycle(buffers);
         bufferPool.destroy();
     }
 
     @Test
-    public void testBufferFulfilledByRecycledBuffers() throws Exception {
+    void testBufferFulfilledByRecycledBuffers() throws Exception {
         int numRequestThreads = 2;
-        AtomicReference<Throwable> exception = new AtomicReference<>();
         BatchShuffleReadBufferPool bufferPool = createBufferPool();
         Map<Object, List<MemorySegment>> buffers = new ConcurrentHashMap<>();
 
@@ -139,24 +137,22 @@ public class BatchShuffleReadBufferPoolTest {
                 owners[i] = new Object();
                 buffers.put(owners[i], bufferPool.requestBuffers());
             }
-            assertEquals(0, bufferPool.getAvailableBuffers());
+            assertThat(bufferPool.getAvailableBuffers()).isZero();
 
-            Thread[] requestThreads = new Thread[numRequestThreads];
+            CheckedThread[] requestThreads = new CheckedThread[numRequestThreads];
             for (int i = 0; i < numRequestThreads; ++i) {
                 requestThreads[i] =
-                        new Thread(
-                                () -> {
-                                    try {
-                                        Object owner = new Object();
-                                        List<MemorySegment> allocated = null;
-                                        while (allocated == null || allocated.isEmpty()) {
-                                            allocated = bufferPool.requestBuffers();
-                                        }
-                                        buffers.put(owner, allocated);
-                                    } catch (Throwable throwable) {
-                                        exception.set(throwable);
-                                    }
-                                });
+                        new CheckedThread() {
+                            @Override
+                            public void go() throws Exception {
+                                Object owner = new Object();
+                                List<MemorySegment> allocated = null;
+                                while (allocated == null || allocated.isEmpty()) {
+                                    allocated = bufferPool.requestBuffers();
+                                }
+                                buffers.put(owner, allocated);
+                            }
+                        };
                 requestThreads[i].start();
             }
 
@@ -168,125 +164,115 @@ public class BatchShuffleReadBufferPoolTest {
             // bulk recycle
             bufferPool.recycle(buffers.remove(owners[1]));
 
-            for (Thread requestThread : requestThreads) {
-                requestThread.join();
+            for (CheckedThread requestThread : requestThreads) {
+                requestThread.sync();
             }
 
-            assertNull(exception.get());
-            assertEquals(0, bufferPool.getAvailableBuffers());
-            assertEquals(8, buffers.size());
+            assertThat(bufferPool.getAvailableBuffers()).isZero();
+            assertThat(buffers).hasSize(8);
         } finally {
             for (Object owner : buffers.keySet()) {
                 bufferPool.recycle(buffers.remove(owner));
             }
-            assertEquals(bufferPool.getNumTotalBuffers(), bufferPool.getAvailableBuffers());
+            assertThat(bufferPool.getAvailableBuffers()).isEqualTo(bufferPool.getNumTotalBuffers());
             bufferPool.destroy();
         }
     }
 
     @Test
-    public void testMultipleThreadRequestAndRecycle() throws Exception {
+    void testMultipleThreadRequestAndRecycle() throws Exception {
         int numRequestThreads = 10;
-        AtomicReference<Throwable> exception = new AtomicReference<>();
         BatchShuffleReadBufferPool bufferPool = createBufferPool();
 
         try {
-            Thread[] requestThreads = new Thread[numRequestThreads];
+            CheckedThread[] requestThreads = new CheckedThread[numRequestThreads];
             for (int i = 0; i < numRequestThreads; ++i) {
                 requestThreads[i] =
-                        new Thread(
-                                () -> {
-                                    try {
-                                        for (int j = 0; j < 100; ++j) {
-                                            List<MemorySegment> buffers =
-                                                    bufferPool.requestBuffers();
-                                            Thread.sleep(10);
-                                            if (j % 2 == 0) {
-                                                bufferPool.recycle(buffers);
-                                            } else {
-                                                for (MemorySegment segment : buffers) {
-                                                    bufferPool.recycle(segment);
-                                                }
-                                            }
+                        new CheckedThread() {
+                            @Override
+                            public void go() throws Exception {
+                                for (int j = 0; j < 100; ++j) {
+                                    List<MemorySegment> buffers = bufferPool.requestBuffers();
+                                    Thread.sleep(10);
+                                    if (j % 2 == 0) {
+                                        bufferPool.recycle(buffers);
+                                    } else {
+                                        for (MemorySegment segment : buffers) {
+                                            bufferPool.recycle(segment);
                                         }
-                                    } catch (Throwable throwable) {
-                                        exception.set(throwable);
                                     }
-                                });
+                                }
+                            }
+                        };
                 requestThreads[i].start();
             }
 
-            for (Thread requestThread : requestThreads) {
-                requestThread.join();
+            for (CheckedThread requestThread : requestThreads) {
+                requestThread.sync();
             }
 
-            assertNull(exception.get());
-            assertEquals(bufferPool.getNumTotalBuffers(), bufferPool.getAvailableBuffers());
+            assertThat(bufferPool.getAvailableBuffers()).isEqualTo(bufferPool.getNumTotalBuffers());
         } finally {
             bufferPool.destroy();
         }
     }
 
     @Test
-    public void testDestroy() throws Exception {
+    void testDestroy() throws Exception {
         BatchShuffleReadBufferPool bufferPool = createBufferPool();
         List<MemorySegment> buffers = bufferPool.requestBuffers();
         bufferPool.recycle(buffers);
 
-        assertFalse(bufferPool.isDestroyed());
-        assertEquals(bufferPool.getNumTotalBuffers(), bufferPool.getAvailableBuffers());
+        assertThat(bufferPool.isDestroyed()).isFalse();
+        assertThat(bufferPool.getAvailableBuffers()).isEqualTo(bufferPool.getNumTotalBuffers());
 
         buffers = bufferPool.requestBuffers();
-        assertEquals(
-                bufferPool.getNumTotalBuffers() - buffers.size(), bufferPool.getAvailableBuffers());
+        assertThat(bufferPool.getAvailableBuffers())
+                .isEqualTo(bufferPool.getNumTotalBuffers() - buffers.size());
 
         bufferPool.destroy();
-        assertTrue(bufferPool.isDestroyed());
-        assertEquals(0, bufferPool.getAvailableBuffers());
+        assertThat(bufferPool.isDestroyed()).isTrue();
+        assertThat(bufferPool.getAvailableBuffers()).isZero();
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void testRequestBuffersAfterDestroyed() throws Exception {
+    @Test
+    void testRequestBuffersAfterDestroyed() throws Exception {
         BatchShuffleReadBufferPool bufferPool = createBufferPool();
         bufferPool.requestBuffers();
 
         bufferPool.destroy();
-        bufferPool.requestBuffers();
+        assertThatThrownBy(bufferPool::requestBuffers).isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void testRecycleAfterDestroyed() throws Exception {
+    void testRecycleAfterDestroyed() throws Exception {
         BatchShuffleReadBufferPool bufferPool = createBufferPool();
         List<MemorySegment> buffers = bufferPool.requestBuffers();
         bufferPool.destroy();
 
         bufferPool.recycle(buffers);
-        assertEquals(0, bufferPool.getAvailableBuffers());
+        assertThat(bufferPool.getAvailableBuffers()).isZero();
     }
 
     @Test
-    public void testDestroyWhileBlockingRequest() throws Exception {
-        AtomicReference<Throwable> exception = new AtomicReference<>();
+    void testDestroyWhileBlockingRequest() throws Exception {
         BatchShuffleReadBufferPool bufferPool = createBufferPool();
 
-        Thread requestThread =
-                new Thread(
-                        () -> {
-                            try {
-                                while (true) {
-                                    bufferPool.requestBuffers();
-                                }
-                            } catch (Throwable throwable) {
-                                exception.set(throwable);
-                            }
-                        });
+        CheckedThread requestThread =
+                new CheckedThread() {
+                    @Override
+                    public void go() throws Exception {
+                        while (true) {
+                            bufferPool.requestBuffers();
+                        }
+                    }
+                };
         requestThread.start();
 
         Thread.sleep(1000);
         bufferPool.destroy();
-        requestThread.join();
 
-        assertTrue(exception.get() instanceof IllegalStateException);
+        assertThatThrownBy(requestThread::sync).isInstanceOf(IllegalStateException.class);
     }
 
     private BatchShuffleReadBufferPool createBufferPool(long totalBytes, int bufferSize) {

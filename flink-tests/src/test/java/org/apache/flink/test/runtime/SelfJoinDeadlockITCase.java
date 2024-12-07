@@ -21,11 +21,15 @@ package org.apache.flink.test.runtime;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.connector.file.sink.FileSink;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
+import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 import org.apache.flink.util.Collector;
 
 import org.junit.Rule;
@@ -39,7 +43,7 @@ import java.util.Random;
  *
  * @see <a href="https://issues.apache.org/jira/browse/FLINK-1141">FLINK-1141</a>
  */
-public class SelfJoinDeadlockITCase extends JavaProgramTestBase {
+public class SelfJoinDeadlockITCase extends JavaProgramTestBaseJUnit4 {
 
     protected String resultPath;
 
@@ -52,12 +56,27 @@ public class SelfJoinDeadlockITCase extends JavaProgramTestBase {
 
     @Override
     protected void testProgram() throws Exception {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataSet<Tuple3<Integer, Integer, String>> ds =
+        DataStreamSource<Tuple3<Integer, Integer, String>> ds =
                 env.createInput(new LargeJoinDataGeneratorInputFormat(1000000));
 
-        ds.join(ds).where(0).equalTo(1).with(new Joiner()).writeAsText(resultPath);
+        ds.join(ds)
+                .where(x -> x.f0)
+                .equalTo(x -> x.f1)
+                .window(GlobalWindows.createWithEndOfStreamTrigger())
+                .apply(new Joiner())
+                .sinkTo(
+                        FileSink.forRowFormat(
+                                        new Path(resultPath),
+                                        new SimpleStringEncoder<
+                                                Tuple5<
+                                                        Integer,
+                                                        Integer,
+                                                        Integer,
+                                                        String,
+                                                        String>>())
+                                .build());
 
         env.execute("Local Selfjoin Test Job");
     }

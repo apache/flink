@@ -24,6 +24,8 @@ public interface OrcVectorizedBatchWrapper<T> {
     /** Get the real batch. */
     T getBatch();
 
-    /** @return batch size. */
+    /**
+     * @return batch size.
+     */
     int size();
 }

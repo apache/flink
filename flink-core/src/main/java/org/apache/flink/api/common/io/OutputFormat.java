@@ -59,25 +59,11 @@ public interface OutputFormat<IT> extends Serializable {
      *
      * <p>When this method is called, the output format it guaranteed to be configured.
      *
-     * @param taskNumber The number of the parallel instance.
-     * @param numTasks The number of parallel tasks.
-     * @throws IOException Thrown, if the output could not be opened due to an I/O problem.
-     * @deprecated Use {@link #open(InitializationContext)} instead
-     */
-    @Deprecated
-    default void open(int taskNumber, int numTasks) throws IOException {}
-
-    /**
-     * Opens a parallel instance of the output format to store the result of its parallel instance.
-     *
-     * <p>When this method is called, the output format it guaranteed to be configured.
-     *
      * @param context The context to get task parallel infos.
      * @throws IOException Thrown, if the output could not be opened due to an I/O problem.
      */
-    default void open(InitializationContext context) throws IOException {
-        open(context.getTaskNumber(), context.getNumTasks());
-    }
+    void open(InitializationContext context) throws IOException;
+
     /**
      * Adds a record to the output.
      *

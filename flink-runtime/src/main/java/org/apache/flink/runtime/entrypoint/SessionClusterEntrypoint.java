@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.entrypoint;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -27,10 +26,11 @@ import org.apache.flink.runtime.dispatcher.FileExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
-import org.apache.flink.shaded.guava31.com.google.common.base.Ticker;
+import org.apache.flink.shaded.guava32.com.google.common.base.Ticker;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 
 /** Base class for session cluster entry points. */
 public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
@@ -44,10 +44,9 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
             Configuration configuration, ScheduledExecutor scheduledExecutor) throws IOException {
         final JobManagerOptions.JobStoreType jobStoreType =
                 configuration.get(JobManagerOptions.JOB_STORE_TYPE);
-        final Time expirationTime =
-                Time.seconds(configuration.getLong(JobManagerOptions.JOB_STORE_EXPIRATION_TIME));
-        final int maximumCapacity =
-                configuration.getInteger(JobManagerOptions.JOB_STORE_MAX_CAPACITY);
+        final Duration expirationTime =
+                Duration.ofSeconds(configuration.get(JobManagerOptions.JOB_STORE_EXPIRATION_TIME));
+        final int maximumCapacity = configuration.get(JobManagerOptions.JOB_STORE_MAX_CAPACITY);
 
         switch (jobStoreType) {
             case File:
@@ -55,7 +54,7 @@ public abstract class SessionClusterEntrypoint extends ClusterEntrypoint {
                     final File tmpDir =
                             new File(ConfigurationUtils.parseTempDirectories(configuration)[0]);
                     final long maximumCacheSizeBytes =
-                            configuration.getLong(JobManagerOptions.JOB_STORE_CACHE_SIZE);
+                            configuration.get(JobManagerOptions.JOB_STORE_CACHE_SIZE);
 
                     return new FileExecutionGraphInfoStore(
                             tmpDir,

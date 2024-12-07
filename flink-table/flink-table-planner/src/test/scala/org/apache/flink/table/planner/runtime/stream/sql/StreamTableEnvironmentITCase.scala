@@ -17,23 +17,19 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.datastream.DataStreamSource
+import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment
-import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.api.bridge.scala
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.TableConfigOptions
-import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, StringSink}
+import org.apache.flink.table.planner.runtime.utils.{StreamingEnvUtil, StreamingTestBase, StringSink}
 import org.apache.flink.table.planner.runtime.utils.JavaPojos.{Device, Order, Person, ProductItem}
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.util.Collections
 
@@ -42,22 +38,35 @@ class StreamTableEnvironmentITCase extends StreamingTestBase {
 
   @Test
   def testToAppendStreamWithPojoType(): Unit = {
-    val orderA = env.fromCollection(
+    val schema = Schema
+      .newBuilder()
+      .column("user", DataTypes.BIGINT())
+      .column(
+        "product",
+        DataTypes.STRUCTURED(
+          classOf[ProductItem],
+          DataTypes.FIELD("id", DataTypes.BIGINT()),
+          DataTypes.FIELD("name", DataTypes.STRING())))
+      .column("amount", DataTypes.INT())
+      .build()
+    val orderA = StreamingEnvUtil.fromCollection(
+      env,
       Seq(
         new Order(1L, new ProductItem("beer", 10L), 3),
         new Order(1L, new ProductItem("diaper", 11L), 4),
         new Order(3L, new ProductItem("rubber", 12L), 2)))
 
-    val orderB: DataStream[Order] = env.fromCollection(
+    val orderB: DataStream[Order] = StreamingEnvUtil.fromCollection(
+      env,
       Seq(
         new Order(2L, new ProductItem("pen", 13L), 3),
         new Order(2L, new ProductItem("rubber", 12L), 3),
         new Order(4L, new ProductItem("beer", 10L), 1)))
 
     // convert DataStream to Table
-    val tableA = tEnv.fromDataStream(orderA, 'user, 'product, 'amount)
+    val tableA = tEnv.fromDataStream(orderA, schema)
     // register DataStream as Table
-    tEnv.createTemporaryView("OrderB", orderB, 'user, 'product, 'amount)
+    tEnv.createTemporaryView("OrderB", orderB, schema)
 
     // union the two tables
     val result = tEnv.sqlQuery(s"""
@@ -67,7 +76,20 @@ class StreamTableEnvironmentITCase extends StreamingTestBase {
         """.stripMargin)
 
     val sink = new StringSink[Order]()
-    result.toAppendStream[Order].addSink(sink)
+    result
+      .toDataStream(
+        DataTypes.STRUCTURED(
+          classOf[Order],
+          DataTypes.FIELD("user", DataTypes.BIGINT()),
+          DataTypes.FIELD(
+            "product",
+            DataTypes.STRUCTURED(
+              classOf[ProductItem],
+              DataTypes.FIELD("id", DataTypes.BIGINT()),
+              DataTypes.FIELD("name", DataTypes.STRING()))),
+          DataTypes.FIELD("amount", DataTypes.INT())
+        ))
+      .addSink(sink)
 
     env.execute()
 
@@ -76,36 +98,56 @@ class StreamTableEnvironmentITCase extends StreamingTestBase {
       "Order{user=1, product='Product{name='diaper', id=11}', amount=4}",
       "Order{user=4, product='Product{name='beer', id=10}', amount=1}"
     )
-    assertEquals(expected.sorted, sink.getResults.sorted)
+    assertThat(sink.getResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
   def testToAppendStreamWithRawType(): Unit = {
-    val devices = env.fromCollection(
+    val devices = StreamingEnvUtil.fromCollection(
+      env,
       Seq(
         new Device(1L, "device1", Collections.singletonMap("A", 10)),
         new Device(2L, "device2", Collections.emptyMap()),
         new Device(3L, "device3", Collections.singletonMap("B", 20))
-      ))
+      )
+    )
 
     // register DataStream as Table
-    tEnv.createTemporaryView("devices", devices, 'deviceId, 'deviceName, 'metrics)
+    tEnv.createTemporaryView(
+      "devices",
+      devices,
+      Schema
+        .newBuilder()
+        .column("deviceId", DataTypes.BIGINT())
+        .column("deviceName", DataTypes.STRING())
+        .column("metrics", DataTypes.MAP(DataTypes.STRING(), DataTypes.BIGINT()))
+        .build()
+    )
 
     val result = tEnv.sqlQuery("SELECT * FROM devices WHERE deviceId >= 2")
     val sink = new StringSink[Device]()
-    result.toAppendStream[Device].addSink(sink)
+    result
+      .toDataStream(
+        DataTypes.STRUCTURED(
+          classOf[Device],
+          DataTypes.FIELD("deviceId", DataTypes.BIGINT()),
+          DataTypes.FIELD("deviceName", DataTypes.STRING()),
+          DataTypes.FIELD("metrics", DataTypes.MAP(DataTypes.STRING(), DataTypes.BIGINT()))
+        ))
+      .addSink(sink)
 
     env.execute()
 
     val expected = List(
       "Device{deviceId=2, deviceName='device2', metrics={}}",
       "Device{deviceId=3, deviceName='device3', metrics={B=20}}")
-    assertEquals(expected.sorted, sink.getResults.sorted)
+    assertThat(sink.getResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
   def testToRetractStreamWithPojoType(): Unit = {
-    val persons = env.fromCollection(
+    val persons = StreamingEnvUtil.fromCollection(
+      env,
       Seq(
         new Person("bob", 1),
         new Person("Liz", 2),
@@ -122,12 +164,13 @@ class StreamTableEnvironmentITCase extends StreamingTestBase {
       "(true,Person{name='bob', age=1})",
       "(true,Person{name='Liz', age=2})",
       "(true,Person{name='Jack', age=3})")
-    assertEquals(expected.sorted, sink.getResults.sorted)
+    assertThat(sink.getResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
   def testRetractMsgWithPojoType(): Unit = {
-    val orders = env.fromCollection(
+    val orders = StreamingEnvUtil.fromCollection(
+      env,
       Seq(
         new Order(1L, new ProductItem("beer", 10L), 1),
         new Order(1L, new ProductItem("beer", 10L), 2)
@@ -150,21 +193,20 @@ class StreamTableEnvironmentITCase extends StreamingTestBase {
       "(false,Order{user=1, product='Product{name='beer', id=10}', amount=1})",
       "(true,Order{user=1, product='Product{name='beer', id=10}', amount=3})"
     )
-    assertEquals(expected.sorted, sink.getResults.sorted)
+    assertThat(sink.getResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
   def testTableConfigInheritsEnvironmentSettings(): Unit = {
     val config = new Configuration
-    config.setString(TableConfigOptions.TABLE_CATALOG_NAME, "myCatalog")
+    config.set(TableConfigOptions.TABLE_CATALOG_NAME, "myCatalog")
     val env = StreamExecutionEnvironment.getExecutionEnvironment(config)
     val tEnv = StreamTableEnvironment.create(env)
     assertThat(tEnv.getConfig.get(TableConfigOptions.TABLE_CATALOG_NAME)).isEqualTo("myCatalog")
 
-    val scalaEnv =
-      org.apache.flink.streaming.api.scala.StreamExecutionEnvironment.getExecutionEnvironment
+    val env2 = StreamExecutionEnvironment.getExecutionEnvironment
     val scalaTEnv = scala.StreamTableEnvironment.create(
-      scalaEnv,
+      env2,
       EnvironmentSettings.newInstance.withConfiguration(config).build)
     assertThat(scalaTEnv.getConfig.get(TableConfigOptions.TABLE_CATALOG_NAME))
       .isEqualTo("myCatalog")

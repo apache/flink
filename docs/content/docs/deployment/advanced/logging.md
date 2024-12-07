@@ -38,20 +38,46 @@ This allows you to use any logging framework that supports SLF4J, without having
 By default, [Log4j 2](https://logging.apache.org/log4j/2.x/index.html) is used as the underlying logging framework.
 
 
+### Structured logging
+
+Flink adds the following fields to [MDC](https://www.slf4j.org/api/org/slf4j/MDC.html) of most of the relevant log messages (experimental feature):
+- Job ID
+  - key: `flink-job-id`
+  - format: string
+  - length 32
+
+This is most useful in environments with structured logging and allows you to quickly filter the relevant logs.
+
+The MDC is propagated by slf4j to the logging backend which usually adds it to the log records automatically (e.g. in [log4j json layout](https://logging.apache.org/log4j/2.x/manual/json-template-layout.html)).
+Alternatively, it can be configured explicitly - [log4j pattern layout](https://logging.apache.org/log4j/1.2/apidocs/org/apache/log4j/PatternLayout.html) might look like this:
+
+`[%-32X{flink-job-id}] %c{0} %m%n`.
 
 ## Configuring Log4j 2
 
-Log4j 2 is controlled using property files.
+Log4j 2 is controlled using a mixture of property files and configuration.
+
+### Log4j 2 property files
 
 The Flink distribution ships with the following log4j properties files in the `conf` directory, which are used automatically if Log4j 2 is enabled:
 
-- `log4j-cli.properties`: used by the command line interface (e.g., `flink run`)
+- `log4j-cli.properties`: used by the command line interface (e.g., `flink run`, `sql-client`)
 - `log4j-session.properties`: used by the command line interface when starting a Kubernetes/Yarn session cluster (i.e., `kubernetes-session.sh`/`yarn-session.sh`)
 - `log4j-console.properties`: used for Job-/TaskManagers if they are run in the foreground (e.g., Kubernetes)
 - `log4j.properties`: used for Job-/TaskManagers by default
 
 Log4j periodically scans this file for changes and adjusts the logging behavior if necessary.
-By default this check happens every 30 seconds and is controlled by the `monitorInterval` setting in the Log4j properties files.
+By default, this check happens every 30 seconds and is controlled by the `monitorInterval` setting in the Log4j properties files.
+
+### Log4j 2 configuration
+
+The following [logging-related configuration options]({{< ref "docs/deployment/config">}}#jvm-and-logging-options) are available:
+
+| Configuration  | Description                                                             | Default                         |
+|----------------|-------------------------------------------------------------------------|---------------------------------|
+| `env.log.dir`  | The directory where the Flink logs are saved. Must be an absolute path. | `log` folder under Flink's home |
+| `env.log.level` | Root logger level.                                                      | `INFO`                          |
+| `env.log.max`  | The maximum number of old log files to keep.                            | 10                              |
 
 ### Compatibility with Log4j 1
 

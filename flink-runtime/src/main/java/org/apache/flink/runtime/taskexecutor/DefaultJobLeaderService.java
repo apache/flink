@@ -20,7 +20,6 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationRejection;
@@ -45,6 +44,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -517,7 +517,7 @@ public class DefaultJobLeaderService implements JobLeaderService {
         protected CompletableFuture<RegistrationResponse> invokeRegistration(
                 JobMasterGateway gateway, JobMasterId fencingToken, long timeoutMillis) {
             return gateway.registerTaskManager(
-                    jobId, taskManagerRegistrationInformation, Time.milliseconds(timeoutMillis));
+                    jobId, taskManagerRegistrationInformation, Duration.ofMillis(timeoutMillis));
         }
     }
 

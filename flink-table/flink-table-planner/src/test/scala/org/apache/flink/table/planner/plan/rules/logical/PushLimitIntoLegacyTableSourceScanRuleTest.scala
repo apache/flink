@@ -25,13 +25,14 @@ import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase}
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
-import org.junit.{Before, Test}
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Test for [[PushLimitIntoLegacyTableSourceScanRule]]. */
 class PushLimitIntoLegacyTableSourceScanRuleTest extends TableTestBase {
   protected val util = batchTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE)
     val calciteConfig = TableConfigUtils.getCalciteConfig(util.tableEnv.getConfig)
@@ -64,19 +65,22 @@ class PushLimitIntoLegacyTableSourceScanRuleTest extends TableTestBase {
     util.tableEnv.executeSql(ddl)
   }
 
-  @Test(expected = classOf[SqlParserException])
+  @Test
   def testLimitWithNegativeOffset(): Unit = {
-    util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT 10 OFFSET -1")
+    assertThatExceptionOfType(classOf[SqlParserException])
+      .isThrownBy(() => util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT 10 OFFSET -1"))
   }
 
-  @Test(expected = classOf[SqlParserException])
+  @Test
   def testNegativeLimitWithoutOffset(): Unit = {
-    util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT -1")
+    assertThatExceptionOfType(classOf[SqlParserException])
+      .isThrownBy(() => util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT -1"))
   }
 
-  @Test(expected = classOf[SqlParserException])
+  @Test
   def testMysqlLimit(): Unit = {
-    util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT 1, 10")
+    assertThatExceptionOfType(classOf[SqlParserException])
+      .isThrownBy(() => util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT 1, 10"))
   }
 
   @Test

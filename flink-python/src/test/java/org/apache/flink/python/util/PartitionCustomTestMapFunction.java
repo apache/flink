@@ -32,13 +32,14 @@ public class PartitionCustomTestMapFunction extends RichMapFunction<Row, Row> {
 
     @Override
     public void open(OpenContext openContext) {
-        this.currentTaskIndex = getRuntimeContext().getIndexOfThisSubtask();
+        this.currentTaskIndex = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
     }
 
     @Override
     public Row map(Row value) throws Exception {
         int expectedPartitionIndex =
-                (Integer) (value.getField(1)) % getRuntimeContext().getNumberOfParallelSubtasks();
+                (Integer) (value.getField(1))
+                        % getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
         if (expectedPartitionIndex != currentTaskIndex) {
             throw new RuntimeException(
                     String.format(

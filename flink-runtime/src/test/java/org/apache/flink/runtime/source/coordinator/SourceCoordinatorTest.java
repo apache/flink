@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.source.coordinator;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.DynamicFilteringInfo;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -168,6 +170,42 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
     }
 
     @Test
+    void testBatchSnapshotCoordinatorAndRestore() throws Exception {
+        sourceReady();
+        addTestingSplitSet(6);
+
+        registerReader(0);
+        getEnumerator().executeAssignOneSplit(0);
+        getEnumerator().executeAssignOneSplit(0);
+
+        final CompletableFuture<byte[]> checkpointFuture = new CompletableFuture<>();
+        sourceCoordinator.checkpointCoordinator(
+                OperatorCoordinator.BATCH_CHECKPOINT_ID, checkpointFuture);
+        final byte[] bytes = checkpointFuture.get();
+
+        // restore from the batch snapshot.
+        SourceCoordinator<?, ?> restoredCoordinator = getNewSourceCoordinator();
+        restoredCoordinator.resetToCheckpoint(OperatorCoordinator.BATCH_CHECKPOINT_ID, bytes);
+        TestingSplitEnumerator<?> restoredEnumerator =
+                (TestingSplitEnumerator<?>) restoredCoordinator.getEnumerator();
+        SourceCoordinatorContext<?> restoredContext = restoredCoordinator.getContext();
+        assertThat(restoredEnumerator.getUnassignedSplits())
+                .as("2 splits should have been assigned to reader 0")
+                .hasSize(4);
+        assertThat(restoredEnumerator.getContext().registeredReaders()).isEmpty();
+        assertThat(restoredContext.registeredReaders())
+                .as("Registered readers should not be recovered by restoring")
+                .isEmpty();
+
+        assertThat(restoredContext.getAssignmentTracker().uncheckpointedAssignments())
+                .isEqualTo(
+                        sourceCoordinator
+                                .getContext()
+                                .getAssignmentTracker()
+                                .uncheckpointedAssignments());
+    }
+
+    @Test
     void testSubtaskFailedAndRevertUncompletedAssignments() throws Exception {
         sourceReady();
         addTestingSplitSet(6);
@@ -253,6 +291,7 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                         };
                 final SourceCoordinator<?, ?> coordinator =
                         new SourceCoordinator<>(
+                                new JobID(),
                                 OPERATOR_NAME,
                                 new EnumeratorCreatingSource<>(() -> splitEnumerator),
                                 context,
@@ -275,6 +314,7 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
 
         final SourceCoordinator<?, ?> coordinator =
                 new SourceCoordinator<>(
+                        new JobID(),
                         OPERATOR_NAME,
                         new EnumeratorCreatingSource<>(
                                 () -> {
@@ -305,6 +345,7 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                         };
                 final SourceCoordinator<?, ?> coordinator =
                         new SourceCoordinator<>(
+                                new JobID(),
                                 OPERATOR_NAME,
                                 new EnumeratorCreatingSource<>(() -> splitEnumerator),
                                 context,
@@ -525,6 +566,7 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         CoordinatorStore store = new CoordinatorStoreImpl();
         final SourceCoordinator<?, ?> coordinator =
                 new SourceCoordinator<>(
+                        new JobID(),
                         OPERATOR_NAME,
                         createMockSource(),
                         context,
@@ -534,6 +576,26 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         coordinator.start();
 
         assertThat(store.get(listeningID)).isNotNull().isSameAs(coordinator);
+    }
+
+    @Test
+    public void testInferSourceParallelismAsync() throws Exception {
+        final String listeningID = "testListeningID";
+
+        class TestDynamicFilteringEvent implements SourceEvent, DynamicFilteringInfo {}
+
+        CoordinatorStore store = new CoordinatorStoreImpl();
+        store.putIfAbsent(listeningID, new SourceEventWrapper(new TestDynamicFilteringEvent()));
+        final SourceCoordinator<?, ?> coordinator =
+                new SourceCoordinator<>(
+                        new JobID(),
+                        OPERATOR_NAME,
+                        createMockSource(),
+                        context,
+                        store,
+                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED,
+                        listeningID);
+        assertThat(coordinator.inferSourceParallelismAsync(2, 1).get()).isEqualTo(2);
     }
 
     // ------------------------------------------------------------------------

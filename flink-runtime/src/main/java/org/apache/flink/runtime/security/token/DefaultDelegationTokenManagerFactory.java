@@ -46,7 +46,7 @@ public class DefaultDelegationTokenManagerFactory {
             @Nullable ExecutorService ioExecutor)
             throws IOException {
 
-        if (configuration.getBoolean(SecurityOptions.DELEGATION_TOKENS_ENABLED)) {
+        if (configuration.get(SecurityOptions.DELEGATION_TOKENS_ENABLED)) {
             return new DefaultDelegationTokenManager(
                     configuration, pluginManager, scheduledExecutor, ioExecutor);
         } else {

@@ -21,33 +21,34 @@ package org.apache.flink.table.planner.plan.rules.logical;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
 
 /** Tests for {@link WrapJsonAggFunctionArgumentsRule}. */
-@RunWith(Parameterized.class)
-public class WrapJsonAggFunctionArgumentsRuleTest extends TableTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class WrapJsonAggFunctionArgumentsRuleTest extends TableTestBase {
 
     private final boolean batchMode;
     private TableTestUtil util;
 
-    @Parameterized.Parameters(name = "batchMode = {0}")
-    public static Collection<Boolean> data() {
+    @Parameters(name = "batchMode = {0}")
+    private static Collection<Boolean> data() {
         return Arrays.asList(true, false);
     }
 
-    public WrapJsonAggFunctionArgumentsRuleTest(boolean batchMode) {
+    WrapJsonAggFunctionArgumentsRuleTest(boolean batchMode) {
         this.batchMode = batchMode;
     }
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         if (batchMode) {
             util = batchTestUtil(TableConfig.getDefault());
         } else {
@@ -79,55 +80,55 @@ public class WrapJsonAggFunctionArgumentsRuleTest extends TableTestBase {
                                 + "'\n)");
     }
 
-    @Test
-    public void testJsonObjectAgg() {
+    @TestTemplate
+    void testJsonObjectAgg() {
         util.verifyRelPlan("SELECT JSON_OBJECTAGG(f1 VALUE f1) FROM T");
     }
 
-    @Test
-    public void testJsonObjectAggInGroupWindow() {
+    @TestTemplate
+    void testJsonObjectAggInGroupWindow() {
         util.verifyRelPlan("SELECT f0, JSON_OBJECTAGG(f1 VALUE f0) FROM T GROUP BY f0");
     }
 
-    @Test
-    public void testJsonArrayAgg() {
+    @TestTemplate
+    void testJsonArrayAgg() {
         util.verifyRelPlan("SELECT JSON_ARRAYAGG(f0) FROM T");
     }
 
-    @Test
-    public void testJsonArrayAggInGroupWindow() {
+    @TestTemplate
+    void testJsonArrayAggInGroupWindow() {
         util.verifyRelPlan("SELECT f0, JSON_ARRAYAGG(f0) FROM T GROUP BY f0");
     }
 
-    @Test
-    public void testJsonObjectAggWithOtherAggs() {
+    @TestTemplate
+    void testJsonObjectAggWithOtherAggs() {
         util.verifyRelPlan("SELECT COUNT(*), JSON_OBJECTAGG(f1 VALUE f1) FROM T");
     }
 
-    @Test
-    public void testGroupJsonObjectAggWithOtherAggs() {
+    @TestTemplate
+    void testGroupJsonObjectAggWithOtherAggs() {
         util.verifyRelPlan(
                 "SELECT f0, COUNT(*), JSON_OBJECTAGG(f1 VALUE f0), SUM(f2) FROM T GROUP BY f0");
     }
 
-    @Test
-    public void testJsonArrayAggWithOtherAggs() {
+    @TestTemplate
+    void testJsonArrayAggWithOtherAggs() {
         util.verifyRelPlan("SELECT COUNT(*), JSON_ARRAYAGG(f0) FROM T");
     }
 
-    @Test
-    public void testGroupJsonArrayAggInWithOtherAggs() {
+    @TestTemplate
+    void testGroupJsonArrayAggInWithOtherAggs() {
         util.verifyRelPlan("SELECT f0, COUNT(*), JSON_ARRAYAGG(f0), SUM(f2) FROM T GROUP BY f0");
     }
 
-    @Test
-    public void testJsonArrayAggAndJsonObjectAggWithOtherAggs() {
+    @TestTemplate
+    void testJsonArrayAggAndJsonObjectAggWithOtherAggs() {
         util.verifyRelPlan(
                 "SELECT MAX(f0), JSON_OBJECTAGG(f1 VALUE f0), JSON_ARRAYAGG(f1), JSON_ARRAYAGG(f0) FROM T");
     }
 
-    @Test
-    public void testGroupJsonArrayAggAndJsonObjectAggWithOtherAggs() {
+    @TestTemplate
+    void testGroupJsonArrayAggAndJsonObjectAggWithOtherAggs() {
         util.verifyRelPlan(
                 "SELECT f0, JSON_OBJECTAGG(f1 VALUE f2), JSON_ARRAYAGG(f1), JSON_ARRAYAGG(f2),"
                         + " SUM(f2) FROM T GROUP BY f0");

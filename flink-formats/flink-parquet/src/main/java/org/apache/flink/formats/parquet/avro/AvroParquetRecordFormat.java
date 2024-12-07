@@ -25,6 +25,7 @@ import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.formats.parquet.ParquetInputFile;
+import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.function.SerializableSupplier;
 
 import org.apache.avro.generic.GenericData;
@@ -82,6 +83,7 @@ class AvroParquetRecordFormat<E> implements StreamFormat<E> {
         return new AvroParquetRecordReader<E>(
                 AvroParquetReader.<E>builder(new ParquetInputFile(stream, fileLen))
                         .withDataModel(getDataModel())
+                        .withConf(HadoopUtils.getHadoopConfiguration(config))
                         .build());
     }
 

@@ -153,14 +153,16 @@ public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHan
     @Override
     public void registerAndStartNewCoordinators(
             Collection<OperatorCoordinatorHolder> coordinators,
-            ComponentMainThreadExecutor mainThreadExecutor) {
+            ComponentMainThreadExecutor mainThreadExecutor,
+            final int parallelism) {
 
         for (OperatorCoordinatorHolder coordinator : coordinators) {
             coordinatorMap.put(coordinator.operatorId(), coordinator);
             coordinator.lazyInitialize(
                     globalFailureHandler,
                     mainThreadExecutor,
-                    executionGraph.getCheckpointCoordinator());
+                    executionGraph.getCheckpointCoordinator(),
+                    parallelism);
         }
         startOperatorCoordinators(coordinators);
     }

@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.runtime.blocklist.NoOpBlocklistHandler;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -32,30 +32,30 @@ import org.apache.flink.runtime.resourcemanager.utils.MockResourceManagerRuntime
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
+import org.apache.flink.runtime.rpc.TestingRpcServiceExtension;
 import org.apache.flink.runtime.security.token.DelegationTokenManager;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.core.IsNull.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the Standalone Resource Manager. */
-public class StandaloneResourceManagerTest extends TestLogger {
+class StandaloneResourceManagerTest {
 
-    @ClassRule
-    public static final TestingRpcServiceResource RPC_SERVICE = new TestingRpcServiceResource();
+    @RegisterExtension
+    public static final AllCallbackWrapper<TestingRpcServiceExtension>
+            RPC_SERVICE_EXTENSION_WRAPPER =
+                    new AllCallbackWrapper<>(new TestingRpcServiceExtension());
 
-    private static final Time TIMEOUT = Time.seconds(10L);
+    private static final Duration TIMEOUT = Duration.ofSeconds(10L);
 
     private final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
 
@@ -69,10 +69,10 @@ public class StandaloneResourceManagerTest extends TestLogger {
                                 setFailUnfulfillableRequestInvokes::add)
                         .createSlotManager();
         final TestingStandaloneResourceManager rm =
-                createResourceManager(Time.milliseconds(1L), slotManager);
+                createResourceManager(Duration.ofMillis(1L), slotManager);
 
-        assertThat(setFailUnfulfillableRequestInvokes.take(), is(false));
-        assertThat(setFailUnfulfillableRequestInvokes.take(), is(true));
+        assertThat(setFailUnfulfillableRequestInvokes.take()).isFalse();
+        assertThat(setFailUnfulfillableRequestInvokes.take()).isTrue();
 
         rm.close();
     }
@@ -87,22 +87,21 @@ public class StandaloneResourceManagerTest extends TestLogger {
                                 setFailUnfulfillableRequestInvokes::add)
                         .createSlotManager();
         final TestingStandaloneResourceManager rm =
-                createResourceManager(Time.milliseconds(-1L), slotManager);
+                createResourceManager(Duration.ofMillis(-1L), slotManager);
 
-        assertThat(setFailUnfulfillableRequestInvokes.take(), is(false));
-        assertThat(
-                setFailUnfulfillableRequestInvokes.poll(50L, TimeUnit.MILLISECONDS),
-                is(nullValue()));
+        assertThat(setFailUnfulfillableRequestInvokes.take()).isFalse();
+        assertThat(setFailUnfulfillableRequestInvokes.poll(50L, TimeUnit.MILLISECONDS)).isNull();
 
         rm.close();
     }
 
     private TestingStandaloneResourceManager createResourceManager(
-            Time startupPeriod, SlotManager slotManager) throws Exception {
+            Duration startupPeriod, SlotManager slotManager) throws Exception {
 
         final MockResourceManagerRuntimeServices rmServices =
                 new MockResourceManagerRuntimeServices(
-                        RPC_SERVICE.getTestingRpcService(), slotManager);
+                        RPC_SERVICE_EXTENSION_WRAPPER.getCustomExtension().getTestingRpcService(),
+                        slotManager);
 
         final TestingStandaloneResourceManager rm =
                 new TestingStandaloneResourceManager(
@@ -119,7 +118,7 @@ public class StandaloneResourceManagerTest extends TestLogger {
                         startupPeriod);
 
         rm.start();
-        rm.getStartedFuture().get(TIMEOUT.getSize(), TIMEOUT.getUnit());
+        rm.getStartedFuture().get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 
         return rm;
     }
@@ -137,7 +136,7 @@ public class StandaloneResourceManagerTest extends TestLogger {
                 ClusterInformation clusterInformation,
                 FatalErrorHandler fatalErrorHandler,
                 ResourceManagerMetricGroup resourceManagerMetricGroup,
-                Time startupPeriodTime) {
+                Duration startupPeriodTime) {
             super(
                     rpcService,
                     leaderSessionId,

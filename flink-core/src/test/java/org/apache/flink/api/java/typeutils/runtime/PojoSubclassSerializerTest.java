@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -32,13 +32,13 @@ import java.util.Random;
 /** A test for the {@link PojoSerializer}. */
 class PojoSubclassSerializerTest
         extends SerializerTestBase<PojoSubclassSerializerTest.TestUserClassBase> {
-    private TypeInformation<TestUserClassBase> type =
+    private final TypeInformation<TestUserClassBase> type =
             TypeExtractor.getForClass(TestUserClassBase.class);
 
     @Override
     protected TypeSerializer<TestUserClassBase> createSerializer() {
         // only register one of the three child classes, the third child class is NO POJO
-        ExecutionConfig conf = new ExecutionConfig();
+        SerializerConfigImpl conf = new SerializerConfigImpl();
         conf.registerPojoType(TestUserClass1.class);
         TypeSerializer<TestUserClassBase> serializer = type.createSerializer(conf);
         assert (serializer instanceof PojoSerializer);
@@ -68,7 +68,7 @@ class PojoSubclassSerializerTest
 
     @Override
     @Test
-    public void testInstantiate() {
+    protected void testInstantiate() {
         // don't do anything, since the PojoSerializer with subclass will return null
     }
 
@@ -98,10 +98,7 @@ class PojoSubclassSerializerTest
             if (dumm1 != otherTUC.dumm1) {
                 return false;
             }
-            if (!dumm2.equals(otherTUC.dumm2)) {
-                return false;
-            }
-            return true;
+            return dumm2.equals(otherTUC.dumm2);
         }
     }
 
@@ -127,10 +124,7 @@ class PojoSubclassSerializerTest
             if (!dumm2.equals(otherTUC.dumm2)) {
                 return false;
             }
-            if (dumm3 != otherTUC.dumm3) {
-                return false;
-            }
-            return true;
+            return dumm3 == otherTUC.dumm3;
         }
     }
 
@@ -156,10 +150,7 @@ class PojoSubclassSerializerTest
             if (!dumm2.equals(otherTUC.dumm2)) {
                 return false;
             }
-            if (dumm4 != otherTUC.dumm4) {
-                return false;
-            }
-            return true;
+            return dumm4 == otherTUC.dumm4;
         }
     }
 
@@ -183,10 +174,7 @@ class PojoSubclassSerializerTest
             if (!dumm2.equals(otherTUC.dumm2)) {
                 return false;
             }
-            if (dumm4 != otherTUC.dumm4) {
-                return false;
-            }
-            return true;
+            return dumm4 == otherTUC.dumm4;
         }
     }
 }

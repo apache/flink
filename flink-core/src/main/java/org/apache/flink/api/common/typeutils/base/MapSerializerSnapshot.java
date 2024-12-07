@@ -31,9 +31,7 @@ public class MapSerializerSnapshot<K, V>
     private static final int CURRENT_VERSION = 1;
 
     /** Constructor for read instantiation. */
-    public MapSerializerSnapshot() {
-        super(MapSerializer.class);
-    }
+    public MapSerializerSnapshot() {}
 
     /** Constructor to create the snapshot for writing. */
     public MapSerializerSnapshot(MapSerializer<K, V> mapSerializer) {
@@ -67,5 +65,10 @@ public class MapSerializerSnapshot<K, V>
     @SuppressWarnings("unchecked")
     public TypeSerializerSnapshot<K> getKeySerializerSnapshot() {
         return (TypeSerializerSnapshot<K>) getNestedSerializerSnapshots()[0];
+    }
+
+    @SuppressWarnings("unchecked")
+    public TypeSerializerSnapshot<V> getValueSerializerSnapshot() {
+        return (TypeSerializerSnapshot<V>) getNestedSerializerSnapshots()[1];
     }
 }

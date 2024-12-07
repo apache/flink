@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.19-SNAPSHOT</version>
+		<version>2.0-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-core</artifactId>
@@ -34,7 +34,14 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<surefire.module.config> <!--
+		<!--
+		Two properties below should be merged once support for jdk8 and jdk11 is dropped.
+		The reason of extraction into a separate property with profile is that
+		specifying -Djava.security.manager=allow within ${surefire.module.config} leads to
+		hanging of surefire for jdk8 and jdk11
+		-->
+		<surefire.module.config.jdk21></surefire.module.config.jdk21>
+		<surefire.module.config> ${surefire.module.config.jdk21} <!--
 			required by JmxServer
 			-->--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED <!--
 			PluginConfigTest (CommonTestUtils#setEnv)
@@ -54,14 +61,22 @@ under the License.
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-annotations</artifactId>
+			<artifactId>flink-core-api</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-metrics-core</artifactId>
+			<artifactId>flink-annotations</artifactId>
 			<version>${project.version}</version>
+		</dependency>
+
+		<!-- ArchUnit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<scope>test</scope>
 		</dependency>
 
 		<dependency>
@@ -79,6 +94,13 @@ under the License.
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
 			<!-- managed version -->
+		</dependency>
+
+		<!-- YAML parser utilities -->
+		<dependency>
+			<groupId>org.snakeyaml</groupId>
+			<artifactId>snakeyaml-engine</artifactId>
+			<version>2.6</version>
 		</dependency>
 
 		<!-- standard utilities -->
@@ -147,26 +169,14 @@ under the License.
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
-			<version>1.18.22</version>
+			<version>1.18.30</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>fink-migration-test-utils</artifactId>
+			<artifactId>flink-migration-test-utils</artifactId>
 			<version>${project.version}</version>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.powermock</groupId>
-			<artifactId>powermock-module-junit4</artifactId>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.powermock</groupId>
-			<artifactId>powermock-api-mockito2</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
@@ -239,6 +249,18 @@ under the License.
 					</plugin>
 				</plugins>
 			</build>
+		</profile>
+		<profile>
+			<id>java21</id>
+			<activation>
+				<jdk>[21,)</jdk>
+			</activation>
+
+			<properties>
+				<surefire.module.config.jdk21> <!--
+				    required by FlinkSecurityManagerTest-->
+					-Djava.security.manager=allow</surefire.module.config.jdk21>
+			</properties>
 		</profile>
 	</profiles>
 </project>

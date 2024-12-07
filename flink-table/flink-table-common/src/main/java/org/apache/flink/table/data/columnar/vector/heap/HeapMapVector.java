@@ -74,4 +74,12 @@ public class HeapMapVector extends AbstractHeapVector
         long length = lengths[i];
         return new ColumnarMapData(keys, values, (int) offset, (int) length);
     }
+
+    public ColumnVector getKeyColumnVector() {
+        return keys;
+    }
+
+    public ColumnVector getValueColumnVector() {
+        return values;
+    }
 }

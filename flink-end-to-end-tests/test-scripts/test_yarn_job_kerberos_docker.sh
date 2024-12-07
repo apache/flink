@@ -66,7 +66,7 @@ else
 fi
 
 echo "Running Job without configured keytab, the exception you see below is expected"
-docker exec master bash -c "echo \"\" > /home/hadoop-user/${FLINK_DIRNAME}/conf/flink-conf.yaml"
+docker exec master bash -c "echo \"\" > /home/hadoop-user/${FLINK_DIRNAME}/conf/config.yaml"
 # verify that it doesn't work if we don't configure a keytab
 docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
     /home/hadoop-user/${FLINK_DIRNAME}/bin/flink run \

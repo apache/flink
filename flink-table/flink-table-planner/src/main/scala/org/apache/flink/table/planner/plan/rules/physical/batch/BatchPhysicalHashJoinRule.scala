@@ -29,11 +29,8 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Join, JoinRelType}
-import org.apache.calcite.util.ImmutableIntList
 
 import java.util
-
-import scala.collection.JavaConversions._
 
 /**
  * Rule that converts [[FlinkLogicalJoin]] to [[BatchPhysicalHashJoin]] if there exists at least one
@@ -146,18 +143,6 @@ class BatchPhysicalHashJoinRule
       transformToEquiv(
         toHashTraitByColumns(joinInfo.leftKeys),
         toHashTraitByColumns(joinInfo.rightKeys))
-
-      // add more possibility to only shuffle by partial joinKeys, now only single one
-      val isShuffleByPartialKeyEnabled =
-        tableConfig.get(BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED)
-      if (isShuffleByPartialKeyEnabled && joinInfo.pairs().length > 1) {
-        joinInfo.pairs().foreach {
-          pair =>
-            transformToEquiv(
-              toHashTraitByColumns(ImmutableIntList.of(pair.source)),
-              toHashTraitByColumns(ImmutableIntList.of(pair.target)))
-        }
-      }
     }
 
   }

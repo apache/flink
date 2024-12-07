@@ -21,6 +21,8 @@ package org.apache.flink.runtime.operators;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.RichCoGroupFunction;
+import org.apache.flink.core.testutils.CheckedThread;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.operators.CoGroupTaskExternalITCase.MockCoGroupStub;
 import org.apache.flink.runtime.operators.testutils.DelayingInfinitiveInputIterator;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
@@ -36,11 +38,8 @@ import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.TestTemplate;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.fail;
 
 class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Record>> {
     private static final long SORT_MEM = 3 * 1024 * 1024;
@@ -62,7 +61,7 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
     }
 
     @TestTemplate
-    void testSortBoth1CoGroupTask() {
+    void testSortBoth1CoGroupTask() throws Exception {
         int keyCnt1 = 100;
         int valCnt1 = 2;
 
@@ -81,21 +80,13 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
         getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
         getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 
-        final CoGroupDriver<Record, Record, Record> testTask =
-                new CoGroupDriver<Record, Record, Record>();
+        final CoGroupDriver<Record, Record, Record> testTask = new CoGroupDriver<>();
 
-        try {
-            addInputSorted(
-                    new UniformRecordGenerator(keyCnt1, valCnt1, false),
-                    this.comparator1.duplicate());
-            addInputSorted(
-                    new UniformRecordGenerator(keyCnt2, valCnt2, false),
-                    this.comparator2.duplicate());
-            testDriver(testTask, MockCoGroupStub.class);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail("The test caused an exception.");
-        }
+        addInputSorted(
+                new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+        addInputSorted(
+                new UniformRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
+        testDriver(testTask, MockCoGroupStub.class);
 
         assertThat(this.output.getNumberOfRecords())
                 .withFailMessage("Wrong result set size.")
@@ -103,7 +94,7 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
     }
 
     @TestTemplate
-    void testSortBoth2CoGroupTask() {
+    void testSortBoth2CoGroupTask() throws Exception {
         int keyCnt1 = 200;
         int valCnt1 = 2;
 
@@ -122,21 +113,13 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
         getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
         getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 
-        final CoGroupDriver<Record, Record, Record> testTask =
-                new CoGroupDriver<Record, Record, Record>();
+        final CoGroupDriver<Record, Record, Record> testTask = new CoGroupDriver<>();
 
-        try {
-            addInputSorted(
-                    new UniformRecordGenerator(keyCnt1, valCnt1, false),
-                    this.comparator1.duplicate());
-            addInputSorted(
-                    new UniformRecordGenerator(keyCnt2, valCnt2, false),
-                    this.comparator2.duplicate());
-            testDriver(testTask, MockCoGroupStub.class);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail("The test caused an exception.");
-        }
+        addInputSorted(
+                new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+        addInputSorted(
+                new UniformRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
+        testDriver(testTask, MockCoGroupStub.class);
 
         assertThat(this.output.getNumberOfRecords())
                 .withFailMessage("Wrong result set size.")
@@ -144,7 +127,7 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
     }
 
     @TestTemplate
-    void testSortFirstCoGroupTask() {
+    void testSortFirstCoGroupTask() throws Exception {
         int keyCnt1 = 200;
         int valCnt1 = 2;
 
@@ -163,19 +146,12 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
         getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
         getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 
-        final CoGroupDriver<Record, Record, Record> testTask =
-                new CoGroupDriver<Record, Record, Record>();
+        final CoGroupDriver<Record, Record, Record> testTask = new CoGroupDriver<>();
 
-        try {
-            addInputSorted(
-                    new UniformRecordGenerator(keyCnt1, valCnt1, false),
-                    this.comparator1.duplicate());
-            addInput(new UniformRecordGenerator(keyCnt2, valCnt2, true));
-            testDriver(testTask, MockCoGroupStub.class);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail("The test caused an exception.");
-        }
+        addInputSorted(
+                new UniformRecordGenerator(keyCnt1, valCnt1, false), this.comparator1.duplicate());
+        addInput(new UniformRecordGenerator(keyCnt2, valCnt2, true));
+        testDriver(testTask, MockCoGroupStub.class);
 
         assertThat(this.output.getNumberOfRecords())
                 .withFailMessage("Wrong result set size.")
@@ -183,7 +159,7 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
     }
 
     @TestTemplate
-    void testSortSecondCoGroupTask() {
+    void testSortSecondCoGroupTask() throws Exception {
         int keyCnt1 = 200;
         int valCnt1 = 2;
 
@@ -202,19 +178,12 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
         getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
         getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 
-        final CoGroupDriver<Record, Record, Record> testTask =
-                new CoGroupDriver<Record, Record, Record>();
+        final CoGroupDriver<Record, Record, Record> testTask = new CoGroupDriver<>();
 
-        try {
-            addInput(new UniformRecordGenerator(keyCnt1, valCnt1, true));
-            addInputSorted(
-                    new UniformRecordGenerator(keyCnt2, valCnt2, false),
-                    this.comparator2.duplicate());
-            testDriver(testTask, MockCoGroupStub.class);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail("The test caused an exception.");
-        }
+        addInput(new UniformRecordGenerator(keyCnt1, valCnt1, true));
+        addInputSorted(
+                new UniformRecordGenerator(keyCnt2, valCnt2, false), this.comparator2.duplicate());
+        testDriver(testTask, MockCoGroupStub.class);
 
         assertThat(this.output.getNumberOfRecords())
                 .withFailMessage("Wrong result set size.")
@@ -222,7 +191,7 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
     }
 
     @TestTemplate
-    void testMergeCoGroupTask() {
+    void testMergeCoGroupTask() throws Exception {
         int keyCnt1 = 200;
         int valCnt1 = 2;
 
@@ -245,15 +214,9 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
         getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
         getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 
-        final CoGroupDriver<Record, Record, Record> testTask =
-                new CoGroupDriver<Record, Record, Record>();
+        final CoGroupDriver<Record, Record, Record> testTask = new CoGroupDriver<>();
 
-        try {
-            testDriver(testTask, MockCoGroupStub.class);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail("The test caused an exception.");
-        }
+        testDriver(testTask, MockCoGroupStub.class);
 
         assertThat(this.output.getNumberOfRecords())
                 .withFailMessage("Wrong result set size.")
@@ -278,15 +241,14 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
         getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
         getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 
-        final CoGroupDriver<Record, Record, Record> testTask =
-                new CoGroupDriver<Record, Record, Record>();
+        final CoGroupDriver<Record, Record, Record> testTask = new CoGroupDriver<>();
 
         assertThatThrownBy(() -> testDriver(testTask, MockFailingCoGroupStub.class))
                 .isInstanceOf(ExpectedTestException.class);
     }
 
     @TestTemplate
-    void testCancelCoGroupTaskWhileSorting1() {
+    void testCancelCoGroupTaskWhileSorting1() throws Exception {
         int keyCnt = 10;
         int valCnt = 2;
 
@@ -298,29 +260,16 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
         getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
         getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 
-        final CoGroupDriver<Record, Record, Record> testTask =
-                new CoGroupDriver<Record, Record, Record>();
+        final CoGroupDriver<Record, Record, Record> testTask = new CoGroupDriver<>();
 
-        try {
-            addInputSorted(new DelayingInfinitiveInputIterator(1000), this.comparator1.duplicate());
-            addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail("The test caused an exception.");
-        }
+        addInputSorted(new DelayingInfinitiveInputIterator(1000), this.comparator1.duplicate());
+        addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
 
-        final AtomicBoolean success = new AtomicBoolean(false);
-
-        Thread taskRunner =
-                new Thread() {
+        CheckedThread taskRunner =
+                new CheckedThread() {
                     @Override
-                    public void run() {
-                        try {
-                            testDriver(testTask, MockCoGroupStub.class);
-                            success.set(true);
-                        } catch (Exception ie) {
-                            ie.printStackTrace();
-                        }
+                    public void go() throws Exception {
+                        testDriver(testTask, MockCoGroupStub.class);
                     }
                 };
         taskRunner.start();
@@ -328,18 +277,12 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
         TaskCancelThread tct = new TaskCancelThread(1, taskRunner, this);
         tct.start();
 
-        try {
-            tct.join();
-            taskRunner.join();
-        } catch (InterruptedException ie) {
-            fail("Joining threads failed");
-        }
-
-        assertThat(success).withFailMessage("The test task was not properly canceled.").isTrue();
+        tct.join();
+        taskRunner.sync();
     }
 
     @TestTemplate
-    void testCancelCoGroupTaskWhileSorting2() {
+    void testCancelCoGroupTaskWhileSorting2() throws Exception {
         int keyCnt = 10;
         int valCnt = 2;
 
@@ -351,29 +294,16 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
         getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
         getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 
-        final CoGroupDriver<Record, Record, Record> testTask =
-                new CoGroupDriver<Record, Record, Record>();
+        final CoGroupDriver<Record, Record, Record> testTask = new CoGroupDriver<>();
 
-        try {
-            addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
-            addInputSorted(new DelayingInfinitiveInputIterator(1000), this.comparator2.duplicate());
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail("The test caused an exception.");
-        }
+        addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
+        addInputSorted(new DelayingInfinitiveInputIterator(1000), this.comparator2.duplicate());
 
-        final AtomicBoolean success = new AtomicBoolean(false);
-
-        Thread taskRunner =
-                new Thread() {
+        CheckedThread taskRunner =
+                new CheckedThread() {
                     @Override
-                    public void run() {
-                        try {
-                            testDriver(testTask, MockCoGroupStub.class);
-                            success.set(true);
-                        } catch (Exception ie) {
-                            ie.printStackTrace();
-                        }
+                    public void go() throws Exception {
+                        testDriver(testTask, MockCoGroupStub.class);
                     }
                 };
         taskRunner.start();
@@ -381,20 +311,12 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
         TaskCancelThread tct = new TaskCancelThread(1, taskRunner, this);
         tct.start();
 
-        try {
-            tct.join();
-            taskRunner.join();
-        } catch (InterruptedException ie) {
-            fail("Joining threads failed");
-        }
-
-        assertThat(success)
-                .withFailMessage("Test threw an exception even though it was properly canceled.")
-                .isTrue();
+        tct.join();
+        taskRunner.sync();
     }
 
     @TestTemplate
-    void testCancelCoGroupTaskWhileCoGrouping() {
+    void testCancelCoGroupTaskWhileCoGrouping() throws Exception {
         int keyCnt = 100;
         int valCnt = 5;
 
@@ -406,29 +328,19 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
         getTaskConfig().setDriverPairComparator(RecordPairComparatorFactory.get());
         getTaskConfig().setDriverStrategy(DriverStrategy.CO_GROUP);
 
-        final CoGroupDriver<Record, Record, Record> testTask =
-                new CoGroupDriver<Record, Record, Record>();
+        final CoGroupDriver<Record, Record, Record> testTask = new CoGroupDriver<>();
 
-        try {
-            addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
-            addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail("The test caused an exception.");
-        }
+        addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
+        addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
 
-        final AtomicBoolean success = new AtomicBoolean(false);
+        final OneShotLatch delayCoGroupProcessingLatch = new OneShotLatch();
 
-        Thread taskRunner =
-                new Thread() {
+        CheckedThread taskRunner =
+                new CheckedThread() {
                     @Override
-                    public void run() {
-                        try {
-                            testDriver(testTask, MockDelayingCoGroupStub.class);
-                            success.set(true);
-                        } catch (Exception ie) {
-                            ie.printStackTrace();
-                        }
+                    public void go() throws Exception {
+                        testDriver(
+                                testTask, new MockDelayingCoGroupStub(delayCoGroupProcessingLatch));
                     }
                 };
         taskRunner.start();
@@ -436,16 +348,9 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
         TaskCancelThread tct = new TaskCancelThread(1, taskRunner, this);
         tct.start();
 
-        try {
-            tct.join();
-            taskRunner.join();
-        } catch (InterruptedException ie) {
-            fail("Joining threads failed");
-        }
-
-        assertThat(success)
-                .withFailMessage("Test threw an exception even though it was properly canceled.")
-                .isTrue();
+        tct.join();
+        delayCoGroupProcessingLatch.trigger();
+        taskRunner.sync();
     }
 
     public static class MockFailingCoGroupStub extends RichCoGroupFunction<Record, Record, Record> {
@@ -488,24 +393,17 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
             extends RichCoGroupFunction<Record, Record, Record> {
         private static final long serialVersionUID = 1L;
 
-        @SuppressWarnings("unused")
+        private final OneShotLatch delayCoGroupProcessingLatch;
+
+        public MockDelayingCoGroupStub(OneShotLatch delayCoGroupProcessingLatch) {
+            this.delayCoGroupProcessingLatch = delayCoGroupProcessingLatch;
+        }
+
         @Override
         public void coGroup(
-                Iterable<Record> records1, Iterable<Record> records2, Collector<Record> out) {
-
-            for (Record r : records1) {
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                }
-            }
-
-            for (Record r : records2) {
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                }
-            }
+                Iterable<Record> records1, Iterable<Record> records2, Collector<Record> out)
+                throws InterruptedException {
+            delayCoGroupProcessingLatch.await();
         }
     }
 }

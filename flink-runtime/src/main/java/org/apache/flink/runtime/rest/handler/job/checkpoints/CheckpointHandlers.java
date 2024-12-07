@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.job.checkpoints;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.runtime.dispatcher.UnknownOperationKeyException;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
@@ -48,6 +47,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -117,7 +117,7 @@ public class CheckpointHandlers {
 
         public CheckpointTriggerHandler(
                 final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-                final Time timeout,
+                final Duration timeout,
                 final Map<String, String> responseHeaders) {
             super(
                     leaderRetriever,
@@ -140,10 +140,13 @@ public class CheckpointHandlers {
                 throws RestHandlerException {
             final AsynchronousJobOperationKey operationKey = createOperationKey(request);
 
-            return gateway.triggerCheckpoint(
-                            operationKey,
-                            request.getRequestBody().getCheckpointType(),
-                            RpcUtils.INF_TIMEOUT)
+            CheckpointType checkpointType = request.getRequestBody().getCheckpointType();
+            if (checkpointType == CheckpointType.INCREMENTAL) {
+                throw new IllegalStateException(
+                        "Flink does not support triggering incremental checkpoint explicitly."
+                                + " See FLINK-33723.");
+            }
+            return gateway.triggerCheckpoint(operationKey, checkpointType, RpcUtils.INF_TIMEOUT)
                     .handle(
                             (acknowledge, throwable) -> {
                                 if (throwable == null) {
@@ -167,7 +170,7 @@ public class CheckpointHandlers {
 
         public CheckpointStatusHandler(
                 final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-                final Time timeout,
+                final Duration timeout,
                 final Map<String, String> responseHeaders) {
             super(leaderRetriever, timeout, responseHeaders, CheckpointStatusHeaders.getInstance());
         }

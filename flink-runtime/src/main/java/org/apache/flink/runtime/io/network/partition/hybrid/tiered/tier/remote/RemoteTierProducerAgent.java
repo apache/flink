@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.remote;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.PartitionFileWriter;
@@ -28,6 +29,8 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProd
 
 import java.util.Arrays;
 
+import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils.compressBufferIfPossible;
+import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils.getRemoteTierName;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** The implementation of {@link TierProducerAgent} for the remote tier. */
@@ -43,6 +46,8 @@ public class RemoteTierProducerAgent implements TierProducerAgent {
 
     private final int[] currentSubpartitionSegmentWriteBuffers;
 
+    private final BufferCompressor bufferCompressor;
+
     RemoteTierProducerAgent(
             TieredStoragePartitionId partitionId,
             int numSubpartitions,
@@ -51,7 +56,8 @@ public class RemoteTierProducerAgent implements TierProducerAgent {
             boolean isBroadcastOnly,
             PartitionFileWriter partitionFileWriter,
             TieredStorageMemoryManager memoryManager,
-            TieredStorageResourceRegistry resourceRegistry) {
+            TieredStorageResourceRegistry resourceRegistry,
+            BufferCompressor bufferCompressor) {
         checkArgument(
                 numBytesPerSegment >= bufferSizeBytes,
                 "One segment should contain at least one buffer.");
@@ -66,12 +72,14 @@ public class RemoteTierProducerAgent implements TierProducerAgent {
                         memoryManager,
                         partitionFileWriter);
         this.currentSubpartitionSegmentWriteBuffers = new int[numSubpartitions];
+        this.bufferCompressor = bufferCompressor;
         Arrays.fill(currentSubpartitionSegmentWriteBuffers, 0);
         resourceRegistry.registerResource(partitionId, this::releaseAllResources);
     }
 
     @Override
-    public boolean tryStartNewSegment(TieredStorageSubpartitionId subpartitionId, int segmentId) {
+    public boolean tryStartNewSegment(
+            TieredStorageSubpartitionId subpartitionId, int segmentId, int minNumBuffers) {
         cacheDataManager.startSegment(subpartitionId.getSubpartitionId(), segmentId);
         // The remote storage tier should always be able to start a new segment.
         return true;
@@ -79,18 +87,27 @@ public class RemoteTierProducerAgent implements TierProducerAgent {
 
     @Override
     public boolean tryWrite(
-            TieredStorageSubpartitionId subpartitionId, Buffer buffer, Object bufferOwner) {
+            TieredStorageSubpartitionId subpartitionId,
+            Buffer buffer,
+            Object bufferOwner,
+            int numRemainingConsecutiveBuffers) {
         int subpartitionIndex = subpartitionId.getSubpartitionId();
-        if (currentSubpartitionSegmentWriteBuffers[subpartitionIndex] + 1 > numBuffersPerSegment) {
+        if (currentSubpartitionSegmentWriteBuffers[subpartitionIndex] != 0
+                && currentSubpartitionSegmentWriteBuffers[subpartitionIndex]
+                                + 1
+                                + numRemainingConsecutiveBuffers
+                        > numBuffersPerSegment) {
             cacheDataManager.finishSegment(subpartitionIndex);
             currentSubpartitionSegmentWriteBuffers[subpartitionIndex] = 0;
             return false;
         }
-        if (buffer.isBuffer()) {
-            memoryManager.transferBufferOwnership(bufferOwner, this, buffer);
+        Buffer compressedBuffer = compressBufferIfPossible(buffer, bufferCompressor);
+        if (compressedBuffer.isBuffer()) {
+            memoryManager.transferBufferOwnership(
+                    bufferOwner, getRemoteTierName(), compressedBuffer);
         }
         currentSubpartitionSegmentWriteBuffers[subpartitionIndex]++;
-        cacheDataManager.appendBuffer(buffer, subpartitionIndex);
+        cacheDataManager.appendBuffer(compressedBuffer, subpartitionIndex);
         return true;
     }
 

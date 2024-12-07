@@ -155,6 +155,7 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
   )
   [COMMENT table_comment]
   [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
+  [ <distribution> ]
   WITH (key1=val1, key2=val2, ...)
   [ LIKE source_table [( <like_options> )] | AS select_query ]
    
@@ -181,9 +182,15 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
 
 <like_options>:
 {
-   { INCLUDING | EXCLUDING } { ALL | CONSTRAINTS | PARTITIONS }
+   { INCLUDING | EXCLUDING } { ALL | CONSTRAINTS | DISTRIBUTION | PARTITIONS }
  | { INCLUDING | EXCLUDING | OVERWRITING } { GENERATED | OPTIONS | WATERMARKS } 
 }[, ...]
+
+<distribution>:
+{
+    DISTRIBUTED BY [ { HASH | RANGE } ] (bucket_column_name1, bucket_column_name2, ...) ] [INTO n BUCKETS]
+  | DISTRIBUTED INTO n BUCKETS
+}
 
 ```
 
@@ -406,6 +413,36 @@ Flink will assume correctness of the primary key by assuming that the columns nu
 
 Partition the created table by the specified columns. A directory is created for each partition if this table is used as a filesystem sink.
 
+### `DISTRIBUTED`
+
+Buckets enable load balancing in an external storage system by splitting data into disjoint subsets. These subsets group rows with potentially "infinite" keyspace into smaller and more manageable chunks that allow for efficient parallel processing.
+
+Bucketing depends heavily on the semantics of the underlying connector. However, a user can influence the bucketing behavior by specifying the number of buckets, the bucketing algorithm, and (if the algorithm allows it) the columns which are used for target bucket calculation.
+
+All bucketing components (i.e. bucket number, distribution algorithm, bucket key columns) are
+optional from a SQL syntax perspective. 
+
+Given the following SQL statements:
+
+```sql
+-- Example 1
+CREATE TABLE MyTable (uid BIGINT, name STRING) DISTRIBUTED BY HASH(uid) INTO 4 BUCKETS;
+
+-- Example 2
+CREATE TABLE MyTable (uid BIGINT, name STRING) DISTRIBUTED BY (uid) INTO 4 BUCKETS;
+
+-- Example 3
+CREATE TABLE MyTable (uid BIGINT, name STRING) DISTRIBUTED BY (uid);
+
+-- Example 4
+CREATE TABLE MyTable (uid BIGINT, name STRING) DISTRIBUTED INTO 4 BUCKETS;
+```
+
+Example 1 declares a hash function on a fixed number of 4 buckets (i.e. HASH(uid) % 4 = target
+bucket). Example 2 leaves the selection of an algorithm up to the connector. Additionally, 
+Example 3 leaves the number of buckets up  to the connector. 
+In contrast, Example 4 only defines the number of buckets.
+
 ### `WITH` Options
 
 Table properties used to create a table source/sink. The properties are usually used to find and create the underlying connector.
@@ -465,6 +502,7 @@ You can control the merging behavior of:
 * GENERATED - computed columns
 * METADATA - metadata columns
 * OPTIONS - connector options that describe connector and format properties
+* DISTRIBUTION - distribution definition
 * PARTITIONS - partition of the tables
 * WATERMARKS - watermark declarations
 
@@ -547,12 +585,98 @@ CREATE TABLE my_ctas_table (
 INSERT INTO my_ctas_table SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
 ```
 
+The `CREATE` part allows you to specify explicit columns. The resulting table schema will contain the columns defined in the `CREATE` part first followed by the columns from the `SELECT` part. Columns named in both parts, in the `CREATE` and `SELECT` parts, keep the same column position as defined in the `SELECT` part. The data type of `SELECT` columns can also be overridden if specified in the `CREATE` part.
+
+Consider the example statement below:
+
+```sql
+CREATE TABLE my_ctas_table (
+    desc STRING,
+    quantity DOUBLE,   
+    cost AS price * quantity,
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND,
+) WITH (
+    'connector' = 'kafka',
+    ...
+) AS SELECT id, price, quantity, order_time FROM source_table;
+```
+
+The resulting table `my_ctas_table` will be equivalent to create the following table and insert the data with the following statement:
+
+```
+CREATE TABLE my_ctas_table (
+    desc STRING,
+    cost AS price * quantity,
+    id BIGINT,
+    price DOUBLE,
+    quantity DOUBLE,
+    order_time TIMESTAMP(3),
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND
+) WITH (
+    'connector' = 'kafka',
+    ...
+);
+
+INSERT INTO my_ctas_table (id, price, quantity, order_time)
+    SELECT id, price, quantity, order_time FROM source_table;
+```
+
+The `CREATE` part also lets you specify primary keys and distribution strategies. Notice that primary keys work only on `NOT NULL` columns. Currently, primary keys only allow you to define columns from the `SELECT` part which may be `NOT NULL`. The `CREATE` part does not allow `NOT NULL` column definitions.
+
+Consider the example statement below where `id` is a not null column in the `SELECT` part:
+
+```sql
+CREATE TABLE my_ctas_table (
+    PRIMARY KEY (id) NOT ENFORCED
+) DISTRIBUTED BY (id) INTO 4 buckets 
+AS SELECT id, name FROM source_table;
+```
+
+The resulting table `my_ctas_table` will be equivalent to create the following table and insert the data with the following statement:
+
+```
+CREATE TABLE my_ctas_table (
+    id BIGINT NOT NULL PRIMARY KEY NOT ENFORCED,
+    name STRING 
+) DISTRIBUTED BY (id) INTO 4 buckets;
+
+INSERT INTO my_ctas_table SELECT id, name FROM source_table;
+```
+
+`CTAS` also allows you to reorder the columns defined in the `SELECT` part by specifying all column names without data types in the `CREATE` part. This feature is equivalent to the `INSERT INTO` statement.
+The columns specified must match the names and number of columns in the `SELECT` part. This definition cannot be combined with new columns, which requires defining data types.
+
+Consider the example statement below:
+
+```sql
+CREATE TABLE my_ctas_table (
+    order_time, price, quantity, id
+) WITH (
+    'connector' = 'kafka',
+    ...
+) AS SELECT id, price, quantity, order_time FROM source_table;
+```
+
+The resulting table `my_ctas_table` will be equivalent to create the following table and insert the data with the following statement:
+
+```
+CREATE TABLE my_ctas_table (
+    order_time TIMESTAMP(3),
+    price DOUBLE,
+    quantity DOUBLE,
+    id BIGINT
+) WITH (
+    'connector' = 'kafka',
+    ...
+);
+
+INSERT INTO my_ctas_table (order_time, price, quantity, id)
+    SELECT id, price, quantity, order_time FROM source_table;
+```
+
 **Note:** CTAS has these restrictions:
 * Does not support creating a temporary table yet.
-* Does not support specifying explicit columns yet.
-* Does not support specifying explicit watermark yet.
 * Does not support creating partitioned table yet.
-* Does not support specifying primary key constraints yet.
 
 **Note:** By default, CTAS is non-atomic which means the table created won't be dropped automatically if occur errors while inserting data into the table.
 
@@ -567,7 +691,13 @@ If you want to enable atomicity for CTAS, then you should make sure:
 ## [CREATE OR] REPLACE TABLE
 ```sql
 [CREATE OR] REPLACE TABLE [catalog_name.][db_name.]table_name
+  [(
+    { <physical_column_definition> | <metadata_column_definition> | <computed_column_definition> }[ , ...n]
+    [ <watermark_definition> ]
+    [ <table_constraint> ][ , ...n]
+  )]
 [COMMENT table_comment]
+[ <distribution> ]
 WITH (key1=val1, key2=val2, ...)
 AS select_query
 ```
@@ -607,15 +737,50 @@ CREATE TABLE my_rtas_table (
 INSERT INTO my_rtas_table SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
 ```
 
+Similar to `CREATE TABLE AS`, `REPLACE TABLE AS` allows you to specify explicit columns, watermarks, primary keys and distribution strategies. The resulting table schema is built from the `CREATE` part first followed by the columns from the `SELECT` part. Columns named in both parts, in the `CREATE` and `SELECT` parts, keep the same column position as defined in the `SELECT` part. The data type of `SELECT` columns can also be overridden if specified in the `CREATE` part.
+
+Consider the example statement below:
+
+```sql
+REPLACE TABLE my_rtas_table (
+    desc STRING,
+    quantity DOUBLE,   
+    cost AS price * quantity,
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND,
+    PRIMARY KEY (id) NOT ENFORCED
+) DISTRIBUTED BY (id) INTO 4 buckets
+AS SELECT id, price, quantity, order_time FROM source_table;
+```
+
+The resulting table `my_rtas_table` will be equivalent to create the following table and insert the data with the following statement:
+
+```sql
+DROP TABLE my_rtas_table;
+
+CREATE TABLE my_rtas_table (
+    desc STRING,
+    cost AS price * quantity,
+    id BIGINT NOT NULL PRIMARY KEY NOT ENFORCED,
+    price DOUBLE,
+    quantity DOUBLE,
+    order_time TIMESTAMP(3),
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND
+) WITH (
+    'connector' = 'kafka',
+    ...
+);
+
+INSERT INTO my_rtas_table (id, price, quantity, order_time)
+    SELECT id, price, quantity, order_time FROM source_table;
+```
+
 **Note:** RTAS has these restrictions:
 
 * Does not support replacing a temporary table yet.
-* Does not support specifying explicit columns yet.
-* Does not support specifying explicit watermark yet.
 * Does not support creating partitioned table yet.
-* Does not support specifying primary key constraints yet.
 
 **Note:** By default, RTAS is non-atomic which means the table won't be dropped or restored to its origin automatically if occur errors while inserting data into the table.
+**Note:** RTAS will drop the table first, then create the table and insert the data. But if the table is in the in-memory catalog, dropping table will only remove it from the catalog without removing the data in the physical table. So, the data before executing RTAS statement will still exist.
 
 ### Atomicity
 
@@ -628,11 +793,16 @@ If you want to enable atomicity for RTAS, then you should make sure:
 ## CREATE CATALOG
 
 ```sql
-CREATE CATALOG catalog_name
+CREATE CATALOG [IF NOT EXISTS] catalog_name
+  [COMMENT catalog_comment]
   WITH (key1=val1, key2=val2, ...)
 ```
 
 Create a catalog with the given catalog properties. If a catalog with the same name already exists, an exception is thrown.
+
+**IF NOT EXISTS**
+
+If the catalog already exists, nothing happens.
 
 **WITH OPTIONS**
 

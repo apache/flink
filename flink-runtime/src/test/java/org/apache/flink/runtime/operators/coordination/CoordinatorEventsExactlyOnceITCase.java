@@ -50,7 +50,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedValue;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Iterators;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -186,7 +186,7 @@ public class CoordinatorEventsExactlyOnceITCase {
 
         vertex.setParallelism(1);
         vertex.setInvokableClass(EventCollectingTask.class);
-        vertex.getConfiguration().setString(ACC_NAME, name);
+        vertex.getConfiguration().set(ACC_NAME, name);
 
         final OperatorCoordinator.Provider provider =
                 new OperatorCoordinator.Provider() {

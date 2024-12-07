@@ -18,11 +18,11 @@
 
 package org.apache.flink.client.testjar;
 
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.client.cli.CliFrontendTestUtils;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.util.FlinkException;
 
 import java.io.File;
@@ -33,7 +33,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * A testing job with configurable number of calls to {@link ExecutionEnvironment#executeAsync()}.
+ * A testing job with configurable number of calls to {@link
+ * StreamExecutionEnvironment#executeAsync()}.
  */
 public class MultiExecuteJob {
 
@@ -57,7 +58,7 @@ public class MultiExecuteJob {
         int noOfExecutes = Integer.parseInt(args[0]);
         boolean attached = args.length > 1 && Boolean.parseBoolean(args[1]);
 
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         for (int i = 0; i < noOfExecutes; i++) {
             final List<Integer> input = new ArrayList<>();
@@ -65,9 +66,7 @@ public class MultiExecuteJob {
             input.add(2);
             input.add(3);
 
-            env.fromCollection(input)
-                    .map(element -> element + 1)
-                    .output(new DiscardingOutputFormat<>());
+            env.fromData(input).map(element -> element + 1).sinkTo(new DiscardingSink<>());
 
             if (attached) {
                 env.execute();

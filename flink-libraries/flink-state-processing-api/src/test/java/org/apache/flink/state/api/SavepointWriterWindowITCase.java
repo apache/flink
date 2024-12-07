@@ -27,11 +27,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.state.api.utils.MaxWatermarkSource;
+import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
@@ -42,9 +44,8 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
@@ -53,6 +54,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -64,7 +66,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** IT Test for writing savepoints to the {@code WindowOperator}. */
 @SuppressWarnings("unchecked")
 @RunWith(Parameterized.class)
-public class SavepointWriterWindowITCase extends AbstractTestBase {
+public class SavepointWriterWindowITCase extends AbstractTestBaseJUnit4 {
 
     private static final String UID = "uid";
 
@@ -100,19 +102,29 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
                                     transformation.process(new CustomProcessWindowFunction()),
                             stream -> stream.process(new CustomProcessWindowFunction())));
 
-    private static final List<Tuple2<String, StateBackend>> STATE_BACKENDS =
+    private static final List<Tuple3<String, StateBackend, Configuration>> STATE_BACKENDS =
             Arrays.asList(
-                    Tuple2.of("HashMap", new HashMapStateBackend()),
-                    Tuple2.of("EmbeddedRocksDB", new EmbeddedRocksDBStateBackend()));
+                    Tuple3.of(
+                            "HashMap",
+                            new HashMapStateBackend(),
+                            new Configuration().set(StateBackendOptions.STATE_BACKEND, "hashmap")),
+                    Tuple3.of(
+                            "EmbeddedRocksDB",
+                            new EmbeddedRocksDBStateBackend(),
+                            new Configuration().set(StateBackendOptions.STATE_BACKEND, "rocksdb")));
 
     @Parameterized.Parameters(name = "{0}")
     public static Collection<Object[]> data() {
         List<Object[]> parameterList = new ArrayList<>();
-        for (Tuple2<String, StateBackend> stateBackend : STATE_BACKENDS) {
+        for (Tuple3<String, StateBackend, Configuration> stateBackend : STATE_BACKENDS) {
             for (Tuple3<String, WindowBootstrap, WindowStream> setup : SETUP_FUNCTIONS) {
                 Object[] parameters =
                         new Object[] {
-                            stateBackend.f0 + ": " + setup.f0, setup.f1, setup.f2, stateBackend.f1
+                            stateBackend.f0 + ": " + setup.f0,
+                            setup.f1,
+                            setup.f2,
+                            stateBackend.f1,
+                            stateBackend.f2
                         };
                 parameterList.add(parameters);
             }
@@ -127,26 +139,30 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
 
     private final StateBackend stateBackend;
 
+    private final Configuration configuration;
+
     @SuppressWarnings("unused")
     public SavepointWriterWindowITCase(
             String ignore,
             WindowBootstrap windowBootstrap,
             WindowStream windowStream,
-            StateBackend stateBackend) {
+            StateBackend stateBackend,
+            Configuration configuration) {
         this.windowBootstrap = windowBootstrap;
         this.windowStream = windowStream;
         this.stateBackend = stateBackend;
+        this.configuration = configuration;
     }
 
     @Test
     public void testTumbleWindow() throws Exception {
         final String savepointPath = getTempDirPath(new AbstractID().toHexString());
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(stateBackend);
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
         DataStream<Tuple2<String, Integer>> bootstrapData =
-                env.fromCollection(WORDS)
+                env.fromData(WORDS)
                         .map(word -> Tuple2.of(word, 1))
                         .returns(TUPLE_TYPE_INFO)
                         .assignTimestampsAndWatermarks(
@@ -156,7 +172,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
         WindowedStateTransformation<Tuple2<String, Integer>, String, TimeWindow> transformation =
                 OperatorTransformation.bootstrapWith(bootstrapData)
                         .keyBy(tuple -> tuple.f0, Types.STRING)
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(5)));
+                        .window(TumblingEventTimeWindows.of(Duration.ofMillis(5)));
 
         SavepointWriter.newSavepoint(env, stateBackend, 128)
                 .withOperator(
@@ -169,7 +185,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
                 env.addSource(new MaxWatermarkSource<Tuple2<String, Integer>>())
                         .returns(TUPLE_TYPE_INFO)
                         .keyBy(tuple -> tuple.f0)
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(5)));
+                        .window(TumblingEventTimeWindows.of(Duration.ofMillis(5)));
 
         DataStream<Tuple2<String, Integer>> windowed = windowStream.window(stream).uid(UID);
         CloseableIterator<Tuple2<String, Integer>> future = windowed.collectAsync();
@@ -185,12 +201,12 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
     @Test
     public void testTumbleWindowWithEvictor() throws Exception {
         final String savepointPath = getTempDirPath(new AbstractID().toHexString());
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(stateBackend);
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
         DataStream<Tuple2<String, Integer>> bootstrapData =
-                env.fromCollection(WORDS)
+                env.fromData(WORDS)
                         .map(word -> Tuple2.of(word, 1))
                         .returns(TUPLE_TYPE_INFO)
                         .assignTimestampsAndWatermarks(
@@ -200,7 +216,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
         WindowedStateTransformation<Tuple2<String, Integer>, String, TimeWindow> transformation =
                 OperatorTransformation.bootstrapWith(bootstrapData)
                         .keyBy(tuple -> tuple.f0, Types.STRING)
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(5)))
+                        .window(TumblingEventTimeWindows.of(Duration.ofMillis(5)))
                         .evictor(CountEvictor.of(1));
 
         SavepointWriter.newSavepoint(env, stateBackend, 128)
@@ -214,7 +230,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
                 env.addSource(new MaxWatermarkSource<Tuple2<String, Integer>>())
                         .returns(TUPLE_TYPE_INFO)
                         .keyBy(tuple -> tuple.f0)
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(5)))
+                        .window(TumblingEventTimeWindows.of(Duration.ofMillis(5)))
                         .evictor(CountEvictor.of(1));
 
         DataStream<Tuple2<String, Integer>> windowed = windowStream.window(stream).uid(UID);
@@ -231,12 +247,12 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
     @Test
     public void testSlideWindow() throws Exception {
         final String savepointPath = getTempDirPath(new AbstractID().toHexString());
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(stateBackend);
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
         DataStream<Tuple2<String, Integer>> bootstrapData =
-                env.fromCollection(WORDS)
+                env.fromData(WORDS)
                         .map(word -> Tuple2.of(word, 1), TUPLE_TYPE_INFO)
                         .assignTimestampsAndWatermarks(
                                 WatermarkStrategy.<Tuple2<String, Integer>>noWatermarks()
@@ -247,7 +263,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
                         .keyBy(tuple -> tuple.f0, Types.STRING)
                         .window(
                                 SlidingEventTimeWindows.of(
-                                        Time.milliseconds(5), Time.milliseconds(1)));
+                                        Duration.ofMillis(5), Duration.ofMillis(1)));
 
         SavepointWriter.newSavepoint(env, stateBackend, 128)
                 .withOperator(
@@ -262,7 +278,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
                         .keyBy(tuple -> tuple.f0)
                         .window(
                                 SlidingEventTimeWindows.of(
-                                        Time.milliseconds(5), Time.milliseconds(1)));
+                                        Duration.ofMillis(5), Duration.ofMillis(1)));
 
         DataStream<Tuple2<String, Integer>> windowed = windowStream.window(stream).uid(UID);
         CloseableIterator<Tuple2<String, Integer>> future = windowed.collectAsync();
@@ -278,12 +294,12 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
     @Test
     public void testSlideWindowWithEvictor() throws Exception {
         final String savepointPath = getTempDirPath(new AbstractID().toHexString());
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(stateBackend);
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
         DataStream<Tuple2<String, Integer>> bootstrapData =
-                env.fromCollection(WORDS)
+                env.fromData(WORDS)
                         .map(word -> Tuple2.of(word, 1))
                         .returns(TUPLE_TYPE_INFO)
                         .assignTimestampsAndWatermarks(
@@ -295,7 +311,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
                         .keyBy(tuple -> tuple.f0, Types.STRING)
                         .window(
                                 SlidingEventTimeWindows.of(
-                                        Time.milliseconds(5), Time.milliseconds(1)))
+                                        Duration.ofMillis(5), Duration.ofMillis(1)))
                         .evictor(CountEvictor.of(1));
 
         SavepointWriter.newSavepoint(env, stateBackend, 128)
@@ -311,7 +327,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
                         .keyBy(tuple -> tuple.f0)
                         .window(
                                 SlidingEventTimeWindows.of(
-                                        Time.milliseconds(5), Time.milliseconds(1)))
+                                        Duration.ofMillis(5), Duration.ofMillis(1)))
                         .evictor(CountEvictor.of(1));
 
         DataStream<Tuple2<String, Integer>> windowed = windowStream.window(stream).uid(UID);

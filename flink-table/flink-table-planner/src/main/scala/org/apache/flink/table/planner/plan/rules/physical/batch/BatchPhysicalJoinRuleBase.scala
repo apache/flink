@@ -17,25 +17,19 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
-import org.apache.flink.annotation.Experimental
-import org.apache.flink.configuration.ConfigOption
-import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.api.{TableConfig, TableException, ValidationException}
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.planner.JDouble
-import org.apache.flink.table.planner.hint.JoinStrategy
+import org.apache.flink.table.planner.hint.{FlinkHints, JoinStrategy}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalLocalHashAggregate
+import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalJoinRuleBase.SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO
 import org.apache.flink.table.planner.plan.utils.{JoinUtil, OperatorType}
-import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Join, JoinRelType}
 import org.apache.calcite.util.ImmutableBitSet
-
-import java.lang.{Boolean => JBoolean, Double => JDouble}
 
 import scala.collection.JavaConversions._
 
@@ -75,16 +69,13 @@ trait BatchPhysicalJoinRuleBase {
   }
 
   def chooseSemiBuildDistinct(buildRel: RelNode, distinctKeys: Seq[Int]): Boolean = {
-    val tableConfig = unwrapTableConfig(buildRel)
     val mq = buildRel.getCluster.getMetadataQuery
-    val ratioConf =
-      tableConfig.get(BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO)
     val inputRows = mq.getRowCount(buildRel)
     val ndvOfGroupKey = mq.getDistinctRowCount(buildRel, ImmutableBitSet.of(distinctKeys: _*), null)
     if (ndvOfGroupKey == null) {
       false
     } else {
-      ndvOfGroupKey / inputRows < ratioConf
+      ndvOfGroupKey / inputRows < SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO
     }
   }
 
@@ -183,7 +174,7 @@ trait BatchPhysicalJoinRuleBase {
       // BROADCAST use first arg as the broadcast side
       val isLeftToBroadcastInHint =
         getFirstArgInJoinHint(join, JoinStrategy.BROADCAST.getJoinHintName)
-          .equals(JoinStrategy.LEFT_INPUT)
+          .equals(FlinkHints.LEFT_INPUT)
 
       join.getJoinType match {
         // if left join, must broadcast right side
@@ -240,7 +231,7 @@ trait BatchPhysicalJoinRuleBase {
 
     if (withShuffleHashHint) {
       val isLeftToBuild = getFirstArgInJoinHint(join, JoinStrategy.SHUFFLE_HASH.getJoinHintName)
-        .equals(JoinStrategy.LEFT_INPUT)
+        .equals(FlinkHints.LEFT_INPUT)
       (true, isLeftToBuild)
     } else {
       val leftSize = JoinUtil.binaryRowRelNodeSize(join.getLeft)
@@ -248,7 +239,7 @@ trait BatchPhysicalJoinRuleBase {
       val leftIsBuild = if (leftSize == null || rightSize == null || leftSize == rightSize) {
         // use left to build hash table if leftSize or rightSize is unknown or equal size.
         // choose right to build if join is SEMI/ANTI.
-        !join.getJoinType.projectsRight
+        join.getJoinType.projectsRight
       } else {
         leftSize < rightSize
       }
@@ -277,7 +268,7 @@ trait BatchPhysicalJoinRuleBase {
 
     val isLeftToBuild = if (withNestLoopHint) {
       getFirstArgInJoinHint(join, JoinStrategy.NEST_LOOP.getJoinHintName)
-        .equals(JoinStrategy.LEFT_INPUT)
+        .equals(FlinkHints.LEFT_INPUT)
     } else {
       join.getJoinType match {
         case JoinRelType.LEFT => false
@@ -322,29 +313,8 @@ trait BatchPhysicalJoinRuleBase {
 }
 object BatchPhysicalJoinRuleBase {
 
-  // It is a experimental config, will may be removed later.
-  @Experimental
-  val TABLE_OPTIMIZER_SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO: ConfigOption[JDouble] =
-    key("table.optimizer.semi-anti-join.build-distinct.ndv-ratio")
-      .doubleType()
-      .defaultValue(JDouble.valueOf(0.8))
-      .withDescription(
-        "In order to reduce the amount of data on semi/anti join's" +
-          " build side, we will add distinct node before semi/anti join when" +
-          "  the semi-side or semi/anti join can distinct a lot of data in advance." +
-          " We add this configuration to help the optimizer to decide whether to" +
-          " add the distinct.")
-
-  // It is a experimental config, will may be removed later.
-  @Experimental
-  val TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED: ConfigOption[JBoolean] =
-    key("table.optimizer.shuffle-by-partial-key-enabled")
-      .booleanType()
-      .defaultValue(JBoolean.valueOf(false))
-      .withDescription(
-        "Enables shuffling by partial partition keys. " +
-          "For example, A join with join condition: L.c1 = R.c1 and L.c2 = R.c2. " +
-          "If this flag is enabled, there are 3 shuffle strategy:\n " +
-          "1. L and R shuffle by c1 \n 2. L and R shuffle by c2\n " +
-          "3. L and R shuffle by c1 and c2\n It can reduce some shuffle cost someTimes.")
+  // In order to reduce the amount of data on semi/anti join's
+  // build side, we will add distinct node before semi/anti join when
+  // the semi-side or semi/anti join can distinct a lot of data in advance.
+  val SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO = 0.8
 }

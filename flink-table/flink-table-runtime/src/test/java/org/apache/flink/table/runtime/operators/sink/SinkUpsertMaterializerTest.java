@@ -34,7 +34,7 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 import org.apache.flink.types.RowKind;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
@@ -42,7 +42,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.rowOfKind;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 
 /** Test for {@link SinkUpsertMaterializer}. */
-public class SinkUpsertMaterializerTest {
+class SinkUpsertMaterializerTest {
 
     private final StateTtlConfig ttlConfig = StateConfigUtil.createTtlConfig(1000);
     private final LogicalType[] types =
@@ -71,7 +71,7 @@ public class SinkUpsertMaterializerTest {
             };
 
     @Test
-    public void test() throws Exception {
+    void test() throws Exception {
         SinkUpsertMaterializer materializer =
                 new SinkUpsertMaterializer(
                         ttlConfig, serializer, equaliser, upsertKeyEqualiser, null);
@@ -113,7 +113,7 @@ public class SinkUpsertMaterializerTest {
     }
 
     @Test
-    public void testInputHasUpsertKeyWithNonDeterministicColumn() throws Exception {
+    void testInputHasUpsertKeyWithNonDeterministicColumn() throws Exception {
         SinkUpsertMaterializer materializer =
                 new SinkUpsertMaterializer(
                         ttlConfig, serializer, equaliser, upsertKeyEqualiser, new int[] {0});

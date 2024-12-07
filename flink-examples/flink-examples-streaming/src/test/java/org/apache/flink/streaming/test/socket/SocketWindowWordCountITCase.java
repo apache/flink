@@ -20,7 +20,7 @@ package org.apache.flink.streaming.test.socket;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.streaming.examples.socket.SocketWindowWordCount;
 import org.apache.flink.test.testdata.WordCountData;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.util.NetUtils;
 
 import org.junit.Test;
@@ -37,7 +37,7 @@ import java.net.Socket;
 import static org.junit.Assert.fail;
 
 /** Tests for {@link SocketWindowWordCount}. */
-public class SocketWindowWordCountITCase extends AbstractTestBase {
+public class SocketWindowWordCountITCase extends AbstractTestBaseJUnit4 {
 
     @Test
     public void testJavaProgram() throws Exception {

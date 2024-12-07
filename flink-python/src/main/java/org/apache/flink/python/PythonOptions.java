@@ -182,7 +182,7 @@ public class PythonOptions {
                                     .text("2. the command line option \"-pyclientexec\";")
                                     .linebreak()
                                     .text(
-                                            "3. the configuration 'python.client.executable' defined in flink-conf.yaml")
+                                            "3. the configuration 'python.client.executable' defined in config.yaml")
                                     .linebreak()
                                     .text("4. the environment variable PYFLINK_CLIENT_EXECUTABLE;")
                                     .build());

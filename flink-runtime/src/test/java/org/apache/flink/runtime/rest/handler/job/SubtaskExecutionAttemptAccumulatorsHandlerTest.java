@@ -21,7 +21,6 @@ package org.apache.flink.runtime.rest.handler.job;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -37,24 +36,24 @@ import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptAccumul
 import org.apache.flink.runtime.rest.messages.job.UserAccumulator;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.OptionalFailure;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests of {@link SubtaskExecutionAttemptAccumulatorsHandler}. */
-public class SubtaskExecutionAttemptAccumulatorsHandlerTest extends TestLogger {
+class SubtaskExecutionAttemptAccumulatorsHandlerTest {
 
     @Test
-    public void testHandleRequest() throws Exception {
+    void testHandleRequest() throws Exception {
 
         // Instance the handler.
         final RestHandlerConfiguration restHandlerConfiguration =
@@ -63,12 +62,12 @@ public class SubtaskExecutionAttemptAccumulatorsHandlerTest extends TestLogger {
         final SubtaskExecutionAttemptAccumulatorsHandler handler =
                 new SubtaskExecutionAttemptAccumulatorsHandler(
                         () -> null,
-                        Time.milliseconds(100L),
+                        Duration.ofMillis(100L),
                         Collections.emptyMap(),
                         SubtaskExecutionAttemptAccumulatorsHeaders.getInstance(),
                         new DefaultExecutionGraphCache(
                                 restHandlerConfiguration.getTimeout(),
-                                Time.milliseconds(restHandlerConfiguration.getRefreshInterval())),
+                                Duration.ofMillis(restHandlerConfiguration.getRefreshInterval())),
                         Executors.directExecutor());
 
         // Instance a empty request.
@@ -124,6 +123,6 @@ public class SubtaskExecutionAttemptAccumulatorsHandlerTest extends TestLogger {
                         userAccumulatorList);
 
         // Verify.
-        assertEquals(expected, accumulatorsInfo);
+        assertThat(accumulatorsInfo).isEqualTo(expected);
     }
 }

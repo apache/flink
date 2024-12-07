@@ -39,7 +39,7 @@ public class LogUrlUtil {
     /** Validate and normalize log url pattern. */
     public static Optional<String> getValidLogUrlPattern(
             final Configuration config, final ConfigOption<String> option) {
-        String pattern = config.getString(option);
+        String pattern = config.get(option);
         if (StringUtils.isNullOrWhitespaceOnly(pattern)) {
             return Optional.empty();
         }

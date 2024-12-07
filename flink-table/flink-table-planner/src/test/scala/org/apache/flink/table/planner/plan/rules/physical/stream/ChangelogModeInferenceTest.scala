@@ -17,21 +17,22 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.table.api.ExplainDetail
-import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.api.config.{AggregatePhaseStrategy, OptimizerConfigOptions}
 import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.planner.plan.optimize.program.FlinkChangelogModeInferenceProgram
-import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, TableTestBase}
+import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
+
+import java.time.Duration
 
 /** Tests for [[FlinkChangelogModeInferenceProgram]]. */
 class ChangelogModeInferenceTest extends TableTestBase {
 
   private val util = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util.addTable("""
                     |CREATE TABLE MyTable (
@@ -152,10 +153,10 @@ class ChangelogModeInferenceTest extends TableTestBase {
   @Test
   def testTwoLevelGroupByLocalGlobalOn(): Unit = {
     util.enableMiniBatch()
-    util.tableEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    util.tableEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
     util.tableEnv.getConfig.set(
       OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
-      AggregatePhaseStrategy.TWO_PHASE.toString)
+      AggregatePhaseStrategy.TWO_PHASE)
     // two level unbounded groupBy
     val sql =
       """
@@ -247,7 +248,7 @@ class ChangelogModeInferenceTest extends TableTestBase {
   @Test
   def testPropagateUpdateKindAmongRelNodeBlocks(): Unit = {
     util.tableEnv.getConfig.set(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
       Boolean.box(true))
     util.addTable("""
                     |create table sink1 (

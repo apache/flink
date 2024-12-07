@@ -52,5 +52,10 @@ public abstract class ExpressionDefaultVisitor<T> implements ExpressionVisitor<T
         return defaultMethod(other);
     }
 
+    @Override
+    public T visit(NestedFieldReferenceExpression nestedFieldReference) {
+        return defaultMethod(nestedFieldReference);
+    }
+
     protected abstract T defaultMethod(Expression expression);
 }

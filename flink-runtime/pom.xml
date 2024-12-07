@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.19-SNAPSHOT</version>
+		<version>2.0-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-runtime</artifactId>
@@ -34,7 +34,14 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<surefire.module.config><!--
+		<!--
+		Two properties below should be merged once support for jdk8 and jdk11 is dropped.
+		The reason of extraction into a separate property with profile is that
+		specifying -Djava.security.manager=allow within ${surefire.module.config} leads to
+		hanging of surefire for jdk8 and jdk11
+		-->
+		<surefire.module.config.jdk21></surefire.module.config.jdk21>
+		<surefire.module.config> ${surefire.module.config.jdk21} <!--
 			JobManagerProcessUtilsTest
 			-->--add-opens=java.base/java.util=ALL-UNNAMED <!--
 			ConnectionUtilsTest
@@ -76,12 +83,6 @@ under the License.
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-java</artifactId>
-			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
@@ -187,6 +188,12 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-datagen</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-text</artifactId>
 		</dependency>
@@ -208,6 +215,13 @@ under the License.
 			<artifactId>snappy-java</artifactId>
 		</dependency>
 
+		<!-- Async Profiler library -->
+		<dependency>
+			<groupId>tools.profiler</groupId>
+			<artifactId>async-profiler</artifactId>
+			<version>2.9</version>
+		</dependency>
+
 		<!-- Lz4 compression library -->
 		<dependency>
 			<groupId>org.lz4</groupId>
@@ -218,7 +232,7 @@ under the License.
 		<dependency>
 			<groupId>io.airlift</groupId>
 			<artifactId>aircompressor</artifactId>
-			<version>0.21</version>
+			<version>0.27</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
@@ -273,7 +287,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>fink-migration-test-utils</artifactId>
+			<artifactId>flink-migration-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -286,21 +300,8 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<!-- This must appear before powermock on the classpath! -->
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-inline</artifactId>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.powermock</groupId>
-			<artifactId>powermock-module-junit4</artifactId>
-			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.powermock</groupId>
-			<artifactId>powermock-api-mockito2</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
@@ -471,6 +472,18 @@ under the License.
 					</plugin>
 				</plugins>
 			</build>
+		</profile>
+		<profile>
+			<id>java21</id>
+			<activation>
+				<jdk>[21,)</jdk>
+			</activation>
+
+			<properties>
+				<surefire.module.config.jdk21> <!--
+					required by AbstractFineGrainedSlotManagerITCase-->
+					-Djava.security.manager=allow</surefire.module.config.jdk21>
+			</properties>
 		</profile>
 	</profiles>
 </project>

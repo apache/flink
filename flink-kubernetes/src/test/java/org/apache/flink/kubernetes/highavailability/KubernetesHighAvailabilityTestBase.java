@@ -38,7 +38,6 @@ import org.apache.flink.util.function.RunnableWithException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -89,7 +88,6 @@ class KubernetesHighAvailabilityTestBase {
         final Configuration configuration;
 
         final CompletableFuture<Void> closeKubeClientFuture;
-        final CompletableFuture<Map<String, String>> deleteConfigMapByLabelsFuture;
 
         Context() throws Exception {
             kubernetesTestFixture =
@@ -102,8 +100,6 @@ class KubernetesHighAvailabilityTestBase {
             flinkKubeClient = kubernetesTestFixture.getFlinkKubeClient();
             configuration = kubernetesTestFixture.getConfiguration();
             closeKubeClientFuture = kubernetesTestFixture.getCloseKubeClientFuture();
-            deleteConfigMapByLabelsFuture =
-                    kubernetesTestFixture.getDeleteConfigMapByLabelsFuture();
             electionEventHandler = new TestingLeaderElectionListener();
             leaderElectionDriver = createLeaderElectionDriver();
 

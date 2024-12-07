@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.gateway.rest.handler;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.rest.handler.AbstractHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -39,6 +38,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -65,7 +65,7 @@ public abstract class AbstractSqlGatewayRestHandler<
                 () -> CompletableFuture.completedFuture(NonLeaderRetrievalRestfulGateway.INSTANCE),
                 // SqlGatewayRestHandler doesn't support RPC timeout option, this property is used
                 // for placeholder
-                Time.seconds(1),
+                Duration.ofSeconds(1),
                 responseHeaders,
                 messageHeaders);
         this.service = service;

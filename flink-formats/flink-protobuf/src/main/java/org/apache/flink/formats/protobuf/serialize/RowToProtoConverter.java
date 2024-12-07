@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.protobuf.serialize;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbConstant;
 import org.apache.flink.formats.protobuf.PbFormatConfig;
@@ -51,16 +52,17 @@ import java.util.UUID;
 public class RowToProtoConverter {
     private static final Logger LOG = LoggerFactory.getLogger(ProtoToRowConverter.class);
     private final Method encodeMethod;
+    private boolean isCodeSplit = false;
 
     public RowToProtoConverter(RowType rowType, PbFormatConfig formatConfig)
             throws PbCodegenException {
         try {
             Descriptors.Descriptor descriptor =
                     PbFormatUtils.getDescriptor(formatConfig.getMessageClassName());
-            PbFormatContext formatContext = new PbFormatContext(formatConfig);
+            PbFormatContext formatContext = new PbFormatContext(formatConfig, false);
 
             PbCodegenAppender codegenAppender = new PbCodegenAppender(0);
-            String uuid = UUID.randomUUID().toString().replaceAll("\\-", "");
+            String uuid = UUID.randomUUID().toString().replace("-", "");
             String generatedClassName = "GeneratedRowToProto_" + uuid;
             String generatedPackageName = RowToProtoConverter.class.getPackage().getName();
             codegenAppender.appendLine("package " + generatedPackageName);
@@ -89,6 +91,12 @@ public class RowToProtoConverter {
             codegenAppender.appendSegment(genCode);
             codegenAppender.appendLine("return message");
             codegenAppender.end("}");
+            if (!formatContext.getSplitMethodStack().isEmpty()) {
+                isCodeSplit = true;
+                for (String spliteMethod : formatContext.getSplitMethodStack()) {
+                    codegenAppender.appendSegment(spliteMethod);
+                }
+            }
             codegenAppender.end("}");
 
             String printCode = codegenAppender.printWithLineNumber();
@@ -108,5 +116,10 @@ public class RowToProtoConverter {
     public byte[] convertRowToProtoBinary(RowData rowData) throws Exception {
         AbstractMessage message = (AbstractMessage) encodeMethod.invoke(null, rowData);
         return message.toByteArray();
+    }
+
+    @VisibleForTesting
+    protected boolean isCodeSplit() {
+        return isCodeSplit;
     }
 }

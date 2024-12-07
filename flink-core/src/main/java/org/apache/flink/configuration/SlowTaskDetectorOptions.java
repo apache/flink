@@ -18,6 +18,7 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 
 import java.time.Duration;
@@ -25,6 +26,7 @@ import java.time.Duration;
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /** Configuration options to detect slow tasks. */
+@PublicEvolving
 public class SlowTaskDetectorOptions {
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)

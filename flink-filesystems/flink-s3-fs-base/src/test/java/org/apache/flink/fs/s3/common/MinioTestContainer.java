@@ -33,13 +33,14 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import org.testcontainers.utility.Base58;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Locale;
 
 /** {@code MinioTestContainer} provides a {@code Minio} test instance. */
-public class MinioTestContainer extends GenericContainer<MinioTestContainer> {
-
-    private static final String FLINK_CONFIG_S3_ENDPOINT = "s3.endpoint";
+class MinioTestContainer extends GenericContainer<MinioTestContainer> {
 
     private static final int DEFAULT_PORT = 9000;
 
@@ -113,16 +114,16 @@ public class MinioTestContainer extends GenericContainer<MinioTestContainer> {
      * relevant parameter to access the {@code Minio} instance.
      */
     public void setS3ConfigOptions(Configuration config) {
-        config.setString(FLINK_CONFIG_S3_ENDPOINT, getHttpEndpoint());
+        config.set(AbstractS3FileSystemFactory.ENDPOINT, getHttpEndpoint());
         config.setString("s3.path.style.access", "true");
-        config.setString("s3.access.key", accessKey);
-        config.setString("s3.secret.key", secretKey);
+        config.set(AbstractS3FileSystemFactory.ACCESS_KEY, accessKey);
+        config.set(AbstractS3FileSystemFactory.SECRET_KEY, secretKey);
     }
 
     public void initializeFileSystem(Configuration config) {
         Preconditions.checkArgument(
-                config.containsKey(FLINK_CONFIG_S3_ENDPOINT),
-                FLINK_CONFIG_S3_ENDPOINT
+                config.containsKey(AbstractS3FileSystemFactory.ENDPOINT.key()),
+                AbstractS3FileSystemFactory.ENDPOINT.key()
                         + " needs to be specified before initializing the FileSystems.");
         FileSystem.initialize(config, null);
     }
@@ -142,5 +143,16 @@ public class MinioTestContainer extends GenericContainer<MinioTestContainer> {
      */
     public String getS3UriForDefaultBucket() {
         return "s3://" + getDefaultBucketName();
+    }
+
+    public void writeCredentialsFile(File credentialsFile) throws IOException {
+        try (FileWriter writer = new FileWriter(credentialsFile)) {
+            writer.write(
+                    String.format(
+                            "[default]\n"
+                                    + "aws_access_key_id = %s\n"
+                                    + "aws_secret_access_key = %s\n",
+                            accessKey, secretKey));
+        }
     }
 }

@@ -20,7 +20,6 @@ package org.apache.flink.client.deployment;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
@@ -40,21 +39,16 @@ public abstract class AbstractContainerizedClusterClientFactory<ClusterID>
         checkNotNull(configuration);
 
         final int jobManagerMemoryMB =
-                JobManagerProcessUtils.processSpecFromConfigWithNewOptionToInterpretLegacyHeap(
-                                configuration, JobManagerOptions.TOTAL_PROCESS_MEMORY)
+                JobManagerProcessUtils.processSpecFromConfig(configuration)
                         .getTotalProcessMemorySize()
                         .getMebiBytes();
 
         final int taskManagerMemoryMB =
-                TaskExecutorProcessUtils.processSpecFromConfig(
-                                TaskExecutorProcessUtils
-                                        .getConfigurationMapLegacyTaskManagerHeapSizeToConfigOption(
-                                                configuration,
-                                                TaskManagerOptions.TOTAL_PROCESS_MEMORY))
+                TaskExecutorProcessUtils.processSpecFromConfig(configuration)
                         .getTotalProcessMemorySize()
                         .getMebiBytes();
 
-        int slotsPerTaskManager = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
+        int slotsPerTaskManager = configuration.get(TaskManagerOptions.NUM_TASK_SLOTS);
 
         return new ClusterSpecification.ClusterSpecificationBuilder()
                 .setMasterMemoryMB(jobManagerMemoryMB)

@@ -20,10 +20,10 @@ package org.apache.flink.streaming.api.windowing.evictors;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
 
+import java.time.Duration;
 import java.util.Iterator;
 
 /**
@@ -125,8 +125,8 @@ public class TimeEvictor<W extends Window> implements Evictor<Object, W> {
      *
      * @param windowSize The amount of time for which to keep elements.
      */
-    public static <W extends Window> TimeEvictor<W> of(Time windowSize) {
-        return new TimeEvictor<>(windowSize.toMilliseconds());
+    public static <W extends Window> TimeEvictor<W> of(Duration windowSize) {
+        return new TimeEvictor<>(windowSize.toMillis());
     }
 
     /**
@@ -136,7 +136,7 @@ public class TimeEvictor<W extends Window> implements Evictor<Object, W> {
      * @param windowSize The amount of time for which to keep elements.
      * @param doEvictAfter Whether eviction is done after window function.
      */
-    public static <W extends Window> TimeEvictor<W> of(Time windowSize, boolean doEvictAfter) {
-        return new TimeEvictor<>(windowSize.toMilliseconds(), doEvictAfter);
+    public static <W extends Window> TimeEvictor<W> of(Duration windowSize, boolean doEvictAfter) {
+        return new TimeEvictor<>(windowSize.toMillis(), doEvictAfter);
     }
 }

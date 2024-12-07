@@ -27,6 +27,7 @@ import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -42,7 +43,6 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.ObjectCodec;
@@ -55,6 +55,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.Module;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.jsontype.NamedType;
@@ -68,25 +69,11 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexWindowBound;
 
 import java.io.IOException;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Constructor;
 import java.util.Optional;
 
 /** A utility class that provide abilities for JSON serialization and deserialization. */
 @Internal
 public class JsonSerdeUtil {
-
-    /** Return true if the given class's constructors have @JsonCreator annotation, else false. */
-    public static boolean hasJsonCreatorAnnotation(Class<?> clazz) {
-        for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
-            for (Annotation annotation : constructor.getAnnotations()) {
-                if (annotation instanceof JsonCreator) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
 
     /**
      * Object mapper shared instance to serialize and deserialize the plan. Note that creating and
@@ -107,6 +94,7 @@ public class JsonSerdeUtil {
                         .getTypeFactory()
                         .withClassLoader(JsonSerdeUtil.class.getClassLoader()));
         OBJECT_MAPPER_INSTANCE.configure(MapperFeature.USE_GETTERS_AS_SETTERS, false);
+        OBJECT_MAPPER_INSTANCE.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
         OBJECT_MAPPER_INSTANCE.registerModule(createFlinkTableJacksonModule());
     }
 
@@ -158,6 +146,7 @@ public class JsonSerdeUtil {
         module.addSerializer(new ResolvedExpressionJsonSerializer());
         module.addSerializer(new ResolvedSchemaJsonSerializer());
         module.addSerializer(new RequiredDistributionJsonSerializer());
+        module.addSerializer(new TableDistributionJsonSerializer());
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -186,6 +175,7 @@ public class JsonSerdeUtil {
         module.addDeserializer(ResolvedSchema.class, new ResolvedSchemaJsonDeserializer());
         module.addDeserializer(
                 RequiredDistribution.class, new RequiredDistributionJsonDeserializer());
+        module.addDeserializer(TableDistribution.class, new TableDistributionJsonDeserializer());
     }
 
     private static void registerMixins(SimpleModule module) {

@@ -19,26 +19,31 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
+import org.apache.flink.table.planner.expressions.utils.Func0$;
 import org.apache.flink.table.planner.factories.TableFactoryHarness;
 import org.apache.flink.table.planner.plan.optimize.program.BatchOptimizeContext;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkChainedProgram;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkHepRuleSetProgramBuilder;
 import org.apache.flink.table.planner.plan.optimize.program.HEP_RULES_EXECUTION_TYPE;
+import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
+import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
 
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.tools.RuleSets;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,16 +56,18 @@ import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link PushProjectIntoTableSourceScanRule}. */
-public class PushProjectIntoTableSourceScanRuleTest
-        extends PushProjectIntoLegacyTableSourceScanRuleTest {
+class PushProjectIntoTableSourceScanRuleTest extends TableTestBase {
 
-    @Rule public final SharedObjects sharedObjects = SharedObjects.create();
+    @RegisterExtension
+    private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
-    @Override
+    private final BatchTableTestUtil util = batchTestUtil(TableConfig.getDefault());
+
+    @BeforeEach
     public void setup() {
-        util().buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE());
+        util.buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE());
         CalciteConfig calciteConfig =
-                TableConfigUtils.getCalciteConfig(util().tableEnv().getConfig());
+                TableConfigUtils.getCalciteConfig(util.tableEnv().getConfig());
         calciteConfig
                 .getBatchProgram()
                 .get()
@@ -81,7 +88,7 @@ public class PushProjectIntoTableSourceScanRuleTest
                         + " 'connector' = 'values',\n"
                         + " 'bounded' = 'true'\n"
                         + ")";
-        util().tableEnv().executeSql(ddl1);
+        util.tableEnv().executeSql(ddl1);
 
         String ddl2 =
                 "CREATE TABLE VirtualTable (\n"
@@ -93,7 +100,7 @@ public class PushProjectIntoTableSourceScanRuleTest
                         + " 'connector' = 'values',\n"
                         + " 'bounded' = 'true'\n"
                         + ")";
-        util().tableEnv().executeSql(ddl2);
+        util.tableEnv().executeSql(ddl2);
 
         String ddl3 =
                 "CREATE TABLE NestedTable (\n"
@@ -108,7 +115,7 @@ public class PushProjectIntoTableSourceScanRuleTest
                         + " 'nested-projection-supported' = 'true',"
                         + " 'bounded' = 'true'\n"
                         + ")";
-        util().tableEnv().executeSql(ddl3);
+        util.tableEnv().executeSql(ddl3);
 
         String ddl4 =
                 "CREATE TABLE MetadataTable(\n"
@@ -123,7 +130,7 @@ public class PushProjectIntoTableSourceScanRuleTest
                         + " 'bounded' = 'true',\n"
                         + " 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'"
                         + ")";
-        util().tableEnv().executeSql(ddl4);
+        util.tableEnv().executeSql(ddl4);
 
         String ddl5 =
                 "CREATE TABLE UpsertTable("
@@ -139,7 +146,7 @@ public class PushProjectIntoTableSourceScanRuleTest
                         + "  'changelod-mode' = 'I,UB,D',"
                         + " 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'"
                         + ")";
-        util().tableEnv().executeSql(ddl5);
+        util.tableEnv().executeSql(ddl5);
 
         String ddl6 =
                 "CREATE TABLE NestedItemTable (\n"
@@ -157,7 +164,7 @@ public class PushProjectIntoTableSourceScanRuleTest
                         + " 'nested-projection-supported' = 'true',"
                         + " 'bounded' = 'true'\n"
                         + ")";
-        util().tableEnv().executeSql(ddl6);
+        util.tableEnv().executeSql(ddl6);
 
         String ddl7 =
                 "CREATE TABLE ItemTable (\n"
@@ -168,23 +175,65 @@ public class PushProjectIntoTableSourceScanRuleTest
                         + "    `data_map` MAP<STRING, ROW<`value` BIGINT>>>,\n"
                         + "  `outer_array` ARRAY<INT>,\n"
                         + "  `outer_map` MAP<STRING, STRING>,\n"
+                        + "  `chart` ROW<"
+                        + "    `result` ARRAY<ROW<`meta` ROW<"
+                        + "                         `symbol` STRING NOT NULL> NOT NULL> NOT NULL>"
+                        + "     NOT NULL>,\n"
                         + "   WATERMARK FOR `Timestamp` AS `Timestamp`\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
                         + " 'bounded' = 'true'\n"
                         + ")";
-        util().tableEnv().executeSql(ddl7);
+        util.tableEnv().executeSql(ddl7);
     }
 
     @Test
-    public void testProjectWithMapType() {
+    void testSimpleProject() {
+        util.verifyRelPlan("SELECT a, c FROM MyTable");
+    }
+
+    @Test
+    void testSimpleProjectWithVirtualColumn() {
+        util.verifyRelPlan("SELECT a, d FROM VirtualTable");
+    }
+
+    @Test
+    void testCannotProject() {
+        util.verifyRelPlan("SELECT a, c, b + 1 FROM MyTable");
+    }
+
+    @Test
+    void testCannotProjectWithVirtualColumn() {
+        util.verifyRelPlan("SELECT a, c, d, b + 1 FROM VirtualTable");
+    }
+
+    @Test
+    void testProjectWithUdf() {
+        util.verifyRelPlan("SELECT a, TRIM(c) FROM MyTable");
+    }
+
+    @Test
+    void testProjectWithUdfWithVirtualColumn() {
+        util.addTemporarySystemFunction("my_udf", Func0$.MODULE$);
+        util.verifyRelPlan("SELECT a, my_udf(d) FROM VirtualTable");
+    }
+
+    @Test
+    void testProjectWithoutInputRef() {
+        // Regression by: CALCITE-4220,
+        // the constant project was removed,
+        // so that the rule can not be matched.
+        util.verifyRelPlan("SELECT COUNT(1) FROM MyTable");
+    }
+
+    @Test
+    void testProjectWithMapType() {
         String sqlQuery = "SELECT id, testMap['e']\n" + "FROM NestedTable";
-        util().verifyRelPlan(sqlQuery);
+        util.verifyRelPlan(sqlQuery);
     }
 
-    @Override
     @Test
-    public void testNestedProject() {
+    void testNestedProject() {
         String sqlQuery =
                 "SELECT id,\n"
                         + "    deepNested.nested1.name AS nestedName,\n"
@@ -192,149 +241,154 @@ public class PushProjectIntoTableSourceScanRuleTest
                         + "    deepNested.nested2.flag AS nestedFlag,\n"
                         + "    deepNested.nested2.num AS nestedNum\n"
                         + "FROM NestedTable";
-        util().verifyRelPlan(sqlQuery);
+        util.verifyRelPlan(sqlQuery);
     }
 
     @Test
-    public void testComplicatedNestedProject() {
+    void testComplicatedNestedProject() {
         String sqlQuery =
                 "SELECT id,"
                         + "    deepNested.nested1.name AS nestedName,\n"
                         + "    (`deepNestedWith.`.`.value` + `deepNestedWith.`.nested.`.value`) AS nestedSum\n"
                         + "FROM NestedTable";
-        util().verifyRelPlan(sqlQuery);
+        util.verifyRelPlan(sqlQuery);
     }
 
     @Test
-    public void testProjectWithDuplicateMetadataKey() {
+    void testProjectWithDuplicateMetadataKey() {
         String sqlQuery = "SELECT id, metadata_3, metadata_1 FROM MetadataTable";
 
-        util().verifyRelPlan(sqlQuery);
+        util.verifyRelPlan(sqlQuery);
     }
 
     @Test
-    public void testNestProjectWithMetadata() {
+    void testNestProjectWithMetadata() {
         String sqlQuery =
                 "SELECT id,"
                         + "    deepNested.nested1 AS nested1,\n"
                         + "    deepNested.nested1.`value` + deepNested.nested2.num + metadata_1 as results\n"
                         + "FROM MetadataTable";
 
-        util().verifyRelPlan(sqlQuery);
+        util.verifyRelPlan(sqlQuery);
     }
 
     @Test
-    public void testNestProjectWithUpsertSource() {
+    void testNestProjectWithUpsertSource() {
         String sqlQuery =
                 "SELECT id,"
                         + "    deepNested.nested1 AS nested1,\n"
                         + "    deepNested.nested1.`value` + deepNested.nested2.num + metadata_1 as results\n"
                         + "FROM MetadataTable";
 
-        util().verifyRelPlan(sqlQuery);
+        util.verifyRelPlan(sqlQuery);
     }
 
     @Test
-    public void testNestedProjectFieldAccessWithITEM() {
-        util().verifyRelPlan(
-                        "SELECT "
-                                + "`Result`.`Mid`.data_arr[ID].`value`, "
-                                + "`Result`.`Mid`.data_map['item'].`value` "
-                                + "FROM NestedItemTable");
+    void testNestedProjectFieldAccessWithITEM() {
+        util.verifyRelPlan(
+                "SELECT "
+                        + "`Result`.`Mid`.data_arr[ID].`value`, "
+                        + "`Result`.`Mid`.data_map['item'].`value` "
+                        + "FROM NestedItemTable");
     }
 
     @Test
-    public void testNestedProjectFieldAccessWithITEMWithConstantIndex() {
-        util().verifyRelPlan(
-                        "SELECT "
-                                + "`Result`.`Mid`.data_arr[2].`value`, "
-                                + "`Result`.`Mid`.data_arr "
-                                + "FROM NestedItemTable");
+    void testNestedProjectFieldAccessWithITEMWithConstantIndex() {
+        util.verifyRelPlan(
+                "SELECT "
+                        + "`Result`.`Mid`.data_arr[2].`value`, "
+                        + "`Result`.`Mid`.data_arr "
+                        + "FROM NestedItemTable");
     }
 
     @Test
-    public void testNestedProjectFieldAccessWithITEMContainsTopLevelAccess() {
-        util().verifyRelPlan(
-                        "SELECT "
-                                + "`Result`.`Mid`.data_arr[2].`value`, "
-                                + "`Result`.`Mid`.data_arr[ID].`value`, "
-                                + "`Result`.`Mid`.data_map['item'].`value`, "
-                                + "`Result`.`Mid` "
-                                + "FROM NestedItemTable");
+    void testNestedProjectFieldAccessWithNestedArrayAndRows() {
+        util.verifyRelPlan("SELECT `chart`.`result`[1].`meta`.`symbol` FROM ItemTable");
     }
 
     @Test
-    public void testProjectFieldAccessWithITEM() {
-        util().verifyRelPlan(
-                        "SELECT "
-                                + "`Result`.data_arr[ID].`value`, "
-                                + "`Result`.data_map['item'].`value`, "
-                                + "`outer_array`[1], "
-                                + "`outer_array`[ID], "
-                                + "`outer_map`['item'] "
-                                + "FROM ItemTable");
+    void testNestedProjectFieldAccessWithITEMContainsTopLevelAccess() {
+        util.verifyRelPlan(
+                "SELECT "
+                        + "`Result`.`Mid`.data_arr[2].`value`, "
+                        + "`Result`.`Mid`.data_arr[ID].`value`, "
+                        + "`Result`.`Mid`.data_map['item'].`value`, "
+                        + "`Result`.`Mid` "
+                        + "FROM NestedItemTable");
     }
 
     @Test
-    public void testMetadataProjectionWithoutProjectionPushDownWhenSupported() {
+    void testProjectFieldAccessWithITEM() {
+        util.verifyRelPlan(
+                "SELECT "
+                        + "`Result`.data_arr[ID].`value`, "
+                        + "`Result`.data_map['item'].`value`, "
+                        + "`outer_array`[1], "
+                        + "`outer_array`[ID], "
+                        + "`outer_map`['item'] "
+                        + "FROM ItemTable");
+    }
+
+    @Test
+    void testMetadataProjectionWithoutProjectionPushDownWhenSupported() {
         final SharedReference<List<String>> appliedKeys = sharedObjects.add(new ArrayList<>());
         final TableDescriptor sourceDescriptor =
                 TableFactoryHarness.newBuilder()
                         .schema(NoPushDownSource.SCHEMA)
                         .source(new NoPushDownSource(true, appliedKeys))
                         .build();
-        util().tableEnv().createTable("T1", sourceDescriptor);
+        util.tableEnv().createTable("T1", sourceDescriptor);
 
-        util().verifyRelPlan("SELECT m1, metadata FROM T1");
+        util.verifyRelPlan("SELECT m1, metadata FROM T1");
         assertThat(appliedKeys.get()).contains("m1", "m2");
     }
 
     @Test
-    public void testMetadataProjectionWithoutProjectionPushDownWhenNotSupported() {
+    void testMetadataProjectionWithoutProjectionPushDownWhenNotSupported() {
         final SharedReference<List<String>> appliedKeys = sharedObjects.add(new ArrayList<>());
         final TableDescriptor sourceDescriptor =
                 TableFactoryHarness.newBuilder()
                         .schema(NoPushDownSource.SCHEMA)
                         .source(new NoPushDownSource(false, appliedKeys))
                         .build();
-        util().tableEnv().createTable("T2", sourceDescriptor);
+        util.tableEnv().createTable("T2", sourceDescriptor);
 
-        util().verifyRelPlan("SELECT m1, metadata FROM T2");
+        util.verifyRelPlan("SELECT m1, metadata FROM T2");
         assertThat(appliedKeys.get()).contains("m1", "m2", "m3");
     }
 
     @Test
-    public void testMetadataProjectionWithoutProjectionPushDownWhenSupportedAndNoneSelected() {
+    void testMetadataProjectionWithoutProjectionPushDownWhenSupportedAndNoneSelected() {
         final SharedReference<List<String>> appliedKeys = sharedObjects.add(new ArrayList<>());
         final TableDescriptor sourceDescriptor =
                 TableFactoryHarness.newBuilder()
                         .schema(NoPushDownSource.SCHEMA)
                         .source(new NoPushDownSource(true, appliedKeys))
                         .build();
-        util().tableEnv().createTable("T3", sourceDescriptor);
+        util.tableEnv().createTable("T3", sourceDescriptor);
 
-        util().verifyRelPlan("SELECT 1 FROM T3");
+        util.verifyRelPlan("SELECT 1 FROM T3");
         // Because we turned off the project merge in the sql2rel phase, the source node will see
         // the original unmerged project with all columns selected in this rule test
         assertThat(appliedKeys.get()).hasSize(3);
     }
 
     @Test
-    public void testMetadataProjectionWithoutProjectionPushDownWhenNotSupportedAndNoneSelected() {
+    void testMetadataProjectionWithoutProjectionPushDownWhenNotSupportedAndNoneSelected() {
         final SharedReference<List<String>> appliedKeys = sharedObjects.add(new ArrayList<>());
         final TableDescriptor sourceDescriptor =
                 TableFactoryHarness.newBuilder()
                         .schema(NoPushDownSource.SCHEMA)
                         .source(new NoPushDownSource(false, appliedKeys))
                         .build();
-        util().tableEnv().createTable("T4", sourceDescriptor);
+        util.tableEnv().createTable("T4", sourceDescriptor);
 
-        util().verifyRelPlan("SELECT 1 FROM T4");
+        util.verifyRelPlan("SELECT 1 FROM T4");
         assertThat(appliedKeys.get()).contains("m1", "m2", "m3");
     }
 
     @Test
-    public void testProjectionIncludingOnlyMetadata() {
+    void testProjectionIncludingOnlyMetadata() {
         replaceProgramWithProjectMergeRule();
 
         final AtomicReference<DataType> appliedProjectionDataType = new AtomicReference<>(null);
@@ -346,9 +400,9 @@ public class PushProjectIntoTableSourceScanRuleTest
                                 new PushDownSource(
                                         appliedProjectionDataType, appliedMetadataDataType))
                         .build();
-        util().tableEnv().createTable("T5", sourceDescriptor);
+        util.tableEnv().createTable("T5", sourceDescriptor);
 
-        util().verifyRelPlan("SELECT metadata FROM T5");
+        util.verifyRelPlan("SELECT metadata FROM T5");
 
         assertThat(appliedProjectionDataType.get()).isNotNull();
         assertThat(appliedMetadataDataType.get()).isNotNull();
@@ -370,11 +424,11 @@ public class PushProjectIntoTableSourceScanRuleTest
                                         CoreRules.PROJECT_MERGE,
                                         PushProjectIntoTableSourceScanRule.INSTANCE))
                         .build());
-        util().replaceBatchProgram(programs);
+        util.replaceBatchProgram(programs);
     }
 
     @Test
-    public void testProjectionWithMetadataAndPhysicalFields() {
+    void testProjectionWithMetadataAndPhysicalFields() {
         replaceProgramWithProjectMergeRule();
 
         final AtomicReference<DataType> appliedProjectionDataType = new AtomicReference<>(null);
@@ -386,9 +440,9 @@ public class PushProjectIntoTableSourceScanRuleTest
                                 new PushDownSource(
                                         appliedProjectionDataType, appliedMetadataDataType))
                         .build();
-        util().tableEnv().createTable("T5", sourceDescriptor);
+        util.tableEnv().createTable("T5", sourceDescriptor);
 
-        util().verifyRelPlan("SELECT metadata, f1 FROM T5");
+        util.verifyRelPlan("SELECT metadata, f1 FROM T5");
 
         assertThat(appliedProjectionDataType.get()).isNotNull();
         assertThat(appliedMetadataDataType.get()).isNotNull();

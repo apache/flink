@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
@@ -54,7 +56,8 @@ import static java.util.Objects.requireNonNull;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Should be removed after legacy groupWindowAggregate was removed: Lines 83 ~ 101
+ *   <li>Should be removed after legacy groupWindowAggregate was removed: Lines 85 ~ 105, Lines 136
+ *       ~ 156
  * </ol>
  */
 public class FlinkAggregateProjectMergeRule extends AggregateProjectMergeRule {
@@ -79,18 +82,19 @@ public class FlinkAggregateProjectMergeRule extends AggregateProjectMergeRule {
             RelOptRuleCall call, Aggregate aggregate, Project project) {
         // Find all fields which we need to be straightforward field projections.
         final Set<Integer> interestingFields = RelOptUtil.getAllFields(aggregate);
+        boolean isProctimeWindowAgg = false;
 
         // Should add the field of timeAttribute in a LogicalWindowAggregate node which uses rowTime
         if (aggregate instanceof LogicalWindowAggregate) {
             LogicalWindowAggregate winAgg = (LogicalWindowAggregate) aggregate;
             // isRowtimeAttribute can't be used here because the time_indicator phase comes later
-            boolean isProcTime =
+            isProctimeWindowAgg =
                     LogicalTypeChecks.isProctimeAttribute(
                             winAgg.getWindow()
                                     .timeAttribute()
                                     .getOutputDataType()
                                     .getLogicalType());
-            if (!isProcTime) {
+            if (!isProctimeWindowAgg) {
                 // no need to consider the inputIndex because LogicalWindowAggregate is single input
                 interestingFields.add(
                         ((LogicalWindowAggregate) aggregate)
@@ -127,13 +131,37 @@ public class FlinkAggregateProjectMergeRule extends AggregateProjectMergeRule {
             aggCalls.add(aggregateCall.transform(targetMapping));
         }
 
-        final Aggregate newAggregate =
-                aggregate.copy(
-                        aggregate.getTraitSet(),
-                        project.getInput(),
-                        newGroupSet,
-                        newGroupingSets,
-                        aggCalls.build());
+        final Aggregate newAggregate;
+
+        if (aggregate instanceof LogicalWindowAggregate && !isProctimeWindowAgg) {
+            // update the index of the time field in window
+            LogicalWindowAggregate winAgg = (LogicalWindowAggregate) aggregate;
+            LogicalWindow window = winAgg.getWindow();
+            int newTimeIndex = map.get(window.timeAttribute().getFieldIndex());
+            LogicalWindow newWindow =
+                    window.copy(
+                            new FieldReferenceExpression(
+                                    window.timeAttribute().getName(),
+                                    window.timeAttribute().getOutputDataType(),
+                                    window.timeAttribute().getInputIndex(),
+                                    newTimeIndex));
+            newAggregate =
+                    winAgg.copy(
+                            aggregate.getTraitSet(),
+                            project.getInput(),
+                            newGroupSet,
+                            newGroupingSets,
+                            aggCalls.build(),
+                            newWindow);
+        } else {
+            newAggregate =
+                    aggregate.copy(
+                            aggregate.getTraitSet(),
+                            project.getInput(),
+                            newGroupSet,
+                            newGroupingSets,
+                            aggCalls.build());
+        }
 
         // Add a project if the group set is not in the same order or
         // contains duplicates.

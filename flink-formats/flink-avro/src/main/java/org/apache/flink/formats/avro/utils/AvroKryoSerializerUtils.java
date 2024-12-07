@@ -18,7 +18,9 @@
 
 package org.apache.flink.formats.avro.utils;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.SerializableSerializer;
+import org.apache.flink.api.common.serialization.SerializerConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.AvroUtils;
@@ -41,15 +43,16 @@ import java.util.LinkedHashMap;
 public class AvroKryoSerializerUtils extends AvroUtils {
 
     @Override
-    public void addAvroSerializersIfRequired(ExecutionConfig reg, Class<?> type) {
+    public void addAvroSerializersIfRequired(SerializerConfig reg, Class<?> type) {
         if (org.apache.avro.specific.SpecificRecordBase.class.isAssignableFrom(type)
                 || org.apache.avro.generic.GenericData.Record.class.isAssignableFrom(type)) {
 
             // Avro POJOs contain java.util.List which have GenericData.Array as their runtime type
             // because Kryo is not able to serialize them properly, we use this serializer for them
-            reg.registerTypeWithKryoSerializer(
-                    GenericData.Array.class,
-                    Serializers.SpecificInstanceCollectionSerializerForArrayList.class);
+            ((SerializerConfigImpl) reg)
+                    .registerTypeWithKryoSerializer(
+                            GenericData.Array.class,
+                            Serializers.SpecificInstanceCollectionSerializerForArrayList.class);
 
             // We register this serializer for users who want to use untyped Avro records
             // (GenericData.Record).
@@ -58,7 +61,8 @@ public class AvroKryoSerializerUtils extends AvroUtils {
             // a bad idea.
             // we add the serializer as a default serializer because Avro is using a private
             // sub-type at runtime.
-            reg.addDefaultKryoSerializer(Schema.class, AvroSchemaSerializer.class);
+            ((SerializerConfigImpl) reg)
+                    .addDefaultKryoSerializer(Schema.class, AvroSchemaSerializer.class);
         }
     }
 
@@ -69,7 +73,7 @@ public class AvroKryoSerializerUtils extends AvroUtils {
                 GenericData.Array.class.getName(),
                 new KryoRegistration(
                         GenericData.Array.class,
-                        new ExecutionConfig.SerializableSerializer<>(
+                        new SerializableSerializer<>(
                                 new Serializers
                                         .SpecificInstanceCollectionSerializerForArrayList())));
     }

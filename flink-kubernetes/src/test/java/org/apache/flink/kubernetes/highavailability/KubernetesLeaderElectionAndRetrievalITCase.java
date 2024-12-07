@@ -25,7 +25,6 @@ import org.apache.flink.kubernetes.configuration.KubernetesHighAvailabilityOptio
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.leaderelection.LeaderElectionEvent;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionListener;
@@ -43,7 +42,6 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -73,7 +71,7 @@ class KubernetesLeaderElectionAndRetrievalITCase {
         final FlinkKubeClient flinkKubeClient = KUBERNETES_EXTENSION.getFlinkKubeClient();
         final Configuration configuration = KUBERNETES_EXTENSION.getConfiguration();
 
-        final String clusterId = configuration.getString(KubernetesConfigOptions.CLUSTER_ID);
+        final String clusterId = configuration.get(KubernetesConfigOptions.CLUSTER_ID);
 
         // This will make the leader election retrieval time out if we won't process already
         // existing leader information when starting it up.
@@ -87,9 +85,7 @@ class KubernetesLeaderElectionAndRetrievalITCase {
         final List<AutoCloseable> closeables = new ArrayList<>();
 
         final KubernetesConfigMapSharedWatcher configMapSharedWatcher =
-                flinkKubeClient.createConfigMapSharedWatcher(
-                        KubernetesUtils.getConfigMapLabels(
-                                clusterId, LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY));
+                flinkKubeClient.createConfigMapSharedWatcher(configMapName);
         closeables.add(configMapSharedWatcher);
 
         final TestingLeaderElectionListener electionEventHandler =

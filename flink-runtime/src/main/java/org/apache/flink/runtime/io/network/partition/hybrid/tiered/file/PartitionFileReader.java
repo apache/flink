@@ -50,6 +50,7 @@ public interface PartitionFileReader {
      *     the last read has a partial buffer, it will construct a full buffer during the read
      *     process.
      * @return null if there is no data otherwise return a read buffer result.
+     * @throws IOException if an error happens.
      */
     @Nullable
     ReadBufferResult readBuffer(
@@ -84,13 +85,15 @@ public interface PartitionFileReader {
      *     Flink, and it should be directly tied to the file format. The field can be null if the
      *     current file reader has no the read progress
      * @return the priority of the {@link PartitionFileReader}.
+     * @throws IOException if an error happens.
      */
     long getPriority(
             TieredStoragePartitionId partitionId,
             TieredStorageSubpartitionId subpartitionId,
             int segmentId,
             int bufferIndex,
-            @Nullable ReadProgress readProgress);
+            @Nullable ReadProgress readProgress)
+            throws IOException;
 
     /** Release the {@link PartitionFileReader}. */
     void release();

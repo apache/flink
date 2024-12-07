@@ -23,7 +23,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.security.token.delegation.AbstractDelegationTokenIdentifier;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -35,6 +34,7 @@ import java.util.Set;
 
 import static java.time.Instant.ofEpochMilli;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 /** Test for {@link HadoopFSDelegationTokenProvider}. */
@@ -172,47 +172,9 @@ class HadoopFSDelegationTokenProviderITCase {
     }
 
     @Test
-    public void getIssueDateShouldReturnIssueDateWithFutureToken() {
+    public void obtainDelegationTokenWithStandaloneDeployment() throws Exception {
         HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
-
-        Clock constantClock = Clock.fixed(ofEpochMilli(NOW), ZoneId.systemDefault());
-        long issueDate = NOW + 1;
-        AbstractDelegationTokenIdentifier tokenIdentifier =
-                new TestHadoopDelegationTokenIdentifier(issueDate);
-
-        assertEquals(
-                issueDate,
-                provider.getIssueDate(
-                        constantClock, tokenIdentifier.getKind().toString(), tokenIdentifier));
-    }
-
-    @Test
-    public void getIssueDateShouldReturnIssueDateWithPastToken() {
-        HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
-
-        Clock constantClock = Clock.fixed(ofEpochMilli(NOW), ZoneId.systemDefault());
-        long issueDate = NOW - 1;
-        AbstractDelegationTokenIdentifier tokenIdentifier =
-                new TestHadoopDelegationTokenIdentifier(issueDate);
-
-        assertEquals(
-                issueDate,
-                provider.getIssueDate(
-                        constantClock, tokenIdentifier.getKind().toString(), tokenIdentifier));
-    }
-
-    @Test
-    public void getIssueDateShouldReturnNowWithInvalidToken() {
-        HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
-
-        Clock constantClock = Clock.fixed(ofEpochMilli(NOW), ZoneId.systemDefault());
-        long issueDate = -1;
-        AbstractDelegationTokenIdentifier tokenIdentifier =
-                new TestHadoopDelegationTokenIdentifier(issueDate);
-
-        assertEquals(
-                NOW,
-                provider.getIssueDate(
-                        constantClock, tokenIdentifier.getKind().toString(), tokenIdentifier));
+        provider.init(new org.apache.flink.configuration.Configuration());
+        assertNotNull(provider.obtainDelegationTokens());
     }
 }

@@ -18,8 +18,11 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.utils.Expander;
 import org.apache.flink.table.types.DataType;
 
@@ -72,11 +75,17 @@ public interface SqlNodeConverter<S extends SqlNode> {
     /** Context of {@link SqlNodeConverter}. */
     interface ConvertContext {
 
+        /** Returns the {@link TableConfig} defined in {@link TableEnvironment}. */
+        TableConfig getTableConfig();
+
         /** Returns the {@link SqlValidator} in the convert context. */
         SqlValidator getSqlValidator();
 
         /** Returns the {@link CatalogManager} in the convert context. */
         CatalogManager getCatalogManager();
+
+        /** Returns the {@link FlinkPlannerImpl} in the convert context. */
+        FlinkPlannerImpl getFlinkPlanner();
 
         /** Converts the given validated {@link SqlNode} into a {@link RelRoot}. */
         RelRoot toRelRoot(SqlNode sqlNode);

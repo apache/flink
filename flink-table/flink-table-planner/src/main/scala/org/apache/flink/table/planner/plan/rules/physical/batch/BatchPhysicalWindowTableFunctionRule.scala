@@ -50,7 +50,7 @@ class BatchPhysicalWindowTableFunctionRule(config: Config) extends ConverterRule
       traitSet,
       newInput,
       scan.getRowType,
-      convertToWindowingStrategy(scan.getCall.asInstanceOf[RexCall], newInput.getRowType)
+      convertToWindowingStrategy(scan.getCall.asInstanceOf[RexCall], newInput)
     )
   }
 }

@@ -41,7 +41,7 @@ class StreamExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase,
         # is deprecated, exclude them.
         return {'getLastJobExecutionResult', 'getId', 'getIdString',
                 'createCollectionsEnvironment', 'createLocalEnvironment',
-                'createRemoteEnvironment', 'addOperator', 'fromElements',
+                'createRemoteEnvironment', 'addOperator', 'fromElements', 'fromData',
                 'resetContextEnvironment', 'getCachedFiles', 'generateSequence',
                 'getNumberOfExecutionRetries', 'getStreamGraph', 'fromParallelCollection',
                 'readFileStream', 'isForceCheckpointing', 'readFile', 'clean',
@@ -51,7 +51,9 @@ class StreamExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase,
                 'clearJobListeners', 'getJobListeners', 'fromSequence', 'getConfiguration',
                 'generateStreamGraph', 'getTransformations', 'areExplicitEnvironmentsAllowed',
                 'registerCollectIterator', 'listCompletedClusterDatasets',
-                'invalidateClusterDataset', 'registerCacheTransformation', 'close'}
+                'invalidateClusterDataset', 'registerCacheTransformation', 'close',
+                'registerType', 'registerTypeWithKryoSerializer', 'setStateBackend',
+                'getStateBackend', 'addDefaultKryoSerializer'}
 
 
 if __name__ == '__main__':

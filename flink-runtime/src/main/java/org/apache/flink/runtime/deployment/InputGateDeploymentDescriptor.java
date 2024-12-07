@@ -33,7 +33,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
-import org.apache.flink.runtime.taskexecutor.ShuffleDescriptorsCache;
+import org.apache.flink.runtime.util.GroupCache;
 import org.apache.flink.util.CompressedSerializedValue;
 import org.apache.flink.util.Preconditions;
 
@@ -59,6 +59,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class InputGateDeploymentDescriptor implements Serializable {
 
     private static final long serialVersionUID = -7143441863165366704L;
+
     /**
      * The ID of the consumed intermediate result. Each input gate consumes partitions of the
      * intermediate result specified by this ID. This ID also identifies the input gate at the
@@ -167,7 +168,7 @@ public class InputGateDeploymentDescriptor implements Serializable {
     public void tryLoadAndDeserializeShuffleDescriptors(
             @Nullable PermanentBlobService blobService,
             JobID jobId,
-            ShuffleDescriptorsCache shuffleDescriptorsCache)
+            GroupCache<JobID, PermanentBlobKey, ShuffleDescriptorGroup> shuffleDescriptorsCache)
             throws IOException {
         if (inputChannels != null) {
             return;
@@ -190,13 +191,14 @@ public class InputGateDeploymentDescriptor implements Serializable {
             @Nullable PermanentBlobService blobService,
             JobID jobId,
             MaybeOffloaded<ShuffleDescriptorGroup> serializedShuffleDescriptors,
-            ShuffleDescriptorsCache shuffleDescriptorsCache)
+            GroupCache<JobID, PermanentBlobKey, ShuffleDescriptorGroup> shuffleDescriptorsCache)
             throws IOException, ClassNotFoundException {
         if (serializedShuffleDescriptors instanceof Offloaded) {
             PermanentBlobKey blobKey =
                     ((Offloaded<ShuffleDescriptorGroup>) serializedShuffleDescriptors)
                             .serializedValueKey;
-            ShuffleDescriptorGroup shuffleDescriptorGroup = shuffleDescriptorsCache.get(blobKey);
+            ShuffleDescriptorGroup shuffleDescriptorGroup =
+                    shuffleDescriptorsCache.get(jobId, blobKey);
             if (shuffleDescriptorGroup == null) {
                 Preconditions.checkNotNull(blobService);
                 // NOTE: Do not delete the ShuffleDescriptor BLOBs since it may be needed again

@@ -115,4 +115,15 @@
        {"name": "type_date", "type": {"type": "int", "logicalType": "date"}},
        {"name": "type_time_millis", "type": {"type": "int", "logicalType": "time-millis"}}
    ]
- }]
+},
+{"namespace": "org.apache.flink.formats.avro.generated",
+ "type": "record",
+ "name": "Timestamps",
+ "fields": [
+     {"name": "type_timestamp_millis", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+     {"name": "type_timestamp_micros", "type": {"type": "long", "logicalType": "timestamp-micros"}},
+     {"name": "type_local_timestamp_millis", "type": {"type": "long", "logicalType": "local-timestamp-millis"}},
+     {"name": "type_local_timestamp_micros", "type": {"type": "long", "logicalType": "local-timestamp-micros"}}
+ ]
+}
+]

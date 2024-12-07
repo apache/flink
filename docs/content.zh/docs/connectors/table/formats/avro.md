@@ -86,6 +86,15 @@ Format 参数
       <td>String</td>
       <td>仅用于 <a href="{{< ref "docs/connectors/table/filesystem" >}}">filesystem</a>，avro 压缩编解码器。默认 snappy 压缩。目前支持：null, deflate、snappy、bzip2、xz。</td>
     </tr>
+    <tr>
+      <td><h5>timestamp_mapping.legacy</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">true</td>
+      <td>Boolean</td>
+      <td>使用 avro 中时间戳的旧映射。 在 1.19 之前，Flink 的默认行为错误地将 SQL TIMESTAMP 和 TIMESTAMP_LTZ 类型映射到 AVRO TIMESTAMP。<br>
+      正确的行为是 Flink SQL TIMESTAMP 映射 Avro LOCAL TIMESTAMP 和 Flink SQL TIMESTAMP_LTZ 映射 Avro TIMESTAMP，您可以通过禁用此旧映射来获得正确的映射。<br>
+      出于兼容性考虑，默认使用旧行为。</td>
+    </tr>
     </tbody>
 </table>
 

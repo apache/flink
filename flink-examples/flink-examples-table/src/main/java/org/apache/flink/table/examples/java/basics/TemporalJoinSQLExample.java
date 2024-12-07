@@ -58,7 +58,7 @@ public class TemporalJoinSQLExample {
 
         // Create a changelog stream of currency rate
         final DataStream<Row> currencyRate =
-                env.fromElements(
+                env.fromData(
                         Row.ofKind(RowKind.INSERT, Instant.ofEpochMilli(1000), "USD", 0.8),
                         Row.ofKind(RowKind.UPDATE_AFTER, Instant.ofEpochMilli(4000), "USD", 0.9),
                         Row.ofKind(RowKind.UPDATE_AFTER, Instant.ofEpochMilli(3000), "USD", 1.0),
@@ -83,7 +83,7 @@ public class TemporalJoinSQLExample {
 
         // Create a data stream of transaction
         final DataStream<Transaction> transaction =
-                env.fromElements(
+                env.fromData(
                         new Transaction("trx1", Instant.ofEpochMilli(1000), "USD", 1),
                         new Transaction("trx2", Instant.ofEpochMilli(2000), "USD", 1),
                         new Transaction("trx3", Instant.ofEpochMilli(3000), "USD", 1),

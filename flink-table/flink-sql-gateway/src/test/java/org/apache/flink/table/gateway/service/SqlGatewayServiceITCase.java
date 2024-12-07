@@ -66,6 +66,7 @@ import org.apache.flink.table.planner.utils.TableFunc0;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.TestUtils;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -96,9 +97,10 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
@@ -111,6 +113,7 @@ import static org.apache.flink.table.functions.FunctionKind.SCALAR;
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.PAYLOAD;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.awaitOperationTermination;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.createInitializedSession;
+import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.fetchAllResults;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.fetchResults;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
@@ -125,7 +128,7 @@ public class SqlGatewayServiceITCase {
 
     @RegisterExtension
     @Order(1)
-    public static final MiniClusterExtension MINI_CLUSTER =
+    static final MiniClusterExtension MINI_CLUSTER =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(2)
@@ -133,8 +136,18 @@ public class SqlGatewayServiceITCase {
 
     @RegisterExtension
     @Order(2)
-    public static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
+    static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
             new SqlGatewayServiceExtension(MINI_CLUSTER::getClientConfiguration);
+
+    @RegisterExtension
+    @Order(3)
+    static final TestExecutorExtension<ExecutorService> EXECUTOR_EXTENSION =
+            new TestExecutorExtension<>(
+                    () ->
+                            Executors.newCachedThreadPool(
+                                    new ExecutorThreadFactory(
+                                            "SqlGatewayService Test Pool",
+                                            IgnoreExceptionHandler.INSTANCE)));
 
     private static SessionManagerImpl sessionManager;
     private static SqlGatewayServiceImpl service;
@@ -143,9 +156,6 @@ public class SqlGatewayServiceITCase {
             SessionEnvironment.newBuilder()
                     .setSessionEndpointVersion(MockedEndpointVersion.V1)
                     .build();
-    private final ThreadFactory threadFactory =
-            new ExecutorThreadFactory(
-                    "SqlGatewayService Test Pool", IgnoreExceptionHandler.INSTANCE);
 
     @BeforeAll
     static void setUp() {
@@ -315,7 +325,7 @@ public class SqlGatewayServiceITCase {
         awaitOperationTermination(service, sessionHandle, operationHandle);
 
         List<RowData> expectedData = getDefaultResultSet().getData();
-        List<RowData> actualData = fetchAllResults(sessionHandle, operationHandle);
+        List<RowData> actualData = fetchAllResults(service, sessionHandle, operationHandle);
         assertThat(actualData).isEqualTo(expectedData);
 
         service.closeOperation(sessionHandle, operationHandle);
@@ -392,7 +402,7 @@ public class SqlGatewayServiceITCase {
                         -1,
                         Configuration.fromMap(Collections.singletonMap(key, value)));
 
-        List<RowData> settings = fetchAllResults(sessionHandle, operationHandle);
+        List<RowData> settings = fetchAllResults(service, sessionHandle, operationHandle);
 
         assertThat(settings)
                 .contains(
@@ -409,7 +419,7 @@ public class SqlGatewayServiceITCase {
             @TempDir File tmpDir)
             throws Exception {
         Configuration configuration = new Configuration(MINI_CLUSTER.getClientConfiguration());
-        configuration.setBoolean(TableConfigOptions.TABLE_DML_SYNC, false);
+        configuration.set(TableConfigOptions.TABLE_DML_SYNC, false);
         File savepointDir = new File(tmpDir, "savepoints");
         configuration.set(
                 CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
@@ -427,7 +437,7 @@ public class SqlGatewayServiceITCase {
         OperationHandle insertOperationHandle =
                 service.executeStatement(sessionHandle, insertSql, -1, configuration);
 
-        List<RowData> results = fetchAllResults(sessionHandle, insertOperationHandle);
+        List<RowData> results = fetchAllResults(service, sessionHandle, insertOperationHandle);
         assertThat(results.size()).isEqualTo(1);
         String jobId = results.get(0).getString(0).toString();
 
@@ -437,7 +447,7 @@ public class SqlGatewayServiceITCase {
         OperationHandle stopOperationHandle =
                 service.executeStatement(sessionHandle, stopSql, -1, configuration);
 
-        List<RowData> stopResults = fetchAllResults(sessionHandle, stopOperationHandle);
+        List<RowData> stopResults = fetchAllResults(service, sessionHandle, stopOperationHandle);
         assertThat(stopResults.size()).isEqualTo(1);
         if (hasSavepoint) {
             String savepoint = stopResults.get(0).getString(0).toString();
@@ -462,7 +472,7 @@ public class SqlGatewayServiceITCase {
         Configuration configuration = new Configuration(MINI_CLUSTER.getClientConfiguration());
 
         String pipelineName = "test-job";
-        configuration.setString(PipelineOptions.NAME, pipelineName);
+        configuration.set(PipelineOptions.NAME, pipelineName);
 
         // running jobs
         String sourceDdl = "CREATE TABLE source (a STRING) WITH ('connector'='datagen');";
@@ -476,7 +486,7 @@ public class SqlGatewayServiceITCase {
         OperationHandle insertsOperationHandle =
                 service.executeStatement(sessionHandle, insertSql, -1, configuration);
         String jobId =
-                fetchAllResults(sessionHandle, insertsOperationHandle)
+                fetchAllResults(service, sessionHandle, insertsOperationHandle)
                         .get(0)
                         .getString(0)
                         .toString();
@@ -487,7 +497,58 @@ public class SqlGatewayServiceITCase {
         OperationHandle showJobsOperationHandle1 =
                 service.executeStatement(sessionHandle, "SHOW JOBS", -1, configuration);
 
-        List<RowData> result = fetchAllResults(sessionHandle, showJobsOperationHandle1);
+        List<RowData> result = fetchAllResults(service, sessionHandle, showJobsOperationHandle1);
+        RowData jobRow =
+                result.stream()
+                        .filter(row -> jobId.equals(row.getString(0).toString()))
+                        .findFirst()
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "Test job " + jobId + " not found."));
+        assertThat(jobRow.getString(1)).hasToString(pipelineName);
+        assertThat(jobRow.getString(2)).hasToString("RUNNING");
+        assertThat(jobRow.getTimestamp(3, 3).getMillisecond())
+                .isBetween(timeOpStart, timeOpSucceed);
+    }
+
+    @Test
+    void testDescribeJobOperation(@InjectClusterClient RestClusterClient<?> restClusterClient)
+            throws Exception {
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+        Configuration configuration = new Configuration(MINI_CLUSTER.getClientConfiguration());
+
+        String pipelineName = "test-describe-job";
+        configuration.set(PipelineOptions.NAME, pipelineName);
+
+        // running jobs
+        String sourceDdl = "CREATE TABLE source (a STRING) WITH ('connector'='datagen');";
+        String sinkDdl = "CREATE TABLE sink (a STRING) WITH ('connector'='blackhole');";
+        String insertSql = "INSERT INTO sink SELECT * FROM source;";
+
+        service.executeStatement(sessionHandle, sourceDdl, -1, configuration);
+        service.executeStatement(sessionHandle, sinkDdl, -1, configuration);
+
+        long timeOpStart = System.currentTimeMillis();
+        OperationHandle insertsOperationHandle =
+                service.executeStatement(sessionHandle, insertSql, -1, configuration);
+        String jobId =
+                fetchAllResults(service, sessionHandle, insertsOperationHandle)
+                        .get(0)
+                        .getString(0)
+                        .toString();
+
+        TestUtils.waitUntilAllTasksAreRunning(restClusterClient, JobID.fromHexString(jobId));
+        long timeOpSucceed = System.currentTimeMillis();
+
+        OperationHandle describeJobOperationHandle =
+                service.executeStatement(
+                        sessionHandle,
+                        String.format("DESCRIBE JOB '%s'", jobId),
+                        -1,
+                        configuration);
+
+        List<RowData> result = fetchAllResults(service, sessionHandle, describeJobOperationHandle);
         RowData jobRow =
                 result.stream()
                         .filter(row -> jobId.equals(row.getString(0).toString()))
@@ -773,12 +834,10 @@ public class SqlGatewayServiceITCase {
                     service.getSession(sessionHandle)
                             .getOperationManager()
                             .getOperation(operationHandle));
-            threadFactory
-                    .newThread(() -> service.cancelOperation(sessionHandle, operationHandle))
-                    .start();
-            threadFactory
-                    .newThread(() -> service.closeOperation(sessionHandle, operationHandle))
-                    .start();
+
+            ExecutorService executor = EXECUTOR_EXTENSION.getExecutor();
+            executor.submit(() -> service.cancelOperation(sessionHandle, operationHandle));
+            executor.submit(() -> service.closeOperation(sessionHandle, operationHandle));
         }
 
         CommonTestUtils.waitUtil(
@@ -800,16 +859,16 @@ public class SqlGatewayServiceITCase {
         int submitThreadsNum = 100;
         CountDownLatch latch = new CountDownLatch(submitThreadsNum);
         for (int i = 0; i < submitThreadsNum; i++) {
-            threadFactory
-                    .newThread(
+            EXECUTOR_EXTENSION
+                    .getExecutor()
+                    .submit(
                             () -> {
                                 try {
                                     submitDefaultOperation(sessionHandle, () -> {});
                                 } finally {
                                     latch.countDown();
                                 }
-                            })
-                    .start();
+                            });
         }
         manager.close();
         latch.await();
@@ -823,8 +882,9 @@ public class SqlGatewayServiceITCase {
         CountDownLatch terminateRunning = new CountDownLatch(1);
         SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
         for (int i = 0; i < count; i++) {
-            threadFactory
-                    .newThread(
+            EXECUTOR_EXTENSION
+                    .getExecutor()
+                    .submit(
                             () ->
                                     service.submitOperation(
                                             sessionHandle,
@@ -832,8 +892,7 @@ public class SqlGatewayServiceITCase {
                                                 startRunning.countDown();
                                                 terminateRunning.await();
                                                 return getDefaultResultSet();
-                                            }))
-                    .start();
+                                            }));
         }
         startRunning.await();
         service.getSession(sessionHandle).getOperationManager().close();
@@ -1034,7 +1093,8 @@ public class SqlGatewayServiceITCase {
                             schemaFetcherIsRunning.countDown();
                             return service.getOperationResultSchema(sessionHandle, operationHandle);
                         });
-        threadFactory.newThread(task).start();
+
+        EXECUTOR_EXTENSION.getExecutor().submit(task);
 
         schemaFetcherIsRunning.await();
         operationIsRunning.countDown();
@@ -1048,16 +1108,17 @@ public class SqlGatewayServiceITCase {
             Condition<String> condition) {
 
         List<RowData> actual = new ArrayList<>();
-        threadFactory
-                .newThread(
+
+        EXECUTOR_EXTENSION
+                .getExecutor()
+                .submit(
                         () -> {
                             try {
                                 cancelOrClose.run();
                             } catch (Exception e) {
                                 // ignore
                             }
-                        })
-                .start();
+                        });
 
         assertThatThrownBy(
                         () -> {
@@ -1103,18 +1164,5 @@ public class SqlGatewayServiceITCase {
             List<String> expectedCompletionHints) {
         assertThat(service.completeStatement(sessionHandle, incompleteSql, incompleteSql.length()))
                 .isEqualTo(expectedCompletionHints);
-    }
-
-    private List<RowData> fetchAllResults(
-            SessionHandle sessionHandle, OperationHandle operationHandle) {
-        Long token = 0L;
-        List<RowData> results = new ArrayList<>();
-        while (token != null) {
-            ResultSet result =
-                    service.fetchResults(sessionHandle, operationHandle, token, Integer.MAX_VALUE);
-            results.addAll(result.getData());
-            token = result.getNextToken();
-        }
-        return results;
     }
 }

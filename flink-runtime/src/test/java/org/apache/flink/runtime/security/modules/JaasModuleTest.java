@@ -88,7 +88,7 @@ public class JaasModuleTest {
     private void testJaasModuleFilePath(String workingDir) throws IOException {
         Configuration configuration = new Configuration();
         // set the string for CoreOptions.TMP_DIRS to mock the working directory.
-        configuration.setString(CoreOptions.TMP_DIRS, workingDir);
+        configuration.set(CoreOptions.TMP_DIRS, workingDir);
         SecurityConfiguration sc = new SecurityConfiguration(configuration);
         JaasModule module = new JaasModule(sc);
 

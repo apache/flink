@@ -22,18 +22,18 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 
-import org.assertj.core.api.Assertions
-import org.junit.Assert.assertEquals
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.junit.jupiter.api.{BeforeEach, Disabled, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import scala.collection.JavaConversions._
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
+  @BeforeEach
   override def before(): Unit = {
     super.before()
 
@@ -91,7 +91,8 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
                        |""".stripMargin)
   }
 
-  @Test
+  @Disabled("FLINK-36166")
+  @TestTemplate
   def testJoinDisorderChangeLog(): Unit = {
     tEnv.executeSql("""
                       |CREATE TABLE JoinDisorderChangeLog (
@@ -114,12 +115,12 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
                     |""".stripMargin)
       .await()
 
-    val result = TestValuesTableFactory.getResults("JoinDisorderChangeLog")
+    val result = TestValuesTableFactory.getResultsAsStrings("JoinDisorderChangeLog")
     val expected = List("+I[jason, 4, 22.5, 22]")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testSinkDisorderChangeLog(): Unit = {
     tEnv.executeSql("""
                       |CREATE TABLE SinkDisorderChangeLog (
@@ -139,12 +140,12 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
                     |""".stripMargin)
       .await()
 
-    val result = TestValuesTableFactory.getResults("SinkDisorderChangeLog")
+    val result = TestValuesTableFactory.getResultsAsStrings("SinkDisorderChangeLog")
     val expected = List("+I[jason, 4, 22.5]")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testSinkDisorderChangeLogWithRank(): Unit = {
     tEnv.executeSql("""
                       |CREATE TABLE SinkRankChangeLog (
@@ -168,12 +169,12 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
           |""".stripMargin)
       .await()
 
-    val result = TestValuesTableFactory.getResults("SinkRankChangeLog")
+    val result = TestValuesTableFactory.getResultsAsStrings("SinkRankChangeLog")
     val expected = List("+I[jason, 4]")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testChangelogSourceWithNonDeterministicFuncSinkWithDifferentPk(): Unit = {
     tEnv.createTemporaryFunction("ndFunc", new TestNonDeterministicUdf)
     tEnv.executeSql("""
@@ -197,14 +198,14 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
                      |""".stripMargin)
       .await()
 
-    val result = TestValuesTableFactory.getResults("sink_with_pk")
+    val result = TestValuesTableFactory.getResultsAsStrings("sink_with_pk")
     val expected = List(
       "+I[user1, Tom, tom123@gmail.com, 8.10]",
       "+I[user3, Bailey, bailey@qq.com, 9.99]",
       "+I[user4, Tina, tina@gmail.com, 11.30]")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
 
-    val rawResult = TestValuesTableFactory.getRawResults("sink_with_pk")
+    val rawResult = TestValuesTableFactory.getRawResultsAsStrings("sink_with_pk")
     val expectedRaw = List(
       "+I[user1, Tom, tom@gmail.com, 10.02]",
       "+I[user2, Jack, jack@hotmail.com, 71.20]",
@@ -216,10 +217,10 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       "-D[user3, Bailey, bailey@gmail.com, 9.99]",
       "+I[user3, Bailey, bailey@qq.com, 9.99]"
     )
-    assertEquals(expectedRaw, rawResult.toList)
+    assertThat(rawResult.toList).isEqualTo(expectedRaw)
   }
 
-  @Test
+  @TestTemplate
   def testInsertPartColumn(): Unit = {
     tEnv.executeSql("""
                       |CREATE TABLE zm_test (
@@ -246,17 +247,17 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
                     |""".stripMargin)
       .await()
 
-    val result = TestValuesTableFactory.getResults("zm_test")
+    val result = TestValuesTableFactory.getResultsAsStrings("zm_test")
     val expected = List(
       "+I[jason, 1, null, null, null, null]",
       "+I[jason, 1, null, null, null, null]",
       "+I[jason, 1, null, null, null, null]",
       "+I[jason, 1, null, null, null, null]"
     )
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testCreateTableAsSelect(): Unit = {
     tEnv
       .executeSql("""
@@ -272,14 +273,14 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
                     |    src
                     |""".stripMargin)
       .await()
-    val actual = TestValuesTableFactory.getResults("MyCtasTable")
+    val actual = TestValuesTableFactory.getResultsAsStrings("MyCtasTable")
     val expected = List(
       "+I[jason, 1]",
       "+I[jason, 1]",
       "+I[jason, 1]",
       "+I[jason, 1]"
     )
-    Assertions.assertThat(actual.sorted).isEqualTo(expected.sorted)
+    assertThat(actual.sorted).isEqualTo(expected.sorted)
     // test statement set
     val statementSet = tEnv.createStatementSet()
     statementSet.addInsertSql("""
@@ -295,25 +296,222 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
                                 |    src
                                 |""".stripMargin)
     statementSet.execute().await()
-    val actualUseStatement = TestValuesTableFactory.getResults("MyCtasTableUseStatement")
-    Assertions.assertThat(actualUseStatement.sorted).isEqualTo(expected.sorted)
+    val actualUseStatement = TestValuesTableFactory.getResultsAsStrings("MyCtasTableUseStatement")
+    assertThat(actualUseStatement.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
+  def testCreateTableAsSelectWithSortLimit(): Unit = {
+    tEnv
+      .executeSql("""
+                    |CREATE TABLE MyCtasTable
+                    | WITH (
+                    |   'connector' = 'values',
+                    |   'sink-insert-only' = 'false'
+                    |) AS
+                    |  (SELECT
+                    |    `person`,
+                    |    `votes`
+                    |  FROM
+                    |    src order by `votes` LIMIT 2)
+                    |""".stripMargin)
+      .await()
+    val actual = TestValuesTableFactory.getResultsAsStrings("MyCtasTable")
+    val expected = List(
+      "+I[jason, 1]",
+      "+I[jason, 1]"
+    )
+    assertThat(actual.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
   def testCreateTableAsSelectWithoutOptions(): Unit = {
     // TODO: CTAS supports ManagedTable
     // If the connector option is not specified, Flink will creates a Managed table.
     // Managed table requires two layers of log storage and file storage
     // and depends on the flink table store, CTAS will support Managed Table in the future.
-    Assertions
-      .assertThatThrownBy(
-        () => tEnv.executeSql("CREATE TABLE MyCtasTable AS SELECT `person`, `votes` FROM src"))
+    assertThatThrownBy(
+      () => tEnv.executeSql("CREATE TABLE MyCtasTable AS SELECT `person`, `votes` FROM src"))
       .hasMessage("You should enable the checkpointing for sinking to managed table " +
         "'default_catalog.default_database.MyCtasTable'," +
         " managed table relies on checkpoint to commit and the data is visible only after commit.")
   }
 
-  @Test
+  @TestTemplate
+  def testCreateTableAsSelectWithColumnOrdering(): Unit = {
+    tEnv
+      .executeSql("""
+                    |CREATE TABLE MyCtasTable(votes, person)
+                    | WITH (
+                    |   'connector' = 'values',
+                    |   'sink-insert-only' = 'true'
+                    |) AS
+                    |  SELECT
+                    |    `person`,
+                    |    `votes`
+                    |  FROM
+                    |    src
+                    |""".stripMargin)
+      .await()
+    val actual = TestValuesTableFactory.getResultsAsStrings("MyCtasTable")
+    val expected = List(
+      "+I[1, jason]",
+      "+I[1, jason]",
+      "+I[1, jason]",
+      "+I[1, jason]"
+    )
+    assertThat(actual.sorted).isEqualTo(expected.sorted)
+    // test statement set
+    val statementSet = tEnv.createStatementSet()
+    statementSet.addInsertSql("""
+                                |CREATE TABLE MyCtasTableUseStatement(votes, person)
+                                | WITH (
+                                |   'connector' = 'values',
+                                |   'sink-insert-only' = 'true'
+                                |) AS
+                                |  SELECT
+                                |    `person`,
+                                |    `votes`
+                                |  FROM
+                                |    src
+                                |""".stripMargin)
+    statementSet.execute().await()
+    val actualUseStatement = TestValuesTableFactory.getResultsAsStrings("MyCtasTableUseStatement")
+    assertThat(actualUseStatement.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testCreateTableAsSelectWithNewColumnsOnly(): Unit = {
+    tEnv
+      .executeSql("""
+                    |CREATE TABLE MyCtasTable(`p1` INT, `p2` STRING)
+                    | WITH (
+                    |   'connector' = 'values',
+                    |   'sink-insert-only' = 'true'
+                    |) AS
+                    |  SELECT
+                    |    `person`,
+                    |    `votes`
+                    |  FROM
+                    |    src
+                    |""".stripMargin)
+      .await()
+    val actual = TestValuesTableFactory.getResultsAsStrings("MyCtasTable")
+    val expected = List(
+      "+I[null, null, jason, 1]",
+      "+I[null, null, jason, 1]",
+      "+I[null, null, jason, 1]",
+      "+I[null, null, jason, 1]"
+    )
+    assertThat(actual.sorted).isEqualTo(expected.sorted)
+    // test statement set
+    val statementSet = tEnv.createStatementSet()
+    statementSet.addInsertSql("""
+                                |CREATE TABLE MyCtasTableUseStatement(`p1` INT, `p2` STRING)
+                                | WITH (
+                                |   'connector' = 'values',
+                                |   'sink-insert-only' = 'true'
+                                |) AS
+                                |  SELECT
+                                |    `person`,
+                                |    `votes`
+                                |  FROM
+                                |    src
+                                |""".stripMargin)
+    statementSet.execute().await()
+    val actualUseStatement = TestValuesTableFactory.getResultsAsStrings("MyCtasTableUseStatement")
+    assertThat(actualUseStatement.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testCreateTableAsSelectWithColumnsFromQueryOnly(): Unit = {
+    tEnv
+      .executeSql("""
+                    |CREATE TABLE MyCtasTable(`person` STRING, `votes` DOUBLE)
+                    | WITH (
+                    |   'connector' = 'values',
+                    |   'sink-insert-only' = 'true'
+                    |) AS
+                    |  SELECT
+                    |    `person`,
+                    |    `votes`
+                    |  FROM
+                    |    src
+                    |""".stripMargin)
+      .await()
+    val actual = TestValuesTableFactory.getResultsAsStrings("MyCtasTable")
+    val expected = List(
+      "+I[jason, 1.0]",
+      "+I[jason, 1.0]",
+      "+I[jason, 1.0]",
+      "+I[jason, 1.0]"
+    )
+    assertThat(actual.sorted).isEqualTo(expected.sorted)
+    // test statement set
+    val statementSet = tEnv.createStatementSet()
+    statementSet.addInsertSql(
+      """
+        |CREATE TABLE MyCtasTableUseStatement(`person` STRING, `votes` DOUBLE)
+        | WITH (
+        |   'connector' = 'values',
+        |   'sink-insert-only' = 'true'
+        |) AS
+        |  SELECT
+        |    `person`,
+        |    `votes`
+        |  FROM
+        |    src
+        |""".stripMargin)
+    statementSet.execute().await()
+    val actualUseStatement = TestValuesTableFactory.getResultsAsStrings("MyCtasTableUseStatement")
+    assertThat(actualUseStatement.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testCreateTableAsSelectWithMixOfNewColumnsAndQueryColumns(): Unit = {
+    tEnv
+      .executeSql("""
+                    |CREATE TABLE MyCtasTable(`p1` INT, `votes` DOUBLE, `votes_2x` AS `votes` * 2)
+                    | WITH (
+                    |   'connector' = 'values',
+                    |   'sink-insert-only' = 'true'
+                    |) AS
+                    |  SELECT
+                    |    `person`,
+                    |    `votes`
+                    |  FROM
+                    |    src
+                    |""".stripMargin)
+      .await()
+    val actual = TestValuesTableFactory.getResultsAsStrings("MyCtasTable")
+    val expected = List(
+      "+I[null, jason, 1.0]",
+      "+I[null, jason, 1.0]",
+      "+I[null, jason, 1.0]",
+      "+I[null, jason, 1.0]"
+    )
+    assertThat(actual.sorted).isEqualTo(expected.sorted)
+    // test statement set
+    val statementSet = tEnv.createStatementSet()
+    statementSet.addInsertSql(
+      """
+        |CREATE TABLE MyCtasTableUseStatement(`p1` INT, `votes` DOUBLE, `votes_2x` AS `votes` * 2)
+        | WITH (
+        |   'connector' = 'values',
+        |   'sink-insert-only' = 'true'
+        |) AS
+        |  SELECT
+        |    `person`,
+        |    `votes`
+        |  FROM
+        |    src
+        |""".stripMargin)
+    statementSet.execute().await()
+    val actualUseStatement = TestValuesTableFactory.getResultsAsStrings("MyCtasTableUseStatement")
+    assertThat(actualUseStatement.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
   def testPartialInsert(): Unit = {
     val srcDataId = TestValuesTableFactory.registerData(
       Seq(
@@ -359,12 +557,12 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
                     |""".stripMargin)
       .await()
 
-    val result = TestValuesTableFactory.getResults("test_sink")
+    val result = TestValuesTableFactory.getResultsAsStrings("test_sink")
     val expected = List(
       "+I[1, jason, 3, null, null]",
       "+I[2, andy, 2, null, null]",
       "+I[3, clark, 1, null, null]")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
 
     tEnv
       .executeSql("""
@@ -378,9 +576,63 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
                     |""".stripMargin)
       .await()
 
-    val result2 = TestValuesTableFactory.getResults("test_sink")
+    val result2 = TestValuesTableFactory.getResultsAsStrings("test_sink")
     val expected2 =
       List("+I[1, jason, 3, X, 43]", "+I[2, andy, 2, Y, 32]", "+I[3, clark, 1, Z, 29]")
-    assertEquals(expected2.sorted, result2.sorted)
+    assertThat(result2.sorted).isEqualTo(expected2.sorted)
+  }
+
+  @TestTemplate
+  def testInsertWithCTE(): Unit = {
+    val srcDataId = TestValuesTableFactory.registerData(
+      Seq(
+        row(1L, "jason", 3L, "X", 43),
+        row(2L, "andy", 2L, "Y", 32),
+        row(3L, "clark", 1L, "Z", 29)
+      ))
+    tEnv.executeSql(s"""
+                       |CREATE TABLE test_source (
+                       |  id bigint,
+                       |  person String,
+                       |  votes bigint,
+                       |  city String,
+                       |  age int)
+                       |WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$srcDataId'
+                       |)
+                       |""".stripMargin)
+    tEnv
+      .executeSql("""
+                    |CREATE TABLE test_sink (
+                    |  id bigint,
+                    |  person String,
+                    |  votes bigint,
+                    |  city String,
+                    |  age int,
+                    |  primary key(id) not enforced
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'sink-insert-only' = 'false'
+                    |)
+                    |""".stripMargin)
+      .await()
+    tEnv
+      .executeSql("""
+                    |INSERT INTO test_sink (id, person, votes)
+                    |  WITH cte AS (SELECT
+                    |    id,
+                    |    person,
+                    |    votes
+                    |  FROM
+                    |    test_source) SELECT * FROM cte
+                    |""".stripMargin)
+      .await()
+    val result = TestValuesTableFactory.getResultsAsStrings("test_sink")
+    val expected = List(
+      "+I[1, jason, 3, null, null]",
+      "+I[2, andy, 2, null, null]",
+      "+I[3, clark, 1, null, null]")
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 }

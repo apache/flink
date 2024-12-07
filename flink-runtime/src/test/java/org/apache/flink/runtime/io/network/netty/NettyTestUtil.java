@@ -34,13 +34,12 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-import static junit.framework.TestCase.assertEquals;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test utility for Netty server and client setup. */
 public class NettyTestUtil {
@@ -198,7 +197,7 @@ public class NettyTestUtil {
         while ((encoded = channel.readOutbound()) != null) {
             msgNotEmpty = channel.writeInbound(encoded);
         }
-        assertTrue(msgNotEmpty);
+        assertThat(msgNotEmpty).isTrue();
 
         return channel.readInbound();
     }
@@ -208,20 +207,21 @@ public class NettyTestUtil {
     // ---------------------------------------------------------------------------------------------
 
     static void verifyErrorResponse(ErrorResponse expected, ErrorResponse actual) {
-        assertEquals(expected.receiverId, actual.receiverId);
-        assertEquals(expected.cause.getClass(), actual.cause.getClass());
-        assertEquals(expected.cause.getMessage(), actual.cause.getMessage());
+        assertThat(actual.receiverId).isEqualTo(expected.receiverId);
+        assertThat(expected.cause).hasSameClassAs(actual.cause);
+        assertThat(expected.cause.getMessage()).isEqualTo(actual.cause.getMessage());
 
         if (expected.receiverId == null) {
-            assertTrue(actual.isFatalError());
+            assertThat(actual.isFatalError()).isTrue();
         }
     }
 
     static void verifyBufferResponseHeader(BufferResponse expected, BufferResponse actual) {
-        assertEquals(expected.backlog, actual.backlog);
-        assertEquals(expected.sequenceNumber, actual.sequenceNumber);
-        assertEquals(expected.bufferSize, actual.bufferSize);
-        assertEquals(expected.receiverId, actual.receiverId);
+        assertThat(expected.backlog).isEqualTo(actual.backlog);
+        assertThat(expected.sequenceNumber).isEqualTo(actual.sequenceNumber);
+        assertThat(expected.bufferSize).isEqualTo(actual.bufferSize);
+        assertThat(expected.receiverId).isEqualTo(actual.receiverId);
+        assertThat(expected.subpartitionId).isEqualTo(actual.subpartitionId);
     }
 
     // ------------------------------------------------------------------------

@@ -19,6 +19,7 @@ package org.apache.flink.api.common.python;
 
 import org.apache.flink.api.common.python.pickle.ArrayConstructor;
 import org.apache.flink.api.common.python.pickle.ByteArrayConstructor;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
@@ -324,7 +325,7 @@ public final class PythonBridgeUtils {
                 return pickler.dumps(obj);
             } else {
                 // other typeinfos will use the corresponding serializer to serialize data.
-                TypeSerializer serializer = dataType.createSerializer(null);
+                TypeSerializer serializer = dataType.createSerializer((SerializerConfig) null);
                 ByteArrayOutputStreamWithPos baos = new ByteArrayOutputStreamWithPos();
                 DataOutputViewStreamWrapper baosWrapper = new DataOutputViewStreamWrapper(baos);
                 serializer.serialize(obj, baosWrapper);

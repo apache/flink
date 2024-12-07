@@ -169,7 +169,7 @@ public class TieredResultPartition extends ResultPartition {
     }
 
     @Override
-    public ResultSubpartitionView createSubpartitionView(
+    protected ResultSubpartitionView createSubpartitionView(
             int subpartitionId, BufferAvailabilityListener availabilityListener)
             throws IOException {
         checkState(!isReleased(), "ResultPartition already released.");
@@ -179,14 +179,15 @@ public class TieredResultPartition extends ResultPartition {
 
     @Override
     public void finish() throws IOException {
+        checkState(!isReleased(), "Result partition is already released.");
         broadcastEvent(EndOfPartitionEvent.INSTANCE, false);
         tieredStorageProducerClient.close();
-        checkState(!isReleased(), "Result partition is already released.");
         super.finish();
     }
 
     @Override
     public void close() {
+        storageMemoryManager.release();
         super.close();
     }
 

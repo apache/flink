@@ -17,15 +17,12 @@
  */
 package org.apache.flink.table.planner.codegen.agg.batch
 
-import org.apache.flink.annotation.Experimental
-import org.apache.flink.configuration.ConfigOption
-import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.functions.DeclarativeAggregateFunction
-import org.apache.flink.table.planner.{JBoolean, JDouble, JLong}
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils, OperatorCodeGenerator, ProjectionCodeGenerator}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.ROW_DATA
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
@@ -44,56 +41,6 @@ import org.apache.calcite.tools.RelBuilder
  * much better than Sort Aggregate).
  */
 object HashAggCodeGenerator {
-
-  // It is a experimental config, will may be removed later.
-  @Experimental
-  val TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_ENABLED: ConfigOption[JBoolean] =
-    key("table.exec.local-hash-agg.adaptive.enabled")
-      .booleanType()
-      .defaultValue(Boolean.box(true))
-      .withDescription(
-        s"""
-           |Whether to enable adaptive local hash aggregation. Adaptive local hash
-           |aggregation is an optimization of local hash aggregation, which can adaptively 
-           |determine whether to continue to do local hash aggregation according to the distinct
-           | value rate of sampling data. If distinct value rate bigger than defined threshold
-           |(see parameter: table.exec.local-hash-agg.adaptive.distinct-value-rate-threshold), 
-           |we will stop aggregating and just send the input data to the downstream after a simple 
-           |projection. Otherwise, we will continue to do aggregation. Adaptive local hash aggregation
-           |only works in batch mode. Default value of this parameter is true.
-           |""".stripMargin)
-
-  @Experimental
-  val TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD: ConfigOption[JLong] =
-    key("table.exec.local-hash-agg.adaptive.sampling-threshold")
-      .longType()
-      .defaultValue(Long.box(500000L))
-      .withDescription(
-        s"""
-           |If adaptive local hash aggregation is enabled, this value defines how 
-           |many records will be used as sampled data to calculate distinct value rate 
-           |(see parameter: table.exec.local-hash-agg.adaptive.distinct-value-rate-threshold) 
-           |for the local aggregate. The higher the sampling threshold, the more accurate 
-           |the distinct value rate is. But as the sampling threshold increases, local 
-           |aggregation is meaningless when the distinct values rate is low. 
-           |The default value is 500000.
-           |""".stripMargin)
-
-  @Experimental
-  val TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_DISTINCT_VALUE_RATE_THRESHOLD: ConfigOption[JDouble] =
-    key("table.exec.local-hash-agg.adaptive.distinct-value-rate-threshold")
-      .doubleType()
-      .defaultValue(0.5d)
-      .withDescription(
-        s"""
-           |The distinct value rate can be defined as the number of local 
-           |aggregation result for the sampled data divided by the sampling 
-           |threshold (see ${TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD.key()}). 
-           |If the computed result is lower than the given configuration value, 
-           |the remaining input records proceed to do local aggregation, otherwise 
-           |the remaining input records are subjected to simple projection which 
-           |calculation cost is less than local aggregation. The default value is 0.5.
-           |""".stripMargin)
 
   def genWithKeys(
       ctx: CodeGeneratorContext,
@@ -122,16 +69,16 @@ object HashAggCodeGenerator {
     val className = if (isFinal) "HashAggregateWithKeys" else "LocalHashAggregateWithKeys"
 
     // add logger
-    val logTerm = CodeGenUtils.newName("LOG")
+    val logTerm = CodeGenUtils.newName(ctx, "LOG")
     ctx.addReusableLogger(logTerm, className)
 
     // gen code to do group key projection from input
-    val currentKeyTerm = CodeGenUtils.newName("currentKey")
-    val currentKeyWriterTerm = CodeGenUtils.newName("currentKeyWriter")
+    val currentKeyTerm = CodeGenUtils.newName(ctx, "currentKey")
+    val currentKeyWriterTerm = CodeGenUtils.newName(ctx, "currentKeyWriter")
     // currentValueTerm and currentValueWriterTerm are used for value
     // projection while supportAdaptiveLocalHashAgg is true.
-    val currentValueTerm = CodeGenUtils.newName("currentValue")
-    val currentValueWriterTerm = CodeGenUtils.newName("currentValueWriter")
+    val currentValueTerm = CodeGenUtils.newName(ctx, "currentValue")
+    val currentValueWriterTerm = CodeGenUtils.newName(ctx, "currentValueWriter")
     val keyProjectionCode = ProjectionCodeGenerator
       .generateProjectionExpression(
         ctx,
@@ -145,8 +92,8 @@ object HashAggCodeGenerator {
 
     // gen code to create groupKey, aggBuffer Type array
     // it will be used in BytesHashMap and BufferedKVExternalSorter if enable fallback
-    val groupKeyTypesTerm = CodeGenUtils.newName("groupKeyTypes")
-    val aggBufferTypesTerm = CodeGenUtils.newName("aggBufferTypes")
+    val groupKeyTypesTerm = CodeGenUtils.newName(ctx, "groupKeyTypes")
+    val aggBufferTypesTerm = CodeGenUtils.newName(ctx, "aggBufferTypes")
     HashAggCodeGenHelper.prepareHashAggKVTypes(
       ctx,
       groupKeyTypesTerm,
@@ -156,7 +103,7 @@ object HashAggCodeGenerator {
 
     val binaryRowTypeTerm = classOf[BinaryRowData].getName
     // gen code to aggregate and output using hash map
-    val aggregateMapTerm = CodeGenUtils.newName("aggregateMap")
+    val aggregateMapTerm = CodeGenUtils.newName(ctx, "aggregateMap")
     val lookupInfoTypeTerm = classOf[BytesMap.LookupInfo[_, _]].getCanonicalName
     val lookupInfo = ctx.addReusableLocalVariable(lookupInfoTypeTerm, "lookupInfo")
     HashAggCodeGenHelper.prepareHashAggMap(
@@ -165,7 +112,7 @@ object HashAggCodeGenerator {
       aggBufferTypesTerm,
       aggregateMapTerm)
 
-    val outputTerm = CodeGenUtils.newName("hashAggOutput")
+    val outputTerm = CodeGenUtils.newName(ctx, "hashAggOutput")
     val (reuseGroupKeyTerm, reuseAggBufferTerm) =
       HashAggCodeGenHelper.prepareTermForAggMapIteration(
         ctx,
@@ -201,7 +148,7 @@ object HashAggCodeGenerator {
       outputExpr)
 
     // gen code to deal with hash map oom, if enable fallback we will use sort agg strategy
-    val sorterTerm = CodeGenUtils.newName("sorter")
+    val sorterTerm = CodeGenUtils.newName(ctx, "sorter")
     val retryAppend = HashAggCodeGenHelper.genRetryAppendToMap(
       aggregateMapTerm,
       currentKeyTerm,
@@ -249,7 +196,7 @@ object HashAggCodeGenerator {
          |
        """.stripMargin
     }
-    val localAggSuppressedTerm = CodeGenUtils.newName("localAggSuppressed")
+    val localAggSuppressedTerm = CodeGenUtils.newName(ctx, "localAggSuppressed")
     ctx.addReusableMember(s"private transient boolean $localAggSuppressedTerm = false;")
     val valueProjectionCode =
       if (!isFinal && supportAdaptiveLocalHashAgg) {
@@ -276,18 +223,20 @@ object HashAggCodeGenerator {
       // from these conditions we know that it must be a distinct operation
       if (
         !isFinal &&
-        ctx.tableConfig.get(TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_ENABLED) &&
+        ctx.tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_ENABLED) &&
         supportAdaptiveLocalHashAgg
       ) {
-        val adaptiveDistinctCountTerm = CodeGenUtils.newName("distinctCount")
-        val adaptiveTotalCountTerm = CodeGenUtils.newName("totalCount")
+        val adaptiveDistinctCountTerm = CodeGenUtils.newName(ctx, "distinctCount")
+        val adaptiveTotalCountTerm = CodeGenUtils.newName(ctx, "totalCount")
         ctx.addReusableMember(s"private transient long $adaptiveDistinctCountTerm = 0;")
         ctx.addReusableMember(s"private transient long $adaptiveTotalCountTerm = 0;")
 
         val samplingThreshold =
-          ctx.tableConfig.get(TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD)
+          ctx.tableConfig.get(
+            ExecutionConfigOptions.TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_SAMPLING_THRESHOLD)
         val distinctValueRateThreshold =
-          ctx.tableConfig.get(TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_DISTINCT_VALUE_RATE_THRESHOLD)
+          ctx.tableConfig.get(
+            ExecutionConfigOptions.TABLE_EXEC_LOCAL_HASH_AGG_ADAPTIVE_DISTINCT_VALUE_RATE_THRESHOLD)
 
         (
           s"$adaptiveDistinctCountTerm++;",

@@ -211,7 +211,7 @@ public final class CliStrings {
 
     public static final String MESSAGE_EXECUTE_FILE = "Executing SQL from file.";
 
-    public static final String MESSAGE_EXECUTE_STATEMENT = "Execute statement succeed.";
+    public static final String MESSAGE_EXECUTE_STATEMENT = "Execute statement succeeded.";
 
     // --------------------------------------------------------------------------------------------
 

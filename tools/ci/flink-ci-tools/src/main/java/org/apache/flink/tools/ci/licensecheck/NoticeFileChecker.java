@@ -292,7 +292,8 @@ public class NoticeFileChecker {
 
             // find all dependencies missing from NOTICE file
             Collection<Dependency> expectedDependencies =
-                    modulesWithShadedDependencies.getOrDefault(moduleName, Collections.emptySet())
+                    modulesWithShadedDependencies
+                            .getOrDefault(moduleName, Collections.emptySet())
                             .stream()
                             .filter(
                                     dependency ->
@@ -359,7 +360,8 @@ public class NoticeFileChecker {
                 .filter(
                         file -> {
                             int nameCount = file.getNameCount();
-                            return file.getName(nameCount - 3).toString().equals("resources")
+                            return nameCount >= 3
+                                    && file.getName(nameCount - 3).toString().equals("resources")
                                     && file.getName(nameCount - 2).toString().equals("META-INF")
                                     && file.getName(nameCount - 1).toString().equals("NOTICE");
                         })

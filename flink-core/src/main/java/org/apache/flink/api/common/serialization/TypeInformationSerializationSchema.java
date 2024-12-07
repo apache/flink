@@ -63,7 +63,7 @@ public class TypeInformationSerializationSchema<T>
      */
     public TypeInformationSerializationSchema(TypeInformation<T> typeInfo, ExecutionConfig ec) {
         this.typeInfo = checkNotNull(typeInfo, "typeInfo");
-        this.serializer = typeInfo.createSerializer(ec);
+        this.serializer = typeInfo.createSerializer(ec.getSerializerConfig());
     }
 
     /**

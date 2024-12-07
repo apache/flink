@@ -25,9 +25,9 @@ import org.apache.flink.runtime.operators.lifecycle.event.OperatorStartedEvent;
 import org.apache.flink.runtime.operators.lifecycle.event.TestCommandAckEvent;
 import org.apache.flink.runtime.operators.lifecycle.event.TestEvent;
 import org.apache.flink.runtime.operators.lifecycle.event.TestEventQueue;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,8 +69,8 @@ public class TestEventSource extends RichSourceFunction<TestDataElement>
         this.eventQueue.add(
                 new OperatorStartedEvent(
                         operatorID,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber()));
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber()));
     }
 
     @Override
@@ -90,7 +90,7 @@ public class TestEventSource extends RichSourceFunction<TestDataElement>
                     ctx.collect(
                             new TestDataElement(
                                     operatorID,
-                                    getRuntimeContext().getIndexOfThisSubtask(),
+                                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
                                     ++lastSent));
                 }
             } else {
@@ -103,8 +103,8 @@ public class TestEventSource extends RichSourceFunction<TestDataElement>
         eventQueue.add(
                 new TestCommandAckEvent(
                         operatorID,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
                         cmd));
     }
 

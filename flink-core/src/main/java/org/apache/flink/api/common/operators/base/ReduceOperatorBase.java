@@ -223,7 +223,9 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>>
         FunctionUtils.openFunction(function, DefaultOpenContext.INSTANCE);
 
         TypeSerializer<T> serializer =
-                getOperatorInfo().getInputType().createSerializer(executionConfig);
+                getOperatorInfo()
+                        .getInputType()
+                        .createSerializer(executionConfig.getSerializerConfig());
 
         if (inputColumns.length > 0) {
             boolean[] inputOrderings = new boolean[inputColumns.length];

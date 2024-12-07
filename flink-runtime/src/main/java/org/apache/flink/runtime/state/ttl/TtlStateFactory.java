@@ -90,7 +90,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
         this.stateBackend = stateBackend;
         this.ttlConfig = stateDesc.getTtlConfig();
         this.timeProvider = timeProvider;
-        this.ttl = ttlConfig.getTtl().toMilliseconds();
+        this.ttl = ttlConfig.getTimeToLive().toMillis();
         this.stateFactories = createStateFactories();
         this.incrementalCleanup = getTtlIncrementalCleanup();
     }
@@ -349,9 +349,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
         private static final int VERSION = 2;
 
         @SuppressWarnings({"WeakerAccess", "unused"})
-        public TtlSerializerSnapshot() {
-            super(TtlSerializer.class);
-        }
+        public TtlSerializerSnapshot() {}
 
         TtlSerializerSnapshot(TtlSerializer<T> serializerInstance) {
             super(serializerInstance);
@@ -377,6 +375,11 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
             TypeSerializer<T> valueSerializer = (TypeSerializer<T>) nestedSerializers[1];
 
             return new TtlSerializer<>(timestampSerializer, valueSerializer);
+        }
+
+        @SuppressWarnings("unchecked")
+        public TypeSerializerSnapshot<T> getValueSerializerSnapshot() {
+            return (TypeSerializerSnapshot<T>) getNestedSerializerSnapshots()[1];
         }
     }
 }

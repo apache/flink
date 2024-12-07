@@ -25,9 +25,9 @@ import org.apache.flink.table.runtime.operators.aggregate.window.buffers.Records
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.rank.window.combines.TopNRecordsCombiner;
 import org.apache.flink.table.runtime.operators.rank.window.processors.WindowRankProcessor;
-import org.apache.flink.table.runtime.operators.window.combines.RecordsCombiner;
-import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowOperator;
-import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.tvf.combines.RecordsCombiner;
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowProcessor;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 
@@ -37,7 +37,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * The {@link WindowRankOperatorBuilder} is used to build a {@link SlicingWindowOperator} for window
+ * The {@link WindowRankOperatorBuilder} is used to build a {@link WindowAggOperator} for window
  * rank.
  *
  * <pre>
@@ -50,6 +50,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   .rankStart(0)
  *   .rankEnd(100)
  *   .windowEndIndex(windowEndIndex)
+ *   .withEventTime(true)
  *   .build();
  * </pre>
  */
@@ -68,6 +69,7 @@ public class WindowRankOperatorBuilder {
     private long rankEnd = -1;
     private int windowEndIndex = -1;
     private ZoneId shiftTimeZone;
+    private Boolean isEventTime;
 
     public WindowRankOperatorBuilder inputSerializer(
             AbstractRowDataSerializer<RowData> inputSerializer) {
@@ -116,11 +118,17 @@ public class WindowRankOperatorBuilder {
         return this;
     }
 
-    public SlicingWindowOperator<RowData, ?> build() {
+    public WindowRankOperatorBuilder withEventTime(Boolean isEventTime) {
+        this.isEventTime = isEventTime;
+        return this;
+    }
+
+    public WindowAggOperator<RowData, ?> build() {
         checkNotNull(inputSerializer);
         checkNotNull(keySerializer);
         checkNotNull(sortKeySelector);
         checkNotNull(generatedSortKeyComparator);
+        checkNotNull(isEventTime);
         checkArgument(
                 rankStart > 0,
                 String.format("Illegal rank start %s, it should be positive!", rankStart));
@@ -152,6 +160,7 @@ public class WindowRankOperatorBuilder {
                         outputRankNumber,
                         windowEndIndex,
                         shiftTimeZone);
-        return new SlicingWindowOperator<>(windowProcessor);
+        // Processing time Window TopN is not supported yet.
+        return new WindowAggOperator<>(windowProcessor, isEventTime);
     }
 }

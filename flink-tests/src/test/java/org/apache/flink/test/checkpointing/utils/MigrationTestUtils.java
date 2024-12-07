@@ -27,10 +27,10 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -203,8 +203,8 @@ public class MigrationTestUtils {
             unionListState.clear();
 
             for (String s : CHECKPOINTED_STRINGS) {
-                if (s.hashCode() % getRuntimeContext().getNumberOfParallelSubtasks()
-                        == getRuntimeContext().getIndexOfThisSubtask()) {
+                if (s.hashCode() % getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks()
+                        == getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()) {
                     unionListState.add(s);
                 }
             }
@@ -222,8 +222,8 @@ public class MigrationTestUtils {
 
             synchronized (ctx.getCheckpointLock()) {
                 for (long i = 0; i < numElements; i++) {
-                    if (i % getRuntimeContext().getNumberOfParallelSubtasks()
-                            == getRuntimeContext().getIndexOfThisSubtask()) {
+                    if (i % getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks()
+                            == getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()) {
                         ctx.collect(new Tuple2<>(i, i));
                     }
                 }
@@ -296,8 +296,8 @@ public class MigrationTestUtils {
 
             synchronized (ctx.getCheckpointLock()) {
                 for (long i = 0; i < numElements; i++) {
-                    if (i % getRuntimeContext().getNumberOfParallelSubtasks()
-                            == getRuntimeContext().getIndexOfThisSubtask()) {
+                    if (i % getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks()
+                            == getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()) {
                         ctx.collect(new Tuple2<>(i, i));
                     }
                 }

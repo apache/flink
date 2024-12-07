@@ -41,7 +41,8 @@ abstract class OpFusionCodegenSpecGeneratorBase(
   private var hasProcessProduceTraversed = false
   private var hasEndInputProduceTraversed = false
 
-  private lazy val outputRowTerm: String = newName(variablePrefix + "outputRow")
+  private lazy val outputRowTerm: String =
+    newName(getCodeGeneratorContext, variablePrefix + "outputRow")
 
   private val outputs: ListBuffer[(Int, OpFusionCodegenSpecGenerator)] =
     ListBuffer[(Int, OpFusionCodegenSpecGenerator)]()
@@ -57,13 +58,13 @@ abstract class OpFusionCodegenSpecGeneratorBase(
     // add operator reusable member and inner class definition to multiple codegen ctx
     codegenCtx.addReusableMember(opCodegenCtx.reuseMemberCode())
     codegenCtx.addReusableInnerClass(
-      newName(this.getClass.getCanonicalName),
+      newName(codegenCtx, this.getClass.getCanonicalName),
       opCodegenCtx.reuseInnerClassDefinitionCode())
 
     // add init code
     val initCode = opCodegenCtx.reuseInitCode()
     if (initCode.nonEmpty) {
-      val initMethodTerm = newName(variablePrefix + "init")
+      val initMethodTerm = newName(codegenCtx, variablePrefix + "init")
       codegenCtx.addReusableMember(
         s"""
            |private void $initMethodTerm(Object[] references) throws Exception {
@@ -140,7 +141,7 @@ abstract class OpFusionCodegenSpecGeneratorBase(
 
           // need to copy composite type such as varchar for each output if has multiple output
           val (deepCopyLocalVariable, copiedInputVars) = if (outputs.length > 1) {
-            val copiedRowVarTerm = newName("copiedRowVar")
+            val copiedRowVarTerm = newName(getCodeGeneratorContext, "copiedRowVar")
             getCodeGeneratorContext.startNewLocalVariableStatement(copiedRowVarTerm)
             val copiedInputVars: Seq[GeneratedExpression] =
               inputVars.map(_.deepCopy(getCodeGeneratorContext))
@@ -222,7 +223,7 @@ abstract class OpFusionCodegenSpecGeneratorBase(
         outputType,
         rowTypeClazz,
         getOutputRowTerm(row),
-        Some(newName(variablePrefix + DEFAULT_OUT_RECORD_WRITER_TERM))
+        Some(newName(getCodeGeneratorContext, variablePrefix + DEFAULT_OUT_RECORD_WRITER_TERM))
       )
     }
   }

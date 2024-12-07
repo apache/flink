@@ -18,8 +18,8 @@
 package org.apache.flink.runtime.rpc.pekko;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.concurrent.pekko.ScalaFutureUtils;
 import org.apache.flink.runtime.rpc.RpcSystem;
@@ -27,14 +27,15 @@ import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
+import org.apache.flink.shaded.netty4.io.netty.util.internal.logging.InternalLoggerFactory;
+import org.apache.flink.shaded.netty4.io.netty.util.internal.logging.Slf4JLoggerFactory;
+
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import org.apache.pekko.actor.ActorRef;
 import org.apache.pekko.actor.ActorSystem;
 import org.apache.pekko.actor.Address;
 import org.apache.pekko.actor.AddressFromURIString;
-import org.jboss.netty.logging.InternalLoggerFactory;
-import org.jboss.netty.logging.Slf4JLoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,11 +71,11 @@ class PekkoUtils {
      * @return Flink's basic Pekko config
      */
     private static Config getBasicConfig(Configuration configuration) {
-        final int throughput = configuration.getInteger(AkkaOptions.DISPATCHER_THROUGHPUT);
+        final int throughput = configuration.get(RpcOptions.DISPATCHER_THROUGHPUT);
         final String jvmExitOnFatalError =
-                booleanToOnOrOff(configuration.getBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR));
+                booleanToOnOrOff(configuration.get(RpcOptions.JVM_EXIT_ON_FATAL_ERROR));
         final String logLifecycleEvents =
-                booleanToOnOrOff(configuration.getBoolean(AkkaOptions.LOG_LIFECYCLE_EVENTS));
+                booleanToOnOrOff(configuration.get(RpcOptions.LOG_LIFECYCLE_EVENTS));
         final String supervisorStrategy = EscalatingSupervisorStrategy.class.getCanonicalName();
 
         return new ConfigBuilder()
@@ -197,45 +198,44 @@ class PekkoUtils {
         addBaseRemoteConfig(builder, configuration, port, externalPort);
         addHostnameRemoteConfig(builder, bindAddress, externalHostname);
         addSslRemoteConfig(builder, configuration);
+        addRemoteForkJoinExecutorConfig(
+                builder,
+                ActorSystemBootstrapTools.getRemoteForkJoinExecutorConfiguration(configuration));
 
         return builder.build();
     }
 
     private static void addBaseRemoteConfig(
             ConfigBuilder configBuilder, Configuration configuration, int port, int externalPort) {
-        final Duration askTimeout = configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION);
+        final Duration askTimeout = configuration.get(RpcOptions.ASK_TIMEOUT_DURATION);
 
         final String startupTimeout =
                 TimeUtils.getStringInMillis(
-                        TimeUtils.parseDuration(
-                                configuration.getString(
-                                        AkkaOptions.STARTUP_TIMEOUT,
-                                        TimeUtils.getStringInMillis(
-                                                askTimeout.multipliedBy(10L)))));
+                        configuration.get(
+                                RpcOptions.STARTUP_TIMEOUT, askTimeout.multipliedBy(10L)));
 
         final String tcpTimeout =
-                TimeUtils.getStringInMillis(
-                        TimeUtils.parseDuration(configuration.getString(AkkaOptions.TCP_TIMEOUT)));
+                TimeUtils.getStringInMillis(configuration.get(RpcOptions.TCP_TIMEOUT));
 
-        final String framesize = configuration.getString(AkkaOptions.FRAMESIZE);
+        final String framesize = configuration.get(RpcOptions.FRAMESIZE);
 
         final int clientSocketWorkerPoolPoolSizeMin =
-                configuration.get(AkkaOptions.CLIENT_SOCKET_WORKER_POOL_SIZE_MIN);
+                configuration.get(RpcOptions.CLIENT_SOCKET_WORKER_POOL_SIZE_MIN);
         final int clientSocketWorkerPoolPoolSizeMax =
-                configuration.get(AkkaOptions.CLIENT_SOCKET_WORKER_POOL_SIZE_MAX);
+                configuration.get(RpcOptions.CLIENT_SOCKET_WORKER_POOL_SIZE_MAX);
         final double clientSocketWorkerPoolPoolSizeFactor =
-                configuration.get(AkkaOptions.CLIENT_SOCKET_WORKER_POOL_SIZE_FACTOR);
+                configuration.get(RpcOptions.CLIENT_SOCKET_WORKER_POOL_SIZE_FACTOR);
         final int serverSocketWorkerPoolPoolSizeMin =
-                configuration.get(AkkaOptions.SERVER_SOCKET_WORKER_POOL_SIZE_MIN);
+                configuration.get(RpcOptions.SERVER_SOCKET_WORKER_POOL_SIZE_MIN);
         final int serverSocketWorkerPoolPoolSizeMax =
-                configuration.get(AkkaOptions.SERVER_SOCKET_WORKER_POOL_SIZE_MAX);
+                configuration.get(RpcOptions.SERVER_SOCKET_WORKER_POOL_SIZE_MAX);
         final double serverSocketWorkerPoolPoolSizeFactor =
-                configuration.get(AkkaOptions.SERVER_SOCKET_WORKER_POOL_SIZE_FACTOR);
+                configuration.get(RpcOptions.SERVER_SOCKET_WORKER_POOL_SIZE_FACTOR);
 
         final String logLifecycleEvents =
-                booleanToOnOrOff(configuration.getBoolean(AkkaOptions.LOG_LIFECYCLE_EVENTS));
+                booleanToOnOrOff(configuration.get(RpcOptions.LOG_LIFECYCLE_EVENTS));
 
-        final long retryGateClosedFor = configuration.getLong(AkkaOptions.RETRY_GATE_CLOSED_FOR);
+        final long retryGateClosedFor = configuration.get(RpcOptions.RETRY_GATE_CLOSED_FOR);
 
         configBuilder
                 .add("pekko {")
@@ -309,38 +309,42 @@ class PekkoUtils {
             ConfigBuilder configBuilder, Configuration configuration) {
 
         final boolean enableSSLConfig =
-                configuration.getBoolean(AkkaOptions.SSL_ENABLED)
+                configuration.get(RpcOptions.SSL_ENABLED)
                         && SecurityOptions.isInternalSSLEnabled(configuration);
 
         final String enableSSL = booleanToOnOrOff(enableSSLConfig);
 
         final String sslKeyStore =
-                configuration.getString(
+                configuration.get(
                         SecurityOptions.SSL_INTERNAL_KEYSTORE,
-                        configuration.getString(SecurityOptions.SSL_KEYSTORE));
+                        configuration.get(SecurityOptions.SSL_KEYSTORE));
 
         final String sslKeyStorePassword =
-                configuration.getString(
+                configuration.get(
                         SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD,
-                        configuration.getString(SecurityOptions.SSL_KEYSTORE_PASSWORD));
+                        configuration.get(SecurityOptions.SSL_KEYSTORE_PASSWORD));
+        final String sslKeyStoreType =
+                configuration.get(SecurityOptions.SSL_INTERNAL_KEYSTORE_TYPE);
 
         final String sslKeyPassword =
-                configuration.getString(
+                configuration.get(
                         SecurityOptions.SSL_INTERNAL_KEY_PASSWORD,
-                        configuration.getString(SecurityOptions.SSL_KEY_PASSWORD));
+                        configuration.get(SecurityOptions.SSL_KEY_PASSWORD));
 
         final String sslTrustStore =
-                configuration.getString(
+                configuration.get(
                         SecurityOptions.SSL_INTERNAL_TRUSTSTORE,
-                        configuration.getString(SecurityOptions.SSL_TRUSTSTORE));
+                        configuration.get(SecurityOptions.SSL_TRUSTSTORE));
 
         final String sslTrustStorePassword =
-                configuration.getString(
+                configuration.get(
                         SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD,
-                        configuration.getString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD));
+                        configuration.get(SecurityOptions.SSL_TRUSTSTORE_PASSWORD));
+        final String sslTrustStoreType =
+                configuration.get(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_TYPE);
 
         final String sslCertFingerprintString =
-                configuration.getString(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT);
+                configuration.get(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT);
 
         final String sslCertFingerprints =
                 sslCertFingerprintString != null
@@ -348,9 +352,9 @@ class PekkoUtils {
                                 .collect(Collectors.joining("\",\"", "[\"", "\"]"))
                         : "[]";
 
-        final String sslProtocol = configuration.getString(SecurityOptions.SSL_PROTOCOL);
+        final String sslProtocol = configuration.get(SecurityOptions.SSL_PROTOCOL);
 
-        final String sslAlgorithmsString = configuration.getString(SecurityOptions.SSL_ALGORITHMS);
+        final String sslAlgorithmsString = configuration.get(SecurityOptions.SSL_ALGORITHMS);
         final String sslAlgorithms =
                 Arrays.stream(sslAlgorithmsString.split(","))
                         .collect(Collectors.joining(",", "[", "]"));
@@ -369,9 +373,11 @@ class PekkoUtils {
                 .add("        security {")
                 .add("          key-store = \"" + sslKeyStore + "\"")
                 .add("          key-store-password = \"" + sslKeyStorePassword + "\"")
+                .add("          key-store-type = \"" + sslKeyStoreType + "\"")
                 .add("          key-password = \"" + sslKeyPassword + "\"")
                 .add("          trust-store = \"" + sslTrustStore + "\"")
                 .add("          trust-store-password = \"" + sslTrustStorePassword + "\"")
+                .add("          trust-store-type = \"" + sslTrustStoreType + "\"")
                 .add("          protocol = " + sslProtocol + "")
                 .add("          enabled-algorithms = " + sslAlgorithms + "")
                 .add("          random-number-generator = \"\"")
@@ -382,6 +388,27 @@ class PekkoUtils {
                 .add("    }")
                 .add("  }")
                 .add("}");
+    }
+
+    private static Config addRemoteForkJoinExecutorConfig(
+            ConfigBuilder builder, RpcSystem.ForkJoinExecutorConfiguration configuration) {
+        final double parallelismFactor = configuration.getParallelismFactor();
+        final int minNumThreads = configuration.getMinParallelism();
+        final int maxNumThreads = configuration.getMaxParallelism();
+
+        return builder.add("pekko {")
+                .add("  remote {")
+                .add("    default-remote-dispatcher {")
+                .add("      executor = fork-join-executor")
+                .add("      fork-join-executor {")
+                .add("          parallelism-factor = " + parallelismFactor)
+                .add("          parallelism-min = " + minNumThreads)
+                .add("          parallelism-max = " + maxNumThreads)
+                .add("      }")
+                .add("    }")
+                .add("  }")
+                .add("}")
+                .build();
     }
 
     /**

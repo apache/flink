@@ -24,8 +24,9 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.Window;
+
+import java.time.Duration;
 
 /**
  * A {@link Trigger} that continuously fires based on a given time interval as measured by the clock
@@ -69,6 +70,10 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
     @Override
     public TriggerResult onProcessingTime(long time, W window, TriggerContext ctx)
             throws Exception {
+        if (time == window.maxTimestamp()) {
+            return TriggerResult.FIRE;
+        }
+
         ReducingState<Long> fireTimestampState = ctx.getPartitionedState(stateDesc);
 
         if (fireTimestampState.get().equals(time)) {
@@ -123,8 +128,8 @@ public class ContinuousProcessingTimeTrigger<W extends Window> extends Trigger<O
      * @param interval The time interval at which to fire.
      * @param <W> The type of {@link Window Windows} on which this trigger can operate.
      */
-    public static <W extends Window> ContinuousProcessingTimeTrigger<W> of(Time interval) {
-        return new ContinuousProcessingTimeTrigger<>(interval.toMilliseconds());
+    public static <W extends Window> ContinuousProcessingTimeTrigger<W> of(Duration interval) {
+        return new ContinuousProcessingTimeTrigger<>(interval.toMillis());
     }
 
     private static class Min implements ReduceFunction<Long> {

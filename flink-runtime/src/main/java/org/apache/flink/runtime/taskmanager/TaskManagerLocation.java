@@ -224,6 +224,15 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
         return nodeId;
     }
 
+    /**
+     * Gets the endpoint of the TaskManager in the format of "$HOST:$PORT".
+     *
+     * @return The endpoint of the TaskManager.
+     */
+    public String getEndpoint() {
+        return String.format("%s:%d", getFQDNHostname(), dataPort);
+    }
+
     // --------------------------------------------------------------------------------------------
     // Utilities
     // --------------------------------------------------------------------------------------------

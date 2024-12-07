@@ -19,7 +19,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -39,14 +38,13 @@ import org.apache.flink.runtime.shuffle.TestingShuffleMaster;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.IterableUtils;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -60,7 +58,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link DefaultExecutionDeployer}. */
-@ExtendWith(TestLoggerExtension.class)
 class DefaultExecutionDeployerTest {
 
     private ScheduledExecutorService executor;
@@ -70,7 +67,7 @@ class DefaultExecutionDeployerTest {
     private TestExecutionSlotAllocator testExecutionSlotAllocator;
     private TestingShuffleMaster shuffleMaster;
     private TestingJobMasterPartitionTracker partitionTracker;
-    private Time partitionRegistrationTimeout;
+    private Duration partitionRegistrationTimeout;
 
     @BeforeEach
     void setUp() {
@@ -94,7 +91,7 @@ class DefaultExecutionDeployerTest {
         testExecutionSlotAllocator = new TestExecutionSlotAllocator();
         shuffleMaster = new TestingShuffleMaster();
         partitionTracker = new TestingJobMasterPartitionTracker();
-        partitionRegistrationTimeout = Time.milliseconds(5000);
+        partitionRegistrationTimeout = Duration.ofMillis(5000);
     }
 
     @AfterEach
@@ -278,7 +275,7 @@ class DefaultExecutionDeployerTest {
     void testProducedPartitionRegistrationTimeout() throws Exception {
         ScheduledExecutorService scheduledExecutorService = null;
         try {
-            partitionRegistrationTimeout = Time.milliseconds(1);
+            partitionRegistrationTimeout = Duration.ofMillis(1);
 
             scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
             mainThreadExecutor =

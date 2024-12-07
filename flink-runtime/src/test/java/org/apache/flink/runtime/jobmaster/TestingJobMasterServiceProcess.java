@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -87,7 +88,8 @@ public class TestingJobMasterServiceProcess implements JobMasterServiceProcess {
     public static final class Builder {
 
         private UUID leaderSessionId = UUID.randomUUID();
-        private Supplier<CompletableFuture<Void>> closeAsyncSupplier = unsupportedOperation();
+        private Supplier<CompletableFuture<Void>> closeAsyncSupplier =
+                FutureUtils::completedVoidFuture;
         private Supplier<Boolean> isInitializedAndRunningSupplier = unsupportedOperation();
         private Supplier<CompletableFuture<JobMasterGateway>> getJobMasterGatewayFutureSupplier =
                 () ->

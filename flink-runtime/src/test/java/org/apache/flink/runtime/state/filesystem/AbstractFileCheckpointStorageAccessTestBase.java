@@ -34,6 +34,8 @@ import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.annotation.Nullable;
 
@@ -58,11 +60,11 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
     //  factories for the actual state storage to be tested
     // ------------------------------------------------------------------------
 
-    protected abstract CheckpointStorageAccess createCheckpointStorage(Path checkpointDir)
-            throws Exception;
+    protected abstract CheckpointStorageAccess createCheckpointStorage(
+            Path checkpointDir, boolean createCheckpointSubdir) throws Exception;
 
     protected abstract CheckpointStorageAccess createCheckpointStorageWithSavepointDir(
-            Path checkpointDir, Path savepointDir) throws Exception;
+            Path checkpointDir, Path savepointDir, boolean createCheckpointSubdir) throws Exception;
 
     // ------------------------------------------------------------------------
     //  pointers
@@ -83,7 +85,7 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
         final String pointer3 = metadataFile.getParent().toString() + '/';
 
         // create the storage for some random checkpoint directory
-        final CheckpointStorageAccess storage = createCheckpointStorage(randomTempPath());
+        final CheckpointStorageAccess storage = createCheckpointStorage(randomTempPath(), true);
 
         final byte[] data = new byte[23686];
         new Random().nextBytes(data);
@@ -115,7 +117,7 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
     @Test
     void testFailingPointerPathResolution() throws Exception {
         // create the storage for some random checkpoint directory
-        final CheckpointStorageAccess storage = createCheckpointStorage(randomTempPath());
+        final CheckpointStorageAccess storage = createCheckpointStorage(randomTempPath(), true);
 
         // null value
         assertThatThrownBy(() -> storage.resolveCheckpoint(null))
@@ -142,6 +144,29 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
     //  checkpoints
     // ------------------------------------------------------------------------
 
+    @ParameterizedTest(name = "create checkpoint job-id sub-directory: {0}")
+    @ValueSource(booleans = {true, false})
+    public void testCreateCheckpointSubDirs(boolean createCheckpointSubDir) throws Exception {
+        final FileSystem fs = FileSystem.getLocalFileSystem();
+        final Path checkpointDir = Path.fromLocalFile(TempDirUtils.newFolder(tmp));
+        final CheckpointStorageAccess checkpointStorage =
+                createCheckpointStorage(checkpointDir, createCheckpointSubDir);
+        checkpointStorage.initializeBaseLocationsForCheckpoint();
+        checkpointStorage.initializeLocationForCheckpoint(42L);
+        FileStatus[] fileStatuses = fs.listStatus(checkpointDir);
+        if (createCheckpointSubDir) {
+            for (FileStatus fileStatus : fileStatuses) {
+                // as the job-id sub-dir existed and could at least get chk-42 sub-folder.
+                assertThat(fs.listStatus(fileStatus.getPath()).length > 0).isTrue();
+            }
+        } else {
+            for (FileStatus fileStatus : fileStatuses) {
+                // as the job-id sub-dir is not existed and no more sub-folders.
+                assertThat(fs.listStatus(fileStatus.getPath()).length).isEqualTo(0);
+            }
+        }
+    }
+
     /**
      * Validates that multiple checkpoints from different jobs with the same checkpoint ID do not
      * interfere with each other.
@@ -153,9 +178,9 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
 
         final long checkpointId = 177;
 
-        final CheckpointStorageAccess storage1 = createCheckpointStorage(checkpointDir);
+        final CheckpointStorageAccess storage1 = createCheckpointStorage(checkpointDir, true);
         storage1.initializeBaseLocationsForCheckpoint();
-        final CheckpointStorageAccess storage2 = createCheckpointStorage(checkpointDir);
+        final CheckpointStorageAccess storage2 = createCheckpointStorage(checkpointDir, true);
         storage2.initializeBaseLocationsForCheckpoint();
 
         final CheckpointStorageLocation loc1 =
@@ -217,7 +242,7 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
         final byte[] data = {8, 8, 4, 5, 2, 6, 3};
         final long checkpointId = 177;
 
-        final CheckpointStorageAccess storage = createCheckpointStorage(randomTempPath());
+        final CheckpointStorageAccess storage = createCheckpointStorage(randomTempPath(), true);
         storage.initializeBaseLocationsForCheckpoint();
         final CheckpointStorageLocation loc = storage.initializeLocationForCheckpoint(checkpointId);
 
@@ -257,7 +282,7 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
 
     @Test
     void testNoSavepointPathConfiguredNoTarget() throws Exception {
-        final CheckpointStorageAccess storage = createCheckpointStorage(randomTempPath());
+        final CheckpointStorageAccess storage = createCheckpointStorage(randomTempPath(), true);
 
         assertThatThrownBy(() -> storage.initializeLocationForSavepoint(1337, null))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -269,8 +294,9 @@ public abstract class AbstractFileCheckpointStorageAccessTestBase {
 
         final CheckpointStorageAccess storage =
                 savepointDir == null
-                        ? createCheckpointStorage(randomTempPath())
-                        : createCheckpointStorageWithSavepointDir(randomTempPath(), savepointDir);
+                        ? createCheckpointStorage(randomTempPath(), true)
+                        : createCheckpointStorageWithSavepointDir(
+                                randomTempPath(), savepointDir, true);
 
         final String customLocation = customDir == null ? null : customDir.toString();
 

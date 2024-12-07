@@ -32,7 +32,7 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.util.SerializedThrowable;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
 
 import org.junit.jupiter.api.Test;
 
@@ -51,7 +51,7 @@ class DefaultJobMasterServiceProcessTest {
             failedArchivedExecutionGraphFactory =
                     (throwable ->
                             ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
-                                    jobId, "test", JobStatus.FAILED, throwable, null, 1337));
+                                    jobId, "test", JobStatus.FAILED, null, throwable, null, 1337));
 
     @Test
     void testInitializationFailureCompletesResultFuture() {
@@ -205,7 +205,7 @@ class DefaultJobMasterServiceProcessTest {
     }
 
     @Test
-    void testLeaderAddressGetsForwarded() throws Exception {
+    void testLeaderAddressGetsForwarded() {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);
@@ -249,7 +249,7 @@ class DefaultJobMasterServiceProcessTest {
     }
 
     @Test
-    void testSuccessOnTerminalState() throws Exception {
+    void testSuccessOnTerminalState() {
         final CompletableFuture<JobMasterService> jobMasterServiceFuture =
                 new CompletableFuture<>();
         DefaultJobMasterServiceProcess serviceProcess = createTestInstance(jobMasterServiceFuture);

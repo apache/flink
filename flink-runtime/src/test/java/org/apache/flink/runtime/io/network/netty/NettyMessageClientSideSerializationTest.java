@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.CompressionCodec;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.TestingPartitionRequestClient;
@@ -30,14 +31,12 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -60,7 +59,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests for the serialization and deserialization of the various {@link NettyMessage} sub-classes
  * sent from server side to client side.
  */
-@ExtendWith(TestLoggerExtension.class)
 class NettyMessageClientSideSerializationTest {
 
     private static final int BUFFER_SIZE = 1024;
@@ -84,7 +82,7 @@ class NettyMessageClientSideSerializationTest {
         inputGate = createSingleInputGate(1, networkBufferPool);
         RemoteInputChannel inputChannel =
                 createRemoteInputChannel(inputGate, new TestingPartitionRequestClient());
-        inputChannel.requestSubpartition();
+        inputChannel.requestSubpartitions();
         inputGate.setInputChannels(inputChannel);
         inputGate.setup();
 
@@ -146,8 +144,9 @@ class NettyMessageClientSideSerializationTest {
     @ParameterizedTest
     @ValueSource(strings = {"LZ4", "LZO", "ZSTD"})
     void testCompressedBufferResponse(final String codecFactoryName) {
-        compressor = new BufferCompressor(BUFFER_SIZE, codecFactoryName);
-        decompressor = new BufferDecompressor(BUFFER_SIZE, codecFactoryName);
+        compressor = new BufferCompressor(BUFFER_SIZE, CompressionCodec.valueOf(codecFactoryName));
+        decompressor =
+                new BufferDecompressor(BUFFER_SIZE, CompressionCodec.valueOf(codecFactoryName));
         testBufferResponse(false, true);
     }
 
@@ -189,6 +188,7 @@ class NettyMessageClientSideSerializationTest {
                         testBuffer,
                         random.nextInt(Integer.MAX_VALUE),
                         inputChannelId,
+                        random.nextInt(Integer.MAX_VALUE),
                         random.nextInt(Integer.MAX_VALUE));
         BufferResponse actual = encodeAndDecode(expected, channel);
 

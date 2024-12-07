@@ -17,8 +17,8 @@
  */
 package org.apache.flink.table.planner.runtime.batch.sql
 
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.{createTempFile, createTempFolder}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -77,6 +77,7 @@ class TableSourceITCase extends BatchTestBase {
          |) WITH (
          |  'connector' = 'values',
          |  'nested-projection-supported' = 'true',
+         |  'filterable-fields' = '`nested.value`;`nestedItem.deepMap`;`nestedItem.deepArray`',
          |  'data-id' = '$nestedTableDataId',
          |  'bounded' = 'true'
          |)
@@ -388,7 +389,7 @@ class TableSourceITCase extends BatchTestBase {
   @Test
   def testTableHintWithLogicalTableScanReuse(): Unit = {
     tEnv.getConfig.set(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
       Boolean.box(true))
     val resultPath = createTempFolder().getAbsolutePath
     tEnv.executeSql(s"""
@@ -426,5 +427,42 @@ class TableSourceITCase extends BatchTestBase {
       "3,2,Hello world",
       "3,2,Hello world")
     assertThat(expected.sorted).isEqualTo(result.sorted)
+  }
+
+  @Test
+  def testSimpleNestedFilter(): Unit = {
+    checkResult(
+      """
+        |SELECT id, deepNested.nested1.name AS nestedName FROM NestedTable
+        |   WHERE nested.`value` > 20000
+      """.stripMargin,
+      Seq(row(3, "Mike"))
+    )
+  }
+
+  @Test
+  def testNestedFilterOnArray(): Unit = {
+    checkResult(
+      """
+        |SELECT id,
+        |   deepNested.nested1.name AS nestedName,
+        |   nestedItem.deepArray[2].`value` FROM NestedTable
+        |WHERE nestedItem.deepArray[2].`value` > 1
+      """.stripMargin,
+      Seq(row(1, "Sarah", 2), row(2, "Rob", 2), row(3, "Mike", 2))
+    )
+  }
+
+  @Test
+  def testNestedFilterOnMap(): Unit = {
+    checkResult(
+      """
+        |SELECT id,
+        |   deepNested.nested1.name AS nestedName,
+        |   nestedItem.deepMap['Monday'] FROM NestedTable
+        |WHERE nestedItem.deepMap['Monday'] = 1
+      """.stripMargin,
+      Seq(row(1, "Sarah", 1), row(2, "Rob", 1), row(3, "Mike", 1))
+    )
   }
 }

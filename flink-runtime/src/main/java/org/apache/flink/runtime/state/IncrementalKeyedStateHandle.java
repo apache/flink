@@ -42,6 +42,9 @@ public interface IncrementalKeyedStateHandle
     @Nonnull
     List<HandleAndLocalPath> getSharedStateHandles();
 
+    @Nonnull
+    StreamStateHandle getMetaDataStateHandle();
+
     /** A Holder of StreamStateHandle and the corresponding localPath. */
     final class HandleAndLocalPath implements Serializable {
 
@@ -96,6 +99,17 @@ public interface IncrementalKeyedStateHandle
         @Override
         public int hashCode() {
             return Objects.hash(handle, localPath);
+        }
+
+        @Override
+        public String toString() {
+            return "HandleAndLocalPath{"
+                    + "handle="
+                    + handle
+                    + ", localPath='"
+                    + localPath
+                    + '\''
+                    + '}';
         }
     }
 }

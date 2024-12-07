@@ -33,7 +33,7 @@ This page covers how to build Flink {{< version >}} from sources.
 
 In order to build Flink you need the source code. Either [download the source of a release]({{< downloads >}}) or [clone the git repository]({{< github_repo >}}).
 
-In addition you need **Maven 3** and a **JDK** (Java Development Kit). Flink requires **Java 8 (deprecated) or Java 11** to build.
+In addition you need **Maven 3.8.6** and a **JDK** (Java Development Kit). Flink requires **Java 8 (deprecated) or Java 11** to build.
 
 To clone from git, enter:
 
@@ -72,11 +72,11 @@ The `fast` and `skip-webui-build` profiles have a significant impact on the buil
 
     If you want to build a PyFlink package that can be used for pip installation, you need to build the Flink project first, as described in [Build Flink](#build-flink).
 
-2. Python version(3.8, 3.9 or 3.10) is required
+2. Python version(3.8, 3.9, 3.10 or 3.11) is required
 
     ```shell
     $ python --version
-    # the version printed here must be 3.8, 3.9 or 3.10
+    # the version printed here must be 3.8, 3.9, 3.10 or 3.11
     ```
 
 3. Build PyFlink with Cython extension support (optional)
@@ -125,7 +125,7 @@ Since version 1.15 Flink dropped the support of Scala 2.11 and it will use Scala
 
 To build against a specific binary Scala version you can use:
 ```bash
-mvn clean install -DskipTests -Dscala-2.12 -Dscala.version=<scala version>
+mvn clean install -DskipTests -Dscala.version=<scala version>
 ```
 
 

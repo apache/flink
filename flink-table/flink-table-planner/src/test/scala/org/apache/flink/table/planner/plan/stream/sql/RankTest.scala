@@ -17,13 +17,12 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.Test
+import org.assertj.core.api.Assertions.{assertThatExceptionOfType, assertThatThrownBy}
+import org.junit.jupiter.api.Test
 
 class RankTest extends TableTestBase {
 
@@ -43,9 +42,9 @@ class RankTest extends TableTestBase {
         |WHERE rank_num >= 10
       """.stripMargin
 
-    thrown.expectMessage("Rank end is not specified.")
-    thrown.expect(classOf[TableException])
-    util.verifyExecPlan(sql)
+    assertThatThrownBy(() => util.verifyExecPlan(sql))
+      .hasMessageContaining("Rank end is not specified.")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -60,9 +59,9 @@ class RankTest extends TableTestBase {
         |WHERE rank_num <= 0
       """.stripMargin
 
-    thrown.expectMessage("Rank end should not less than zero")
-    thrown.expect(classOf[TableException])
-    util.verifyExecPlan(sql)
+    assertThatThrownBy(() => util.verifyExecPlan(sql))
+      .hasMessageContaining("Rank end should not less than zero")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -185,7 +184,7 @@ class RankTest extends TableTestBase {
     util.verifyExecPlan(sql)
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testRowNumberWithOutOrderBy(): Unit = {
     val sql =
       """
@@ -195,10 +194,11 @@ class RankTest extends TableTestBase {
         |  FROM MyTable)
         |WHERE row_num <= a
       """.stripMargin
-    util.verifyExecPlan(sql)
+    assertThatExceptionOfType(classOf[RuntimeException])
+      .isThrownBy(() => util.verifyExecPlan(sql))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRankWithOutOrderBy(): Unit = {
     val sql =
       """
@@ -208,10 +208,11 @@ class RankTest extends TableTestBase {
         |  FROM MyTable)
         |WHERE rk <= a
       """.stripMargin
-    util.verifyExecPlan(sql)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan(sql))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDenseRankWithOutOrderBy(): Unit = {
     val sql =
       """
@@ -221,10 +222,11 @@ class RankTest extends TableTestBase {
         |  FROM MyTable)
         |WHERE rk <= a
       """.stripMargin
-    util.verifyExecPlan(sql)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan(sql))
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testRowNumberWithMultiGroups(): Unit = {
     val sql =
       """
@@ -235,10 +237,11 @@ class RankTest extends TableTestBase {
         |  FROM MyTable)
         |WHERE row_num <= a
       """.stripMargin
-    util.verifyExecPlan(sql)
+    assertThatExceptionOfType(classOf[RuntimeException])
+      .isThrownBy(() => util.verifyExecPlan(sql))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRankWithMultiGroups(): Unit = {
     val sql =
       """
@@ -249,10 +252,11 @@ class RankTest extends TableTestBase {
         |  FROM MyTable)
         |WHERE rk <= a
       """.stripMargin
-    util.verifyExecPlan(sql)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan(sql))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDenseRankWithMultiGroups(): Unit = {
     val sql =
       """
@@ -263,7 +267,8 @@ class RankTest extends TableTestBase {
         |  FROM MyTable)
         |WHERE rk <= a
       """.stripMargin
-    util.verifyExecPlan(sql)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan(sql))
   }
 
   @Test
@@ -644,7 +649,7 @@ class RankTest extends TableTestBase {
     util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   // FIXME remove expected exception after ADD added
   def testTopNForVariableSize(): Unit = {
     val subquery =
@@ -667,7 +672,8 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= a
       """.stripMargin
 
-    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE))
   }
 
   @Test
@@ -836,14 +842,15 @@ class RankTest extends TableTestBase {
                                |CREATE VIEW v1 AS
                                |SELECT c, b, SUM(a) FILTER (WHERE a > 0) AS d FROM v0 GROUP BY c, b
                                |""".stripMargin)
-    util.verifyRelPlan("""
-                         |SELECT c, b, d
-                         |FROM (
-                         |    SELECT
-                         |       c, b, d,
-                         |       ROW_NUMBER() OVER (PARTITION BY c, b ORDER BY d DESC) AS rn FROM v1
-                         |) WHERE rn < 10
-                         |""".stripMargin)
+    util.verifyExecPlan(
+      """
+        |SELECT c, b, d
+        |FROM (
+        |    SELECT
+        |       c, b, d,
+        |       ROW_NUMBER() OVER (PARTITION BY c, b ORDER BY d DESC) AS rn FROM v1
+        |) WHERE rn < 10
+        |""".stripMargin)
   }
   @Test
   def testUpdatableRankAfterLookupJoin(): Unit = {
@@ -882,7 +889,7 @@ class RankTest extends TableTestBase {
   @Test
   def testUpdatableRankAfterIntermediateScan(): Unit = {
     util.tableEnv.getConfig.set(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
       Boolean.box(true))
     util.tableEnv.executeSql("""
                                |CREATE VIEW v1 AS

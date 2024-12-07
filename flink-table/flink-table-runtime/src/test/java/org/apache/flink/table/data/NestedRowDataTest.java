@@ -17,7 +17,7 @@
 
 package org.apache.flink.table.data;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -33,20 +33,20 @@ import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.StringDataSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.table.data.util.DataFormatTestUtil.MyObj;
 import static org.apache.flink.table.data.util.DataFormatTestUtil.splitBytes;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link NestedRowData}s. */
-public class NestedRowDataTest {
+class NestedRowDataTest {
 
     @Test
-    public void testNestedRowDataWithOneSegment() {
+    void testNestedRowDataWithOneSegment() {
         BinaryRowData row = getBinaryRowData();
         GenericTypeInfo<MyObj> info = new GenericTypeInfo<>(MyObj.class);
-        TypeSerializer<MyObj> genericSerializer = info.createSerializer(new ExecutionConfig());
+        TypeSerializer<MyObj> genericSerializer = info.createSerializer(new SerializerConfigImpl());
 
         RowData nestedRow = row.getRow(0, 5);
         assertThat(1).isEqualTo(nestedRow.getInt(0));
@@ -58,10 +58,10 @@ public class NestedRowDataTest {
     }
 
     @Test
-    public void testNestedRowDataWithMultipleSegments() {
+    void testNestedRowDataWithMultipleSegments() {
         BinaryRowData row = getBinaryRowData();
         GenericTypeInfo<MyObj> info = new GenericTypeInfo<>(MyObj.class);
-        TypeSerializer<MyObj> genericSerializer = info.createSerializer(new ExecutionConfig());
+        TypeSerializer<MyObj> genericSerializer = info.createSerializer(new SerializerConfigImpl());
 
         MemorySegment[] segments = splitBytes(row.getSegments()[0].getHeapMemory(), 3);
         row.pointTo(segments, 3, row.getSizeInBytes());
@@ -77,7 +77,7 @@ public class NestedRowDataTest {
     }
 
     @Test
-    public void testNestInNestedRowData() {
+    void testNestInNestedRowData() {
         // layer1
         GenericRowData gRow = new GenericRowData(4);
         gRow.setField(0, 1);
@@ -134,7 +134,7 @@ public class NestedRowDataTest {
         BinaryRowWriter writer = new BinaryRowWriter(row);
 
         GenericTypeInfo<MyObj> info = new GenericTypeInfo<>(MyObj.class);
-        TypeSerializer<MyObj> genericSerializer = info.createSerializer(new ExecutionConfig());
+        TypeSerializer<MyObj> genericSerializer = info.createSerializer(new SerializerConfigImpl());
         GenericRowData gRow = new GenericRowData(5);
         gRow.setField(0, 1);
         gRow.setField(1, 5L);
@@ -151,7 +151,7 @@ public class NestedRowDataTest {
                             DataTypes.STRING().getLogicalType(),
                             DataTypes.RAW(
                                             info.getTypeClass(),
-                                            info.createSerializer(new ExecutionConfig()))
+                                            info.createSerializer(new SerializerConfigImpl()))
                                     .getLogicalType()
                         },
                         new TypeSerializer[] {

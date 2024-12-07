@@ -17,22 +17,21 @@
  */
 package org.apache.flink.table.planner.runtime.stream.table
 
-import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingRetractSink}
+import org.apache.flink.table.api.bridge.scala.{dataStreamConversions, tableConversions}
+import org.apache.flink.table.planner.runtime.utils.{StreamingEnvUtil, StreamingWithStateTestBase, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.ExtendWith
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class SubQueryITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
-  @Test
+  @TestTemplate
   def testInUncorrelated(): Unit = {
     val dataA = Seq(
       (1, 1L, "Hello"),
@@ -47,9 +46,9 @@ class SubQueryITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(
       (4, "hello")
     )
 
-    val tableA = env.fromCollection(dataA).toTable(tEnv, 'a, 'b, 'c)
+    val tableA = StreamingEnvUtil.fromCollection(env, dataA).toTable(tEnv, 'a, 'b, 'c)
 
-    val tableB = env.fromCollection(dataB).toTable(tEnv, 'x, 'y)
+    val tableB = StreamingEnvUtil.fromCollection(env, dataB).toTable(tEnv, 'x, 'y)
 
     val result = tableA.where('a.in(tableB.select('x)))
 
@@ -64,10 +63,10 @@ class SubQueryITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(
       "4,4,Hello"
     )
 
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testInUncorrelatedWithConditionAndAgg(): Unit = {
     val dataA = Seq(
       (1, 1L, "Hello"),
@@ -85,9 +84,9 @@ class SubQueryITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(
       (-1, "Hanoi-1")
     )
 
-    val tableA = env.fromCollection(dataA).toTable(tEnv, 'a, 'b, 'c)
+    val tableA = StreamingEnvUtil.fromCollection(env, dataA).toTable(tEnv, 'a, 'b, 'c)
 
-    val tableB = env.fromCollection(dataB).toTable(tEnv, 'x, 'y)
+    val tableB = StreamingEnvUtil.fromCollection(env, dataB).toTable(tEnv, 'x, 'y)
 
     val result = tableA
       .where('a.in(tableB.where('y.like("%Hanoi%")).groupBy('y).select('x.sum)))
@@ -102,10 +101,10 @@ class SubQueryITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(
       "3,3,Hello World"
     )
 
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testInWithMultiUncorrelatedCondition(): Unit = {
     val dataA = Seq(
       (1, 1L, "Hello"),
@@ -126,11 +125,11 @@ class SubQueryITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(
       (2L, "Cool")
     )
 
-    val tableA = env.fromCollection(dataA).toTable(tEnv, 'a, 'b, 'c)
+    val tableA = StreamingEnvUtil.fromCollection(env, dataA).toTable(tEnv, 'a, 'b, 'c)
 
-    val tableB = env.fromCollection(dataB).toTable(tEnv, 'x, 'y)
+    val tableB = StreamingEnvUtil.fromCollection(env, dataB).toTable(tEnv, 'x, 'y)
 
-    val tableC = env.fromCollection(dataC).toTable(tEnv, 'w, 'z)
+    val tableC = StreamingEnvUtil.fromCollection(env, dataC).toTable(tEnv, 'w, 'z)
 
     val result = tableA
       .where('a.in(tableB.select('x)) && 'b.in(tableC.select('w)))
@@ -145,7 +144,7 @@ class SubQueryITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(
       "2,2,Hello"
     )
 
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
 }

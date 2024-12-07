@@ -32,7 +32,7 @@ import org.apache.flink.table.runtime.operators.join.lookup.RetryableAsyncLookup
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -47,7 +47,7 @@ import java.util.concurrent.Executors;
 import static org.apache.flink.table.data.StringData.fromString;
 
 /** Harness tests for {@link RetryableAsyncLookupFunctionDelegator}. */
-public class RetryableAsyncLookupFunctionDelegatorTest {
+class RetryableAsyncLookupFunctionDelegatorTest {
 
     private final AsyncLookupFunction userLookupFunc = new TestingAsyncLookupFunction();
 
@@ -82,9 +82,9 @@ public class RetryableAsyncLookupFunctionDelegatorTest {
                     });
 
     @Test
-    public void testLookupWithRetry() throws Exception {
+    void testLookupWithRetry() throws Exception {
         final RetryableAsyncLookupFunctionDelegator delegator = createDelegator(retryStrategy);
-        delegator.open(new FunctionContext(new MockStreamingRuntimeContext(false, 1, 1)));
+        delegator.open(new FunctionContext(new MockStreamingRuntimeContext(false, 1, 0)));
         for (int i = 1; i <= 5; i++) {
             RowData key = GenericRowData.of(i);
             assertor.assertOutputEquals(
@@ -96,10 +96,10 @@ public class RetryableAsyncLookupFunctionDelegatorTest {
     }
 
     @Test
-    public void testLookupWithRetryDisabled() throws Exception {
+    void testLookupWithRetryDisabled() throws Exception {
         final RetryableAsyncLookupFunctionDelegator delegator =
                 createDelegator(ResultRetryStrategy.NO_RETRY_STRATEGY);
-        delegator.open(new FunctionContext(new MockStreamingRuntimeContext(false, 1, 1)));
+        delegator.open(new FunctionContext(new MockStreamingRuntimeContext(false, 1, 0)));
         for (int i = 1; i <= 5; i++) {
             RowData key = GenericRowData.of(i);
             assertor.assertOutputEquals(
@@ -111,14 +111,14 @@ public class RetryableAsyncLookupFunctionDelegatorTest {
     }
 
     @Test
-    public void testLookupWithCustomRetry() throws Exception {
+    void testLookupWithCustomRetry() throws Exception {
         AsyncRetryStrategy retryStrategy =
                 new AsyncRetryStrategies.ExponentialBackoffDelayRetryStrategyBuilder<>(
                                 3, 1, 100, 1.1d)
                         .build();
         final RetryableAsyncLookupFunctionDelegator delegator =
                 createDelegator(new ResultRetryStrategy(retryStrategy));
-        delegator.open(new FunctionContext(new MockStreamingRuntimeContext(false, 1, 1)));
+        delegator.open(new FunctionContext(new MockStreamingRuntimeContext(false, 1, 0)));
         for (int i = 1; i <= 5; i++) {
             RowData key = GenericRowData.of(i);
             assertor.assertOutputEquals(

@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.java.hadoop.mapred;
 
+import org.apache.flink.api.common.io.FinalizeOnMaster;
+import org.apache.flink.api.common.io.FirstAttemptInitializationContext;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 import org.apache.hadoop.conf.Configurable;
@@ -32,14 +34,14 @@ import org.apache.hadoop.mapred.RecordWriter;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.TaskAttemptContext;
 import org.apache.hadoop.util.Progressable;
-import org.junit.Test;
-import org.mockito.Matchers;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import java.io.IOException;
 
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.mock;
@@ -48,10 +50,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link HadoopOutputFormat}. */
-public class HadoopOutputFormatTest {
+class HadoopOutputFormatTest {
 
     @Test
-    public void testOpen() throws Exception {
+    void testOpen() throws Exception {
 
         OutputFormat<String, Long> dummyOutputFormat = mock(DummyOutputFormat.class);
         DummyOutputCommitter outputCommitter = mock(DummyOutputCommitter.class);
@@ -61,7 +63,7 @@ public class HadoopOutputFormatTest {
         HadoopOutputFormat<String, Long> outputFormat =
                 new HadoopOutputFormat<>(dummyOutputFormat, jobConf);
 
-        outputFormat.open(1, 1);
+        outputFormat.open(FirstAttemptInitializationContext.of(1, 1));
 
         verify(jobConf, times(2)).getOutputCommitter();
         verify(outputCommitter, times(1)).setupJob(any(JobContext.class));
@@ -74,20 +76,20 @@ public class HadoopOutputFormatTest {
     }
 
     @Test
-    public void testConfigureWithConfigurable() {
+    void testConfigureWithConfigurable() {
         ConfigurableDummyOutputFormat dummyOutputFormat = mock(ConfigurableDummyOutputFormat.class);
         JobConf jobConf = mock(JobConf.class);
 
         HadoopOutputFormat<String, Long> outputFormat =
                 new HadoopOutputFormat<>(dummyOutputFormat, jobConf);
 
-        outputFormat.configure(Matchers.<org.apache.flink.configuration.Configuration>any());
+        outputFormat.configure(ArgumentMatchers.any());
 
         verify(dummyOutputFormat, times(1)).setConf(any(Configuration.class));
     }
 
     @Test
-    public void testConfigureWithJobConfigurable() {
+    void testConfigureWithJobConfigurable() {
         JobConfigurableDummyOutputFormat dummyOutputFormat =
                 mock(JobConfigurableDummyOutputFormat.class);
         JobConf jobConf = mock(JobConf.class);
@@ -95,13 +97,13 @@ public class HadoopOutputFormatTest {
         HadoopOutputFormat<String, Long> outputFormat =
                 new HadoopOutputFormat<>(dummyOutputFormat, jobConf);
 
-        outputFormat.configure(Matchers.<org.apache.flink.configuration.Configuration>any());
+        outputFormat.configure(ArgumentMatchers.any());
 
         verify(dummyOutputFormat, times(1)).configure(any(JobConf.class));
     }
 
     @Test
-    public void testCloseWithTaskCommit() throws Exception {
+    void testCloseWithTaskCommit() throws Exception {
         OutputFormat<String, Long> dummyOutputFormat = mock(DummyOutputFormat.class);
         DummyOutputCommitter outputCommitter = mock(DummyOutputCommitter.class);
         when(outputCommitter.needsTaskCommit(nullable(TaskAttemptContext.class))).thenReturn(true);
@@ -120,7 +122,7 @@ public class HadoopOutputFormatTest {
     }
 
     @Test
-    public void testCloseWithoutTaskCommit() throws Exception {
+    void testCloseWithoutTaskCommit() throws Exception {
         OutputFormat<String, Long> dummyOutputFormat = mock(DummyOutputFormat.class);
         DummyOutputCommitter outputCommitter = mock(DummyOutputCommitter.class);
         when(outputCommitter.needsTaskCommit(any(TaskAttemptContext.class))).thenReturn(false);
@@ -139,7 +141,7 @@ public class HadoopOutputFormatTest {
     }
 
     @Test
-    public void testWriteRecord() throws Exception {
+    void testWriteRecord() throws Exception {
         OutputFormat<String, Long> dummyOutputFormat = mock(DummyOutputFormat.class);
         DummyRecordWriter recordWriter = mock(DummyRecordWriter.class);
         JobConf jobConf = mock(JobConf.class);
@@ -154,7 +156,7 @@ public class HadoopOutputFormatTest {
     }
 
     @Test
-    public void testFinalizeGlobal() throws Exception {
+    void testFinalizeGlobal() throws Exception {
         OutputFormat<String, Long> dummyOutputFormat = mock(DummyOutputFormat.class);
         DummyOutputCommitter outputCommitter = mock(DummyOutputCommitter.class);
         JobConf jobConf = Mockito.spy(new JobConf());
@@ -163,7 +165,18 @@ public class HadoopOutputFormatTest {
         HadoopOutputFormat<String, Long> outputFormat =
                 new HadoopOutputFormat<>(dummyOutputFormat, jobConf);
 
-        outputFormat.finalizeGlobal(1);
+        outputFormat.finalizeGlobal(
+                new FinalizeOnMaster.FinalizationContext() {
+                    @Override
+                    public int getParallelism() {
+                        return 1;
+                    }
+
+                    @Override
+                    public int getFinishedAttempt(int subtaskIndex) {
+                        return 0;
+                    }
+                });
 
         verify(outputCommitter, times(1)).commitJob(any(JobContext.class));
     }

@@ -68,26 +68,22 @@ Flink Table API & SQL 为用户提供了一组内置的数据转换函数。本�
 
 {{< sql_functions_zh "collection" >}}
 
-### JSON Functions
+### JSON 函数
 
-JSON functions make use of JSON path expressions as described in ISO/IEC TR 19075-6 of the SQL
-standard. Their syntax is inspired by and adopts many features of ECMAScript, but is neither a
-subset nor superset thereof.
+JSON 函数使用符合 ISO/IEC TR 19075-6 SQL标准的 JSON 路径表达式。 它们的语法受到 ECMAScript 的启发，并
+采用了 ECMAScript 的许多功能，但不是其子集或超集。
 
-Path expressions come in two flavors, lax and strict. When omitted, it defaults to the strict mode.
-Strict mode is intended to examine data from a schema perspective and will throw errors whenever
-data does not adhere to the path expression. However, functions like `JSON_VALUE` allow defining
-fallback behavior if an error is encountered. Lax mode, on the other hand, is more forgiving and
-converts errors to empty sequences.
+路径表达式有宽容模式和严格模式两种模式。 当不指定时，默认使用严格模式。
+严格模式旨在从 Schema 的角度检查数据，并且只要数据不符合路径表达式就会抛出错误。 但是像`JSON_VALUE`的函数
+允许定义遇到错误时的后备行为。 另一方面，宽容模式更加宽容，并将错误转换为空序列。
 
-The special character `$` denotes the root node in a JSON path. Paths can access properties (`$.a`),
-array elements (`$.a[0].b`), or branch over all elements in an array (`$.a[*].b`).
+特殊字符`$`表示 JSON 路径中的根节点。 路径可以访问属性（`$.a`）， 数组元素 (`$.a[0].b`)，或遍历数组中的
+所有元素 (`$.a[*].b`)。
 
-Known Limitations:
-* Not all features of Lax mode are currently supported correctly. This is an upstream bug
-  (CALCITE-4717). Non-standard behavior is not guaranteed.
+已知限制：
+* 目前，并非宽容模式的所有功能都被正确支持。 这是一个上游的错误（CALCITE-4717）。无法保证行为符合标准。
 
-{{< sql_functions "json" >}}
+{{< sql_functions_zh "json" >}}
 
 ### 值构建函数
 
@@ -122,43 +118,44 @@ Known Limitations:
 下表列出了时间间隔单位和时间点单位标识符。
 
 对于 Table API，请使用 `_` 代替空格（例如 `DAY_TO_HOUR`）。
+Plural works for SQL only.
 
-| 时间间隔单位                | 时间点单位                        |
-| :------------------------ | :------------------------------ |
-| `MILLENNIUM`              |                                 |
-| `CENTURY`                 |                                 |
-| `DECADE`                  |                                 |
-| `YEAR`                    | `YEAR`                          |
-| `YEAR TO MONTH`           |                                 |
-| `QUARTER`                 | `QUARTER`                       |
-| `MONTH`                   | `MONTH`                         |
-| `WEEK`                    | `WEEK`                          |
-| `DAY`                     | `DAY`                           |
-| `DAY TO HOUR`             |                                 |
-| `DAY TO MINUTE`           |                                 |
-| `DAY TO SECOND`           |                                 |
-| `HOUR`                    | `HOUR`                          |
-| `HOUR TO MINUTE`          |                                 |
-| `HOUR TO SECOND`          |                                 |
-| `MINUTE`                  | `MINUTE`                        |
-| `MINUTE TO SECOND`        |                                 |
-| `SECOND`                  | `SECOND`                        |
-| `MILLISECOND`             | `MILLISECOND`                   |
-| `MICROSECOND`             | `MICROSECOND`                   |
-| `NANOSECOND`              |                                 |
-| `EPOCH`                   |                                 |
-| `DOY` _（仅适用SQL）_       |                                 |
-| `DOW` _（仅适用SQL）_       |                                 |
-| `ISODOW` _（仅适用SQL）_    |                                 |
-| `ISOYEAR` _（仅适用SQL）_   |                                 |
-|                           | `SQL_TSI_YEAR` _（仅适用SQL）_    |
-|                           | `SQL_TSI_QUARTER` _（仅适用SQL）_ |
-|                           | `SQL_TSI_MONTH` _（仅适用SQL）_   |
-|                           | `SQL_TSI_WEEK` _（仅适用SQL）_    |
-|                           | `SQL_TSI_DAY` _（仅适用SQL）_     |
-|                           | `SQL_TSI_HOUR` _（仅适用SQL）_    |
-|                           | `SQL_TSI_MINUTE` _（仅适用SQL）_  |
-|                           | `SQL_TSI_SECOND ` _（仅适用SQL）_ |
+| 时间间隔单位                   | 时间点单位                        |
+|:-------------------------|:-----------------------------|
+| `MILLENNIUM`             |                              |
+| `CENTURY`                |                              |
+| `DECADE`                 |                              |
+| `YEAR(S)`                | `YEAR`                       |
+| `YEAR(S) TO MONTH(S)`    |                              |
+| `QUARTER(S)`             | `QUARTER`                    |
+| `MONTH(S)`               | `MONTH`                      |
+| `WEEK(S)`                | `WEEK`                       |
+| `DAY(S)`                 | `DAY`                        |
+| `DAY(S) TO HOUR(S)`      |                              |
+| `DAY(S) TO MINUTE(S)`    |                              |
+| `DAY(S) TO SECOND(S)`    |                              |
+| `HOUR(S)`                | `HOUR`                       |
+| `HOUR(S) TO MINUTE(S)`   |                              |
+| `HOUR(S) TO SECOND(S)`   |                              |
+| `MINUTE(S)`              | `MINUTE`                     |
+| `MINUTE(S) TO SECOND(S)` |                              |
+| `SECOND(S)`              | `SECOND`                     |
+| `MILLISECOND`            | `MILLISECOND`                |
+| `MICROSECOND`            | `MICROSECOND`                |
+| `NANOSECOND`             |                              |
+| `EPOCH`                  |                              |
+| `DOY` _（仅适用SQL）_         |                              |
+| `DOW` _（仅适用SQL）_         |                              |
+| `ISODOW` _（仅适用SQL）_      |                              |
+| `ISOYEAR` _（仅适用SQL）_     |                              |
+|                          | `SQL_TSI_YEAR` _（仅适用SQL）_    |
+|                          | `SQL_TSI_QUARTER` _（仅适用SQL）_ |
+|                          | `SQL_TSI_MONTH` _（仅适用SQL）_   |
+|                          | `SQL_TSI_WEEK` _（仅适用SQL）_    |
+|                          | `SQL_TSI_DAY` _（仅适用SQL）_     |
+|                          | `SQL_TSI_HOUR` _（仅适用SQL）_    |
+|                          | `SQL_TSI_MINUTE` _（仅适用SQL）_  |
+|                          | `SQL_TSI_SECOND ` _（仅适用SQL）_ |
 
 {{< top >}}
 

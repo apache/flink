@@ -27,10 +27,10 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.testJsonRoundTrip;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link LookupJoinUtil.RetryLookupOptions}. */
-public class RetryLookupOptionsTest {
+class RetryLookupOptionsTest {
 
     @Test
     void testSerdeRetryLookupOptions() throws IOException {
@@ -60,21 +60,23 @@ public class RetryLookupOptionsTest {
         LookupJoinUtil.RetryLookupOptions retryLookupOptions =
                 LookupJoinUtil.RetryLookupOptions.fromJoinHint(
                         LookupJoinHintTestUtil.completeLookupHint);
-        assertTrue(retryLookupOptions.toRetryStrategy() != ResultRetryStrategy.NO_RETRY_STRATEGY);
+        assertThat(retryLookupOptions.toRetryStrategy())
+                .isNotSameAs(ResultRetryStrategy.NO_RETRY_STRATEGY);
 
         retryLookupOptions =
                 LookupJoinUtil.RetryLookupOptions.fromJoinHint(
                         LookupJoinHintTestUtil.lookupHintWithAsync);
-        assertTrue(retryLookupOptions == null);
+        assertThat(retryLookupOptions).isNull();
 
         retryLookupOptions =
                 LookupJoinUtil.RetryLookupOptions.fromJoinHint(
                         LookupJoinHintTestUtil.lookupHintWithRetry);
-        assertTrue(retryLookupOptions.toRetryStrategy() != ResultRetryStrategy.NO_RETRY_STRATEGY);
+        assertThat(retryLookupOptions.toRetryStrategy())
+                .isNotSameAs(ResultRetryStrategy.NO_RETRY_STRATEGY);
 
         retryLookupOptions =
                 LookupJoinUtil.RetryLookupOptions.fromJoinHint(
                         LookupJoinHintTestUtil.lookupHintWithTableOnly);
-        assertTrue(retryLookupOptions == null);
+        assertThat(retryLookupOptions).isNull();
     }
 }

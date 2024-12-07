@@ -36,7 +36,7 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 
@@ -140,8 +140,8 @@ class FileSinkSpeculativeITCase {
 
     private static Configuration configure() {
         Configuration configuration = new Configuration();
-        configuration.setString(RestOptions.BIND_PORT, "0");
-        configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 5000L);
+        configuration.set(RestOptions.BIND_PORT, "0");
+        configuration.set(JobManagerOptions.SLOT_REQUEST_TIMEOUT, Duration.ofMillis(5000L));
 
         // for speculative execution
         configuration.set(BatchExecutionOptions.SPECULATIVE_ENABLED, true);

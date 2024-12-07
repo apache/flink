@@ -16,8 +16,7 @@
  */
 package org.apache.calcite.sql2rel;
 
-import org.apache.flink.table.planner.alias.ClearJoinHintWithInvalidPropagationShuttle;
-import org.apache.flink.table.planner.hint.FlinkHints;
+import org.apache.flink.table.planner.plan.rules.logical.FlinkFilterProjectTransposeRule;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -125,12 +124,16 @@ import static java.util.Objects.requireNonNull;
 import static org.apache.calcite.linq4j.Nullness.castNonNull;
 
 /**
- * Copied to fix calcite issues. FLINK modifications are at lines
+ * RelDecorrelator replaces all correlated expressions (corExp) in a relational expression (RelNode)
+ * tree with non-correlated expressions that are produced from joining the RelNode that produces the
+ * corExp with the RelNode that references it.
+ *
+ * <p>TODO:
  *
  * <ol>
- *   <li>Was changed within FLINK-29280, FLINK-28682: Line 222 ~ 232
- *   <li>Should be removed after fix of FLINK-29540: Line 298 ~ 304
- *   <li>Should be removed after fix of FLINK-29540: Line 316 ~ 322
+ *   <li>Was changed within FLINK-29280, FLINK-28682, FLINK-35804: Line 218 ~ 225, Line 273 ~ 288
+ *   <li>Should be removed after fix of FLINK-29540: Line 293 ~ 299
+ *   <li>Should be removed after fix of FLINK-29540: Line 311 ~ 317
  * </ol>
  */
 public class RelDecorrelator implements ReflectiveVisitor {
@@ -216,18 +219,12 @@ public class RelDecorrelator implements ReflectiveVisitor {
             newRootRel = decorrelator.decorrelate(newRootRel);
         }
 
-        // Re-propagate the hints.
-        newRootRel = RelOptUtil.propagateRelHints(newRootRel, true);
-
         // ----- FLINK MODIFICATION BEGIN -----
+        // REASON: hints are already parsed and validated before optimizing, so should not
+        // re-propagate again here
 
-        // replace all join hints with upper case
-        newRootRel = FlinkHints.capitalizeJoinHints(newRootRel);
-
-        // clear join hints which are propagated into wrong query block
-        // The hint QueryBlockAlias will be added when building a RelNode tree before. It is used to
-        // distinguish the query block in the SQL.
-        newRootRel = newRootRel.accept(new ClearJoinHintWithInvalidPropagationShuttle());
+        // Re-propagate the hints.
+        // newRootRel = RelOptUtil.propagateRelHints(newRootRel, true);
 
         // ----- FLINK MODIFICATION END -----
 
@@ -277,20 +274,22 @@ public class RelDecorrelator implements ReflectiveVisitor {
                                                         .FilterIntoJoinRuleConfig.class)
                                         .toRule())
                         .addRuleInstance(
-                                CoreRules.FILTER_PROJECT_TRANSPOSE
-                                        .config
-                                        .withRelBuilderFactory(f)
-                                        .as(FilterProjectTransposeRule.Config.class)
-                                        .withOperandFor(
-                                                Filter.class,
-                                                filter ->
-                                                        !RexUtil.containsCorrelation(
-                                                                filter.getCondition()),
-                                                Project.class,
-                                                project -> true)
-                                        .withCopyFilter(true)
-                                        .withCopyProject(true)
-                                        .toRule())
+                                // ----- FLINK MODIFICATION BEGIN -----
+                                FlinkFilterProjectTransposeRule.build(
+                                        CoreRules.FILTER_PROJECT_TRANSPOSE
+                                                .config
+                                                .withRelBuilderFactory(f)
+                                                .as(FilterProjectTransposeRule.Config.class)
+                                                .withOperandFor(
+                                                        Filter.class,
+                                                        filter ->
+                                                                !RexUtil.containsCorrelation(
+                                                                        filter.getCondition()),
+                                                        Project.class,
+                                                        project -> true)
+                                                .withCopyFilter(true)
+                                                .withCopyProject(true)))
+                        // ----- FLINK MODIFICATION END -----
                         .addRuleInstance(
                                 FilterCorrelateRule.Config.DEFAULT
                                         .withRelBuilderFactory(f)
@@ -1074,17 +1073,11 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
         // can directly add positions into corDefOutputs since join
         // does not change the output ordering from the inputs.
-        RelNode valueGen =
-                requireNonNull(
-                        createValueGenerator(corVarList, leftInputOutputCount, corDefOutputs),
-                        "createValueGenerator(...) is null");
+        final RelNode valueGen =
+                createValueGenerator(corVarList, leftInputOutputCount, corDefOutputs);
+        requireNonNull(valueGen, "valueGen");
 
-        RelNode join =
-                relBuilder
-                        .push(frame.r)
-                        .push(valueGen)
-                        .join(JoinRelType.INNER, relBuilder.literal(true), ImmutableSet.of())
-                        .build();
+        RelNode join = relBuilder.push(frame.r).push(valueGen).join(JoinRelType.INNER).build();
 
         // Join or Filter does not change the old input ordering. All
         // input fields from newLeftInput (i.e. the original input to the old
@@ -1135,7 +1128,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
                         return true;
                     }
                 }
-                // fall through
+            // fall through
             default:
                 return false;
         }
@@ -1827,10 +1820,11 @@ public class RelDecorrelator implements ReflectiveVisitor {
         @Override
         public RexNode visitLiteral(RexLiteral literal) {
             // Use nullIndicator to decide whether to project null.
-            // Do nothing if the literal is null.
+            // Do nothing if the literal is null or symbol.
             if (!RexUtil.isNull(literal)
                     && projectPulledAboveLeftCorrelator
-                    && (nullIndicator != null)) {
+                    && (nullIndicator != null)
+                    && !RexUtil.isSymbolLiteral(literal)) {
                 return createCaseExpression(nullIndicator, null, literal);
             }
             return literal;

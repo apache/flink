@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
+import org.apache.flink.traces.SpanBuilder;
 
 /** Metric registry which does nothing. */
 public class NoOpMetricRegistry implements MetricRegistry {
@@ -47,6 +48,9 @@ public class NoOpMetricRegistry implements MetricRegistry {
 
     @Override
     public void unregister(Metric metric, String metricName, AbstractMetricGroup group) {}
+
+    @Override
+    public void addSpan(SpanBuilder spanBuilder) {}
 
     @Override
     public ScopeFormats getScopeFormats() {

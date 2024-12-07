@@ -37,7 +37,7 @@ public class BlocklistUtils {
 
     public static boolean isBlocklistEnabled(Configuration configuration) {
         // Currently, only enable blocklist for speculative execution
-        return configuration.getBoolean(BatchExecutionOptions.SPECULATIVE_ENABLED);
+        return configuration.get(BatchExecutionOptions.SPECULATIVE_ENABLED);
     }
 
     /** Private default constructor to avoid being instantiated. */

@@ -19,10 +19,10 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -32,12 +32,12 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
 
@@ -140,7 +140,7 @@ public class CheckpointRestoreWithUidHashITCase {
         final int maxNumber = 100;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(2, 500));
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 2, 500L);
         env.enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
 
         JobGraph jobGraph =
@@ -244,7 +244,7 @@ public class CheckpointRestoreWithUidHashITCase {
             emitRecordsTill(maxNumber / 3, ctx);
 
             if (behavior.waitForCheckpointOnFirstRun
-                    && getRuntimeContext().getAttemptNumber() == 0) {
+                    && getRuntimeContext().getTaskInfo().getAttemptNumber() == 0) {
                 // Wait till one checkpoint is triggered and completed
                 isWaiting = true;
                 startWaitingForCheckpointLatch.get().countDown();

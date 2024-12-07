@@ -23,6 +23,7 @@ import org.apache.flink.core.execution.SavepointFormatType;
 
 import org.apache.commons.cli.CommandLine;
 
+import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_DETACHED_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_FORMAT_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.STOP_AND_DRAIN;
 import static org.apache.flink.client.cli.CliFrontendParser.STOP_WITH_SAVEPOINT_PATH;
@@ -41,6 +42,8 @@ class StopOptions extends CommandLineOptions {
 
     private final SavepointFormatType formatType;
 
+    private boolean isDetached;
+
     StopOptions(CommandLine line) {
         super(line);
         this.args = line.getArgs();
@@ -58,6 +61,8 @@ class StopOptions extends CommandLineOptions {
         } else {
             formatType = SavepointFormatType.DEFAULT;
         }
+
+        this.isDetached = line.hasOption(SAVEPOINT_DETACHED_OPTION.getOpt());
     }
 
     String[] getArgs() {
@@ -78,5 +83,9 @@ class StopOptions extends CommandLineOptions {
 
     public SavepointFormatType getFormatType() {
         return formatType;
+    }
+
+    public boolean isDetached() {
+        return isDetached;
     }
 }

@@ -17,13 +17,12 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.NoSuchElementException;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Tests PrioritizedDeque.
@@ -31,10 +30,10 @@ import static org.junit.Assert.fail;
  * <p>Note that some tests make use of the {@link java.lang.Integer.IntegerCache} for improved
  * readability.
  */
-public class PrioritizedDequeTest {
+class PrioritizedDequeTest {
 
     @Test
-    public void testPrioritizeOnAdd() {
+    void testPrioritizeOnAdd() {
         final PrioritizedDeque<Integer> deque = new PrioritizedDeque<>();
 
         deque.add(0);
@@ -43,13 +42,11 @@ public class PrioritizedDequeTest {
         deque.add(3);
         deque.add(3, true, true);
 
-        assertArrayEquals(
-                new Integer[] {3, 0, 1, 2},
-                deque.asUnmodifiableCollection().toArray(new Integer[0]));
+        assertThat(deque.asUnmodifiableCollection()).containsExactly(3, 0, 1, 2);
     }
 
     @Test
-    public void testPrioritize() {
+    void testPrioritize() {
         final PrioritizedDeque<Integer> deque = new PrioritizedDeque<>();
 
         deque.add(0);
@@ -58,13 +55,11 @@ public class PrioritizedDequeTest {
         deque.add(3);
         deque.prioritize(3);
 
-        assertArrayEquals(
-                new Integer[] {3, 0, 1, 2},
-                deque.asUnmodifiableCollection().toArray(new Integer[0]));
+        assertThat(deque.asUnmodifiableCollection()).containsExactly(3, 0, 1, 2);
     }
 
     @Test
-    public void testGetAndRemove() {
+    void testGetAndRemove() {
         final PrioritizedDeque<Integer> deque = new PrioritizedDeque<>();
 
         deque.add(0);
@@ -73,13 +68,10 @@ public class PrioritizedDequeTest {
         deque.add(1);
         deque.add(3);
 
-        assertEquals(1, deque.getAndRemove(v -> v == 1).intValue());
-        assertArrayEquals(
-                new Integer[] {0, 2, 1, 3},
-                deque.asUnmodifiableCollection().toArray(new Integer[0]));
-        assertEquals(1, deque.getAndRemove(v -> v == 1).intValue());
-        assertArrayEquals(
-                new Integer[] {0, 2, 3}, deque.asUnmodifiableCollection().toArray(new Integer[0]));
+        assertThat(deque.getAndRemove(v -> v == 1).intValue()).isOne();
+        assertThat(deque.asUnmodifiableCollection()).containsExactly(0, 2, 1, 3);
+        assertThat(deque.getAndRemove(v -> v == 1).intValue()).isOne();
+        assertThat(deque.asUnmodifiableCollection()).containsExactly(0, 2, 3);
         try {
             int removed = deque.getAndRemove(v -> v == 1);
             fail(

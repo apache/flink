@@ -31,6 +31,7 @@ public abstract class MetricDump {
 
     /** The scope information for the stored metric. */
     public final QueryScopeInfo scopeInfo;
+
     /** The name of the stored metric. */
     public final String name;
 

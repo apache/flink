@@ -304,7 +304,9 @@ public abstract class StateSerializerProvider<T> {
             }
 
             TypeSerializerSchemaCompatibility<T> result =
-                    previousSerializerSnapshot.resolveSchemaCompatibility(newSerializer);
+                    newSerializer
+                            .snapshotConfiguration()
+                            .resolveSchemaCompatibility(previousSerializerSnapshot);
             if (result.isIncompatible()) {
                 invalidateCurrentSchemaSerializerAccess();
             }
@@ -358,7 +360,9 @@ public abstract class StateSerializerProvider<T> {
             this.previousSerializerSnapshot = previousSerializerSnapshot;
 
             TypeSerializerSchemaCompatibility<T> result =
-                    previousSerializerSnapshot.resolveSchemaCompatibility(registeredSerializer);
+                    Preconditions.checkNotNull(registeredSerializer)
+                            .snapshotConfiguration()
+                            .resolveSchemaCompatibility(previousSerializerSnapshot);
             if (result.isIncompatible()) {
                 invalidateCurrentSchemaSerializerAccess();
             }

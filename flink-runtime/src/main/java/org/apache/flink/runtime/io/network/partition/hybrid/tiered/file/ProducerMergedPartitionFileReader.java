@@ -134,7 +134,8 @@ public class ProducerMergedPartitionFileReader implements PartitionFileReader {
             TieredStorageSubpartitionId subpartitionId,
             int segmentId,
             int bufferIndex,
-            @Nullable ReadProgress readProgress) {
+            @Nullable ReadProgress readProgress)
+            throws IOException {
         lazyInitializeFileChannel();
 
         ProducerMergedReadProgress progress = convertToCurrentReadProgress(readProgress);
@@ -164,13 +165,9 @@ public class ProducerMergedPartitionFileReader implements PartitionFileReader {
      * Initialize the file channel in a lazy manner, which can reduce usage of the file descriptor
      * resource.
      */
-    private void lazyInitializeFileChannel() {
+    private void lazyInitializeFileChannel() throws IOException {
         if (fileChannel == null) {
-            try {
-                fileChannel = FileChannel.open(dataFilePath, StandardOpenOption.READ);
-            } catch (IOException e) {
-                ExceptionUtils.rethrow(e, "Failed to open file channel.");
-            }
+            fileChannel = FileChannel.open(dataFilePath, StandardOpenOption.READ);
         }
     }
 

@@ -28,12 +28,15 @@ import org.apache.flink.table.planner.runtime.utils.TestData.smallData3
 import org.apache.flink.table.planner.utils.TableTestUtil
 
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.{BeforeEach, Test}
+
+import scala.collection.convert.ImplicitConversions._
 
 class TableSinkITCase extends BatchTestBase {
 
-  @Test
-  def testTableHints(): Unit = {
+  @BeforeEach
+  override def before(): Unit = {
+    super.before()
     val dataId = TestValuesTableFactory.registerData(smallData3)
     tEnv.executeSql(s"""
                        |CREATE TABLE MyTable (
@@ -46,7 +49,10 @@ class TableSinkITCase extends BatchTestBase {
                        |  'data-id' = '$dataId'
                        |)
        """.stripMargin)
+  }
 
+  @Test
+  def testTableHints(): Unit = {
     val resultPath = createTempFolder().getAbsolutePath
     tEnv.executeSql(s"""
                        |CREATE TABLE MySink (
@@ -89,19 +95,6 @@ class TableSinkITCase extends BatchTestBase {
 
   @Test
   def testCreateTableAsSelect(): Unit = {
-    val dataId = TestValuesTableFactory.registerData(smallData3)
-    tEnv.executeSql(s"""
-                       |CREATE TABLE MyTable (
-                       |  `a` INT,
-                       |  `b` BIGINT,
-                       |  `c` STRING
-                       |) WITH (
-                       |  'connector' = 'values',
-                       |  'bounded' = 'true',
-                       |  'data-id' = '$dataId'
-                       |)
-       """.stripMargin)
-
     val resultPath = createTempFolder().getAbsolutePath
     tEnv
       .executeSql(s"""
@@ -137,21 +130,27 @@ class TableSinkITCase extends BatchTestBase {
   }
 
   @Test
+  def testCreateTableAsSelectWithSortLimit(): Unit = {
+    val resultPath = createTempFolder().getAbsolutePath
+    tEnv
+      .executeSql(s"""
+                     |CREATE TABLE MyCtasTable
+                     | WITH (
+                     |  'connector' = 'filesystem',
+                     |  'format' = 'testcsv',
+                     |  'path' = '$resultPath'
+                     |) AS
+                     | (SELECT * FROM MyTable order by `a` LIMIT 2)
+       """.stripMargin)
+      .await()
+    val expected = Seq("1,1,Hi", "2,2,Hello")
+    val result = TableTestUtil.readFromFile(resultPath)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
+  }
+
+  @Test
   def testCreateTableAsSelectWithoutOptions(): Unit = {
     // TODO CTAS supports ManagedTable
-    val dataId = TestValuesTableFactory.registerData(smallData3)
-    tEnv.executeSql(s"""
-                       |CREATE TABLE MyTable (
-                       |  `a` INT,
-                       |  `b` BIGINT,
-                       |  `c` STRING
-                       |) WITH (
-                       |  'connector' = 'values',
-                       |  'bounded' = 'true',
-                       |  'data-id' = '$dataId'
-                       |)
-       """.stripMargin)
-
     assertThatThrownBy(
       () =>
         tEnv
@@ -162,5 +161,26 @@ class TableSinkITCase extends BatchTestBase {
                         |""".stripMargin)
           .await())
       .hasRootCauseMessage("\nExpecting actual not to be null")
+  }
+
+  @Test
+  def testCreateTableAsSelectWithOrderKeyNotProjected(): Unit = {
+    tEnv
+      .executeSql(s"""
+                     |create table MyCtasTable
+                     |WITH (
+                     |   'connector' = 'values'
+                     |) as select b, c, d from
+                     |  (values
+                     |    (1, 1, 2, 'd1'),
+                     |    (2, 2, 4, 'd2')
+                     |  ) as V(a, b, c, d)
+                     |  order by a
+                     |""".stripMargin)
+      .await()
+
+    val expected = List("+I[1, 2, d1]", "+I[2, 4, d2]")
+    assertThat(TestValuesTableFactory.getResultsAsStrings("MyCtasTable").toSeq)
+      .isEqualTo(expected)
   }
 }

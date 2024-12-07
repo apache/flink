@@ -19,10 +19,10 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.SnapshotType.SharingFilesStrategy;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.slf4j.Logger;
@@ -210,19 +210,19 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
     }
 
     @Override
-    public void registerAllAfterRestored(CompletedCheckpoint checkpoint, RestoreMode mode) {
+    public void registerAllAfterRestored(CompletedCheckpoint checkpoint, RecoveryClaimMode mode) {
         registerAll(checkpoint.getOperatorStates().values(), checkpoint.getCheckpointID());
         restoredCheckpointSharingStrategies.put(
                 checkpoint.getCheckpointID(),
                 checkpoint
                         .getRestoredProperties()
                         .map(props -> props.getCheckpointType().getSharingFilesStrategy()));
-        // In NO_CLAIM and LEGACY restore modes, shared state of the initial checkpoints must be
+        // In NO_CLAIM and LEGACY claim modes, shared state of the initial checkpoints must be
         // preserved. This is achieved by advancing highestRetainCheckpointID here, and then
         // checking entry.createdByCheckpointID against it on checkpoint subsumption.
-        // In CLAIM restore mode, the shared state of the initial checkpoints must be
+        // In CLAIM mode, the shared state of the initial checkpoints must be
         // discarded as soon as it becomes unused - so highestRetainCheckpointID is not updated.
-        if (mode != RestoreMode.CLAIM) {
+        if (mode != RecoveryClaimMode.CLAIM) {
             highestNotClaimedCheckpointID =
                     Math.max(highestNotClaimedCheckpointID, checkpoint.getCheckpointID());
         }
@@ -295,6 +295,7 @@ public class SharedStateRegistryImpl implements SharedStateRegistry {
             }
         }
     }
+
     /** An entry in the registry, tracking the handle and the corresponding reference count. */
     private static final class SharedStateEntry {
 

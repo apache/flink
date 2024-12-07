@@ -9,8 +9,14 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>restart-strategy.exponential-delay.attempts-before-reset-backoff</h5></td>
+            <td style="word-wrap: break-word;">infinite</td>
+            <td>Integer</td>
+            <td>The number of times that Flink retries the execution before failing the job if <code class="highlighter-rouge">restart-strategy.type</code> has been set to <code class="highlighter-rouge">exponential-delay</code>. The number will be reset once the backoff is reset to its initial value.</td>
+        </tr>
+        <tr>
             <td><h5>restart-strategy.exponential-delay.backoff-multiplier</h5></td>
-            <td style="word-wrap: break-word;">2.0</td>
+            <td style="word-wrap: break-word;">1.5</td>
             <td>Double</td>
             <td>Backoff value is multiplied by this value after every failure,until max backoff is reached if <code class="highlighter-rouge">restart-strategy.type</code> has been set to <code class="highlighter-rouge">exponential-delay</code>.</td>
         </tr>
@@ -28,7 +34,7 @@
         </tr>
         <tr>
             <td><h5>restart-strategy.exponential-delay.max-backoff</h5></td>
-            <td style="word-wrap: break-word;">5 min</td>
+            <td style="word-wrap: break-word;">1 min</td>
             <td>Duration</td>
             <td>The highest possible duration between restarts if <code class="highlighter-rouge">restart-strategy.type</code> has been set to <code class="highlighter-rouge">exponential-delay</code>. It can be specified using notation: "1 min", "20 s"</td>
         </tr>

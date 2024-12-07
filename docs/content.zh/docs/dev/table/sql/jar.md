@@ -51,10 +51,10 @@ JAR 语句用于将用户 jar 添加到 classpath、或将用户 jar 从 classpa
 {{< tab "SQL CLI" >}}
 ```sql
 Flink SQL> ADD JAR '/path/hello.jar';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> ADD JAR 'hdfs:///udf/common-udf.jar';
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 
 Flink SQL> SHOW JARS;
 +----------------------------+

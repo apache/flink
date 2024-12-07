@@ -39,6 +39,8 @@ import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -319,4 +321,30 @@ public interface SqlGatewayService {
      */
     List<String> completeStatement(SessionHandle sessionHandle, String statement, int position)
             throws SqlGatewayException;
+
+    // -------------------------------------------------------------------------------------------
+    // Materialized Table API
+    // -------------------------------------------------------------------------------------------
+
+    /**
+     * Trigger a refresh operation of specific materialized table.
+     *
+     * @param sessionHandle handle to identify the session.
+     * @param materializedTableIdentifier A fully qualified materialized table identifier:
+     *     'catalogName.databaseName.objectName', used for locating the materialized table in
+     *     catalog.
+     * @param isPeriodic Represents whether the workflow is refreshed periodically or one-time-only.
+     * @param scheduleTime The time point at which the scheduler triggers this refresh operation.
+     * @param staticPartitions The specific partitions for one-time-only refresh workflow.
+     * @param executionConfig The flink job config.
+     * @return handle to identify the operation.
+     */
+    OperationHandle refreshMaterializedTable(
+            SessionHandle sessionHandle,
+            String materializedTableIdentifier,
+            boolean isPeriodic,
+            @Nullable String scheduleTime,
+            Map<String, String> dynamicOptions,
+            Map<String, String> staticPartitions,
+            Map<String, String> executionConfig);
 }

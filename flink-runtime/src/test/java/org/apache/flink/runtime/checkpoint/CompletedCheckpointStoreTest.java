@@ -32,6 +32,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -230,7 +231,8 @@ abstract class CompletedCheckpointStoreTest {
         OperatorID operatorID = new OperatorID();
 
         Map<OperatorID, OperatorState> operatorGroupState = new HashMap<>();
-        OperatorState operatorState = new OperatorState(operatorID, numberOfStates, numberOfStates);
+        OperatorState operatorState =
+                new OperatorState(null, null, operatorID, numberOfStates, numberOfStates);
         operatorGroupState.put(operatorID, operatorState);
 
         for (int i = 0; i < numberOfStates; i++) {
@@ -272,7 +274,7 @@ abstract class CompletedCheckpointStoreTest {
     /**
      * A test {@link CompletedCheckpoint}. We want to verify that the correct class loader is used
      * when discarding. Spying on a regular {@link CompletedCheckpoint} instance with Mockito
-     * doesn't work, because it it breaks serializability.
+     * doesn't work, because it breaks serializability.
      */
     protected static class TestCompletedCheckpoint extends CompletedCheckpoint {
 
@@ -327,8 +329,12 @@ abstract class CompletedCheckpointStoreTest {
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
 
             TestCompletedCheckpoint that = (TestCompletedCheckpoint) o;
 
@@ -346,6 +352,15 @@ abstract class CompletedCheckpointStoreTest {
             @Override
             public void discard() throws Exception {
                 super.discard();
+                updateDiscards();
+            }
+
+            @Override
+            public CompletableFuture<Void> discardAsync(Executor executor) {
+                return super.discardAsync(executor).thenRun(this::updateDiscards);
+            }
+
+            private void updateDiscards() {
                 if (!isDiscarded) {
                     isDiscarded = true;
 

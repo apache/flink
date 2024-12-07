@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import { DatePipe, formatDate, NgForOf, NgIf } from '@angular/common';
+import { DatePipe, formatDate, KeyValuePipe, NgForOf, NgIf } from '@angular/common';
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -34,6 +34,7 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTabsModule } from 'ng-zorro-antd/tabs';
+import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 
 import { JobLocalService } from '../job-local.service';
@@ -84,7 +85,9 @@ const markGlobalFailure = function (exception: ExceptionInfo): ExceptionInfo {
     NgIf,
     FormsModule,
     NzIconModule,
-    NzButtonModule
+    NzButtonModule,
+    NzTagModule,
+    KeyValuePipe
   ],
   standalone: true
 })

@@ -25,7 +25,6 @@ import org.apache.flink.testutils.DeeplyEqualsChecker;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.ipc.ArrowStreamWriter;
-import org.assertj.core.api.HamcrestCondition;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -75,10 +74,9 @@ abstract class ArrowReaderWriterTestBase<T> {
                 RowData deserialized = arrowReader.read(i);
                 assertThat(deserialized)
                         .as("Deserialized value is wrong.")
-                        .is(
-                                HamcrestCondition.matching(
-                                        CustomEqualityMatcher.deeplyEquals(testData[i])
-                                                .withChecker(checker)));
+                        .matches(
+                                CustomEqualityMatcher.deeplyEquals(testData[i])
+                                        .withChecker(checker));
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());

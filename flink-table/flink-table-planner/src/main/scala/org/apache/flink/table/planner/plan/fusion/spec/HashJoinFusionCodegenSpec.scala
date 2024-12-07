@@ -74,9 +74,9 @@ class HashJoinFusionCodegenSpec(
   }
 
   private lazy val Seq(buildToBinaryRow, probeToBinaryRow) =
-    newNames("buildToBinaryRow", "probeToBinaryRow")
+    newNames(opCodegenCtx, "buildToBinaryRow", "probeToBinaryRow")
 
-  private lazy val hashTableTerm: String = newName("hashTable")
+  private lazy val hashTableTerm: String = newName(opCodegenCtx, "hashTable")
 
   private var buildContext: OpFusionContext = _
   private var probeContext: OpFusionContext = _
@@ -190,7 +190,7 @@ class HashJoinFusionCodegenSpec(
   }
 
   private def codegenEndInputCode(): String = {
-    val spilledProbeRowTerm = newName("spilledProbeRow")
+    val spilledProbeRowTerm = newName(opCodegenCtx, "spilledProbeRow")
     if (buildInputId == 2) {
       getExprCodeGenerator.bindInput(probeType, spilledProbeRowTerm)
     } else {
@@ -240,7 +240,7 @@ class HashJoinFusionCodegenSpec(
     } else {
       inputVars ++ buildVars
     }
-    val buildIterTerm = newName("buildIter")
+    val buildIterTerm = newName(opCodegenCtx, "buildIter")
     val processCode =
       s"""
          |if ($buildIterTerm != null ) {
@@ -258,13 +258,13 @@ class HashJoinFusionCodegenSpec(
 
   private def codegenProbeOuterProcessCode(
       inputVars: Seq[GeneratedExpression]): (String, String) = {
-    val matched = newName("buildRow")
+    val matched = newName(opCodegenCtx, "buildRow")
     // start new local variable
     opCodegenCtx.startNewLocalVariableStatement(matched)
     val buildVars = genBuildSideVars(opCodegenCtx, matched, buildType)
 
     // filter the output via condition
-    val conditionPassed = newName("conditionPassed")
+    val conditionPassed = newName(opCodegenCtx, "conditionPassed")
     val checkCondition = if (joinSpec.getNonEquiCondition.isPresent) {
       // here need bind the buildRow before generate build condition
       if (buildInputId == 1) {
@@ -294,9 +294,9 @@ class HashJoinFusionCodegenSpec(
     } else {
       inputVars ++ buildVars
     }
-    val buildIterTerm = newName("buildIter")
-    val found = newName("found")
-    val hasNext = newName("hasNext")
+    val buildIterTerm = newName(opCodegenCtx, "buildIter")
+    val found = newName(opCodegenCtx, "found")
+    val hasNext = newName(opCodegenCtx, "hasNext")
     val processCode =
       s"""
          |boolean $found = false;
@@ -319,7 +319,7 @@ class HashJoinFusionCodegenSpec(
   private def codegenSemiProcessCode(inputVars: Seq[GeneratedExpression]): (String, String) = {
     val (matched, checkCondition, buildLocalVars, _) = getJoinCondition(inputVars, buildType)
 
-    val buildIterTerm = newName("buildIter")
+    val buildIterTerm = newName(opCodegenCtx, "buildIter")
     val processCode =
       s"""
          |if ($buildIterTerm != null ) {
@@ -340,8 +340,8 @@ class HashJoinFusionCodegenSpec(
   private def codegenAntiProcessCode(inputVars: Seq[GeneratedExpression]): (String, String) = {
     val (matched, checkCondition, buildLocalVars, _) = getJoinCondition(inputVars, buildType)
 
-    val buildIterTerm = newName("buildIter")
-    val found = newName("found")
+    val buildIterTerm = newName(opCodegenCtx, "buildIter")
+    val found = newName(opCodegenCtx, "found")
     val processCode =
       s"""
          |boolean $found = false;
@@ -388,7 +388,7 @@ class HashJoinFusionCodegenSpec(
       input: Seq[GeneratedExpression]): (String, String) = {
     val builder = new StringBuilder
     val codeBuilder = new StringBuilder
-    val anyNullTerm = newName("anyNull")
+    val anyNullTerm = newName(opCodegenCtx, "anyNull")
 
     keyMapping.foreach(
       key => {
@@ -407,7 +407,7 @@ class HashJoinFusionCodegenSpec(
   private def getJoinCondition(
       probeVars: Seq[GeneratedExpression],
       buildType: RowType): (String, String, String, Seq[GeneratedExpression]) = {
-    val buildRow = newName("buildRow")
+    val buildRow = newName(opCodegenCtx, "buildRow")
     // here need bind the buildRow before generate build condition
     if (buildInputId == 1) {
       getExprCodeGenerator.bindInput(buildType, buildRow)
@@ -535,13 +535,15 @@ class HashJoinFusionCodegenSpec(
       genProjection(
         opCodegenCtx.tableConfig,
         opCodegenCtx.classLoader,
-        buildType.getChildren.toArray(Array[LogicalType]()))
+        buildType.getChildren.toArray(Array[LogicalType]()),
+        opCodegenCtx)
     opCodegenCtx.addReusableInnerClass(bGenProj.getClassName, bGenProj.getCode)
     val pGenProj =
       genProjection(
         opCodegenCtx.tableConfig,
         opCodegenCtx.classLoader,
-        probeType.getChildren.toArray(Array[LogicalType]()))
+        probeType.getChildren.toArray(Array[LogicalType]()),
+        opCodegenCtx)
     opCodegenCtx.addReusableInnerClass(pGenProj.getClassName, pGenProj.getCode)
 
     opCodegenCtx.addReusableMember(s"${bGenProj.getClassName} $buildToBinaryRow;")
@@ -554,7 +556,7 @@ class HashJoinFusionCodegenSpec(
     opCodegenCtx.addReusableInitStatement(
       s"$probeToBinaryRow = new ${pGenProj.getClassName}($probeProjRefs);")
 
-    val hashTableClassTerm = newName("LongHashTable")
+    val hashTableClassTerm = newName(opCodegenCtx, "LongHashTable")
     val tableCode =
       s"""
          |public class $hashTableClassTerm extends ${classOf[LongHybridHashTable].getCanonicalName} {
@@ -567,7 +569,7 @@ class HashJoinFusionCodegenSpec(
          |      memorySize,
          |      getContainingTask().getEnvironment().getIOManager(),
          |      $buildRowSize,
-         |      ${buildRowCount}L / getRuntimeContext().getNumberOfParallelSubtasks());
+         |      ${buildRowCount}L / getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks());
          |  }
          |
          |  @Override
@@ -592,7 +594,7 @@ class HashJoinFusionCodegenSpec(
        """.stripMargin
     opCodegenCtx.addReusableInnerClass(hashTableClassTerm, tableCode)
     opCodegenCtx.addReusableMember(s"$hashTableClassTerm $hashTableTerm;")
-    val memorySizeTerm = newName("memorySize")
+    val memorySizeTerm = newName(opCodegenCtx, "memorySize")
     opCodegenCtx.addReusableOpenStatement(
       s"long $memorySizeTerm = computeMemorySize(${fusionContext.getManagedMemoryFraction});")
     opCodegenCtx.addReusableOpenStatement(

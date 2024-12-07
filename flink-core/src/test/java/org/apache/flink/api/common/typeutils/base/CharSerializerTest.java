@@ -44,7 +44,7 @@ class CharSerializerTest extends SerializerTestBase<Character> {
     @Override
     protected Character[] getTestData() {
         Random rnd = new Random(874597969123412341L);
-        int rndInt = rnd.nextInt((int) Character.MAX_VALUE);
+        int rndInt = rnd.nextInt(Character.MAX_VALUE);
 
         return new Character[] {
             new Character('a'),

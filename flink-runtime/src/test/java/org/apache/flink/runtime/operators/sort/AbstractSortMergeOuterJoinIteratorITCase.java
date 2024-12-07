@@ -100,8 +100,8 @@ abstract class AbstractSortMergeOuterJoinIteratorITCase {
                 TupleTypeInfo.getBasicTupleTypeInfo(String.class, String.class);
         TupleTypeInfo<Tuple2<String, Integer>> typeInfo2 =
                 TupleTypeInfo.getBasicTupleTypeInfo(String.class, Integer.class);
-        serializer1 = typeInfo1.createSerializer(config);
-        serializer2 = typeInfo2.createSerializer(config);
+        serializer1 = typeInfo1.createSerializer(config.getSerializerConfig());
+        serializer2 = typeInfo2.createSerializer(config.getSerializerConfig());
         comparator1 = typeInfo1.createComparator(new int[] {0}, new boolean[] {true}, 0, config);
         comparator2 = typeInfo2.createComparator(new int[] {0}, new boolean[] {true}, 0, config);
         pairComp = new GenericPairComparator<>(comparator1, comparator2);
@@ -296,7 +296,8 @@ abstract class AbstractSortMergeOuterJoinIteratorITCase {
         List<Tuple4<String, String, String, Object>> actual = new ArrayList<>();
         ListCollector<Tuple4<String, String, String, Object>> collector =
                 new ListCollector<>(actual);
-        while (iterator.callWithNextKey(new SimpleTupleJoinFunction(), collector)) ;
+        while (iterator.callWithNextKey(new SimpleTupleJoinFunction(), collector))
+            ;
         iterator.close();
 
         return actual;
@@ -443,7 +444,8 @@ abstract class AbstractSortMergeOuterJoinIteratorITCase {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(joinFunction, collector)) ;
+            while (iterator.callWithNextKey(joinFunction, collector))
+                ;
 
             iterator.close();
 

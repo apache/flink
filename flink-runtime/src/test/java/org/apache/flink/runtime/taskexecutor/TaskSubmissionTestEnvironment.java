@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
@@ -35,6 +34,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.TaskExecutorPartitionTrackerImpl;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -75,6 +75,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -90,7 +91,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
     private final TestingRpcService testingRpcService;
     private final TaskExecutorBlobService taskExecutorBlobService =
             NoOpTaskExecutorBlobService.INSTANCE;
-    private final Time timeout = Time.milliseconds(10000L);
+    private final Duration timeout = Duration.ofMillis(10000L);
     private final TestingFatalErrorHandler testingFatalErrorHandler =
             new TestingFatalErrorHandler();
     private final TimerService<AllocationID> timerService;
@@ -119,7 +120,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
         this.timerService =
                 new DefaultTimerService<>(
                         java.util.concurrent.Executors.newSingleThreadScheduledExecutor(),
-                        timeout.toMilliseconds());
+                        timeout.toMillis());
 
         this.haServices = new TestingHighAvailabilityServices();
         this.haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
@@ -156,6 +157,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
         TaskExecutorLocalStateStoresManager localStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
+                        false,
                         false,
                         Reference.owned(new File[] {temporaryFolder.newFolder()}),
                         Executors.directExecutor());
@@ -288,7 +290,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
             final InetSocketAddress socketAddress =
                     new InetSocketAddress(
                             InetAddress.getByName(testingRpcService.getAddress()),
-                            configuration.getInteger(NettyShuffleEnvironmentOptions.DATA_PORT));
+                            configuration.get(NettyShuffleEnvironmentOptions.DATA_PORT));
 
             final NettyConfig nettyConfig =
                     new NettyConfig(
@@ -302,13 +304,22 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
                     new NettyShuffleEnvironmentBuilder()
                             .setTaskManagerLocation(taskManagerLocation)
                             .setPartitionRequestInitialBackoff(
-                                    configuration.getInteger(
+                                    configuration.get(
                                             NettyShuffleEnvironmentOptions
                                                     .NETWORK_REQUEST_BACKOFF_INITIAL))
                             .setPartitionRequestMaxBackoff(
-                                    configuration.getInteger(
+                                    configuration.get(
                                             NettyShuffleEnvironmentOptions
                                                     .NETWORK_REQUEST_BACKOFF_MAX))
+                            .setResultPartitionManager(
+                                    new ResultPartitionManager(
+                                            (int)
+                                                    configuration
+                                                            .get(
+                                                                    NettyShuffleEnvironmentOptions
+                                                                            .NETWORK_PARTITION_REQUEST_TIMEOUT)
+                                                            .toMillis(),
+                                            testingRpcService.getScheduledExecutor()))
                             .setNettyConfig(localCommunication ? null : nettyConfig)
                             .build();
 

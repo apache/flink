@@ -54,8 +54,13 @@ public abstract class TypeStrategiesTestBase {
                             anyCauseMatches(
                                     ValidationException.class, testSpec.expectedErrorMessage));
         } else if (testSpec.expectedDataType != null) {
-            assertThat(runTypeInference(testSpec).getOutputDataType())
-                    .isEqualTo(testSpec.expectedDataType);
+            if (testSpec.compareConversionClass) {
+                assertThat(runTypeInference(testSpec).getOutputDataType())
+                        .isEqualTo(testSpec.expectedDataType);
+            } else {
+                assertThat(runTypeInference(testSpec).getOutputDataType().getLogicalType())
+                        .isEqualTo(testSpec.expectedDataType.getLogicalType());
+            }
         }
     }
 
@@ -114,6 +119,7 @@ public abstract class TypeStrategiesTestBase {
         private @Nullable Object literalValue;
 
         private boolean isGroupedAggregation;
+        private boolean compareConversionClass = false;
 
         private TestSpec(@Nullable String description, TypeStrategy strategy) {
             this.description = description;
@@ -151,6 +157,11 @@ public abstract class TypeStrategiesTestBase {
 
         public TestSpec expectErrorMessage(String expectedErrorMessage) {
             this.expectedErrorMessage = expectedErrorMessage;
+            return this;
+        }
+
+        public TestSpec compareConversionClass() {
+            this.compareConversionClass = true;
             return this;
         }
 

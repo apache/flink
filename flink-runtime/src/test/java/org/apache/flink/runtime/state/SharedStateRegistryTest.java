@@ -19,26 +19,38 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManagerBuilder;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingType;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl;
+import org.apache.flink.runtime.state.filemerging.EmptyFileMergingOperatorStreamStateHandle;
+import org.apache.flink.runtime.state.filemerging.FileMergingOperatorStreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.apache.flink.core.fs.local.LocalFileSystem.getSharedInstance;
 import static org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
 import static org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION;
 import static org.apache.flink.runtime.state.ChangelogTestUtils.ChangelogStateHandleWrapper;
@@ -255,6 +267,85 @@ class SharedStateRegistryTest {
                 .containsExactly(1L);
     }
 
+    @Test
+    void testFireMergingOperatorStateRegister(@TempDir File tmpFolder) throws IOException {
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
+
+        JobID jobId = JobID.generate();
+
+        Path checkpointBaseDir = new Path(tmpFolder.toString());
+        Path sharedStateDir =
+                new Path(
+                        checkpointBaseDir,
+                        AbstractFsCheckpointStorageAccess.CHECKPOINT_SHARED_STATE_DIR);
+        Path taskOwnedStateDir =
+                new Path(
+                        checkpointBaseDir,
+                        AbstractFsCheckpointStorageAccess.CHECKPOINT_TASK_OWNED_STATE_DIR);
+        final FileMergingSnapshotManager.SubtaskKey subtaskKey =
+                new FileMergingSnapshotManager.SubtaskKey(jobId.toHexString(), "opId", 1, 2);
+        FileMergingSnapshotManager snapshotManager =
+                createFileMergingSnapshotManager(
+                        jobId, checkpointBaseDir, sharedStateDir, taskOwnedStateDir);
+        snapshotManager.registerSubtaskForSharedStates(subtaskKey);
+        FileMergingOperatorStreamStateHandle handle1 =
+                EmptyFileMergingOperatorStreamStateHandle.create(
+                        snapshotManager.getManagedDirStateHandle(
+                                subtaskKey, CheckpointedStateScope.EXCLUSIVE),
+                        snapshotManager.getManagedDirStateHandle(
+                                subtaskKey, CheckpointedStateScope.SHARED));
+
+        handle1.registerSharedStates(sharedStateRegistry, 1);
+        LocalFileSystem fs = getSharedInstance();
+        assertThat(
+                        fs.exists(
+                                snapshotManager.getManagedDir(
+                                        subtaskKey, CheckpointedStateScope.EXCLUSIVE)))
+                .isTrue();
+        assertThat(
+                        fs.exists(
+                                snapshotManager.getManagedDir(
+                                        subtaskKey, CheckpointedStateScope.SHARED)))
+                .isTrue();
+        sharedStateRegistry.checkpointCompleted(1);
+        sharedStateRegistry.unregisterUnusedState(1);
+        assertThat(
+                        fs.exists(
+                                snapshotManager.getManagedDir(
+                                        subtaskKey, CheckpointedStateScope.EXCLUSIVE)))
+                .isTrue();
+        assertThat(
+                        fs.exists(
+                                snapshotManager.getManagedDir(
+                                        subtaskKey, CheckpointedStateScope.SHARED)))
+                .isTrue();
+        sharedStateRegistry.unregisterUnusedState(2);
+        assertThat(
+                        fs.exists(
+                                snapshotManager.getManagedDir(
+                                        subtaskKey, CheckpointedStateScope.EXCLUSIVE)))
+                .isFalse();
+        assertThat(
+                        fs.exists(
+                                snapshotManager.getManagedDir(
+                                        subtaskKey, CheckpointedStateScope.SHARED)))
+                .isFalse();
+    }
+
+    private FileMergingSnapshotManager createFileMergingSnapshotManager(
+            JobID jobId, Path checkpointBaseDir, Path sharedStateDir, Path taskOwnedStateDir) {
+        FileMergingSnapshotManager mgr =
+                new FileMergingSnapshotManagerBuilder(
+                                jobId,
+                                new ResourceID("test-1"),
+                                FileMergingType.MERGE_WITHIN_CHECKPOINT)
+                        .build();
+        mgr.initFileSystem(
+                getSharedInstance(), checkpointBaseDir, sharedStateDir, taskOwnedStateDir, 1024);
+
+        return mgr;
+    }
+
     private void registerInitialCheckpoint(
             SharedStateRegistry sharedStateRegistry,
             String stateId,
@@ -271,7 +362,7 @@ class SharedStateRegistryTest {
                         new StateHandleID(stateId));
 
         OperatorID operatorID = new OperatorID();
-        OperatorState operatorState = new OperatorState(operatorID, 1, 1);
+        OperatorState operatorState = new OperatorState(null, null, operatorID, 1, 1);
         operatorState.putState(
                 0, OperatorSubtaskState.builder().setManagedKeyedState(initialHandle).build());
 
@@ -287,7 +378,7 @@ class SharedStateRegistryTest {
                         new TestCompletedCheckpointStorageLocation(),
                         null,
                         properties),
-                RestoreMode.DEFAULT);
+                RecoveryClaimMode.DEFAULT);
     }
 
     private static class TestSharedState implements TestStreamStateHandle {

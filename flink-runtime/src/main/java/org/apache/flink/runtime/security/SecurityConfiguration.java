@@ -90,16 +90,14 @@ public class SecurityConfiguration {
             List<String> securityContextFactory,
             List<String> securityModuleFactories) {
         this.flinkConfig = checkNotNull(flinkConf);
-        this.isZkSaslDisable = flinkConf.getBoolean(SecurityOptions.ZOOKEEPER_SASL_DISABLE);
-        this.keytab = flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB);
-        this.principal = flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL);
-        this.useTicketCache = flinkConf.getBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE);
+        this.isZkSaslDisable = flinkConf.get(SecurityOptions.ZOOKEEPER_SASL_DISABLE);
+        this.keytab = flinkConf.get(SecurityOptions.KERBEROS_LOGIN_KEYTAB);
+        this.principal = flinkConf.get(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL);
+        this.useTicketCache = flinkConf.get(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE);
         this.tgtRenewalPeriod = flinkConf.get(KERBEROS_RELOGIN_PERIOD);
-        this.loginContextNames =
-                parseList(flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_CONTEXTS));
-        this.zkServiceName = flinkConf.getString(SecurityOptions.ZOOKEEPER_SASL_SERVICE_NAME);
-        this.zkLoginContextName =
-                flinkConf.getString(SecurityOptions.ZOOKEEPER_SASL_LOGIN_CONTEXT_NAME);
+        this.loginContextNames = parseList(flinkConf.get(SecurityOptions.KERBEROS_LOGIN_CONTEXTS));
+        this.zkServiceName = flinkConf.get(SecurityOptions.ZOOKEEPER_SASL_SERVICE_NAME);
+        this.zkLoginContextName = flinkConf.get(SecurityOptions.ZOOKEEPER_SASL_LOGIN_CONTEXT_NAME);
         this.securityModuleFactories = Collections.unmodifiableList(securityModuleFactories);
         this.securityContextFactory = securityContextFactory;
         validate();

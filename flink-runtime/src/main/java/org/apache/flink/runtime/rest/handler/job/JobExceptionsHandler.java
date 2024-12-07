@@ -19,16 +19,9 @@
 package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.AccessExecution;
-import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.JobExceptionsInfo;
 import org.apache.flink.runtime.rest.messages.JobExceptionsInfoWithHistory;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
@@ -51,12 +44,12 @@ import org.apache.flink.shaded.curator5.com.google.common.collect.Iterables;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -73,7 +66,7 @@ public class JobExceptionsHandler
 
     public JobExceptionsHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-            Time timeout,
+            Duration timeout,
             Map<String, String> responseHeaders,
             MessageHeaders<
                             EmptyRequestBody,
@@ -130,47 +123,7 @@ public class JobExceptionsHandler
             ExecutionGraphInfo executionGraphInfo,
             int exceptionToReportMaxSize,
             List<FailureLabelFilterParameter.FailureLabel> failureLabelFilter) {
-        final ArchivedExecutionGraph executionGraph =
-                executionGraphInfo.getArchivedExecutionGraph();
-        if (executionGraph.getFailureInfo() == null) {
-            return new JobExceptionsInfoWithHistory(
-                    createJobExceptionHistory(
-                            executionGraphInfo.getExceptionHistory(),
-                            exceptionToReportMaxSize,
-                            failureLabelFilter));
-        }
-
-        List<JobExceptionsInfo.ExecutionExceptionInfo> taskExceptionList = new ArrayList<>();
-        boolean truncated = false;
-        for (AccessExecutionVertex task : executionGraph.getAllExecutionVertices()) {
-            for (AccessExecution execution : task.getCurrentExecutions()) {
-                Optional<ErrorInfo> failure = execution.getFailureInfo();
-                if (failure.isPresent()) {
-                    if (taskExceptionList.size() >= exceptionToReportMaxSize) {
-                        truncated = true;
-                        break;
-                    }
-
-                    TaskManagerLocation location = execution.getAssignedResourceLocation();
-                    String locationString = toString(location);
-                    long timestamp = execution.getStateTimestamp(ExecutionState.FAILED);
-                    taskExceptionList.add(
-                            new JobExceptionsInfo.ExecutionExceptionInfo(
-                                    failure.get().getExceptionAsString(),
-                                    task.getTaskNameWithSubtaskIndex(),
-                                    locationString,
-                                    timestamp == 0 ? -1 : timestamp,
-                                    toTaskManagerId(location)));
-                }
-            }
-        }
-
-        final ErrorInfo rootCause = executionGraph.getFailureInfo();
         return new JobExceptionsInfoWithHistory(
-                rootCause.getExceptionAsString(),
-                rootCause.getTimestamp(),
-                taskExceptionList,
-                truncated,
                 createJobExceptionHistory(
                         executionGraphInfo.getExceptionHistory(),
                         exceptionToReportMaxSize,
@@ -248,6 +201,18 @@ public class JobExceptionsHandler
 
     private static JobExceptionsInfoWithHistory.ExceptionInfo createExceptionInfo(
             ExceptionHistoryEntry exceptionHistoryEntry) {
+
+        if (exceptionHistoryEntry.isGlobal()) {
+            return new JobExceptionsInfoWithHistory.ExceptionInfo(
+                    exceptionHistoryEntry.getException().getOriginalErrorClassName(),
+                    exceptionHistoryEntry.getExceptionAsString(),
+                    exceptionHistoryEntry.getTimestamp(),
+                    exceptionHistoryEntry.getFailureLabels(),
+                    null,
+                    null,
+                    null);
+        }
+
         assertLocalExceptionInfo(exceptionHistoryEntry);
 
         return new JobExceptionsInfoWithHistory.ExceptionInfo(
@@ -270,9 +235,7 @@ public class JobExceptionsHandler
     static String toString(@Nullable TaskManagerLocation location) {
         // '(unassigned)' being the default value is added to support backward-compatibility for the
         // deprecated fields
-        return location != null
-                ? taskManagerLocationToString(location.getFQDNHostname(), location.dataPort())
-                : "(unassigned)";
+        return location != null ? location.getEndpoint() : "(unassigned)";
     }
 
     @VisibleForTesting
@@ -285,18 +248,12 @@ public class JobExceptionsHandler
     @VisibleForTesting
     @Nullable
     static String toString(@Nullable ExceptionHistoryEntry.ArchivedTaskManagerLocation location) {
-        return location != null
-                ? taskManagerLocationToString(location.getFQDNHostname(), location.getPort())
-                : null;
+        return location != null ? location.getEndpoint() : null;
     }
 
     @VisibleForTesting
     static String toTaskManagerId(
             @Nullable ExceptionHistoryEntry.ArchivedTaskManagerLocation location) {
         return location != null ? String.format("%s", location.getResourceID()) : null;
-    }
-
-    private static String taskManagerLocationToString(String fqdnHostname, int port) {
-        return String.format("%s:%d", fqdnHostname, port);
     }
 }

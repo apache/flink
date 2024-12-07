@@ -46,7 +46,7 @@ public class LookupJoinRunner extends ProcessFunction<RowData, RowData> {
     protected transient ListenableCollector<RowData> collector;
     protected transient JoinedRowData outRow;
     protected transient FilterCondition preFilterCondition;
-    private transient GenericRowData nullRow;
+    protected transient GenericRowData nullRow;
 
     public LookupJoinRunner(
             GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedFetcher,
@@ -87,7 +87,10 @@ public class LookupJoinRunner extends ProcessFunction<RowData, RowData> {
 
         prepareCollector(in, out);
 
-        doFetch(in);
+        // apply local filter first
+        if (preFilter(in)) {
+            doFetch(in);
+        }
 
         padNullForLeftJoin(in, out);
     }
@@ -98,12 +101,13 @@ public class LookupJoinRunner extends ProcessFunction<RowData, RowData> {
         collector.reset();
     }
 
+    public boolean preFilter(RowData in) throws Exception {
+        return preFilterCondition.apply(in);
+    }
+
     public void doFetch(RowData in) throws Exception {
-        // apply local filter first
-        if (preFilterCondition.apply(in)) {
-            // fetcher has copied the input field when object reuse is enabled
-            fetcher.flatMap(in, getFetcherCollector());
-        }
+        // fetcher has copied the input field when object reuse is enabled
+        fetcher.flatMap(in, getFetcherCollector());
     }
 
     public void padNullForLeftJoin(RowData in, Collector<RowData> out) {

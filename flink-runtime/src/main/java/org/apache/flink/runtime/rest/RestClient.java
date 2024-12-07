@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
@@ -98,6 +97,7 @@ import java.net.URL;
 import java.nio.channels.spi.SelectorProvider;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -121,6 +121,8 @@ public class RestClient implements AutoCloseableAsync {
     private static final Logger LOG = LoggerFactory.getLogger(RestClient.class);
 
     private static final ObjectMapper objectMapper = RestMapperUtils.getStrictObjectMapper();
+    private static final ObjectMapper flexibleObjectMapper =
+            RestMapperUtils.getFlexibleObjectMapper();
 
     // used to open connections to a rest server endpoint
     private final Executor executor;
@@ -152,7 +154,7 @@ public class RestClient implements AutoCloseableAsync {
         Preconditions.checkNotNull(rootUrl);
         if ("https".equals(rootUrl.getProtocol())) {
             configuration = configuration.clone();
-            configuration.setBoolean(SSL_REST_ENABLED, true);
+            configuration.set(SSL_REST_ENABLED, true);
         }
         return new RestClient(configuration, executor, rootUrl.getHost(), rootUrl.getPort());
     }
@@ -296,21 +298,21 @@ public class RestClient implements AutoCloseableAsync {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        return shutdownInternally(Time.seconds(10L));
+        return shutdownInternally(Duration.ofSeconds(10L));
     }
 
-    public void shutdown(Time timeout) {
+    public void shutdown(Duration timeout) {
         final CompletableFuture<Void> shutDownFuture = shutdownInternally(timeout);
 
         try {
-            shutDownFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+            shutDownFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
             LOG.debug("Rest endpoint shutdown complete.");
         } catch (Exception e) {
             LOG.warn("Rest endpoint shutdown failed.", e);
         }
     }
 
-    private CompletableFuture<Void> shutdownInternally(Time timeout) {
+    private CompletableFuture<Void> shutdownInternally(Duration timeout) {
         if (isRunning.compareAndSet(true, false)) {
             LOG.debug("Shutting down rest endpoint.");
 
@@ -319,7 +321,7 @@ public class RestClient implements AutoCloseableAsync {
                     bootstrap
                             .config()
                             .group()
-                            .shutdownGracefully(0L, timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
+                            .shutdownGracefully(0L, timeout.toMillis(), TimeUnit.MILLISECONDS)
                             .addListener(
                                     finished -> {
                                         notifyResponseFuturesOfShutdown();
@@ -632,35 +634,34 @@ public class RestClient implements AutoCloseableAsync {
         CompletableFuture<P> responseFuture = new CompletableFuture<>();
         final JsonParser jsonParser = objectMapper.treeAsTokens(rawResponse.json);
         try {
-            P response = objectMapper.readValue(jsonParser, responseType);
-            responseFuture.complete(response);
-        } catch (IOException originalException) {
-            // the received response did not matched the expected response type
-
-            // lets see if it is an ErrorResponse instead
-            try {
+            // We make sure it fits to ErrorResponseBody, this condition is enforced by test in
+            // RestClientTest
+            if (rawResponse.json.size() == 1 && rawResponse.json.has("errors")) {
                 ErrorResponseBody error =
                         objectMapper.treeToValue(rawResponse.getJson(), ErrorResponseBody.class);
                 responseFuture.completeExceptionally(
                         new RestClientException(
                                 error.errors.toString(), rawResponse.getHttpResponseStatus()));
-            } catch (JsonProcessingException jpe2) {
-                // if this fails it is either the expected type or response type was wrong, most
-                // likely caused
-                // by a client/search MessageHeaders mismatch
-                LOG.error(
-                        "Received response was neither of the expected type ({}) nor an error. Response={}",
-                        responseType,
-                        rawResponse,
-                        jpe2);
-                responseFuture.completeExceptionally(
-                        new RestClientException(
-                                "Response was neither of the expected type("
-                                        + responseType
-                                        + ") nor an error.",
-                                originalException,
-                                rawResponse.getHttpResponseStatus()));
+            } else {
+                P response = flexibleObjectMapper.readValue(jsonParser, responseType);
+                responseFuture.complete(response);
             }
+        } catch (IOException ex) {
+            // if this fails it is either the expected type or response type was wrong, most
+            // likely caused
+            // by a client/search MessageHeaders mismatch
+            LOG.error(
+                    "Received response was neither of the expected type ({}) nor an error. Response={}",
+                    responseType,
+                    rawResponse,
+                    ex);
+            responseFuture.completeExceptionally(
+                    new RestClientException(
+                            "Response was neither of the expected type("
+                                    + responseType
+                                    + ") nor an error.",
+                            ex,
+                            rawResponse.getHttpResponseStatus()));
         }
         return responseFuture;
     }

@@ -18,20 +18,21 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.util.Preconditions;
+
+import java.time.Duration;
 
 /** Configuration for the {@link JobMaster}. */
 public class JobMasterConfiguration {
 
-    private final Time rpcTimeout;
+    private final Duration rpcTimeout;
 
-    private final Time slotRequestTimeout;
+    private final Duration slotRequestTimeout;
 
     private final String tmpDirectory;
 
@@ -40,8 +41,8 @@ public class JobMasterConfiguration {
     private final Configuration configuration;
 
     public JobMasterConfiguration(
-            Time rpcTimeout,
-            Time slotRequestTimeout,
+            Duration rpcTimeout,
+            Duration slotRequestTimeout,
             String tmpDirectory,
             RetryingRegistrationConfiguration retryingRegistrationConfiguration,
             Configuration configuration) {
@@ -52,11 +53,11 @@ public class JobMasterConfiguration {
         this.configuration = Preconditions.checkNotNull(configuration);
     }
 
-    public Time getRpcTimeout() {
+    public Duration getRpcTimeout() {
         return rpcTimeout;
     }
 
-    public Time getSlotRequestTimeout() {
+    public Duration getSlotRequestTimeout() {
         return slotRequestTimeout;
     }
 
@@ -74,11 +75,10 @@ public class JobMasterConfiguration {
 
     public static JobMasterConfiguration fromConfiguration(Configuration configuration) {
 
-        final Time rpcTimeout =
-                Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
+        final Duration rpcTimeout = configuration.get(RpcOptions.ASK_TIMEOUT_DURATION);
 
-        final Time slotRequestTimeout =
-                Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
+        final Duration slotRequestTimeout =
+                configuration.get(JobManagerOptions.SLOT_REQUEST_TIMEOUT);
 
         final String tmpDirectory = ConfigurationUtils.parseTempDirectories(configuration)[0];
 

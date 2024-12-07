@@ -89,7 +89,7 @@ public class KeyedStateBootstrapOperator<K, IN>
         TaggedOperatorSubtaskState state =
                 SnapshotUtils.snapshot(
                         this,
-                        getRuntimeContext().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
                         timestamp,
                         getContainingTask().getConfiguration().isExactlyOnceCheckpointMode(),
                         getContainingTask().getConfiguration().isUnalignedCheckpointsEnabled(),

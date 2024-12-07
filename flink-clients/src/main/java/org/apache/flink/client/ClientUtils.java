@@ -21,7 +21,6 @@ package org.apache.flink.client;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.cli.ClientOptions;
-import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.StreamContextEnvironment;
@@ -31,6 +30,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.datastream.impl.ExecutionContextEnvironment;
 import org.apache.flink.runtime.client.JobInitializationException;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rest.HttpHeader;
@@ -88,14 +88,7 @@ public enum ClientUtils {
 
             LOG.info(
                     "Starting program (detached: {})",
-                    !configuration.getBoolean(DeploymentOptions.ATTACHED));
-
-            ContextEnvironment.setAsContext(
-                    executorServiceLoader,
-                    configuration,
-                    userCodeClassLoader,
-                    enforceSingleJobExecution,
-                    suppressSysout);
+                    !configuration.get(DeploymentOptions.ATTACHED));
 
             StreamContextEnvironment.setAsContext(
                     executorServiceLoader,
@@ -104,11 +97,16 @@ public enum ClientUtils {
                     enforceSingleJobExecution,
                     suppressSysout);
 
+            // For DataStream v2.
+            ExecutionContextEnvironment.setAsContext(
+                    executorServiceLoader, configuration, userCodeClassLoader);
+
             try {
                 program.invokeInteractiveModeForExecution();
             } finally {
-                ContextEnvironment.unsetAsContext();
                 StreamContextEnvironment.unsetAsContext();
+                // For DataStream v2.
+                ExecutionContextEnvironment.unsetAsContext();
             }
         } finally {
             Thread.currentThread().setContextClassLoader(contextClassLoader);

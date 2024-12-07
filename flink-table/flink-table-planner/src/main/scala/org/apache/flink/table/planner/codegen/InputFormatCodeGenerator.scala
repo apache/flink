@@ -54,7 +54,7 @@ object InputFormatCodeGenerator {
       outRecordTerm: String = CodeGenUtils.DEFAULT_OUT_RECORD_TERM,
       outRecordWriterTerm: String = CodeGenUtils.DEFAULT_OUT_RECORD_WRITER_TERM)
       : GeneratedInput[GenericInputFormat[T]] = {
-    val funcName = newName(name)
+    val funcName = newName(ctx, name)
 
     ctx.addReusableOutputRecord(
       returnType,

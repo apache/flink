@@ -33,16 +33,12 @@ class EvenlySpreadOutLocationPreferenceSlotSelectionStrategy
     @Nonnull
     @Override
     protected Optional<SlotInfoAndLocality> selectWithoutLocationPreference(
-            @Nonnull FreeSlotInfoTracker freeSlotInfoTracker,
-            @Nonnull ResourceProfile resourceProfile) {
-        return freeSlotInfoTracker.getAvailableSlots().stream()
-                .map(freeSlotInfoTracker::getSlotInfo)
+            @Nonnull FreeSlotTracker freeSlotTracker, @Nonnull ResourceProfile resourceProfile) {
+        return freeSlotTracker.getAvailableSlots().stream()
+                .map(freeSlotTracker::getSlotInfo)
                 .filter(slotInfo -> slotInfo.getResourceProfile().isMatching(resourceProfile))
                 // calculate utilization first to avoid duplicated calculation in min()
-                .map(
-                        slot ->
-                                new Tuple2<>(
-                                        slot, freeSlotInfoTracker.getTaskExecutorUtilization(slot)))
+                .map(slot -> new Tuple2<>(slot, freeSlotTracker.getTaskExecutorUtilization(slot)))
                 .min(Comparator.comparingDouble(tuple -> tuple.f1))
                 .map(
                         slotInfoWithTaskExecutorUtilization ->

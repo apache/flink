@@ -24,7 +24,7 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -35,13 +35,13 @@ import static org.apache.flink.table.planner.utils.TableTestUtil.readFromResourc
 import static org.apache.flink.table.planner.utils.TableTestUtil.replaceNodeIdInOperator;
 import static org.apache.flink.table.planner.utils.TableTestUtil.replaceStageId;
 import static org.apache.flink.table.planner.utils.TableTestUtil.replaceStreamNodeId;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link FileSystemTableSink}. */
-public class FileSystemTableSinkTest {
+class FileSystemTableSinkTest {
 
     @Test
-    public void testExceptionWhenSettingParallelismWithUpdatingQuery() {
+    void testExceptionWhenSettingParallelismWithUpdatingQuery() {
         final TableEnvironment tEnv =
                 TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
@@ -62,7 +62,7 @@ public class FileSystemTableSinkTest {
     }
 
     @Test
-    public void testFileSystemTableSinkWithParallelismInStreaming() {
+    void testFileSystemTableSinkWithParallelismInStreaming() {
         final int parallelism = 5;
         final TableEnvironment tEnv =
                 TableEnvironment.create(EnvironmentSettings.inStreamingMode());
@@ -79,9 +79,11 @@ public class FileSystemTableSinkTest {
         final String expectedNormal =
                 readFromResource(
                         "/explain/filesystem/testFileSystemTableSinkWithParallelismInStreamingSql0.out");
-        assertEquals(
-                replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(expectedNormal))),
-                replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(actualNormal))));
+
+        assertThat(replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(actualNormal))))
+                .isEqualTo(
+                        replaceNodeIdInOperator(
+                                replaceStreamNodeId(replaceStageId(expectedNormal))));
 
         // verify operator parallelisms when compaction is enabled
         final String testCompactSinkTableName = "test_compact_sink_table";
@@ -91,13 +93,15 @@ public class FileSystemTableSinkTest {
         final String expectedCompact =
                 readFromResource(
                         "/explain/filesystem/testFileSystemTableSinkWithParallelismInStreamingSql1.out");
-        assertEquals(
-                replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(expectedCompact))),
-                replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(actualCompact))));
+
+        assertThat(replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(actualCompact))))
+                .isEqualTo(
+                        replaceNodeIdInOperator(
+                                replaceStreamNodeId(replaceStageId(expectedCompact))));
     }
 
     @Test
-    public void testFileSystemTableSinkWithParallelismInBatch() {
+    void testFileSystemTableSinkWithParallelismInBatch() {
         final int parallelism = 5;
         final TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
         tEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 8);
@@ -113,9 +117,8 @@ public class FileSystemTableSinkTest {
                 readFromResource(
                         "/explain/filesystem/testFileSystemTableSinkWithParallelismInBatch.out");
 
-        assertEquals(
-                replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(expected))),
-                replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(actual))));
+        assertThat(replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(actual))))
+                .isEqualTo(replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(expected))));
     }
 
     private static String buildSourceTableSql(String testSourceTableName, boolean bounded) {
@@ -155,7 +158,7 @@ public class FileSystemTableSinkTest {
     }
 
     @Test
-    public void testFileSystemTableSinkWithCustomCommitPolicy() throws Exception {
+    void testFileSystemTableSinkWithCustomCommitPolicy() throws Exception {
         final String outputTable = "outputTable";
         final String customPartitionCommitPolicyClassName = TestCustomCommitPolicy.class.getName();
         final TableEnvironment tEnv =
@@ -188,6 +191,6 @@ public class FileSystemTableSinkTest {
                 new HashSet<>(
                         Arrays.asList(
                                 "test1test2", "/tmp/d=2020-05-03/e=3", "/tmp/d=2020-05-03/e=4"));
-        assertEquals(expectedCommittedPaths, actualCommittedPaths);
+        assertThat(actualCommittedPaths).isEqualTo(expectedCommittedPaths);
     }
 }

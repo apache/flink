@@ -20,7 +20,7 @@ package org.apache.flink.orc;
 
 import org.apache.flink.orc.vector.RowDataVectorizer;
 import org.apache.flink.orc.writer.OrcBulkWriterFactory;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.streaming.api.functions.sink.filesystem.legacy.StreamingFileSink;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.TableResult;
@@ -206,6 +206,17 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
         check(
                 "select x, y from orcFilterTable where g = timestamp '2020-01-01 05:20:00' and x = 'x10'",
                 Collections.singletonList(Row.of("x10", "10")));
+    }
+
+    @TestTemplate
+    void testOrcFilterPushDownLiteralFirst() throws ExecutionException, InterruptedException {
+        super.tableEnv()
+                .executeSql("insert into orcLimitTable values('a', 10, 10), ('b', 11, 11)")
+                .await();
+        check("select y from orcLimitTable where 10 >= y", Collections.singletonList(Row.of(10)));
+        check("select y from orcLimitTable where 11 <= y", Collections.singletonList(Row.of(11)));
+        check("select y from orcLimitTable where 11 > y", Collections.singletonList(Row.of(10)));
+        check("select y from orcLimitTable where 10 < y", Collections.singletonList(Row.of(11)));
     }
 
     @TestTemplate

@@ -18,40 +18,42 @@
 
 package org.apache.flink.table.planner.plan.optimize;
 
+import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
 
-import static org.junit.Assume.assumeTrue;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Test push project into source with sub plan reuse. */
-@RunWith(Parameterized.class)
-public class ScanReuseTest extends TableTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class ScanReuseTest extends TableTestBase {
 
     private final boolean isStreaming;
     private final TableTestUtil util;
 
-    public ScanReuseTest(boolean isStreaming) {
+    ScanReuseTest(boolean isStreaming) {
         this.isStreaming = isStreaming;
         TableConfig config = TableConfig.getDefault();
         this.util = isStreaming ? streamTestUtil(config) : batchTestUtil(config);
     }
 
-    @Parameterized.Parameters(name = "isStreaming: {0}")
-    public static Collection<Boolean> parameters() {
+    @Parameters(name = "isStreaming: {0}")
+    private static Collection<Boolean> parameters() {
         return Arrays.asList(true, false);
     }
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         String table =
                 isStreaming
                         ? "CREATE TABLE MyTable (\n"
@@ -89,29 +91,29 @@ public class ScanReuseTest extends TableTestBase {
         util.tableEnv().executeSql(table);
     }
 
-    @Test
-    public void testProject() {
+    @TestTemplate
+    void testProject() {
         String sqlQuery = "SELECT T1.a, T1.c, T2.c FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a";
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProject1() {
+    @TestTemplate
+    void testProject1() {
         // One side projection
         String sqlQuery =
                 "SELECT T1.a, T1.b, T1.c, T2.c FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a";
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProject2() {
+    @TestTemplate
+    void testProject2() {
         // Two side projection
         String sqlQuery = "SELECT T1.a, T1.b, T2.c FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a";
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectNested1() {
+    @TestTemplate
+    void testProjectNested1() {
         String sqlQuery =
                 "SELECT T1.a, T1.i, T2.j FROM"
                         + " (SELECT a, nested.i as i FROM MyTable) T1,"
@@ -119,8 +121,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectNested2() {
+    @TestTemplate
+    void testProjectNested2() {
         String sqlQuery =
                 "SELECT T1.a, T1.i, T2.i FROM"
                         + " (SELECT a, nested.i as i FROM MyTable) T1,"
@@ -128,8 +130,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectNestedWithWholeField() {
+    @TestTemplate
+    void testProjectNestedWithWholeField() {
         String sqlQuery =
                 "SELECT * FROM"
                         + " (SELECT a, nested.i FROM MyTable) T1,"
@@ -137,16 +139,16 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectWithExpr() {
+    @TestTemplate
+    void testProjectWithExpr() {
         String sqlQuery =
                 "SELECT T1.a, T1.b, T2.c FROM"
                         + " (SELECT a, b + 1 as b FROM MyTable) T1, MyTable T2 WHERE T1.a = T2.a";
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectWithFilter() {
+    @TestTemplate
+    void testProjectWithFilter() {
         String sqlQuery =
                 "SELECT T1.a, T1.b, T2.c FROM"
                         + " (SELECT * FROM MyTable WHERE b = 2) T1,"
@@ -154,8 +156,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectWithMeta1() {
+    @TestTemplate
+    void testProjectWithMeta1() {
         // One side meta
         String sqlQuery =
                 "SELECT T1.a, T1.b, T1.metadata_1, T1.metadata_2, T2.c, T2.metadata_2"
@@ -163,8 +165,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectWithMeta2() {
+    @TestTemplate
+    void testProjectWithMeta2() {
         // One side meta
         String sqlQuery =
                 "SELECT T1.a, T1.b, T1.metadata_1, T2.c, T2.metadata_2"
@@ -172,8 +174,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectWithMeta3() {
+    @TestTemplate
+    void testProjectWithMeta3() {
         // meta projection
         String sqlQuery =
                 "SELECT T1.a, T1.b, T1.metadata_1, T2.c, T2.metadata_1"
@@ -181,16 +183,16 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectWithMetaAndCompute() {
+    @TestTemplate
+    void testProjectWithMetaAndCompute() {
         String sqlQuery =
                 "SELECT T1.a, T1.b, T1.metadata_1, T1.compute_metadata, T2.c, T2.metadata_2"
                         + " FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a";
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectWithHints() {
+    @TestTemplate
+    void testProjectWithHints() {
         String sqlQuery =
                 "SELECT T1.a, T1.c, T2.c FROM"
                         + " MyTable /*+ OPTIONS('source.num-element-to-skip'='1') */ T1,"
@@ -199,8 +201,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectReuseWithHints() {
+    @TestTemplate
+    void testProjectReuseWithHints() {
         String sqlQuery =
                 "SELECT T1.a, T1.c, T2.c FROM"
                         + " MyTable /*+ OPTIONS('source.num-element-to-skip'='1') */ T1,"
@@ -209,8 +211,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectWithDifferentHints() {
+    @TestTemplate
+    void testProjectWithDifferentHints() {
         String sqlQuery =
                 "SELECT T1.a, T1.c, T2.c FROM"
                         + " MyTable /*+ OPTIONS('source.num-element-to-skip'='1') */ T1,"
@@ -219,8 +221,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectWithFilterPushDown() {
+    @TestTemplate
+    void testProjectWithFilterPushDown() {
         String sqlQuery =
                 "SELECT T1.a, T1.c, T2.c FROM"
                         + " (SELECT * FROM"
@@ -231,8 +233,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectReuseWithFilterPushDown() {
+    @TestTemplate
+    void testProjectReuseWithFilterPushDown() {
         String sqlQuery =
                 "SELECT T1.a, T1.c, T2.c FROM"
                         + " (SELECT * FROM"
@@ -243,8 +245,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectReuseWithWatermark() {
+    @TestTemplate
+    void testProjectReuseWithWatermark() {
         if (isStreaming) {
             String ddl =
                     "CREATE TABLE W_T (\n"
@@ -271,8 +273,8 @@ public class ScanReuseTest extends TableTestBase {
         }
     }
 
-    @Test
-    public void testProjectWithLimitPushDown() {
+    @TestTemplate
+    void testProjectWithLimitPushDown() {
         String sqlQuery =
                 "SELECT T1.a, T1.c, T2.c FROM"
                         + " (SELECT * FROM"
@@ -283,8 +285,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectReuseWithLimitPushDown() {
+    @TestTemplate
+    void testProjectReuseWithLimitPushDown() {
         String sqlQuery =
                 "SELECT T1.a, T1.c, T2.c FROM"
                         + " (SELECT * FROM"
@@ -295,8 +297,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectWithPartitionPushDown() {
+    @TestTemplate
+    void testProjectWithPartitionPushDown() {
         if (!isStreaming) {
             String sqlQuery =
                     "SELECT T1.a, T1.c, T2.c FROM"
@@ -311,8 +313,8 @@ public class ScanReuseTest extends TableTestBase {
         }
     }
 
-    @Test
-    public void testProjectReuseWithPartitionPushDown() {
+    @TestTemplate
+    void testProjectReuseWithPartitionPushDown() {
         if (!isStreaming) {
             String sqlQuery =
                     "SELECT T1.a, T1.c, T2.c FROM"
@@ -327,9 +329,9 @@ public class ScanReuseTest extends TableTestBase {
         }
     }
 
-    @Test
-    public void testReuseWithReadMetadataAndWatermarkPushDown1() {
-        assumeTrue(isStreaming);
+    @TestTemplate
+    void testReuseWithReadMetadataAndWatermarkPushDown1() {
+        assumeThat(isStreaming).isTrue();
         String ddl =
                 "CREATE TABLE MyTable1 (\n"
                         + "  metadata_0 int METADATA VIRTUAL,\n"
@@ -364,9 +366,9 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testReuseWithReadMetadataAndWatermarkPushDown2() {
-        assumeTrue(isStreaming);
+    @TestTemplate
+    void testReuseWithReadMetadataAndWatermarkPushDown2() {
+        assumeThat(isStreaming).isTrue();
         String ddl =
                 "CREATE TABLE MyTable1 (\n"
                         + "  metadata_0 int METADATA VIRTUAL,\n"
@@ -399,5 +401,47 @@ public class ScanReuseTest extends TableTestBase {
                         + " GROUP BY a0, window_start, window_end) T2"
                         + " WHERE T1.a1 = T2.a1";
         util.verifyExecPlan(sqlQuery);
+    }
+
+    @TestTemplate
+    void testReuseWithReadMetadataKeepOrder() {
+        assumeThat(isStreaming).isTrue();
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TEMPORARY TABLE src( "
+                                + "   `origin_ts` TIMESTAMP(3) METADATA VIRTUAL, "
+                                + "   `partition` INT METADATA VIRTUAL, "
+                                + "   `offset` BIGINT METADATA VIRTUAL, "
+                                + "   `id` BIGINT,"
+                                + "   PRIMARY KEY (`id`) NOT ENFORCED "
+                                + ") WITH ( "
+                                + "   'connector' = 'values', "
+                                + "   'readable-metadata' = 'offset:bigint,origin_ts:timestamp(3),partition:int'"
+                                + ")");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TEMPORARY TABLE snk1( "
+                                + "   `origin_ts` TIMESTAMP(3), "
+                                + "   `partition` INT, "
+                                + "   `offset` BIGINT, "
+                                + "   `id` BIGINT"
+                                + ") WITH ( "
+                                + "   'connector' = 'values' "
+                                + ")");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TEMPORARY TABLE snk2( "
+                                + "   `id` BIGINT"
+                                + ") WITH ( "
+                                + "   'connector' = 'values' "
+                                + ")");
+
+        StatementSet stmt = util.tableEnv().createStatementSet();
+        stmt.addInsertSql(
+                "INSERT INTO snk1 select `origin_ts`, `partition`, `offset`, `id` from src");
+        stmt.addInsertSql("INSERT INTO snk2 select `id` from src");
+        util.verifyExecPlan(stmt);
     }
 }

@@ -30,6 +30,7 @@ Job statements are used for management of Flink jobs.
 
 Flink SQL supports the following JOB statements for now:
 - SHOW JOBS
+- DESCRIBE JOB
 - STOP JOB
 
 ## Run a JOB statement
@@ -52,8 +53,15 @@ Flink SQL> SHOW JOBS;
 | 228d70913eab60dda85c5e7f78b5782c |    myjob | RUNNING | 2023-02-11T05:03:51.523 |
 +----------------------------------+----------+---------+-------------------------+
 
-Flink SQL> SET 'state.savepoints.dir'='file:/tmp/';
-[INFO] Execute statement succeed.
+Flink SQL> DESCRIBE JOB '228d70913eab60dda85c5e7f78b5782c';
++----------------------------------+----------+---------+-------------------------+
+|                           job id | job name |  status |              start time |
++----------------------------------+----------+---------+-------------------------+
+| 228d70913eab60dda85c5e7f78b5782c |    myjob | RUNNING | 2023-02-11T05:03:51.523 |
++----------------------------------+----------+---------+-------------------------+
+
+Flink SQL> SET 'execution.checkpointing.savepoint-dir'='file:/tmp/';
+[INFO] Execute statement succeeded.
 
 Flink SQL> STOP JOB '228d70913eab60dda85c5e7f78b5782c' WITH SAVEPOINT;
 +-----------------------------------------+
@@ -75,6 +83,17 @@ Show the jobs in the Flink cluster.
 
 <span class="label label-danger">Attention</span> SHOW JOBS statements only work in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) or [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
 
+## DESCRIBE JOB
+
+```sql
+{ DESCRIBE | DESC } JOB '<job_id>'
+```
+
+Show the specified job in the Flink cluster.
+
+<span class="label label-danger">Attention</span> DESCRIBE JOB statements only work in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) or [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+
+
 ## STOP JOB
 
 ```sql
@@ -85,7 +104,7 @@ Stop the specified job.
 
 **WITH SAVEPOINT**
 Perform a savepoint right before stopping the job. The savepoint path could be specified with
-[state.savepoints.dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) either in
+[execution.checkpointing.savepoint-dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) either in
 the cluster configuration or via `SET` statements (the latter would take precedence).
 
 **WITH DRAIN**

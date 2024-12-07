@@ -75,7 +75,7 @@ FROM T
       <![CDATA[
 LogicalProject(id=[$0], nested1=[$1.nested1], results=[+(+($1.nested1.value, $1.nested2.num), $2)])
 +- LogicalProject(id=[$0], deepNested=[$1], metadata_1=[$2], metadata_2=[$3])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T, metadata=[metadata_1, metadata_2]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -98,7 +98,7 @@ FROM T
       <![CDATA[
 LogicalProject(id=[$0], nested1=[$1.nested1], results=[+(+($1.nested1.value, $1.nested2.num), $2)])
 +- LogicalProject(id=[$0], deepNested=[$1], metadata_1=[$2], metadata_2=[$3])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T, metadata=[metadata_1, metadata_2]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -213,13 +213,13 @@ Calc(select=[PROCTIME_MATERIALIZE(ptime) AS ptime, name, val, id])
       <![CDATA[
 LogicalProject(id=[$0], ts1=[$5], op=[$3])
 +- LogicalProject(id=[$0], name=[$1], tags=[CAST($3):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], op=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], ts=[$4], ts1=[+($4, 10000:INTERVAL SECOND)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src, metadata=[op, tags, ts]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[id, (ts + 10000:INTERVAL SECOND) AS ts1, CAST(op AS VARCHAR(2147483647)) AS op])
-+- TableSourceScan(table=[[default_catalog, default_database, src, metadata=[op, ts]]], fields=[id, name, op, ts])
++- TableSourceScan(table=[[default_catalog, default_database, src, metadata=[op, tags, ts]]], fields=[id, name, op, tags, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -231,7 +231,7 @@ Calc(select=[id, (ts + 10000:INTERVAL SECOND) AS ts1, CAST(op AS VARCHAR(2147483
       <![CDATA[
 LogicalProject(id=[$0], ts1=[$5], op=[$3])
 +- LogicalProject(id=[$0], name=[$1], tags=[CAST($3):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], op=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], ts=[$4], ts1=[+($4, 10000:INTERVAL SECOND)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src, metadata=[op, tags, ts]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -280,13 +280,13 @@ Calc(select=[name, w$end AS EXPR$1, EXPR$2])
       <![CDATA[
 LogicalProject(ts=[$4], id=[$0], name=[$1], tags=[$2], op=[$3])
 +- LogicalProject(id=[$0], name=[$1], tags=[CAST($3):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], op=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], ts=[$4], ts1=[+($4, 10000:INTERVAL SECOND)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src, metadata=[op, tags, ts]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[ts, id, name, CAST(tags AS VARCHAR(2147483647)) AS tags, CAST(op AS VARCHAR(2147483647)) AS op])
-+- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[id, name, op, tags, ts])
++- TableSourceScan(table=[[default_catalog, default_database, src, metadata=[op, tags, ts]]], fields=[id, name, op, tags, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -298,13 +298,13 @@ Calc(select=[ts, id, name, CAST(tags AS VARCHAR(2147483647)) AS tags, CAST(op AS
       <![CDATA[
 LogicalProject(id=[$0], ts=[$4], tags=[$2])
 +- LogicalProject(id=[$0], name=[$1], tags=[CAST($3):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], op=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], ts=[$4], ts1=[+($4, 10000:INTERVAL SECOND)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src, metadata=[op, tags, ts]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[id, ts, CAST(tags AS VARCHAR(2147483647)) AS tags])
-+- TableSourceScan(table=[[default_catalog, default_database, src, metadata=[tags, ts]]], fields=[id, name, tags, ts])
++- TableSourceScan(table=[[default_catalog, default_database, src, metadata=[op, tags, ts]]], fields=[id, name, op, tags, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -335,7 +335,7 @@ Calc(select=[rowtime, id, name, val])
       <![CDATA[
 LogicalProject(id=[$0], ts=[$4], tags=[$2])
 +- LogicalProject(id=[$0], name=[$1], tags=[CAST($3):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], op=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], ts=[$4], ts1=[+($4, 10000:INTERVAL SECOND)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src, metadata=[op, tags, ts]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

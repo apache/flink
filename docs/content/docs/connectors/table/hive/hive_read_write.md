@@ -79,7 +79,7 @@ of new files in the folder and read new files incrementally.
         <td><h5>streaming-source.partition-order</h5></td>
         <td style="word-wrap: break-word;">partition-name</td>
         <td>String</td>
-        <td>The partition order of streaming source, support create-time, partition-time and partition-name. create-time compares partition/file creation time, this is not the partition create time in Hive metaStore, but the folder/file modification time in filesystem, if the partition folder somehow gets updated, e.g. add new file into folder, it can affect how the data is consumed. partition-time compares the time extracted from partition name. partition-name compares partition name's alphabetical order. For non-partition table, this value should always be 'create-time'. By default the value is partition-name. The option is equality with deprecated option 'streaming-source.consume-order'.</td>
+        <td>The partition order of streaming source, support create-time, partition-time and partition-name. create-time compares partition/file creation time, this is not the partition create time in Hive metaStore, but the folder/file modification time in filesystem, if the partition folder somehow gets updated, e.g. add new file into folder, it can affect how the data is consumed. partition-time compares the time extracted from partition name. partition-name compares partition name's alphabetical order. For non-partition table, this value should always be 'create-time'. By default the value is partition-name.</td>
     </tr>
     <tr>
         <td><h5>streaming-source.consume-start-offset</h5></td>
@@ -152,16 +152,23 @@ following parameters in `TableConfig` (note that these parameters affect all sou
   </thead>
   <tbody>
     <tr>
-        <td><h5>table.exec.hive.infer-source-parallelism</h5></td>
-        <td style="word-wrap: break-word;">true</td>
-        <td>Boolean</td>
-        <td>If is true, source parallelism is inferred according to splits number. If is false, parallelism of source are set by config.</td>
+        <td><h5>table.exec.hive.infer-source-parallelism.mode</h5></td>
+        <td style="word-wrap: break-word;">dynamic</td>
+        <td>InferMode</td>
+        <td>An option for selecting the hive source parallelism inference mode to infer parallelism according to splits number.
+            'static' represents static inference, which will infer source parallelism at job creation stage.
+            'dynamic' represents dynamic inference, which will infer parallelism at job execution stage and could more accurately infer the source parallelism.
+            'none' represents disabling parallelism inference.
+            Note that it is still affected by the deprecated option 'table.exec.hive.infer-source-parallelism', requiring its value to be true for enabling parallelism inference.
+        </td>
     </tr>
     <tr>
         <td><h5>table.exec.hive.infer-source-parallelism.max</h5></td>
         <td style="word-wrap: break-word;">1000</td>
         <td>Integer</td>
-        <td>Sets max infer parallelism for source operator.</td>
+        <td>Sets max infer parallelism for source operator.
+            Note that the default value is effective only in the static parallelism inference mode.
+        </td>
     </tr>
   </tbody>
 </table>

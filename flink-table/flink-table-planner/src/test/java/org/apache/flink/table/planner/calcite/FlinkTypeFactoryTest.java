@@ -18,10 +18,11 @@
 
 package org.apache.flink.table.planner.calcite;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.table.legacy.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
@@ -42,7 +43,6 @@ import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
-import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
@@ -87,7 +87,7 @@ class FlinkTypeFactoryTest {
                 RowType.of(new DoubleType(), VarCharType.STRING_TYPE),
                 new RawType<>(
                         DayOfWeek.class,
-                        new KryoSerializer<>(DayOfWeek.class, new ExecutionConfig())));
+                        new KryoSerializer<>(DayOfWeek.class, new SerializerConfigImpl())));
     }
 
     @MethodSource("testInternalToRelType")

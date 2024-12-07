@@ -123,7 +123,10 @@ public class HiveDynamicPartitionPruningITCase {
                 tableEnv.explainSql(
                         "select a, b, c, p, x, y from fact, dim where x = p and z = 1 order by a"));
 
-        tableEnv.getConfig().set(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM, false);
+        tableEnv.getConfig()
+                .set(
+                        HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MODE,
+                        HiveOptions.InferMode.NONE);
 
         String sql = "select a, b, c, p, x, y from fact, dim where x = p and z = 1 order by a";
         String sqlSwapFactDim =
@@ -192,7 +195,10 @@ public class HiveDynamicPartitionPruningITCase {
                         "insert into fact2 partition (p=3) values (60,300,'aaa'),(61,301,'bbb'),(62,302,'ccc') ")
                 .await();
 
-        tableEnv.getConfig().set(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM, false);
+        tableEnv.getConfig()
+                .set(
+                        HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM_MODE,
+                        HiveOptions.InferMode.NONE);
 
         // two fact sources share the same dynamic filter
         String sql =

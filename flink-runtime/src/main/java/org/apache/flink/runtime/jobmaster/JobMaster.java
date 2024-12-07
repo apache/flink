@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.execution.CheckpointType;
@@ -37,6 +37,7 @@ import org.apache.flink.runtime.blocklist.BlocklistUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -54,7 +55,6 @@ import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.PartitionTrackerFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -70,7 +70,6 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
@@ -90,6 +89,8 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.shuffle.JobShuffleContext;
 import org.apache.flink.runtime.shuffle.JobShuffleContextImpl;
+import org.apache.flink.runtime.shuffle.PartitionWithMetrics;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -100,10 +101,12 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation.ResolutionMode;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
+import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -114,6 +117,8 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -126,6 +131,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
@@ -135,7 +141,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * JobMaster implementation. The job master is responsible for the execution of a single {@link
- * JobGraph}.
+ * ExecutionPlan}.
  *
  * <p>It offers the following methods as part of its rpc interface to interact with the JobMaster
  * remotely:
@@ -156,9 +162,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
     private final ResourceID resourceId;
 
-    private final JobGraph jobGraph;
+    private final ExecutionPlan executionPlan;
 
-    private final Time rpcTimeout;
+    private final Duration rpcTimeout;
 
     private final HighAvailabilityServices highAvailabilityServices;
 
@@ -225,6 +231,22 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
     private final BlocklistHandler blocklistHandler;
 
+    private final Map<ResultPartitionID, PartitionWithMetrics> fetchedPartitionsWithMetrics =
+            new HashMap<>();
+
+    /**
+     * A flag that indicates whether to fetch and retain partitions on task managers. This will
+     * apply to future TaskManager registrations as well as already registered TaskManagers. The
+     * flag will be set to true when starting batch job recovery and set to false after all required
+     * partitions, as defined in {@code requireToFetchPartitions}, are either fetched or when a
+     * timeout occurs.
+     */
+    private boolean fetchAndRetainPartitions = false;
+
+    private Set<ResultPartitionID> partitionsToFetch;
+
+    private CompletableFuture<Collection<PartitionWithMetrics>> fetchPartitionsFuture;
+
     // ------------------------------------------------------------------------
 
     public JobMaster(
@@ -232,7 +254,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             JobMasterId jobMasterId,
             JobMasterConfiguration jobMasterConfiguration,
             ResourceID resourceId,
-            JobGraph jobGraph,
+            ExecutionPlan executionPlan,
             HighAvailabilityServices highAvailabilityService,
             SlotPoolServiceSchedulerFactory slotPoolServiceSchedulerFactory,
             JobManagerSharedServices jobManagerSharedServices,
@@ -250,7 +272,11 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             long initializationTimestamp)
             throws Exception {
 
-        super(rpcService, RpcServiceUtils.createRandomName(JOB_MANAGER_NAME), jobMasterId);
+        super(
+                rpcService,
+                RpcServiceUtils.createRandomName(JOB_MANAGER_NAME),
+                jobMasterId,
+                MdcUtils.asContextData(executionPlan.getJobID()));
 
         final ExecutionDeploymentReconciliationHandler executionStateReconciliationHandler =
                 new ExecutionDeploymentReconciliationHandler() {
@@ -291,6 +317,12 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                         }
                     }
                 };
+        final String jobName = executionPlan.getName();
+        final JobID jid = executionPlan.getJobID();
+
+        this.executionPlan = checkNotNull(executionPlan);
+
+        log.info("Initializing job '{}' ({}).", jobName, jid);
 
         this.executionDeploymentTracker = executionDeploymentTracker;
         this.executionDeploymentReconciler =
@@ -298,12 +330,12 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         this.jobMasterConfiguration = checkNotNull(jobMasterConfiguration);
         this.resourceId = checkNotNull(resourceId);
-        this.jobGraph = checkNotNull(jobGraph);
         this.rpcTimeout = jobMasterConfiguration.getRpcTimeout();
         this.highAvailabilityServices = checkNotNull(highAvailabilityService);
         this.blobWriter = jobManagerSharedServices.getBlobWriter();
-        this.futureExecutor = jobManagerSharedServices.getFutureExecutor();
-        this.ioExecutor = jobManagerSharedServices.getIoExecutor();
+        this.futureExecutor =
+                MdcUtils.scopeToJob(jid, jobManagerSharedServices.getFutureExecutor());
+        this.ioExecutor = MdcUtils.scopeToJob(jid, jobManagerSharedServices.getIoExecutor());
         this.jobCompletionActions = checkNotNull(jobCompletionActions);
         this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
         this.userCodeLoader = checkNotNull(userCodeLoader);
@@ -311,12 +343,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         this.retrieveTaskManagerHostName =
                 jobMasterConfiguration
                         .getConfiguration()
-                        .getBoolean(JobManagerOptions.RETRIEVE_TASK_MANAGER_HOSTNAME);
-
-        final String jobName = jobGraph.getName();
-        final JobID jid = jobGraph.getJobID();
-
-        log.info("Initializing job '{}' ({}).", jobName, jid);
+                        .get(JobManagerOptions.RETRIEVE_TASK_MANAGER_HOSTNAME);
 
         resourceManagerLeaderRetriever =
                 highAvailabilityServices.getResourceManagerLeaderRetriever();
@@ -334,7 +361,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                         .createSlotPoolService(
                                 jid,
                                 createDeclarativeSlotPoolFactory(
-                                        jobMasterConfiguration.getConfiguration()));
+                                        jobMasterConfiguration.getConfiguration()),
+                                getMainThreadExecutor());
 
         this.partitionTracker =
                 checkNotNull(partitionTrackerFactory)
@@ -347,7 +375,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         this.shuffleMaster = checkNotNull(shuffleMaster);
 
-        this.jobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
+        this.jobManagerJobMetricGroup = jobMetricGroupFactory.create(executionPlan);
         this.jobStatusListener = new JobManagerJobStatusListener();
 
         this.failureEnrichers = checkNotNull(failureEnrichers);
@@ -378,7 +406,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         final SchedulerNG scheduler =
                 slotPoolServiceSchedulerFactory.createScheduler(
                         log,
-                        jobGraph,
+                        executionPlan,
                         ioExecutor,
                         jobMasterConfiguration.getConfiguration(),
                         slotPoolService,
@@ -444,15 +472,15 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     public CompletableFuture<Void> onStop() {
         log.info(
                 "Stopping the JobMaster for job '{}' ({}).",
-                jobGraph.getName(),
-                jobGraph.getJobID());
+                executionPlan.getName(),
+                executionPlan.getJobID());
 
         // make sure there is a graceful exit
         return stopJobExecution(
                         new FlinkException(
                                 String.format(
                                         "Stopping JobMaster for job '%s' (%s).",
-                                        jobGraph.getName(), jobGraph.getJobID())))
+                                        executionPlan.getName(), executionPlan.getJobID())))
                 .exceptionally(
                         exception -> {
                             throw new CompletionException(
@@ -466,7 +494,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     // ----------------------------------------------------------------------------------------------
 
     @Override
-    public CompletableFuture<Acknowledge> cancel(Time timeout) {
+    public CompletableFuture<Acknowledge> cancel(Duration timeout) {
         schedulerNG.cancel();
 
         return CompletableFuture.completedFuture(Acknowledge.get());
@@ -538,12 +566,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     @Override
     public CompletableFuture<Acknowledge> disconnectTaskManager(
             final ResourceID resourceID, final Exception cause) {
-        log.info(
-                "Disconnect TaskExecutor {} because: {}",
-                resourceID.getStringWithMetadata(),
-                cause.getMessage(),
-                ExceptionUtils.returnExceptionIfUnexpected(cause.getCause()));
-        ExceptionUtils.logExceptionIfExcepted(cause.getCause(), log);
 
         taskManagerHeartbeatManager.unmonitorTarget(resourceID);
         slotPoolService.releaseTaskManager(resourceID, cause);
@@ -552,9 +574,16 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         TaskManagerRegistration taskManagerRegistration = registeredTaskManagers.remove(resourceID);
 
         if (taskManagerRegistration != null) {
+            log.info(
+                    "Disconnect TaskExecutor {} because: {}",
+                    resourceID.getStringWithMetadata(),
+                    cause.getMessage(),
+                    ExceptionUtils.returnExceptionIfUnexpected(cause.getCause()));
+            ExceptionUtils.logExceptionIfExcepted(cause.getCause(), log);
+
             taskManagerRegistration
                     .getTaskExecutorGateway()
-                    .disconnectJobManager(jobGraph.getJobID(), cause);
+                    .disconnectJobManager(executionPlan.getJobID(), cause);
         }
 
         return CompletableFuture.completedFuture(Acknowledge.get());
@@ -585,6 +614,14 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         schedulerNG.reportCheckpointMetrics(
                 jobID, executionAttemptID, checkpointId, checkpointMetrics);
+    }
+
+    @Override
+    public void reportInitializationMetrics(
+            JobID jobId,
+            ExecutionAttemptID executionAttemptId,
+            SubTaskInitializationMetrics initializationMetrics) {
+        schedulerNG.reportInitializationMetrics(jobId, executionAttemptId, initializationMetrics);
     }
 
     // TODO: This method needs a leader session ID
@@ -673,7 +710,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
     @Override
     public CompletableFuture<Collection<SlotOffer>> offerSlots(
-            final ResourceID taskManagerId, final Collection<SlotOffer> slots, final Time timeout) {
+            final ResourceID taskManagerId,
+            final Collection<SlotOffer> slots,
+            final Duration timeout) {
 
         TaskManagerRegistration taskManagerRegistration = registeredTaskManagers.get(taskManagerId);
 
@@ -736,9 +775,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     public CompletableFuture<RegistrationResponse> registerTaskManager(
             final JobID jobId,
             final TaskManagerRegistrationInformation taskManagerRegistrationInformation,
-            final Time timeout) {
+            final Duration timeout) {
 
-        if (!jobGraph.getJobID().equals(jobId)) {
+        if (!executionPlan.getJobID().equals(jobId)) {
             log.debug(
                     "Rejecting TaskManager registration attempt because of wrong job id {}.",
                     jobId);
@@ -782,30 +821,41 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             }
         }
 
-        return getRpcService()
-                .connect(
-                        taskManagerRegistrationInformation.getTaskManagerRpcAddress(),
-                        TaskExecutorGateway.class)
-                .handleAsync(
-                        (TaskExecutorGateway taskExecutorGateway, Throwable throwable) -> {
-                            if (throwable != null) {
-                                return new RegistrationResponse.Failure(throwable);
-                            }
+        CompletableFuture<RegistrationResponse> registrationResponseFuture =
+                getRpcService()
+                        .connect(
+                                taskManagerRegistrationInformation.getTaskManagerRpcAddress(),
+                                TaskExecutorGateway.class)
+                        .handleAsync(
+                                (TaskExecutorGateway taskExecutorGateway, Throwable throwable) -> {
+                                    if (throwable != null) {
+                                        return new RegistrationResponse.Failure(throwable);
+                                    }
 
-                            slotPoolService.registerTaskManager(taskManagerId);
-                            registeredTaskManagers.put(
-                                    taskManagerId,
-                                    TaskManagerRegistration.create(
-                                            taskManagerLocation, taskExecutorGateway, sessionId));
+                                    slotPoolService.registerTaskManager(taskManagerId);
+                                    registeredTaskManagers.put(
+                                            taskManagerId,
+                                            TaskManagerRegistration.create(
+                                                    taskManagerLocation,
+                                                    taskExecutorGateway,
+                                                    sessionId));
 
-                            // monitor the task manager as heartbeat target
-                            taskManagerHeartbeatManager.monitorTarget(
-                                    taskManagerId,
-                                    new TaskExecutorHeartbeatSender(taskExecutorGateway));
+                                    // monitor the task manager as heartbeat target
+                                    taskManagerHeartbeatManager.monitorTarget(
+                                            taskManagerId,
+                                            new TaskExecutorHeartbeatSender(taskExecutorGateway));
 
-                            return new JMTMRegistrationSuccess(resourceId);
-                        },
-                        getMainThreadExecutor());
+                                    return new JMTMRegistrationSuccess(resourceId);
+                                },
+                                getMainThreadExecutor());
+
+        if (fetchAndRetainPartitions) {
+            registrationResponseFuture.whenComplete(
+                    (ignored, throwable) ->
+                            fetchAndRetainPartitionWithMetricsOnTaskManager(taskManagerId));
+        }
+
+        return registrationResponseFuture;
     }
 
     @Nonnull
@@ -855,28 +905,23 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     }
 
     @Override
-    public CompletableFuture<JobDetails> requestJobDetails(Time timeout) {
-        return CompletableFuture.completedFuture(schedulerNG.requestJobDetails());
-    }
-
-    @Override
-    public CompletableFuture<JobStatus> requestJobStatus(Time timeout) {
+    public CompletableFuture<JobStatus> requestJobStatus(Duration timeout) {
         return CompletableFuture.completedFuture(schedulerNG.requestJobStatus());
     }
 
     @Override
-    public CompletableFuture<ExecutionGraphInfo> requestJob(Time timeout) {
+    public CompletableFuture<ExecutionGraphInfo> requestJob(Duration timeout) {
         return CompletableFuture.completedFuture(schedulerNG.requestJob());
     }
 
     @Override
-    public CompletableFuture<CheckpointStatsSnapshot> requestCheckpointStats(Time timeout) {
+    public CompletableFuture<CheckpointStatsSnapshot> requestCheckpointStats(Duration timeout) {
         return CompletableFuture.completedFuture(schedulerNG.requestCheckpointStats());
     }
 
     @Override
     public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(
-            final CheckpointType checkpointType, final Time timeout) {
+            final CheckpointType checkpointType, final Duration timeout) {
         return schedulerNG.triggerCheckpoint(checkpointType);
     }
 
@@ -885,7 +930,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             @Nullable final String targetDirectory,
             final boolean cancelJob,
             final SavepointFormatType formatType,
-            final Time timeout) {
+            final Duration timeout) {
 
         return schedulerNG.triggerSavepoint(targetDirectory, cancelJob, formatType);
     }
@@ -895,7 +940,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             @Nullable final String targetDirectory,
             final SavepointFormatType formatType,
             final boolean terminate,
-            final Time timeout) {
+            final Duration timeout) {
 
         return schedulerNG.stopWithSavepoint(targetDirectory, terminate, formatType);
     }
@@ -933,7 +978,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     public CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
             OperatorID operatorId,
             SerializedValue<CoordinationRequest> serializedRequest,
-            Time timeout) {
+            Duration timeout) {
         return this.sendRequestToCoordinator(operatorId, serializedRequest);
     }
 
@@ -948,6 +993,111 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             future.completeExceptionally(throwable);
         }
         return future;
+    }
+
+    @Override
+    public CompletableFuture<Collection<PartitionWithMetrics>> getPartitionWithMetrics(
+            Duration timeout, Set<ResultPartitionID> expectedPartitions) {
+        this.partitionsToFetch = expectedPartitions;
+        this.fetchPartitionsFuture = new CompletableFuture<>();
+
+        // check already fetched partitions
+        checkPartitionOnTaskManagerReportFinished();
+
+        return FutureUtils.orTimeout(
+                        fetchPartitionsFuture, timeout.toMillis(), TimeUnit.MILLISECONDS, null)
+                .handleAsync(
+                        (metrics, throwable) -> {
+                            stopFetchAndRetainPartitionWithMetricsOnTaskManager();
+
+                            if (throwable != null) {
+                                if (throwable instanceof TimeoutException) {
+                                    log.warn(
+                                            "Timeout occurred after {} ms "
+                                                    + "while fetching partition(s) ({}) from task managers.",
+                                            timeout.toMillis(),
+                                            expectedPartitions);
+
+                                    return new ArrayList<>(fetchedPartitionsWithMetrics.values());
+                                }
+                                throw new CompletionException(throwable);
+                            }
+
+                            return new ArrayList<>(fetchedPartitionsWithMetrics.values());
+                        },
+                        getMainThreadExecutor());
+    }
+
+    @VisibleForTesting
+    Map<ResultPartitionID, PartitionWithMetrics> getPartitionWithMetricsOnTaskManagers() {
+        return fetchedPartitionsWithMetrics;
+    }
+
+    @Override
+    public void startFetchAndRetainPartitionWithMetricsOnTaskManager() {
+        fetchAndRetainPartitions = true;
+
+        // process all already registered task managers
+        registeredTaskManagers
+                .keySet()
+                .forEach(this::fetchAndRetainPartitionWithMetricsOnTaskManager);
+    }
+
+    private void fetchAndRetainPartitionWithMetricsOnTaskManager(ResourceID resourceId) {
+        TaskManagerRegistration taskManager = registeredTaskManagers.get(resourceId);
+        checkNotNull(taskManager);
+
+        taskManager
+                .getTaskExecutorGateway()
+                .getAndRetainPartitionWithMetrics(executionPlan.getJobID())
+                .thenAccept(
+                        partitionWithMetrics -> {
+                            if (fetchAndRetainPartitions) {
+                                for (PartitionWithMetrics partitionWithMetric :
+                                        partitionWithMetrics) {
+                                    log.debug(
+                                            "Received partition metrics for {} from Task Manager {}.",
+                                            partitionWithMetric
+                                                    .getPartition()
+                                                    .getResultPartitionID(),
+                                            resourceId);
+                                    fetchedPartitionsWithMetrics.put(
+                                            partitionWithMetric
+                                                    .getPartition()
+                                                    .getResultPartitionID(),
+                                            partitionWithMetric);
+                                }
+                                checkPartitionOnTaskManagerReportFinished();
+                            } else {
+                                log.info(
+                                        "Received late report of partition metrics from {}. Release the partitions.",
+                                        resourceId);
+
+                                taskManager
+                                        .getTaskExecutorGateway()
+                                        .releasePartitions(
+                                                executionPlan.getJobID(),
+                                                partitionWithMetrics.stream()
+                                                        .map(PartitionWithMetrics::getPartition)
+                                                        .map(
+                                                                ShuffleDescriptor
+                                                                        ::getResultPartitionID)
+                                                        .collect(Collectors.toSet()));
+                            }
+                        });
+    }
+
+    private void stopFetchAndRetainPartitionWithMetricsOnTaskManager() {
+        fetchAndRetainPartitions = false;
+    }
+
+    private void checkPartitionOnTaskManagerReportFinished() {
+        if (fetchPartitionsFuture != null) {
+            if (fetchedPartitionsWithMetrics.keySet().containsAll(partitionsToFetch)
+                    && !fetchPartitionsFuture.isDone()) {
+                fetchPartitionsFuture.complete(fetchedPartitionsWithMetrics.values());
+            }
+        }
     }
 
     @Override
@@ -978,15 +1128,15 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     private void startJobExecution() throws Exception {
         validateRunsInMainThread();
 
-        JobShuffleContext context = new JobShuffleContextImpl(jobGraph.getJobID(), this);
+        JobShuffleContext context = new JobShuffleContextImpl(executionPlan.getJobID(), this);
         shuffleMaster.registerJob(context);
 
         startJobMasterServices();
 
         log.info(
                 "Starting execution of job '{}' ({}) under job master id {}.",
-                jobGraph.getName(),
-                jobGraph.getJobID(),
+                executionPlan.getName(),
+                executionPlan.getJobID(),
                 getFencingToken());
 
         startScheduling();
@@ -999,7 +1149,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                     createResourceManagerHeartbeatManager(heartbeatServices);
 
             // start the slot pool make sure the slot pool now accepts messages for this leader
-            slotPoolService.start(getFencingToken(), getAddress(), getMainThreadExecutor());
+            slotPoolService.start(getFencingToken(), getAddress());
 
             // job is ready to go, try to establish connection with resource manager
             //   - activate leader retrieval for the resource manager
@@ -1047,7 +1197,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         return FutureUtils.runAfterwards(
                 terminationFuture,
                 () -> {
-                    shuffleMaster.unregisterJob(jobGraph.getJobID());
+                    shuffleMaster.unregisterJob(executionPlan.getJobID());
                     disconnectTaskManagerResourceManagerConnections(cause);
                     stopJobMasterServices();
                 });
@@ -1183,7 +1333,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         resourceManagerConnection =
                 new ResourceManagerConnection(
                         log,
-                        jobGraph.getJobID(),
+                        executionPlan.getJobID(),
                         resourceId,
                         getAddress(),
                         getFencingToken(),
@@ -1265,7 +1415,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         ResourceManagerGateway resourceManagerGateway =
                 establishedResourceManagerConnection.getResourceManagerGateway();
         resourceManagerGateway.disconnectJobManager(
-                jobGraph.getJobID(), schedulerNG.requestJobStatus(), cause);
+                executionPlan.getJobID(), schedulerNG.requestJobStatus(), cause);
         blocklistHandler.deregisterBlocklistListener(resourceManagerGateway);
         slotPoolService.disconnectResourceManager();
     }
@@ -1391,7 +1541,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                         ResourceManagerGateway gateway,
                         ResourceManagerId fencingToken,
                         long timeoutMillis) {
-                    Time timeout = Time.milliseconds(timeoutMillis);
+                    Duration timeout = Duration.ofMillis(timeoutMillis);
 
                     return gateway.registerJobMaster(
                             jobMasterId,

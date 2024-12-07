@@ -19,11 +19,11 @@
 package org.apache.flink.client.testjar;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
+import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
 
 /** Simulate a class setting a configuration. */
 public class ForbidConfigurationJob {
@@ -33,11 +33,11 @@ public class ForbidConfigurationJob {
 
     public static void main(String[] args) throws Exception {
         final Configuration config = new Configuration();
-        config.set(SavepointConfigOptions.SAVEPOINT_PATH, SAVEPOINT_PATH);
+        config.set(StateRecoveryOptions.SAVEPOINT_PATH, SAVEPOINT_PATH);
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(config);
 
-        env.fromCollection(Lists.newArrayList(1, 2, 3)).sinkTo(new DiscardingSink<>());
+        env.fromData(Lists.newArrayList(1, 2, 3)).sinkTo(new DiscardingSink<>());
         env.execute();
     }
 }

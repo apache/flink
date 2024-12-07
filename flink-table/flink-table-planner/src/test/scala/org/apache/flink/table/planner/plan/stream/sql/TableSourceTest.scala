@@ -17,11 +17,11 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.utils._
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Test
 
 class TableSourceTest extends TableTestBase {
 
@@ -100,9 +100,6 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testProctimeOnWatermarkSpec(): Unit = {
-    thrown.expect(classOf[ValidationException])
-    thrown.expect(
-      containsMessage("A watermark can not be defined for a processing-time attribute."))
     val ddl =
       s"""
          |CREATE TABLE procTimeT (
@@ -116,9 +113,14 @@ class TableSourceTest extends TableTestBase {
          |  'bounded' = 'false'
          |)
        """.stripMargin
-    util.tableEnv.executeSql(ddl)
 
-    util.verifyExecPlan("SELECT pTime, id, name, val FROM procTimeT")
+    assertThatThrownBy(
+      () => {
+        util.tableEnv.executeSql(ddl)
+        util.verifyExecPlan("SELECT pTime, id, name, val FROM procTimeT")
+      })
+      .hasMessageContaining("A watermark can not be defined for a processing-time attribute.")
+      .isInstanceOf[ValidationException]
   }
 
   @Test

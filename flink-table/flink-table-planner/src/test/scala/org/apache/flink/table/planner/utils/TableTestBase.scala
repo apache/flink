@@ -19,30 +19,35 @@ package org.apache.flink.table.planner.utils
 
 import org.apache.flink.FlinkVersion
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
-import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.BatchExecutionOptions
-import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
+import org.apache.flink.legacy.table.factories.StreamTableSourceFactory
+import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, UpsertStreamTableSink}
+import org.apache.flink.legacy.table.sources.StreamTableSource
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode
-import org.apache.flink.streaming.api.{environment, TimeCharacteristic}
 import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
-import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.java.{StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.{StatementSetImpl, TableEnvironmentImpl, TableEnvironmentInternal, TableImpl}
-import org.apache.flink.table.catalog.{CatalogManager, CatalogStoreHolder, FunctionCatalog, GenericInMemoryCatalog, GenericInMemoryCatalogStore, ObjectIdentifier}
+import org.apache.flink.table.api.typeutils.CaseClassTypeInfo
+import org.apache.flink.table.catalog._
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
 import org.apache.flink.table.descriptors.DescriptorProperties
-import org.apache.flink.table.descriptors.Schema.SCHEMA
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.factories.{FactoryUtil, PlannerFactoryUtil, StreamTableSourceFactory}
+import org.apache.flink.table.factories.{FactoryUtil, PlannerFactoryUtil}
 import org.apache.flink.table.functions._
+import org.apache.flink.table.legacy.api.TableSchema
+import org.apache.flink.table.legacy.descriptors.Schema.SCHEMA
+import org.apache.flink.table.legacy.sinks.TableSink
+import org.apache.flink.table.legacy.sources.TableSource
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.{ModifyOperation, QueryOperation}
 import org.apache.flink.table.planner.calcite.CalciteConfig
@@ -62,11 +67,10 @@ import org.apache.flink.table.planner.utils.PlanKind.PlanKind
 import org.apache.flink.table.planner.utils.TableTestUtil.{replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
 import org.apache.flink.table.resource.ResourceManager
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
-import org.apache.flink.table.sinks._
-import org.apache.flink.table.sources.{StreamTableSource, TableSource}
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 import org.apache.flink.util.{FlinkUserCodeClassLoaders, MutableURLClassLoader}
 import org.apache.flink.util.jackson.JacksonMapperFactory
@@ -79,35 +83,31 @@ import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
 import org.apache.calcite.sql.parser.SqlParserPos
-import org.junit.Assert.{assertEquals, assertThat, assertTrue, fail}
-import org.junit.Rule
-import org.junit.rules.{ExpectedException, TemporaryFolder, TestName}
+import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType, fail}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
+import org.junit.jupiter.api.extension.{BeforeEachCallback, ExtendWith, ExtensionContext, RegisterExtension}
+import org.junit.jupiter.api.io.TempDir
+import org.junit.platform.commons.support.AnnotationSupport
 
 import java.io.{File, IOException}
 import java.net.URL
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Path, Paths}
 import java.time.Duration
 import java.util.Collections
+
+import scala.collection.JavaConverters._
 
 /** Test base for testing Table API / SQL plans. */
 abstract class TableTestBase {
 
-  // used for accurate exception information checking.
-  val expectedException: ExpectedException = ExpectedException.none()
-
   // used for get test case method name
+  @RegisterExtension
   val testName: TestName = new TestName
 
-  val _tempFolder = new TemporaryFolder
+  @TempDir
+  var tempFolder: Path = _
 
-  @Rule
-  def tempFolder: TemporaryFolder = _tempFolder
-
-  @Rule
-  def thrown: ExpectedException = expectedException
-
-  @Rule
-  def name: TestName = testName
+  def methodName: String = testName.getMethodName
 
   def streamTestUtil(tableConfig: TableConfig = TableConfig.getDefault): StreamTableTestUtil =
     StreamTableTestUtil(this, tableConfig = tableConfig)
@@ -127,9 +127,36 @@ abstract class TableTestBase {
     val expectedString = FlinkRelOptUtil.toString(TableTestUtil.toRelNode(expected))
     val actualString = FlinkRelOptUtil.toString(TableTestUtil.toRelNode(actual))
     assertEquals(
-      "Logical plans do not match",
       LogicalPlanFormatUtils.formatTempTableId(expectedString),
-      LogicalPlanFormatUtils.formatTempTableId(actualString))
+      LogicalPlanFormatUtils.formatTempTableId(actualString),
+      "Logical plans do not match")
+  }
+}
+
+class TestName extends BeforeEachCallback {
+
+  private val bracketsRegex = """\[.*\]""".r
+
+  private var methodName: String = _
+
+  def getMethodName: String = methodName
+
+  override def beforeEach(context: ExtensionContext): Unit = {
+    if (hasParameterizedTestExtension(context)) {
+      val displayName = context.getDisplayName match {
+        case bracketsRegex(_*) => context.getDisplayName
+        case _ => s"[${context.getDisplayName}]"
+      }
+      methodName = s"${context.getTestMethod.get().getName}$displayName"
+    } else {
+      methodName = context.getTestMethod.get().getName
+    }
+  }
+
+  private def hasParameterizedTestExtension(context: ExtensionContext): Boolean = {
+    Option(AnnotationSupport.findAnnotation(context.getTestClass, classOf[ExtendWith]).orElse(null))
+      .map(_.value)
+      .exists(_.contains(classOf[ParameterizedTestExtension]))
   }
 }
 
@@ -177,8 +204,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    *   returns the registered [[Table]].
    */
   def addDataStream[T: TypeInformation](name: String, fields: Expression*): Table = {
-    val env = new ScalaStreamExecEnv(new LocalStreamEnvironment())
-    val dataStream = env.fromElements[T]().javaStream
+    val env = new LocalStreamEnvironment()
+    val typeInfo = implicitly[TypeInformation[T]]
+    val dataStream = env.fromCollection[T](Collections.emptyList[T](), typeInfo)
     val tableEnv = getTableEnv
     TableTestUtil.createTemporaryView(tableEnv, name, dataStream, Some(fields.toArray))
     tableEnv.from(name)
@@ -271,18 +299,6 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       .asInstanceOf[TableEnvironmentInternal]
       .registerTableSourceInternal(name, tableSource)
     getTableEnv.from(name)
-  }
-
-  /**
-   * Registers a [[ScalarFunction]] under given name into the TableEnvironment's catalog.
-   *
-   * @deprecated
-   *   Use [[addTemporarySystemFunction]].
-   */
-  @deprecated
-  @Deprecated
-  def addFunction(name: String, function: ScalarFunction): Unit = {
-    getTableEnv.registerFunction(name, function)
   }
 
   /** Registers a [[UserDefinedFunction]] according to FLIP-65. */
@@ -607,6 +623,28 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    * Verify whether the optimized rel plan for the given SELECT query does not contain the
    * `notExpected` strings.
    */
+  def verifyRelPlanExpected(query: String, notExpected: String*): Unit = {
+    verifyRelPlanExpected(getTableEnv.sqlQuery(query), notExpected: _*)
+  }
+
+  /**
+   * Verify whether the optimized rel plan for the given [[Table]] does not contain the
+   * `notExpected` strings.
+   */
+  def verifyRelPlanExpected(table: Table, expected: String*): Unit = {
+    require(expected.nonEmpty)
+    val relNode = TableTestUtil.toRelNode(table)
+    val optimizedRel = getPlanner.optimize(relNode)
+    val optimizedPlan = getOptimizedRelPlan(Array(optimizedRel), Array.empty, withRowType = false)
+    val result = expected.forall(optimizedPlan.contains(_))
+    val message = s"\nactual plan:\n$optimizedPlan\nexpected:\n${expected.mkString(", ")}"
+    assertTrue(result, message)
+  }
+
+  /**
+   * Verify whether the optimized rel plan for the given SELECT query does not contain the
+   * `notExpected` strings.
+   */
   def verifyRelPlanNotExpected(query: String, notExpected: String*): Unit = {
     verifyRelPlanNotExpected(getTableEnv.sqlQuery(query), notExpected: _*)
   }
@@ -622,7 +660,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val optimizedPlan = getOptimizedRelPlan(Array(optimizedRel), Array.empty, withRowType = false)
     val result = notExpected.forall(!optimizedPlan.contains(_))
     val message = s"\nactual plan:\n$optimizedPlan\nnot expected:\n${notExpected.mkString(", ")}"
-    assertTrue(message, result)
+    assertTrue(result, message)
   }
 
   /**
@@ -752,14 +790,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       sql: String,
       message: String,
       clazz: Class[_ <: Throwable] = classOf[ValidationException]): Unit = {
-    try {
-      verifyExplain(sql)
-      fail(s"Expected a $clazz, but no exception is thrown.")
-    } catch {
-      case e: Throwable =>
-        assertTrue(clazz.isAssignableFrom(e.getClass))
-        assertThat(e, containsMessage(message))
-    }
+    assertThatExceptionOfType(clazz)
+      .isThrownBy(() => verifyExplain(sql))
+      .withMessageContaining(message)
   }
 
   /**
@@ -827,7 +860,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     // between the test class name and the result file name
     val clazz = test.getClass
     val testClassDirPath = clazz.getName.replaceAll("\\.", "/") + "_jsonplan"
-    val testMethodFileName = test.testName.getMethodName + ".out"
+    val testMethodFileName = test.methodName + ".out"
     val resourceTestFilePath = s"/$testClassDirPath/$testMethodFileName"
     val plannerDirPath = clazz.getResource("/").getFile.replace("/target/test-classes/", "")
     val file = new File(s"$plannerDirPath/src/test/resources$resourceTestFilePath")
@@ -841,22 +874,20 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       fail(s"$testMethodFileName regenerated.")
     } else {
       val expected = String.join("\n", Files.readAllLines(path))
-      assertEquals(
-        TableTestUtil.replaceExecNodeId(TableTestUtil.getPrettyJson(expected)),
-        TableTestUtil.replaceExecNodeId(TableTestUtil.getPrettyJson(jsonPlanWithoutFlinkVersion))
-      )
+      assertThat(
+        TableTestUtil.replaceExecNodeId(TableTestUtil.getPrettyJson(jsonPlanWithoutFlinkVersion)))
+        .isEqualTo(TableTestUtil.replaceExecNodeId(TableTestUtil.getPrettyJson(expected)))
       // check json serde round trip as well
       val expectedWithFlinkVersion = JsonTestUtils.writeToString(
         JsonTestUtils
           .setFlinkVersion(JsonTestUtils.readFromString(expected), FlinkVersion.current()))
-      assertEquals(
-        TableTestUtil.replaceExecNodeId(TableTestUtil.getFormattedJson(expectedWithFlinkVersion)),
+      assertThat(
         TableTestUtil.replaceExecNodeId(
-          TableTestUtil.getFormattedJson(
-            getPlanner
-              .loadPlan(PlanReference.fromJsonString(expectedWithFlinkVersion))
-              .asJsonString()))
-      )
+          TableTestUtil.getFormattedJson(getPlanner
+            .loadPlan(PlanReference.fromJsonString(expectedWithFlinkVersion))
+            .asJsonString())))
+        .isEqualTo(
+          TableTestUtil.replaceExecNodeId(TableTestUtil.getFormattedJson(expectedWithFlinkVersion)))
     }
   }
 
@@ -916,6 +947,21 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       expectedPlans,
       () => assertEqualsOrExpand("sql", insert),
       withQueryBlockAlias = false)
+  }
+
+  /**
+   * Generate the stream graph from the INSERT statement.
+   *
+   * @param insert
+   *   the INSERT statement to check
+   */
+  def generateTransformations(insert: String): util.List[Transformation[_]] = {
+    val stmtSet = getTableEnv.createStatementSet()
+    stmtSet.addInsertSql(insert)
+
+    val testStmtSet = stmtSet.asInstanceOf[StatementSetImpl[_]]
+    val operations = testStmtSet.getOperations;
+    getPlanner.translate(operations)
   }
 
   /**
@@ -1127,16 +1173,16 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def assertEqualsOrExpand(tag: String, actual: String, expand: Boolean = true): Unit = {
     val expected = s"$${$tag}"
     if (!expand) {
-      diffRepository.assertEquals(test.name.getMethodName, tag, expected, actual)
+      diffRepository.assertEquals(test.methodName, tag, expected, actual)
       return
     }
-    val expanded = diffRepository.expand(test.name.getMethodName, tag, expected)
+    val expanded = diffRepository.expand(test.methodName, tag, expected)
     if (expanded != null && !expanded.equals(expected)) {
       // expected does exist, check result
-      diffRepository.assertEquals(test.name.getMethodName, tag, expected, actual)
+      diffRepository.assertEquals(test.methodName, tag, expected, actual)
     } else {
       // expected does not exist, update
-      diffRepository.expand(test.name.getMethodName, tag, actual)
+      diffRepository.expand(test.methodName, tag, actual)
     }
   }
 }
@@ -1214,58 +1260,16 @@ abstract class TableTestUtil(
     testingTableEnv.createTemporaryView(name, table)
     testingTableEnv.from(name)
   }
-
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
-  @deprecated
-  @Deprecated
-  def addFunction[T: TypeInformation](name: String, function: TableFunction[T]): Unit =
-    testingTableEnv.registerFunction(name, function)
-
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
-  @deprecated
-  @Deprecated
-  def addFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      function: AggregateFunction[T, ACC]): Unit = testingTableEnv.registerFunction(name, function)
-
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
-  @deprecated
-  @Deprecated
-  def addFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      function: TableAggregateFunction[T, ACC]): Unit = {
-    testingTableEnv.registerFunction(name, function)
-  }
 }
 
 abstract class ScalaTableTestUtil(test: TableTestBase, isStreamingMode: Boolean)
   extends TableTestUtilBase(test, isStreamingMode) {
-  // scala env
-  val env = new ScalaStreamExecEnv(new LocalStreamEnvironment())
+  // env
+  val env = new LocalStreamEnvironment()
   // scala tableEnv
   val tableEnv: ScalaStreamTableEnv = ScalaStreamTableEnv.create(env, setting)
 
   override def getTableEnv: TableEnvironment = tableEnv
-
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
-  @deprecated
-  @Deprecated
-  def addFunction[T: TypeInformation](name: String, function: TableFunction[T]): Unit =
-    tableEnv.registerFunction(name, function)
-
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
-  @deprecated
-  @Deprecated
-  def addFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      function: AggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
-
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
-  @deprecated
-  @Deprecated
-  def addFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      function: TableAggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
 }
 
 abstract class JavaTableTestUtil(test: TableTestBase, isStreamingMode: Boolean)
@@ -1276,26 +1280,6 @@ abstract class JavaTableTestUtil(test: TableTestBase, isStreamingMode: Boolean)
   val tableEnv: JavaStreamTableEnv = JavaStreamTableEnv.create(env, setting)
 
   override def getTableEnv: TableEnvironment = tableEnv
-
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
-  @deprecated
-  @Deprecated
-  def addFunction[T: TypeInformation](name: String, function: TableFunction[T]): Unit =
-    tableEnv.registerFunction(name, function)
-
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
-  @deprecated
-  @Deprecated
-  def addFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      function: AggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
-
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
-  @deprecated
-  @Deprecated
-  def addFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      function: TableAggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
 }
 
 /** Utility for stream table test. */
@@ -1337,10 +1321,14 @@ case class StreamTableTestUtil(
       sourceRel.getCluster,
       sourceRel.getTraitSet,
       sourceRel,
+      Collections.emptyList(),
       rowtimeFieldIdx,
       expr
     )
-    val queryOperation = new PlannerQueryOperation(watermarkAssigner)
+    val queryOperation = new PlannerQueryOperation(
+      watermarkAssigner,
+      () =>
+        throw new TableException("Cannot convert a LogicalWatermarkAssigner back to a SQL string."))
     testingTableEnv.createTemporaryView(tableName, testingTableEnv.createTable(queryOperation))
   }
 
@@ -1466,12 +1454,12 @@ case class ScalaBatchTableTestUtil(test: TableTestBase) extends ScalaTableTestUt
 /** Utility for batch java table test. */
 case class JavaBatchTableTestUtil(test: TableTestBase) extends JavaTableTestUtil(test, false) {}
 
-/** Batch/Stream [[org.apache.flink.table.sources.TableSource]] for testing. */
+/** Batch/Stream [[TableSource]] for testing. */
 class TestTableSource(override val isBounded: Boolean, schema: TableSchema)
   extends StreamTableSource[Row] {
 
   override def getDataStream(execEnv: environment.StreamExecutionEnvironment): DataStream[Row] = {
-    execEnv.fromCollection(List[Row](), getReturnType)
+    execEnv.fromData(List[Row]().asJava, getReturnType)
   }
 
   override def getReturnType: TypeInformation[Row] = {
@@ -1730,17 +1718,6 @@ object TableTestUtil {
       .map(
         (f: Array[Expression]) => {
           val fieldsInfo = FieldInfoUtils.getFieldsInfo(streamType, f)
-          // check if event-time is enabled
-          if (
-            fieldsInfo.isRowtimeDefined &&
-            (execEnv.getStreamTimeCharacteristic ne TimeCharacteristic.EventTime)
-          ) {
-            throw new ValidationException(
-              String.format(
-                "A rowtime attribute requires an EventTime time characteristic in stream " +
-                  "environment. But is: %s",
-                execEnv.getStreamTimeCharacteristic))
-          }
           fieldsInfo
         })
       .getOrElse(FieldInfoUtils.getFieldsInfo(streamType))
@@ -1830,14 +1807,14 @@ object TableTestUtil {
 
   /** ExecNode {id} is ignored, because id keeps incrementing in test class. */
   def replaceExecNodeId(s: String): String = {
-    s.replaceAll("\"id\"\\s*:\\s*\\d+", "\"id\": 0")
-      .replaceAll("\"source\"\\s*:\\s*\\d+", "\"source\": 0")
-      .replaceAll("\"target\"\\s*:\\s*\\d+", "\"target\": 0")
+    s.replaceAll("\"id\"\\s*:\\s*\\d+", "\"id\" : 0")
+      .replaceAll("\"source\"\\s*:\\s*\\d+", "\"source\" : 0")
+      .replaceAll("\"target\"\\s*:\\s*\\d+", "\"target\" : 0")
   }
 
   /** Ignore flink version value. */
   def replaceFlinkVersion(s: String): String = {
-    s.replaceAll("\"flinkVersion\"\\s*:\\s*\"[\\w.-]*\"", "\"flinkVersion\": \"\"")
+    s.replaceAll("\"flinkVersion\"\\s*:\\s*\"[\\w.-]*\"", "\"flinkVersion\" : \"\"")
   }
 
   /** Ignore exec node in operator name and description. */

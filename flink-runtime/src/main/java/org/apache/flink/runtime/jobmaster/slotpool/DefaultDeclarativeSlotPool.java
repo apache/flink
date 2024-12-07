@@ -20,10 +20,10 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -42,14 +42,18 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -87,8 +91,8 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
     private final Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements;
 
-    private final Time idleSlotTimeout;
-    private final Time rpcTimeout;
+    private final Duration idleSlotTimeout;
+    private final Duration rpcTimeout;
 
     private final JobID jobId;
     protected final AllocatedSlotPool slotPool;
@@ -103,18 +107,28 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
     private final RequirementMatcher requirementMatcher = new DefaultRequirementMatcher();
 
+    @Nonnull private final ComponentMainThreadExecutor componentMainThreadExecutor;
+
+    // For slots(resources) requests by batch.
+    @Nonnull private final Duration slotRequestMaxInterval;
+    @Nullable private ScheduledFuture<?> slotRequestFuture;
+
     public DefaultDeclarativeSlotPool(
             JobID jobId,
             AllocatedSlotPool slotPool,
             Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements,
-            Time idleSlotTimeout,
-            Time rpcTimeout) {
+            Duration idleSlotTimeout,
+            Duration rpcTimeout,
+            Duration slotRequestMaxInterval,
+            ComponentMainThreadExecutor componentMainThreadExecutor) {
 
         this.jobId = jobId;
         this.slotPool = slotPool;
         this.notifyNewResourceRequirements = notifyNewResourceRequirements;
         this.idleSlotTimeout = idleSlotTimeout;
         this.rpcTimeout = rpcTimeout;
+        this.componentMainThreadExecutor = Preconditions.checkNotNull(componentMainThreadExecutor);
+        this.slotRequestMaxInterval = Preconditions.checkNotNull(slotRequestMaxInterval);
         this.totalResourceRequirements = ResourceCounter.empty();
         this.fulfilledResourceRequirements = ResourceCounter.empty();
         this.slotToRequirementProfileMappings = new HashMap<>();
@@ -127,7 +141,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         }
         totalResourceRequirements = totalResourceRequirements.add(increment);
 
-        declareResourceRequirements();
+        doDeclareResourceRequirements();
     }
 
     @Override
@@ -137,7 +151,25 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         }
         totalResourceRequirements = totalResourceRequirements.subtract(decrement);
 
-        declareResourceRequirements();
+        doDeclareResourceRequirements();
+    }
+
+    private void doDeclareResourceRequirements() {
+        if (slotRequestMaxInterval.toMillis() <= 0L) {
+            declareResourceRequirements();
+            return;
+        }
+
+        if (slotRequestFuture != null
+                && !slotRequestFuture.isDone()
+                && !slotRequestFuture.isCancelled()) {
+            slotRequestFuture.cancel(true);
+        }
+        slotRequestFuture =
+                componentMainThreadExecutor.schedule(
+                        this::declareResourceRequirements,
+                        slotRequestMaxInterval.toMillis(),
+                        TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -486,7 +518,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     @Override
     public void releaseIdleSlots(long currentTimeMillis) {
         final Collection<AllocatedSlotPool.FreeSlotInfo> freeSlotsInformation =
-                slotPool.getFreeSlotInfoTracker().getFreeSlotsWithIdleSinceInformation();
+                slotPool.getFreeSlotTracker().getFreeSlotsWithIdleSinceInformation();
 
         ResourceCounter excessResources =
                 fulfilledResourceRequirements.subtract(totalResourceRequirements);
@@ -499,7 +531,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         while (!excessResources.isEmpty() && freeSlotIterator.hasNext()) {
             final AllocatedSlotPool.FreeSlotInfo idleSlot = freeSlotIterator.next();
 
-            if (currentTimeMillis >= idleSlot.getFreeSince() + idleSlotTimeout.toMilliseconds()) {
+            if (currentTimeMillis >= idleSlot.getFreeSince() + idleSlotTimeout.toMillis()) {
                 final ResourceProfile matchingProfile =
                         getMatchingResourceProfile(idleSlot.getAllocationId());
 
@@ -563,8 +595,8 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     }
 
     @Override
-    public FreeSlotInfoTracker getFreeSlotInfoTracker() {
-        return slotPool.getFreeSlotInfoTracker();
+    public FreeSlotTracker getFreeSlotTracker() {
+        return slotPool.getFreeSlotTracker();
     }
 
     @Override
@@ -598,5 +630,16 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     @VisibleForTesting
     ResourceCounter getFulfilledResourceRequirements() {
         return fulfilledResourceRequirements;
+    }
+
+    @VisibleForTesting
+    void tryWaitSlotRequestIsDone() {
+        if (Objects.nonNull(slotRequestFuture)) {
+            try {
+                slotRequestFuture.get();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 }

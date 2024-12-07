@@ -172,7 +172,7 @@ class SortMergeResultPartitionReadSchedulerTest {
         assertThat(subpartitionReader.getFailureCause()).isNotNull();
         assertThat(subpartitionReader.isReleased()).isTrue();
         assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers()).isEqualTo(0);
-        assertThat(subpartitionReader.getAvailabilityAndBacklog(0).isAvailable()).isTrue();
+        assertThat(subpartitionReader.getAvailabilityAndBacklog(false).isAvailable()).isTrue();
 
         readScheduler.getReleaseFuture().get();
         assertAllResourcesReleased();
@@ -209,22 +209,30 @@ class SortMergeResultPartitionReadSchedulerTest {
 
         waitUntilReadFinish();
         assertThat(subpartitionReader.getFailureCause()).isNotNull();
-        assertThat(subpartitionReader.getAvailabilityAndBacklog(0).isAvailable()).isTrue();
+        assertThat(subpartitionReader.getAvailabilityAndBacklog(false).isAvailable()).isTrue();
         assertAllResourcesReleased();
     }
 
     @Test
     void testOnReadBufferRequestError() throws Exception {
+        ManuallyTriggeredScheduledExecutorService schedulerExecutor =
+                new ManuallyTriggeredScheduledExecutorService();
+        readScheduler =
+                new SortMergeResultPartitionReadScheduler(
+                        bufferPool, schedulerExecutor, new Object());
         SortMergeSubpartitionReader subpartitionReader =
                 readScheduler.createSubpartitionReader(
                         new NoOpBufferAvailablityListener(), 0, partitionedFile);
-
         bufferPool.destroy();
+        assertThat(schedulerExecutor.numQueuedRunnables()).isEqualTo(1);
+        // we should trigger the scheduled task to handle the buffer request error.
+        schedulerExecutor.trigger();
+
         waitUntilReadFinish();
 
         assertThat(subpartitionReader.isReleased()).isTrue();
         assertThat(subpartitionReader.getFailureCause()).isNotNull();
-        assertThat(subpartitionReader.getAvailabilityAndBacklog(0).isAvailable()).isTrue();
+        assertThat(subpartitionReader.getAvailabilityAndBacklog(false).isAvailable()).isTrue();
         assertAllResourcesReleased();
     }
 

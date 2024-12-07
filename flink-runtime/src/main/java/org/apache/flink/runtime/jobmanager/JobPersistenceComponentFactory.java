@@ -24,11 +24,11 @@ import org.apache.flink.runtime.highavailability.JobResultStore;
 public interface JobPersistenceComponentFactory {
 
     /**
-     * Creates a {@link JobGraphStore}.
+     * Creates a {@link ExecutionPlanStore}.
      *
-     * @return a {@code JobGraphStore} instance
+     * @return a {@code ExecutionPlanStore} instance
      */
-    JobGraphStore createJobGraphStore();
+    ExecutionPlanStore createExecutionPlanStore();
 
     /**
      * Creates {@link JobResultStore} instances.

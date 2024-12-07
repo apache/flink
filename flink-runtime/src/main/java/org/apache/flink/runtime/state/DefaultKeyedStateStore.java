@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.SerializerFactory;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.KeyedStateStore;
@@ -44,19 +44,19 @@ import static java.util.Objects.requireNonNull;
 public class DefaultKeyedStateStore implements KeyedStateStore {
 
     protected final KeyedStateBackend<?> keyedStateBackend;
-    protected final ExecutionConfig executionConfig;
+    protected final SerializerFactory serializerFactory;
 
     public DefaultKeyedStateStore(
-            KeyedStateBackend<?> keyedStateBackend, ExecutionConfig executionConfig) {
+            KeyedStateBackend<?> keyedStateBackend, SerializerFactory serializerFactory) {
         this.keyedStateBackend = Preconditions.checkNotNull(keyedStateBackend);
-        this.executionConfig = Preconditions.checkNotNull(executionConfig);
+        this.serializerFactory = Preconditions.checkNotNull(serializerFactory);
     }
 
     @Override
     public <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties) {
         requireNonNull(stateProperties, "The state properties must not be null");
         try {
-            stateProperties.initializeSerializerUnlessSet(executionConfig);
+            stateProperties.initializeSerializerUnlessSet(serializerFactory);
             return getPartitionedState(stateProperties);
         } catch (Exception e) {
             throw new RuntimeException("Error while getting state", e);
@@ -67,7 +67,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
     public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
         requireNonNull(stateProperties, "The state properties must not be null");
         try {
-            stateProperties.initializeSerializerUnlessSet(executionConfig);
+            stateProperties.initializeSerializerUnlessSet(serializerFactory);
             ListState<T> originalState = getPartitionedState(stateProperties);
             return new UserFacingListState<>(originalState);
         } catch (Exception e) {
@@ -79,7 +79,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
     public <T> ReducingState<T> getReducingState(ReducingStateDescriptor<T> stateProperties) {
         requireNonNull(stateProperties, "The state properties must not be null");
         try {
-            stateProperties.initializeSerializerUnlessSet(executionConfig);
+            stateProperties.initializeSerializerUnlessSet(serializerFactory);
             return getPartitionedState(stateProperties);
         } catch (Exception e) {
             throw new RuntimeException("Error while getting state", e);
@@ -91,7 +91,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
             AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
         requireNonNull(stateProperties, "The state properties must not be null");
         try {
-            stateProperties.initializeSerializerUnlessSet(executionConfig);
+            stateProperties.initializeSerializerUnlessSet(serializerFactory);
             return getPartitionedState(stateProperties);
         } catch (Exception e) {
             throw new RuntimeException("Error while getting state", e);
@@ -102,7 +102,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
     public <UK, UV> MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV> stateProperties) {
         requireNonNull(stateProperties, "The state properties must not be null");
         try {
-            stateProperties.initializeSerializerUnlessSet(executionConfig);
+            stateProperties.initializeSerializerUnlessSet(serializerFactory);
             MapState<UK, UV> originalState = getPartitionedState(stateProperties);
             return new UserFacingMapState<>(originalState);
         } catch (Exception e) {

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators.sort;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -82,7 +83,7 @@ class LargeRecordHandlerITCase {
                     new TupleTypeInfo<Tuple3<Long, SomeVeryLongValue, Byte>>(types);
 
             final TypeSerializer<Tuple3<Long, SomeVeryLongValue, Byte>> serializer =
-                    typeInfo.createSerializer(new ExecutionConfig());
+                    typeInfo.createSerializer(new SerializerConfigImpl());
             final TypeComparator<Tuple3<Long, SomeVeryLongValue, Byte>> comparator =
                     typeInfo.createComparator(
                             new int[] {2, 0}, new boolean[] {true, true}, 0, new ExecutionConfig());
@@ -221,7 +222,7 @@ class LargeRecordHandlerITCase {
                     new TupleTypeInfo<Tuple3<Long, SomeVeryLongValue, Byte>>(types);
 
             final TypeSerializer<Tuple3<Long, SomeVeryLongValue, Byte>> serializer =
-                    typeInfo.createSerializer(new ExecutionConfig());
+                    typeInfo.createSerializer(new SerializerConfigImpl());
 
             channel = ioMan.createChannel();
             FileChannelOutputView out =

@@ -75,7 +75,7 @@ class JMXJobManagerMetricTest {
 
         MetricOptions.forReporter(flinkConfiguration, "test")
                 .set(MetricOptions.REPORTER_FACTORY_CLASS, JMXReporterFactory.class.getName());
-        flinkConfiguration.setString(MetricOptions.SCOPE_NAMING_JM_JOB, "jobmanager.<job_name>");
+        flinkConfiguration.set(MetricOptions.SCOPE_NAMING_JM_JOB, "jobmanager.<job_name>");
 
         return flinkConfiguration;
     }

@@ -19,25 +19,29 @@
 package org.apache.flink.connector.file.src;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.configuration.BatchExecutionOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.junit5.InjectMiniCluster;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
@@ -65,6 +69,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class FileSourceTextLinesITCase {
 
     private static final int PARALLELISM = 4;
+
+    private static final int SOURCE_PARALLELISM_UPPER_BOUND = 8;
 
     @TempDir private static java.nio.file.Path tmpDir;
 
@@ -108,8 +114,24 @@ class FileSourceTextLinesITCase {
                 miniCluster -> testBoundedTextFileSource(tmpTestDir, FailoverType.JM, miniCluster));
     }
 
+    @Test
+    void testBoundedTextFileSourceWithDynamicParallelismInference(
+            @TempDir java.nio.file.Path tmpTestDir, @InjectMiniCluster MiniCluster miniCluster)
+            throws Exception {
+        testBoundedTextFileSource(tmpTestDir, FailoverType.NONE, miniCluster, true);
+    }
+
     private void testBoundedTextFileSource(
             java.nio.file.Path tmpTestDir, FailoverType failoverType, MiniCluster miniCluster)
+            throws Exception {
+        testBoundedTextFileSource(tmpTestDir, failoverType, miniCluster, false);
+    }
+
+    private void testBoundedTextFileSource(
+            java.nio.file.Path tmpTestDir,
+            FailoverType failoverType,
+            MiniCluster miniCluster,
+            boolean batchMode)
             throws Exception {
         final File testDir = tmpTestDir.toFile();
 
@@ -126,29 +148,37 @@ class FileSourceTextLinesITCase {
                         .build();
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
         env.setParallelism(PARALLELISM);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
+
+        if (batchMode) {
+            env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        }
 
         final DataStream<String> stream =
-                env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
+                env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source")
+                        .setMaxParallelism(PARALLELISM * 2);
 
         final DataStream<String> streamFailingInTheMiddleOfReading =
                 RecordCounterToFail.wrapWithFailureAfter(stream, LINES.length / 2);
 
-        final ClientAndIterator<String> client =
-                DataStreamUtils.collectWithClient(
-                        streamFailingInTheMiddleOfReading, "Bounded TextFiles Test");
-        final JobID jobId = client.client.getJobID();
+        CloseableIterator<String> iterator = streamFailingInTheMiddleOfReading.collectAsync();
+        JobClient client = env.executeAsync("Bounded TextFiles Test");
+
+        final JobID jobId = client.getJobID();
 
         RecordCounterToFail.waitToFail();
         triggerFailover(failoverType, jobId, RecordCounterToFail::continueProcessing, miniCluster);
 
         final List<String> result = new ArrayList<>();
-        while (client.iterator.hasNext()) {
-            result.add(client.iterator.next());
+        while (iterator.hasNext()) {
+            result.add(iterator.next());
         }
 
         verifyResult(result);
+        if (batchMode) {
+            verifySourceParallelism(miniCluster.getExecutionGraph(jobId).get());
+        }
     }
 
     /**
@@ -167,7 +197,6 @@ class FileSourceTextLinesITCase {
      * record format (text lines) and restarts TaskManager.
      */
     @Test
-    @Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler") // FLINK-21450
     void testContinuousTextFileSourceWithTaskManagerFailover(@TempDir java.nio.file.Path tmpTestDir)
             throws Exception {
         // This test will kill TM, so we run it in a new cluster to avoid affecting other tests
@@ -206,21 +235,26 @@ class FileSourceTextLinesITCase {
 
         final DataStream<String> stream =
                 env.fromSource(source, WatermarkStrategy.noWatermarks(), "file-source");
-
-        final ClientAndIterator<String> client =
-                DataStreamUtils.collectWithClient(stream, "Continuous TextFiles Monitoring Test");
-        final JobID jobId = client.client.getJobID();
-
         // write one file, execute, and wait for its result
         // that way we know that the application was running and the source has
         // done its first chunk of work already
+
+        CloseableIterator<String> iter = stream.collectAsync();
+        JobClient client = env.executeAsync("jobExecutionName");
+        JobID jobId = client.getJobID();
 
         final int numLinesFirst = LINES_PER_FILE[0].length;
         final int numLinesAfter = LINES.length - numLinesFirst;
 
         writeFile(testDir, 0);
-        final List<String> result1 =
-                DataStreamUtils.collectRecordsFromUnboundedStream(client, numLinesFirst);
+
+        final ArrayList<String> result1 = new ArrayList<>(numLinesFirst);
+        while (iter.hasNext()) {
+            result1.add(iter.next());
+            if (result1.size() == numLinesFirst) {
+                break;
+            }
+        }
 
         // write the remaining files over time, after that collect the final result
         for (int i = 1; i < LINES_PER_FILE.length; i++) {
@@ -232,11 +266,16 @@ class FileSourceTextLinesITCase {
             }
         }
 
-        final List<String> result2 =
-                DataStreamUtils.collectRecordsFromUnboundedStream(client, numLinesAfter);
+        final ArrayList<String> result2 = new ArrayList<>(numLinesAfter);
+        while (iter.hasNext()) {
+            result2.add(iter.next());
+            if (result2.size() == numLinesAfter) {
+                break;
+            }
+        }
 
         // shut down the job, now that we have all the results we expected.
-        client.client.cancel().get();
+        client.cancel().get();
 
         result1.addAll(result2);
         verifyResult(result1);
@@ -253,11 +292,16 @@ class FileSourceTextLinesITCase {
     }
 
     private static MiniClusterResourceConfiguration createMiniClusterConfiguration() {
+        Configuration configuration = new Configuration();
+        configuration.set(
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_DEFAULT_SOURCE_PARALLELISM,
+                SOURCE_PARALLELISM_UPPER_BOUND);
         return new MiniClusterResourceConfiguration.Builder()
                 .setNumberTaskManagers(1)
                 .setNumberSlotsPerTaskManager(PARALLELISM)
                 .setRpcServiceSharing(RpcServiceSharing.DEDICATED)
                 .withHaLeadershipControl()
+                .setConfiguration(configuration)
                 .build();
     }
 
@@ -318,6 +362,12 @@ class FileSourceTextLinesITCase {
         Arrays.sort(actual);
 
         assertThat(actual).isEqualTo(expected);
+    }
+
+    private static void verifySourceParallelism(AccessExecutionGraph executionGraph) {
+        AccessExecutionJobVertex sourceVertex =
+                executionGraph.getVerticesTopologically().iterator().next();
+        assertThat(sourceVertex.getParallelism()).isEqualTo(FILE_PATHS.length);
     }
 
     // ------------------------------------------------------------------------

@@ -26,9 +26,11 @@ import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.sink2.Committer;
-import org.apache.flink.api.connector.sink2.StatefulSink;
-import org.apache.flink.api.connector.sink2.StatefulSink.WithCompatibleState;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.api.connector.sink2.CommitterInitContext;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SupportsCommitter;
+import org.apache.flink.api.connector.sink2.SupportsWriterState;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.api.java.typeutils.EitherTypeInfo;
 import org.apache.flink.connector.file.sink.committer.FileCommitter;
 import org.apache.flink.connector.file.sink.compactor.FileCompactStrategy;
@@ -48,7 +50,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
-import org.apache.flink.streaming.api.connector.sink2.WithPreCommitTopology;
+import org.apache.flink.streaming.api.connector.sink2.SupportsPreCommitTopology;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
@@ -68,6 +70,8 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -128,10 +132,11 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Experimental
 public class FileSink<IN>
-        implements StatefulSink<IN, FileWriterBucketState>,
-                TwoPhaseCommittingSink<IN, FileSinkCommittable>,
-                WithCompatibleState,
-                WithPreCommitTopology<IN, FileSinkCommittable>,
+        implements Sink<IN>,
+                SupportsWriterState<IN, FileWriterBucketState>,
+                SupportsCommitter<FileSinkCommittable>,
+                SupportsWriterState.WithCompatibleState,
+                SupportsPreCommitTopology<FileSinkCommittable, FileSinkCommittable>,
                 SupportsConcurrentExecutionAttempts {
 
     private final BucketsBuilder<IN, ? extends BucketsBuilder<IN, ?>> bucketsBuilder;
@@ -141,13 +146,13 @@ public class FileSink<IN>
     }
 
     @Override
-    public FileWriter<IN> createWriter(InitContext context) throws IOException {
+    public FileWriter<IN> createWriter(WriterInitContext context) throws IOException {
         return restoreWriter(context, Collections.emptyList());
     }
 
     @Override
     public FileWriter<IN> restoreWriter(
-            InitContext context, Collection<FileWriterBucketState> recoveredState)
+            WriterInitContext context, Collection<FileWriterBucketState> recoveredState)
             throws IOException {
         FileWriter<IN> writer = bucketsBuilder.createWriter(context);
         writer.initializeState(recoveredState);
@@ -167,7 +172,8 @@ public class FileSink<IN>
     }
 
     @Override
-    public Committer<FileSinkCommittable> createCommitter() throws IOException {
+    public Committer<FileSinkCommittable> createCommitter(CommitterInitContext context)
+            throws IOException {
         return bucketsBuilder.createCommitter();
     }
 
@@ -181,6 +187,11 @@ public class FileSink<IN>
             // IOException.
             throw new FlinkRuntimeException("Could not create committable serializer.", e);
         }
+    }
+
+    @Override
+    public SimpleVersionedSerializer<FileSinkCommittable> getWriteResultSerializer() {
+        return getCommittableSerializer();
     }
 
     @Override
@@ -291,7 +302,7 @@ public class FileSink<IN>
         }
 
         @Internal
-        abstract FileWriter<IN> createWriter(final InitContext context) throws IOException;
+        abstract FileWriter<IN> createWriter(final WriterInitContext context) throws IOException;
 
         @Internal
         abstract FileCommitter createCommitter() throws IOException;
@@ -409,7 +420,7 @@ public class FileSink<IN>
         }
 
         @Override
-        FileWriter<IN> createWriter(InitContext context) throws IOException {
+        FileWriter<IN> createWriter(WriterInitContext context) throws IOException {
             OutputFileConfig writerFileConfig;
             if (compactStrategy == null) {
                 writerFileConfig = outputFileConfig;
@@ -511,6 +522,10 @@ public class FileSink<IN>
 
         private CheckpointRollingPolicy<IN, String> rollingPolicy;
 
+        private Map<String, String> writerConfig = new HashMap<>();
+
+        private static final String HDFS_NO_LOCAL_WRITE = "fs.hdfs.no-local-write";
+
         private OutputFileConfig outputFileConfig;
 
         private boolean isCompactDisabledExplicitly = false;
@@ -565,6 +580,11 @@ public class FileSink<IN>
             return self();
         }
 
+        public T disableLocalWriting() {
+            this.writerConfig.put(HDFS_NO_LOCAL_WRITE, String.valueOf(true));
+            return self();
+        }
+
         public T withOutputFileConfig(final OutputFileConfig outputFileConfig) {
             this.outputFileConfig = outputFileConfig;
             return self();
@@ -603,7 +623,7 @@ public class FileSink<IN>
         }
 
         @Override
-        FileWriter<IN> createWriter(InitContext context) throws IOException {
+        FileWriter<IN> createWriter(WriterInitContext context) throws IOException {
             OutputFileConfig writerFileConfig;
             if (compactStrategy == null) {
                 writerFileConfig = outputFileConfig;
@@ -671,7 +691,8 @@ public class FileSink<IN>
 
         BucketWriter<IN, String> createBucketWriter() throws IOException {
             return new BulkBucketWriter<>(
-                    FileSystem.get(basePath.toUri()).createRecoverableWriter(), writerFactory);
+                    FileSystem.get(basePath.toUri()).createRecoverableWriter(writerConfig),
+                    writerFactory);
         }
     }
 

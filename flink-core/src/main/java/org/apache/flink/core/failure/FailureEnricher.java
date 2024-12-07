@@ -19,7 +19,8 @@
 package org.apache.flink.core.failure;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.metrics.MetricGroup;
 
 import java.util.Map;
@@ -81,20 +82,6 @@ public interface FailureEnricher {
         }
 
         /**
-         * Get the ID of the job.
-         *
-         * @return the ID of the job
-         */
-        JobID getJobId();
-
-        /**
-         * Get the name of the job.
-         *
-         * @return the name of the job
-         */
-        String getJobName();
-
-        /**
          * Get the metric group of the JobMaster.
          *
          * @return the metric group of the JobMaster
@@ -124,5 +111,13 @@ public interface FailureEnricher {
          * @return the Executor pool
          */
         Executor getIOExecutor();
+
+        /**
+         * Get the meta information of current job.
+         *
+         * @return the job meta information.
+         */
+        @PublicEvolving
+        JobInfo getJobInfo();
     }
 }

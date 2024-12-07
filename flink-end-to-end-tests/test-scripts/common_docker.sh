@@ -21,7 +21,6 @@ set -o pipefail
 source "$(dirname "$0")"/common.sh
 
 docker --version
-docker-compose --version
 
 function containers_health_check() {
   local container_names=${@:1}
@@ -50,9 +49,12 @@ function build_image() {
     echo "Preparing Dockeriles"
     retry_times_with_exponential_backoff 5 git clone https://github.com/apache/flink-docker.git --branch dev-master --single-branch
 
-    local java_version=8
-    if [[ ${PROFILE} == *"jdk11"* ]]; then
-        java_version=11
+    local java_version=11
+    if [[ ${PROFILE} == *"jdk17"* ]]; then
+        java_version=17
+    fi
+    if [[ ${PROFILE} == *"jdk21"* ]]; then
+        java_version=21
     fi
 
     cd flink-docker

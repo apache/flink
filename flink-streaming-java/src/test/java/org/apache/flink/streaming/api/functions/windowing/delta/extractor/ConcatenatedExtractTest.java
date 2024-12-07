@@ -19,13 +19,13 @@ package org.apache.flink.streaming.api.functions.windowing.delta.extractor;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ConcatenatedExtract}. */
-public class ConcatenatedExtractTest {
+class ConcatenatedExtractTest {
 
     private String[] testStringArray1 = {"1", "2", "3"};
     private int[] testIntArray1 = {1, 2, 3};
@@ -38,34 +38,32 @@ public class ConcatenatedExtractTest {
     private Tuple2<Tuple2<String[], int[]>, Tuple2<String[], int[]>[]> testData;
 
     @SuppressWarnings("unchecked")
-    @Before
-    public void setupData() {
+    @BeforeEach
+    void setupData() {
         testTuple2Array = new Tuple2[2];
-        testTuple2Array[0] = new Tuple2<String[], int[]>(testStringArray1, testIntArray2);
-        testTuple2Array[1] = new Tuple2<String[], int[]>(testStringArray2, testIntArray1);
+        testTuple2Array[0] = new Tuple2<>(testStringArray1, testIntArray2);
+        testTuple2Array[1] = new Tuple2<>(testStringArray2, testIntArray1);
 
-        testTuple2 = new Tuple2<String[], int[]>(testStringArray3, testIntArray3);
+        testTuple2 = new Tuple2<>(testStringArray3, testIntArray3);
 
-        testData =
-                new Tuple2<Tuple2<String[], int[]>, Tuple2<String[], int[]>[]>(
-                        testTuple2, testTuple2Array);
+        testData = new Tuple2<>(testTuple2, testTuple2Array);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     @Test
-    public void test1() {
+    void test1() {
         Extractor ext =
                 new ConcatenatedExtract(new FieldFromTuple(0), new FieldFromTuple(1))
                         .add(new FieldsFromArray(Integer.class, 2, 1, 0));
         int[] expected = {testIntArray3[2], testIntArray3[1], testIntArray3[0]};
-        assertEquals(new Integer(expected[0]), ((Integer[]) ext.extract(testData))[0]);
-        assertEquals(new Integer(expected[1]), ((Integer[]) ext.extract(testData))[1]);
-        assertEquals(new Integer(expected[2]), ((Integer[]) ext.extract(testData))[2]);
+        assertThat(((Integer[]) ext.extract(testData))[0]).isEqualTo(expected[0]);
+        assertThat(((Integer[]) ext.extract(testData))[1]).isEqualTo(expected[1]);
+        assertThat(((Integer[]) ext.extract(testData))[2]).isEqualTo(expected[2]);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Test
-    public void test2() {
+    void test2() {
         Extractor ext =
                 new ConcatenatedExtract(
                                 new FieldFromTuple(1), // Tuple2<String[],int[]>[]
@@ -76,6 +74,6 @@ public class ConcatenatedExtractTest {
                         .add(new FieldFromArray(1)); // String
 
         String expected2 = testStringArray2[1];
-        assertEquals(expected2, ext.extract(testData));
+        assertThat(ext.extract(testData)).isEqualTo(expected2);
     }
 }

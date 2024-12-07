@@ -22,8 +22,8 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.config.TableConfigOptions;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -34,12 +34,12 @@ import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_COLUMN_
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TableConfigOptions#TABLE_COLUMN_EXPANSION_STRATEGY}. */
-public class ColumnExpansionTest {
+class ColumnExpansionTest {
 
     private TableEnvironment tableEnv;
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
         tableEnv.executeSql(
@@ -68,11 +68,22 @@ public class ColumnExpansionTest {
                         + " 'readable-metadata' = 't2_m_virtual:INT,k1:STRING,t2_m_default:INT,k2:STRING'\n"
                         + ")");
 
+        tableEnv.executeSql(
+                "CREATE TABLE t3 (\n"
+                        + "  t3_s STRING,\n"
+                        + "  t3_i INT,\n"
+                        + "  t3_m_virtual TIMESTAMP_LTZ(3) METADATA VIRTUAL,\n"
+                        + "  WATERMARK FOR t3_m_virtual AS t3_m_virtual - INTERVAL '1' SECOND\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'readable-metadata' = 't3_m_virtual:TIMESTAMP_LTZ(3)'\n"
+                        + ")");
+
         tableEnv.getConfig().set(TABLE_COLUMN_EXPANSION_STRATEGY, Collections.emptyList());
     }
 
     @Test
-    public void testExcludeDefaultVirtualMetadataColumns() {
+    void testExcludeDefaultVirtualMetadataColumns() {
         tableEnv.getConfig()
                 .set(
                         TABLE_COLUMN_EXPANSION_STRATEGY,
@@ -143,7 +154,7 @@ public class ColumnExpansionTest {
     }
 
     @Test
-    public void testExcludeAliasedVirtualMetadataColumns() {
+    void testExcludeAliasedVirtualMetadataColumns() {
         tableEnv.getConfig()
                 .set(
                         TABLE_COLUMN_EXPANSION_STRATEGY,
@@ -209,7 +220,7 @@ public class ColumnExpansionTest {
     }
 
     @Test
-    public void testExcludeViaView() {
+    void testExcludeViaView() {
         tableEnv.getConfig()
                 .set(
                         TABLE_COLUMN_EXPANSION_STRATEGY,
@@ -222,8 +233,167 @@ public class ColumnExpansionTest {
         assertColumnNames("SELECT * FROM v1", "t1_i", "t1_s", "t1_m_default", "t1_m_aliased");
     }
 
+    @Test
+    void testExplicitTableWithinTableFunction() {
+        tableEnv.getConfig()
+                .set(
+                        TABLE_COLUMN_EXPANSION_STRATEGY,
+                        Collections.singletonList(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+
+        // t3_m_virtual is selected due to expansion of the explicit table expression
+        // with hints from descriptor
+        assertColumnNames(
+                "SELECT * FROM TABLE(TUMBLE(TABLE t3, DESCRIPTOR(t3_m_virtual), INTERVAL '1' MINUTE))",
+                "t3_s",
+                "t3_i",
+                "t3_m_virtual",
+                "window_start",
+                "window_end",
+                "window_time");
+
+        // Test common window TVF syntax
+        assertColumnNames(
+                "SELECT t3_s, SUM(t3_i) AS agg "
+                        + "FROM TABLE(TUMBLE(TABLE t3, DESCRIPTOR(t3_m_virtual), INTERVAL '1' MINUTE)) "
+                        + "GROUP BY t3_s, window_start, window_end",
+                "t3_s",
+                "agg");
+    }
+
+    @Test
+    void testSetSemanticsTableWithinTableFunction() {
+        tableEnv.getConfig()
+                .set(
+                        TABLE_COLUMN_EXPANSION_STRATEGY,
+                        Collections.singletonList(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+
+        // t3_m_virtual is selected due to expansion of the explicit table expression
+        // with hints from descriptor
+        assertColumnNames(
+                "SELECT * FROM TABLE("
+                        + "SESSION(TABLE t3 PARTITION BY t3_s, DESCRIPTOR(t3_m_virtual), INTERVAL '1' MINUTE))",
+                "t3_s",
+                "t3_i",
+                "t3_m_virtual",
+                "window_start",
+                "window_end",
+                "window_time");
+
+        // Test SESSION window TVF syntax
+        assertColumnNames(
+                "SELECT t3_s, SUM(t3_i) AS agg "
+                        + "FROM TABLE(SESSION(TABLE t3 PARTITION BY t3_s, DESCRIPTOR(t3_m_virtual), INTERVAL '1' MINUTE))"
+                        + "GROUP BY t3_s, window_start, window_end",
+                "t3_s",
+                "agg");
+    }
+
+    @Test
+    void testExplicitTableWithinTableFunctionWithInsertIntoNamedColumns() {
+        tableEnv.getConfig()
+                .set(
+                        TABLE_COLUMN_EXPANSION_STRATEGY,
+                        Collections.singletonList(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+
+        tableEnv.executeSql(
+                "CREATE TABLE sink (\n"
+                        + "  a STRING,\n"
+                        + "  c BIGINT\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',"
+                        + " 'sink-insert-only' = 'false'"
+                        + ")");
+
+        // Test case for FLINK-33327, we can not assert column names of an INSERT INTO query. Make
+        // sure the query can be planned.
+        tableEnv.explainSql(
+                "INSERT INTO sink(a, c) "
+                        + "SELECT t3_s, COUNT(t3_i) FROM "
+                        + " TABLE(TUMBLE(TABLE t3, DESCRIPTOR(t3_m_virtual), INTERVAL '1' MINUTE)) "
+                        + "GROUP BY t3_s;");
+    }
+
+    @Test
+    void testSetSemanticsTableWithinTableFunctionWithInsertIntoNamedColumns() {
+        tableEnv.getConfig()
+                .set(
+                        TABLE_COLUMN_EXPANSION_STRATEGY,
+                        Collections.singletonList(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+
+        tableEnv.executeSql(
+                "CREATE TABLE sink (\n"
+                        + "  a STRING,\n"
+                        + "  c BIGINT\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',"
+                        + " 'sink-insert-only' = 'false'"
+                        + ")");
+
+        tableEnv.explainSql(
+                "INSERT INTO sink(a, c) "
+                        + "SELECT t3_s, COUNT(t3_i) FROM "
+                        + " TABLE(SESSION(TABLE t3 PARTITION BY t3_s, DESCRIPTOR(t3_m_virtual), INTERVAL '1' MINUTE)) "
+                        + "GROUP BY t3_s;");
+    }
+
     private void assertColumnNames(String sql, String... columnNames) {
         assertThat(tableEnv.sqlQuery(sql).getResolvedSchema().getColumnNames())
                 .containsExactly(columnNames);
+    }
+
+    @Test
+    void testExplicitTableWithinTableFunctionWithNamedArgs() {
+        tableEnv.getConfig()
+                .set(
+                        TABLE_COLUMN_EXPANSION_STRATEGY,
+                        Collections.singletonList(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+
+        // t3_m_virtual is selected due to expansion of the explicit table expression
+        // with hints from descriptor
+        assertColumnNames(
+                "SELECT * FROM TABLE("
+                        + "TUMBLE(DATA => TABLE t3, TIMECOL => DESCRIPTOR(t3_m_virtual), SIZE => INTERVAL '1' MINUTE))",
+                "t3_s",
+                "t3_i",
+                "t3_m_virtual",
+                "window_start",
+                "window_end",
+                "window_time");
+
+        // Test common window TVF syntax
+        assertColumnNames(
+                "SELECT t3_s, SUM(t3_i) AS agg "
+                        + "FROM TABLE(TUMBLE(DATA => TABLE t3, TIMECOL => DESCRIPTOR(t3_m_virtual), SIZE => INTERVAL '1' MINUTE)) "
+                        + "GROUP BY t3_s, window_start, window_end",
+                "t3_s",
+                "agg");
+    }
+
+    @Test
+    void testSetSemanticsTableFunctionWithNamedArgs() {
+        tableEnv.getConfig()
+                .set(
+                        TABLE_COLUMN_EXPANSION_STRATEGY,
+                        Collections.singletonList(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+
+        // t3_m_virtual is selected due to expansion of the explicit table expression
+        // with hints from descriptor
+        assertColumnNames(
+                "SELECT * FROM TABLE("
+                        + "SESSION(DATA => TABLE t3 PARTITION BY t3_s, TIMECOL => DESCRIPTOR(t3_m_virtual), GAP => INTERVAL '1' MINUTE))",
+                "t3_s",
+                "t3_i",
+                "t3_m_virtual",
+                "window_start",
+                "window_end",
+                "window_time");
+
+        // Test common window TVF syntax
+        assertColumnNames(
+                "SELECT t3_s, SUM(t3_i) AS agg "
+                        + "FROM TABLE(SESSION(DATA => TABLE t3 PARTITION BY t3_s, TIMECOL => DESCRIPTOR(t3_m_virtual), GAP => INTERVAL '1' MINUTE))"
+                        + "GROUP BY t3_s, window_start, window_end",
+                "t3_s",
+                "agg");
     }
 }

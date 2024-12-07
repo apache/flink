@@ -50,11 +50,13 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
     private final Clock clock;
 
-    private final Counter numBytesIn;
-    private final Counter numBytesOut;
+    private final SumCounter numBytesIn;
+    private final SumCounter numBytesOut;
     private final SumCounter numRecordsIn;
     private final SumCounter numRecordsOut;
     private final Counter numBuffersOut;
+    private final Counter numFiredTimers;
+    private final MeterView numFiredTimersRate;
     private final Counter numMailsProcessed;
 
     private final Meter numBytesInRate;
@@ -93,8 +95,8 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     public TaskIOMetricGroup(TaskMetricGroup parent, Clock clock) {
         super(parent);
         this.clock = clock;
-        this.numBytesIn = counter(MetricNames.IO_NUM_BYTES_IN);
-        this.numBytesOut = counter(MetricNames.IO_NUM_BYTES_OUT);
+        this.numBytesIn = counter(MetricNames.IO_NUM_BYTES_IN, new SumCounter());
+        this.numBytesOut = counter(MetricNames.IO_NUM_BYTES_OUT, new SumCounter());
         this.numBytesInRate = meter(MetricNames.IO_NUM_BYTES_IN_RATE, new MeterView(numBytesIn));
         this.numBytesOutRate = meter(MetricNames.IO_NUM_BYTES_OUT_RATE, new MeterView(numBytesOut));
 
@@ -139,6 +141,10 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
                         this::getAccumulatedBackPressuredTimeMs);
         this.accumulatedIdleTime =
                 gauge(MetricNames.ACC_TASK_IDLE_TIME, idleTimePerSecond::getAccumulatedCount);
+
+        this.numFiredTimers = counter(MetricNames.NUM_FIRED_TIMERS, new SimpleCounter());
+        this.numFiredTimersRate =
+                meter(MetricNames.NUM_FIRED_TIMERS_RATE, new MeterView(numFiredTimers));
 
         this.numMailsProcessed = new SimpleCounter();
         this.mailboxThroughput =
@@ -205,6 +211,10 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
     public Counter getNumBuffersOutCounter() {
         return numBuffersOut;
+    }
+
+    public Counter getNumFiredTimers() {
+        return numFiredTimers;
     }
 
     public Counter getNumMailsProcessedCounter() {
@@ -302,9 +312,28 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
         return mailboxSize;
     }
 
+    public void registerBackPressureListener(TimerGauge.StartStopListener backPressureListener) {
+        hardBackPressuredTimePerSecond.registerListener(backPressureListener);
+        softBackPressuredTimePerSecond.registerListener(backPressureListener);
+    }
+
+    public void unregisterBackPressureListener(TimerGauge.StartStopListener backPressureListener) {
+        hardBackPressuredTimePerSecond.unregisterListener(backPressureListener);
+        softBackPressuredTimePerSecond.unregisterListener(backPressureListener);
+    }
+
     // ============================================================================================
     // Metric Reuse
     // ============================================================================================
+
+    public void reuseBytesInputCounter(Counter numBytesInCounter) {
+        this.numBytesIn.addCounter(numBytesInCounter);
+    }
+
+    public void reuseBytesOutputCounter(Counter numBytesOutCounter) {
+        this.numBytesOut.addCounter(numBytesOutCounter);
+    }
+
     public void reuseRecordsInputCounter(Counter numRecordsInCounter) {
         this.numRecordsIn.addCounter(numRecordsInCounter);
     }

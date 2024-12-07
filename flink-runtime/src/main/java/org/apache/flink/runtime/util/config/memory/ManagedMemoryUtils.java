@@ -25,8 +25,8 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.state.StateBackendLoader;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
-import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,17 +50,12 @@ public enum ManagedMemoryUtils {
     private static final int MANAGED_MEMORY_FRACTION_SCALE = 16;
 
     /** Names of managed memory use cases, in the fallback order. */
-    @SuppressWarnings("deprecation")
     private static final Map<ManagedMemoryUseCase, List<String>> USE_CASE_CONSUMER_NAMES =
             ImmutableMap.of(
                     ManagedMemoryUseCase.OPERATOR,
-                    ImmutableList.of(
-                            TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_OPERATOR,
-                            TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_DATAPROC),
+                    ImmutableList.of(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_OPERATOR),
                     ManagedMemoryUseCase.STATE_BACKEND,
-                    ImmutableList.of(
-                            TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_STATE_BACKEND,
-                            TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_DATAPROC),
+                    ImmutableList.of(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_STATE_BACKEND),
                     ManagedMemoryUseCase.PYTHON,
                     ImmutableList.of(TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_PYTHON));
 
@@ -68,10 +63,13 @@ public enum ManagedMemoryUtils {
             ManagedMemoryUseCase useCase,
             double fractionOfUseCase,
             Set<ManagedMemoryUseCase> allUseCases,
-            Configuration config,
+            Configuration jobConfig,
+            Configuration clusterConfig,
             Optional<Boolean> stateBackendFromApplicationUsesManagedMemory,
             ClassLoader classLoader) {
 
+        Configuration config = new Configuration(clusterConfig);
+        config.addAll(jobConfig);
         final boolean stateBackendUsesManagedMemory =
                 StateBackendLoader.stateBackendFromApplicationOrConfigOrDefaultUseManagedMemory(
                         config, stateBackendFromApplicationUsesManagedMemory, classLoader);
@@ -81,7 +79,7 @@ public enum ManagedMemoryUtils {
         }
 
         final Map<ManagedMemoryUseCase, Integer> allUseCaseWeights =
-                getManagedMemoryUseCaseWeightsFromConfig(config);
+                getManagedMemoryUseCaseWeightsFromConfig(clusterConfig);
         final int totalWeights =
                 allUseCases.stream()
                         .filter(

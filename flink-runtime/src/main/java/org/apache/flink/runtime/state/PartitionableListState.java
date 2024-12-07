@@ -29,6 +29,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Implementation of operator list state.
  *
@@ -129,8 +131,12 @@ public final class PartitionableListState<S> implements ListState<S> {
 
     @Override
     public void addAll(List<S> values) {
-        if (values != null && !values.isEmpty()) {
-            internalList.addAll(values);
+        Preconditions.checkNotNull(values, "List of values to add cannot be null.");
+        if (!values.isEmpty()) {
+            for (S value : values) {
+                checkNotNull(value, "Any value to add to a list cannot be null.");
+                add(value);
+            }
         }
     }
 

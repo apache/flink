@@ -64,7 +64,7 @@ public abstract class KubernetesFactoryWithPodTemplateTestBase extends Kubernete
         // Set fixed ports
         flinkConfig.set(RestOptions.PORT, Constants.REST_PORT);
         flinkConfig.set(BlobServerOptions.PORT, Integer.toString(Constants.BLOB_SERVER_PORT));
-        flinkConfig.setString(
+        flinkConfig.set(
                 TaskManagerOptions.RPC_PORT, String.valueOf(Constants.TASK_MANAGER_RPC_PORT));
 
         flinkConfig.set(

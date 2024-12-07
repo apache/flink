@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.metrics.CharacterFilter;
@@ -104,8 +103,7 @@ class NettyShuffleEnvironmentTest {
     void testRegisterTaskWithLimitedBuffers() throws Exception {
         // outgoing: 1 buffer per channel + 1 extra buffer per ResultPartition
         // incoming: 2 exclusive buffers per channel + 1 floating buffer per single gate
-        final int bufferCount =
-                18 + 10 * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL.defaultValue();
+        final int bufferCount = 18 + 10 * 2;
 
         testRegisterTaskWithLimitedBuffers(bufferCount);
     }
@@ -118,12 +116,7 @@ class NettyShuffleEnvironmentTest {
     void testRegisterTaskWithInsufficientBuffers() throws Exception {
         // outgoing: 1 buffer per channel + 1 extra buffer per ResultPartition
         // incoming: 2 exclusive buffers per channel + 1 floating buffer per single gate
-        final int bufferCount =
-                10
-                        + 10
-                                * NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL
-                                        .defaultValue()
-                        - 1;
+        final int bufferCount = 10 + 10 * 2 - 1;
 
         assertThatThrownBy(() -> testRegisterTaskWithLimitedBuffers(bufferCount))
                 .isInstanceOf(IOException.class)
@@ -191,7 +184,10 @@ class NettyShuffleEnvironmentTest {
                                             getDebloatingMetric(
                                                     metrics, i, MetricNames.DEBLOATED_BUFFER_SIZE))
                                     .getValue())
-                    .isEqualTo(TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue().getBytes());
+                    .isEqualTo(
+                            TaskManagerOptions.STARTING_MEMORY_SEGMENT_SIZE
+                                    .defaultValue()
+                                    .getBytes());
             assertThat(
                             ((Gauge<Long>)
                                             getDebloatingMetric(

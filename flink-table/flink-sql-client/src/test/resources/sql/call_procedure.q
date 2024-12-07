@@ -16,7 +16,7 @@
 # limitations under the License.
 
 create catalog test_procedure_catalog with ('type'='test_procedure_catalog');
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 call `test_procedure_catalog`.`system`.generate_n(2);
@@ -40,12 +40,12 @@ call `test_procedure_catalog`.`system`.generate_n(1);
 
 # switch current catalog to test_procedure_catalog
 use catalog test_procedure_catalog;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 # create a database `system` to avoid DatabaseNotExistException in the following `show procedure` statement
 create database `system`;
-[INFO] Execute statement succeed.
+[INFO] Execute statement succeeded.
 !info
 
 show procedures in `system` ilike 'gEnerate%';

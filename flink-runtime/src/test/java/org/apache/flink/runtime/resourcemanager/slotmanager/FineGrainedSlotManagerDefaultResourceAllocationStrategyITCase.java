@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -55,9 +54,11 @@ class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
                 new DefaultResourceAllocationStrategy(
                         DEFAULT_TOTAL_RESOURCE_PROFILE,
                         DEFAULT_NUM_SLOTS_PER_WORKER,
-                        slotManagerConfiguration.isEvenlySpreadOutSlots(),
+                        slotManagerConfiguration.getTaskManagerLoadBalanceMode(),
                         slotManagerConfiguration.getTaskManagerTimeout(),
-                        slotManagerConfiguration.getRedundantTaskManagerNum()));
+                        slotManagerConfiguration.getRedundantTaskManagerNum(),
+                        slotManagerConfiguration.getMinTotalCpu(),
+                        slotManagerConfiguration.getMinTotalMem()));
     }
 
     /**
@@ -82,7 +83,7 @@ class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
                                                                     new JobID(),
                                                                     1,
                                                                     OTHER_SLOT_RESOURCE_PROFILE)));
-                            assertThat(declareResourceCount.get()).isEqualTo(0);
+                            assertThat(declareResourceCount).hasValue(0);
                         });
             }
         };
@@ -170,7 +171,7 @@ class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
      */
     @Test
     void testTimeoutForUnusedTaskManager() throws Exception {
-        final Time taskManagerTimeout = Time.milliseconds(50L);
+        final Duration taskManagerTimeout = Duration.ofMillis(50L);
 
         final CompletableFuture<InstanceID> releaseResourceFuture = new CompletableFuture<>();
         final AllocationID allocationId = new AllocationID();

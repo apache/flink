@@ -19,24 +19,25 @@ package org.apache.flink.table.api
 
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.common.typeinfo.Types.STRING
-import org.apache.flink.api.scala._
 import org.apache.flink.configuration.{Configuration, CoreOptions, ExecutionOptions}
 import org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches
-import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
+import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactoryContextImpl}
 import org.apache.flink.table.functions.TestGenericUDF
+import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.module.ModuleEntry
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory._
 import org.apache.flink.table.planner.runtime.stream.sql.FunctionITCase.TestUDF
 import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.SimpleScalarFunction
+import org.apache.flink.table.planner.runtime.utils.StreamingEnvUtil
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
 import org.apache.flink.table.planner.utils.TableTestUtil.{replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.UserDefinedFunctions.{GENERATED_LOWER_UDF_CLASS, GENERATED_LOWER_UDF_CODE}
+import org.apache.flink.testutils.junit.utils.TempDirUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.UserClassLoaderJarTestUtils
 
@@ -45,40 +46,35 @@ import _root_.scala.collection.JavaConverters._
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
-import org.junit.{Rule, Test}
-import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
-import org.junit.rules.{ExpectedException, TemporaryFolder}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertFalse, assertTrue, fail}
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 
 import java.io.File
+import java.nio.file.Path
 import java.util.{Collections, UUID}
-
-import scala.annotation.meta.getter
 
 class TableEnvironmentTest {
 
-  // used for accurate exception information checking.
-  val expectedException: ExpectedException = ExpectedException.none()
+  @TempDir
+  var tempFolder: Path = _
 
-  @Rule
-  def thrown: ExpectedException = expectedException
-
-  @(Rule @getter)
-  val tempFolder: TemporaryFolder = new TemporaryFolder()
-
-  val env = new StreamExecutionEnvironment(new LocalStreamEnvironment())
+  val env = new LocalStreamEnvironment()
   val tableEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
   val batchTableEnv = StreamTableEnvironment.create(env, TableTestUtil.BATCH_SETTING)
 
   @Test
   def testScanNonExistTable(): Unit = {
-    thrown.expect(classOf[ValidationException])
-    thrown.expectMessage("Table `MyTable` was not found")
-    tableEnv.from("MyTable")
+    assertThatThrownBy(() => tableEnv.from("MyTable"))
+      .hasMessageContaining("Table `MyTable` was not found")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
   def testRegisterDataStream(): Unit = {
-    val table = env.fromElements[(Int, Long, String, Boolean)]().toTable(tableEnv, 'a, 'b, 'c, 'd)
+    val table = StreamingEnvUtil
+      .fromElements[(Int, Long, String, Boolean)](env)
+      .toTable(tableEnv, 'a, 'b, 'c, 'd)
     tableEnv.createTemporaryView("MyTable", table)
     val scanTable = tableEnv.from("MyTable")
     val relNode = TableTestUtil.toRelNode(scanTable)
@@ -86,16 +82,22 @@ class TableEnvironmentTest {
     val expected = "LogicalTableScan(table=[[default_catalog, default_database, MyTable]])\n"
     assertEquals(expected, actual)
 
-    // register on a conflict name
-    thrown.expect(classOf[ValidationException])
-    thrown.expectMessage(
-      "Temporary table '`default_catalog`.`default_database`.`MyTable`' already exists")
-    tableEnv.createTemporaryView("MyTable", env.fromElements[(Int, Long)]())
+    assertThatThrownBy(
+      () =>
+        tableEnv.createTemporaryView(
+          "MyTable",
+          StreamingEnvUtil
+            .fromElements[(Int, Long)](env)))
+      .hasMessageContaining(
+        "Temporary table '`default_catalog`.`default_database`.`MyTable`' already exists")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
   def testSimpleQuery(): Unit = {
-    val table = env.fromElements[(Int, Long, String, Boolean)]().toTable(tableEnv, 'a, 'b, 'c, 'd)
+    val table = StreamingEnvUtil
+      .fromElements[(Int, Long, String, Boolean)](env)
+      .toTable(tableEnv, 'a, 'b, 'c, 'd)
     tableEnv.createTemporaryView("MyTable", table)
     val queryTable = tableEnv.sqlQuery("SELECT a, c, d FROM MyTable")
     val relNode = TableTestUtil.toRelNode(queryTable)
@@ -220,7 +222,7 @@ class TableEnvironmentTest {
   private def validateAddJar(useFullPath: Boolean): Unit = {
     val udfJar = UserClassLoaderJarTestUtils
       .createJarFile(
-        tempFolder.newFolder(String.format("test-jar-%s", UUID.randomUUID)),
+        TempDirUtils.newFolder(tempFolder, String.format("test-jar-%s", UUID.randomUUID)),
         "test-classloader-udf.jar",
         GENERATED_LOWER_UDF_CLASS,
         String.format(GENERATED_LOWER_UDF_CODE, GENERATED_LOWER_UDF_CLASS)
@@ -330,9 +332,9 @@ class TableEnvironmentTest {
         |)
       """.stripMargin
     tableEnv.executeSql(statement)
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("ALTER TABLE RESET does not support empty key")
-    tableEnv.executeSql("ALTER TABLE MyTable RESET ()")
+    assertThatThrownBy(() => tableEnv.executeSql("ALTER TABLE MyTable RESET ()"))
+      .hasMessageContaining("ALTER TABLE RESET does not support empty key")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -432,12 +434,13 @@ class TableEnvironmentTest {
         .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.MyTable"))
         .getOptions
     )
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Unable to create a source for reading table 'default_catalog.default_database.MyTable'.")
-    assertEquals(
-      ResultKind.SUCCESS_WITH_CONTENT,
-      tableEnv.executeSql("explain plan for select * from MyTable where a > 10").getResultKind)
+
+    assertThatThrownBy(
+      () =>
+        tableEnv.executeSql("explain plan for select * from MyTable where a > 10").getResultKind)
+      .hasMessageContaining(
+        "Unable to create a source for reading table 'default_catalog.default_database.MyTable'.")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -1019,11 +1022,10 @@ class TableEnvironmentTest {
       """.stripMargin
     tableEnv.executeSql(statement)
 
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "ALTER TABLE COMPACT operation is not supported for " +
+    assertThatThrownBy(() => tableEnv.executeSql("alter table MyTable compact"))
+      .hasMessageContaining("ALTER TABLE COMPACT operation is not supported for " +
         "non-managed table `default_catalog`.`default_database`.`MyTable`")
-    tableEnv.executeSql("alter table MyTable compact")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -1078,9 +1080,9 @@ class TableEnvironmentTest {
       """.stripMargin
     tableEnv.executeSql(statement)
 
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Compact managed table only works under batch mode.")
-    tableEnv.executeSql("alter table MyTable compact")
+    assertThatThrownBy(() => tableEnv.executeSql("alter table MyTable compact"))
+      .hasMessageContaining("Compact managed table only works under batch mode.")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -1230,7 +1232,7 @@ class TableEnvironmentTest {
     assert(tableEnv.listTables().sameElements(Array.empty[String]))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testExecuteSqlWithDropTemporaryTableTwice(): Unit = {
     val createTableStmt =
       """
@@ -1252,7 +1254,8 @@ class TableEnvironmentTest {
     assert(tableEnv.listTables().sameElements(Array.empty[String]))
 
     // fail the case
-    tableEnv.executeSql("DROP TEMPORARY TABLE tbl1")
+    assertThatThrownBy(() => tableEnv.executeSql("DROP TEMPORARY TABLE tbl1"))
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -1278,7 +1281,7 @@ class TableEnvironmentTest {
     assert(tableEnv.listTables().sameElements(Array.empty[String]))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDropTemporaryTableWithInvalidPath(): Unit = {
     val createTableStmt =
       """
@@ -1296,7 +1299,9 @@ class TableEnvironmentTest {
     assert(tableEnv.listTables().sameElements(Array[String]("tbl1")))
 
     // fail the case
-    tableEnv.executeSql("DROP TEMPORARY TABLE invalid_catalog.invalid_database.tbl1")
+    assertThatThrownBy(
+      () => tableEnv.executeSql("DROP TEMPORARY TABLE invalid_catalog.invalid_database.tbl1"))
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -1484,6 +1489,37 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testExecuteSqlWithEnhancedShowViews(): Unit = {
+    val createCatalogResult =
+      tableEnv.executeSql("CREATE CATALOG catalog1 WITH('type'='generic_in_memory')")
+    assertEquals(ResultKind.SUCCESS, createCatalogResult.getResultKind)
+
+    val createDbResult = tableEnv.executeSql("CREATE database catalog1.db1")
+    assertEquals(ResultKind.SUCCESS, createDbResult.getResultKind)
+
+    val createTableStmt =
+      """
+        |CREATE VIEW catalog1.db1.view1 AS SELECT 1, 'abc'
+      """.stripMargin
+    val tableResult1 = tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val createTableStmt2 =
+      """
+        |CREATE VIEW catalog1.db1.view2 AS SELECT 123
+      """.stripMargin
+    val tableResult2 = tableEnv.executeSql(createTableStmt2)
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+
+    val tableResult3 = tableEnv.executeSql("SHOW VIEWS FROM catalog1.db1 like '%w1'")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    assertEquals(
+      ResolvedSchema.of(Column.physical("view name", DataTypes.STRING())),
+      tableResult3.getResolvedSchema)
+    checkData(util.Arrays.asList(Row.of("view1")).iterator(), tableResult3.collect())
+  }
+
+  @Test
   def testExecuteSqlWithShowFunctions(): Unit = {
     val tableResult = tableEnv.executeSql("SHOW FUNCTIONS")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
@@ -1518,10 +1554,11 @@ class TableEnvironmentTest {
         |  'type' = 'dummy'
         |)
       """.stripMargin
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Option 'type' = 'dummy' is not supported since module name is used to find module")
-    tableEnv.executeSql(statement)
+
+    assertThatThrownBy(() => tableEnv.executeSql(statement))
+      .hasMessageContaining(
+        "Option 'type' = 'dummy' is not supported since module name is used to find module")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -1543,11 +1580,10 @@ class TableEnvironmentTest {
         |  'dummy-version' = '2'
         |)
       """.stripMargin
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Could not execute LOAD MODULE `dummy` WITH ('dummy-version' = '2')." +
+    assertThatThrownBy(() => tableEnv.executeSql(statement2))
+      .hasMessageContaining("Could not execute LOAD MODULE `dummy` WITH ('dummy-version' = '2')." +
         " A module with name 'dummy' already exists")
-    tableEnv.executeSql(statement2)
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -1587,11 +1623,10 @@ class TableEnvironmentTest {
     checkListModules("core")
     checkListFullModules(("core", true))
 
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Could not execute UNLOAD MODULE dummy." +
+    assertThatThrownBy(() => tableEnv.executeSql("UNLOAD MODULE dummy"))
+      .hasMessageContaining("Could not execute UNLOAD MODULE dummy." +
         " No module with name 'dummy' exists")
-    tableEnv.executeSql("UNLOAD MODULE dummy")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -1623,20 +1658,18 @@ class TableEnvironmentTest {
 
   @Test
   def testExecuteSqlWithUseUnloadedModules(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Could not execute USE MODULES: [core, dummy]. " +
+    assertThatThrownBy(() => tableEnv.executeSql("USE MODULES core, dummy"))
+      .hasMessageContaining("Could not execute USE MODULES: [core, dummy]. " +
         "No module with name 'dummy' exists")
-    tableEnv.executeSql("USE MODULES core, dummy")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
   def testExecuteSqlWithUseDuplicateModuleNames(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Could not execute USE MODULES: [core, core]. " +
+    assertThatThrownBy(() => tableEnv.executeSql("USE MODULES core, core"))
+      .hasMessageContaining("Could not execute USE MODULES: [core, core]. " +
         "Module 'core' appears more than once")
-    tableEnv.executeSql("USE MODULES core, core")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -1722,11 +1755,6 @@ class TableEnvironmentTest {
 
   @Test
   def testCreateViewWithWrongFieldList(): Unit = {
-    thrown.expect(classOf[ValidationException])
-    thrown.expectMessage(
-      "VIEW definition and input fields not match:\n" +
-        "\tDef fields: [d].\n" +
-        "\tInput fields: [a, b, c].")
     val sourceDDL =
       """
         |CREATE TABLE T1(
@@ -1754,16 +1782,21 @@ class TableEnvironmentTest {
         |CREATE VIEW IF NOT EXISTS T3(d) AS SELECT * FROM T1
       """.stripMargin
 
-    tableEnv.executeSql(sourceDDL)
-    tableEnv.executeSql(sinkDDL)
-    tableEnv.executeSql(viewDDL)
+    assertThatThrownBy(
+      () => {
+        tableEnv.executeSql(sourceDDL)
+        tableEnv.executeSql(sinkDDL)
+        tableEnv.executeSql(viewDDL)
+      })
+      .hasMessageContaining(
+        "VIEW definition and input fields not match:\n" +
+          "\tDef fields: [d].\n" +
+          "\tInput fields: [a, b, c].")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
   def testCreateViewTwice(): Unit = {
-    thrown.expect(classOf[ValidationException])
-    thrown.expectMessage(
-      "Could not execute CreateTable in path `default_catalog`.`default_database`.`T3`")
     val sourceDDL =
       """
         |CREATE TABLE T1(
@@ -1799,7 +1832,11 @@ class TableEnvironmentTest {
     tableEnv.executeSql(sourceDDL)
     tableEnv.executeSql(sinkDDL)
     tableEnv.executeSql(viewWith3ColumnDDL)
-    tableEnv.executeSql(viewWith2ColumnDDL) // fail the case
+
+    assertThatThrownBy(() => tableEnv.executeSql(viewWith2ColumnDDL))
+      .hasMessageContaining(
+        "Could not execute CreateTable in path `default_catalog`.`default_database`.`T3`")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -1904,7 +1941,7 @@ class TableEnvironmentTest {
     assert(tableEnv.listTables().sameElements(Array[String]("T1")))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDropViewTwice(): Unit = {
     val sourceDDL =
       """
@@ -1930,10 +1967,11 @@ class TableEnvironmentTest {
     tableEnv.executeSql("DROP VIEW default_catalog.default_database.T2")
     assert(tableEnv.listTables().sameElements(Array[String]("T1")))
 
-    tableEnv.executeSql("DROP VIEW default_catalog.default_database.T2")
+    assertThatThrownBy(() => tableEnv.executeSql("DROP VIEW default_catalog.default_database.T2"))
+      .isInstanceOf[ValidationException]
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDropViewWithInvalidPath(): Unit = {
     val sourceDDL =
       """
@@ -1954,7 +1992,8 @@ class TableEnvironmentTest {
     tableEnv.executeSql(viewDDL)
     assert(tableEnv.listTables().sameElements(Array[String]("T1", "T2")))
     // failed since 'default_catalog1.default_database1.T2' is invalid path
-    tableEnv.executeSql("DROP VIEW default_catalog1.default_database1.T2")
+    assertThatThrownBy(() => tableEnv.executeSql("DROP VIEW default_catalog1.default_database1.T2"))
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -2011,7 +2050,7 @@ class TableEnvironmentTest {
     assert(tableEnv.listTemporaryViews().sameElements(Array[String]()))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDropTemporaryViewTwice(): Unit = {
     val sourceDDL =
       """
@@ -2040,7 +2079,9 @@ class TableEnvironmentTest {
     assert(tableEnv.listTemporaryViews().sameElements(Array[String]()))
 
     // throws ValidationException since default_catalog.default_database.T2 is not exists
-    tableEnv.executeSql("DROP TEMPORARY VIEW default_catalog.default_database.T2")
+    assertThatThrownBy(
+      () => tableEnv.executeSql("DROP TEMPORARY VIEW default_catalog.default_database.T2"))
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -2978,9 +3019,11 @@ class TableEnvironmentTest {
     with TemporaryOperationListener {
 
     val tableComment: String = "listener_comment"
+    val modelComment: String = "listener_comment"
     val funcClzName: String = classOf[TestGenericUDF].getName
 
     var numTempTable = 0
+    var numTempModel = 0
     var numTempFunc = 0
 
     override def onCreateTemporaryTable(
@@ -3004,7 +3047,16 @@ class TableEnvironmentTest {
       }
     }
 
+    override def onCreateTemporaryModel(
+        modelPath: ObjectPath,
+        model: CatalogModel): CatalogModel = {
+      numTempModel += 1
+      CatalogModel.of(model.getInputSchema, model.getOutputSchema, model.getOptions, modelComment)
+    }
+
     override def onDropTemporaryTable(tablePath: ObjectPath): Unit = numTempTable -= 1
+
+    override def onDropTemporaryModel(modelPath: ObjectPath): Unit = numTempModel -= 1
 
     override def onCreateTemporaryFunction(
         functionPath: ObjectPath,

@@ -18,44 +18,40 @@
 
 package org.apache.flink.runtime.rpc;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
 import org.apache.flink.runtime.rpc.exceptions.RpcRuntimeException;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Fail.fail;
 
 /** Tests for the FencedRpcEndpoint. */
-@ExtendWith(TestLoggerExtension.class)
-public class FencedRpcEndpointTest {
+class FencedRpcEndpointTest {
 
-    private static final Time timeout = Time.seconds(10L);
+    private static final Duration timeout = Duration.ofSeconds(10L);
     private static RpcService rpcService;
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         rpcService = new TestingRpcService();
     }
 
     @AfterAll
-    public static void teardown()
-            throws ExecutionException, InterruptedException, TimeoutException {
+    static void teardown() throws ExecutionException, InterruptedException, TimeoutException {
         if (rpcService != null) {
             RpcUtils.terminateRpcService(rpcService);
         }
@@ -63,7 +59,7 @@ public class FencedRpcEndpointTest {
 
     /** Tests that messages with the wrong fencing token are filtered out. */
     @Test
-    public void testFencing() throws Exception {
+    void testFencing() throws Exception {
         final UUID fencingToken = UUID.randomUUID();
         final UUID wrongFencingToken = UUID.randomUUID();
         final String value = "barfoo";
@@ -79,29 +75,27 @@ public class FencedRpcEndpointTest {
                                     fencedTestingEndpoint.getAddress(),
                                     fencingToken,
                                     FencedTestingGateway.class)
-                            .get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+                            .get(timeout.toMillis(), TimeUnit.MILLISECONDS);
             final FencedTestingGateway wronglyFencedGateway =
                     rpcService
                             .connect(
                                     fencedTestingEndpoint.getAddress(),
                                     wrongFencingToken,
                                     FencedTestingGateway.class)
-                            .get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+                            .get(timeout.toMillis(), TimeUnit.MILLISECONDS);
 
-            assertEquals(
-                    value,
-                    properFencedGateway
-                            .foobar(timeout)
-                            .get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS));
+            assertThat(
+                            properFencedGateway
+                                    .foobar(timeout)
+                                    .get(timeout.toMillis(), TimeUnit.MILLISECONDS))
+                    .isEqualTo(value);
 
             try {
-                wronglyFencedGateway
-                        .foobar(timeout)
-                        .get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+                wronglyFencedGateway.foobar(timeout).get(timeout.toMillis(), TimeUnit.MILLISECONDS);
                 fail("This should fail since we have the wrong fencing token.");
             } catch (ExecutionException e) {
-                assertTrue(
-                        ExceptionUtils.stripExecutionException(e) instanceof FencingTokenException);
+                assertThat(ExceptionUtils.stripExecutionException(e))
+                        .isInstanceOf(FencingTokenException.class);
             }
 
         } finally {
@@ -115,7 +109,7 @@ public class FencedRpcEndpointTest {
      * the fencing token from such a gateway.
      */
     @Test
-    public void testUnfencedRemoteGateway() throws Exception {
+    void testUnfencedRemoteGateway() throws Exception {
         final UUID initialFencingToken = UUID.randomUUID();
         final String value = "foobar";
 
@@ -128,24 +122,21 @@ public class FencedRpcEndpointTest {
             FencedTestingGateway unfencedGateway =
                     rpcService
                             .connect(fencedTestingEndpoint.getAddress(), FencedTestingGateway.class)
-                            .get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+                            .get(timeout.toMillis(), TimeUnit.MILLISECONDS);
 
             try {
-                unfencedGateway
-                        .foobar(timeout)
-                        .get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+                unfencedGateway.foobar(timeout).get(timeout.toMillis(), TimeUnit.MILLISECONDS);
                 fail("This should have failed because we have an unfenced gateway.");
             } catch (ExecutionException e) {
-                assertTrue(
-                        ExceptionUtils.stripExecutionException(e) instanceof RpcRuntimeException);
+                assertThat(ExceptionUtils.stripExecutionException(e))
+                        .isInstanceOf(RpcRuntimeException.class);
             }
 
-            try {
-                unfencedGateway.getFencingToken();
-                fail("We should not be able to call getFencingToken on an unfenced gateway.");
-            } catch (UnsupportedOperationException ignored) {
-                // we should not be able to call getFencingToken on an unfenced gateway
-            }
+            // we should not be able to call getFencingToken on an unfenced gateway
+            assertThatThrownBy(unfencedGateway::getFencingToken)
+                    .withFailMessage(
+                            "We should not be able to call getFencingToken on an unfenced gateway.")
+                    .isInstanceOf(UnsupportedOperationException.class);
         } finally {
             RpcUtils.terminateRpcEndpoint(fencedTestingEndpoint);
             fencedTestingEndpoint.validateResourceClosed();
@@ -153,9 +144,9 @@ public class FencedRpcEndpointTest {
     }
 
     public interface FencedTestingGateway extends FencedRpcGateway<UUID> {
-        CompletableFuture<String> foobar(@RpcTimeout Time timeout);
+        CompletableFuture<String> foobar(@RpcTimeout Duration timeout);
 
-        CompletableFuture<Acknowledge> triggerComputationLatch(@RpcTimeout Time timeout);
+        CompletableFuture<Acknowledge> triggerComputationLatch(@RpcTimeout Duration timeout);
     }
 
     private static class FencedTestingEndpoint extends FencedRpcEndpoint<UUID>
@@ -175,12 +166,12 @@ public class FencedRpcEndpointTest {
         }
 
         @Override
-        public CompletableFuture<String> foobar(Time timeout) {
+        public CompletableFuture<String> foobar(Duration timeout) {
             return CompletableFuture.completedFuture(value);
         }
 
         @Override
-        public CompletableFuture<Acknowledge> triggerComputationLatch(Time timeout) {
+        public CompletableFuture<Acknowledge> triggerComputationLatch(Duration timeout) {
             computationLatch.trigger();
 
             return CompletableFuture.completedFuture(Acknowledge.get());

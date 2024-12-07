@@ -22,7 +22,7 @@ import org.apache.flink.table.catalog.{CatalogPartitionSpec, ObjectIdentifier}
 import org.apache.flink.table.factories.TestManagedTableFactory
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.{After, Before, Test}
+import org.junit.jupiter.api.{AfterEach, BeforeEach, Test}
 
 import java.util
 import java.util.Collections
@@ -34,7 +34,7 @@ class CompactManagedTableTest extends TableTestBase {
     ObjectIdentifier.of("default_catalog", "default_database", "ManagedTable")
   private val testUtil = batchTestUtil()
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     val tableRef = new AtomicReference[util.Map[String, String]]
     TestManagedTableFactory.MANAGED_TABLES.put(tableIdentifier, tableRef)
@@ -60,7 +60,7 @@ class CompactManagedTableTest extends TableTestBase {
     TestManagedTableFactory.MANAGED_TABLE_FILE_ENTRIES.put(tableIdentifier, fileRef)
   }
 
-  @After
+  @AfterEach
   def after(): Unit = {
     val ddl = "DROP TABLE ManagedTable"
     testUtil.tableEnv.executeSql(ddl)

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.testutils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStats;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
@@ -342,27 +343,56 @@ public class CommonTestUtils {
 
     /** Wait for (at least) the given number of successful checkpoints. */
     public static void waitForCheckpoint(JobID jobID, MiniCluster miniCluster, int numCheckpoints)
-            throws Exception, FlinkJobNotFoundException {
+            throws Exception {
+        waitForCheckpoints(
+                jobID,
+                miniCluster,
+                checkpointStatsSnapshot ->
+                        checkpointStatsSnapshot != null
+                                && checkpointStatsSnapshot
+                                                .getCounts()
+                                                .getNumberOfCompletedCheckpoints()
+                                        >= numCheckpoints);
+    }
+
+    /**
+     * Wait for a new completed checkpoint, the new checkpoint must be triggered after
+     * waitForNewCheckpoint is called.
+     */
+    public static void waitForNewCheckpoint(JobID jobID, MiniCluster miniCluster) throws Exception {
+        final long startTime = System.currentTimeMillis();
+        waitForCheckpoints(
+                jobID,
+                miniCluster,
+                checkpointStatsSnapshot -> {
+                    if (checkpointStatsSnapshot == null) {
+                        return false;
+                    }
+                    final CompletedCheckpointStats latestCompletedCheckpoint =
+                            checkpointStatsSnapshot.getHistory().getLatestCompletedCheckpoint();
+                    return latestCompletedCheckpoint != null
+                            && latestCompletedCheckpoint.getTriggerTimestamp() > startTime;
+                });
+    }
+
+    // Wait for CheckpointStatsSnapshot to meet the condition.
+    private static void waitForCheckpoints(
+            JobID jobId, MiniCluster miniCluster, Predicate<CheckpointStatsSnapshot> condition)
+            throws Exception {
         waitUntilCondition(
                 () -> {
-                    AccessExecutionGraph graph = miniCluster.getExecutionGraph(jobID).get();
-                    if (Optional.ofNullable(graph.getCheckpointStatsSnapshot())
-                            .filter(
-                                    st ->
-                                            st.getCounts().getNumberOfCompletedCheckpoints()
-                                                    >= numCheckpoints)
-                            .isPresent()) {
+                    final AccessExecutionGraph graph = miniCluster.getExecutionGraph(jobId).get();
+                    final CheckpointStatsSnapshot snapshot = graph.getCheckpointStatsSnapshot();
+                    if (condition.test(snapshot)) {
                         return true;
                     } else if (graph.getState().isGloballyTerminalState()) {
                         checkState(
                                 graph.getFailureInfo() != null,
-                                "Job terminated before taking required %s checkpoints: %s",
-                                numCheckpoints,
+                                "Job terminated (state=%s) before completing the requested checkpoint(s).",
                                 graph.getState());
                         throw graph.getFailureInfo().getException();
-                    } else {
-                        return false;
                     }
+                    return false;
                 });
     }
 

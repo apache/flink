@@ -24,7 +24,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.ChangelogTaskLocalStateStore;
-import org.apache.flink.runtime.state.LocalRecoveryDirectoryProvider;
+import org.apache.flink.runtime.state.LocalSnapshotDirectoryProvider;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.changelog.LocalChangelogRegistry;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
@@ -68,7 +68,7 @@ public class DuplicatingStateChangeFsUploader extends AbstractStateChangeFsUploa
 
     private final Path basePath;
     private final FileSystem fileSystem;
-    private final LocalRecoveryDirectoryProvider localRecoveryDirectoryProvider;
+    private final LocalSnapshotDirectoryProvider localSnapshotDirectoryProvider;
     private final JobID jobID;
 
     public DuplicatingStateChangeFsUploader(
@@ -79,12 +79,12 @@ public class DuplicatingStateChangeFsUploader extends AbstractStateChangeFsUploa
             int bufferSize,
             ChangelogStorageMetricGroup metrics,
             TaskChangelogRegistry changelogRegistry,
-            LocalRecoveryDirectoryProvider localRecoveryDirectoryProvider) {
+            LocalSnapshotDirectoryProvider localSnapshotDirectoryProvider) {
         super(compression, bufferSize, metrics, changelogRegistry, FileStateHandle::new);
         this.basePath =
                 new Path(basePath, String.format("%s/%s", jobID.toHexString(), PATH_SUB_DIR));
         this.fileSystem = fileSystem;
-        this.localRecoveryDirectoryProvider = localRecoveryDirectoryProvider;
+        this.localSnapshotDirectoryProvider = localSnapshotDirectoryProvider;
         this.jobID = jobID;
     }
 
@@ -96,7 +96,7 @@ public class DuplicatingStateChangeFsUploader extends AbstractStateChangeFsUploa
         FSDataOutputStream primaryStream = fileSystem.create(path, WriteMode.NO_OVERWRITE);
         Path localPath =
                 new Path(
-                        getLocalTaskOwnedDirectory(localRecoveryDirectoryProvider, jobID),
+                        getLocalTaskOwnedDirectory(localSnapshotDirectoryProvider, jobID),
                         fileName);
         FSDataOutputStream secondaryStream =
                 localPath.getFileSystem().create(localPath, WriteMode.NO_OVERWRITE);

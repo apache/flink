@@ -17,8 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql.join
 
-import org.apache.flink.api.scala._
-import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
+import org.apache.flink.legacy.table.sources.StreamTableSource
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
@@ -27,35 +26,37 @@ import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
 import org.apache.flink.table.descriptors.DescriptorProperties
-import org.apache.flink.table.factories.TableSourceFactory
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction}
+import org.apache.flink.table.legacy.api.TableSchema
+import org.apache.flink.table.legacy.factories.TableSourceFactory
+import org.apache.flink.table.legacy.sources.{LookupableTableSource, TableSource}
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.utils.{TableTestBase, TestingTableEnvironment}
 import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
-import org.apache.flink.table.sources._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.EncodingUtils
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
 import _root_.java.lang.{Boolean => JBoolean}
 import _root_.java.sql.Timestamp
 import _root_.java.util
 import _root_.java.util.{ArrayList => JArrayList, Collection => JCollection, HashMap => JHashMap, List => JList, Map => JMap}
 import _root_.scala.collection.JavaConversions._
-import org.junit.{Assume, Before, Test}
-import org.junit.Assert.{assertEquals, assertThat, assertTrue, fail}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType, assertThatThrownBy}
+import org.assertj.core.api.Assumptions.assumeThat
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 /**
- * The physical plans for legacy [[org.apache.flink.table.sources.LookupableTableSource]] and new
+ * The physical plans for legacy [[LookupableTableSource]] and new
  * [[org.apache.flink.table.connector.source.LookupTableSource]] should be identical.
  */
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Serializable {
 
   private val util = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util.addDataStream[(Int, String, Long)](
       "MyTable",
@@ -117,7 +118,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
       .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(4))
   }
 
-  @Test
+  @TestTemplate
   def testJoinInvalidJoinTemporalTable(): Unit = {
     // must follow a period specification
     expectExceptionThrown(
@@ -143,7 +144,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     )
   }
 
-  @Test
+  @TestTemplate
   def testNotDistinctFromInJoinCondition(): Unit = {
 
     // does not support join condition contains `IS NOT DISTINCT`
@@ -165,7 +166,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     )
   }
 
-  @Test
+  @TestTemplate
   def testInvalidLookupTableFunction(): Unit = {
     if (legacyTableSource) {
       return
@@ -262,19 +263,20 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     )
   }
 
-  @Test
+  @TestTemplate
   def testJoinOnDifferentKeyTypes(): Unit = {
     // Will do implicit type coercion.
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "implicit type conversion between VARCHAR(2147483647) and INTEGER " +
+    assertThatThrownBy(
+      () =>
+        util.verifyExecPlan(
+          "SELECT * FROM MyTable AS T JOIN LookupTable "
+            + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.b = D.id"))
+      .hasMessageContaining("implicit type conversion between VARCHAR(2147483647) and INTEGER " +
         "is not supported on join's condition now")
-    util.verifyExecPlan(
-      "SELECT * FROM MyTable AS T JOIN LookupTable "
-        + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.b = D.id")
+      .isInstanceOf[TableException]
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTable(): Unit = {
     val sql = "SELECT * FROM MyTable AS T JOIN LookupTable " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
@@ -282,7 +284,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testLeftJoinTemporalTable(): Unit = {
     val sql = "SELECT * FROM MyTable AS T LEFT JOIN LookupTable " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
@@ -290,7 +292,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithNestedQuery(): Unit = {
     val sql = "SELECT * FROM " +
       "(SELECT a, b, proctime FROM MyTable WHERE c > 1000) AS T " +
@@ -300,7 +302,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithProjectionPushDown(): Unit = {
     val sql =
       """
@@ -313,7 +315,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithFilterPushDown(): Unit = {
     val sql =
       """
@@ -326,7 +328,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithCalcPushDown(): Unit = {
     val sql =
       """
@@ -339,7 +341,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithMultiIndexColumn(): Unit = {
     val sql =
       """
@@ -352,7 +354,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testAvoidAggregatePushDown(): Unit = {
     val sql1 =
       """
@@ -379,12 +381,8 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithTrueCondition(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "Temporal table join requires an equality condition on fields of " +
-        "table [default_catalog.default_database.LookupTable]")
     val sql =
       """
         |SELECT * FROM MyTable AS T
@@ -393,10 +391,13 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |WHERE T.c > 1000
       """.stripMargin
 
-    util.verifyExplain(sql)
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Temporal table join requires an equality condition on fields of " +
+        "table [default_catalog.default_database.LookupTable]")
+      .isInstanceOf[TableException]
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithFunctionAndConstantCondition(): Unit = {
 
     val sql =
@@ -409,7 +410,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithMultiFunctionAndConstantCondition(): Unit = {
 
     val sql =
@@ -422,7 +423,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithFunctionAndReferenceCondition(): Unit = {
     val sql =
       """
@@ -435,7 +436,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithUdfEqualFilter(): Unit = {
     val sql =
       """
@@ -449,10 +450,10 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithComputedColumn(): Unit = {
     // Computed column do not support in legacyTableSource.
-    Assume.assumeFalse(legacyTableSource)
+    assumeThat(legacyTableSource).isFalse
     val sql =
       """
         |SELECT
@@ -464,10 +465,10 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithComputedColumnAndPushDown(): Unit = {
     // Computed column do not support in legacyTableSource.
-    Assume.assumeFalse(legacyTableSource)
+    assumeThat(legacyTableSource).isFalse
     val sql =
       """
         |SELECT
@@ -479,7 +480,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithMultiConditionOnSameDimField(): Unit = {
     val sql = "SELECT * FROM MyTable AS T JOIN LookupTable " +
       "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id and CAST(T.c as INT) = D.id"
@@ -487,7 +488,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithCastOnLookupTable(): Unit = {
     util.addTable("""
                     |CREATE TABLE LookupTable2 (
@@ -505,14 +506,14 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |LEFT JOIN LookupTable2 FOR SYSTEM_TIME AS OF MyTable.`proctime`
         |ON MyTable.a = CAST(LookupTable2.`id` as INT)
         |""".stripMargin
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "Temporal table join requires an equality condition on fields of " +
+
+    assertThatThrownBy(() => verifyTranslationSuccess(sql))
+      .hasMessageContaining("Temporal table join requires an equality condition on fields of " +
         "table [default_catalog.default_database.LookupTable2]")
-    verifyTranslationSuccess(sql)
+      .isInstanceOf[TableException]
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithInteroperableCastOnLookupTable(): Unit = {
     util.addTable("""
                     |CREATE TABLE LookupTable2 (
@@ -534,7 +535,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     verifyTranslationSuccess(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithCTE(): Unit = {
     val sql =
       """
@@ -548,7 +549,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testAggAndAllConstantLookupKeyWithTryResolveMode(): Unit = {
     // expect lookup join using single parallelism due to all constant lookup key
     util.tableEnv.getConfig.set(
@@ -571,12 +572,11 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
       readFromResource(
         "explain/stream/join/lookup/testAggAndAllConstantLookupKeyWithTryResolveMode_newSource.out")
     }
-    assertEquals(
-      replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(expected))),
-      replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(actual))))
+    assertThat(replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(actual))))
+      .isEqualTo(replaceNodeIdInOperator(replaceStreamNodeId(replaceStageId(expected))))
   }
 
-  @Test
+  @TestTemplate
   def testInvalidJoinHint(): Unit = {
     // lost required hint option 'table'
     expectExceptionThrown(
@@ -727,7 +727,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     )
   }
 
-  @Test
+  @TestTemplate
   def testJoinHintWithTableAlias(): Unit = {
     val sql =
       "SELECT /*+ LOOKUP('table'='D', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ * FROM MyTable AS T JOIN LookupTable " +
@@ -735,14 +735,14 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinHintWithTableNameOnly(): Unit = {
     val sql = "SELECT /*+ LOOKUP('table'='LookupTable') */ * FROM MyTable AS T JOIN LookupTable " +
       "FOR SYSTEM_TIME AS OF T.proctime ON T.a = LookupTable.id"
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testMultipleJoinHintsWithSameTableName(): Unit = {
     // only the first hint will take effect
     val sql =
@@ -756,7 +756,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testMultipleJoinHintsWithSameTableAlias(): Unit = {
     // only the first hint will take effect
     val sql =
@@ -770,7 +770,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testMultipleJoinHintsWithDifferentTableName(): Unit = {
     // both hints on corresponding tables will take effect
     val sql =
@@ -786,7 +786,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testMultipleJoinHintsWithDifferentTableAlias(): Unit = {
     // both hints on corresponding tables will take effect
     val sql =
@@ -802,7 +802,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinSyncTableWithAsyncHint(): Unit = {
     val sql =
       "SELECT /*+ LOOKUP('table'='D', 'async'='true') */ * FROM MyTable AS T JOIN LookupTable " +
@@ -810,7 +810,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinAsyncTableWithAsyncHint(): Unit = {
     val sql =
       "SELECT /*+ LOOKUP('table'='D', 'async'='true') */ * " +
@@ -819,7 +819,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testJoinAsyncTableWithSyncHint(): Unit = {
     val sql =
       "SELECT /*+ LOOKUP('table'='D', 'async'='false') */ * " +
@@ -828,7 +828,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
-  @Test
+  @TestTemplate
   def testAggAndLeftJoinAllowUnordered(): Unit = {
     util.tableEnv.getConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_OUTPUT_MODE,
@@ -847,10 +847,8 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExplain(stmt, ExplainDetail.JSON_EXECUTION_PLAN)
   }
 
+  @TestTemplate
   def testAggAndLeftJoinWithTryResolveMode(): Unit = {
-    thrown.expectMessage("Required sync lookup function by planner, but table")
-    thrown.expect(classOf[TableException])
-
     util.tableEnv.getConfig.set(
       OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
       OptimizerConfigOptions.NonDeterministicUpdateStrategy.TRY_RESOLVE)
@@ -865,10 +863,12 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id
         |""".stripMargin)
 
-    util.verifyExplain(stmt, ExplainDetail.JSON_EXECUTION_PLAN)
+    assertThatThrownBy(() => util.verifyExplain(stmt, ExplainDetail.JSON_EXECUTION_PLAN))
+      .hasMessageContaining("Required sync lookup function by planner, but table")
+      .isInstanceOf[TableException]
   }
 
-  @Test
+  @TestTemplate
   def testAsyncJoinWithDefaultParams(): Unit = {
     val stmt = util.tableEnv.asInstanceOf[TestingTableEnvironment].createStatementSet()
     stmt.addInsertSql("""
@@ -882,7 +882,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExplain(stmt, ExplainDetail.JSON_EXECUTION_PLAN)
   }
 
-  @Test
+  @TestTemplate
   def testJoinWithAsyncHint(): Unit = {
     val stmt = util.tableEnv.asInstanceOf[TestingTableEnvironment].createStatementSet()
     stmt.addInsertSql(
@@ -898,7 +898,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExplain(stmt, ExplainDetail.JSON_EXECUTION_PLAN)
   }
 
-  @Test
+  @TestTemplate
   def testJoinWithRetryHint(): Unit = {
     val stmt = util.tableEnv.asInstanceOf[TestingTableEnvironment].createStatementSet()
     stmt.addInsertSql(
@@ -914,7 +914,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExplain(stmt, ExplainDetail.JSON_EXECUTION_PLAN)
   }
 
-  @Test
+  @TestTemplate
   def testJoinWithAsyncAndRetryHint(): Unit = {
     val stmt = util.tableEnv.asInstanceOf[TestingTableEnvironment].createStatementSet()
     stmt.addInsertSql(
@@ -930,7 +930,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExplain(stmt, ExplainDetail.JSON_EXECUTION_PLAN)
   }
 
-  @Test
+  @TestTemplate
   def testJoinWithMixedCaseJoinHint(): Unit = {
     util.verifyExecPlan(
       """
@@ -946,7 +946,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     )
   }
 
-  @Test
+  @TestTemplate
   def testJoinHintWithNoPropagatingToSubQuery(): Unit = {
     util.verifyExecPlan(
       """
@@ -992,14 +992,9 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
       sql: String,
       message: String,
       clazz: Class[_ <: Throwable] = classOf[ValidationException]): Unit = {
-    try {
-      verifyTranslationSuccess(sql)
-      fail(s"Expected a $clazz, but no exception is thrown.")
-    } catch {
-      case e: Throwable =>
-        assertTrue(clazz.isAssignableFrom(e.getClass))
-        assertThat(e, containsMessage(message))
-    }
+    assertThatExceptionOfType(clazz)
+      .isThrownBy(() => verifyTranslationSuccess(sql))
+      .withMessageContaining(message)
   }
 
   private def verifyTranslationSuccess(sql: String): Unit = {
@@ -1008,7 +1003,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
 }
 
 object LookupJoinTest {
-  @Parameterized.Parameters(name = "LegacyTableSource={0}")
+  @Parameters(name = "LegacyTableSource={0}")
   def parameters(): JCollection[Array[Object]] = {
     Seq[Array[AnyRef]](Array(JBoolean.TRUE), Array(JBoolean.FALSE))
   }

@@ -20,9 +20,7 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.resources.CPUResource;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
@@ -121,7 +119,7 @@ import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriConsumerWithException;
 
 import org.apache.flink.shaded.curator5.com.google.common.collect.Iterators;
-import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Lists;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -165,6 +163,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.stream.IntStream.range;
+import static org.apache.flink.configuration.TaskManagerOptions.TASK_MANAGER_LOG_PATH;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup;
 import static org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils.DEFAULT_RESOURCE_PROFILE;
@@ -196,7 +195,7 @@ class TaskExecutorTest {
 
     @TempDir private Path tempDir;
 
-    private static final Time timeout = Time.milliseconds(10000L);
+    private static final Duration timeout = Duration.ofMillis(10000L);
 
     private static final HeartbeatServices failedRpcEnabledHeartbeatServices =
             new HeartbeatServicesImpl(1L, 10000000L, 1);
@@ -274,6 +273,7 @@ class TaskExecutorTest {
 
         final TaskExecutorLocalStateStoresManager localStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
+                        false,
                         false,
                         Reference.borrowed(ioManager.getSpillingDirectories()),
                         Executors.directExecutor());
@@ -464,7 +464,7 @@ class TaskExecutorTest {
             final ResourceID resourceID = disconnectTaskManagerFuture.get();
             assertThat(resourceID).isEqualTo(unresolvedTaskManagerLocation.getResourceID());
 
-            assertThat(registrationAttempts.await(timeout.toMilliseconds(), TimeUnit.SECONDS))
+            assertThat(registrationAttempts.await(timeout.toMillis(), TimeUnit.SECONDS))
                     .withFailMessage("The TaskExecutor should try to reconnect to the JM")
                     .isTrue();
         } finally {
@@ -577,10 +577,10 @@ class TaskExecutorTest {
 
             // heartbeat timeout should trigger disconnect TaskManager from ResourceManager
             assertThat(taskExecutorDisconnectFuture)
-                    .succeedsWithin(timeout.toMilliseconds(), TimeUnit.MILLISECONDS)
+                    .succeedsWithin(timeout.toMillis(), TimeUnit.MILLISECONDS)
                     .isEqualTo(unresolvedTaskManagerLocation.getResourceID());
 
-            assertThat(registrationAttempts.await(timeout.toMilliseconds(), TimeUnit.SECONDS))
+            assertThat(registrationAttempts.await(timeout.toMillis(), TimeUnit.SECONDS))
                     .withFailMessage("The TaskExecutor should try to reconnect to the RM")
                     .isTrue();
         } finally {
@@ -765,9 +765,7 @@ class TaskExecutorTest {
             resourceManagerLeaderRetriever.notifyListener(
                     resourceManagerAddress, UUID.randomUUID());
 
-            assertThat(
-                            taskManagerRegisteredLatch.await(
-                                    timeout.toMilliseconds(), TimeUnit.MILLISECONDS))
+            assertThat(taskManagerRegisteredLatch.await(timeout.toMillis(), TimeUnit.MILLISECONDS))
                     .isTrue();
         } finally {
             RpcUtils.terminateRpcEndpoint(taskManager);
@@ -2226,11 +2224,10 @@ class TaskExecutorTest {
     @Test
     @Timeout(10)
     void testLogNotFoundHandling() throws Throwable {
-        configuration.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, 0);
-        configuration.setInteger(
-                NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
-        configuration.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
-        configuration.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, "/i/dont/exist");
+        configuration.set(NettyShuffleEnvironmentOptions.DATA_PORT, 0);
+        configuration.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+        configuration.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+        configuration.set(TASK_MANAGER_LOG_PATH, "/i/dont/exist");
 
         try (TaskSubmissionTestEnvironment env =
                 new Builder(jobId)
@@ -2476,7 +2473,7 @@ class TaskExecutorTest {
             verifySlotReportFuture.get();
         } finally {
             ExecutorUtils.gracefulShutdown(
-                    timeout.toMilliseconds(), TimeUnit.MILLISECONDS, heartbeatExecutor);
+                    timeout.toMillis(), TimeUnit.MILLISECONDS, heartbeatExecutor);
             RpcUtils.terminateRpcEndpoint(taskExecutor);
         }
     }
@@ -2742,6 +2739,7 @@ class TaskExecutorTest {
             throws IOException {
         return new TaskExecutorLocalStateStoresManager(
                 false,
+                false,
                 Reference.owned(new File[] {TempDirUtils.newFolder(tempDir)}),
                 Executors.directExecutor());
     }
@@ -2756,7 +2754,7 @@ class TaskExecutorTest {
                         .setTaskSlotTable(taskSlotTable)
                         .setUnresolvedTaskManagerLocation(unresolvedTaskManagerLocation)
                         .build();
-        configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, numberOFSlots);
+        configuration.set(TaskManagerOptions.NUM_TASK_SLOTS, numberOFSlots);
         return createTaskExecutor(taskManagerServices);
     }
 
@@ -2935,14 +2933,14 @@ class TaskExecutorTest {
                     createTotalResourceProfile(1),
                     DEFAULT_RESOURCE_PROFILE,
                     MemoryManager.MIN_PAGE_SIZE,
-                    createDefaultTimerService(timeout.toMilliseconds()),
+                    createDefaultTimerService(timeout.toMillis()),
                     Executors.newDirectExecutorService());
             this.allocateSlotLatch = allocateSlotLatch;
         }
 
         @Override
         public boolean allocateSlot(
-                int index, JobID jobId, AllocationID allocationId, Time slotTimeout) {
+                int index, JobID jobId, AllocationID allocationId, Duration slotTimeout) {
             final boolean result = super.allocateSlot(index, jobId, allocationId, slotTimeout);
             allocateSlotLatch.trigger();
 
@@ -2955,7 +2953,7 @@ class TaskExecutorTest {
                 JobID jobId,
                 AllocationID allocationId,
                 ResourceProfile resourceProfile,
-                Time slotTimeout) {
+                Duration slotTimeout) {
             final boolean result =
                     super.allocateSlot(index, jobId, allocationId, resourceProfile, slotTimeout);
             allocateSlotLatch.trigger();
@@ -2975,7 +2973,7 @@ class TaskExecutorTest {
                     createTotalResourceProfile(numberOfDefaultSlots),
                     DEFAULT_RESOURCE_PROFILE,
                     MemoryManager.MIN_PAGE_SIZE,
-                    createDefaultTimerService(timeout.toMilliseconds()),
+                    createDefaultTimerService(timeout.toMillis()),
                     Executors.newDirectExecutorService());
             this.slotsToActivate = slotsToActivate;
         }

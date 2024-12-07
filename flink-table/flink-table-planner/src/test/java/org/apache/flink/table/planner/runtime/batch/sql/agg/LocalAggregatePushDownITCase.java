@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql.agg;
 
+import org.apache.flink.table.api.config.AggregatePhaseStrategy;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
@@ -26,16 +27,16 @@ import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.types.Row;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 
 /** Test for local aggregate push down. */
-public class LocalAggregatePushDownITCase extends BatchTestBase {
+class LocalAggregatePushDownITCase extends BatchTestBase {
 
-    @Before
+    @BeforeEach
     public void before() throws Exception {
         super.before();
         env().setParallelism(1); // set sink parallelism to 1
@@ -44,7 +45,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
         String ddl =
                 "CREATE TABLE AggregatableTable (\n"
                         + "  id int,\n"
-                        + "  age int,\n"
+                        + "  age int not null,\n"
                         + "  name string,\n"
                         + "  height int,\n"
                         + "  gender string,\n"
@@ -111,10 +112,34 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "  'bounded' = 'true'\n"
                         + ")";
         tEnv().executeSql(ddl3);
+
+        String ddl4 =
+                "CREATE TABLE AggregatableTable_WithoutAggPushDown (\n"
+                        + "  id int,\n"
+                        + "  age int not null,\n"
+                        + "  name string,\n"
+                        + "  height int,\n"
+                        + "  gender string,\n"
+                        + "  deposit bigint,\n"
+                        + "  points bigint,\n"
+                        + "  metadata_1 BIGINT METADATA,\n"
+                        + "  metadata_2 STRING METADATA,\n"
+                        + "  PRIMARY KEY (`id`) NOT ENFORCED\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'data-id' = '"
+                        + testDataId
+                        + "',\n"
+                        + "  'filterable-fields' = 'id;age',\n"
+                        + "  'readable-metadata' = 'metadata_1:BIGINT, metadata_2:STRING',\n"
+                        + "  'enable-aggregate-push-down' = 'false',\n"
+                        + "  'bounded' = 'true'\n"
+                        + ")";
+        tEnv().executeSql(ddl4);
     }
 
     @Test
-    public void testPushDownLocalHashAggWithGroup() {
+    void testPushDownLocalHashAggWithGroup() {
         checkResult(
                 "SELECT\n"
                         + "  avg(deposit) as avg_dep,\n"
@@ -131,13 +156,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     }
 
     @Test
-    public void testDisablePushDownLocalAgg() {
-        // disable push down local agg
-        tEnv().getConfig()
-                .set(
-                        OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED,
-                        false);
-
+    void testDisablePushDownLocalAgg() {
         checkResult(
                 "SELECT\n"
                         + "  avg(deposit) as avg_dep,\n"
@@ -145,7 +164,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "  count(1),\n"
                         + "  gender\n"
                         + "FROM\n"
-                        + "  AggregatableTable\n"
+                        + "  AggregatableTable_WithoutAggPushDown\n"
                         + "GROUP BY gender\n"
                         + "ORDER BY avg_dep",
                 JavaScalaConversionUtil.toScala(
@@ -154,7 +173,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     }
 
     @Test
-    public void testPushDownLocalHashAggWithoutGroup() {
+    void testPushDownLocalHashAggWithoutGroup() {
         checkResult(
                 "SELECT\n"
                         + "  avg(deposit),\n"
@@ -167,7 +186,47 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     }
 
     @Test
-    public void testPushDownLocalSortAggWithoutSort() {
+    public void testCanPushDownLocalHashAggForCount() {
+        checkResult(
+                "SELECT count(*) FROM AggregatableTable",
+                JavaScalaConversionUtil.toScala(Collections.singletonList(Row.of(11))),
+                false);
+    }
+
+    @Test
+    public void testCannotPushDownLocalHashAggForCountWithFilterCondition() {
+        checkResult(
+                "SELECT count(*) FROM AggregatableTable where id > 8",
+                JavaScalaConversionUtil.toScala(Collections.singletonList(Row.of(3))),
+                false);
+    }
+
+    @Test
+    public void testCanPushDownLocalHashAggForCount1() {
+        checkResult(
+                "SELECT count(1) FROM AggregatableTable",
+                JavaScalaConversionUtil.toScala(Collections.singletonList(Row.of(11))),
+                false);
+    }
+
+    @Test
+    public void testCanPushDownLocalHashAggForCountNullableColumn() {
+        checkResult(
+                "SELECT count(id) FROM AggregatableTable",
+                JavaScalaConversionUtil.toScala(Collections.singletonList(Row.of(11))),
+                false);
+    }
+
+    @Test
+    public void testCanPushDownLocalHashAggForCountNotNullColumn() {
+        checkResult(
+                "SELECT count(age) FROM AggregatableTable",
+                JavaScalaConversionUtil.toScala(Collections.singletonList(Row.of(11))),
+                false);
+    }
+
+    @Test
+    void testPushDownLocalSortAggWithoutSort() {
         // enable sort agg
         tEnv().getConfig().set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
 
@@ -183,7 +242,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     }
 
     @Test
-    public void testPushDownLocalSortAggWithSort() {
+    void testPushDownLocalSortAggWithSort() {
         // enable sort agg
         tEnv().getConfig().set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
 
@@ -210,7 +269,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     }
 
     @Test
-    public void testPushDownLocalAggAfterFilterPushDown() {
+    void testPushDownLocalAggAfterFilterPushDown() {
         checkResult(
                 "SELECT\n"
                         + "  avg(deposit),\n"
@@ -228,7 +287,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     }
 
     @Test
-    public void testPushDownLocalAggWithMetadata() {
+    void testPushDownLocalAggWithMetadata() {
         checkResult(
                 "SELECT\n"
                         + "  sum(metadata_1),\n"
@@ -246,7 +305,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     }
 
     @Test
-    public void testPushDownLocalAggWithPartition() {
+    void testPushDownLocalAggWithPartition() {
         checkResult(
                 "SELECT\n"
                         + "  sum(deposit),\n"
@@ -270,7 +329,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     }
 
     @Test
-    public void testPushDownLocalAggWithoutProjectionPushDown() {
+    void testPushDownLocalAggWithoutProjectionPushDown() {
         checkResult(
                 "SELECT\n"
                         + "  avg(deposit),\n"
@@ -288,10 +347,12 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     }
 
     @Test
-    public void testPushDownLocalAggWithoutAuxGrouping() {
+    void testPushDownLocalAggWithoutAuxGrouping() {
         // enable two-phase aggregate, otherwise there is no local aggregate
         tEnv().getConfig()
-                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE");
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+                        AggregatePhaseStrategy.TWO_PHASE);
 
         checkResult(
                 "SELECT\n"

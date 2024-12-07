@@ -38,12 +38,6 @@ import static org.apache.flink.configuration.description.TextElement.text;
 @ConfigGroups(groups = @ConfigGroup(name = "TaskManagerMemory", keyPrefix = "taskmanager.memory"))
 public class TaskManagerOptions {
 
-    /**
-     * @deprecated use {@link #MANAGED_MEMORY_CONSUMER_NAME_OPERATOR} and {@link
-     *     #MANAGED_MEMORY_CONSUMER_NAME_STATE_BACKEND} instead
-     */
-    @Deprecated public static final String MANAGED_MEMORY_CONSUMER_NAME_DATAPROC = "DATAPROC";
-
     public static final String MANAGED_MEMORY_CONSUMER_NAME_OPERATOR = "OPERATOR";
     public static final String MANAGED_MEMORY_CONSUMER_NAME_STATE_BACKEND = "STATE_BACKEND";
     public static final String MANAGED_MEMORY_CONSUMER_NAME_PYTHON = "PYTHON";
@@ -51,38 +45,6 @@ public class TaskManagerOptions {
     // ------------------------------------------------------------------------
     //  General TaskManager Options
     // ------------------------------------------------------------------------
-
-    /**
-     * JVM heap size for the TaskManagers with memory size.
-     *
-     * @deprecated use {@link #TOTAL_FLINK_MEMORY} for standalone setups and {@link
-     *     #TOTAL_PROCESS_MEMORY} for containerized setups.
-     */
-    @Deprecated
-    public static final ConfigOption<MemorySize> TASK_MANAGER_HEAP_MEMORY =
-            key("taskmanager.heap.size")
-                    .memoryType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "JVM heap size for the TaskManagers, which are the parallel workers of"
-                                    + " the system. On YARN setups, this value is automatically configured to the size of the TaskManager's"
-                                    + " YARN container, minus a certain tolerance value.");
-
-    /**
-     * JVM heap size (in megabytes) for the TaskManagers.
-     *
-     * @deprecated use {@link #TOTAL_FLINK_MEMORY} for standalone setups and {@link
-     *     #TOTAL_PROCESS_MEMORY} for containerized setups.
-     */
-    @Deprecated
-    public static final ConfigOption<Integer> TASK_MANAGER_HEAP_MEMORY_MB =
-            key("taskmanager.heap.mb")
-                    .intType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "JVM heap size (in megabytes) for the TaskManagers, which are the parallel workers of"
-                                    + " the system. On YARN setups, this value is automatically configured to the size of the TaskManager's"
-                                    + " YARN container, minus a certain tolerance value.");
 
     /** Whether to kill the TaskManager when the task thread throws an OutOfMemoryError. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
@@ -92,21 +54,6 @@ public class TaskManagerOptions {
                     .defaultValue(false)
                     .withDescription(
                             "Whether to kill the TaskManager when the task thread throws an OutOfMemoryError.");
-
-    /**
-     * Whether the quarantine monitor for task managers shall be started. The quarantine monitor
-     * shuts down the actor system if it detects that it has quarantined another actor system or if
-     * it has been quarantined by another actor system.
-     */
-    @Deprecated
-    public static final ConfigOption<Boolean> EXIT_ON_FATAL_AKKA_ERROR =
-            key("taskmanager.exit-on-fatal-akka-error")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "Whether the quarantine monitor for task managers shall be started. The quarantine monitor"
-                                    + " shuts down the actor system if it detects that it has quarantined another actor system"
-                                    + " or if it has been quarantined by another actor system.");
 
     /**
      * The external address of the network interface where the TaskManager is exposed. Overrides
@@ -126,6 +73,10 @@ public class TaskManagerOptions {
                                     + " additional non-shared TaskManager-specific config file.");
 
     /** The local address of the network interface that the task manager binds to. */
+    @Documentation.Section({
+        Documentation.Sections.COMMON_HOST_PORT,
+        Documentation.Sections.ALL_TASK_MANAGER
+    })
     public static final ConfigOption<String> BIND_HOST =
             key("taskmanager.bind-host")
                     .stringType()
@@ -152,6 +103,10 @@ public class TaskManagerOptions {
                                     + " range of ports to avoid collisions when multiple TaskManagers are running on the same machine.");
 
     /** The local port that the task manager binds to. */
+    @Documentation.Section({
+        Documentation.Sections.COMMON_HOST_PORT,
+        Documentation.Sections.ALL_TASK_MANAGER
+    })
     public static final ConfigOption<Integer> RPC_BIND_PORT =
             key("taskmanager.rpc.bind-port")
                     .intType()
@@ -162,52 +117,18 @@ public class TaskManagerOptions {
                                     + RPC_PORT.key()
                                     + "') will be used.");
 
-    /**
-     * The initial registration backoff between two consecutive registration attempts. The backoff
-     * is doubled for each new registration attempt until it reaches the maximum registration
-     * backoff.
-     *
-     * @deprecated use {@link ClusterOptions#INITIAL_REGISTRATION_TIMEOUT} instead
-     */
-    @Deprecated
-    public static final ConfigOption<Duration> INITIAL_REGISTRATION_BACKOFF =
-            key("taskmanager.registration.initial-backoff")
-                    .durationType()
-                    .defaultValue(TimeUtils.parseDuration("500 ms"))
-                    .withDeprecatedKeys("taskmanager.initial-registration-pause")
+    /** The default port that <code>CollectSinkFunction$ServerThread</code> is using. */
+    @Documentation.Section({
+        Documentation.Sections.COMMON_HOST_PORT,
+        Documentation.Sections.ALL_TASK_MANAGER
+    })
+    public static final ConfigOption<Integer> COLLECT_PORT =
+            key("taskmanager.collect-sink.port")
+                    .intType()
+                    .defaultValue(0)
                     .withDescription(
-                            "The initial registration backoff between two consecutive registration attempts. The backoff"
-                                    + " is doubled for each new registration attempt until it reaches the maximum registration backoff.");
-
-    /**
-     * The maximum registration backoff between two consecutive registration attempts.
-     *
-     * @deprecated use {@link ClusterOptions#MAX_REGISTRATION_TIMEOUT} instead
-     */
-    @Deprecated
-    public static final ConfigOption<Duration> REGISTRATION_MAX_BACKOFF =
-            key("taskmanager.registration.max-backoff")
-                    .durationType()
-                    .defaultValue(TimeUtils.parseDuration("30 s"))
-                    .withDeprecatedKeys("taskmanager.max-registration-pause")
-                    .withDescription(
-                            "The maximum registration backoff between two consecutive registration attempts. The max"
-                                    + " registration backoff requires a time unit specifier (ms/s/min/h/d).");
-
-    /**
-     * The backoff after a registration has been refused by the job manager before retrying to
-     * connect.
-     *
-     * @deprecated use {@link ClusterOptions#REFUSED_REGISTRATION_DELAY} instead
-     */
-    @Deprecated
-    public static final ConfigOption<Duration> REFUSED_REGISTRATION_BACKOFF =
-            key("taskmanager.registration.refused-backoff")
-                    .durationType()
-                    .defaultValue(TimeUtils.parseDuration("10 s"))
-                    .withDeprecatedKeys("taskmanager.refused-registration-pause")
-                    .withDescription(
-                            "The backoff after a registration has been refused by the job manager before retrying to connect.");
+                            "The port used for the client to retrieve query results from the TaskManager. "
+                                    + "The default value is 0, which corresponds to a random port assignment.");
 
     /**
      * Defines the timeout it can take for the TaskManager registration. If the duration is exceeded
@@ -242,15 +163,15 @@ public class TaskManagerOptions {
     public static final ConfigOption<Duration> SLOT_TIMEOUT =
             key("taskmanager.slot.timeout")
                     .durationType()
-                    .defaultValue(AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue())
-                    .withFallbackKeys(AkkaOptions.ASK_TIMEOUT_DURATION.key())
+                    .defaultValue(RpcOptions.ASK_TIMEOUT_DURATION.defaultValue())
+                    .withFallbackKeys(RpcOptions.ASK_TIMEOUT_DURATION.key())
                     .withDescription(
                             Description.builder()
                                     .text(
                                             "Timeout used for identifying inactive slots. The TaskManager will free the slot if it does not become active "
                                                     + "within the given amount of time. Inactive slots can be caused by an out-dated slot request. If no "
                                                     + "value is configured, then it will fall back to %s.",
-                                            code(AkkaOptions.ASK_TIMEOUT_DURATION.key()))
+                                            code(RpcOptions.ASK_TIMEOUT_DURATION.key()))
                                     .build());
 
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
@@ -263,13 +184,13 @@ public class TaskManagerOptions {
                             "Flag indicating whether to start a thread, which repeatedly logs the memory usage of the JVM.");
 
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
-    public static final ConfigOption<Long> DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS =
+    public static final ConfigOption<Duration> DEBUG_MEMORY_USAGE_LOG_INTERVAL_MS =
             key("taskmanager.debug.memory.log-interval")
-                    .longType()
-                    .defaultValue(5000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(5000L))
                     .withDeprecatedKeys("taskmanager.debug.memory.logIntervalMs")
                     .withDescription(
-                            "The interval (in ms) for the log thread to log the current memory usage.");
+                            "The interval for the log thread to log the current memory usage.");
 
     // ------------------------------------------------------------------------
     //  Managed Memory Options
@@ -293,6 +214,16 @@ public class TaskManagerOptions {
                     .withDescription(
                             "Minimum possible size of memory buffers used by the network stack and the memory manager. "
                                     + "ex. can be used for automatic buffer size adjustment.");
+
+    /** Starting size of memory buffers used by the network stack and the memory manager. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<MemorySize> STARTING_MEMORY_SEGMENT_SIZE =
+            key("taskmanager.memory.starting-segment-size")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("1024"))
+                    .withDescription(
+                            "Starting size of memory buffers used by the network stack and the memory manager, "
+                                    + "when using automatic buffer size adjustment.");
 
     /**
      * The config parameter for automatically defining the TaskManager's binding address, if {@link
@@ -490,8 +421,7 @@ public class TaskManagerOptions {
             key("taskmanager.memory.network.min")
                     .memoryType()
                     .defaultValue(MemorySize.parse("64m"))
-                    .withDeprecatedKeys(
-                            NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN.key())
+                    .withDeprecatedKeys("taskmanager.network.memory.min")
                     .withDescription(
                             "Min Network Memory size for TaskExecutors. Network Memory is off-heap memory reserved for"
                                     + " ShuffleEnvironment (e.g., network buffers). Network Memory size is derived to make up the configured"
@@ -506,8 +436,7 @@ public class TaskManagerOptions {
             key("taskmanager.memory.network.max")
                     .memoryType()
                     .defaultValue(MemorySize.MAX_VALUE)
-                    .withDeprecatedKeys(
-                            NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key())
+                    .withDeprecatedKeys("taskmanager.network.memory.max")
                     .withDescription(
                             "Max Network Memory size for TaskExecutors. Network Memory is off-heap memory reserved for"
                                     + " ShuffleEnvironment (e.g., network buffers). Network Memory size is derived to make up the configured"
@@ -521,8 +450,7 @@ public class TaskManagerOptions {
             key("taskmanager.memory.network.fraction")
                     .floatType()
                     .defaultValue(0.1f)
-                    .withDeprecatedKeys(
-                            NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key())
+                    .withDeprecatedKeys("taskmanager.network.memory.fraction")
                     .withDescription(
                             "Fraction of Total Flink Memory to be used as Network Memory. Network Memory is off-heap"
                                     + " memory reserved for ShuffleEnvironment (e.g., network buffers). Network Memory size is derived to"
@@ -659,13 +587,13 @@ public class TaskManagerOptions {
 
     /** Time interval in milliseconds between two successive task cancellation attempts. */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
-    public static final ConfigOption<Long> TASK_CANCELLATION_INTERVAL =
+    public static final ConfigOption<Duration> TASK_CANCELLATION_INTERVAL =
             key("task.cancellation.interval")
-                    .longType()
-                    .defaultValue(30000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(30000L))
                     .withDeprecatedKeys("task.cancellation-interval")
                     .withDescription(
-                            "Time interval between two successive task cancellation attempts in milliseconds.");
+                            "Time interval between two successive task cancellation attempts.");
 
     /**
      * Timeout in milliseconds after which a task cancellation times out and leads to a fatal
@@ -675,30 +603,159 @@ public class TaskManagerOptions {
      * by a task failure or a clean shutdown.
      */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
-    public static final ConfigOption<Long> TASK_CANCELLATION_TIMEOUT =
+    public static final ConfigOption<Duration> TASK_CANCELLATION_TIMEOUT =
             key("task.cancellation.timeout")
-                    .longType()
-                    .defaultValue(180000L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(180000L))
                     .withDescription(
-                            "Timeout in milliseconds after which a task cancellation times out and"
+                            "Timeout after which a task cancellation times out and"
                                     + " leads to a fatal TaskManager error. A value of 0 deactivates"
                                     + " the watch dog. Notice that a task cancellation is different from"
                                     + " both a task failure and a clean shutdown. "
                                     + " Task cancellation timeout only applies to task cancellation and does not apply to"
                                     + " task closing/clean-up caused by a task failure or a clean shutdown.");
+
     /**
      * This configures how long we wait for the timers in milliseconds to finish all pending timer
      * threads when the stream task is cancelled.
      */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
-    public static final ConfigOption<Long> TASK_CANCELLATION_TIMEOUT_TIMERS =
+    public static final ConfigOption<Duration> TASK_CANCELLATION_TIMEOUT_TIMERS =
             ConfigOptions.key("task.cancellation.timers.timeout")
-                    .longType()
-                    .defaultValue(7500L)
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(7500L))
                     .withDeprecatedKeys("timerservice.exceptional.shutdown.timeout")
                     .withDescription(
-                            "Time we wait for the timers in milliseconds to finish all pending timer threads"
+                            "Time we wait for the timers to finish all pending timer threads"
                                     + " when the stream task is cancelled.");
+
+    /** This configures how to redirect the {@link System#out} and {@link System#err}. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<SystemOutMode> TASK_MANAGER_SYSTEM_OUT_MODE =
+            ConfigOptions.key("taskmanager.system-out.mode")
+                    .enumType(SystemOutMode.class)
+                    .defaultValue(SystemOutMode.DEFAULT)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Redirection mode of %s and %s for all %s.",
+                                            code("System.out"),
+                                            code("System.err"),
+                                            code("TaskManagers"))
+                                    .list(
+                                            text(
+                                                    "%s: %s don't redirect the %s and %s, it's the default value.",
+                                                    code(SystemOutMode.DEFAULT.name()),
+                                                    code("TaskManagers"),
+                                                    code("System.out"),
+                                                    code("System.err")),
+                                            text(
+                                                    "%s: %s redirect %s and %s to LOG.info and LOG.error.",
+                                                    code(SystemOutMode.LOG.name()),
+                                                    code("TaskManagers"),
+                                                    code("System.out"),
+                                                    code("System.err")),
+                                            text(
+                                                    "%s: %s ignore %s and %s directly.",
+                                                    code(SystemOutMode.IGNORE.name()),
+                                                    code("TaskManagers"),
+                                                    code("System.out"),
+                                                    code("System.err")))
+                                    .build());
+
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<Boolean> TASK_MANAGER_SYSTEM_OUT_LOG_THREAD_NAME =
+            ConfigOptions.key("taskmanager.system-out.log.thread-name.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Whether to log the thread name when %s is LOG.",
+                                            code(TASK_MANAGER_SYSTEM_OUT_MODE.key()))
+                                    .build());
+
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<MemorySize> TASK_MANAGER_SYSTEM_OUT_LOG_CACHE_SIZE =
+            ConfigOptions.key("taskmanager.system-out.log.cache-upper-size")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("100 kb"))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The cache upper size when Flink caches current line context "
+                                                    + "of %s or %s when %s is LOG.",
+                                            code("System.out"),
+                                            code("System.err"),
+                                            code(TASK_MANAGER_SYSTEM_OUT_MODE.key()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_TASK_MANAGER
+    })
+    public static final ConfigOption<TaskManagerLoadBalanceMode> TASK_MANAGER_LOAD_BALANCE_MODE =
+            ConfigOptions.key("taskmanager.load-balance.mode")
+                    .enumType(TaskManagerLoadBalanceMode.class)
+                    .defaultValue(TaskManagerLoadBalanceMode.NONE)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Mode for the load-balance allocation strategy across all available %s.",
+                                            code("TaskManagers"))
+                                    .list(
+                                            text(
+                                                    "The %s mode tries to spread out the slots evenly across all available %s.",
+                                                    code(TaskManagerLoadBalanceMode.SLOTS.name()),
+                                                    code("TaskManagers")),
+                                            text(
+                                                    "The %s mode is the default mode without any specified strategy.",
+                                                    code(TaskManagerLoadBalanceMode.NONE.name())))
+                                    .build());
+
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    @Documentation.OverrideDefault("System.getProperty(\"log.file\")")
+    public static final ConfigOption<String> TASK_MANAGER_LOG_PATH =
+            ConfigOptions.key("taskmanager.log.path")
+                    .stringType()
+                    .defaultValue(System.getProperty("log.file"))
+                    .withDescription("The path to the log file of the task manager.");
+
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<Duration> FS_STREAM_OPENING_TIME_OUT =
+            ConfigOptions.key("taskmanager.runtime.fs-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ZERO)
+                    .withDeprecatedKeys("taskmanager.runtime.fs_timeout")
+                    .withDescription(
+                            "The timeout for filesystem stream opening. A value of 0 indicates infinite waiting.");
+
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<Integer> MINI_CLUSTER_NUM_TASK_MANAGERS =
+            ConfigOptions.key("minicluster.number-of-taskmanagers")
+                    .intType()
+                    .defaultValue(1)
+                    .withDeprecatedKeys("local.number-taskmanager")
+                    .withDescription("The number of task managers of MiniCluster.");
+
+    /** Type of redirection of {@link System#out} and {@link System#err}. */
+    public enum SystemOutMode {
+
+        /** Don't change the {@link System#out} and {@link System#err}, it's the default value. */
+        DEFAULT,
+
+        /** Redirect all {@link System#out} and {@link System#err} to LOG. */
+        LOG,
+
+        /** Ignore all {@link System#out} and {@link System#err} directly. */
+        IGNORE
+    }
+
+    /** Type of {@link TaskManagerOptions#TASK_MANAGER_LOAD_BALANCE_MODE}. */
+    public enum TaskManagerLoadBalanceMode {
+        NONE,
+        SLOTS
+    }
 
     // ------------------------------------------------------------------------
 

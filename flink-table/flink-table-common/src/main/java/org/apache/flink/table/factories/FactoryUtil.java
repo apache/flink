@@ -38,6 +38,7 @@ import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.legacy.factories.TableFactory;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.watermark.WatermarkEmitStrategy;
@@ -120,6 +121,15 @@ public final class FactoryUtil {
                     .defaultValues("rest")
                     .withDescription("Specify the endpoints that are used.");
 
+    public static final ConfigOption<Integer> SOURCE_PARALLELISM =
+            ConfigOptions.key("scan.parallelism")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Defines a custom parallelism for the source. "
+                                    + "By default, if this option is not defined, the planner will derive the parallelism "
+                                    + "for each statement individually by also considering the global configuration.");
+
     public static final ConfigOption<WatermarkEmitStrategy> WATERMARK_EMIT_STRATEGY =
             ConfigOptions.key("scan.watermark.emit.strategy")
                     .enumType(WatermarkEmitStrategy.class)
@@ -157,6 +167,13 @@ public final class FactoryUtil {
                                     + "it will be marked as temporarily idle. This allows downstream "
                                     + "tasks to advance their watermarks without the need to wait for "
                                     + "watermarks from this source while it is idle.");
+
+    public static final ConfigOption<String> WORKFLOW_SCHEDULER_TYPE =
+            ConfigOptions.key("workflow-scheduler.type")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Specify the workflow scheduler type that is used for materialized table.");
 
     /**
      * Suffix for keys of {@link ConfigOption} in case a connector requires multiple formats (e.g.
@@ -230,63 +247,6 @@ public final class FactoryUtil {
     }
 
     /**
-     * @deprecated Use {@link #createDynamicTableSource(DynamicTableSourceFactory, ObjectIdentifier,
-     *     ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)}
-     */
-    @Deprecated
-    public static DynamicTableSource createDynamicTableSource(
-            @Nullable DynamicTableSourceFactory preferredFactory,
-            ObjectIdentifier objectIdentifier,
-            ResolvedCatalogTable catalogTable,
-            ReadableConfig configuration,
-            ClassLoader classLoader,
-            boolean isTemporary) {
-        return createDynamicTableSource(
-                preferredFactory,
-                objectIdentifier,
-                catalogTable,
-                Collections.emptyMap(),
-                configuration,
-                classLoader,
-                isTemporary);
-    }
-
-    /**
-     * Creates a {@link DynamicTableSource} from a {@link CatalogTable}.
-     *
-     * <p>It considers {@link Catalog#getFactory()} if provided.
-     *
-     * @deprecated Use {@link #createDynamicTableSource(DynamicTableSourceFactory, ObjectIdentifier,
-     *     ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)} instead.
-     */
-    @Deprecated
-    public static DynamicTableSource createTableSource(
-            @Nullable Catalog catalog,
-            ObjectIdentifier objectIdentifier,
-            ResolvedCatalogTable catalogTable,
-            ReadableConfig configuration,
-            ClassLoader classLoader,
-            boolean isTemporary) {
-        final DefaultDynamicTableContext context =
-                new DefaultDynamicTableContext(
-                        objectIdentifier,
-                        catalogTable,
-                        Collections.emptyMap(),
-                        configuration,
-                        classLoader,
-                        isTemporary);
-
-        return createDynamicTableSource(
-                getDynamicTableFactory(DynamicTableSourceFactory.class, catalog, context),
-                objectIdentifier,
-                catalogTable,
-                Collections.emptyMap(),
-                configuration,
-                classLoader,
-                isTemporary);
-    }
-
-    /**
      * Creates a {@link DynamicTableSink} from a {@link CatalogTable}.
      *
      * <p>If {@param preferredFactory} is passed, the table sink is created from that factory.
@@ -330,63 +290,6 @@ public final class FactoryUtil {
                                     .collect(Collectors.joining("\n"))),
                     t);
         }
-    }
-
-    /**
-     * @deprecated Use {@link #createDynamicTableSink(DynamicTableSinkFactory, ObjectIdentifier,
-     *     ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)}
-     */
-    @Deprecated
-    public static DynamicTableSink createDynamicTableSink(
-            @Nullable DynamicTableSinkFactory preferredFactory,
-            ObjectIdentifier objectIdentifier,
-            ResolvedCatalogTable catalogTable,
-            ReadableConfig configuration,
-            ClassLoader classLoader,
-            boolean isTemporary) {
-        return createDynamicTableSink(
-                preferredFactory,
-                objectIdentifier,
-                catalogTable,
-                Collections.emptyMap(),
-                configuration,
-                classLoader,
-                isTemporary);
-    }
-
-    /**
-     * Creates a {@link DynamicTableSink} from a {@link CatalogTable}.
-     *
-     * <p>It considers {@link Catalog#getFactory()} if provided.
-     *
-     * @deprecated Use {@link #createDynamicTableSink(DynamicTableSinkFactory, ObjectIdentifier,
-     *     ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)} instead.
-     */
-    @Deprecated
-    public static DynamicTableSink createTableSink(
-            @Nullable Catalog catalog,
-            ObjectIdentifier objectIdentifier,
-            ResolvedCatalogTable catalogTable,
-            ReadableConfig configuration,
-            ClassLoader classLoader,
-            boolean isTemporary) {
-        final DefaultDynamicTableContext context =
-                new DefaultDynamicTableContext(
-                        objectIdentifier,
-                        catalogTable,
-                        Collections.emptyMap(),
-                        configuration,
-                        classLoader,
-                        isTemporary);
-
-        return createDynamicTableSink(
-                getDynamicTableFactory(DynamicTableSinkFactory.class, catalog, context),
-                objectIdentifier,
-                catalogTable,
-                Collections.emptyMap(),
-                configuration,
-                classLoader,
-                isTemporary);
     }
 
     /**
@@ -576,10 +479,10 @@ public final class FactoryUtil {
      * Discovers a factory using the given factory base class and identifier.
      *
      * <p>This method is meant for cases where {@link #createTableFactoryHelper(DynamicTableFactory,
-     * DynamicTableFactory.Context)} {@link #createTableSource(Catalog, ObjectIdentifier,
-     * ResolvedCatalogTable, ReadableConfig, ClassLoader, boolean)}, and {@link
-     * #createTableSink(Catalog, ObjectIdentifier, ResolvedCatalogTable, ReadableConfig,
-     * ClassLoader, boolean)} are not applicable.
+     * DynamicTableFactory.Context)} {@link #createDynamicTableSource(DynamicTableSourceFactory,
+     * ObjectIdentifier, ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)}, and
+     * {@link #createDynamicTableSink(DynamicTableSinkFactory, ObjectIdentifier,
+     * ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)} are not applicable.
      */
     @SuppressWarnings("unchecked")
     public static <T extends Factory> T discoverFactory(
@@ -894,7 +797,7 @@ public final class FactoryUtil {
         return loadResults;
     }
 
-    private static String stringifyOption(String key, String value) {
+    public static String stringifyOption(String key, String value) {
         if (GlobalConfiguration.isSensitive(key)) {
             value = HIDDEN_CONTENT;
         }

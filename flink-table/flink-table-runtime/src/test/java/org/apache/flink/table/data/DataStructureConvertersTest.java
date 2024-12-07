@@ -30,11 +30,8 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
@@ -89,11 +86,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link DataStructureConverters}. */
-@RunWith(Parameterized.class)
-public class DataStructureConvertersTest {
+class DataStructureConvertersTest {
 
-    @Parameters(name = "{index}: {0}")
-    public static List<TestSpec> testData() {
+    static List<TestSpec> testData() {
         // ordered by definition in DataStructureConverters
         return asList(
                 TestSpec.forDataType(CHAR(5))
@@ -195,14 +190,6 @@ public class DataStructureConvertersTest {
                                         Arrays.asList(
                                                 1, 2, 3,
                                                 4))), // test List that is not backed by an array
-
-                // test for Array with default conversion class
-                TestSpec.forDataType(ARRAY(INT().notNull()))
-                        .disableBridging()
-                        .convertedTo(int[].class, new int[] {1, 2, 3, 4}),
-                TestSpec.forDataType(ARRAY(INT()))
-                        .disableBridging()
-                        .convertedTo(Integer[].class, new Integer[] {1, 2, 3, 4}),
 
                 // arrays of TINYINT, SMALLINT, INTEGER, BIGINT, FLOAT, DOUBLE are skipped for
                 // simplicity
@@ -371,19 +358,14 @@ public class DataStructureConvertersTest {
                                 GenericPojo.class, new GenericPojo<>(LocalDate.ofEpochDay(123))));
     }
 
-    @Parameter public TestSpec testSpec;
-
-    @Test
-    public void testConversions() {
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("testData")
+    void testConversions(final TestSpec testSpec) {
         for (Map.Entry<Class<?>, Object> from : testSpec.conversions.entrySet()) {
-            DataType fromDataType = testSpec.dataType;
-            if (testSpec.bridgeToTargetClass) {
-                fromDataType = testSpec.dataType.bridgedTo(from.getKey());
-            }
+            final DataType fromDataType = testSpec.dataType.bridgedTo(from.getKey());
 
             if (testSpec.expectedErrorMessage != null) {
-                final DataType type = fromDataType;
-                assertThatThrownBy(() -> DataStructureConverters.getConverter(type))
+                assertThatThrownBy(() -> DataStructureConverters.getConverter(fromDataType))
                         .isInstanceOf(TableException.class)
                         .hasMessage(testSpec.expectedErrorMessage);
             } else {
@@ -426,8 +408,6 @@ public class DataStructureConvertersTest {
 
         private final Map<Class<?>, Object> conversionsWithAnotherValue;
 
-        private boolean bridgeToTargetClass;
-
         private @Nullable String expectedErrorMessage;
 
         private TestSpec(String description, DataType dataType) {
@@ -435,7 +415,6 @@ public class DataStructureConvertersTest {
             this.dataType = dataType;
             this.conversions = new LinkedHashMap<>();
             this.conversionsWithAnotherValue = new LinkedHashMap<>();
-            this.bridgeToTargetClass = true;
         }
 
         static TestSpec forDataType(AbstractDataType<?> dataType) {
@@ -465,11 +444,6 @@ public class DataStructureConvertersTest {
 
         TestSpec expectErrorMessage(String expectedErrorMessage) {
             this.expectedErrorMessage = expectedErrorMessage;
-            return this;
-        }
-
-        TestSpec disableBridging() {
-            this.bridgeToTargetClass = false;
             return this;
         }
 

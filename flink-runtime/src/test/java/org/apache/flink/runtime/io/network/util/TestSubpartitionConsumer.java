@@ -126,7 +126,7 @@ public class TestSubpartitionConsumer implements Callable<Boolean>, BufferAvaila
     }
 
     @Override
-    public void notifyDataAvailable() {
+    public void notifyDataAvailable(ResultSubpartitionView view) {
         synchronized (dataAvailableNotification) {
             dataAvailableNotification.set(true);
             dataAvailableNotification.notifyAll();

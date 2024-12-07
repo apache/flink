@@ -19,14 +19,17 @@
 package org.apache.flink.runtime.rest.messages.job.savepoints;
 
 import org.apache.flink.runtime.rest.messages.RestRequestMarshallingTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
 
-import org.hamcrest.Matchers;
-import org.junit.Assert;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests the un/marshalling of the {@link SavepointDisposalRequest}. */
-public class SavepointDisposalRequestTest
+@ExtendWith(NoOpTestExtension.class)
+class SavepointDisposalRequestTest
         extends RestRequestMarshallingTestBase<SavepointDisposalRequest> {
 
     @Override
@@ -42,8 +45,6 @@ public class SavepointDisposalRequestTest
     @Override
     protected void assertOriginalEqualsToUnmarshalled(
             SavepointDisposalRequest expected, SavepointDisposalRequest actual) {
-        Assert.assertThat(
-                actual.getSavepointPath(),
-                Matchers.is(Matchers.equalTo(expected.getSavepointPath())));
+        assertThat(actual.getSavepointPath()).isEqualTo(expected.getSavepointPath());
     }
 }

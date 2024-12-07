@@ -31,6 +31,10 @@ under the License.
 因此，窗口 Top-N 适用于用户不需要每条数据都更新Top-N结果的场景，相对普通Top-N来说性能更好。通常，窗口 Top-N 直接用于 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})上。
 另外，窗口 Top-N 可以用于基于 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 的操作之上，比如 [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})，[窗口 Top-N]({{< ref "docs/dev/table/sql/queries/window-topn">}}) 和 [窗口关联]({{< ref "docs/dev/table/sql/queries/window-join">}})。
 
+{{< hint info >}}
+注意：`SESSION` 窗口 Top-N 目前不支持批模式。
+{{< /hint >}}
+
 窗口 Top-N 的语法和普通的 Top-N 相同，更多信息参见：[Top-N 文档]({{< ref "docs/dev/table/sql/queries/topn" >}})。
 除此之外，窗口 Top-N 需要 `PARTITION BY` 子句包含 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 或 [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}}) 产生的 `window_start` 和 `window_end`。
 否则优化器无法翻译。
@@ -86,8 +90,7 @@ Flink SQL> SELECT *
     SELECT *, ROW_NUMBER() OVER (PARTITION BY window_start, window_end ORDER BY price DESC) as rownum
     FROM (
       SELECT window_start, window_end, supplier_id, SUM(price) as price, COUNT(*) as cnt
-      FROM TABLE(
-        TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
+      FROM TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES)
       GROUP BY window_start, window_end, supplier_id
     )
   ) WHERE rownum <= 3;
@@ -113,8 +116,7 @@ Flink SQL> SELECT *
 Flink SQL> SELECT *
   FROM (
     SELECT *, ROW_NUMBER() OVER (PARTITION BY window_start, window_end ORDER BY price DESC) as rownum
-    FROM TABLE(
-               TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
+    FROM TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES)
   ) WHERE rownum <= 3;
 +------------------+-------+------+-------------+------------------+------------------+--------+
 |          bidtime | price | item | supplier_id |     window_start |       window_end | rownum |

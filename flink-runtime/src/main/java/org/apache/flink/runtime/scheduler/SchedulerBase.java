@@ -22,6 +22,8 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.JobInfoImpl;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
@@ -41,9 +43,12 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.DefaultCheckpointStatsTracker;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
@@ -60,7 +65,7 @@ import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.JobStatusProvider;
 import org.apache.flink.runtime.executiongraph.MarkPartitionFinishedStrategy;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
-import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
+import org.apache.flink.runtime.executiongraph.failover.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.executiongraph.metrics.DownTimeGauge;
 import org.apache.flink.runtime.executiongraph.metrics.UpTimeGauge;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -75,7 +80,6 @@ import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
-import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
@@ -109,6 +113,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -125,7 +130,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static org.apache.flink.runtime.executiongraph.ExecutionGraphUtils.isAnyOutputBlocking;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** Base class which can be used to implement {@link SchedulerNG}. */
 public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling {
@@ -133,6 +140,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     private final Logger log;
 
     private final JobGraph jobGraph;
+
+    protected final JobInfo jobInfo;
 
     private final ExecutionGraph executionGraph;
 
@@ -162,6 +171,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
     private final BoundedFIFOQueue<RootExceptionHistoryEntry> exceptionHistory;
 
+    private RootExceptionHistoryEntry latestRootExceptionEntry;
+
     private final ExecutionGraphFactory executionGraphFactory;
 
     private final MetricOptions.JobStatusMetricsSettings jobStatusMetricsSettings;
@@ -188,6 +199,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
         this.log = checkNotNull(log);
         this.jobGraph = checkNotNull(jobGraph);
+        this.jobInfo = new JobInfoImpl(jobGraph.getJobID(), jobGraph.getName());
         this.executionGraphFactory = executionGraphFactory;
 
         this.jobManagerJobMetricGroup = checkNotNull(jobManagerJobMetricGroup);
@@ -211,11 +223,20 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         this.deploymentStateTimeMetrics =
                 new DeploymentStateTimeMetrics(jobGraph.getJobType(), jobStatusMetricsSettings);
 
+        final CheckpointStatsTracker checkpointStatsTracker =
+                SchedulerUtils.createCheckpointStatsTrackerIfCheckpointingIsEnabled(
+                        jobGraph,
+                        () ->
+                                new DefaultCheckpointStatsTracker(
+                                        jobMasterConfiguration.get(
+                                                WebOptions.CHECKPOINTS_HISTORY_SIZE),
+                                        jobManagerJobMetricGroup));
         this.executionGraph =
                 createAndRestoreExecutionGraph(
                         completedCheckpointStore,
                         checkpointsCleaner,
                         checkpointIdCounter,
+                        checkpointStatsTracker,
                         initializationTimestamp,
                         mainThreadExecutor,
                         jobStatusListener,
@@ -239,7 +260,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
 
         this.exceptionHistory =
                 new BoundedFIFOQueue<>(
-                        jobMasterConfiguration.getInteger(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
+                        jobMasterConfiguration.get(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
 
         this.vertexEndOfDataListener = new VertexEndOfDataListener(executionGraph);
     }
@@ -362,6 +383,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
             CompletedCheckpointStore completedCheckpointStore,
             CheckpointsCleaner checkpointsCleaner,
             CheckpointIDCounter checkpointIdCounter,
+            CheckpointStatsTracker checkpointStatsTracker,
             long initializationTimestamp,
             ComponentMainThreadExecutor mainThreadExecutor,
             JobStatusListener jobStatusListener,
@@ -374,6 +396,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                         completedCheckpointStore,
                         checkpointsCleaner,
                         checkpointIdCounter,
+                        checkpointStatsTracker,
                         TaskDeploymentDescriptorFactory.PartitionLocationConstraint.fromJobType(
                                 jobGraph.getJobType()),
                         initializationTimestamp,
@@ -637,7 +660,6 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
         metrics.gauge(DownTimeGauge.METRIC_NAME, new DownTimeGauge(jobStatusProvider));
         metrics.gauge(UpTimeGauge.METRIC_NAME, new UpTimeGauge(jobStatusProvider));
         metrics.gauge(MetricNames.NUM_RESTARTS, numberOfRestarts::getValue);
-        metrics.gauge(MetricNames.FULL_RESTARTS, numberOfRestarts::getValue);
 
         final JobStatusMetrics jobStatusMetrics =
                 new JobStatusMetrics(initializationTimestamp, jobStatusMetricsSettings);
@@ -702,27 +724,40 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
             long timestamp,
             CompletableFuture<Map<String, String>> failureLabels,
             Iterable<Execution> executions) {
-        exceptionHistory.add(
+        latestRootExceptionEntry =
                 RootExceptionHistoryEntry.fromGlobalFailure(
-                        failure, timestamp, failureLabels, executions));
+                        failure, timestamp, failureLabels, executions);
+        exceptionHistory.add(latestRootExceptionEntry);
         log.debug("Archive global failure.", failure);
     }
 
     protected final void archiveFromFailureHandlingResult(
             FailureHandlingResultSnapshot failureHandlingResult) {
-        if (failureHandlingResult.getRootCauseExecution().isPresent()) {
+        if (!failureHandlingResult.isRootCause()) {
+            // Handle all subsequent exceptions as the concurrent exceptions when it's not a new
+            // attempt.
+            checkState(
+                    latestRootExceptionEntry != null,
+                    "A root exception entry should exist if failureHandlingResult wasn't "
+                            + "generated as part of a new error handling cycle.");
+            List<Execution> concurrentlyExecutions = new ArrayList<>();
+            failureHandlingResult.getRootCauseExecution().ifPresent(concurrentlyExecutions::add);
+            concurrentlyExecutions.addAll(failureHandlingResult.getConcurrentlyFailedExecution());
+
+            latestRootExceptionEntry.addConcurrentExceptions(concurrentlyExecutions);
+        } else if (failureHandlingResult.getRootCauseExecution().isPresent()) {
             final Execution rootCauseExecution =
                     failureHandlingResult.getRootCauseExecution().get();
 
-            final RootExceptionHistoryEntry rootEntry =
+            latestRootExceptionEntry =
                     RootExceptionHistoryEntry.fromFailureHandlingResultSnapshot(
                             failureHandlingResult);
-            exceptionHistory.add(rootEntry);
+            exceptionHistory.add(latestRootExceptionEntry);
 
             log.debug(
                     "Archive local failure causing attempt {} to fail: {}",
                     rootCauseExecution.getAttemptId(),
-                    rootEntry.getExceptionAsString());
+                    latestRootExceptionEntry.getExceptionAsString());
         } else {
             archiveGlobalFailure(
                     failureHandlingResult.getRootCause(),
@@ -733,8 +768,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     }
 
     @Override
-    public final boolean updateTaskExecutionState(
-            final TaskExecutionStateTransition taskExecutionState) {
+    public boolean updateTaskExecutionState(final TaskExecutionStateTransition taskExecutionState) {
 
         final ExecutionAttemptID attemptId = taskExecutionState.getID();
         final Execution execution = executionGraph.getRegisteredExecutions().get(attemptId);
@@ -814,12 +848,6 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     }
 
     @Override
-    public JobDetails requestJobDetails() {
-        mainThreadExecutor.assertRunningInMainThread();
-        return JobDetails.createDetailsForJob(executionGraph);
-    }
-
-    @Override
     public KvStateLocation requestKvStateLocation(final JobID jobId, final String registrationName)
             throws UnknownKvStateLocation, FlinkJobNotFoundException {
         mainThreadExecutor.assertRunningInMainThread();
@@ -873,6 +901,14 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
             final boolean cancelJob,
             final SavepointFormatType formatType) {
         mainThreadExecutor.assertRunningInMainThread();
+
+        if (isAnyOutputBlocking(executionGraph)) {
+            // TODO: Introduce a more general solution to mark times when
+            //  checkpoints are disabled, as well as the detailed reason.
+            //  https://issues.apache.org/jira/browse/FLINK-34519
+            return FutureUtils.completedExceptionally(
+                    new CheckpointException(CheckpointFailureReason.BLOCKING_OUTPUT_EXIST));
+        }
 
         final CheckpointCoordinator checkpointCoordinator =
                 executionGraph.getCheckpointCoordinator();
@@ -987,11 +1023,25 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     }
 
     @Override
+    public void reportInitializationMetrics(
+            JobID jobId,
+            ExecutionAttemptID executionAttemptId,
+            SubTaskInitializationMetrics initializationMetrics) {
+        executionGraphHandler.reportInitializationMetrics(
+                executionAttemptId, initializationMetrics);
+    }
+
+    @Override
     public CompletableFuture<String> stopWithSavepoint(
             @Nullable final String targetDirectory,
             final boolean terminate,
             final SavepointFormatType formatType) {
         mainThreadExecutor.assertRunningInMainThread();
+
+        if (isAnyOutputBlocking(executionGraph)) {
+            return FutureUtils.completedExceptionally(
+                    new CheckpointException(CheckpointFailureReason.BLOCKING_OUTPUT_EXIST));
+        }
 
         final CheckpointCoordinator checkpointCoordinator =
                 executionGraph.getCheckpointCoordinator();
@@ -1106,7 +1156,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     // ------------------------------------------------------------------------
 
     @VisibleForTesting
-    JobID getJobId() {
+    protected JobID getJobId() {
         return jobGraph.getJobID();
     }
 

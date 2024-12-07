@@ -86,7 +86,7 @@ public class MetricRegistryConfiguration {
 
         char delim;
         try {
-            delim = configuration.getString(MetricOptions.SCOPE_DELIMITER).charAt(0);
+            delim = configuration.get(MetricOptions.SCOPE_DELIMITER).charAt(0);
         } catch (Exception e) {
             LOG.warn("Failed to parse delimiter, using default delimiter.", e);
             delim = '.';

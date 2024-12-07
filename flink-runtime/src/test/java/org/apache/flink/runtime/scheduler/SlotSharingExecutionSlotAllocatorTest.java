@@ -18,12 +18,12 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfileTestingUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingPayload;
@@ -38,6 +38,7 @@ import org.apache.flink.util.function.BiConsumerWithException;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -60,7 +61,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test suite for {@link SlotSharingExecutionSlotAllocator}. */
 class SlotSharingExecutionSlotAllocatorTest {
-    private static final Time ALLOCATION_TIMEOUT = Time.milliseconds(100L);
+    private static final Duration ALLOCATION_TIMEOUT = Duration.ofMillis(100L);
     private static final ResourceProfile RESOURCE_PROFILE = ResourceProfile.fromResources(3, 5);
 
     private static final ExecutionVertexID EV1 = createRandomExecutionVertexId();
@@ -642,9 +643,10 @@ class SlotSharingExecutionSlotAllocatorTest {
                     new HashMap<>();
             for (Map.Entry<ExecutionVertexID[], ResourceProfile> groupAndResource :
                     groupAndResources.entrySet()) {
+                SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+                slotSharingGroup.setResourceProfile(groupAndResource.getValue());
                 ExecutionSlotSharingGroup executionSlotSharingGroup =
-                        new ExecutionSlotSharingGroup();
-                executionSlotSharingGroup.setResourceProfile(groupAndResource.getValue());
+                        new ExecutionSlotSharingGroup(slotSharingGroup);
                 for (ExecutionVertexID executionVertexId : groupAndResource.getKey()) {
                     executionSlotSharingGroup.addVertex(executionVertexId);
                     executionSlotSharingGroups.put(executionVertexId, executionSlotSharingGroup);

@@ -20,13 +20,13 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -39,15 +39,14 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.legacy.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.Collector;
@@ -88,7 +87,7 @@ import static java.util.Objects.requireNonNull;
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DIRECTORY;
 import static org.apache.flink.configuration.CheckpointingOptions.MAX_RETAINED_CHECKPOINTS;
 import static org.apache.flink.shaded.curator5.org.apache.curator.shaded.com.google.common.base.Preconditions.checkState;
-import static org.apache.flink.shaded.guava31.com.google.common.collect.Iterables.getOnlyElement;
+import static org.apache.flink.shaded.guava32.com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 
 /**
@@ -100,7 +99,7 @@ class UnalignedCheckpointStressITCase {
     private static final int CHECKPOINT_INTERVAL = 20;
     private static final int MINIMUM_COMPLETED_CHECKPOINTS_BETWEEN_FAILURES = 2;
     private static final int MAXIMUM_COMPLETED_CHECKPOINTS_BETWEEN_FAILURES = 10;
-    private static final long TEST_DURATION = Time.seconds(20).toMilliseconds();
+    private static final long TEST_DURATION = Duration.ofSeconds(20).toMillis();
     private static final int NUM_TASK_MANAGERS = 3;
     private static final int NUM_TASK_SLOTS = 2;
     private static final int PARALLELISM = NUM_TASK_MANAGERS * NUM_TASK_SLOTS;
@@ -223,7 +222,7 @@ class UnalignedCheckpointStressITCase {
         DataStreamUtils.reinterpretAsKeyedStream(stream, Record::getSourceId)
                 .window(
                         TumblingProcessingTimeWindows.of(
-                                Time.milliseconds(NORMAL_RECORD_SLEEP * 5)))
+                                Duration.ofMillis(NORMAL_RECORD_SLEEP * 5)))
                 .process(new ReEmitAll())
                 // main throttling
                 .map(new ThrottlingMap(Math.max(1, totalNumberOfSources - 2)))
@@ -301,10 +300,10 @@ class UnalignedCheckpointStressITCase {
         env.setParallelism(PARALLELISM);
         env.enableCheckpointing(CHECKPOINT_INTERVAL);
         env.getCheckpointConfig().enableUnalignedCheckpoints();
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        RestartStrategyUtils.configureNoRestartStrategy(env);
         env.getCheckpointConfig()
-                .setExternalizedCheckpointCleanup(
-                        ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION);
+                .setExternalizedCheckpointRetention(
+                        ExternalizedCheckpointRetention.DELETE_ON_CANCELLATION);
         return env;
     }
 
@@ -388,7 +387,9 @@ class UnalignedCheckpointStressITCase {
             }
         };
 
-        /** @return sleep time in milliseconds */
+        /**
+         * @return sleep time in milliseconds
+         */
         public abstract int getSleep();
 
         public static SpeedMode valueOf(int n) {
@@ -414,7 +415,8 @@ class UnalignedCheckpointStressITCase {
         public void run(SourceContext<Record> ctx) throws Exception {
             RecordGenerator generator =
                     new RecordGenerator(
-                            getRuntimeContext().getIndexOfThisSubtask() + sourceIdOffset);
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()
+                                    + sourceIdOffset);
             while (running) {
                 Record next = generator.next(nextValue);
                 synchronized (ctx.getCheckpointLock()) {

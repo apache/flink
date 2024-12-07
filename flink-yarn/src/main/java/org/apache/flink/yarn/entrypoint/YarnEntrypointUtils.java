@@ -18,14 +18,11 @@
 
 package org.apache.flink.yarn.entrypoint;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.Utils;
@@ -63,41 +60,24 @@ public class YarnEntrypointUtils {
                 "ApplicationMaster hostname variable %s not set",
                 ApplicationConstants.Environment.NM_HOST.key());
 
-        configuration.setString(JobManagerOptions.ADDRESS, hostname);
-        configuration.setString(RestOptions.ADDRESS, hostname);
-        configuration.setString(RestOptions.BIND_ADDRESS, hostname);
-
-        // if a web monitor shall be started, set the port to random binding
-        if (configuration.getInteger(WebOptions.PORT, 0) >= 0) {
-            configuration.setInteger(WebOptions.PORT, 0);
+        configuration.set(JobManagerOptions.ADDRESS, hostname);
+        configuration.set(RestOptions.ADDRESS, hostname);
+        if (!configuration.contains(RestOptions.BIND_ADDRESS)) {
+            configuration.set(RestOptions.BIND_ADDRESS, hostname);
         }
 
         if (!configuration.contains(RestOptions.BIND_PORT)) {
             // set the REST port to 0 to select it randomly
-            configuration.setString(RestOptions.BIND_PORT, "0");
+            configuration.set(RestOptions.BIND_PORT, "0");
         }
-
-        // if the user has set the deprecated YARN-specific config keys, we add the
-        // corresponding generic config keys instead. that way, later code needs not
-        // deal with deprecated config keys
-
-        BootstrapTools.substituteDeprecatedConfigPrefix(
-                configuration,
-                ConfigConstants.YARN_APPLICATION_MASTER_ENV_PREFIX,
-                ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX);
-
-        BootstrapTools.substituteDeprecatedConfigPrefix(
-                configuration,
-                ConfigConstants.YARN_TASK_MANAGER_ENV_PREFIX,
-                ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX);
 
         final String keytabPath =
                 Utils.resolveKeytabPath(
                         workingDirectory, env.get(YarnConfigKeys.LOCAL_KEYTAB_PATH));
 
         if (keytabPath != null && keytabPrincipal != null) {
-            configuration.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
-            configuration.setString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, keytabPrincipal);
+            configuration.set(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytabPath);
+            configuration.set(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL, keytabPrincipal);
         }
 
         final String localDirs = env.get(ApplicationConstants.Environment.LOCAL_DIRS.key());

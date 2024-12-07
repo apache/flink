@@ -191,6 +191,24 @@ $ ./sql-gateway -Dkey=value
             <td>The maximum number of the active session for sql gateway service.</td>
         </tr>
         <tr>
+            <td><h5>sql-gateway.session.plan-cache.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>When it is true, sql gateway will cache and reuse plans for queries per session.</td>
+        </tr>
+        <tr>
+            <td><h5>sql-gateway.session.plan-cache.size</h5></td>
+            <td style="word-wrap: break-word;">100</td>
+            <td>Integer</td>
+            <td>Plan cache size, it takes effect iff `table.optimizer.plan-cache.enabled` is true.</td>
+        </tr>
+        <tr>
+            <td><h5>sql-gateway.session.plan-cache.ttl</h5></td>
+            <td style="word-wrap: break-word;">1 hour</td>
+            <td>Duration</td>
+            <td>TTL for plan cache, it controls how long will the cache expire after write, it takes effect iff `table.optimizer.plan-cache.enabled` is true.</td>
+        </tr>
+        <tr>
             <td><h5>sql-gateway.worker.keepalive-time</h5></td>
             <td style="word-wrap: break-word;">5 min</td>
             <td>Duration</td>
@@ -214,21 +232,21 @@ $ ./sql-gateway -Dkey=value
 Supported Endpoints
 ----------------
 
-Flink natively supports [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}) and [HiveServer2 Endpoint]({{< ref "docs/dev/table/hive-compatibility/hiveserver2" >}}).
+Flink natively supports [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}) and [HiveServer2 Endpoint]({{< ref "docs/dev/table/sql-gateway/hiveserver2" >}}).
 The SQL Gateway is bundled with the REST Endpoint by default. With the flexible architecture, users are able to start the SQL Gateway with the specified endpoints by calling 
 
 ```bash
 $ ./bin/sql-gateway.sh start -Dsql-gateway.endpoint.type=hiveserver2
 ```
 
-or add the following config in the `conf/flink-conf.yaml`:
+or add the following config in the [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}):
 
 ```yaml
 sql-gateway.endpoint.type: hiveserver2
 ```
 
 {{< hint info >}}
-Notice: The CLI command has higher priority if flink-conf.yaml also contains the option `sql-gateway.endpoint.type`.
+Notice: The CLI command has higher priority if [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) also contains the option `sql-gateway.endpoint.type`.
 {{< /hint >}}
 
 For the specific endpoint, please refer to the corresponding page.

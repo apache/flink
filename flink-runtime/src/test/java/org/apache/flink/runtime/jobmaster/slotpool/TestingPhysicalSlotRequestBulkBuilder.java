@@ -19,35 +19,44 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.scheduler.ExecutionSlotSharingGroup;
+import org.apache.flink.runtime.scheduler.SharingPhysicalSlotRequestBulk;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
 class TestingPhysicalSlotRequestBulkBuilder {
-    private static final BiConsumer<SlotRequestId, Throwable> EMPTY_CANCELLER = (r, t) -> {};
-    private Map<SlotRequestId, ResourceProfile> pendingRequests = new HashMap<>();
-    private BiConsumer<SlotRequestId, Throwable> canceller = EMPTY_CANCELLER;
+    private static final BiConsumer<ExecutionVertexID, Throwable> EMPTY_CANCELLER = (r, t) -> {};
+    private final Map<ExecutionSlotSharingGroup, List<ExecutionVertexID>> executions =
+            new HashMap<>();
+    private final Map<ExecutionSlotSharingGroup, ResourceProfile> pendingRequests = new HashMap<>();
+    private BiConsumer<ExecutionVertexID, Throwable> canceller = EMPTY_CANCELLER;
 
     TestingPhysicalSlotRequestBulkBuilder addPendingRequest(
-            SlotRequestId slotRequestId, ResourceProfile resourceProfile) {
-        pendingRequests.put(slotRequestId, resourceProfile);
+            ExecutionSlotSharingGroup executionSlotSharingGroup, ResourceProfile resourceProfile) {
+        pendingRequests.put(executionSlotSharingGroup, resourceProfile);
+        executions.put(
+                executionSlotSharingGroup,
+                new ArrayList<>(executionSlotSharingGroup.getExecutionVertexIds()));
         return this;
     }
 
     TestingPhysicalSlotRequestBulkBuilder setCanceller(
-            BiConsumer<SlotRequestId, Throwable> canceller) {
+            BiConsumer<ExecutionVertexID, Throwable> canceller) {
         this.canceller = canceller;
         return this;
     }
 
-    PhysicalSlotRequestBulkImpl buildPhysicalSlotRequestBulkImpl() {
-        return new PhysicalSlotRequestBulkImpl(pendingRequests, canceller);
+    SharingPhysicalSlotRequestBulk buildSharingPhysicalSlotRequestBulk() {
+        return new SharingPhysicalSlotRequestBulk(executions, pendingRequests, canceller);
     }
 
     PhysicalSlotRequestBulkWithTimestamp buildPhysicalSlotRequestBulkWithTimestamp() {
-        return new PhysicalSlotRequestBulkWithTimestamp(buildPhysicalSlotRequestBulkImpl());
+        return new PhysicalSlotRequestBulkWithTimestamp(buildSharingPhysicalSlotRequestBulk());
     }
 
     static TestingPhysicalSlotRequestBulkBuilder newBuilder() {

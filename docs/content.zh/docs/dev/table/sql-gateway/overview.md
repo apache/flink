@@ -189,6 +189,24 @@ $ ./sql-gateway -Dkey=value
             <td>SQL Gateway 服务中存活 session 的最大数量。</td>
         </tr>
         <tr>
+            <td><h5>sql-gateway.session.plan-cache.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>设置为 true 的时候，SQL Gateway 会在一个 session 内部缓存并复用 plan。</td>
+        </tr>
+        <tr>
+            <td><h5>sql-gateway.session.plan-cache.size</h5></td>
+            <td style="word-wrap: break-word;">100</td>
+            <td>Integer</td>
+            <td>Plan cache 的大小, 当且仅当 `table.optimizer.plan-cache.enabled` 为 true 的时候生效。</td>
+        </tr>
+        <tr>
+            <td><h5>sql-gateway.session.plan-cache.ttl</h5></td>
+            <td style="word-wrap: break-word;">1 hour</td>
+            <td>Duration</td>
+            <td>Plan cache 的 TTL, 控制 cache 在写入之后多久过期, 当且仅当 `table.optimizer.plan-cache.enabled` 为 true 的时候生效。</td>
+        </tr>
+        <tr>
             <td><h5>sql-gateway.worker.keepalive-time</h5></td>
             <td style="word-wrap: break-word;">5 min</td>
             <td>Duration</td>
@@ -219,14 +237,14 @@ SQL Gateway 默认集成 REST Endpoint。由于架构的可扩展性，用户可
 $ ./bin/sql-gateway.sh start -Dsql-gateway.endpoint.type=hiveserver2
 ```
 
-或者在 `conf/flink-conf.yaml` 中增加如下配置：
+或者在 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 中增加如下配置：
 
 ```yaml
 sql-gateway.endpoint.type: hiveserver2
 ```
 
 {{< hint info >}}
-Notice: 如果 CLI 命令和 flink-conf.yaml 都有 `sql-gateway.endpoint.type`，CLI 的优先级比 flink-conf.yaml 更高。
+Notice: 如果 CLI 命令和 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 都有 `sql-gateway.endpoint.type`，CLI 的优先级比 [Flink 配置文件]({{< ref "docs/deployment/config#flink-配置文件" >}}) 更高。
 {{< /hint >}}
 
 具体的 endpoint 请参考相应页面。

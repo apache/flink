@@ -34,6 +34,7 @@ import org.apache.flink.connectors.hive.read.HiveContinuousPartitionContext;
 import org.apache.flink.connectors.hive.read.HivePartitionFetcherContextBase;
 import org.apache.flink.connectors.hive.read.HiveSourceSplit;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
+import org.apache.flink.connectors.hive.util.TextFormatStatisticsReportUtil;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.utils.ParquetFormatStatisticsReportUtil;
 import org.apache.flink.orc.util.OrcFormatStatisticsReportUtil;
@@ -171,7 +172,8 @@ public class HiveTableSource
                             remainingPartitions);
 
             int parallelism =
-                    new HiveParallelismInference(tablePath, flinkConf)
+                    new HiveStaticParallelismInferenceFactory(tablePath, flinkConf)
+                            .create()
                             .infer(
                                     () ->
                                             HiveSourceFileEnumerator.getNumFiles(
@@ -378,7 +380,7 @@ public class HiveTableSource
         Preconditions.checkArgument(
                 statisticsThreadNum >= 1,
                 TABLE_EXEC_HIVE_READ_STATISTICS_THREAD_NUM.key() + " cannot be less than 1");
-        // Now we only support Parquet, Orc formats.
+        // Now we only support Parquet, Orc and Text formats.
         if (serializationLib.contains("parquet")) {
             return ParquetFormatStatisticsReportUtil.getTableStatistics(
                     files,
@@ -389,10 +391,13 @@ public class HiveTableSource
         } else if (serializationLib.contains("orc")) {
             return OrcFormatStatisticsReportUtil.getTableStatistics(
                     files, producedDataType, jobConf, statisticsThreadNum);
+        } else if (serializationLib.contains("simple")) {
+            return TextFormatStatisticsReportUtil.estimateTableStatistics(
+                    files, producedDataType, jobConf);
         } else {
-            // Now, only support Orc and Parquet Formats.
+            // Now, only support Orc and Parquet and Text Formats.
             LOG.info(
-                    "Now for hive table source, reporting statistics only support Orc and Parquet formats.");
+                    "Now for hive table source, reporting statistics only support Orc and Parquet and Text formats.");
             return TableStats.UNKNOWN;
         }
     }
@@ -429,7 +434,7 @@ public class HiveTableSource
                 case PARTITION_NAME:
                     if (configuration.contains(STREAMING_SOURCE_CONSUME_START_OFFSET)) {
                         String consumeOffsetStr =
-                                configuration.getString(STREAMING_SOURCE_CONSUME_START_OFFSET);
+                                configuration.get(STREAMING_SOURCE_CONSUME_START_OFFSET);
                         consumeStartOffset = (T) consumeOffsetStr;
                     } else {
                         consumeStartOffset = (T) DEFAULT_MIN_NAME_OFFSET;
@@ -440,12 +445,12 @@ public class HiveTableSource
                 case CREATE_TIME:
                     if (configuration.contains(STREAMING_SOURCE_CONSUME_START_OFFSET)) {
                         String consumeOffsetStr =
-                                configuration.getString(STREAMING_SOURCE_CONSUME_START_OFFSET);
+                                configuration.get(STREAMING_SOURCE_CONSUME_START_OFFSET);
 
                         LocalDateTime localDateTime =
                                 DefaultPartTimeExtractor.toLocalDateTime(
                                         consumeOffsetStr,
-                                        configuration.getString(
+                                        configuration.get(
                                                 PARTITION_TIME_EXTRACTOR_TIMESTAMP_FORMATTER));
 
                         consumeStartOffset =

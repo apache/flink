@@ -141,7 +141,8 @@ public class SegmentPartitionFileReader implements PartitionFileReader {
             TieredStorageSubpartitionId subpartitionId,
             int segmentId,
             int bufferIndex,
-            @Nullable ReadProgress readProgress) {
+            @Nullable ReadProgress readProgress)
+            throws IOException {
         // noop
         return -1;
     }

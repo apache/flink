@@ -76,7 +76,7 @@ public abstract class AbstractEmbeddedPythonFunctionOperator<OUT>
             lock.lockInterruptibly();
 
             try {
-                JobID jobId = getRuntimeContext().getJobId();
+                JobID jobId = getRuntimeContext().getJobInfo().getJobId();
                 Tuple2<String, Integer> dirAndNums;
 
                 if (workingDirectories.containsKey(jobId)) {
@@ -106,7 +106,7 @@ public abstract class AbstractEmbeddedPythonFunctionOperator<OUT>
     @Override
     public void close() throws Exception {
         try {
-            JobID jobId = getRuntimeContext().getJobId();
+            JobID jobId = getRuntimeContext().getJobInfo().getJobId();
             if (workingDirectories.containsKey(jobId)) {
                 lock.lockInterruptibly();
 
@@ -142,7 +142,7 @@ public abstract class AbstractEmbeddedPythonFunctionOperator<OUT>
                 dependencyInfo,
                 getContainingTask().getEnvironment().getTaskManagerInfo().getTmpDirectories(),
                 systemEnvEnabled ? new HashMap<>(System.getenv()) : new HashMap<>(),
-                getRuntimeContext().getJobId());
+                getRuntimeContext().getJobInfo().getJobId());
     }
 
     @Override

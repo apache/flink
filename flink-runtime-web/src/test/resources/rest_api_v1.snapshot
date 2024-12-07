@@ -290,9 +290,6 @@
     },
     "query-parameters" : {
       "queryParameters" : [ {
-        "key" : "program-args",
-        "mandatory" : false
-      }, {
         "key" : "programArg",
         "mandatory" : false
       }, {
@@ -308,9 +305,6 @@
       "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarPlanRequestBody",
       "properties" : {
         "entryClass" : {
-          "type" : "string"
-        },
-        "programArgs" : {
           "type" : "string"
         },
         "programArgsList" : {
@@ -355,9 +349,6 @@
     },
     "query-parameters" : {
       "queryParameters" : [ {
-        "key" : "program-args",
-        "mandatory" : false
-      }, {
         "key" : "programArg",
         "mandatory" : false
       }, {
@@ -373,9 +364,6 @@
       "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarPlanRequestBody",
       "properties" : {
         "entryClass" : {
-          "type" : "string"
-        },
-        "programArgs" : {
           "type" : "string"
         },
         "programArgsList" : {
@@ -426,9 +414,6 @@
         "key" : "savepointPath",
         "mandatory" : false
       }, {
-        "key" : "program-args",
-        "mandatory" : false
-      }, {
         "key" : "programArg",
         "mandatory" : false
       }, {
@@ -444,9 +429,6 @@
       "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarRunRequestBody",
       "properties" : {
         "entryClass" : {
-          "type" : "string"
-        },
-        "programArgs" : {
           "type" : "string"
         },
         "programArgsList" : {
@@ -468,6 +450,10 @@
           "type" : "string"
         },
         "restoreMode" : {
+          "type" : "string",
+          "enum" : [ "CLAIM", "NO_CLAIM", "LEGACY" ]
+        },
+        "claimMode" : {
           "type" : "string",
           "enum" : [ "CLAIM", "NO_CLAIM", "LEGACY" ]
         },
@@ -711,7 +697,7 @@
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobSubmitRequestBody",
       "properties" : {
-        "jobGraphFileName" : {
+        "executionPlanFileName" : {
           "type" : "string"
         },
         "jobJarFileNames" : {
@@ -865,6 +851,10 @@
           "type" : "string",
           "enum" : [ "INITIALIZING", "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDED", "RECONCILING" ]
         },
+        "job-type" : {
+          "type" : "string",
+          "enum" : [ "BATCH", "STREAMING" ]
+        },
         "start-time" : {
           "type" : "integer"
         },
@@ -893,6 +883,9 @@
             "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobDetailsInfo:JobVertexDetailsInfo",
             "properties" : {
               "id" : {
+                "type" : "any"
+              },
+              "slotSharingGroupId" : {
                 "type" : "any"
               },
               "name" : {
@@ -1891,7 +1884,7 @@
       "type" : "any"
     }
   }, {
-    "url" : "/jobs/:jobid/coordinators/:operatorid",
+    "url" : "/jobs/:jobid/coordinators/:operatorUid",
     "method" : "POST",
     "status-code" : "200 OK",
     "file-upload" : false,
@@ -1899,7 +1892,7 @@
       "pathParameters" : [ {
         "key" : "jobid"
       }, {
-        "key" : "operatorid"
+        "key" : "operatorUid"
       } ]
     },
     "query-parameters" : {
@@ -1950,39 +1943,6 @@
       "type" : "object",
       "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfoWithHistory",
       "properties" : {
-        "root-exception" : {
-          "type" : "string"
-        },
-        "timestamp" : {
-          "type" : "integer"
-        },
-        "all-exceptions" : {
-          "type" : "array",
-          "items" : {
-            "type" : "object",
-            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfo:ExecutionExceptionInfo",
-            "properties" : {
-              "exception" : {
-                "type" : "string"
-              },
-              "task" : {
-                "type" : "string"
-              },
-              "location" : {
-                "type" : "string"
-              },
-              "timestamp" : {
-                "type" : "integer"
-              },
-              "taskManagerId" : {
-                "type" : "string"
-              }
-            }
-          }
-        },
-        "truncated" : {
-          "type" : "boolean"
-        },
         "exceptionHistory" : {
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfoWithHistory:JobExceptionHistory",
@@ -2011,7 +1971,7 @@
                   "taskName" : {
                     "type" : "string"
                   },
-                  "location" : {
+                  "endpoint" : {
                     "type" : "string"
                   },
                   "taskManagerId" : {
@@ -2041,7 +2001,7 @@
                         "taskName" : {
                           "type" : "string"
                         },
-                        "location" : {
+                        "endpoint" : {
                           "type" : "string"
                         },
                         "taskManagerId" : {
@@ -2595,7 +2555,7 @@
               "attempt" : {
                 "type" : "integer"
               },
-              "host" : {
+              "endpoint" : {
                 "type" : "string"
               },
               "start-time" : {
@@ -2873,6 +2833,31 @@
       }
     }
   }, {
+    "url" : "/jobs/:jobid/vertices/:vertexid/jm-operator-metrics",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "vertexid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "get",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+    },
+    "response" : {
+      "type" : "any"
+    }
+  }, {
     "url" : "/jobs/:jobid/vertices/:vertexid/metrics",
     "method" : "GET",
     "status-code" : "200 OK",
@@ -2938,7 +2923,7 @@
               "attempt" : {
                 "type" : "integer"
               },
-              "host" : {
+              "endpoint" : {
                 "type" : "string"
               },
               "user-accumulators" : {
@@ -3030,7 +3015,7 @@
         "attempt" : {
           "type" : "integer"
         },
-        "host" : {
+        "endpoint" : {
           "type" : "string"
         },
         "start-time" : {
@@ -3139,7 +3124,7 @@
         "attempt" : {
           "type" : "integer"
         },
-        "host" : {
+        "endpoint" : {
           "type" : "string"
         },
         "start-time" : {
@@ -3335,7 +3320,7 @@
               "subtask" : {
                 "type" : "integer"
               },
-              "host" : {
+              "endpoint" : {
                 "type" : "string"
               },
               "duration" : {
@@ -3390,7 +3375,7 @@
             "type" : "object",
             "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexTaskManagersInfo:TaskManagersInfo",
             "properties" : {
-              "host" : {
+              "endpoint" : {
                 "type" : "string"
               },
               "status" : {
@@ -3976,12 +3961,6 @@
               "type" : "integer"
             },
             "mappedMax" : {
-              "type" : "integer"
-            },
-            "memorySegmentsAvailable" : {
-              "type" : "integer"
-            },
-            "memorySegmentsTotal" : {
               "type" : "integer"
             },
             "nettyShuffleMemorySegmentsAvailable" : {

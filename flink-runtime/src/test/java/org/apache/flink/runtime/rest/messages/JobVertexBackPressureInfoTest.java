@@ -18,11 +18,16 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
+
 import java.util.ArrayList;
 import java.util.List;
 
 /** Tests that the {@link JobVertexBackPressureInfo} can be marshalled and unmarshalled. */
-public class JobVertexBackPressureInfoTest
+@ExtendWith(NoOpTestExtension.class)
+class JobVertexBackPressureInfoTest
         extends RestResponseMarshallingTestBase<JobVertexBackPressureInfo> {
     @Override
     protected Class<JobVertexBackPressureInfo> getTestResponseClass() {

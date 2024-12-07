@@ -22,11 +22,10 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
+import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 import org.apache.flink.connector.base.source.reader.mocks.MockSourceReader;
 import org.apache.flink.connector.base.source.reader.mocks.MockSplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
-import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderContext;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderOutput;
 import org.apache.flink.core.io.InputStatus;
@@ -46,6 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
+import static org.apache.flink.configuration.PipelineOptions.ALLOW_UNALIGNED_SOURCE_SPLITS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -53,7 +53,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Tests {@link SplitFetcher} integration to pause or resume {@link SplitReader} based on {@link
  * SourceReader} output.
  */
-public class SplitFetcherPauseResumeSplitReaderTest {
+class SplitFetcherPauseResumeSplitReaderTest {
 
     /**
      * Tests if pause or resume shows expected behavior which requires creation and execution of
@@ -61,7 +61,7 @@ public class SplitFetcherPauseResumeSplitReaderTest {
      */
     @ParameterizedTest(name = "Individual reader per split: {0}")
     @ValueSource(booleans = {false, true})
-    public void testPauseResumeSplitReaders(boolean individualReader) throws Exception {
+    void testPauseResumeSplitReaders(boolean individualReader) throws Exception {
         final AtomicInteger numSplitReaders = new AtomicInteger();
         final MockSplitReader.Builder readerBuilder =
                 SteppingSourceReaderTestHarness.createSplitReaderBuilder();
@@ -105,12 +105,10 @@ public class SplitFetcherPauseResumeSplitReaderTest {
      */
     @ParameterizedTest(name = "Allow unaligned source splits: {0}")
     @ValueSource(booleans = {true, false})
-    public void testPauseResumeUnsupported(boolean allowUnalignedSourceSplits) throws Exception {
+    void testPauseResumeUnsupported(boolean allowUnalignedSourceSplits) throws Exception {
         final AtomicInteger numSplitReaders = new AtomicInteger();
         final Configuration configuration = new Configuration();
-        configuration.setBoolean(
-                "pipeline.watermark-alignment.allow-unaligned-source-splits",
-                allowUnalignedSourceSplits);
+        configuration.set(ALLOW_UNALIGNED_SOURCE_SPLITS, allowUnalignedSourceSplits);
         final MockSplitReader.Builder readerBuilder =
                 SteppingSourceReaderTestHarness.createSplitReaderBuilder();
 
@@ -157,10 +155,8 @@ public class SplitFetcherPauseResumeSplitReaderTest {
             extends SingleThreadFetcherManager<E, SplitT> {
 
         public MockSteppingSplitFetcherManager(
-                FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
-                Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
-                Configuration configuration) {
-            super(elementsQueue, splitReaderSupplier, configuration);
+                Supplier<SplitReader<E, SplitT>> splitReaderSupplier, Configuration configuration) {
+            super(splitReaderSupplier, configuration);
         }
 
         @Override
@@ -215,14 +211,11 @@ public class SplitFetcherPauseResumeSplitReaderTest {
         public SteppingSourceReaderTestHarness(
                 Supplier<SplitReader<int[], MockSourceSplit>> splitReaderSupplier,
                 Configuration configuration) {
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> queue =
-                    new FutureCompletingBlockingQueue<>(10);
+            configuration.set(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY, 10);
             this.fetcherManager =
-                    new MockSteppingSplitFetcherManager<>(
-                            queue, splitReaderSupplier, configuration);
+                    new MockSteppingSplitFetcherManager<>(splitReaderSupplier, configuration);
             this.sourceReader =
-                    new MockSourceReader(
-                            queue, fetcherManager, configuration, new TestingReaderContext());
+                    new MockSourceReader(fetcherManager, configuration, new TestingReaderContext());
         }
 
         private static List<MockSourceSplit> createPrefilledSplits(int numSplits, int numRecords) {

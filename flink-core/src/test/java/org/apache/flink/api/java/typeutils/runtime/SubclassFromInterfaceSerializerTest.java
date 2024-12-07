@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.typeutils.runtime;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -36,13 +36,13 @@ import java.util.Random;
  */
 class SubclassFromInterfaceSerializerTest
         extends SerializerTestBase<SubclassFromInterfaceSerializerTest.TestUserInterface> {
-    private TypeInformation<TestUserInterface> type =
+    private final TypeInformation<TestUserInterface> type =
             TypeExtractor.getForClass(TestUserInterface.class);
 
     @Override
     protected TypeSerializer<TestUserInterface> createSerializer() {
         // only register one of the two child classes
-        ExecutionConfig conf = new ExecutionConfig();
+        SerializerConfigImpl conf = new SerializerConfigImpl();
         conf.registerPojoType(TestUserClass2.class);
         TypeSerializer<TestUserInterface> serializer = type.createSerializer(conf);
         assert (serializer instanceof KryoSerializer);
@@ -103,10 +103,7 @@ class SubclassFromInterfaceSerializerTest
             if (dumm1 != otherTUC.dumm1) {
                 return false;
             }
-            if (!dumm2.equals(otherTUC.dumm2)) {
-                return false;
-            }
-            return true;
+            return dumm2.equals(otherTUC.dumm2);
         }
     }
 
@@ -132,10 +129,7 @@ class SubclassFromInterfaceSerializerTest
             if (!dumm2.equals(otherTUC.dumm2)) {
                 return false;
             }
-            if (dumm3 != otherTUC.dumm3) {
-                return false;
-            }
-            return true;
+            return dumm3 == otherTUC.dumm3;
         }
     }
 
@@ -161,10 +155,7 @@ class SubclassFromInterfaceSerializerTest
             if (!dumm2.equals(otherTUC.dumm2)) {
                 return false;
             }
-            if (dumm4 != otherTUC.dumm4) {
-                return false;
-            }
-            return true;
+            return dumm4 == otherTUC.dumm4;
         }
     }
 }

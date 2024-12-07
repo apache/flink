@@ -19,27 +19,53 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.internal.TableResultInternal;
+import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.operations.utils.ShowLikeOperator;
 
-import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
+import javax.annotation.Nullable;
 
-/** Operation to describe a SHOW DATABASES statement. */
+import java.util.Collection;
+
+/**
+ * Operation to describe a SHOW DATABASES statement. The full syntax for SHOW DATABASES is as
+ * followings:
+ *
+ * <pre>{@code
+ * SHOW DATABASES [ ( FROM | IN ) catalog_name] [ [NOT] (LIKE | ILIKE) &lt;sql_like_pattern&gt; ]
+ * }</pre>
+ */
 @Internal
-public class ShowDatabasesOperation implements ShowOperation {
+public class ShowDatabasesOperation extends AbstractShowOperation {
+
+    public ShowDatabasesOperation(
+            @Nullable String catalogName,
+            @Nullable String preposition,
+            @Nullable ShowLikeOperator likeOp) {
+        super(catalogName, preposition, likeOp);
+    }
+
+    public ShowDatabasesOperation(@Nullable String catalogName, @Nullable ShowLikeOperator likeOp) {
+        this(catalogName, null, likeOp);
+    }
+
+    public ShowDatabasesOperation(@Nullable String catalogName) {
+        this(catalogName, null, null);
+    }
 
     @Override
-    public String asSummaryString() {
+    protected Collection<String> retrieveDataForTableResult(Context ctx) {
+        final CatalogManager catalogManager = ctx.getCatalogManager();
+        final String qualifiedCatalogName = catalogManager.qualifyCatalog(catalogName);
+        return catalogManager.getCatalogOrThrowException(qualifiedCatalogName).listDatabases();
+    }
+
+    @Override
+    protected String getOperationName() {
         return "SHOW DATABASES";
     }
 
     @Override
-    public TableResultInternal execute(Context ctx) {
-        String[] databases =
-                ctx.getCatalogManager()
-                        .getCatalogOrThrowException(ctx.getCatalogManager().getCurrentCatalog())
-                        .listDatabases().stream()
-                        .sorted()
-                        .toArray(String[]::new);
-        return buildStringArrayResult("database name", databases);
+    protected String getColumnName() {
+        return "database name";
     }
 }

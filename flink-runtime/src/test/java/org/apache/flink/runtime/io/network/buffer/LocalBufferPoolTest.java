@@ -65,7 +65,7 @@ class LocalBufferPoolTest {
     private BufferPool localBufferPool;
 
     @RegisterExtension
-    public static final TestExecutorExtension<ExecutorService> EXECUTOR_RESOURCE =
+    private static final TestExecutorExtension<ExecutorService> EXECUTOR_EXTENSION =
             new TestExecutorExtension<>(Executors::newCachedThreadPool);
 
     @BeforeEach
@@ -73,7 +73,7 @@ class LocalBufferPoolTest {
         networkBufferPool = new NetworkBufferPool(numBuffers, memorySegmentSize);
         localBufferPool = new LocalBufferPool(networkBufferPool, 1);
 
-        assertThat(localBufferPool.getNumberOfAvailableMemorySegments()).isEqualTo(1);
+        assertThat(localBufferPool.getNumberOfAvailableMemorySegments()).isOne();
     }
 
     @AfterEach
@@ -82,9 +82,8 @@ class LocalBufferPoolTest {
             localBufferPool.lazyDestroy();
         }
 
-        String msg = "Did not return all buffers to memory segment pool after test.";
         assertThat(networkBufferPool.getNumberOfAvailableMemorySegments())
-                .withFailMessage(msg)
+                .withFailMessage("Did not return all buffers to memory segment pool after test.")
                 .isEqualTo(numBuffers);
         // no other local buffer pools used than the one above, but call just in case
         networkBufferPool.destroyAllBufferPools();
@@ -116,7 +115,7 @@ class LocalBufferPoolTest {
             bufferPool2.lazyDestroy();
 
             BufferPool bufferPool3 = networkBufferPool.createBufferPool(2, 10);
-            assertThat(bufferPool3.getNumberOfAvailableMemorySegments()).isEqualTo(1);
+            assertThat(bufferPool3.getNumberOfAvailableMemorySegments()).isOne();
             bufferPool3.reserveSegments(2);
             assertThat(bufferPool3.getNumberOfAvailableMemorySegments()).isEqualTo(2);
 
@@ -129,7 +128,7 @@ class LocalBufferPoolTest {
     }
 
     @Test
-    @Timeout(10) // timeout can indicate a potential deadlock
+    @Timeout(value = 10) // timeout can indicate a potential deadlock
     void testReserveSegmentsAndCancel() throws Exception {
         int totalSegments = 4;
         int segmentsToReserve = 2;
@@ -587,7 +586,7 @@ class LocalBufferPoolTest {
         Future<Boolean>[] taskResults = new Future[numConcurrentTasks];
         for (int i = 0; i < numConcurrentTasks; i++) {
             taskResults[i] =
-                    EXECUTOR_RESOURCE
+                    EXECUTOR_EXTENSION
                             .getExecutor()
                             .submit(
                                     new BufferRequesterTask(
@@ -855,7 +854,7 @@ class LocalBufferPoolTest {
         bufferPool.lazyDestroy();
     }
 
-    private void assertRequestedBufferAndIsAvailable(
+    private static void assertRequestedBufferAndIsAvailable(
             LocalBufferPool bufferPool,
             int numberOfRequestedOverdraftBuffer,
             int numberOfRequestedBuffer,
@@ -920,7 +919,7 @@ class LocalBufferPoolTest {
         }
 
         @Override
-        public Boolean call() throws Exception {
+        public Boolean call() {
             try {
                 for (int i = 0; i < numBuffersToRequest; i++) {
                     Buffer buffer = checkNotNull(bufferProvider.requestBuffer());

@@ -18,9 +18,12 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
+
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.JsonDecoder;
 import org.apache.avro.specific.SpecificRecord;
 
 import javax.annotation.Nullable;
@@ -29,7 +32,7 @@ import java.io.IOException;
 import java.util.Objects;
 
 /**
- * Deserialization schema that deserializes from Avro binary format using {@link SchemaCoder}.
+ * Deserialization schema that deserializes from Avro format using {@link SchemaCoder}.
  *
  * @param <T> type of record it produces
  */
@@ -58,7 +61,28 @@ public class RegistryAvroDeserializationSchema<T> extends AvroDeserializationSch
             Class<T> recordClazz,
             @Nullable Schema reader,
             SchemaCoder.SchemaCoderProvider schemaCoderProvider) {
-        super(recordClazz, reader);
+        this(recordClazz, reader, schemaCoderProvider, AvroEncoding.BINARY);
+    }
+
+    /**
+     * Creates Avro deserialization schema that reads schema from input stream using provided {@link
+     * SchemaCoder}.
+     *
+     * @param recordClazz class to which deserialize. Should be either {@link SpecificRecord} or
+     *     {@link GenericRecord}.
+     * @param reader reader's Avro schema. Should be provided if recordClazz is {@link
+     *     GenericRecord}
+     * @param schemaCoderProvider schema provider that allows instantiation of {@link SchemaCoder}
+     *     that will be used for schema reading
+     * @param encoding Avro serialization approach to use. Required to identify the correct decoder
+     *     class to use.
+     */
+    public RegistryAvroDeserializationSchema(
+            Class<T> recordClazz,
+            @Nullable Schema reader,
+            SchemaCoder.SchemaCoderProvider schemaCoderProvider,
+            AvroEncoding encoding) {
+        super(recordClazz, reader, encoding);
         this.schemaCoderProvider = schemaCoderProvider;
         this.schemaCoder = schemaCoderProvider.get();
     }
@@ -78,11 +102,15 @@ public class RegistryAvroDeserializationSchema<T> extends AvroDeserializationSch
         datumReader.setSchema(writerSchema);
         datumReader.setExpected(readerSchema);
 
+        if (getEncoding() == AvroEncoding.JSON) {
+            ((JsonDecoder) getDecoder()).configure(getInputStream());
+        }
+
         return datumReader.read(null, getDecoder());
     }
 
     @Override
-    void checkAvroInitialized() {
+    void checkAvroInitialized() throws IOException {
         super.checkAvroInitialized();
         if (schemaCoder == null) {
             this.schemaCoder = schemaCoderProvider.get();

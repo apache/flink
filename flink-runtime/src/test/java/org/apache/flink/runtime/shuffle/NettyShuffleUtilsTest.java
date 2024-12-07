@@ -36,7 +36,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBui
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableMap;
 
 import org.junit.jupiter.api.Test;
 
@@ -191,7 +191,8 @@ class NettyShuffleUtilsTest {
                         numSubpartitions,
                         0,
                         false,
-                        true);
+                        true,
+                        false);
         ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor =
                 new ResultPartitionDeploymentDescriptor(partitionDescriptor, shuffleDescriptor, 1);
 
@@ -214,7 +215,7 @@ class NettyShuffleUtilsTest {
         inputGate.convertRecoveredInputChannels();
 
         int ret = 0;
-        for (InputChannel ch : inputGate.getInputChannels().values()) {
+        for (InputChannel ch : inputGate.inputChannels()) {
             RemoteInputChannel rChannel = (RemoteInputChannel) ch;
             ret += rChannel.getNumberOfAvailableBuffers();
         }

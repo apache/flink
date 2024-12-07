@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
@@ -43,49 +42,48 @@ import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.function.CheckedSupplier;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.fail;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests base for the scheduling of batch jobs. */
-public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
+class DefaultSchedulerBatchSchedulingTest {
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
     private static ScheduledExecutorService singleThreadScheduledExecutorService;
     private static ComponentMainThreadExecutor mainThreadExecutor;
 
-    @BeforeClass
-    public static void setupClass() {
+    @BeforeAll
+    private static void setupClass() {
         singleThreadScheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
         mainThreadExecutor =
                 ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
                         singleThreadScheduledExecutorService);
     }
 
-    @AfterClass
-    public static void teardownClass() {
+    @AfterAll
+    private static void teardownClass() {
         if (singleThreadScheduledExecutorService != null) {
             singleThreadScheduledExecutorService.shutdownNow();
         }
@@ -96,9 +94,9 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
      * for more information.
      */
     @Test
-    public void testSchedulingOfJobWithFewerSlotsThanParallelism() throws Exception {
+    void testSchedulingOfJobWithFewerSlotsThanParallelism() throws Exception {
         final int parallelism = 5;
-        final Time batchSlotTimeout = Time.milliseconds(5L);
+        final Duration batchSlotTimeout = Duration.ofMillis(5L);
         final JobGraph jobGraph = createBatchJobGraph(parallelism);
 
         try (final SlotPool slotPool = createSlotPool(mainThreadExecutor, batchSlotTimeout)) {
@@ -136,7 +134,7 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
                     new RpcTaskManagerGateway(testingTaskExecutorGateway, JobMasterId.generate()));
 
             // wait until the batch slot timeout has been reached
-            Thread.sleep(batchSlotTimeout.toMilliseconds());
+            Thread.sleep(batchSlotTimeout.toMillis());
 
             final CompletableFuture<JobStatus> terminationFuture =
                     jobStatusListener.getTerminationFuture();
@@ -159,7 +157,7 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
                 }
             }
 
-            assertThat(terminationFuture.get(), is(JobStatus.FINISHED));
+            assertThatFuture(terminationFuture).isCompletedWithValue(JobStatus.FINISHED);
         }
     }
 
@@ -184,11 +182,12 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
     }
 
     private SlotPool createSlotPool(
-            ComponentMainThreadExecutor mainThreadExecutor, Time batchSlotTimeout)
+            ComponentMainThreadExecutor mainThreadExecutor, Duration batchSlotTimeout)
             throws Exception {
         return new DeclarativeSlotPoolBridgeBuilder()
                 .setBatchSlotTimeout(batchSlotTimeout)
-                .buildAndStart(mainThreadExecutor);
+                .setMainThreadExecutor(mainThreadExecutor)
+                .buildAndStart();
     }
 
     private JobGraph createBatchJobGraph(int parallelism) {
@@ -202,11 +201,11 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
             JobGraph jobGraph,
             ComponentMainThreadExecutor mainThreadExecutor,
             PhysicalSlotProvider physicalSlotProvider,
-            Time slotRequestTimeout,
+            Duration slotRequestTimeout,
             JobStatusListener jobStatusListener)
             throws Exception {
         return new DefaultSchedulerBuilder(
-                        jobGraph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
+                        jobGraph, mainThreadExecutor, EXECUTOR_EXTENSION.getExecutor())
                 .setExecutionSlotAllocatorFactory(
                         SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                 physicalSlotProvider, slotRequestTimeout))

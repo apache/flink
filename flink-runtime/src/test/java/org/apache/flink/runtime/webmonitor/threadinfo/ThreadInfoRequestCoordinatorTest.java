@@ -25,7 +25,7 @@ import org.apache.flink.runtime.taskexecutor.IdleTestTask;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.runtime.util.JvmUtils;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableSet;
+import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableSet;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -242,7 +242,8 @@ class ThreadInfoRequestCoordinatorTest {
 
                             Map<ExecutionAttemptID, Collection<ThreadInfoSample>> threadInfoSample =
                                     JvmUtils.createThreadInfoSample(threads.keySet(), 100)
-                                            .entrySet().stream()
+                                            .entrySet()
+                                            .stream()
                                             .collect(
                                                     Collectors.toMap(
                                                             entry -> threads.get(entry.getKey()),

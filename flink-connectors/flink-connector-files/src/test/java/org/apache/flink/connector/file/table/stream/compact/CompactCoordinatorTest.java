@@ -84,10 +84,12 @@ class CompactCoordinatorTest extends AbstractCompactTestBase {
                     harness.open();
 
                     harness.processElement(new EndCheckpoint(2, 0, 1), 0);
-
+                    harness.processElement(new InputFile("p2", newFile("f9", 4)), 0);
+                    // Pipeline terminates
+                    harness.processElement(new EndCheckpoint(Long.MAX_VALUE, 0, 1), 0);
                     List<CoordinatorOutput> outputs = harness.extractOutputValues();
 
-                    assertThat(outputs).hasSize(7);
+                    assertThat(outputs).hasSize(9);
 
                     List<CompactionUnit> cp1Units = new ArrayList<>();
                     for (int i = 0; i < 4; i++) {
@@ -109,6 +111,8 @@ class CompactCoordinatorTest extends AbstractCompactTestBase {
                     assertUnit(outputs.get(5), 0, "p0", Arrays.asList("f7", "f8"));
 
                     assertEndCompaction(outputs.get(6), 2);
+                    assertUnit(outputs.get(7), 0, "p2", Collections.singletonList("f9"));
+                    assertEndCompaction(outputs.get(8), Long.MAX_VALUE);
                 });
     }
 

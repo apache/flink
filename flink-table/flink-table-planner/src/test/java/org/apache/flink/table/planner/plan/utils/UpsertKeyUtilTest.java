@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.calcite.util.ImmutableBitSet;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -27,11 +27,11 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link UpsertKeyUtil}. */
-public class UpsertKeyUtilTest {
+class UpsertKeyUtilTest {
     private final int[] emptyKey = new int[0];
 
     @Test
-    public void testSmallestKey() {
+    void testSmallestKey() {
         assertThat(UpsertKeyUtil.getSmallestKey(null)).isEqualTo(emptyKey);
         assertThat(UpsertKeyUtil.getSmallestKey(new HashSet<>())).isEqualTo(emptyKey);
 

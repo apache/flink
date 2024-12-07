@@ -79,6 +79,7 @@ public class SqlCreateTableAs extends SqlCreateTable {
             SqlNodeList columnList,
             List<SqlTableConstraint> tableConstraints,
             SqlNodeList propertyList,
+            SqlDistribution distribution,
             SqlNodeList partitionKeyList,
             @Nullable SqlWatermark watermark,
             @Nullable SqlCharStringLiteral comment,
@@ -92,6 +93,7 @@ public class SqlCreateTableAs extends SqlCreateTable {
                 columnList,
                 tableConstraints,
                 propertyList,
+                distribution,
                 partitionKeyList,
                 watermark,
                 comment,
@@ -116,39 +118,26 @@ public class SqlCreateTableAs extends SqlCreateTable {
 
     @Override
     public void validate() throws SqlValidateException {
-        super.validate();
+        if (!isSchemaWithColumnsIdentifiersOnly()) {
+            super.validate();
+        }
+
         if (isTemporary()) {
             throw new SqlValidateException(
                     getParserPosition(),
                     "CREATE TABLE AS SELECT syntax does not support to create temporary table yet.");
         }
-
-        if (getColumnList().size() > 0) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    "CREATE TABLE AS SELECT syntax does not support to specify explicit columns yet.");
-        }
-
-        if (getWatermark().isPresent()) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    "CREATE TABLE AS SELECT syntax does not support to specify explicit watermark yet.");
-        }
-        // TODO flink dialect supports dynamic partition
-        if (getPartitionKeyList().size() > 0) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    "CREATE TABLE AS SELECT syntax does not support to create partitioned table yet.");
-        }
-        if (getFullConstraints().stream().anyMatch(SqlTableConstraint::isPrimaryKey)) {
-            throw new SqlValidateException(
-                    getParserPosition(),
-                    "CREATE TABLE AS SELECT syntax does not support primary key constraints yet.");
-        }
     }
 
     public SqlNode getAsQuery() {
         return asQuery;
+    }
+
+    public boolean isSchemaWithColumnsIdentifiersOnly() {
+        // CREATE AS SELECT supports passing only column identifiers in the column list. If
+        // the first column in the list is an identifier, then we assume the rest of the
+        // columns are identifiers as well.
+        return !getColumnList().isEmpty() && getColumnList().get(0) instanceof SqlIdentifier;
     }
 
     @Override

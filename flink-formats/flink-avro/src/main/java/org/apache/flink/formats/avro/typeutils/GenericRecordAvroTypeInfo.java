@@ -18,7 +18,7 @@
 
 package org.apache.flink.formats.avro.typeutils;
 
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -75,7 +75,7 @@ public class GenericRecordAvroTypeInfo extends TypeInformation<GenericRecord> {
     }
 
     @Override
-    public TypeSerializer<GenericRecord> createSerializer(ExecutionConfig config) {
+    public TypeSerializer<GenericRecord> createSerializer(SerializerConfig config) {
         return new AvroSerializer<>(GenericRecord.class, schema);
     }
 

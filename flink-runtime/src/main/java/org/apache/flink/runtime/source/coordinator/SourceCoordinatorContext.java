@@ -20,6 +20,8 @@ package org.apache.flink.runtime.source.coordinator;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.connector.source.ReaderInfo;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceSplit;
@@ -35,14 +37,17 @@ import org.apache.flink.runtime.metrics.groups.InternalSplitEnumeratorMetricGrou
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
+import org.apache.flink.runtime.source.event.IsProcessingBacklogEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.MdcUtils;
+import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.ThrowableCatchingRunnable;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava32.com.google.common.collect.Iterables;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,6 +63,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
@@ -68,6 +74,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.operators.coordination.ComponentClosingUtils.shutdownExecutorForcefully;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -107,19 +114,22 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     private final SplitAssignmentTracker<SplitT> assignmentTracker;
     private final SourceCoordinatorProvider.CoordinatorExecutorThreadFactory
             coordinatorThreadFactory;
-    private final SubtaskGateways subtaskGateways;
+    private SubtaskGateways subtaskGateways;
     private final String coordinatorThreadName;
     private final boolean supportsConcurrentExecutionAttempts;
-    private final boolean[] subtaskHasNoMoreSplits;
+    private boolean[] subtaskHasNoMoreSplits;
     private volatile boolean closed;
+    private volatile TernaryBoolean backlog = TernaryBoolean.UNDEFINED;
 
     public SourceCoordinatorContext(
+            JobID jobID,
             SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory,
             int numWorkerThreads,
             OperatorCoordinator.Context operatorCoordinatorContext,
             SimpleVersionedSerializer<SplitT> splitSerializer,
             boolean supportsConcurrentExecutionAttempts) {
         this(
+                jobID,
                 Executors.newScheduledThreadPool(1, coordinatorThreadFactory),
                 Executors.newScheduledThreadPool(
                         numWorkerThreads,
@@ -135,6 +145,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     // Package private method for unit test.
     @VisibleForTesting
     SourceCoordinatorContext(
+            JobID jobID,
             ScheduledExecutorService coordinatorExecutor,
             ScheduledExecutorService workerExecutor,
             SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory,
@@ -143,7 +154,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
             SplitAssignmentTracker<SplitT> splitAssignmentTracker,
             boolean supportsConcurrentExecutionAttempts) {
         this.workerExecutor = workerExecutor;
-        this.coordinatorExecutor = coordinatorExecutor;
+        this.coordinatorExecutor = MdcUtils.scopeToJob(jobID, coordinatorExecutor);
         this.coordinatorThreadFactory = coordinatorThreadFactory;
         this.operatorCoordinatorContext = operatorCoordinatorContext;
         this.splitSerializer = splitSerializer;
@@ -152,14 +163,9 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
         this.coordinatorThreadName = coordinatorThreadFactory.getCoordinatorThreadName();
         this.supportsConcurrentExecutionAttempts = supportsConcurrentExecutionAttempts;
 
-        final int parallelism = operatorCoordinatorContext.currentParallelism();
-        this.subtaskGateways = new SubtaskGateways(parallelism);
-        this.subtaskHasNoMoreSplits = new boolean[parallelism];
-        Arrays.fill(subtaskHasNoMoreSplits, false);
-
         final Executor errorHandlingCoordinatorExecutor =
                 (runnable) ->
-                        coordinatorExecutor.execute(
+                        this.coordinatorExecutor.execute(
                                 new ThrowableCatchingRunnable(
                                         this::handleUncaughtExceptionFromAsyncCall, runnable));
 
@@ -177,6 +183,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 
     @Override
     public void sendEventToSourceReader(int subtaskId, SourceEvent event) {
+        checkAndLazyInitialize();
         checkState(
                 !supportsConcurrentExecutionAttempts,
                 "The split enumerator must invoke SplitEnumeratorContext"
@@ -198,6 +205,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 
     @Override
     public void sendEventToSourceReader(int subtaskId, int attemptNumber, SourceEvent event) {
+        checkAndLazyInitialize();
         checkSubtaskIndex(subtaskId);
 
         callInCoordinatorThread(
@@ -213,6 +221,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     }
 
     void sendEventToSourceOperator(int subtaskId, OperatorEvent event) {
+        checkAndLazyInitialize();
         checkSubtaskIndex(subtaskId);
 
         callInCoordinatorThread(
@@ -225,7 +234,13 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                 String.format("Failed to send event %s to subtask %d", event, subtaskId));
     }
 
+    @VisibleForTesting
+    ScheduledExecutorService getCoordinatorExecutor() {
+        return coordinatorExecutor;
+    }
+
     void sendEventToSourceOperatorIfTaskReady(int subtaskId, OperatorEvent event) {
+        checkAndLazyInitialize();
         checkSubtaskIndex(subtaskId);
 
         callInCoordinatorThread(
@@ -370,23 +385,37 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
         if (checkpointCoordinator != null) {
             checkpointCoordinator.setIsProcessingBacklog(operatorID, isProcessingBacklog);
         }
+        backlog = TernaryBoolean.fromBoolean(isProcessingBacklog);
+        callInCoordinatorThread(
+                () -> {
+                    final IsProcessingBacklogEvent isProcessingBacklogEvent =
+                            new IsProcessingBacklogEvent(isProcessingBacklog);
+                    for (int i = 0; i < getCoordinatorContext().currentParallelism(); i++) {
+                        sendEventToSourceOperatorIfTaskReady(i, isProcessingBacklogEvent);
+                    }
+                    return null;
+                },
+                "Failed to send BacklogEvent to reader.");
     }
 
     // --------- Package private additional methods for the SourceCoordinator ------------
 
     void attemptReady(OperatorCoordinator.SubtaskGateway gateway) {
+        checkAndLazyInitialize();
         checkState(coordinatorThreadFactory.isCurrentThreadCoordinatorThread());
 
         subtaskGateways.registerSubtaskGateway(gateway);
     }
 
     void attemptFailed(int subtaskIndex, int attemptNumber) {
+        checkAndLazyInitialize();
         checkState(coordinatorThreadFactory.isCurrentThreadCoordinatorThread());
 
         subtaskGateways.unregisterSubtaskGateway(subtaskIndex, attemptNumber);
     }
 
     void subtaskReset(int subtaskIndex) {
+        checkAndLazyInitialize();
         checkState(coordinatorThreadFactory.isCurrentThreadCoordinatorThread());
 
         subtaskGateways.reset(subtaskIndex);
@@ -395,6 +424,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     }
 
     boolean hasNoMoreSplits(int subtaskIndex) {
+        checkAndLazyInitialize();
         return subtaskHasNoMoreSplits[subtaskIndex];
     }
 
@@ -491,6 +521,10 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
         return operatorCoordinatorContext;
     }
 
+    SplitAssignmentTracker<SplitT> getAssignmentTracker() {
+        return assignmentTracker;
+    }
+
     // ---------------- Executor methods to avoid use coordinatorExecutor directly -----------------
 
     Future<?> submitTask(Runnable task) {
@@ -513,6 +547,10 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                 unit);
     }
 
+    CompletableFuture<?> supplyAsync(Supplier<?> task) {
+        return CompletableFuture.supplyAsync(task, coordinatorExecutor);
+    }
+
     // ---------------- private helper methods -----------------
 
     private void checkSubtaskIndex(int subtaskIndex) {
@@ -521,6 +559,16 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                     String.format(
                             "Subtask index %d is out of bounds [0, %s)",
                             subtaskIndex, getCoordinatorContext().currentParallelism()));
+        }
+    }
+
+    private void checkAndLazyInitialize() {
+        if (subtaskGateways == null) {
+            final int parallelism = operatorCoordinatorContext.currentParallelism();
+            checkState(parallelism != ExecutionConfig.PARALLELISM_DEFAULT);
+            this.subtaskGateways = new SubtaskGateways(parallelism);
+            this.subtaskHasNoMoreSplits = new boolean[parallelism];
+            Arrays.fill(subtaskHasNoMoreSplits, false);
         }
     }
 
@@ -569,6 +617,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     }
 
     private void assignSplitsToAttempt(int subtaskIndex, int attemptNumber, List<SplitT> splits) {
+        checkAndLazyInitialize();
         if (splits.isEmpty()) {
             return;
         }
@@ -593,6 +642,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     }
 
     private void signalNoMoreSplitsToAttempt(int subtaskIndex, int attemptNumber) {
+        checkAndLazyInitialize();
         checkAttemptReaderReady(subtaskIndex, attemptNumber);
 
         final OperatorCoordinator.SubtaskGateway gateway =
@@ -618,15 +668,23 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                 assignmentTracker.uncheckpointedAssignments().get(subtaskIndex);
 
         if (cachedSplits != null) {
-            if (supportsConcurrentExecutionAttempts) {
-                assignSplitsToAttempt(subtaskIndex, attemptNumber, new ArrayList<>(cachedSplits));
-                if (hasNoMoreSplits(subtaskIndex)) {
-                    signalNoMoreSplitsToAttempt(subtaskIndex, attemptNumber);
-                }
-            } else {
+            if (!supportsConcurrentExecutionAttempts) {
                 throw new IllegalStateException("No cached split is expected.");
             }
+            assignSplitsToAttempt(subtaskIndex, attemptNumber, new ArrayList<>(cachedSplits));
         }
+
+        if (supportsConcurrentExecutionAttempts && hasNoMoreSplits(subtaskIndex)) {
+            signalNoMoreSplitsToAttempt(subtaskIndex, attemptNumber);
+        }
+    }
+
+    /**
+     * Returns whether the Source is processing backlog data. UNDEFINED is returned if it is not set
+     * by the {@link #setIsProcessingBacklog} method.
+     */
+    public TernaryBoolean isBacklog() {
+        return backlog;
     }
 
     /** Maintains the subtask gateways for different execution attempts of different subtasks. */
