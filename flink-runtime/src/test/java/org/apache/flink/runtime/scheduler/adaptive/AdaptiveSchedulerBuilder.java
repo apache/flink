@@ -119,9 +119,7 @@ public class AdaptiveSchedulerBuilder {
                         new DefaultAllocatedSlotPool(),
                         ignored -> {},
                         DEFAULT_TIMEOUT,
-                        rpcTimeout,
-                        Duration.ZERO,
-                        mainThreadExecutor);
+                        rpcTimeout);
         this.executorService = executorService;
     }
 

@@ -28,6 +28,9 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.WeightLoadable;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.util.ResourceCounter;
 
@@ -233,7 +236,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
             final Map<ExecutionVertexID, LogicalSlot> assignedSlots = new HashMap<>();
 
             for (SlotAssignment assignment : jobSchedulingPlan.getSlotAssignments()) {
-                final SharedSlot sharedSlot = reserveSharedSlot(assignment.getSlotInfo());
+                final SharedSlot sharedSlot = reserveSharedSlot(assignment);
                 for (ExecutionVertexID executionVertexId :
                         assignment
                                 .getTargetAs(ExecutionSlotSharingGroup.class)
@@ -269,21 +272,25 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
         return true;
     }
 
-    private SharedSlot reserveSharedSlot(SlotInfo slotInfo) {
+    private SharedSlot reserveSharedSlot(SlotAssignment assignment) {
         final PhysicalSlot physicalSlot =
                 reserveSlotFunction.reserveSlot(
-                        slotInfo.getAllocationId(), ResourceProfile.UNKNOWN);
+                        assignment.getSlotInfo().getAllocationId(),
+                        ResourceProfile.UNKNOWN,
+                        assignment.getTargetAs(ExecutionSlotSharingGroup.class).getLoading());
 
         return new SharedSlot(
                 new SlotRequestId(),
                 physicalSlot,
-                slotInfo.willBeOccupiedIndefinitely(),
+                assignment.getSlotInfo().willBeOccupiedIndefinitely(),
                 () ->
                         freeSlotFunction.freeSlot(
-                                slotInfo.getAllocationId(), null, System.currentTimeMillis()));
+                                assignment.getSlotInfo().getAllocationId(),
+                                null,
+                                System.currentTimeMillis()));
     }
 
-    static class ExecutionSlotSharingGroup {
+    static class ExecutionSlotSharingGroup implements WeightLoadable {
         private final String id;
         private final Set<ExecutionVertexID> containedExecutionVertices;
 
@@ -303,6 +310,12 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
 
         public Collection<ExecutionVertexID> getContainedExecutionVertices() {
             return containedExecutionVertices;
+        }
+
+        @Nonnull
+        @Override
+        public LoadingWeight getLoading() {
+            return new DefaultLoadingWeight(containedExecutionVertices.size());
         }
     }
 

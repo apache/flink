@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,20 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmaster.slotpool;
+package org.apache.flink.runtime.scheduler.loading;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.slots.ResourceRequirement;
+import org.apache.flink.annotation.Internal;
 
-import java.time.Duration;
-import java.util.Collection;
-import java.util.function.Consumer;
+import javax.annotation.Nonnull;
 
-/** Factory for a {@link DeclarativeSlotPool}. */
-public interface DeclarativeSlotPoolFactory {
-    DeclarativeSlotPool create(
-            JobID jobId,
-            Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements,
-            Duration idleSlotTimeout,
-            Duration rpcTimeout);
+/**
+ * The interface that holds the {@link LoadingWeight} getter is required for corresponding
+ * abstractions.
+ */
+@Internal
+public interface WeightLoadable {
+
+    /**
+     * Get the loading weight.
+     *
+     * @return An implementation object of {@link LoadingWeight}.
+     */
+    @Nonnull
+    LoadingWeight getLoading();
 }

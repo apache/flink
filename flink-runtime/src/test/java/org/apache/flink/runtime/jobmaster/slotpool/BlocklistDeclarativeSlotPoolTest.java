@@ -22,19 +22,16 @@ import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ResourceCounter;
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -48,7 +45,6 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter.forMainThread;
 import static org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPoolTest.FreeSlotConsumer;
 import static org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPoolTest.NewSlotsService;
 import static org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPoolTest.createResourceRequirements;
@@ -59,18 +55,17 @@ import static org.apache.flink.shaded.guava32.com.google.common.collect.Iterable
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link BlocklistDeclarativeSlotPool}. */
-@ExtendWith(ParameterizedTestExtension.class)
-class BlocklistDeclarativeSlotPoolTest extends DefaultDeclarativeSlotPoolTestBase {
+class BlocklistDeclarativeSlotPoolTest {
 
     private static final ResourceProfile RESOURCE_PROFILE =
             ResourceProfile.newBuilder().setCpuCores(1.7).build();
 
-    @TestTemplate
+    @Test
     void testOfferSlotsFromBlockedTaskManager() throws Exception {
         testOfferSlots(true);
     }
 
-    @TestTemplate
+    @Test
     void testOfferSlotsFromUnblockedTaskManager() throws Exception {
         testOfferSlots(false);
     }
@@ -84,15 +79,11 @@ class BlocklistDeclarativeSlotPoolTest extends DefaultDeclarativeSlotPoolTestBas
                 BlocklistDeclarativeSlotPoolBuilder.builder()
                         .setBlockedTaskManagerChecker(
                                 isBlocked ? taskManager.getResourceID()::equals : ignore -> false)
-                        .setSlotRequestMaxInterval(slotRequestMaxInterval)
-                        .setMainThreadExecutor(componentMainThreadExecutor)
                         .build();
         slotPool.registerNewSlotsListener(notifyNewSlots);
 
         final ResourceCounter resourceRequirements = createResourceRequirements();
         slotPool.increaseResourceRequirementsBy(resourceRequirements);
-
-        slotPool.tryWaitSlotRequestIsDone();
 
         // offer slots on the blocked task manager
         Collection<SlotOffer> slotOffers =
@@ -117,7 +108,7 @@ class BlocklistDeclarativeSlotPoolTest extends DefaultDeclarativeSlotPoolTestBas
         }
     }
 
-    @TestTemplate
+    @Test
     void testOfferDuplicateSlots() {
         final TaskManagerLocation taskManager = new LocalTaskManagerLocation();
         final List<ResourceID> blockedTaskManagers = new ArrayList<>();
@@ -125,14 +116,11 @@ class BlocklistDeclarativeSlotPoolTest extends DefaultDeclarativeSlotPoolTestBas
         final BlocklistDeclarativeSlotPool slotPool =
                 BlocklistDeclarativeSlotPoolBuilder.builder()
                         .setBlockedTaskManagerChecker(blockedTaskManagers::contains)
-                        .setSlotRequestMaxInterval(slotRequestMaxInterval)
-                        .setMainThreadExecutor(componentMainThreadExecutor)
                         .build();
+
         final ResourceCounter resourceRequirements =
                 ResourceCounter.withResource(RESOURCE_PROFILE, 2);
         slotPool.increaseResourceRequirementsBy(resourceRequirements);
-
-        slotPool.tryWaitSlotRequestIsDone();
 
         SlotOffer slot1 = new SlotOffer(new AllocationID(), 1, RESOURCE_PROFILE);
         SlotOffer slot2 = new SlotOffer(new AllocationID(), 1, RESOURCE_PROFILE);
@@ -167,9 +155,8 @@ class BlocklistDeclarativeSlotPoolTest extends DefaultDeclarativeSlotPoolTestBas
                 BlocklistDeclarativeSlotPoolBuilder.builder()
                         .setBlockedTaskManagerChecker(
                                 isBlocked ? taskManager.getResourceID()::equals : ignore -> false)
-                        .setSlotRequestMaxInterval(Duration.ZERO)
-                        .setMainThreadExecutor(componentMainThreadExecutor)
                         .build();
+
         final int numberSlots = 10;
         final Collection<SlotOffer> slotOffers =
                 createSlotOffersForResourceRequirements(
@@ -209,9 +196,8 @@ class BlocklistDeclarativeSlotPoolTest extends DefaultDeclarativeSlotPoolTestBas
         final BlocklistDeclarativeSlotPool slotPool =
                 BlocklistDeclarativeSlotPoolBuilder.builder()
                         .setBlockedTaskManagerChecker(blockedTaskManagers::contains)
-                        .setSlotRequestMaxInterval(Duration.ZERO)
-                        .setMainThreadExecutor(componentMainThreadExecutor)
                         .build();
+
         SlotOffer slot1 = new SlotOffer(new AllocationID(), 1, RESOURCE_PROFILE);
         SlotOffer slot2 = new SlotOffer(new AllocationID(), 1, RESOURCE_PROFILE);
 
@@ -237,12 +223,12 @@ class BlocklistDeclarativeSlotPoolTest extends DefaultDeclarativeSlotPoolTestBas
         assertThat(acceptedOffers).containsExactly(slot1);
     }
 
-    @TestTemplate
+    @Test
     void testFreeReservedSlotsOnBlockedTaskManager() throws Exception {
         testFreeReservedSlots(true);
     }
 
-    @TestTemplate
+    @Test
     void testFreeReservedSlotsOnUnblockedTaskManager() throws Exception {
         testFreeReservedSlots(false);
     }
@@ -259,8 +245,6 @@ class BlocklistDeclarativeSlotPoolTest extends DefaultDeclarativeSlotPoolTestBas
         final BlocklistDeclarativeSlotPool slotPool =
                 BlocklistDeclarativeSlotPoolBuilder.builder()
                         .setBlockedTaskManagerChecker(blockedTaskManagers::contains)
-                        .setSlotRequestMaxInterval(slotRequestMaxInterval)
-                        .setMainThreadExecutor(componentMainThreadExecutor)
                         .build();
         slotPool.registerNewSlotsListener(notifyNewSlots);
 
@@ -274,7 +258,7 @@ class BlocklistDeclarativeSlotPoolTest extends DefaultDeclarativeSlotPoolTestBas
         final PhysicalSlot offeredSlot = getOnlyElement(newSlots);
         final AllocationID allocationID = offeredSlot.getAllocationId();
 
-        slotPool.reserveFreeSlot(allocationID, RESOURCE_PROFILE);
+        slotPool.reserveFreeSlot(allocationID, RESOURCE_PROFILE, DefaultLoadingWeight.EMPTY, true);
 
         if (isBlocked) {
             // block TM
@@ -309,24 +293,10 @@ class BlocklistDeclarativeSlotPoolTest extends DefaultDeclarativeSlotPoolTestBas
 
     private static class BlocklistDeclarativeSlotPoolBuilder {
         private BlockedTaskManagerChecker blockedTaskManagerChecker = resourceID -> false;
-        private Duration slotRequestMaxInterval = Duration.ZERO;
-        private ComponentMainThreadExecutor mainThreadExecutor = forMainThread();
 
         public BlocklistDeclarativeSlotPoolBuilder setBlockedTaskManagerChecker(
                 BlockedTaskManagerChecker blockedTaskManagerChecker) {
             this.blockedTaskManagerChecker = blockedTaskManagerChecker;
-            return this;
-        }
-
-        public BlocklistDeclarativeSlotPoolBuilder setSlotRequestMaxInterval(
-                Duration slotRequestMaxInterval) {
-            this.slotRequestMaxInterval = slotRequestMaxInterval;
-            return this;
-        }
-
-        public BlocklistDeclarativeSlotPoolBuilder setMainThreadExecutor(
-                ComponentMainThreadExecutor mainThreadExecutor) {
-            this.mainThreadExecutor = mainThreadExecutor;
             return this;
         }
 
@@ -337,9 +307,7 @@ class BlocklistDeclarativeSlotPoolTest extends DefaultDeclarativeSlotPoolTestBas
                     ignored -> {},
                     blockedTaskManagerChecker,
                     Duration.ofSeconds(20),
-                    Duration.ofSeconds(20),
-                    slotRequestMaxInterval,
-                    mainThreadExecutor);
+                    Duration.ofSeconds(20));
         }
 
         public static BlocklistDeclarativeSlotPoolBuilder builder() {

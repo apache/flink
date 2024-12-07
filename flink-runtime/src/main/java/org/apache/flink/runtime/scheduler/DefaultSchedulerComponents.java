@@ -36,6 +36,7 @@ import org.apache.flink.util.clock.SystemClock;
 import java.time.Duration;
 import java.util.function.Consumer;
 
+import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadBalanceMode;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -96,14 +97,22 @@ public class DefaultSchedulerComponents {
         final PhysicalSlotRequestBulkChecker bulkChecker =
                 PhysicalSlotRequestBulkCheckerImpl.createFromSlotPool(
                         slotPool, SystemClock.getInstance());
+        final boolean streamingWithBalancing =
+                jobType == JobType.STREAMING
+                        && TaskManagerLoadBalanceMode.loadFromConfiguration(jobMasterConfiguration)
+                                == TaskManagerLoadBalanceMode.TASKS;
         final PhysicalSlotProvider physicalSlotProvider =
-                new PhysicalSlotProviderImpl(slotSelectionStrategy, slotPool);
+                new PhysicalSlotProviderImpl(
+                        slotSelectionStrategy, slotPool, streamingWithBalancing);
         final ExecutionSlotAllocatorFactory allocatorFactory =
                 new SlotSharingExecutionSlotAllocatorFactory(
                         physicalSlotProvider,
                         jobType == JobType.STREAMING,
                         bulkChecker,
-                        slotRequestTimeout);
+                        slotRequestTimeout,
+                        streamingWithBalancing
+                                ? new TaskBalancedPreferredSlotSharingStrategy.Factory()
+                                : new LocalInputPreferredSlotSharingStrategy.Factory());
         return new DefaultSchedulerComponents(
                 new PipelinedRegionSchedulingStrategy.Factory(),
                 bulkChecker::start,

@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -57,17 +56,8 @@ public class BlocklistDeclarativeSlotPool extends DefaultDeclarativeSlotPool {
             Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements,
             BlockedTaskManagerChecker blockedTaskManagerChecker,
             Duration idleSlotTimeout,
-            Duration rpcTimeout,
-            Duration slotRequestMaxInterval,
-            ComponentMainThreadExecutor componentMainThreadExecutor) {
-        super(
-                jobId,
-                slotPool,
-                notifyNewResourceRequirements,
-                idleSlotTimeout,
-                rpcTimeout,
-                slotRequestMaxInterval,
-                componentMainThreadExecutor);
+            Duration rpcTimeout) {
+        super(jobId, slotPool, notifyNewResourceRequirements, idleSlotTimeout, rpcTimeout);
         this.blockedTaskManagerChecker = checkNotNull(blockedTaskManagerChecker);
     }
 

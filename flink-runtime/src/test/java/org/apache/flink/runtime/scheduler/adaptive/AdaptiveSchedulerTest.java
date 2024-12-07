@@ -612,9 +612,7 @@ public class AdaptiveSchedulerTest {
                         new DefaultAllocatedSlotPool(),
                         ignored -> {},
                         Duration.ofMinutes(10),
-                        Duration.ofMinutes(10),
-                        Duration.ZERO,
-                        mainThreadExecutor);
+                        Duration.ofMinutes(10));
 
         scheduler =
                 new AdaptiveSchedulerBuilder(
@@ -2517,9 +2515,7 @@ public class AdaptiveSchedulerTest {
                 new DefaultAllocatedSlotPool(),
                 ignored -> {},
                 idleSlotTimeout,
-                DEFAULT_TIMEOUT,
-                Duration.ZERO,
-                mainThreadExecutor);
+                DEFAULT_TIMEOUT);
     }
 
     /**
@@ -2530,9 +2526,10 @@ public class AdaptiveSchedulerTest {
         return new TestingDeclarativeSlotPoolBuilder()
                 .setContainsFreeSlotFunction(allocationID -> true)
                 .setReserveFreeSlotFunction(
-                        (allocationId, resourceProfile) ->
+                        (allocationId, resourceProfile, loadingWeight) ->
                                 TestingPhysicalSlot.builder()
                                         .withAllocationID(allocationId)
+                                        .withLoadingWeight(loadingWeight)
                                         .build())
                 .setGetFreeSlotTrackerSupplier(
                         () ->
