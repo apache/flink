@@ -22,6 +22,8 @@ import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.core.state.StateFutureUtils;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -35,9 +37,14 @@ public class CompleteStateIterator<T> implements StateIterator<T> {
     final Iterator<T> iterator;
     final boolean empty;
 
-    public CompleteStateIterator(Iterable<T> iterable) {
-        this.iterator = iterable.iterator();
-        this.empty = !iterator.hasNext();
+    public CompleteStateIterator(@Nullable Iterable<T> iterable) {
+        if (iterable == null) {
+            this.iterator = Collections.emptyIterator();
+            this.empty = true;
+        } else {
+            this.iterator = iterable.iterator();
+            this.empty = !iterator.hasNext();
+        }
     }
 
     @Override
