@@ -193,7 +193,7 @@ public final class FileUtils {
      * @throws IOException if an I/O error occurs reading from the stream
      * @throws OutOfMemoryError if an array of the required size cannot be allocated
      */
-    private static byte[] read(InputStream source, int initialSize) throws IOException {
+    public static byte[] read(InputStream source, int initialSize) throws IOException {
         int capacity = initialSize;
         byte[] buf = new byte[capacity];
         int nread = 0;
