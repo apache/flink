@@ -291,13 +291,21 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
     public <IN, OUT> OUT handleRequestSync(
             State state, StateRequestType type, @Nullable IN payload) {
         InternalStateFuture<OUT> stateFuture = handleRequest(state, type, payload);
-        while (!stateFuture.isDone()) {
-            try {
-                mailboxExecutor.yield();
-            } catch (InterruptedException e) {
-                LOG.warn("Error while waiting for state future to complete.", e);
-                throw new RuntimeException("Error while waiting for state future to complete.", e);
+        triggerIfNeeded(true);
+        try {
+            while (!stateFuture.isDone()) {
+                if (!mailboxExecutor.tryYield()) {
+                    // We force trigger the buffer if targetNum == 0 (for draining) or the state
+                    // executor is not fully loaded.
+                    if (!stateExecutor.fullyLoaded()) {
+                        triggerIfNeeded(true);
+                    }
+                    waitForNewMails();
+                }
             }
+        } catch (InterruptedException ignored) {
+            // ignore the interrupted exception to avoid throwing fatal error when the task cancel
+            // or exit.
         }
         return stateFuture.get();
     }
