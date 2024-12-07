@@ -50,6 +50,7 @@ import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchSchedulerFa
 import org.apache.flink.runtime.scheduler.adaptivebatch.BatchJobRecoveryHandler;
 import org.apache.flink.runtime.scheduler.adaptivebatch.BlockingResultInfo;
 import org.apache.flink.runtime.scheduler.adaptivebatch.DummyBatchJobRecoveryHandler;
+import org.apache.flink.runtime.scheduler.adaptivebatch.NonAdaptiveExecutionPlanSchedulingContext;
 import org.apache.flink.runtime.scheduler.adaptivebatch.VertexParallelismAndInputInfosDecider;
 import org.apache.flink.runtime.scheduler.strategy.AllFinishedInputConsumableDecider;
 import org.apache.flink.runtime.scheduler.strategy.InputConsumableDecider;
@@ -326,7 +327,8 @@ public class DefaultSchedulerBuilder {
                 shuffleMaster,
                 rpcTimeout,
                 computeVertexParallelismStore(jobGraph),
-                executionDeployerFactory);
+                executionDeployerFactory,
+                NonAdaptiveExecutionPlanSchedulingContext.INSTANCE);
     }
 
     public AdaptiveBatchScheduler buildAdaptiveBatchJobScheduler() throws Exception {
