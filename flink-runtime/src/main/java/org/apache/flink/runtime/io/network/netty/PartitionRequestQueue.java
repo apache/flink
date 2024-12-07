@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.netty;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.FullyFilledBuffer;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.PartitionRequestListener;
@@ -340,6 +341,11 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
                                     next.getSequenceNumber(),
                                     reader.getReceiverId(),
                                     nextSubpartitionId,
+                                    next.buffer() instanceof FullyFilledBuffer
+                                            ? ((FullyFilledBuffer) next.buffer())
+                                                    .getPartialBuffers()
+                                                    .size()
+                                            : 0,
                                     next.buffersInBacklog());
 
                     // Write and flush and wait until this is done before
