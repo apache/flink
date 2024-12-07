@@ -176,13 +176,10 @@ public final class DefaultDispatcherRunner implements DispatcherRunner, LeaderCo
         FutureUtils.assertNoException(
                 newDispatcherLeaderProcess
                         .getLeaderAddressFuture()
-                        .thenAccept(
-                                leaderAddress -> {
-                                    if (leaderElection.hasLeadership(leaderSessionID)) {
-                                        leaderElection.confirmLeadership(
-                                                leaderSessionID, leaderAddress);
-                                    }
-                                }));
+                        .thenCompose(
+                                leaderAddress ->
+                                        leaderElection.confirmLeadershipAsync(
+                                                leaderSessionID, leaderAddress)));
     }
 
     @Override

@@ -266,7 +266,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
                 .thenAcceptAsync(
                         (isStillLeader) -> {
                             if (isStillLeader) {
-                                leaderElection.confirmLeadership(
+                                leaderElection.confirmLeadershipAsync(
                                         newLeaderSessionID, newLeaderResourceManager.getAddress());
                             }
                         },
