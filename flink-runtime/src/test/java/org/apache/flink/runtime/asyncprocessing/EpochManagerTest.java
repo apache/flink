@@ -57,5 +57,15 @@ class EpochManagerTest {
         assertThat(epochManager.outputQueue.size()).isEqualTo(0);
         assertThat(epochManager.activeEpoch.ongoingRecordCount).isEqualTo(0);
         assertThat(epochManager.activeEpoch.status).isEqualTo(EpochStatus.OPEN);
+
+        // Test if in the action there is a record processing. Should not be any error.
+        epochManager.onNonRecord(
+                () -> {
+                    output.incrementAndGet();
+                    Epoch epoch4 = epochManager.onRecord();
+                    epochManager.completeOneRecord(epoch4);
+                },
+                ParallelMode.PARALLEL_BETWEEN_EPOCH);
+        assertThat(output.get()).isEqualTo(2);
     }
 }
