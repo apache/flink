@@ -68,7 +68,7 @@ failures, among others. This process consists of three different components:
     Flink implements multiple ResourceManagers for different environments and
     resource providers such as YARN, Kubernetes and standalone
     deployments. In a standalone setup, the ResourceManager can only distribute
-    the slots of available TaskManagers and cannot start new TaskManagers on
+    the slots of available TaskManagers cannot start new TaskManagers on
     its own.  
 
   * **Dispatcher** 
