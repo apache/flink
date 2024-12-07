@@ -16,19 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.v2.internal;
+package org.apache.flink.state.forst;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.state.v2.ListState;
-import org.apache.flink.api.common.state.v2.StateIterator;
+import org.apache.flink.core.state.InternalStateFuture;
+
+import java.io.IOException;
+import java.util.List;
 
 /**
- * This class defines the internal interface for list state.
+ * The Get access request for ForStDB.
  *
- * @param <K> The type of key the state is associated to.
- * @param <N> The namespace type.
- * @param <V> The type of the intermediate state.
+ * @param <K> The type of key in get access request.
+ * @param <N> The type of namespace in get access request.
+ * @param <V> The type of value returned by get request.
  */
-@Internal
-public interface InternalListState<K, N, V>
-        extends InternalMergingState<K, N, V, V, StateIterator<V>, Iterable<V>>, ListState<V> {}
+public class ForStDBRawGetRequest<K, N, V> extends ForStDBGetRequest<K, N, List<V>, byte[]> {
+
+    ForStDBRawGetRequest(
+            ContextKey<K, N> key,
+            ForStInnerTable<K, N, List<V>> table,
+            InternalStateFuture<byte[]> future) {
+        super(key, table, future);
+    }
+
+    @Override
+    public void completeStateFuture(byte[] bytesValue) throws IOException {
+        future.complete(bytesValue);
+    }
+}

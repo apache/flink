@@ -16,19 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.v2.internal;
-
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.state.v2.ListState;
-import org.apache.flink.api.common.state.v2.StateIterator;
+package org.apache.flink.state.forst;
 
 /**
- * This class defines the internal interface for list state.
- *
- * @param <K> The type of key the state is associated to.
- * @param <N> The namespace type.
- * @param <V> The type of the intermediate state.
+ * ForSt customized state request other than {@link
+ * org.apache.flink.runtime.asyncprocessing.StateRequestType}.
  */
-@Internal
-public interface InternalListState<K, N, V>
-        extends InternalMergingState<K, N, V, V, StateIterator<V>, Iterable<V>>, ListState<V> {}
+public enum ForStStateRequestType {
+    /** Get the list in raw bytes without deserialization. */
+    LIST_GET_RAW,
+
+    /** Merge a list of raw bytes. */
+    MERGE_ALL_RAW
+}
