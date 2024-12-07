@@ -27,7 +27,7 @@ import javax.annotation.Nullable;
 
 import java.util.Map;
 
-import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processFirstRowOnProcTime;
+import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.processFirstRowOnProcTime;
 
 /**
  * This function is used to get the first row for every key partition in miniBatch mode.
