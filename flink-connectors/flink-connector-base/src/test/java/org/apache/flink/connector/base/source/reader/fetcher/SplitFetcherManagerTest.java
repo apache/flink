@@ -33,6 +33,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.RepeatedTest;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -41,6 +42,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.test.util.TestUtils.waitUntil;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -142,6 +144,48 @@ class SplitFetcherManagerTest {
         } finally {
             fetcherManager.close(30_000);
         }
+    }
+
+    @RepeatedTest(100)
+    public void testAddSplitAfterCloseFetcher() throws Exception {
+        // This testcase reproduces https://issues.apache.org/jira/browse/FLINK-36146.
+        // One thread adds splits to a fetcher manager, while another thread closes the manager after a
+        // short delay. This fails ~50% of the time before the bug fix.
+        final SingleThreadFetcherManager<Object, TestingSourceSplit> fetcherManager =
+            new SingleThreadFetcherManager<>(TestingSplitReader::new, new Configuration());
+
+        // Add splits in a tight loop, and memoize any exception
+        AtomicReference<Exception> addSplitsException = new AtomicReference<>();
+        Thread adder = new Thread(() -> {
+            while (true) {
+                try {
+                    fetcherManager.addSplits(Collections.singletonList(new TestingSourceSplit("x")));
+                } catch (Exception e) {
+                    addSplitsException.set(e);
+                    break;
+                }
+            }
+        });
+
+        // Close the fetcher manager after a short delay
+        Thread closer = new Thread(() -> {
+            try {
+                Thread.sleep(50);
+                fetcherManager.close(1000);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        // Start the threads, adder first
+        adder.start();
+        closer.start();
+
+        // Block until adder thread finalizes
+        adder.join(2000);
+
+        // On close, addSplits should always exit with IllegalStateException.
+        assertThat(addSplitsException.get()).isInstanceOf(IllegalStateException.class);
     }
 
     // the final modifier is important so that '@SafeVarargs' is accepted on Java 8
