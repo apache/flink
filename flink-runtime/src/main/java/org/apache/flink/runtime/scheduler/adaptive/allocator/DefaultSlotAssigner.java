@@ -26,6 +26,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /** Simple {@link SlotAssigner} that treats all slots and slot sharing groups equally. */
 public class DefaultSlotAssigner implements SlotAssigner {
 
@@ -39,6 +41,11 @@ public class DefaultSlotAssigner implements SlotAssigner {
         Iterator<? extends SlotInfo> iterator = freeSlots.iterator();
         Collection<SlotAssignment> assignments = new ArrayList<>();
         for (ExecutionSlotSharingGroup group : requestExecutionSlotSharingGroups) {
+            checkState(
+                    iterator.hasNext(),
+                    "No slots available for group %s (%s more in total). This is likely a bug.",
+                    group,
+                    requestExecutionSlotSharingGroups.size());
             assignments.add(new SlotAssignment(iterator.next(), group));
         }
         return assignments;
