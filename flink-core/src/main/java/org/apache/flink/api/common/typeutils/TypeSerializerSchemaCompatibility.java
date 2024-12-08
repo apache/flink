@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.typeutils;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -37,7 +37,7 @@ import javax.annotation.Nullable;
  * @see TypeSerializer
  * @see TypeSerializerSnapshot#resolveSchemaCompatibility(TypeSerializerSnapshot)
  */
-@PublicEvolving
+@Public
 public class TypeSerializerSchemaCompatibility<T> {
 
     /** Enum for the type of the compatibility. */
