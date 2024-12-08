@@ -268,12 +268,11 @@ class CatalogBaseTableResolutionTest {
 
     @Test
     void testInvalidPartitionKeys() {
-        final CatalogTable catalogTable =
-                CatalogTable.of(
-                        TABLE_SCHEMA,
-                        null,
-                        Arrays.asList("region", "countyINVALID"),
-                        Collections.emptyMap());
+        final CatalogTable catalogTable = CatalogTable.newBuilder()
+                .schema(TABLE_SCHEMA)
+                .comment(null)
+                .partitionKeys(Arrays.asList("region", "countyINVALID"))
+                .options(Collections.emptyMap()).build();
 
         try {
             resolveCatalogBaseTable(ResolvedCatalogTable.class, catalogTable);
@@ -368,7 +367,11 @@ class CatalogBaseTableResolutionTest {
         options.put("connector", "custom");
         options.put("version", "12");
 
-        return CatalogTable.of(TABLE_SCHEMA, comment, partitionKeys, options);
+        return CatalogTable.newBuilder()
+                .schema(TABLE_SCHEMA)
+                .comment(comment)
+                .partitionKeys(partitionKeys)
+                .options(options).build();
     }
 
     private static Map<String, String> catalogTableAsProperties() {

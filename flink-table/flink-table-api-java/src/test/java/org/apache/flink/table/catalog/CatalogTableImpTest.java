@@ -41,7 +41,7 @@ class CatalogTableImpTest {
     void testToProperties() {
         TableSchema schema = createTableSchema();
         Map<String, String> prop = createProperties();
-        CatalogTable table = new CatalogTableImpl(schema, createPartitionKeys(), prop, TEST);
+        CatalogTableImpl table = new CatalogTableImpl(schema, createPartitionKeys(), prop, TEST);
 
         DescriptorProperties descriptorProperties = new DescriptorProperties(false);
         descriptorProperties.putProperties(table.toProperties());
@@ -53,7 +53,7 @@ class CatalogTableImpTest {
     void testFromProperties() {
         TableSchema schema = createTableSchema();
         Map<String, String> prop = createProperties();
-        CatalogTable table = new CatalogTableImpl(schema, createPartitionKeys(), prop, TEST);
+        CatalogTableImpl table = new CatalogTableImpl(schema, createPartitionKeys(), prop, TEST);
 
         CatalogTableImpl tableFromProperties =
                 CatalogTableImpl.fromProperties(table.toProperties());
