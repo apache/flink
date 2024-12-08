@@ -27,6 +27,7 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllo
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
@@ -34,14 +35,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.stream.Collectors;
 
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /** A {@link SlotAssigner} that assigns slots based on the number of local key groups. */
 @Internal
@@ -86,6 +85,12 @@ public class StateLocalitySlotAssigner implements SlotAssigner {
         }
     }
 
+    private final SlotAssigner rollbackSlotAssigner;
+
+    public StateLocalitySlotAssigner(SlotAssigner rollbackSlotAssigner) {
+        this.rollbackSlotAssigner = Preconditions.checkNotNull(rollbackSlotAssigner);
+    }
+
     @Override
     public Collection<SlotAssignment> assignSlots(
             JobInformation jobInformation,
@@ -118,16 +123,14 @@ public class StateLocalitySlotAssigner implements SlotAssigner {
                                 groupsById.remove(score.getGroupId())));
             }
         }
-        // Distribute the remaining slots with no score
-        Iterator<? extends SlotInfo> remainingSlots = slotsById.values().iterator();
-        for (ExecutionSlotSharingGroup group : groupsById.values()) {
-            checkState(
-                    remainingSlots.hasNext(),
-                    "No slots available for group %s (%s more in total). This is likely a bug.",
-                    group,
-                    groupsById.size());
-            assignments.add(new SlotAssignment(remainingSlots.next(), group));
-            remainingSlots.remove();
+
+        if (!groupsById.isEmpty()) {
+            assignments.addAll(
+                    rollbackSlotAssigner.assignSlots(
+                            jobInformation,
+                            slotsById.values(),
+                            new ArrayList<>(groupsById.values()),
+                            previousAllocations));
         }
 
         return assignments;

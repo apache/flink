@@ -157,10 +157,8 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                                             slotSharingStrategy.getExecutionSlotSharingGroups(
                                                     jobInformation, parallelism);
 
-                            SlotAssigner slotAssigner =
-                                    localRecoveryEnabled && !jobAllocationsInformation.isEmpty()
-                                            ? new StateLocalitySlotAssigner()
-                                            : new DefaultSlotAssigner();
+                            final SlotAssigner slotAssigner =
+                                    createSlotAssigner(jobAllocationsInformation);
                             return new JobSchedulingPlan(
                                     parallelism,
                                     slotAssigner.assignSlots(
@@ -169,6 +167,13 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
                                             allExecutionSlotSharingGroups,
                                             jobAllocationsInformation));
                         });
+    }
+
+    private SlotAssigner createSlotAssigner(JobAllocationsInformation jobAllocationsInformation) {
+        final SlotAssigner rollbackSlotAssigner = new DefaultSlotAssigner();
+        return localRecoveryEnabled && !jobAllocationsInformation.isEmpty()
+                ? new StateLocalitySlotAssigner(rollbackSlotAssigner)
+                : rollbackSlotAssigner;
     }
 
     /**

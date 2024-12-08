@@ -182,7 +182,7 @@ class StateLocalitySlotAssignerTest {
         Collection<SlotSharingSlotAllocator.ExecutionSlotSharingGroup> allGroups =
                 DefaultSlotSharingStrategy.INSTANCE.getExecutionSlotSharingGroups(
                         testJobInformation, vertexParallelism);
-        return new StateLocalitySlotAssigner()
+        return new StateLocalitySlotAssigner(new DefaultSlotAssigner())
                 .assignSlots(
                         testJobInformation,
                         allocationIDs.stream().map(TestingSlot::new).collect(Collectors.toList()),
