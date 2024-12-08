@@ -48,6 +48,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /** {@link SlotAllocator} implementation that supports slot sharing. */
 public class SlotSharingSlotAllocator implements SlotAllocator {
 
@@ -144,16 +146,27 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
         return determineParallelism(jobInformation, slots)
                 .map(
                         parallelism -> {
+                            checkState(
+                                    slots.size() >= jobInformation.getSlotSharingGroups().size(),
+                                    "Not enough slots to allocate all the slot sharing groups (have: %s, need: %s)",
+                                    slots.size(),
+                                    jobInformation.getSlotSharingGroups().size());
+
+                            final Collection<ExecutionSlotSharingGroup>
+                                    allExecutionSlotSharingGroups =
+                                            slotSharingStrategy.getExecutionSlotSharingGroups(
+                                                    jobInformation, parallelism);
+
                             SlotAssigner slotAssigner =
                                     localRecoveryEnabled && !jobAllocationsInformation.isEmpty()
-                                            ? new StateLocalitySlotAssigner(slotSharingStrategy)
-                                            : new DefaultSlotAssigner(slotSharingStrategy);
+                                            ? new StateLocalitySlotAssigner()
+                                            : new DefaultSlotAssigner();
                             return new JobSchedulingPlan(
                                     parallelism,
                                     slotAssigner.assignSlots(
                                             jobInformation,
                                             slots,
-                                            parallelism,
+                                            allExecutionSlotSharingGroups,
                                             jobAllocationsInformation));
                         });
     }

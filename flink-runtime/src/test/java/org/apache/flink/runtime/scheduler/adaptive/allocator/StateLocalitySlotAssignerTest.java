@@ -172,14 +172,21 @@ class StateLocalitySlotAssignerTest {
             VertexInformation vertexInformation,
             List<AllocationID> allocationIDs,
             List<VertexAllocationInformation> allocations) {
-        return new StateLocalitySlotAssigner(DefaultSlotSharingStrategy.INSTANCE)
+        TestJobInformation testJobInformation =
+                new TestJobInformation(singletonList(vertexInformation));
+        VertexParallelism vertexParallelism =
+                new VertexParallelism(
+                        singletonMap(
+                                vertexInformation.getJobVertexID(),
+                                vertexInformation.getParallelism()));
+        Collection<SlotSharingSlotAllocator.ExecutionSlotSharingGroup> allGroups =
+                DefaultSlotSharingStrategy.INSTANCE.getExecutionSlotSharingGroups(
+                        testJobInformation, vertexParallelism);
+        return new StateLocalitySlotAssigner()
                 .assignSlots(
-                        new TestJobInformation(singletonList(vertexInformation)),
+                        testJobInformation,
                         allocationIDs.stream().map(TestingSlot::new).collect(Collectors.toList()),
-                        new VertexParallelism(
-                                singletonMap(
-                                        vertexInformation.getJobVertexID(),
-                                        vertexInformation.getParallelism())),
+                        allGroups,
                         new JobAllocationsInformation(
                                 singletonMap(vertexInformation.getJobVertexID(), allocations)));
     }
