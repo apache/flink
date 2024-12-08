@@ -86,34 +86,25 @@ public class StateLocalitySlotAssigner implements SlotAssigner {
         }
     }
 
-    private final SlotSharingStrategy slotSharingStrategy;
-
-    StateLocalitySlotAssigner(SlotSharingStrategy slotSharingStrategy) {
-        this.slotSharingStrategy = slotSharingStrategy;
-    }
-
     @Override
     public Collection<SlotAssignment> assignSlots(
             JobInformation jobInformation,
             Collection<? extends SlotInfo> freeSlots,
-            VertexParallelism vertexParallelism,
+            Collection<ExecutionSlotSharingGroup> requestExecutionSlotSharingGroups,
             JobAllocationsInformation previousAllocations) {
-        checkState(
-                freeSlots.size() >= jobInformation.getSlotSharingGroups().size(),
-                "Not enough slots to allocate all the slot sharing groups (have: %s, need: %s)",
-                freeSlots.size(),
-                jobInformation.getSlotSharingGroups().size());
 
-        final Collection<ExecutionSlotSharingGroup> allGroups =
-                slotSharingStrategy.getExecutionSlotSharingGroups(
-                        jobInformation, vertexParallelism);
-
-        final Map<JobVertexID, Integer> parallelism = getParallelism(allGroups);
+        final Map<JobVertexID, Integer> parallelism =
+                getParallelism(requestExecutionSlotSharingGroups);
         final PriorityQueue<AllocationScore> scores =
-                calculateScores(jobInformation, previousAllocations, allGroups, parallelism);
+                calculateScores(
+                        jobInformation,
+                        previousAllocations,
+                        requestExecutionSlotSharingGroups,
+                        parallelism);
 
         final Map<String, ExecutionSlotSharingGroup> groupsById =
-                allGroups.stream().collect(toMap(ExecutionSlotSharingGroup::getId, identity()));
+                requestExecutionSlotSharingGroups.stream()
+                        .collect(toMap(ExecutionSlotSharingGroup::getId, identity()));
         final Map<AllocationID, SlotInfo> slotsById =
                 freeSlots.stream().collect(toMap(SlotInfo::getAllocationId, identity()));
         AllocationScore score;
