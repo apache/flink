@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -199,6 +200,29 @@ public class DefaultAllocatedSlotPool implements AllocatedSlotPool {
     @Override
     public Collection<? extends SlotInfo> getAllSlotsInformation() {
         return registeredSlots.values();
+    }
+
+    @Override
+    public TaskExecutorsLoadInformation getTaskExecutorsLoadInformation() {
+        return DefaultAllocatedSlotPool.this::getTaskExecutorsSlotsUtilization;
+    }
+
+    private Map<ResourceID, TaskExecutorsLoadInformation.SlotsUtilization>
+            getTaskExecutorsSlotsUtilization() {
+        final Map<ResourceID, TaskExecutorsLoadInformation.SlotsUtilization> result =
+                new HashMap<>();
+        for (ResourceID resourceId : slotsPerTaskExecutor.keySet()) {
+            Set<AllocationID> slots = slotsPerTaskExecutor.get(resourceId);
+            if (Objects.isNull(slots) || slots.isEmpty()) {
+                continue;
+            }
+            result.put(
+                    resourceId,
+                    new TaskExecutorsLoadInformation.SlotsUtilization(
+                            slots.size(),
+                            slots.size() - freeSlots.getFreeSlotsNumberOfTaskExecutor(resourceId)));
+        }
+        return result;
     }
 
     private double getTaskExecutorUtilization(ResourceID resourceId) {
