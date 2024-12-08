@@ -30,25 +30,16 @@ import java.util.List;
 /** Simple {@link SlotAssigner} that treats all slots and slot sharing groups equally. */
 public class DefaultSlotAssigner implements SlotAssigner {
 
-    private final SlotSharingStrategy slotSharingStrategy;
-
-    DefaultSlotAssigner(SlotSharingStrategy slotSharingStrategy) {
-        this.slotSharingStrategy = slotSharingStrategy;
-    }
-
     @Override
     public Collection<SlotAssignment> assignSlots(
             JobInformation jobInformation,
             Collection<? extends SlotInfo> freeSlots,
-            VertexParallelism vertexParallelism,
+            List<ExecutionSlotSharingGroup> requestExecutionSlotSharingGroups,
             JobAllocationsInformation previousAllocations) {
-        final List<ExecutionSlotSharingGroup> allGroups =
-                slotSharingStrategy.getExecutionSlotSharingGroups(
-                        jobInformation, vertexParallelism);
 
         Iterator<? extends SlotInfo> iterator = freeSlots.iterator();
         Collection<SlotAssignment> assignments = new ArrayList<>();
-        for (ExecutionSlotSharingGroup group : allGroups) {
+        for (ExecutionSlotSharingGroup group : requestExecutionSlotSharingGroups) {
             assignments.add(new SlotAssignment(iterator.next(), group));
         }
         return assignments;

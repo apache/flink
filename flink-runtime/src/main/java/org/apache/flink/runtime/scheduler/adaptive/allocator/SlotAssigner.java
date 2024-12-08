@@ -22,6 +22,9 @@ import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment;
 
 import java.util.Collection;
+import java.util.List;
+
+import static org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator.ExecutionSlotSharingGroup;
 
 /** Interface for assigning slots to slot sharing groups. */
 @Internal
@@ -30,6 +33,6 @@ public interface SlotAssigner {
     Collection<SlotAssignment> assignSlots(
             JobInformation jobInformation,
             Collection<? extends SlotInfo> freeSlots,
-            VertexParallelism vertexParallelism,
+            List<ExecutionSlotSharingGroup> requestExecutionSlotSharingGroups,
             JobAllocationsInformation previousAllocations);
 }
