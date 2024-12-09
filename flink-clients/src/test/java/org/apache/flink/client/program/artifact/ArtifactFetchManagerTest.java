@@ -95,10 +95,12 @@ class ArtifactFetchManagerTest {
     }
 
     @Test
-    void testFileSystemFetchWithAdditionalUri() throws Exception {
+    void testFileSystemFetchWithAdditionalUri(@TempDir Path pseudoJarDir) throws Exception {
         File sourceFile = TestingUtils.getClassFile(getClass());
         String uriStr = "file://" + sourceFile.toURI().getPath();
-        File additionalSrcFile = getFlinkClientsJar();
+        File additionalSrcFile =
+                Files.createTempFile(pseudoJarDir, "testFileSystemFetchWithAdditionalUri", ".jar")
+                        .toFile();
         String additionalUriStr = "file://" + additionalSrcFile.toURI().getPath();
 
         ArtifactFetchManager fetchMgr = new ArtifactFetchManager(configuration);
@@ -112,12 +114,12 @@ class ArtifactFetchManagerTest {
     }
 
     @Test
-    void testHttpFetch() throws Exception {
+    void testHttpFetch(@TempDir Path pseudoJarDir) throws Exception {
         configuration.set(ArtifactFetchOptions.RAW_HTTP_ENABLED, true);
         HttpServer httpServer = null;
         try {
             httpServer = startHttpServer();
-            File sourceFile = getFlinkClientsJar();
+            File sourceFile = Files.createTempFile(pseudoJarDir, "testHttpFetch", ".jar").toFile();
             httpServer.createContext(
                     "/download/" + sourceFile.getName(), new DummyHttpDownloadHandler(sourceFile));
             String uriStr =
@@ -138,10 +140,11 @@ class ArtifactFetchManagerTest {
     }
 
     @Test
-    void testMixedArtifactFetch() throws Exception {
+    void testMixedArtifactFetch(@TempDir Path pseudoJarDir) throws Exception {
         File sourceFile = TestingUtils.getClassFile(getClass());
         String uriStr = "file://" + sourceFile.toURI().getPath();
-        File sourceFile2 = getFlinkClientsJar();
+        File sourceFile2 =
+                Files.createTempFile(pseudoJarDir, "testMixedArtifactFetch", ".jar").toFile();
         String uriStr2 = "file://" + sourceFile2.toURI().getPath();
 
         ArtifactFetchManager fetchMgr = new ArtifactFetchManager(configuration);
