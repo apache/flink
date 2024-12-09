@@ -1213,7 +1213,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                 "{} was granted leadership with leaderSessionID={}",
                 getRestBaseUrl(),
                 leaderSessionID);
-        leaderElection.confirmLeadership(leaderSessionID, getRestBaseUrl());
+        leaderElection.confirmLeadershipAsync(leaderSessionID, getRestBaseUrl());
     }
 
     @Override
