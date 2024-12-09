@@ -68,6 +68,8 @@ class AggFunctionFactory(
     call.getAggregation match {
       case a: SqlAvgAggFunction if a.kind == SqlKind.AVG => createAvgAggFunction(argTypes)
 
+      case _: SqlBkDataSumAggFunction => createBkDataSumAggFunction(argTypes, index)
+
       case _: SqlSumAggFunction => createSumAggFunction(argTypes, index)
 
       case _: SqlSumEmptyIsZeroAggFunction => createSum0AggFunction(argTypes)
@@ -193,6 +195,56 @@ class AggFunctionFactory(
         throw new TableException(
           s"Avg aggregate function does not support type: ''$t''.\n" +
             s"Please re-check the data type.")
+    }
+  }
+
+  private def createBkDataSumAggFunction(
+      argTypes: Array[LogicalType],
+      index: Int): UserDefinedFunction = {
+    if (aggCallNeedRetractions(index)) {
+      argTypes(0).getTypeRoot match {
+        case TINYINT =>
+          new LongSumWithRetractAggFunction
+        case SMALLINT =>
+          new LongSumWithRetractAggFunction
+        case INTEGER =>
+          new LongSumWithRetractAggFunction
+        case BIGINT =>
+          new LongSumWithRetractAggFunction
+        case FLOAT =>
+          new DoubleSumWithRetractAggFunction
+        case DOUBLE =>
+          new DoubleSumWithRetractAggFunction
+        case DECIMAL =>
+          val d = argTypes(0).asInstanceOf[DecimalType]
+          new DecimalSumWithRetractAggFunction(d)
+        case t =>
+          throw new TableException(
+            s"Sum with retract aggregate function does not " +
+              s"support type: ''$t''.\nPlease re-check the data type.")
+      }
+    } else {
+      argTypes(0).getTypeRoot match {
+        case TINYINT =>
+          new SumAggFunction.LongSumAggFunction
+        case SMALLINT =>
+          new SumAggFunction.LongSumAggFunction
+        case INTEGER =>
+          new SumAggFunction.LongSumAggFunction
+        case BIGINT =>
+          new SumAggFunction.LongSumAggFunction
+        case FLOAT =>
+          new SumAggFunction.DoubleSumAggFunction
+        case DOUBLE =>
+          new SumAggFunction.DoubleSumAggFunction
+        case DECIMAL =>
+          val d = argTypes(0).asInstanceOf[DecimalType]
+          new SumAggFunction.DecimalSumAggFunction(d)
+        case t =>
+          throw new TableException(
+            s"Sum aggregate function does not support type: ''$t''.\n" +
+              s"Please re-check the data type.")
+      }
     }
   }
 
