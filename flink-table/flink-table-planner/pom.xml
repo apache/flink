@@ -330,10 +330,10 @@ under the License.
 					</artifactSet>
 					<relocations>
 						<!-- Calcite is not relocated for now, because we expose it at some locations such as CalciteConfig -->
-						<!--<relocation>
+						<relocation>
 							<pattern>org.apache.calcite</pattern>
 							<shadedPattern>org.apache.flink.calcite.shaded.org.apache.calcite</shadedPattern>
-						</relocation>-->
+						</relocation>
 
 						<!-- Calcite's dependencies -->
 						<!-- Keep it in sync with flink-sql-client -->

@@ -36,7 +36,7 @@ under the License.
 
 	<modules>
 		<module>flink-hadoop-compatibility</module>
-		<module>flink-connector-hive</module>
+		<!--<module>flink-connector-hive</module>-->
 		<module>flink-connector-base</module>
 		<module>flink-file-sink-common</module>
 		<module>flink-connector-files</module>
