@@ -52,6 +52,7 @@ public class MetricNames {
     public static final String NUM_PENDING_TASK_MANAGERS = "numPendingTaskManagers";
 
     public static final String NUM_RESTARTS = "numRestarts";
+    public static final String NUM_RESCALES = "numRescales";
 
     public static final String MEMORY_USED = "Used";
     public static final String MEMORY_COMMITTED = "Committed";
