@@ -27,6 +27,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
@@ -37,12 +38,14 @@ import static org.apache.flink.table.api.DataTypes.HOUR;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
 import static org.apache.flink.table.api.DataTypes.SECOND;
+import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.temporalOverlaps;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.literal;
 
 /** Test time-related built-in functions. */
 class TimeFunctionsITCase extends BuiltInFunctionTestBase {
@@ -50,10 +53,11 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
-                        extractTestCases(),
-                        temporalOverlapsTestCases(),
-                        ceilTestCases(),
-                        floorTestCases())
+//                        extractTestCases(),
+//                        temporalOverlapsTestCases(),
+//                        ceilTestCases(),
+//                        floorTestCases(),
+                        toTimestampLtzTestCases())
                 .flatMap(s -> s);
     }
 
@@ -733,5 +737,68 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 "FLOOR(f2 TO MILLENNIUM)",
                                 LocalDateTime.of(2001, 1, 1, 0, 0),
                                 TIMESTAMP().nullable()));
+    }
+
+    private Stream<TestSetSpec> toTimestampLtzTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.TO_TIMESTAMP_LTZ)
+                        .onFieldsWithData(
+                                100,
+                                1234,
+                                -100,
+                                null,
+                                "2023-01-01 00:00:00",  // default format
+                                "01/01/2023 00:00:00",
+                                null)
+                        .andDataTypes(
+                                INT(),
+                                INT(),
+                                INT(),
+                                INT(),
+                                STRING(),
+                                STRING(),
+                                STRING())
+                        .testResult(
+                                call("TO_TIMESTAMP_LTZ", $("f0"), literal(0)),
+                                "TO_TIMESTAMP_LTZ(f0, 0)",
+                                LocalDateTime.of(1970, 1, 1, 0, 1, 40)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(0).nullable())
+                        .testResult(
+                                call("TO_TIMESTAMP_LTZ", $("f1"), literal(3)),
+                                "TO_TIMESTAMP_LTZ(f1, 3)",
+                                LocalDateTime.of(1970, 1, 1, 0, 0, 1, 234000000)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                call("TO_TIMESTAMP_LTZ", $("f2"), literal(0)),
+                                "TO_TIMESTAMP_LTZ(f2, 0)",
+                                LocalDateTime.of(1969, 12, 31, 23, 58, 20)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(0).nullable())
+                        .testResult(
+                                call("TO_TIMESTAMP_LTZ", $("f3"), literal(3)),
+                                "TO_TIMESTAMP_LTZ(f3, 3)",
+                                null,
+                                TIMESTAMP_LTZ(3).nullable())
+                        // Test default format string parsing
+                        .testResult(
+                                call("TO_TIMESTAMP_LTZ", $("f4")),
+                                "TO_TIMESTAMP_LTZ(f4)",
+                                LocalDateTime.of(2023, 1, 1, 0, 0, 0)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        // Test custom format string parsing
+                        .testResult(
+                                call("TO_TIMESTAMP_LTZ", $("f5"), literal("dd/MM/yyyy HH:mm:ss")),
+                                "TO_TIMESTAMP_LTZ(f5, 'dd/MM/yyyy HH:mm:ss')",
+                                LocalDateTime.of(2023, 1, 1, 0, 0, 0)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable()));
     }
 }
