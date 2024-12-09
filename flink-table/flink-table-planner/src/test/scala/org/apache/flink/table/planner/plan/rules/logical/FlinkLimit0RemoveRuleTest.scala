@@ -26,8 +26,11 @@ import org.apache.calcite.rel.rules.PruneEmptyRules
 import org.apache.calcite.tools.RuleSets
 import org.junit.jupiter.api.{BeforeEach, Test}
 
-/** Test for [[PruneEmptyRules.SORT_FETCH_ZERO_INSTANCE]]. */
-class SortFetchZeroRuleTest extends TableTestBase {
+/**
+ * Former test for [[FlinkLimit0RemoveRule]] which now replaced by Calcite's
+ * [[PruneEmptyRules.SORT_FETCH_ZERO_INSTANCE]].
+ */
+class FlinkLimit0RemoveRuleTest extends TableTestBase {
 
   private val util = batchTestUtil()
 
