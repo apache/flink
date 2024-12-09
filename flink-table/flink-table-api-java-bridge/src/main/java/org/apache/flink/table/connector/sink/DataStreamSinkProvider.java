@@ -55,24 +55,8 @@ public interface DataStreamSinkProvider
      *
      * @see SingleOutputStreamOperator#uid(String)
      */
-    default DataStreamSink<?> consumeDataStream(
-            ProviderContext providerContext, DataStream<RowData> dataStream) {
-        return consumeDataStream(dataStream);
-    }
-
-    /**
-     * Consumes the given Java {@link DataStream} and returns the sink transformation {@link
-     * DataStreamSink}.
-     *
-     * @deprecated Use {@link DataStreamSinkProvider#consumeDataStream(ProviderContext, DataStream)}
-     *     and correctly set a unique identifier for each data stream transformation.
-     */
-    @Deprecated
-    default DataStreamSink<?> consumeDataStream(DataStream<RowData> dataStream) {
-        throw new UnsupportedOperationException(
-                "This method is deprecated. "
-                        + "Use consumeDataStream(ProviderContext, DataStream<RowData>) instead");
-    }
+    DataStreamSink<?> consumeDataStream(
+            ProviderContext providerContext, DataStream<RowData> dataStream);
 
     /**
      * {@inheritDoc}
