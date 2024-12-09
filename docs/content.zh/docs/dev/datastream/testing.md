@@ -450,26 +450,41 @@ public class ExampleIntegrationTest {
         CollectSink.values.clear();
 
         // create a stream of custom elements and apply transformations
-        env.fromElements(1L, 21L, 22L)
+        env.fromData(1L, 21L, 22L)
                 .map(new IncrementMapFunction())
-                .addSink(new CollectSink());
+                .sinkTo(new CollectSink());
 
         // execute
         env.execute();
 
         // verify your results
-        assertTrue(CollectSink.values.containsAll(2L, 22L, 23L));
+        assertTrue(CollectSink.values.containsAll(List.of(2L, 22L, 23L)));
     }
 
     // create a testing sink
-    private static class CollectSink implements SinkFunction<Long> {
+    private static class CollectSink implements Sink<Long> {
 
         // must be static
         public static final List<Long> values = Collections.synchronizedList(new ArrayList<>());
 
         @Override
-        public void invoke(Long value, SinkFunction.Context context) throws Exception {
-            values.add(value);
+        public SinkWriter<Long> createWriter(WriterInitContext context) {
+            return new SinkWriter<>() {
+                @Override
+                public void write(Long element, Context context) {
+                    values.add(element);
+                }
+
+                @Override
+                public void close() {
+                    // noting to do here
+                }
+
+                @Override
+                public void flush(boolean endOfInput) {
+                    // noting to do here
+                }
+            };
         }
     }
 }
