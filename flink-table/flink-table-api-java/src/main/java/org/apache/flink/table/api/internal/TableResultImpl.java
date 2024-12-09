@@ -163,6 +163,10 @@ public class TableResultImpl implements TableResultInternal {
         printStyle.print(it, new PrintWriter(System.out));
     }
 
+    public PrintStyle getPrintStyle() {
+        return printStyle;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
