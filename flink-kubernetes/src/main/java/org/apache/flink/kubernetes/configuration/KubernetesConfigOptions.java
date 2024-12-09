@@ -570,6 +570,17 @@ public class KubernetesConfigOptions {
                             "The node label whose value is the same as the node name. "
                                     + "Currently, this will only be used to set the node affinity of TM pods to avoid being scheduled on blocked nodes.");
 
+    public static final ConfigOption<Boolean> KUBERNETES_SERVICE_ENABLED =
+            key("kubernetes.service.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription("create kubernetes service");
+    public static final ConfigOption<Integer> KUBERNETES_POLL_POD_IP_MAX_RETRIES =
+            key("kubernetes.poll-pod-ip.max-retries")
+                    .intType()
+                    .defaultValue(60)
+                    .withDescription("poll pod ip max retries");
+
     private static String getDefaultFlinkImage() {
         // The default container image that ties to the exact needed versions of both Flink and
         // Scala.
