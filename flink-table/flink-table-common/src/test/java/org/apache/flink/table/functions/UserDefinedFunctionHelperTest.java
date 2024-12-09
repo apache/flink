@@ -251,11 +251,6 @@ class UserDefinedFunctionHelperTest {
         }
 
         @Override
-        public boolean isGeneric() {
-            return false;
-        }
-
-        @Override
         public FunctionLanguage getFunctionLanguage() {
             return FunctionLanguage.JAVA;
         }

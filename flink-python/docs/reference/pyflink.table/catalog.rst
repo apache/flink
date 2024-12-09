@@ -142,7 +142,6 @@ Represents a partition object in catalog.
     CatalogFunction.copy
     CatalogFunction.get_description
     CatalogFunction.get_detailed_description
-    CatalogFunction.is_generic
     CatalogFunction.get_function_language
 
 
