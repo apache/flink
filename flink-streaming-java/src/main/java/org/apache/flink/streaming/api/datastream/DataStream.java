@@ -51,6 +51,7 @@ import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RpcOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
@@ -109,6 +110,7 @@ import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -1439,8 +1441,13 @@ public class DataStream<T> {
         String accumulatorName = "dataStreamCollect_" + UUID.randomUUID().toString();
 
         StreamExecutionEnvironment env = getExecutionEnvironment();
+        MemorySize maxBatchSize =
+                env.getConfiguration().get(CollectSinkOperatorFactory.MAX_BATCH_SIZE);
+        Duration socketTimeout =
+                env.getConfiguration().get(CollectSinkOperatorFactory.SOCKET_TIMEOUT);
         CollectSinkOperatorFactory<T> factory =
-                new CollectSinkOperatorFactory<>(serializer, accumulatorName);
+                new CollectSinkOperatorFactory<>(
+                        serializer, accumulatorName, maxBatchSize, socketTimeout);
         CollectSinkOperator<T> operator = (CollectSinkOperator<T>) factory.getOperator();
         long resultFetchTimeout =
                 env.getConfiguration().get(RpcOptions.ASK_TIMEOUT_DURATION).toMillis();
