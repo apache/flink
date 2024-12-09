@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
@@ -34,6 +33,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,6 +41,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -218,7 +219,7 @@ class DefaultLeaderElectionServiceTest {
             closeThread.join();
             grantThread.join();
 
-            FlinkAssertions.assertThatFuture(driverCloseTriggered).eventuallySucceeds();
+            assertThatFuture(driverCloseTriggered).eventuallySucceeds();
         }
     }
 
@@ -702,7 +703,7 @@ class DefaultLeaderElectionServiceTest {
     }
 
     @Test
-    void testHasLeadershipWithLeadershipButNoGrantEventProcessed() throws Exception {
+    void testHasLeadershipAsyncWithLeadershipButNoGrantEventProcessed() throws Exception {
         new Context() {
             {
                 runTestWithManuallyTriggeredEvents(
@@ -712,14 +713,20 @@ class DefaultLeaderElectionServiceTest {
 
                             applyToBothContenderContexts(
                                     ctx -> {
-                                        assertThat(
-                                                        leaderElectionService.hasLeadership(
-                                                                ctx.componentId, expectedSessionID))
-                                                .isFalse();
-                                        assertThat(
-                                                        leaderElectionService.hasLeadership(
-                                                                ctx.componentId, UUID.randomUUID()))
-                                                .isFalse();
+                                        final CompletableFuture<Boolean> validSessionFuture =
+                                                leaderElectionService.hasLeadershipAsync(
+                                                        ctx.componentId, expectedSessionID);
+                                        final CompletableFuture<Boolean> invalidSessionFuture =
+                                                leaderElectionService.hasLeadershipAsync(
+                                                        ctx.componentId, UUID.randomUUID());
+                                        executorService.triggerAll();
+
+                                        assertThatFuture(validSessionFuture)
+                                                .eventuallySucceeds()
+                                                .isEqualTo(true);
+                                        assertThatFuture(invalidSessionFuture)
+                                                .eventuallySucceeds()
+                                                .isEqualTo(false);
                                     });
                         });
             }
@@ -727,7 +734,7 @@ class DefaultLeaderElectionServiceTest {
     }
 
     @Test
-    void testHasLeadershipWithLeadershipAndGrantEventProcessed() throws Exception {
+    void testHasLeadershipAsyncWithLeadershipAndGrantEventProcessed() throws Exception {
         new Context() {
             {
                 runTestWithManuallyTriggeredEvents(
@@ -745,14 +752,20 @@ class DefaultLeaderElectionServiceTest {
                                         assertThat(ctx.contender.getLeaderSessionID())
                                                 .isEqualTo(expectedSessionID);
 
-                                        assertThat(
-                                                        leaderElectionService.hasLeadership(
-                                                                ctx.componentId, expectedSessionID))
-                                                .isTrue();
-                                        assertThat(
-                                                        leaderElectionService.hasLeadership(
-                                                                ctx.componentId, UUID.randomUUID()))
-                                                .isFalse();
+                                        final CompletableFuture<Boolean> validSessionFuture =
+                                                leaderElectionService.hasLeadershipAsync(
+                                                        ctx.componentId, expectedSessionID);
+                                        final CompletableFuture<Boolean> invalidSessionFuture =
+                                                leaderElectionService.hasLeadershipAsync(
+                                                        ctx.componentId, UUID.randomUUID());
+                                        executorService.triggerAll();
+
+                                        assertThatFuture(validSessionFuture)
+                                                .eventuallySucceeds()
+                                                .isEqualTo(true);
+                                        assertThatFuture(invalidSessionFuture)
+                                                .eventuallySucceeds()
+                                                .isEqualTo(false);
                                     });
                         });
             }
@@ -760,7 +773,7 @@ class DefaultLeaderElectionServiceTest {
     }
 
     @Test
-    void testHasLeadershipWithLeadershipLostButNoRevokeEventProcessed() throws Exception {
+    void testHasLeadershipAsyncWithLeadershipLostButNoRevokeEventProcessed() throws Exception {
         new Context() {
             {
                 runTestWithManuallyTriggeredEvents(
@@ -773,20 +786,27 @@ class DefaultLeaderElectionServiceTest {
 
                             applyToBothContenderContexts(
                                     ctx -> {
-                                        assertThat(
-                                                        leaderElectionService.hasLeadership(
-                                                                ctx.componentId, expectedSessionID))
+                                        final CompletableFuture<Boolean> validSessionFuture =
+                                                leaderElectionService.hasLeadershipAsync(
+                                                        ctx.componentId, expectedSessionID);
+                                        final CompletableFuture<Boolean> invalidSessionFuture =
+                                                leaderElectionService.hasLeadershipAsync(
+                                                        ctx.componentId, UUID.randomUUID());
+
+                                        executorService.triggerAll();
+
+                                        assertThatFuture(validSessionFuture)
+                                                .eventuallySucceeds()
                                                 .as(
                                                         "No operation should be handled anymore after the HA backend "
                                                                 + "indicated leadership loss even if the onRevokeLeadership wasn't "
                                                                 + "processed, yet, because some other process could have picked up "
                                                                 + "the leadership in the meantime already based on the HA "
                                                                 + "backend's decision.")
-                                                .isFalse();
-                                        assertThat(
-                                                        leaderElectionService.hasLeadership(
-                                                                ctx.componentId, UUID.randomUUID()))
-                                                .isFalse();
+                                                .isEqualTo(false);
+                                        assertThatFuture(invalidSessionFuture)
+                                                .eventuallySucceeds()
+                                                .isEqualTo(false);
                                     });
                         });
             }
@@ -794,7 +814,7 @@ class DefaultLeaderElectionServiceTest {
     }
 
     @Test
-    void testHasLeadershipWithLeadershipLostAndRevokeEventProcessed() throws Exception {
+    void testHasLeadershipAsyncWithLeadershipLostAndRevokeEventProcessed() throws Exception {
         new Context() {
             {
                 runTestWithSynchronousEventHandling(
@@ -805,14 +825,16 @@ class DefaultLeaderElectionServiceTest {
 
                             applyToBothContenderContexts(
                                     ctx -> {
-                                        assertThat(
-                                                        leaderElectionService.hasLeadership(
+                                        assertThatFuture(
+                                                        leaderElectionService.hasLeadershipAsync(
                                                                 ctx.componentId, expectedSessionID))
-                                                .isFalse();
-                                        assertThat(
-                                                        leaderElectionService.hasLeadership(
+                                                .eventuallySucceeds()
+                                                .isEqualTo(false);
+                                        assertThatFuture(
+                                                        leaderElectionService.hasLeadershipAsync(
                                                                 ctx.componentId, UUID.randomUUID()))
-                                                .isFalse();
+                                                .eventuallySucceeds()
+                                                .isEqualTo(false);
                                     });
                         });
             }
@@ -820,7 +842,7 @@ class DefaultLeaderElectionServiceTest {
     }
 
     @Test
-    void testHasLeadershipAfterLeaderElectionClose() throws Exception {
+    void testHasLeadershipAsyncAfterLeaderElectionClose() throws Exception {
         new Context() {
             {
                 runTestWithSynchronousEventHandling(
@@ -832,10 +854,11 @@ class DefaultLeaderElectionServiceTest {
                                     ctx -> {
                                         ctx.leaderElection.close();
 
-                                        assertThat(
-                                                        leaderElectionService.hasLeadership(
+                                        assertThatFuture(
+                                                        leaderElectionService.hasLeadershipAsync(
                                                                 ctx.componentId, expectedSessionID))
-                                                .isFalse();
+                                                .eventuallySucceeds()
+                                                .isEqualTo(false);
                                     });
                         });
             }
@@ -1038,7 +1061,7 @@ class DefaultLeaderElectionServiceTest {
                                                 .hasValue(expectedLeaderInformation);
 
                                         // Old confirm call should be ignored.
-                                        ctx.leaderElection.confirmLeadership(
+                                        ctx.leaderElection.confirmLeadershipAsync(
                                                 UUID.randomUUID(), ctx.address);
                                         assertThat(
                                                         leaderElectionService.getLeaderSessionID(
@@ -1069,7 +1092,7 @@ class DefaultLeaderElectionServiceTest {
                             applyToBothContenderContexts(
                                     ctx -> {
                                         // Old confirm call should be ignored.
-                                        ctx.leaderElection.confirmLeadership(
+                                        ctx.leaderElection.confirmLeadershipAsync(
                                                 currentLeaderSessionId, ctx.address);
 
                                         assertThat(
@@ -1244,6 +1267,73 @@ class DefaultLeaderElectionServiceTest {
 
         leaderElection.close();
         testInstance.close();
+    }
+
+    /**
+     * This test is used to verify FLINK-36451 where we observed concurrent nested locks being
+     * acquired from the {@link LeaderContender} and from the {@link DefaultLeaderElectionService}.
+     */
+    @Test
+    void testNestedDeadlockInLeadershipConfirmation() throws Exception {
+        final AtomicReference<LeaderInformationRegister> leaderInformationStorage =
+                new AtomicReference<>(LeaderInformationRegister.empty());
+        try (final DefaultLeaderElectionService testInstance =
+                new DefaultLeaderElectionService(
+                        TestingLeaderElectionDriver.newBuilder(
+                                        new AtomicBoolean(false),
+                                        leaderInformationStorage,
+                                        new AtomicBoolean(false))
+                                ::build)) {
+            final String componentId = "test-component";
+            final LeaderElection leaderElection = testInstance.createLeaderElection(componentId);
+
+            // we need the lock to be acquired once for the leadership grant and once for the
+            // revocation
+            final CountDownLatch contenderLockAcquireLatch = new CountDownLatch(2);
+            final OneShotLatch grantReceivedLatch = new OneShotLatch();
+
+            final AtomicBoolean contenderLeadership = new AtomicBoolean(false);
+            final TestingGenericLeaderContender leaderContender =
+                    TestingGenericLeaderContender.newBuilder()
+                            .setPreLockAcquireAction(contenderLockAcquireLatch::countDown)
+                            .setGrantLeadershipConsumer(
+                                    ignoredSessionId -> {
+                                        contenderLeadership.set(true);
+                                        grantReceivedLatch.trigger();
+                                    })
+                            .setRevokeLeadershipRunnable(() -> contenderLeadership.set(false))
+                            .build();
+
+            leaderElection.startLeaderElection(leaderContender);
+
+            final UUID leaderSessionId = UUID.randomUUID();
+            testInstance.onGrantLeadership(leaderSessionId);
+            grantReceivedLatch.await();
+
+            final CompletableFuture<Void> revocationFuture;
+            final CompletableFuture<Void> confirmLeadershipFuture;
+            synchronized (leaderContender.getLock()) {
+                revocationFuture = CompletableFuture.runAsync(testInstance::onRevokeLeadership);
+                contenderLockAcquireLatch.await();
+                confirmLeadershipFuture =
+                        leaderElection.confirmLeadershipAsync(leaderSessionId, "random-address");
+            }
+
+            assertThatFuture(revocationFuture).eventuallySucceeds();
+            assertThatFuture(confirmLeadershipFuture).eventuallySucceeds();
+
+            assertThat(contenderLeadership).isFalse();
+            assertThat(leaderInformationStorage.get().forComponentId(componentId).isEmpty())
+                    .as(
+                            "The LeaderInformation is empty because the leadership confirmation succeeded the "
+                                    + "leadership revocation which resulted in no leader information being written out to "
+                                    + "the HA backend.")
+                    .isTrue();
+
+            // not closing the LeaderElection instance would leave the DefaultLeaderElectionService
+            // in an inconsistent state causing an error when closing the service
+            leaderElection.close();
+        }
     }
 
     private static String createRandomComponentId() {
