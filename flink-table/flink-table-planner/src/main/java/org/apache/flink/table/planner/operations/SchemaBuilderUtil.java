@@ -267,6 +267,14 @@ public class SchemaBuilderUtil {
         return dataTypeFactory.createDataType(column.getDataType()).getLogicalType();
     }
 
+    /**
+     * Gets the column data type of {@link UnresolvedMetadataColumn} column and convert it to a
+     * {@link LogicalType}.
+     */
+    LogicalType getLogicalType(UnresolvedMetadataColumn column) {
+        return dataTypeFactory.createDataType(column.getDataType()).getLogicalType();
+    }
+
     Optional<String> getComment(SqlTableColumn column) {
         return column.getComment().map(c -> ((SqlLiteral) c).getValueAs(String.class));
     }
