@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 
@@ -178,6 +179,23 @@ class TypeStrategiesTest extends TypeStrategiesTestBase {
                         .expectDataType(DataTypes.DOUBLE()),
                 TypeStrategiesTestBase.TestSpec.forStrategy(PERCENTILE)
                         .inputTypes(DataTypes.INT(), DataTypes.ARRAY(DataTypes.DECIMAL(5, 2)))
-                        .expectDataType(DataTypes.ARRAY(DataTypes.DOUBLE())));
+                        .expectDataType(DataTypes.ARRAY(DataTypes.DOUBLE())),
+
+                // LeadLagStrategy
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Expression not null", SpecificTypeStrategies.LEAD_LAG)
+                        .inputTypes(DataTypes.INT().notNull(), DataTypes.BIGINT())
+                        .expectDataType(DataTypes.INT()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Default value not null", SpecificTypeStrategies.LEAD_LAG)
+                        .inputTypes(
+                                DataTypes.STRING(),
+                                DataTypes.BIGINT(),
+                                DataTypes.STRING().notNull())
+                        .expectDataType(DataTypes.STRING().notNull()),
+                TypeStrategiesTestBase.TestSpec.forStrategy(
+                                "Default value nullable", SpecificTypeStrategies.LEAD_LAG)
+                        .inputTypes(DataTypes.STRING(), DataTypes.BIGINT(), DataTypes.STRING())
+                        .expectDataType(DataTypes.STRING()));
     }
 }

@@ -37,6 +37,7 @@ public class TumblingWindowAssigner extends GroupWindowAssigner<TimeWindow>
         implements InternalTimeWindowAssigner {
 
     private static final long serialVersionUID = -1671849072115929859L;
+
     /** Size of this window. */
     private final long size;
 

@@ -192,7 +192,9 @@ public abstract class AbstractBytesMultiMap<K> extends BytesMap<K, Iterator<RowD
         free(false);
     }
 
-    /** @param reservedFixedMemory reserved fixed memory or not. */
+    /**
+     * @param reservedFixedMemory reserved fixed memory or not.
+     */
     @Override
     public void free(boolean reservedFixedMemory) {
         recordArea.release();

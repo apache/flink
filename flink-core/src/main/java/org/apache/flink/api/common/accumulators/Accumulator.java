@@ -38,10 +38,14 @@ import java.io.Serializable;
  */
 @Public
 public interface Accumulator<V, R extends Serializable> extends Serializable, Cloneable {
-    /** @param value The value to add to the accumulator object */
+    /**
+     * @param value The value to add to the accumulator object
+     */
     void add(V value);
 
-    /** @return local The local value from the current UDF context */
+    /**
+     * @return local The local value from the current UDF context
+     */
     R getLocalValue();
 
     /** Reset the local value. This only affects the current UDF context. */

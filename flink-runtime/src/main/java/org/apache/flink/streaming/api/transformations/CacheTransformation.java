@@ -38,6 +38,7 @@ public class CacheTransformation<T> extends Transformation<T> {
     private final Transformation<T> transformationToCache;
     private final AbstractID datasetId;
     private boolean isCached;
+
     /**
      * Creates a new {@code Transformation} with the given name, output type and parallelism.
      *

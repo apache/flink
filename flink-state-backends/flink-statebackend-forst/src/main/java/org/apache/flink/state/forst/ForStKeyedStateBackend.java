@@ -31,18 +31,30 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.HeapPriorityQueuesManager;
+import org.apache.flink.runtime.state.InternalKeyContext;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
+import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
+import org.apache.flink.runtime.state.PriorityComparable;
+import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.v2.AggregatingStateDescriptor;
 import org.apache.flink.runtime.state.v2.ListStateDescriptor;
 import org.apache.flink.runtime.state.v2.ReducingStateDescriptor;
 import org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
+import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
+import org.apache.flink.runtime.state.v2.ttl.TtlStateFactory;
 import org.apache.flink.state.forst.snapshot.ForStSnapshotStrategyBase;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
@@ -58,10 +70,10 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.RunnableFuture;
@@ -80,6 +92,11 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
 
     /** Number of bytes required to prefix the key groups. */
     private final int keyGroupPrefixBytes;
+
+    /** The key groups which this state backend is responsible for. */
+    private final KeyGroupRange keyGroupRange;
+
+    protected final TtlTimeProvider ttlTimeProvider;
 
     /** The key serializer. */
     protected final TypeSerializer<K> keySerializer;
@@ -111,6 +128,11 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
 
     private final ForStSnapshotStrategyBase<K, ?> snapshotStrategy;
 
+    /** Factory for priority queue state. */
+    private final PriorityQueueSetFactory priorityQueueFactory;
+
+    private final HeapPriorityQueuesManager heapPriorityQueuesManager;
+
     /**
      * Registry for all opened streams, so they can be closed if the task using this backend is
      * closed.
@@ -134,7 +156,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
      * retrieve the column family that is used for a state and also for sanity checks when
      * restoring.
      */
-    private final LinkedHashMap<String, ForStKvStateInfo> kvStateInformation;
+    private final LinkedHashMap<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation;
 
     /** Lock guarding the {@code managedStateExecutors} and {@code disposed}. */
     private final Object lock = new Object();
@@ -147,6 +169,8 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
     @GuardedBy("lock")
     private boolean disposed = false;
 
+    private final ForStDBTtlCompactFiltersManager ttlCompactFiltersManager;
+
     public ForStKeyedStateBackend(
             UUID backendUID,
             ForStResourceContainer optionsContainer,
@@ -156,15 +180,21 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
             Supplier<DataOutputSerializer> valueSerializerView,
             Supplier<DataInputDeserializer> valueDeserializerView,
             RocksDB db,
-            LinkedHashMap<String, ForStKvStateInfo> kvStateInformation,
+            LinkedHashMap<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation,
+            Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             ColumnFamilyHandle defaultColumnFamilyHandle,
             ForStSnapshotStrategyBase<K, ?> snapshotStrategy,
+            PriorityQueueSetFactory priorityQueueFactory,
             CloseableRegistry cancelStreamRegistry,
-            ForStNativeMetricMonitor nativeMetricMonitor) {
+            ForStNativeMetricMonitor nativeMetricMonitor,
+            InternalKeyContext<K> keyContext,
+            TtlTimeProvider ttlTimeProvider,
+            ForStDBTtlCompactFiltersManager ttlCompactFiltersManager) {
         this.backendUID = backendUID;
         this.optionsContainer = Preconditions.checkNotNull(optionsContainer);
         this.keyGroupPrefixBytes = keyGroupPrefixBytes;
+        this.keyGroupRange = keyContext.getKeyGroupRange();
         this.keySerializer = keySerializer;
         this.serializedKeyBuilder = serializedKeyBuilder;
         this.valueSerializerView = valueSerializerView;
@@ -176,7 +206,20 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
         this.snapshotStrategy = snapshotStrategy;
         this.cancelStreamRegistry = cancelStreamRegistry;
         this.nativeMetricMonitor = nativeMetricMonitor;
+        this.ttlTimeProvider = ttlTimeProvider;
+        this.ttlCompactFiltersManager = ttlCompactFiltersManager;
         this.managedStateExecutors = new HashSet<>(1);
+        this.priorityQueueFactory = priorityQueueFactory;
+        if (priorityQueueFactory instanceof HeapPriorityQueueSetFactory) {
+            this.heapPriorityQueuesManager =
+                    new HeapPriorityQueuesManager(
+                            registeredPQStates,
+                            (HeapPriorityQueueSetFactory) priorityQueueFactory,
+                            keyContext.getKeyGroupRange(),
+                            keyContext.getNumberOfKeyGroups());
+        } else {
+            this.heapPriorityQueuesManager = null;
+        }
     }
 
     @Override
@@ -188,6 +231,18 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
     @Override
     @SuppressWarnings("unchecked")
     public <N, S extends State, SV> S createState(
+            @Nonnull N defaultNamespace,
+            @Nonnull TypeSerializer<N> namespaceSerializer,
+            @Nonnull StateDescriptor<SV> stateDesc)
+            throws Exception {
+        return TtlStateFactory.createStateAndWrapWithTtlIfEnabled(
+                defaultNamespace, namespaceSerializer, stateDesc, this, ttlTimeProvider);
+    }
+
+    @Nonnull
+    @Override
+    @SuppressWarnings("unchecked")
+    public <N, S extends InternalKeyedState, SV> S createStateInternal(
             @Nonnull N defaultNamespace,
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull StateDescriptor<SV> stateDesc)
@@ -213,6 +268,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                                 namespaceSerializer::duplicate,
                                 valueSerializerView,
                                 valueDeserializerView);
+
             case LIST:
                 return (S)
                         new ForStListState<>(
@@ -271,11 +327,12 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                             StateDescriptor<SV> stateDesc, TypeSerializer<N> namespaceSerializer)
                             throws Exception {
 
-        ForStKvStateInfo oldStateInfo = kvStateInformation.get(stateDesc.getStateId());
+        ForStOperationUtils.ForStKvStateInfo oldStateInfo =
+                kvStateInformation.get(stateDesc.getStateId());
 
         TypeSerializer<SV> stateSerializer = stateDesc.getSerializer();
 
-        ForStKvStateInfo newStateInfo;
+        ForStOperationUtils.ForStKvStateInfo newStateInfo;
         RegisteredKeyValueStateBackendMetaInfo<N, SV> newMetaInfo;
         if (oldStateInfo != null) {
             @SuppressWarnings("unchecked")
@@ -289,7 +346,9 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                             stateSerializer,
                             namespaceSerializer);
 
-            newStateInfo = new ForStKvStateInfo(oldStateInfo.columnFamilyHandle, newMetaInfo);
+            newStateInfo =
+                    new ForStOperationUtils.ForStKvStateInfo(
+                            oldStateInfo.columnFamilyHandle, newMetaInfo);
             kvStateInformation.put(stateDesc.getStateId(), newStateInfo);
         } else {
             newMetaInfo =
@@ -302,7 +361,12 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
 
             newStateInfo =
                     ForStOperationUtils.createStateInfo(
-                            newMetaInfo, db, columnFamilyOptionsFactory);
+                            newMetaInfo,
+                            db,
+                            columnFamilyOptionsFactory,
+                            ttlCompactFiltersManager,
+                            optionsContainer.getWriteBufferManagerCapacity(),
+                            null);
             ForStOperationUtils.registerKvStateInformation(
                     this.kvStateInformation,
                     this.nativeMetricMonitor,
@@ -368,6 +432,11 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
             managedStateExecutors.add(stateExecutor);
             return stateExecutor;
         }
+    }
+
+    @Override
+    public KeyGroupRange getKeyGroupRange() {
+        return keyGroupRange;
     }
 
     @Nonnull
@@ -455,7 +524,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
     }
 
     @VisibleForTesting
-    File getLocalBasePath() {
+    Path getLocalBasePath() {
         return optionsContainer.getLocalBasePath();
     }
 
@@ -469,20 +538,27 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
         dispose();
     }
 
-    /** ForSt specific information about the k/v states. */
-    public static class ForStKvStateInfo implements AutoCloseable {
-        public final ColumnFamilyHandle columnFamilyHandle;
-        public final RegisteredStateMetaInfoBase metaInfo;
+    @Nonnull
+    @Override
+    public <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
+            KeyGroupedInternalPriorityQueue<T> create(
+                    @Nonnull String stateName,
+                    @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
+        return create(stateName, byteOrderedElementSerializer, false);
+    }
 
-        public ForStKvStateInfo(
-                ColumnFamilyHandle columnFamilyHandle, RegisteredStateMetaInfoBase metaInfo) {
-            this.columnFamilyHandle = columnFamilyHandle;
-            this.metaInfo = metaInfo;
-        }
-
-        @Override
-        public void close() throws Exception {
-            this.columnFamilyHandle.close();
+    @Override
+    public <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
+            KeyGroupedInternalPriorityQueue<T> create(
+                    @Nonnull String stateName,
+                    @Nonnull TypeSerializer<T> byteOrderedElementSerializer,
+                    boolean allowFutureMetadataUpdates) {
+        if (this.heapPriorityQueuesManager != null) {
+            return this.heapPriorityQueuesManager.createOrUpdate(
+                    stateName, byteOrderedElementSerializer, allowFutureMetadataUpdates);
+        } else {
+            return priorityQueueFactory.create(
+                    stateName, byteOrderedElementSerializer, allowFutureMetadataUpdates);
         }
     }
 }

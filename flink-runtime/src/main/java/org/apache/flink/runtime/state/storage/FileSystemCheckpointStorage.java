@@ -349,7 +349,9 @@ public class FileSystemCheckpointStorage
         return location.getBaseCheckpointPath();
     }
 
-    /** @return The default location where savepoints will be externalized if set. */
+    /**
+     * @return The default location where savepoints will be externalized if set.
+     */
     @Nullable
     public Path getSavepointPath() {
         return location.getBaseSavepointPath();

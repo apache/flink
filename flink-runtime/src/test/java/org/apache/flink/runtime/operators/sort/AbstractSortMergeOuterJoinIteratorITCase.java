@@ -296,7 +296,8 @@ abstract class AbstractSortMergeOuterJoinIteratorITCase {
         List<Tuple4<String, String, String, Object>> actual = new ArrayList<>();
         ListCollector<Tuple4<String, String, String, Object>> collector =
                 new ListCollector<>(actual);
-        while (iterator.callWithNextKey(new SimpleTupleJoinFunction(), collector)) ;
+        while (iterator.callWithNextKey(new SimpleTupleJoinFunction(), collector))
+            ;
         iterator.close();
 
         return actual;
@@ -443,7 +444,8 @@ abstract class AbstractSortMergeOuterJoinIteratorITCase {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(joinFunction, collector)) ;
+            while (iterator.callWithNextKey(joinFunction, collector))
+                ;
 
             iterator.close();
 

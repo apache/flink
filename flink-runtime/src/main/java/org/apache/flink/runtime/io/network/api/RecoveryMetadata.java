@@ -35,7 +35,9 @@ public class RecoveryMetadata extends RuntimeEvent {
         this.finalBufferSubpartitionId = finalBufferSubpartitionId;
     }
 
-    /** @return the index of the subpartition where the last buffer stored in a snapshot locates. */
+    /**
+     * @return the index of the subpartition where the last buffer stored in a snapshot locates.
+     */
     public int getFinalBufferSubpartitionId() {
         return finalBufferSubpartitionId;
     }

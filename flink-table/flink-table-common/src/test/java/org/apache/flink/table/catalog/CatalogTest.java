@@ -19,12 +19,15 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
+import org.apache.flink.table.catalog.exceptions.ModelAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.ModelNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionAlreadyExistsException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
@@ -63,10 +66,14 @@ public abstract class CatalogTest {
     protected final String t1 = "t1";
     protected final String t2 = "t2";
     protected final String t3 = "t3";
+    protected final String m1 = "m1";
+    protected final String m2 = "m2";
     protected final ObjectPath path1 = new ObjectPath(db1, t1);
     protected final ObjectPath path2 = new ObjectPath(db2, t2);
     protected final ObjectPath path3 = new ObjectPath(db1, t2);
     protected final ObjectPath path4 = new ObjectPath(db1, t3);
+    protected final ObjectPath modelPath1 = new ObjectPath(db1, m1);
+    protected final ObjectPath modelPath2 = new ObjectPath(db1, m2);
     protected final ObjectPath nonExistDbPath = ObjectPath.fromString("non.exist");
     protected final ObjectPath nonExistObjectPath = ObjectPath.fromString("db1.nonexist");
 
@@ -93,6 +100,16 @@ public abstract class CatalogTest {
         if (catalog.functionExists(path1)) {
             catalog.dropFunction(path1, true);
         }
+        if (supportsModels()) {
+            if (catalog.modelExists(modelPath1)) {
+                catalog.dropModel(modelPath1, true);
+            }
+            if (catalog.modelExists(modelPath2)) {
+                catalog.dropModel(modelPath2, true);
+            }
+        }
+
+        // Delete db last so that other resources can be found and dropped
         if (catalog.databaseExists(db1)) {
             catalog.dropDatabase(db1, true, false);
         }
@@ -231,6 +248,219 @@ public abstract class CatalogTest {
         catalog.createDatabase(db1, createDb(), false);
 
         assertThat(catalog.databaseExists(db1)).isTrue();
+    }
+
+    // ------ models ------
+    @Test
+    public void testCreateModel() throws Exception {
+        if (!supportsModels()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        CatalogModel model = createModel();
+        catalog.createModel(modelPath1, model, false);
+
+        List<String> models = catalog.listModels(db1);
+        assertThat(models).isEqualTo(Collections.singletonList(m1));
+    }
+
+    @Test
+    public void testCreateModel_DatabaseNotExistException() {
+        if (!supportsModels()) {
+            return;
+        }
+        assertThat(catalog.databaseExists(db1)).isFalse();
+
+        assertThatThrownBy(() -> catalog.createModel(nonExistObjectPath, createModel(), false))
+                .isInstanceOf(DatabaseNotExistException.class)
+                .hasMessage("Database db1 does not exist in Catalog " + TEST_CATALOG_NAME + ".");
+    }
+
+    @Test
+    public void testCreateModel_ModelAlreadyExistException() throws Exception {
+        if (!supportsModels()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        catalog.createModel(modelPath1, createModel(), false);
+
+        assertThatThrownBy(() -> catalog.createModel(modelPath1, createModel(), false))
+                .isInstanceOf(ModelAlreadyExistException.class)
+                .hasMessage("Model db1.m1 already exists in Catalog " + TEST_CATALOG_NAME + ".");
+    }
+
+    @Test
+    public void testCreateModel_ModelAlreadyExist_ignored() throws Exception {
+        if (!supportsModels()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+
+        CatalogModel model = createModel();
+        catalog.createModel(modelPath1, model, false);
+        catalog.createModel(modelPath1, model, true);
+
+        List<String> models = catalog.listModels(db1);
+        assertThat(models).isEqualTo(Collections.singletonList(m1));
+    }
+
+    @Test
+    public void testListModels() throws Exception {
+        if (!supportsModels()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+
+        catalog.createModel(modelPath1, createModel(), false);
+        catalog.createModel(modelPath2, createModel(), false);
+
+        assertThat(catalog.listModels(db1)).isEqualTo(Arrays.asList(m1, m2));
+    }
+
+    @Test
+    public void testGetModel() throws Exception {
+        if (!supportsModels()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        catalog.createModel(modelPath1, createModel(), false);
+        assertThat(catalog.getModel(modelPath1)).isNotNull();
+    }
+
+    @Test
+    public void testGetModel_ModelNotExistException() throws Exception {
+        if (!supportsModels()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        assertThatThrownBy(() -> assertThat(catalog.getModel(modelPath1)).isNotNull())
+                .isInstanceOf(ModelNotExistException.class)
+                .hasMessage("Model '`test-catalog`.`db1`.`m1`' does not exist.");
+    }
+
+    @Test
+    public void testDropModel() throws Exception {
+        if (!supportsModels()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        catalog.createModel(modelPath1, createModel(), false);
+        assertThat(catalog.getModel(modelPath1)).isNotNull();
+        catalog.dropModel(modelPath1, false);
+        assertThatThrownBy(() -> catalog.getModel(modelPath1))
+                .isInstanceOf(ModelNotExistException.class)
+                .hasMessage("Model '`test-catalog`.`db1`.`m1`' does not exist.");
+    }
+
+    @Test
+    public void testAlterModel() throws Exception {
+        if (!supportsModels()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        catalog.createModel(modelPath1, createModel(), false);
+        assertThat(catalog.getModel(modelPath1)).isNotNull();
+        Schema inputSchema =
+                Schema.newBuilder()
+                        .column("a", DataTypes.INT())
+                        .column("b", DataTypes.STRING())
+                        .build();
+        Schema outputSchema = Schema.newBuilder().column("label", DataTypes.STRING()).build();
+        CatalogModel newModel =
+                CatalogModel.of(
+                        inputSchema,
+                        outputSchema,
+                        new HashMap<String, String>() {
+                            {
+                                put("provider", "openai");
+                                put("task", "regression"); // Changed option
+                                put("endpoint", "some-endpoint"); // New option
+                            }
+                        },
+                        null);
+        catalog.alterModel(modelPath1, newModel, false);
+        assertThat(catalog.getModel(modelPath1).getComment()).isNull();
+        Map<String, String> expectedOptions = new HashMap<>();
+        expectedOptions.put("task", "regression");
+        expectedOptions.put("provider", "openai");
+        expectedOptions.put("endpoint", "some-endpoint");
+        assertThat(catalog.getModel(modelPath1).getOptions()).isEqualTo(expectedOptions);
+    }
+
+    @Test
+    public void testAlterModel_ModelNotExistException() throws Exception {
+        if (!supportsModels()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        Schema inputSchema =
+                Schema.newBuilder()
+                        .column("a", DataTypes.INT())
+                        .column("b", DataTypes.STRING())
+                        .build();
+        Schema outputSchema = Schema.newBuilder().column("label", DataTypes.STRING()).build();
+        CatalogModel newModel =
+                CatalogModel.of(
+                        inputSchema,
+                        outputSchema,
+                        new HashMap<String, String>() {
+                            {
+                                put("task", "clustering");
+                                put("provider", "openai");
+                            }
+                        },
+                        "new model");
+        assertThatThrownBy(() -> catalog.alterModel(modelPath1, newModel, false))
+                .isInstanceOf(ModelNotExistException.class)
+                .hasMessage("Model '`test-catalog`.`db1`.`m1`' does not exist.");
+    }
+
+    @Test
+    public void testAlterMissingModelIgnoreIfNotExist() throws Exception {
+        if (!supportsModels()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        Schema inputSchema =
+                Schema.newBuilder()
+                        .column("a", DataTypes.INT())
+                        .column("b", DataTypes.STRING())
+                        .build();
+        Schema outputSchema = Schema.newBuilder().column("label", DataTypes.STRING()).build();
+        CatalogModel newModel =
+                CatalogModel.of(
+                        inputSchema,
+                        outputSchema,
+                        new HashMap<String, String>() {
+                            {
+                                put("task", "clustering");
+                                put("provider", "openai");
+                            }
+                        },
+                        "new model");
+        // Nothing happens since ignoreIfNotExists is true
+        catalog.alterModel(modelPath1, newModel, true);
+    }
+
+    @Test
+    public void testDropMissingModelNotExistException() throws Exception {
+        if (!supportsModels()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        assertThatThrownBy(() -> catalog.dropModel(modelPath1, false))
+                .isInstanceOf(ModelNotExistException.class)
+                .hasMessage("Model '`test-catalog`.`db1`.`m1`' does not exist.");
+    }
+
+    @Test
+    public void testDropMissingModelIgnoreIfNotExist() throws Exception {
+        if (!supportsModels()) {
+            return;
+        }
+        catalog.createDatabase(db1, createDb(), false);
+        // Nothing happens since ignoreIfNotExists is true
+        catalog.dropModel(modelPath1, true);
     }
 
     // ------ tables ------
@@ -1310,6 +1540,13 @@ public abstract class CatalogTest {
     public abstract CatalogTable createTable();
 
     /**
+     * Create a CatalogModel instance by specific catalog implementation.
+     *
+     * @return a CatalogModel instance
+     */
+    public abstract CatalogModel createModel();
+
+    /**
      * Create another CatalogTable instance by specific catalog implementation.
      *
      * @return another CatalogTable instance
@@ -1374,6 +1611,8 @@ public abstract class CatalogTest {
      * @return a CatalogPartition
      */
     public abstract CatalogPartition createPartition();
+
+    protected abstract boolean supportsModels();
 
     protected ResolvedSchema createSchema() {
         return new ResolvedSchema(

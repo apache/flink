@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.source.coordinator;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceSplit;
@@ -181,6 +182,7 @@ abstract class SourceCoordinatorTestBase {
                 createMockSource();
 
         return new SourceCoordinator<>(
+                new JobID(),
                 OPERATOR_NAME,
                 mockSource,
                 getNewSourceCoordinatorContext(),
@@ -201,6 +203,7 @@ abstract class SourceCoordinatorTestBase {
                         coordinatorThreadName, operatorCoordinatorContext);
         SourceCoordinatorContext<MockSourceSplit> coordinatorContext =
                 new SourceCoordinatorContext<>(
+                        new JobID(),
                         Executors.newScheduledThreadPool(1, coordinatorThreadFactory),
                         Executors.newScheduledThreadPool(
                                 1, new ExecutorThreadFactory(coordinatorThreadName + "-worker")),

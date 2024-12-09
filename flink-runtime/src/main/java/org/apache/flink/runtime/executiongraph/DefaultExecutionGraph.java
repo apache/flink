@@ -223,9 +223,6 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     /** Current status of the job execution. */
     private volatile JobStatus state = JobStatus.CREATED;
 
-    /** The job type of the job execution. */
-    private final JobType jobType;
-
     /** A future that completes once the job has reached a terminal state. */
     private final CompletableFuture<JobStatus> terminationFuture = new CompletableFuture<>();
 
@@ -311,7 +308,6 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     // --------------------------------------------------------------------------------------------
 
     public DefaultExecutionGraph(
-            JobType jobType,
             JobInformation jobInformation,
             ScheduledExecutorService futureExecutor,
             Executor ioExecutor,
@@ -334,7 +330,6 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             TaskDeploymentDescriptorFactory taskDeploymentDescriptorFactory,
             List<JobStatusChangedListener> jobStatusChangedListeners) {
 
-        this.jobType = jobType;
         this.executionGraphId = new ExecutionGraphID();
 
         this.jobInformation = checkNotNull(jobInformation);
@@ -645,7 +640,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     @Override
     public JobType getJobType() {
-        return jobType;
+        return jobInformation.getJobType();
     }
 
     @Override

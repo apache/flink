@@ -218,7 +218,9 @@ public final class IOUtils {
         }
     }
 
-    /** @see #closeAll(Iterable) */
+    /**
+     * @see #closeAll(Iterable)
+     */
     public static void closeAll(AutoCloseable... closeables) throws Exception {
         closeAll(asList(closeables));
     }

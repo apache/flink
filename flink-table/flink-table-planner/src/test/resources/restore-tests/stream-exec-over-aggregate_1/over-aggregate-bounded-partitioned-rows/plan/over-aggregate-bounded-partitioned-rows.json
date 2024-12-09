@@ -1,5 +1,5 @@
 {
-  "flinkVersion" : "1.20",
+  "flinkVersion" : "2.0",
   "nodes" : [ {
     "id" : 1,
     "type" : "stream-exec-table-source-scan_1",

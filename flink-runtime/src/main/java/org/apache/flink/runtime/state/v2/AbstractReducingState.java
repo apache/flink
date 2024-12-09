@@ -50,33 +50,33 @@ public class AbstractReducingState<K, N, V> extends AbstractKeyedState<K, N, V>
 
     @Override
     public StateFuture<V> asyncGet() {
-        return handleRequest(StateRequestType.REDUCING_GET, null);
+        return asyncGetInternal();
     }
 
     @Override
     public StateFuture<Void> asyncAdd(V value) {
-        return handleRequest(StateRequestType.REDUCING_GET, null)
+        return asyncGetInternal()
                 .thenAccept(
                         oldValue -> {
                             V newValue =
                                     oldValue == null
                                             ? value
                                             : reduceFunction.reduce((V) oldValue, value);
-                            handleRequest(StateRequestType.REDUCING_ADD, newValue);
+                            asyncUpdateInternal(newValue);
                         });
     }
 
     @Override
     public V get() {
-        return handleRequestSync(StateRequestType.REDUCING_GET, null);
+        return getInternal();
     }
 
     @Override
     public void add(V value) {
-        V oldValue = handleRequestSync(StateRequestType.REDUCING_GET, null);
+        V oldValue = getInternal();
         try {
             V newValue = oldValue == null ? value : reduceFunction.reduce(oldValue, value);
-            handleRequestSync(StateRequestType.REDUCING_ADD, newValue);
+            updateInternal(newValue);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -92,16 +92,16 @@ public class AbstractReducingState<K, N, V> extends AbstractKeyedState<K, N, V>
         for (N source : sources) {
             if (source != null) {
                 setCurrentNamespace(source);
-                futures.add(handleRequest(StateRequestType.REDUCING_GET, null));
+                futures.add(asyncGetInternal());
             }
         }
         setCurrentNamespace(target);
-        futures.add(handleRequest(StateRequestType.REDUCING_GET, null));
+        futures.add(asyncGetInternal());
         // phase 2: merge the sources to the target
         return StateFutureUtils.combineAll(futures)
                 .thenCompose(
                         values -> {
-                            List<StateFuture<V>> updateFutures =
+                            List<StateFuture<Void>> updateFutures =
                                     new ArrayList<>(sources.size() + 1);
                             V current = null;
                             Iterator<V> valueIterator = values.iterator();
@@ -109,8 +109,7 @@ public class AbstractReducingState<K, N, V> extends AbstractKeyedState<K, N, V>
                                 V value = valueIterator.next();
                                 if (value != null) {
                                     setCurrentNamespace(source);
-                                    updateFutures.add(
-                                            handleRequest(StateRequestType.REDUCING_REMOVE, null));
+                                    updateFutures.add(asyncUpdateInternal(null));
                                     if (current != null) {
                                         current = reduceFunction.reduce(current, value);
                                     } else {
@@ -124,8 +123,7 @@ public class AbstractReducingState<K, N, V> extends AbstractKeyedState<K, N, V>
                                     current = reduceFunction.reduce(current, targetValue);
                                 }
                                 setCurrentNamespace(target);
-                                updateFutures.add(
-                                        handleRequest(StateRequestType.REDUCING_ADD, current));
+                                updateFutures.add(asyncUpdateInternal(current));
                             }
                             return StateFutureUtils.combineAll(updateFutures)
                                     .thenAccept(ignores -> {});
@@ -143,10 +141,10 @@ public class AbstractReducingState<K, N, V> extends AbstractKeyedState<K, N, V>
             for (N source : sources) {
                 if (source != null) {
                     setCurrentNamespace(source);
-                    V oldValue = handleRequestSync(StateRequestType.REDUCING_GET, null);
+                    V oldValue = getInternal();
 
                     if (oldValue != null) {
-                        handleRequestSync(StateRequestType.REDUCING_REMOVE, null);
+                        updateInternal(null);
 
                         if (current != null) {
                             current = reduceFunction.reduce(current, oldValue);
@@ -161,15 +159,35 @@ public class AbstractReducingState<K, N, V> extends AbstractKeyedState<K, N, V>
             if (current != null) {
                 // create the target full-binary-key
                 setCurrentNamespace(target);
-                V targetValue = handleRequestSync(StateRequestType.REDUCING_GET, null);
+                V targetValue = getInternal();
 
                 if (targetValue != null) {
                     current = reduceFunction.reduce(current, targetValue);
                 }
-                handleRequestSync(StateRequestType.REDUCING_ADD, current);
+                updateInternal(current);
             }
         } catch (Exception e) {
             throw new RuntimeException("merge namespace fail.", e);
         }
+    }
+
+    @Override
+    public StateFuture<V> asyncGetInternal() {
+        return handleRequest(StateRequestType.REDUCING_GET, null);
+    }
+
+    @Override
+    public StateFuture<Void> asyncUpdateInternal(V valueToStore) {
+        return handleRequest(StateRequestType.REDUCING_ADD, valueToStore);
+    }
+
+    @Override
+    public V getInternal() {
+        return handleRequestSync(StateRequestType.REDUCING_GET, null);
+    }
+
+    @Override
+    public void updateInternal(V valueToStore) {
+        handleRequestSync(StateRequestType.REDUCING_ADD, valueToStore);
     }
 }

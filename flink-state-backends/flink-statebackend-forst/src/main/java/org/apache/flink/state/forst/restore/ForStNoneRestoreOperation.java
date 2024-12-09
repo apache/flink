@@ -18,14 +18,14 @@
 
 package org.apache.flink.state.forst.restore;
 
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.state.forst.ForStKeyedStateBackend.ForStKvStateInfo;
 import org.apache.flink.state.forst.ForStNativeMetricOptions;
+import org.apache.flink.state.forst.ForStOperationUtils;
 
 import org.forstdb.ColumnFamilyOptions;
 import org.forstdb.DBOptions;
 
-import java.io.File;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -34,8 +34,8 @@ public class ForStNoneRestoreOperation implements ForStRestoreOperation {
     private final ForStHandle rocksHandle;
 
     public ForStNoneRestoreOperation(
-            Map<String, ForStKvStateInfo> kvStateInformation,
-            File instanceRocksDBPath,
+            Map<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation,
+            Path instanceRocksDBPath,
             DBOptions dbOptions,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             ForStNativeMetricOptions nativeMetricOptions,

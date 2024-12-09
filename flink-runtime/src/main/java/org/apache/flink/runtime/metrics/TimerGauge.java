@@ -44,8 +44,10 @@ public class TimerGauge implements Gauge<Long>, View {
 
     /** The time-span over which the average is calculated. */
     private final int timeSpanInSeconds;
+
     /** Circular array containing the history of values. */
     private final long[] values;
+
     /** The index in the array for the current time. */
     private int idx = 0;
 
@@ -54,6 +56,7 @@ public class TimerGauge implements Gauge<Long>, View {
     private long currentValue;
     private long currentCount;
     private long currentMeasurementStartTS;
+
     /**
      * This differ from {@link #currentMeasurementStartTS} that {@link #currentUpdateTS} is bumped
      * on every {@link #update()} call, while {@link #currentMeasurementStartTS} always marks the
@@ -179,7 +182,9 @@ public class TimerGauge implements Gauge<Long>, View {
         return previousMaxSingleMeasurement;
     }
 
-    /** @return the accumulated period by the given * TimerGauge. */
+    /**
+     * @return the accumulated period by the given * TimerGauge.
+     */
     public synchronized long getAccumulatedCount() {
         return accumulatedCount;
     }

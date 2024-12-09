@@ -671,8 +671,10 @@ public static class NamedParameterClass extends ScalarFunction {
     
   // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
   @FunctionHint(
-          argument = {@ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
-                  @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))}
+    arguments = {
+      @ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
+      @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))
+    }
   )
   public String eval(String s1, Integer s2) {
     return s1 + ", " + s2;
@@ -689,8 +691,10 @@ class NamedParameterClass extends ScalarFunction {
 
   // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
   @FunctionHint(
-    argument = Array(new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
-                  new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER")))
+    arguments = Array(
+      new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
+      new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER"))
+    )
   )
   def eval(s1: String, s2: Int): String = {
     s1 + ", " + s2
@@ -710,8 +714,10 @@ import org.apache.flink.table.functions.ScalarFunction;
 
 // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
 @FunctionHint(
-        argument = {@ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
-                @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))}
+  arguments = {
+    @ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
+    @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))
+  }
 )
 public static class NamedParameterClass extends ScalarFunction {
     
@@ -728,8 +734,10 @@ import org.apache.flink.table.functions.ScalarFunction;
 
 // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
 @FunctionHint(
-  argument = Array(new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
-    new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER")))
+  arguments = Array(
+    new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
+    new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER"))
+  )
 )
 class NamedParameterClass extends ScalarFunction {
 

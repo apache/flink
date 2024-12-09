@@ -56,6 +56,7 @@ public abstract class AbstractStreamTaskNetworkInput<
     protected final TypeSerializer<T> inputSerializer;
     protected final Map<InputChannelInfo, R> recordDeserializers;
     protected final Map<InputChannelInfo, Integer> flattenedChannelIndices = new HashMap<>();
+
     /** Valve that controls how watermarks and watermark statuses are forwarded. */
     protected final StatusWatermarkValve statusWatermarkValve;
 

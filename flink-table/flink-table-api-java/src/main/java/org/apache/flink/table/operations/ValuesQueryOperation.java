@@ -37,6 +37,7 @@ import java.util.stream.Collectors;
 @Internal
 public class ValuesQueryOperation implements QueryOperation {
 
+    private static final String INPUT_ALIAS = "$$T_VAL";
     private final List<List<ResolvedExpression>> values;
     private final ResolvedSchema resolvedSchema;
 
@@ -66,10 +67,9 @@ public class ValuesQueryOperation implements QueryOperation {
 
     @Override
     public String asSerializableString() {
-        final String selectColumns = OperationUtils.formatSelectColumns(resolvedSchema);
         return String.format(
-                "SELECT %s FROM (VALUES %s\n) VAL$0(%s)",
-                selectColumns,
+                "SELECT %s FROM (VALUES %s\n) %s(%s)",
+                OperationUtils.formatSelectColumns(resolvedSchema, INPUT_ALIAS),
                 OperationUtils.indent(
                         values.stream()
                                 .map(
@@ -81,7 +81,8 @@ public class ValuesQueryOperation implements QueryOperation {
                                                         .collect(
                                                                 Collectors.joining(", ", "(", ")")))
                                 .collect(Collectors.joining(",\n"))),
-                selectColumns);
+                INPUT_ALIAS,
+                OperationUtils.formatSelectColumns(resolvedSchema, null));
     }
 
     @Override

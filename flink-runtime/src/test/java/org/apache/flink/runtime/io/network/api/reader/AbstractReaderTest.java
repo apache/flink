@@ -27,7 +27,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.util.event.EventListener;
 
 import org.junit.jupiter.api.Test;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 
 import java.io.IOException;
 
@@ -57,9 +57,9 @@ class AbstractReaderTest {
         reader.handleEvent(new TestTaskEvent1()); // for listener1 only
         reader.handleEvent(new TestTaskEvent2()); // for listener2 only
 
-        verify(listener1, times(1)).onEvent(Matchers.any(TaskEvent.class));
-        verify(listener2, times(1)).onEvent(Matchers.any(TaskEvent.class));
-        verify(listener3, times(0)).onEvent(Matchers.any(TaskEvent.class));
+        verify(listener1, times(1)).onEvent(ArgumentMatchers.any(TaskEvent.class));
+        verify(listener2, times(1)).onEvent(ArgumentMatchers.any(TaskEvent.class));
+        verify(listener3, times(0)).onEvent(ArgumentMatchers.any(TaskEvent.class));
     }
 
     @Test

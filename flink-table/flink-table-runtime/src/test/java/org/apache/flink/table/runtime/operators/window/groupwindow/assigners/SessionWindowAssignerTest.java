@@ -34,8 +34,8 @@ import java.util.TreeSet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
-import static org.mockito.ArgumentMatchers.anyObject;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -70,7 +70,7 @@ class SessionWindowAssignerTest {
 
         assigner.mergeWindows(TimeWindow.of(0, 1), new TreeSet<>(), callback);
 
-        verify(callback, never()).merge(anyObject(), anyCollection());
+        verify(callback, never()).merge(any(), anyCollection());
     }
 
     @SuppressWarnings("unchecked")
@@ -83,7 +83,7 @@ class SessionWindowAssignerTest {
         sortedWindows.add(TimeWindow.of(6000, 6001));
         assigner.mergeWindows(TimeWindow.of(0, 1), sortedWindows, callback);
 
-        verify(callback, never()).merge(anyObject(), anyCollection());
+        verify(callback, never()).merge(any(), anyCollection());
     }
 
     @SuppressWarnings("unchecked")

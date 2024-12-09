@@ -50,7 +50,9 @@ import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/** @see org.apache.flink.api.common.functions.GroupReduceFunction */
+/**
+ * @see org.apache.flink.api.common.functions.GroupReduceFunction
+ */
 @Internal
 public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN, OUT>>
         extends SingleInputOperator<IN, OUT, FT> {

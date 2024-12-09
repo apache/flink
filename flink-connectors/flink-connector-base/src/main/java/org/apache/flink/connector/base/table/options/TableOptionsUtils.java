@@ -34,6 +34,8 @@ public interface TableOptionsUtils {
      */
     Map<String, String> getProcessedResolvedOptions();
 
-    /** @return Common prefix of the options handled by this options handler. */
+    /**
+     * @return Common prefix of the options handled by this options handler.
+     */
     List<String> getNonValidatedPrefixes();
 }

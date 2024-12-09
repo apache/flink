@@ -19,13 +19,17 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
+import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.forstdb.BlockBasedTableConfig;
 import org.forstdb.BloomFilter;
 import org.forstdb.Cache;
+import org.forstdb.ColumnFamilyDescriptor;
+import org.forstdb.ColumnFamilyHandle;
 import org.forstdb.ColumnFamilyOptions;
 import org.forstdb.DBOptions;
 import org.forstdb.FlinkEnv;
@@ -33,6 +37,7 @@ import org.forstdb.IndexType;
 import org.forstdb.LRUCache;
 import org.forstdb.NativeLibraryLoader;
 import org.forstdb.ReadOptions;
+import org.forstdb.RocksDB;
 import org.forstdb.TableFormatConfig;
 import org.forstdb.WriteBufferManager;
 import org.forstdb.WriteOptions;
@@ -301,19 +306,42 @@ public class ForStResourceContainerTest {
 
     @Test
     public void testDirectoryResources() throws Exception {
-        File localBasePath = TMP_FOLDER.newFolder();
+        Path localBasePath = new Path(TMP_FOLDER.newFolder().getPath());
         Path remoteBasePath = new Path(TMP_FOLDER.newFolder().getPath());
         try (final ForStResourceContainer optionsContainer =
                 new ForStResourceContainer(
                         new Configuration(), null, null, localBasePath, remoteBasePath, false)) {
             optionsContainer.prepareDirectories();
-            assertTrue(localBasePath.exists());
+            assertTrue(new File(localBasePath.getPath()).exists());
             assertTrue(new File(remoteBasePath.getPath()).exists());
             assertTrue(optionsContainer.getDbOptions().getEnv() instanceof FlinkEnv);
 
             optionsContainer.clearDirectories();
-            assertFalse(localBasePath.exists());
+            assertFalse(new File(localBasePath.getPath()).exists());
             assertFalse(new File(remoteBasePath.getPath()).exists());
         }
+    }
+
+    @Test
+    public void testFileSystemInit() throws Exception {
+        Path localBasePath = new Path(TMP_FOLDER.newFolder().getPath());
+        Path remoteBasePath = new Path(TMP_FOLDER.newFolder().getPath());
+        ArrayList<ColumnFamilyHandle> columnFamilyHandles = new ArrayList<>(1);
+        ArrayList<ColumnFamilyDescriptor> columnFamilyDescriptors = new ArrayList<>(1);
+        columnFamilyDescriptors.add(new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY));
+        DBOptions dbOptions2 =
+                new DBOptions().setCreateIfMissing(true).setAvoidFlushDuringShutdown(true);
+        FileSystem forstFileSystem =
+                ForStFlinkFileSystem.get(remoteBasePath.toUri(), localBasePath, null);
+        dbOptions2.setEnv(new FlinkEnv(remoteBasePath.toString(), forstFileSystem));
+        RocksDB db =
+                RocksDB.open(
+                        dbOptions2,
+                        remoteBasePath.getPath(),
+                        columnFamilyDescriptors,
+                        columnFamilyHandles);
+        db.put("key".getBytes(), "value".getBytes());
+        db.getSnapshot();
+        db.close();
     }
 }

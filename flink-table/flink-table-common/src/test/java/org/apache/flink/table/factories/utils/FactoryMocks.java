@@ -94,6 +94,7 @@ public final class FactoryMocks {
                                 partitionKeys,
                                 options),
                         schema),
+                Collections.emptyMap(),
                 new Configuration(),
                 FactoryMocks.class.getClassLoader(),
                 false);

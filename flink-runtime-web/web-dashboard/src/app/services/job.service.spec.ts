@@ -16,7 +16,8 @@
  * limitations under the License.
  */
 
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
 import { JobResourceRequirements } from '@flink-runtime-web/interfaces/job-resource-requirements';
@@ -34,8 +35,12 @@ describe('Job Service', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [{ provide: ConfigService, useValue: new ConfigService() }]
+      imports: [],
+      providers: [
+        { provide: ConfigService, useValue: new ConfigService() },
+        provideHttpClient(withInterceptorsFromDi()),
+        provideHttpClientTesting()
+      ]
     });
 
     configService = TestBed.inject(ConfigService);

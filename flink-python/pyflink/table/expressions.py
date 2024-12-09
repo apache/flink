@@ -867,6 +867,28 @@ def json_array_agg(on_null: JsonOnNull, item_expr) -> Expression:
     return _binary_op("jsonArrayAgg", on_null._to_j_json_on_null(), item_expr)
 
 
+def lag(expr, offset=1, default=None) -> Expression:
+    """
+    A window function that provides access to a row at a specified physical offset which comes
+    before the current row.
+    """
+    if default is None:
+        return _binary_op("lag", expr, offset)
+    else:
+        return _ternary_op("lag", expr, offset, default)
+
+
+def lead(expr, offset=1, default=None) -> Expression:
+    """
+    A window function that provides access to a row at a specified physical offset which comes
+    after the current row.
+    """
+    if default is None:
+        return _binary_op("lead", expr, offset)
+    else:
+        return _ternary_op("lead", expr, offset, default)
+
+
 def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:
     """
     The first parameter `f` could be a str or a Python user-defined function.

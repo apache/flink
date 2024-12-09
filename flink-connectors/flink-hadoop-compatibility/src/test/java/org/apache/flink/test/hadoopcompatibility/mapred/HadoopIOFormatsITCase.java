@@ -29,7 +29,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.test.util.JavaProgramTestBase;
-import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
@@ -44,8 +43,8 @@ import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.SequenceFileInputFormat;
-import org.junit.experimental.categories.Category;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -63,7 +62,7 @@ import static org.assertj.core.api.Assumptions.assumeThat;
 // It is essentially a batch job, but the HadoopInputFormat is an unbounded source.
 // As a result, the test case cannot be set to batch runtime mode and should not run with the
 // adaptive scheduler.
-@Category(FailsWithAdaptiveScheduler.class)
+@Tag("org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler")
 public class HadoopIOFormatsITCase extends JavaProgramTestBase {
 
     private static final int NUM_PROGRAMS = 2;

@@ -450,7 +450,9 @@ public class CopyOnWriteStateMap<K, N, S> extends StateMap<K, N, S> {
     // Private utility functions for StateMap management
     // -------------------------------------------------------------
 
-    /** @see #releaseSnapshot(StateMapSnapshot) */
+    /**
+     * @see #releaseSnapshot(StateMapSnapshot)
+     */
     @VisibleForTesting
     void releaseSnapshot(int snapshotVersion) {
         // we guard against concurrent modifications of highestRequiredSnapshotVersion between

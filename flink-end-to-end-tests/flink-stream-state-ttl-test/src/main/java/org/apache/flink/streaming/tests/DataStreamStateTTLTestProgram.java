@@ -19,9 +19,9 @@
 package org.apache.flink.streaming.tests;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
+import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.legacy.PrintSinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -78,6 +78,7 @@ public class DataStreamStateTTLTestProgram {
         StreamGraph streamGraph = env.getStreamGraph();
         setBackendWithCustomTTLTimeProvider(streamGraph, pt);
         streamGraph.setJobName("State TTL test job");
+        streamGraph.createJobCheckpointingSettings();
 
         env.execute(streamGraph);
     }

@@ -431,7 +431,9 @@ public abstract class YarnTestBase {
         private String[] names;
         private String excludeInPath = null;
 
-        /** @param names which have to be included in the filename. */
+        /**
+         * @param names which have to be included in the filename.
+         */
         public ContainsName(String[] names) {
             this.names = names;
         }

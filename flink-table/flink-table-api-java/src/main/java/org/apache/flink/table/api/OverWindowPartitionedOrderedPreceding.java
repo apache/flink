@@ -21,8 +21,9 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.expressions.Expression;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
-import java.util.Optional;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 
@@ -32,8 +33,8 @@ public final class OverWindowPartitionedOrderedPreceding {
 
     private final List<Expression> partitionBy;
     private final Expression orderBy;
-    private final Expression preceding;
-    private Optional<Expression> optionalFollowing = Optional.empty();
+    private final @Nullable Expression preceding;
+    private @Nullable Expression optionalFollowing = null;
 
     OverWindowPartitionedOrderedPreceding(
             List<Expression> partitionBy, Expression orderBy, Expression preceding) {
@@ -69,7 +70,7 @@ public final class OverWindowPartitionedOrderedPreceding {
      * @return an over window with defined following
      */
     public OverWindowPartitionedOrderedPreceding following(Expression following) {
-        optionalFollowing = Optional.of(following);
+        optionalFollowing = following;
         return this;
     }
 }

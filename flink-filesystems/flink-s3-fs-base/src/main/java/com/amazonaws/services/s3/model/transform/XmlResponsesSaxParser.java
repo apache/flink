@@ -875,12 +875,16 @@ public class XmlResponsesSaxParser {
 
         private Bucket currentBucket = null;
 
-        /** @return the buckets listed in the document. */
+        /**
+         * @return the buckets listed in the document.
+         */
         public List<Bucket> getBuckets() {
             return buckets;
         }
 
-        /** @return the owner of the buckets. */
+        /**
+         * @return the owner of the buckets.
+         */
         public Owner getOwner() {
             return bucketsOwner;
         }
@@ -937,7 +941,9 @@ public class XmlResponsesSaxParser {
         private Grantee currentGrantee = null;
         private Permission currentPermission = null;
 
-        /** @return an object representing the ACL document. */
+        /**
+         * @return an object representing the ACL document.
+         */
         public AccessControlList getAccessControlList() {
             return accessControlList;
         }
@@ -1018,7 +1024,9 @@ public class XmlResponsesSaxParser {
         private final BucketLoggingConfiguration bucketLoggingConfiguration =
                 new BucketLoggingConfiguration();
 
-        /** @return an object representing the bucket's LoggingStatus document. */
+        /**
+         * @return an object representing the bucket's LoggingStatus document.
+         */
         public BucketLoggingConfiguration getBucketLoggingConfiguration() {
             return bucketLoggingConfiguration;
         }
@@ -1048,7 +1056,9 @@ public class XmlResponsesSaxParser {
 
         private String location = null;
 
-        /** @return the bucket's location. */
+        /**
+         * @return the bucket's location.
+         */
         public String getLocation() {
             return location;
         }
@@ -1527,6 +1537,7 @@ public class XmlResponsesSaxParser {
         protected ServerSideEncryptionResult sseResult() {
             return result;
         }
+
         /**
          * @see com.amazonaws.services.s3.model.CompleteMultipartUploadResult#getExpirationTime()
          */

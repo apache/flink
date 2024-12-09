@@ -23,7 +23,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.DynamicTableSource;
-import org.apache.flink.table.utils.EncodingUtils;
 
 import javax.annotation.Nullable;
 
@@ -31,7 +30,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Describes a query operation from a {@link ContextResolvedTable}.
@@ -43,6 +41,7 @@ import java.util.stream.Collectors;
 @Internal
 public class SourceQueryOperation implements QueryOperation {
 
+    private static final String INPUT_ALIAS = "$$T_SOURCE";
     private final ContextResolvedTable contextResolvedTable;
     private final @Nullable Map<String, String> dynamicOptions;
 
@@ -83,11 +82,10 @@ public class SourceQueryOperation implements QueryOperation {
     public String asSerializableString() {
         String s =
                 String.format(
-                        "SELECT %s FROM %s",
-                        getResolvedSchema().getColumnNames().stream()
-                                .map(EncodingUtils::escapeIdentifier)
-                                .collect(Collectors.joining(", ")),
-                        getContextResolvedTable().getIdentifier().asSerializableString());
+                        "SELECT %s FROM %s %s",
+                        OperationUtils.formatSelectColumns(getResolvedSchema(), INPUT_ALIAS),
+                        getContextResolvedTable().getIdentifier().asSerializableString(),
+                        INPUT_ALIAS);
 
         if (dynamicOptions != null && !dynamicOptions.isEmpty()) {
             throw new TableException("Dynamic source options are not SQL serializable yet.");

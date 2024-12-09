@@ -50,7 +50,7 @@ public class SpanBuilder {
         }
         long endTsMillisToBuild = endTsMillis;
         if (endTsMillisToBuild == 0) {
-            endTsMillisToBuild = startTsMillis;
+            endTsMillisToBuild = startTsMillisToBuild;
         }
         return new SimpleSpan(
                 classScope.getCanonicalName(),

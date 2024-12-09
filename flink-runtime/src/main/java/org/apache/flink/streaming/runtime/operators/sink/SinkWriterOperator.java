@@ -117,6 +117,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
     private final MailboxExecutor mailboxExecutor;
 
     private boolean endOfInput = false;
+
     /**
      * Remembers the endOfInput state for (final) checkpoints iff the operator emits committables.
      */

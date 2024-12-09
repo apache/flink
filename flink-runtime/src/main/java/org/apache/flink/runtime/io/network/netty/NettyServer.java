@@ -32,6 +32,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.epoll.EpollServerSocketCh
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
+import org.apache.flink.shaded.netty4.io.netty.channel.unix.Errors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -147,11 +148,12 @@ class NettyServer {
             try {
                 bindFuture = bootstrap.bind().syncUninterruptibly();
             } catch (Exception e) {
-                LOG.debug("Failed to bind Netty server", e);
                 // syncUninterruptibly() throws checked exceptions via Unsafe
                 // continue if the exception is due to the port being in use, fail early
                 // otherwise
-                if (!(e instanceof java.net.BindException)) {
+                if (isBindFailure(e)) {
+                    LOG.debug("Failed to bind Netty server", e);
+                } else {
                     throw e;
                 }
             }
@@ -227,6 +229,15 @@ class NettyServer {
 
     public static ThreadFactory getNamedThreadFactory(String name) {
         return THREAD_FACTORY_BUILDER.setNameFormat(name + " Thread %d").build();
+    }
+
+    @VisibleForTesting
+    static boolean isBindFailure(Throwable t) {
+        return t instanceof java.net.BindException
+                || (t instanceof Errors.NativeIoException
+                        && t.getMessage() != null
+                        && t.getMessage().matches("^bind\\(.*\\) failed:.*"))
+                || (t.getCause() != null && isBindFailure(t.getCause()));
     }
 
     @VisibleForTesting

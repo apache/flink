@@ -400,7 +400,10 @@ public class KubernetesUtils {
     }
 
     public static List<URI> checkJarFileForApplicationMode(Configuration configuration) {
-        return configuration.get(PipelineOptions.JARS).stream()
+        return configuration
+                .getOptional(PipelineOptions.JARS)
+                .orElse(Collections.emptyList())
+                .stream()
                 .map(FunctionUtils.uncheckedFunction(PackagedProgramUtils::resolveURI))
                 .collect(Collectors.toList());
     }

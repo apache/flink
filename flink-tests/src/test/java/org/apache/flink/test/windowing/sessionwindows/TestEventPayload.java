@@ -46,7 +46,9 @@ public final class TestEventPayload {
         setTiming(timing);
     }
 
-    /** @return global watermark at the time this event was generated */
+    /**
+     * @return global watermark at the time this event was generated
+     */
     public long getWatermark() {
         return watermark;
     }
@@ -67,7 +69,9 @@ public final class TestEventPayload {
         this.sessionId = sessionId;
     }
 
-    /** @return a sequence number that acts as an id for the even inside the session */
+    /**
+     * @return a sequence number that acts as an id for the even inside the session
+     */
     public int getEventId() {
         return eventId;
     }

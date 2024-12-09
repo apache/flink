@@ -4768,6 +4768,7 @@ public class HyperLogLogPlusPlus {
 
     /** the maximum estimation error allowed. */
     private final double relativeSD;
+
     /**
      * HLL++ uses 'p' bits for addressing. The more addressing bits we use, the more precise the
      * algorithm will be, and the more memory it will require. The 'p' value is based on the
