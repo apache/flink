@@ -825,7 +825,8 @@ class ExecutingTest {
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Duration backoffTime,
                 boolean forcedRestart,
-                List<ExceptionHistoryEntry> failureCollection) {
+                List<ExceptionHistoryEntry> failureCollection,
+                boolean isFromFailure) {
             restartingStateValidator.validateInput(
                     new RestartingArguments(
                             executionGraph,
