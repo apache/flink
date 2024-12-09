@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 
 import java.util.Collection;
 import java.util.Optional;
@@ -87,10 +88,11 @@ public interface AllocatedSlotPool {
      * Reserves the free slot specified by the given allocationId.
      *
      * @param allocationId allocationId identifying the free slot to reserve
+     * @param loadingWeight the weight that is should be loaded on the allocated slot.
      * @return the {@link AllocatedSlot} which has been reserved
      * @throws IllegalStateException if there is no free slot with the given allocationId
      */
-    AllocatedSlot reserveFreeSlot(AllocationID allocationId);
+    AllocatedSlot reserveFreeSlot(AllocationID allocationId, LoadingWeight loadingWeight);
 
     /**
      * Frees the reserved slot, adding it back into the set of free slots.
@@ -123,6 +125,13 @@ public interface AllocatedSlotPool {
      * @return collection of all slot information
      */
     Collection<? extends SlotInfo> getAllSlotsInformation();
+
+    /**
+     * Returns the task executors loading information.
+     *
+     * @return the task executors loading information.
+     */
+    TaskExecutorsLoadInformation getTaskExecutorsLoadInformation();
 
     /** Information about a free slot. */
     interface FreeSlotInfo {

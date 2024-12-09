@@ -71,7 +71,7 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest
                         .setDecreaseResourceRequirementsByConsumer(
                                 requirementListener::decreaseRequirements)
                         .setReserveFreeSlotFunction(
-                                (allocationId, resourceProfile) ->
+                                (allocationId, resourceProfile, loadingWeight) ->
                                         createAllocatedSlot(allocationId))
                         .setFreeReservedSlotFunction(
                                 (allocationID, throwable, aLong) ->

@@ -15,26 +15,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.scheduler.adaptive.allocator;
+package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 
-/** A function for reserving slots. */
-@FunctionalInterface
-public interface ReserveSlotFunction {
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * The interface defines the methods to get the resource utilization or loading of task executors.
+ */
+public interface TaskExecutorsLoadInformation {
+
+    TaskExecutorsLoadInformation EMPTY =
+            new TaskExecutorsLoadInformation() {
+                @Override
+                public Map<ResourceID, LoadingWeight> getTaskExecutorsLoadingWeight() {
+                    return new HashMap<>();
+                }
+            };
+
     /**
-     * Reserves the slot identified by the given allocation ID for the given resource profile.
+     * Return the loading weight for per task executor.
      *
-     * @param allocationId identifies the slot
-     * @param resourceProfile resource profile the slot must be able to fulfill
-     * @param loadingWeight loading weight.
-     * @return reserved slot
+     * @return map of loading weight for per task executor.
      */
-    PhysicalSlot reserveSlot(
-            AllocationID allocationId,
-            ResourceProfile resourceProfile,
-            LoadingWeight loadingWeight);
+    Map<ResourceID, LoadingWeight> getTaskExecutorsLoadingWeight();
 }
