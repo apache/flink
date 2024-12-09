@@ -367,6 +367,61 @@ public final class Expressions {
     }
 
     /**
+     * * Converts the given time string with the specified format to {@link
+     * DataTypes#TIMESTAMP_LTZ(int)}.
+     *
+     * @param timestampStr The timestamp string to convert.
+     * @param format The format of the string.
+     * @return The timestamp value with {@link DataTypes#TIMESTAMP_LTZ(int)} type.
+     */
+    public static ApiExpression toTimestampLtz(String timestampStr, String format) {
+        return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP_LTZ, timestampStr, format);
+    }
+
+    /**
+     * Converts a timestamp to {@link DataTypes#TIMESTAMP_LTZ(int)}.
+     *
+     * <p>This method takes an object representing a timestamp and converts it to a TIMESTAMP_LTZ
+     * using the built-in TO_TIMESTAMP_LTZ function definition.
+     *
+     * @param timeStamp The timestamp string to be converted.
+     * @return The timestamp value with {@link DataTypes#TIMESTAMP_LTZ(int)} type.
+     */
+    public static ApiExpression toTimestampLtz(String timeStamp) {
+        return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP_LTZ, timeStamp);
+    }
+
+    /**
+     * Converts a numeric type epoch time to {@link DataTypes#TIMESTAMP_LTZ(int)}.
+     *
+     * <p>This method takes an object representing an epoch time and converts it to a TIMESTAMP_LTZ
+     * using the built-in TO_TIMESTAMP_LTZ function definition.
+     *
+     * @param numericEpochTime The epoch time with numeric type.
+     * @return The timestamp value with {@link DataTypes#TIMESTAMP_LTZ(int)} type.
+     */
+    public static ApiExpression toTimestampLtz(Object numericEpochTime) {
+        return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP_LTZ, numericEpochTime);
+    }
+
+    /**
+     * Converts a string timestamp with the custom format and timezone to {@link
+     * DataTypes#TIMESTAMP_LTZ(int)}.
+     *
+     * <p>The timestamp string will be parsed using the custom format and timezone, and converted to
+     * a TIMESTAMP_LTZ value.
+     *
+     * @param timestampStr The timestamp string to convert.
+     * @param format The format pattern to parse the timestamp string.
+     * @param timezone The timezone to use for the conversion.
+     * @return The timestamp value with {@link DataTypes#TIMESTAMP_LTZ(int)} type.
+     */
+    public static ApiExpression toTimestampLtz(
+            Object timestampStr, Object format, Object timezone) {
+        return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP_LTZ, timestampStr, format, timezone);
+    }
+
+    /**
      * Determines whether two anchored time intervals overlap. Time point and temporal are
      * transformed into a range defined by two time points (start, end). The function evaluates
      * <code>leftEnd >= rightStart && rightEnd >= leftStart</code>.

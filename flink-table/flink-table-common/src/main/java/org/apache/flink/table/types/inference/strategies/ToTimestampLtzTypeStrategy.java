@@ -23,19 +23,54 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.TypeStrategy;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
+import java.util.List;
 import java.util.Optional;
 
 /** Type strategy of {@code TO_TIMESTAMP_LTZ}. */
 @Internal
 public class ToTimestampLtzTypeStrategy implements TypeStrategy {
 
+    private static final int DEFAULT_PRECISION = 3;
+
     @Override
     public Optional<DataType> inferType(CallContext callContext) {
-        if (callContext.isArgumentLiteral(1)) {
-            final int precision = callContext.getArgumentValue(1, Integer.class).get();
-            return Optional.of(DataTypes.TIMESTAMP_LTZ(precision));
+        List<DataType> argumentTypes = callContext.getArgumentDataTypes();
+        int argCount = argumentTypes.size();
+
+        if (argCount < 1 || argCount > 3) {
+            throw new IllegalArgumentException(
+                    "TO_TIMESTAMP_LTZ requires 1 to 3 arguments, but "
+                            + argCount
+                            + "arguments were provided.");
         }
-        return Optional.of(DataTypes.TIMESTAMP_LTZ(3));
+
+        if (argCount == 1) {
+            // TO_TIMESTAMP_LTZ(numeric)
+            // TO_TIMESTAMP_LTZ(string)
+            return Optional.of(DataTypes.TIMESTAMP_LTZ(DEFAULT_PRECISION));
+        } else if (argCount == 2) {
+            LogicalTypeRoot firstArgTypeRoot = argumentTypes.get(0).getLogicalType().getTypeRoot();
+            boolean isFirstArgNumeric =
+                    firstArgTypeRoot == LogicalTypeRoot.TINYINT
+                            || firstArgTypeRoot == LogicalTypeRoot.SMALLINT
+                            || firstArgTypeRoot == LogicalTypeRoot.INTEGER
+                            || firstArgTypeRoot == LogicalTypeRoot.BIGINT
+                            || firstArgTypeRoot == LogicalTypeRoot.FLOAT
+                            || firstArgTypeRoot == LogicalTypeRoot.DOUBLE
+                            || firstArgTypeRoot == LogicalTypeRoot.DECIMAL;
+            // TO_TIMESTAMP_LTZ(numeric, precision)
+            if (callContext.isArgumentLiteral(1) && isFirstArgNumeric) {
+                final int precision = callContext.getArgumentValue(1, Integer.class).get();
+                return Optional.of(DataTypes.TIMESTAMP_LTZ(precision));
+            }
+            // TO_TIMESTAMP_LTZ(string, format)
+            return Optional.of(DataTypes.TIMESTAMP_LTZ(DEFAULT_PRECISION));
+        } else {
+            // argCount == 3
+            // TO_TIMESTAMP_LTZ(string, format, timezone)
+            return Optional.of(DataTypes.TIMESTAMP_LTZ(DEFAULT_PRECISION));
+        }
     }
 }

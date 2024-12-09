@@ -365,6 +365,26 @@ public class DateTimeUtils {
         }
     }
 
+    public static TimestampData toTimestampData(int v, int precision) {
+        switch (precision) {
+            case 0:
+                if (MIN_EPOCH_SECONDS <= v && v <= MAX_EPOCH_SECONDS) {
+                    return timestampDataFromEpochMills((v * MILLIS_PER_SECOND));
+                } else {
+                    return null;
+                }
+            case 3:
+                return timestampDataFromEpochMills(v);
+            default:
+                throw new TableException(
+                        "The precision value '"
+                                + precision
+                                + "' for function "
+                                + "TO_TIMESTAMP_LTZ(numeric, precision) is unsupported,"
+                                + " the supported value is '0' for second or '3' for millisecond.");
+        }
+    }
+
     public static TimestampData toTimestampData(DecimalData v, int precision) {
         long epochMills;
         switch (precision) {
@@ -384,6 +404,18 @@ public class DateTimeUtils {
                                 + "TO_TIMESTAMP_LTZ(numeric, precision) is unsupported,"
                                 + " the supported value is '0' for second or '3' for millisecond.");
         }
+    }
+
+    public static TimestampData toTimestampData(long epoch) {
+        return toTimestampData(epoch, 3);
+    }
+
+    public static TimestampData toTimestampData(double epoch) {
+        return toTimestampData(epoch, 3);
+    }
+
+    public static TimestampData toTimestampData(DecimalData epoch) {
+        return toTimestampData(epoch, 3);
     }
 
     private static TimestampData timestampDataFromEpochMills(long epochMills) {
@@ -419,6 +451,21 @@ public class DateTimeUtils {
                 fromTemporalAccessor(DEFAULT_TIMESTAMP_FORMATTER.parse(dateStr), precision)
                         .atZone(timeZone.toZoneId())
                         .toInstant());
+    }
+
+    public static TimestampData toTimestampData(String dateStr, String format, String timezone) {
+        if (dateStr == null || format == null || timezone == null) {
+            return null;
+        }
+
+        TimestampData ts = parseTimestampData(dateStr, format);
+        if (ts == null) {
+            return null;
+        }
+
+        ZonedDateTime utcZoned = ts.toLocalDateTime().atZone(ZoneId.of("UTC"));
+        ZonedDateTime targetTime = utcZoned.withZoneSameInstant(ZoneId.of(timezone));
+        return TimestampData.fromInstant(targetTime.toInstant());
     }
 
     public static TimestampData parseTimestampData(String dateStr, String format) {
