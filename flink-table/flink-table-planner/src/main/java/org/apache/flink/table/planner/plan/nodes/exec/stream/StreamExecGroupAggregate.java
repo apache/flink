@@ -23,6 +23,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.asyncprocessing.AsyncStateKeyedProcessOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -47,6 +48,7 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.aggregate.GroupAggFunction;
 import org.apache.flink.table.runtime.operators.aggregate.MiniBatchGroupAggFunction;
+import org.apache.flink.table.runtime.operators.aggregate.asyncprocessing.AsyncStateGroupAggFunction;
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -227,6 +229,7 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
                         .generateRecordEqualiser("GroupAggValueEqualiser");
         final int inputCountIndex = aggInfoList.getIndexOfCountStar();
         final boolean isMiniBatchEnabled = MinibatchUtil.isMiniBatchEnabled(config);
+        final boolean enableAsyncState = AggregateUtil.enableAsyncState(config, aggInfoList);
 
         final OneInputStreamOperator<RowData, RowData> operator;
         if (isMiniBatchEnabled) {
@@ -242,6 +245,16 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
             operator =
                     new KeyedMapBundleOperator<>(
                             aggFunction, MinibatchUtil.createMiniBatchTrigger(config));
+        } else if (enableAsyncState) {
+            AsyncStateGroupAggFunction aggFunction =
+                    new AsyncStateGroupAggFunction(
+                            aggsHandler,
+                            recordEqualiser,
+                            accTypes,
+                            inputCountIndex,
+                            generateUpdateBefore,
+                            stateRetentionTime);
+            operator = new AsyncStateKeyedProcessOperator<>(aggFunction);
         } else {
             GroupAggFunction aggFunction =
                     new GroupAggFunction(

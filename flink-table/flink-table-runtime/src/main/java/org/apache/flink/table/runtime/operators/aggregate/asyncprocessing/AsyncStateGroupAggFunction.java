@@ -16,19 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.aggregate;
+package org.apache.flink.table.runtime.operators.aggregate.asyncprocessing;
 
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.state.v2.ValueState;
+import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
+import org.apache.flink.table.runtime.operators.aggregate.GroupAggFunction;
+import org.apache.flink.table.runtime.operators.aggregate.RecordCounter;
 import org.apache.flink.table.runtime.operators.aggregate.utils.GroupAggHelper;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -36,10 +39,10 @@ import org.apache.flink.util.Collector;
 
 import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfig;
 
-/** Aggregate Function used for the groupby (without window) aggregate. */
-public class GroupAggFunction extends KeyedProcessFunction<RowData, RowData, RowData> {
+/** Aggregate Function used for the groupby (without window) aggregate with async state api. */
+public class AsyncStateGroupAggFunction extends KeyedProcessFunction<RowData, RowData, RowData> {
 
-    private static final long serialVersionUID = -4767158666069797704L;
+    private static final long serialVersionUID = 1L;
 
     /** The code generated function used to handle aggregates. */
     private final GeneratedAggsHandleFunction genAggsHandler;
@@ -68,7 +71,7 @@ public class GroupAggFunction extends KeyedProcessFunction<RowData, RowData, Row
     // stores the accumulators
     private transient ValueState<RowData> accState = null;
 
-    private transient SyncStateGroupAggHelper aggHelper = null;
+    private transient AsyncStateGroupAggHelper aggHelper = null;
 
     /**
      * Creates a {@link GroupAggFunction}.
@@ -82,7 +85,7 @@ public class GroupAggFunction extends KeyedProcessFunction<RowData, RowData, Row
      * @param generateUpdateBefore Whether this operator will generate UPDATE_BEFORE messages.
      * @param stateRetentionTime state idle retention time which unit is MILLISECONDS.
      */
-    public GroupAggFunction(
+    public AsyncStateGroupAggFunction(
             GeneratedAggsHandleFunction genAggsHandler,
             GeneratedRecordEqualiser genRecordEqualiser,
             LogicalType[] accTypes,
@@ -100,28 +103,33 @@ public class GroupAggFunction extends KeyedProcessFunction<RowData, RowData, Row
     @Override
     public void open(OpenContext openContext) throws Exception {
         super.open(openContext);
+        final StreamingRuntimeContext runtimeContext =
+                (StreamingRuntimeContext) getRuntimeContext();
+
         // instantiate function
         StateTtlConfig ttlConfig = createTtlConfig(stateRetentionTime);
-        function = genAggsHandler.newInstance(getRuntimeContext().getUserCodeClassLoader());
-        function.open(new PerKeyStateDataViewStore(getRuntimeContext(), ttlConfig));
+        function = genAggsHandler.newInstance(runtimeContext.getUserCodeClassLoader());
+        function.open(new PerKeyStateDataViewStore(runtimeContext, ttlConfig));
+
         // instantiate equaliser
-        equaliser = genRecordEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
+        equaliser = genRecordEqualiser.newInstance(runtimeContext.getUserCodeClassLoader());
 
         InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
         ValueStateDescriptor<RowData> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);
         if (ttlConfig.isEnabled()) {
             accDesc.enableTimeToLive(ttlConfig);
         }
-        accState = getRuntimeContext().getState(accDesc);
 
-        aggHelper = new SyncStateGroupAggHelper();
+        accState = runtimeContext.getValueState(accDesc);
+        aggHelper = new AsyncStateGroupAggHelper();
     }
 
     @Override
     public void processElement(RowData input, Context ctx, Collector<RowData> out)
             throws Exception {
         RowData currentKey = ctx.getCurrentKey();
-        aggHelper.processElement(input, currentKey, accState.value(), out);
+        accState.asyncValue()
+                .thenAccept(acc -> aggHelper.processElement(input, currentKey, acc, out));
     }
 
     @Override
@@ -131,8 +139,9 @@ public class GroupAggFunction extends KeyedProcessFunction<RowData, RowData, Row
         }
     }
 
-    private class SyncStateGroupAggHelper extends GroupAggHelper {
-        public SyncStateGroupAggHelper() {
+    private class AsyncStateGroupAggHelper extends GroupAggHelper {
+
+        public AsyncStateGroupAggHelper() {
             super(recordCounter, generateUpdateBefore, stateRetentionTime, function, equaliser);
         }
 
