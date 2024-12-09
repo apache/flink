@@ -261,11 +261,11 @@ class RTASITCase extends StreamingTestBase {
 
     private CatalogTable getExpectCatalogTable(
             String[] cols, AbstractDataType<?>[] fieldDataTypes, Map<String, String> tableOptions) {
-        return CatalogTable.of(
-                Schema.newBuilder().fromFields(cols, fieldDataTypes).build(),
-                null,
-                Collections.emptyList(),
-                tableOptions);
+        return CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().fromFields(cols, fieldDataTypes).build())
+                .comment(null)
+                .partitionKeys(Collections.emptyList())
+                .options(tableOptions).build();
     }
 
     private Map<String, String> getDefaultTargetTableOptions() {

@@ -54,12 +54,11 @@ public abstract class CatalogTestBase extends CatalogTest {
     @Override
     public CatalogTable createTable() {
         final ResolvedSchema resolvedSchema = createSchema();
-        final CatalogTable origin =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
-                        TEST_COMMENT,
-                        Collections.emptyList(),
-                        getBatchTableProperties());
+        final CatalogTable origin = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema).build())
+                .comment(TEST_COMMENT)
+                .partitionKeys(Collections.emptyList())
+                .options(getBatchTableProperties()).build();
         return new ResolvedCatalogTable(origin, resolvedSchema);
     }
 
@@ -86,48 +85,44 @@ public abstract class CatalogTestBase extends CatalogTest {
     @Override
     public CatalogTable createAnotherTable() {
         final ResolvedSchema resolvedSchema = createAnotherSchema();
-        final CatalogTable origin =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
-                        TEST_COMMENT,
-                        Collections.emptyList(),
-                        getBatchTableProperties());
+        final CatalogTable origin = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema).build())
+                .comment(TEST_COMMENT)
+                .partitionKeys(Collections.emptyList())
+                .options(getBatchTableProperties()).build();
         return new ResolvedCatalogTable(origin, resolvedSchema);
     }
 
     @Override
     public CatalogTable createStreamingTable() {
         final ResolvedSchema resolvedSchema = createSchema();
-        final CatalogTable origin =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
-                        TEST_COMMENT,
-                        Collections.emptyList(),
-                        getStreamingTableProperties());
+        final CatalogTable origin = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema).build())
+                .comment(TEST_COMMENT)
+                .partitionKeys(Collections.emptyList())
+                .options(getStreamingTableProperties()).build();
         return new ResolvedCatalogTable(origin, resolvedSchema);
     }
 
     @Override
     public CatalogTable createPartitionedTable() {
         final ResolvedSchema resolvedSchema = createSchema();
-        final CatalogTable origin =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
-                        TEST_COMMENT,
-                        createPartitionKeys(),
-                        getBatchTableProperties());
+        final CatalogTable origin = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema).build())
+                .comment(TEST_COMMENT)
+                .partitionKeys(createPartitionKeys())
+                .options(getBatchTableProperties()).build();
         return new ResolvedCatalogTable(origin, resolvedSchema);
     }
 
     @Override
     public CatalogTable createAnotherPartitionedTable() {
         final ResolvedSchema resolvedSchema = createAnotherSchema();
-        final CatalogTable origin =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
-                        TEST_COMMENT,
-                        createPartitionKeys(),
-                        getBatchTableProperties());
+        final CatalogTable origin = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema).build())
+                .comment(TEST_COMMENT)
+                .partitionKeys(createPartitionKeys())
+                .options(getBatchTableProperties()).build();
         return new ResolvedCatalogTable(origin, resolvedSchema);
     }
 
