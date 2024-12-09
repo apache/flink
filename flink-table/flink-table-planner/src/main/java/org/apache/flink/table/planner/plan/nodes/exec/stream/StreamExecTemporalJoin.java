@@ -74,6 +74,7 @@ import java.util.Optional;
         name = "stream-exec-temporal-join",
         version = 1,
         producedTransformations = StreamExecTemporalJoin.TEMPORAL_JOIN_TRANSFORMATION,
+        consumedOptions = {"table.exec.async-state.enabled"},
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
