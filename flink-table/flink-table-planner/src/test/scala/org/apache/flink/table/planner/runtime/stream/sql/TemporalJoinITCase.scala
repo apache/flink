@@ -23,9 +23,9 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.{getResultsAsStrings, registerData}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.utils.LegacyRowExtension
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
@@ -34,11 +34,22 @@ import org.junit.jupiter.api.extension.{ExtendWith, RegisterExtension}
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeParseException
+import java.util
 
 import scala.collection.JavaConversions._
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(state) {
+class TemporalJoinITCase(state: StateBackendMode, enableAsyncState: Boolean)
+  extends StreamingWithStateTestBase(state) {
+
+  @BeforeEach
+  override def before(): Unit = {
+    super.before()
+
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED,
+      Boolean.box(enableAsyncState))
+  }
 
   @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
     new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
@@ -793,5 +804,16 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       case o: Object => o
     }
     TestValuesTableFactory.changelogRow(kind, objects.toArray: _*)
+  }
+}
+
+object TemporalJoinITCase {
+
+  @Parameters(name = "StateBackend={0}, EnableAsyncState={1}")
+  def parameters(): util.Collection[Array[java.lang.Object]] = {
+    Seq[Array[AnyRef]](
+      Array(HEAP_BACKEND, Boolean.box(false)),
+      Array(HEAP_BACKEND, Boolean.box(true)),
+      Array(ROCKSDB_BACKEND, Boolean.box(false)))
   }
 }
