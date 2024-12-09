@@ -675,7 +675,7 @@ public abstract class AbstractStreamOperator<OUT>
         }
     }
 
-    private void emitWatermarkDirectly(Watermark mark) throws Exception {
+    protected void emitWatermarkDirectly(Watermark mark) throws Exception {
         if (timeServiceManager != null) {
             timeServiceManager.advanceWatermark(mark);
         }
