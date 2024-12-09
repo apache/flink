@@ -92,6 +92,8 @@ import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.operators.coordination.TestOperatorEvent;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerTest;
+import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
+import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
@@ -592,14 +594,14 @@ public class AdaptiveSchedulerTest {
     }
 
     @Test
-    void testNumRestartsMetric() throws Exception {
-        final CompletableFuture<Gauge<Long>> numRestartsMetricFuture = new CompletableFuture<>();
+    void testNumRescalesMetric() throws Exception {
+        final CompletableFuture<Gauge<Long>> numRescalesMetricFuture = new CompletableFuture<>();
         final MetricRegistry metricRegistry =
                 TestingMetricRegistry.builder()
                         .setRegisterConsumer(
                                 (metric, name, group) -> {
-                                    if (MetricNames.NUM_RESTARTS.equals(name)) {
-                                        numRestartsMetricFuture.complete((Gauge<Long>) metric);
+                                    if (MetricNames.NUM_RESCALES.equals(name)) {
+                                        numRescalesMetricFuture.complete((Gauge<Long>) metric);
                                     }
                                 })
                         .build();
@@ -629,7 +631,7 @@ public class AdaptiveSchedulerTest {
                         .setDeclarativeSlotPool(declarativeSlotPool)
                         .build();
 
-        final Gauge<Long> numRestartsMetric = numRestartsMetricFuture.get();
+        final Gauge<Long> numRescalesMetric = numRescalesMetricFuture.get();
 
         final SubmissionBufferingTaskManagerGateway taskManagerGateway =
                 new SubmissionBufferingTaskManagerGateway(1 + PARALLELISM);
@@ -649,7 +651,7 @@ public class AdaptiveSchedulerTest {
         // wait for the first task submission
         taskManagerGateway.waitForSubmissions(1);
 
-        assertThat(numRestartsMetric.getValue()).isEqualTo(0L);
+        assertThat(numRescalesMetric.getValue()).isEqualTo(0L);
 
         // offer more slots, which will cause a restart in order to scale up
         runInMainThread(
@@ -664,6 +666,64 @@ public class AdaptiveSchedulerTest {
         // wait for the second task submissions
         taskManagerGateway.waitForSubmissions(PARALLELISM);
 
+        assertThat(numRescalesMetric.getValue()).isEqualTo(1L);
+    }
+
+    @Test
+    void testNumRestartsMetric() throws Exception {
+        final CompletableFuture<Gauge<Long>> numRestartsMetricFuture = new CompletableFuture<>();
+        final MetricRegistry metricRegistry =
+                TestingMetricRegistry.builder()
+                        .setRegisterConsumer(
+                                (metric, name, group) -> {
+                                    if (MetricNames.NUM_RESTARTS.equals(name)) {
+                                        numRestartsMetricFuture.complete((Gauge<Long>) metric);
+                                    }
+                                })
+                        .build();
+
+        scheduler =
+                new AdaptiveSchedulerBuilder(
+                                createJobGraph(),
+                                singleThreadMainThreadExecutor,
+                                EXECUTOR_RESOURCE.getExecutor())
+                        .setJobMasterConfiguration(createConfigurationWithNoTimeouts())
+                        .setJobManagerJobMetricGroup(
+                                JobManagerMetricGroup.createJobManagerMetricGroup(
+                                                metricRegistry, "localhost")
+                                        .addJob(new JobID(), "jobName"))
+                        .build();
+
+        try (MockRestartingContext ctx = new MockRestartingContext()) {
+            StateTrackingMockExecutionGraph executionGraph = new StateTrackingMockExecutionGraph();
+
+            final ExecutionGraphHandler executionGraphHandler =
+                    new ExecutionGraphHandler(
+                            executionGraph,
+                            LOG,
+                            ctx.getMainThreadExecutor(),
+                            ctx.getMainThreadExecutor());
+            final OperatorCoordinatorHandler operatorCoordinatorHandler =
+                    new TestingOperatorCoordinatorHandler();
+            executionGraph.transitionToRunning();
+
+            List<ExceptionHistoryEntry> failureCollection =
+                    List.of(
+                            ExceptionHistoryEntry.createGlobal(
+                                    new Exception("test"),
+                                    CompletableFuture.completedFuture(Collections.emptyMap())));
+            runInMainThread(
+                    () ->
+                            scheduler.goToRestarting(
+                                    executionGraph,
+                                    executionGraphHandler,
+                                    operatorCoordinatorHandler,
+                                    Duration.ZERO,
+                                    true,
+                                    failureCollection));
+        }
+
+        final Gauge<Long> numRestartsMetric = numRestartsMetricFuture.get();
         assertThat(numRestartsMetric.getValue()).isEqualTo(1L);
     }
 
