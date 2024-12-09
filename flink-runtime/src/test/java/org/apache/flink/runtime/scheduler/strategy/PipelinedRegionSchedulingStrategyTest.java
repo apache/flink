@@ -245,7 +245,7 @@ class PipelinedRegionSchedulingStrategyTest {
 
         final PipelinedRegionSchedulingStrategy schedulingStrategy =
                 new PipelinedRegionSchedulingStrategy(
-                        testingSchedulerOperation, schedulingTopology);
+                        testingSchedulerOperation, schedulingTopology, false);
 
         final Set<ConsumedPartitionGroup> crossRegionConsumedPartitionGroups =
                 schedulingStrategy.getCrossRegionConsumedPartitionGroups();
@@ -276,7 +276,7 @@ class PipelinedRegionSchedulingStrategyTest {
                 .finish();
 
         final PipelinedRegionSchedulingStrategy schedulingStrategy =
-                new PipelinedRegionSchedulingStrategy(testingSchedulerOperation, topology);
+                new PipelinedRegionSchedulingStrategy(testingSchedulerOperation, topology, false);
 
         final Set<ConsumedPartitionGroup> crossRegionConsumedPartitionGroups =
                 schedulingStrategy.getCrossRegionConsumedPartitionGroups();
@@ -636,7 +636,7 @@ class PipelinedRegionSchedulingStrategyTest {
             SchedulingTopology schedulingTopology) {
         final PipelinedRegionSchedulingStrategy schedulingStrategy =
                 new PipelinedRegionSchedulingStrategy(
-                        testingSchedulerOperation, schedulingTopology);
+                        testingSchedulerOperation, schedulingTopology, false);
         schedulingStrategy.startScheduling();
         return schedulingStrategy;
     }
