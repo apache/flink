@@ -159,8 +159,7 @@ class AdaptiveBatchSchedulerTest {
         map.connectNewDataSetAsInput(
                 source, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
         sink.connectNewDataSetAsInput(
-                map, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        map.getProducedDataSets().get(0).getConsumers().get(0).setForward(true);
+                map, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING, false, true);
 
         SchedulerBase scheduler =
                 createScheduler(
@@ -186,14 +185,14 @@ class AdaptiveBatchSchedulerTest {
         // trigger source finished.
         transitionExecutionsState(scheduler, ExecutionState.FINISHED, source);
         assertThat(mapExecutionJobVertex.getParallelism()).isEqualTo(5);
-        assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(5);
-        // check that the jobGraph is updated
-        assertThat(sink.getParallelism()).isEqualTo(5);
+        assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(-1);
 
         // trigger map finished.
         transitionExecutionsState(scheduler, ExecutionState.FINISHED, map);
         assertThat(mapExecutionJobVertex.getParallelism()).isEqualTo(5);
         assertThat(sinkExecutionJobVertex.getParallelism()).isEqualTo(5);
+        // check that the jobGraph is updated
+        assertThat(sink.getParallelism()).isEqualTo(5);
 
         // check aggregatedInputDataBytes of each ExecutionVertex calculated. Total number of
         // subpartitions of map is 5, so total bytes sink consume is 5 * SUBPARTITION_BYTES = 500L.
