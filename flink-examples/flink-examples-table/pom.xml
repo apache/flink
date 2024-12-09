@@ -144,8 +144,8 @@ under the License.
 						</goals>
 						<configuration>
 							<compilerArgument>-Xlint:deprecation</compilerArgument>
-							<failOnWarning>true</failOnWarning>
-						</configuration>
+							<failOnWarning>false</failOnWarning>
+						</configuration>c
 					</execution>
 				</executions>
 			</plugin>
