@@ -43,7 +43,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
     public <T> ValueState<T> getValueState(@Nonnull ValueStateDescriptor<T> stateProperties) {
         Preconditions.checkNotNull(stateProperties, "The state properties must not be null");
         try {
-            return asyncKeyedStateBackend.createState(
+            return asyncKeyedStateBackend.getOrCreateKeyedState(
                     VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateProperties);
         } catch (Exception e) {
             throw new RuntimeException("Error while getting state", e);
@@ -54,7 +54,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
     public <T> ListState<T> getListState(@Nonnull ListStateDescriptor<T> stateProperties) {
         Preconditions.checkNotNull(stateProperties, "The state properties must not be null");
         try {
-            return asyncKeyedStateBackend.createState(
+            return asyncKeyedStateBackend.getOrCreateKeyedState(
                     VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateProperties);
         } catch (Exception e) {
             throw new RuntimeException("Error while getting state", e);
@@ -66,7 +66,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
             @Nonnull MapStateDescriptor<UK, UV> stateProperties) {
         Preconditions.checkNotNull(stateProperties, "The state properties must not be null");
         try {
-            return asyncKeyedStateBackend.createState(
+            return asyncKeyedStateBackend.getOrCreateKeyedState(
                     VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateProperties);
         } catch (Exception e) {
             throw new RuntimeException("Error while getting state", e);
@@ -78,7 +78,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
             @Nonnull ReducingStateDescriptor<T> stateProperties) {
         Preconditions.checkNotNull(stateProperties, "The state properties must not be null");
         try {
-            return asyncKeyedStateBackend.createState(
+            return asyncKeyedStateBackend.getOrCreateKeyedState(
                     VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateProperties);
         } catch (Exception e) {
             throw new RuntimeException("Error while getting state", e);
@@ -90,7 +90,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
             @Nonnull AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
         Preconditions.checkNotNull(stateProperties, "The state properties must not be null");
         try {
-            return asyncKeyedStateBackend.createState(
+            return asyncKeyedStateBackend.getOrCreateKeyedState(
                     VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateProperties);
         } catch (Exception e) {
             throw new RuntimeException("Error while getting state", e);

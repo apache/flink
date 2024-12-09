@@ -184,16 +184,6 @@ public class AbstractKeyedStateTestBase {
 
                 @Nonnull
                 @Override
-                public <N, S extends State, SV> S createState(
-                        @Nonnull N defaultNamespace,
-                        @Nonnull TypeSerializer<N> namespaceSerializer,
-                        @Nonnull StateDescriptor<SV> stateDesc)
-                        throws Exception {
-                    return null;
-                }
-
-                @Nonnull
-                @Override
                 public <N, S extends InternalKeyedState, SV> S createStateInternal(
                         @Nonnull N defaultNamespace,
                         @Nonnull TypeSerializer<N> namespaceSerializer,

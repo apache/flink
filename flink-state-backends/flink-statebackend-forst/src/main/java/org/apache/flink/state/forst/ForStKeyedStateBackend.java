@@ -249,9 +249,8 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
     }
 
     @Nonnull
-    @Override
     @SuppressWarnings("unchecked")
-    public <N, S extends State, SV> S createState(
+    protected <N, S extends State, SV> S createState(
             @Nonnull N defaultNamespace,
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull StateDescriptor<SV> stateDesc)

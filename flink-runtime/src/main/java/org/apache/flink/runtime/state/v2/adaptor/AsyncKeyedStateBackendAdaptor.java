@@ -74,35 +74,6 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend<
             TypeSerializer<N> namespaceSerializer,
             StateDescriptor<SV> stateDesc)
             throws Exception {
-        org.apache.flink.api.common.state.StateDescriptor rawStateDesc =
-                StateDescriptorUtils.transformFromV2ToV1(stateDesc);
-        org.apache.flink.api.common.state.State rawState =
-                keyedStateBackend.getOrCreateKeyedState(namespaceSerializer, rawStateDesc);
-        switch (rawStateDesc.getType()) {
-            case VALUE:
-                return (S) new ValueStateAdaptor((InternalValueState) rawState);
-            case LIST:
-                return (S) new ListStateAdaptor<>((InternalListState) rawState);
-            case REDUCING:
-                return (S) new ReducingStateAdaptor<>((InternalReducingState) rawState);
-            case AGGREGATING:
-                return (S) new AggregatingStateAdaptor<>((InternalAggregatingState) rawState);
-            case MAP:
-                return (S) new MapStateAdaptor<>((InternalMapState) rawState);
-            default:
-                throw new UnsupportedOperationException(
-                        String.format("Unsupported state type: %s", rawStateDesc.getType()));
-        }
-    }
-
-    @Nonnull
-    @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    public <N, S extends State, SV> S createState(
-            @Nonnull N defaultNamespace,
-            @Nonnull TypeSerializer<N> namespaceSerializer,
-            @Nonnull StateDescriptor<SV> stateDesc)
-            throws Exception {
         return createStateInternal(defaultNamespace, namespaceSerializer, stateDesc);
     }
 
