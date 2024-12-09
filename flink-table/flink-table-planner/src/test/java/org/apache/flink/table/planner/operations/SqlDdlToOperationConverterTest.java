@@ -37,15 +37,14 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableDistribution;
+import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.factories.TestManagedTableFactory;
-import org.apache.flink.table.legacy.api.TableColumn;
-import org.apache.flink.table.legacy.api.TableSchema;
-import org.apache.flink.table.legacy.api.constraints.UniqueConstraint;
 import org.apache.flink.table.operations.CreateTableASOperation;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
@@ -73,7 +72,6 @@ import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
-import org.apache.flink.table.types.DataType;
 
 import org.apache.calcite.sql.SqlNode;
 import org.assertj.core.api.HamcrestCondition;
@@ -269,18 +267,20 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         CreateTableOperation op = (CreateTableOperation) operation;
         CatalogTable catalogTable = op.getCatalogTable();
         assertThat(catalogTable.getPartitionKeys()).hasSameElementsAs(Arrays.asList("a", "d"));
-        assertThat(catalogTable.getSchema().getFieldNames())
-                .isEqualTo(new String[] {"a", "b", "c", "d"});
-        assertThat(catalogTable.getSchema().getFieldDataTypes())
-                .isEqualTo(
-                        new DataType[] {
-                            DataTypes.BIGINT(),
-                            DataTypes.VARCHAR(Integer.MAX_VALUE),
-                            DataTypes.INT(),
-                            DataTypes.VARCHAR(Integer.MAX_VALUE)
-                        });
+        assertThat(
+                        catalogTable.getUnresolvedSchema().getColumns().stream()
+                                .map(Schema.UnresolvedColumn::getName)
+                                .collect(Collectors.toList()))
+                .isEqualTo(List.of("a", "b", "c", "d"));
         assertThat(catalogTable).isInstanceOf(ResolvedCatalogTable.class);
         ResolvedCatalogTable resolvedCatalogTable = (ResolvedCatalogTable) catalogTable;
+        assertThat(resolvedCatalogTable.getResolvedSchema().getColumnDataTypes())
+                .isEqualTo(
+                        List.of(
+                                DataTypes.BIGINT(),
+                                DataTypes.VARCHAR(Integer.MAX_VALUE),
+                                DataTypes.INT(),
+                                DataTypes.VARCHAR(Integer.MAX_VALUE)));
         resolvedCatalogTable
                 .getResolvedSchema()
                 .getColumn(0)
@@ -308,23 +308,22 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         Operation operation = parse(sql, planner, parser);
         assertThat(operation).isInstanceOf(CreateTableOperation.class);
         CreateTableOperation op = (CreateTableOperation) operation;
-        CatalogTable catalogTable = op.getCatalogTable();
-        TableSchema tableSchema = catalogTable.getSchema();
+        ResolvedCatalogTable resolvedCatalogTable = (ResolvedCatalogTable) op.getCatalogTable();
+        ResolvedSchema resolvedSchema = resolvedCatalogTable.getResolvedSchema();
         assertThat(
-                        tableSchema
+                        resolvedSchema
                                 .getPrimaryKey()
                                 .map(UniqueConstraint::asSummaryString)
                                 .orElse("fakeVal"))
-                .isEqualTo("CONSTRAINT ct1 PRIMARY KEY (a, b)");
-        assertThat(tableSchema.getFieldNames()).isEqualTo(new String[] {"a", "b", "c", "d"});
-        assertThat(tableSchema.getFieldDataTypes())
+                .isEqualTo("CONSTRAINT `ct1` PRIMARY KEY (`a`, `b`) NOT ENFORCED");
+        assertThat(resolvedSchema.getColumnNames()).isEqualTo(List.of("a", "b", "c", "d"));
+        assertThat(resolvedSchema.getColumnDataTypes())
                 .isEqualTo(
-                        new DataType[] {
-                            DataTypes.BIGINT().notNull(),
-                            DataTypes.STRING().notNull(),
-                            DataTypes.INT(),
-                            DataTypes.STRING()
-                        });
+                        List.of(
+                                DataTypes.BIGINT().notNull(),
+                                DataTypes.STRING().notNull(),
+                                DataTypes.INT(),
+                                DataTypes.STRING()));
     }
 
     @Test
@@ -1252,9 +1251,12 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(node).isInstanceOf(SqlCreateTable.class);
         Operation operation =
                 SqlNodeToOperationConversion.convert(planner, catalogManager, node).get();
-        TableSchema schema = ((CreateTableOperation) operation).getCatalogTable().getSchema();
-        Object[] expectedDataTypes = testItems.stream().map(item -> item.expectedType).toArray();
-        assertThat(schema.getFieldDataTypes()).isEqualTo(expectedDataTypes);
+        CreateTableOperation op = (CreateTableOperation) operation;
+        ResolvedCatalogTable resolvedCatalogTable = (ResolvedCatalogTable) op.getCatalogTable();
+        ResolvedSchema schema = resolvedCatalogTable.getResolvedSchema();
+        List<Object> expectedDataTypes =
+                testItems.stream().map(item -> item.expectedType).collect(Collectors.toList());
+        assertThat(schema.getColumnDataTypes()).isEqualTo(expectedDataTypes);
     }
 
     @Test
@@ -1283,25 +1285,27 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         Operation operation = parse(sql, planner, getParserBySqlDialect(SqlDialect.DEFAULT));
         assertThat(operation).isInstanceOf(CreateTableOperation.class);
         CreateTableOperation op = (CreateTableOperation) operation;
-        CatalogTable catalogTable = op.getCatalogTable();
-        assertThat(catalogTable.getSchema().getFieldNames())
+        ResolvedCatalogTable resolvedCatalogTable = (ResolvedCatalogTable) op.getCatalogTable();
+        assertThat(
+                        resolvedCatalogTable.getUnresolvedSchema().getColumns().stream()
+                                .map(Schema.UnresolvedColumn::getName)
+                                .toArray())
                 .isEqualTo(new String[] {"a", "b", "c", "d", "e", "f", "g"});
-        assertThat(catalogTable.getSchema().getFieldDataTypes())
+        assertThat(resolvedCatalogTable.getResolvedSchema().getColumnDataTypes())
                 .isEqualTo(
-                        new DataType[] {
-                            DataTypes.INT(),
-                            DataTypes.STRING(),
-                            DataTypes.INT(),
-                            DataTypes.STRING(),
-                            DataTypes.INT().notNull(),
-                            DataTypes.INT(),
-                            DataTypes.STRING()
-                        });
+                        List.of(
+                                DataTypes.INT(),
+                                DataTypes.STRING(),
+                                DataTypes.INT(),
+                                DataTypes.STRING(),
+                                DataTypes.INT().notNull(),
+                                DataTypes.INT(),
+                                DataTypes.STRING()));
         String[] columnExpressions =
-                catalogTable.getSchema().getTableColumns().stream()
-                        .filter(TableColumn.ComputedColumn.class::isInstance)
-                        .map(TableColumn.ComputedColumn.class::cast)
-                        .map(TableColumn.ComputedColumn::getExpression)
+                resolvedCatalogTable.getResolvedSchema().getColumns().stream()
+                        .filter(Column.ComputedColumn.class::isInstance)
+                        .map(Column.ComputedColumn.class::cast)
+                        .map(c -> c.getExpression().asSummaryString())
                         .toArray(String[]::new);
         String[] expected =
                 new String[] {
@@ -1333,15 +1337,15 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         final Operation operation = parse(sql, planner, getParserBySqlDialect(SqlDialect.DEFAULT));
         assertThat(operation).isInstanceOf(CreateTableOperation.class);
         final CreateTableOperation op = (CreateTableOperation) operation;
-        final TableSchema actualSchema = op.getCatalogTable().getSchema();
+        final Schema actualSchema = op.getCatalogTable().getUnresolvedSchema();
 
-        final TableSchema expectedSchema =
-                TableSchema.builder()
-                        .add(TableColumn.physical("a", DataTypes.INT()))
-                        .add(TableColumn.physical("b", DataTypes.STRING()))
-                        .add(TableColumn.metadata("c", DataTypes.INT()))
-                        .add(TableColumn.metadata("d", DataTypes.INT(), "other.key"))
-                        .add(TableColumn.metadata("e", DataTypes.INT(), true))
+        final Schema expectedSchema =
+                Schema.newBuilder()
+                        .column("a", DataTypes.INT())
+                        .column("b", DataTypes.STRING())
+                        .columnByMetadata("c", DataTypes.INT())
+                        .columnByMetadata("d", DataTypes.INT(), "other.key")
+                        .columnByMetadata("e", DataTypes.INT(), true)
                         .build();
 
         assertThat(actualSchema).isEqualTo(expectedSchema);
