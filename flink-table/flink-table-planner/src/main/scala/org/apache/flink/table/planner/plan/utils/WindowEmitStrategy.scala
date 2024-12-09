@@ -71,7 +71,8 @@ class WindowEmitStrategy(
 
   def produceUpdates: JBoolean = {
     if (isEventTime) {
-      earlyFireDelayEnabled || lateFireDelayEnabled
+      // earlyFireDelayEnabled || lateFireDelayEnabled
+      Boolean.box(false)
     } else {
       earlyFireDelayEnabled
     }
@@ -173,9 +174,9 @@ object WindowEmitStrategy {
     val emitAllowLateness: Duration = config
       .getOptional(TABLE_EXEC_EMIT_ALLOW_LATENESS)
       .orElse(null)
-    if (isSessionWindow) {
-      // ignore allow lateness in session window because retraction is not supported
-      0L
+    if (isSessionWindow && emitAllowLateness != null) {
+      // session支持lateness延迟计算
+      emitAllowLateness.toMillis
     } else if (!enableLateFireDelay) {
       // ignore allow lateness if disable late-fire delay
       0L
@@ -263,4 +264,13 @@ object WindowEmitStrategy {
         "< 0 is illegal configuration. " +
         "0 means disable allow lateness. " +
         "> 0 means allow-lateness.")
+
+  // 处理session过期时间
+  @Experimental
+  val TABLE_EXEC_EMIT_EXPIRED_TIME: ConfigOption[Duration] =
+  key("table.exec.emit.expired-time")
+    .durationType()
+    .defaultValue(Duration.ofSeconds(0))
+    .withDescription(
+      "The session expired time in milli second.")
 }
