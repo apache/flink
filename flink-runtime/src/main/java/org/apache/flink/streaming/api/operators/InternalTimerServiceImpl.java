@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -306,7 +307,7 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
         }
     }
 
-    public void advanceWatermark(long time) throws Exception {
+    public CompletableFuture<Void> advanceWatermark(long time) throws Exception {
         Preconditions.checkState(
                 tryAdvanceWatermark(
                         time,
@@ -314,6 +315,7 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
                             // Never stop advancing.
                             return false;
                         }));
+        return CompletableFuture.completedFuture(null);
     }
 
     /**

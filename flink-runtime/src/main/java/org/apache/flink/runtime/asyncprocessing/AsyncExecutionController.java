@@ -21,6 +21,7 @@ package org.apache.flink.runtime.asyncprocessing;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.v2.State;
+import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
 import org.apache.flink.runtime.asyncprocessing.EpochManager.ParallelMode;
@@ -38,6 +39,7 @@ import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -359,8 +361,9 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
      *
      * @param callback the callback to run if it finishes (once the record is not blocked).
      */
-    public void syncPointRequestWithCallback(ThrowingRunnable<Exception> callback) {
-        handleRequest(null, StateRequestType.SYNC_POINT, null).thenAccept(v -> callback.run());
+    public StateFuture<Void> syncPointRequestWithCallback(ThrowingRunnable<Exception> callback) {
+        return handleRequest(null, StateRequestType.SYNC_POINT, null)
+                .thenAccept(v -> callback.run());
     }
 
     /**
@@ -384,6 +387,14 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         } catch (InterruptedException ignored) {
             // ignore the interrupted exception to avoid throwing fatal error when the task cancel
             // or exit.
+        }
+    }
+
+    /** A helper function to drain in-flight requests emitted by timer. */
+    public void drainWithTimerIfNeeded(CompletableFuture<Void> timerFuture) {
+        if (epochParallelMode == ParallelMode.SERIAL_BETWEEN_EPOCH) {
+            drainInflightRecords(0);
+            Preconditions.checkState(timerFuture.isDone());
         }
     }
 
