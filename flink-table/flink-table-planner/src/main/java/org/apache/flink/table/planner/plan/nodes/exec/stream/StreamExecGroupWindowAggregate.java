@@ -57,6 +57,8 @@ import org.apache.flink.table.runtime.operators.window.CountWindow;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.groupwindow.operator.WindowOperator;
 import org.apache.flink.table.runtime.operators.window.groupwindow.operator.WindowOperatorBuilder;
+import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.EventTimeTriggers;
+import org.apache.flink.table.runtime.operators.window.groupwindow.triggers.Trigger;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.TimeWindowUtil;
@@ -440,6 +442,34 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
             // mark this operator will send retraction and set new trigger
             builder.produceUpdates()
                     .triggering(emitStrategy.getTrigger())
+                    .withAllowedLateness(Duration.ofMillis(emitStrategy.getAllowLateness()));
+        }
+
+        if ((window instanceof TumblingGroupWindow || window instanceof SlidingGroupWindow )
+                && config.get(WindowEmitStrategy.TABLE_EXEC_EMIT_LATE_FIRE_ENABLED())) {
+            // append stream also handle late fire and allowLateness
+            long lateDelay = config.get(WindowEmitStrategy.TABLE_EXEC_EMIT_LATE_FIRE_DELAY())
+                    .getSeconds();
+            Trigger trigger = EventTimeTriggers.allowedLatenessEventTimeTrigger(lateDelay);
+            builder.triggering(trigger)
+                    .withAllowedLateness(Duration.ofMillis(emitStrategy.getAllowLateness()));
+        }
+        //session窗口，有设置过期时间
+        if (window instanceof SessionGroupWindow
+                && config.get(WindowEmitStrategy.TABLE_EXEC_EMIT_EXPIRED_TIME()).getSeconds() > 0) {
+            long timeOut = config.get(WindowEmitStrategy.TABLE_EXEC_EMIT_EXPIRED_TIME())
+                    .getSeconds();
+            Trigger trigger = EventTimeTriggers.expiredTimeTrigger(timeOut);
+            if (emitStrategy.getAllowLateness() > 0) {
+                builder.triggering(trigger)
+                        .withAllowedLateness(Duration.ofMillis(emitStrategy.getAllowLateness()));
+            }
+        }
+        //session窗口，未设置过期时间
+        if (window instanceof SessionGroupWindow
+                && config.get(WindowEmitStrategy.TABLE_EXEC_EMIT_EXPIRED_TIME()).getSeconds() == 0) {
+            Trigger trigger = EventTimeTriggers.allowedLatenessSessionEventTimeTrigger();
+            builder.triggering(trigger)
                     .withAllowedLateness(Duration.ofMillis(emitStrategy.getAllowLateness()));
         }
 

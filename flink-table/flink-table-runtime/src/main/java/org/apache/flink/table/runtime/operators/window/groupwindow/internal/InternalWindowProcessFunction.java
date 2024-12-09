@@ -102,6 +102,13 @@ public abstract class InternalWindowProcessFunction<K, W extends Window> impleme
     public abstract void cleanWindowIfNeeded(W window, long currentTime) throws Exception;
 
     /**
+     * Cleans the given window force.
+     *
+     * @param window the window to cleanup
+     */
+    public abstract void cleanWindowForce(W window) throws Exception;
+
+    /**
      * The tear-down method of the function. It is called after the last call to the main working
      * methods.
      */
