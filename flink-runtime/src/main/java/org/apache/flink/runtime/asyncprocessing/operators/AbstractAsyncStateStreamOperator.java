@@ -28,6 +28,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.AsyncStateException;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
@@ -396,6 +397,33 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
         }
         asyncExecutionController.processNonRecord(
                 () -> super.processRecordAttributes2(recordAttributes));
+    }
+
+    @Override
+    public void processWatermark(WatermarkEvent watermark) throws Exception {
+        if (!isAsyncStateProcessingEnabled()) {
+            super.processWatermark(watermark);
+            return;
+        }
+        asyncExecutionController.processNonRecord(() -> super.processWatermark(watermark));
+    }
+
+    @Override
+    public void processWatermark1(WatermarkEvent watermark) throws Exception {
+        if (!isAsyncStateProcessingEnabled()) {
+            super.processWatermark1(watermark);
+            return;
+        }
+        asyncExecutionController.processNonRecord(() -> super.processWatermark1(watermark));
+    }
+
+    @Override
+    public void processWatermark2(WatermarkEvent watermark) throws Exception {
+        if (!isAsyncStateProcessingEnabled()) {
+            super.processWatermark2(watermark);
+            return;
+        }
+        asyncExecutionController.processNonRecord(() -> super.processWatermark2(watermark));
     }
 
     @VisibleForTesting
