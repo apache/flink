@@ -20,13 +20,19 @@ package org.apache.flink.table.runtime.operators.join.temporal;
 
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
@@ -37,6 +43,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Harness tests for {@link TemporalRowTimeJoinOperatorTest}. */
 class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
+
+    @Parameters(name = "enableAsyncState = {0}")
+    public static List<Boolean> enableAsyncState() {
+        return Arrays.asList(false);
+    }
+
+    @Parameter private boolean enableAsyncState;
+
     /** Test rowtime temporal join. */
     @Test
     void testRowTimeTemporalJoin() throws Exception {
@@ -77,7 +91,7 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
     private void testRowTimeTemporalJoin(boolean isLeftOuterJoin, List<Object> expectedOutput)
             throws Exception {
         TemporalRowTimeJoinOperator joinOperator =
-                new TemporalRowTimeJoinOperator(
+                createTemporalRowTimeJoinOperator(
                         rowType, rowType, joinCondition, 0, 0, 0, 0, isLeftOuterJoin);
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinOperator);
@@ -125,7 +139,7 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
         final int minRetentionTime = 4;
         final int maxRetentionTime = minRetentionTime * 3 / 2;
         TemporalRowTimeJoinOperator joinOperator =
-                new TemporalRowTimeJoinOperator(
+                createTemporalRowTimeJoinOperator(
                         rowType,
                         rowType,
                         joinCondition,
@@ -230,7 +244,7 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
     private void testRowTimeTemporalJoinOnUpsertSource(
             boolean isLeftOuterJoin, List<Object> expectedOutput) throws Exception {
         TemporalRowTimeJoinOperator joinOperator =
-                new TemporalRowTimeJoinOperator(
+                createTemporalRowTimeJoinOperator(
                         rowType, rowType, joinCondition, 0, 0, 0, 0, isLeftOuterJoin);
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinOperator);
@@ -270,10 +284,33 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
         testHarness.close();
     }
 
-    private KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
-            createTestHarness(TemporalRowTimeJoinOperator temporalJoinOperator) throws Exception {
+    @Override
+    protected KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
+            createTestHarness(
+                    TwoInputStreamOperator<RowData, RowData, RowData> temporalJoinOperator)
+                    throws Exception {
 
         return new KeyedTwoInputStreamOperatorTestHarness<>(
                 temporalJoinOperator, keySelector, keySelector, keyType);
+    }
+
+    private TemporalRowTimeJoinOperator createTemporalRowTimeJoinOperator(
+            InternalTypeInfo<RowData> leftType,
+            InternalTypeInfo<RowData> rightType,
+            GeneratedJoinCondition generatedJoinCondition,
+            int leftTimeAttribute,
+            int rightTimeAttribute,
+            long minRetentionTime,
+            long maxRetentionTime,
+            boolean isLeftOuterJoin) {
+        return new TemporalRowTimeJoinOperator(
+                leftType,
+                rightType,
+                generatedJoinCondition,
+                leftTimeAttribute,
+                rightTimeAttribute,
+                minRetentionTime,
+                maxRetentionTime,
+                isLeftOuterJoin);
     }
 }

@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.join.temporal;
+package org.apache.flink.table.runtime.operators.join.temporal.asyncprocessing;
 
 import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -37,7 +38,7 @@ import org.apache.flink.table.runtime.operators.join.temporal.utils.TemporalProc
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 /**
- * The operator to temporal join a stream on processing time in sync state.
+ * The operator to temporal join a stream on processing time in async state.
  *
  * <p>For temporal TableFunction join (LATERAL TemporalTableFunction(o.proctime)) and temporal table
  * join (FOR SYSTEM_TIME AS OF), they can reuse same processing-time operator implementation, the
@@ -46,9 +47,10 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
  * TableFunction join only supports inner join, temporal table join supports both inner join and
  * left outer join.
  */
-public class TemporalProcessTimeJoinOperator extends BaseTwoInputStreamOperatorWithStateRetention {
+public class AsyncStateTemporalProcessTimeJoinOperator
+        extends BaseTwoInputAsyncStateStreamOperatorWithStateRetention {
 
-    private static final long serialVersionUID = -5182289624027523612L;
+    private static final long serialVersionUID = 1L;
 
     private final boolean isLeftOuterJoin;
     private final InternalTypeInfo<RowData> rightType;
@@ -61,9 +63,9 @@ public class TemporalProcessTimeJoinOperator extends BaseTwoInputStreamOperatorW
     private transient GenericRowData rightNullRow;
     private transient TimestampedCollector<RowData> collector;
 
-    private transient SyncStateTemporalProcessTimeJoinHelper temporalProcessTimeJoinHelper;
+    private transient AsyncStateTemporalProcessTimeJoinHelper temporalProcessTimeJoinHelper;
 
-    public TemporalProcessTimeJoinOperator(
+    public AsyncStateTemporalProcessTimeJoinOperator(
             InternalTypeInfo<RowData> rightType,
             GeneratedJoinCondition generatedJoinCondition,
             long minRetentionTime,
@@ -85,35 +87,39 @@ public class TemporalProcessTimeJoinOperator extends BaseTwoInputStreamOperatorW
 
         ValueStateDescriptor<RowData> rightStateDesc =
                 new ValueStateDescriptor<>("right", rightType);
-        this.rightState = getRuntimeContext().getState(rightStateDesc);
+        this.rightState = getRuntimeContext().getValueState(rightStateDesc);
         this.collector = new TimestampedCollector<>(output);
         this.outRow = new JoinedRowData();
         this.rightNullRow = new GenericRowData(rightType.toRowSize());
         // consider watermark from left stream only.
         super.processWatermark2(Watermark.MAX_WATERMARK);
-        this.temporalProcessTimeJoinHelper = new SyncStateTemporalProcessTimeJoinHelper();
+        this.temporalProcessTimeJoinHelper = new AsyncStateTemporalProcessTimeJoinHelper();
     }
 
     @Override
     public void processElement1(StreamRecord<RowData> element) throws Exception {
         RowData leftSideRow = element.getValue();
-        RowData rightSideRow = rightState.value();
+        // RowData rightSideRow = rightState.value();
+        StateFuture<RowData> rightSideRowFuture = rightState.asyncValue();
 
-        temporalProcessTimeJoinHelper.processElement1(leftSideRow, rightSideRow);
-        if (rightSideRow != null) {
-            // register a cleanup timer only if the rightSideRow is not null
-            registerProcessingCleanupTimer();
-        }
+        rightSideRowFuture.thenAccept(
+                rightSideRow -> {
+                    temporalProcessTimeJoinHelper.processElement1(leftSideRow, rightSideRow);
+                    if (rightSideRow != null) {
+                        // register a cleanup timer only if the rightSideRow is not null
+                        registerProcessingCleanupTimer();
+                    }
+                });
     }
 
     @Override
     public void processElement2(StreamRecord<RowData> element) throws Exception {
         if (RowDataUtil.isAccumulateMsg(element.getValue())) {
-            rightState.update(element.getValue());
-            registerProcessingCleanupTimer();
+            StateFuture<Void> updateFuture = rightState.asyncUpdate(element.getValue());
+            updateFuture.thenAccept(Void -> registerProcessingCleanupTimer());
         } else {
-            rightState.clear();
-            cleanupLastTimer();
+            StateFuture<Void> clearFuture = rightState.asyncClear();
+            clearFuture.thenAccept(Void -> cleanupLastTimer());
         }
     }
 
@@ -129,16 +135,16 @@ public class TemporalProcessTimeJoinOperator extends BaseTwoInputStreamOperatorW
      * @param time The timestamp of the fired timer.
      */
     @Override
-    public void cleanupState(long time) {
-        rightState.clear();
+    public StateFuture<Void> cleanupState(long time) {
+        return rightState.asyncClear();
     }
 
     /** Invoked when an event-time timer fires. */
     @Override
     public void onEventTime(InternalTimer<Object, VoidNamespace> timer) throws Exception {}
 
-    private class SyncStateTemporalProcessTimeJoinHelper extends TemporalProcessTimeJoinHelper {
-        public SyncStateTemporalProcessTimeJoinHelper() {
+    private class AsyncStateTemporalProcessTimeJoinHelper extends TemporalProcessTimeJoinHelper {
+        public AsyncStateTemporalProcessTimeJoinHelper() {
             super(isLeftOuterJoin, joinCondition, outRow, rightNullRow, collector);
         }
     }

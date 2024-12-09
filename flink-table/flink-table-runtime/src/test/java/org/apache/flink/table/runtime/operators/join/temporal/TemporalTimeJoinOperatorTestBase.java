@@ -19,6 +19,8 @@
 package org.apache.flink.table.runtime.operators.join.temporal;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -62,4 +64,12 @@ abstract class TemporalTimeJoinOperatorTestBase {
             HandwrittenSelectorUtil.getRowDataSelector(
                     new int[] {keyIdx}, rowType.toRowFieldTypes());
     protected TypeInformation<RowData> keyType = keySelector.getProducedType();
+
+    protected KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
+            testHarness;
+
+    protected abstract KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
+            createTestHarness(
+                    TwoInputStreamOperator<RowData, RowData, RowData> temporalJoinOperator)
+                    throws Exception;
 }

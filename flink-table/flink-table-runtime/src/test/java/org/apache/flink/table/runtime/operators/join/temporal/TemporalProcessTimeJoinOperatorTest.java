@@ -19,18 +19,26 @@
 package org.apache.flink.table.runtime.operators.join.temporal;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.operators.join.temporal.asyncprocessing.AsyncStateTemporalProcessTimeJoinOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
@@ -39,6 +47,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterR
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 
 /** Harness tests for {@link TemporalProcessTimeJoinOperator}. */
+@ExtendWith(ParameterizedTestExtension.class)
 class TemporalProcessTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
 
     private int keyIdx = 0;
@@ -57,13 +66,19 @@ class TemporalProcessTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBa
     private RowDataHarnessAssertor assertor =
             new RowDataHarnessAssertor(outputRowType.toRowFieldTypes());
 
+    @Parameters(name = "enableAsyncState = {0}")
+    public static List<Boolean> enableAsyncState() {
+        return Arrays.asList(false, true);
+    }
+
+    @Parameter private boolean enableAsyncState;
+
     /** Test proctime temporal join. */
-    @Test
+    @TestTemplate
     void testProcTimeTemporalJoin() throws Exception {
-        TemporalProcessTimeJoinOperator joinOperator =
-                new TemporalProcessTimeJoinOperator(rowType, joinCondition, 0, 0, false);
-        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
-                createTestHarness(joinOperator);
+        TwoInputStreamOperator<RowData, RowData, RowData> joinOperator =
+                createTemporalProcessTimeJoinOperator(rowType, joinCondition, 0, 0, false);
+        testHarness = createTestHarness(joinOperator);
         testHarness.open();
         testHarness.setProcessingTime(1);
         testHarness.processElement1(insertRecord(1L, "1a1"));
@@ -88,15 +103,14 @@ class TemporalProcessTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBa
     }
 
     /** Test proctime temporal join when set idle state retention. */
-    @Test
+    @TestTemplate
     void testProcTimeTemporalJoinWithStateRetention() throws Exception {
         final int minRetentionTime = 10;
         final int maxRetentionTime = minRetentionTime * 3 / 2;
-        TemporalProcessTimeJoinOperator joinOperator =
-                new TemporalProcessTimeJoinOperator(
+        TwoInputStreamOperator<RowData, RowData, RowData> joinOperator =
+                createTemporalProcessTimeJoinOperator(
                         rowType, joinCondition, minRetentionTime, maxRetentionTime, false);
-        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
-                createTestHarness(joinOperator);
+        testHarness = createTestHarness(joinOperator);
         testHarness.open();
         testHarness.setProcessingTime(1);
         testHarness.processElement1(insertRecord(1L, "1a1"));
@@ -118,15 +132,14 @@ class TemporalProcessTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBa
     }
 
     /** Test proctime left temporal join when set idle state retention. */
-    @Test
+    @TestTemplate
     void testLeftProcTimeTemporalJoinWithStateRetention() throws Exception {
         final int minRetentionTime = 10;
         final int maxRetentionTime = minRetentionTime * 3 / 2;
-        TemporalProcessTimeJoinOperator joinOperator =
-                new TemporalProcessTimeJoinOperator(
+        TwoInputStreamOperator<RowData, RowData, RowData> joinOperator =
+                createTemporalProcessTimeJoinOperator(
                         rowType, joinCondition, minRetentionTime, maxRetentionTime, true);
-        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
-                createTestHarness(joinOperator);
+        testHarness = createTestHarness(joinOperator);
         testHarness.open();
         testHarness.setProcessingTime(1);
         testHarness.processElement1(insertRecord(1L, "1a1"));
@@ -150,12 +163,11 @@ class TemporalProcessTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBa
     }
 
     /** Test proctime temporal join changelog stream. */
-    @Test
+    @TestTemplate
     void testProcTimeTemporalJoinOnChangelog() throws Exception {
-        TemporalProcessTimeJoinOperator joinOperator =
-                new TemporalProcessTimeJoinOperator(rowType, joinCondition, 0, 0, false);
-        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
-                createTestHarness(joinOperator);
+        TwoInputStreamOperator<RowData, RowData, RowData> joinOperator =
+                createTemporalProcessTimeJoinOperator(rowType, joinCondition, 0, 0, false);
+        testHarness = createTestHarness(joinOperator);
         testHarness.open();
         testHarness.setProcessingTime(1);
         testHarness.processElement1(insertRecord(1L, "1a1"));
@@ -186,11 +198,36 @@ class TemporalProcessTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBa
         testHarness.close();
     }
 
-    private KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
-            createTestHarness(TemporalProcessTimeJoinOperator temporalJoinOperator)
+    @Override
+    protected KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
+            createTestHarness(
+                    TwoInputStreamOperator<RowData, RowData, RowData> temporalJoinOperator)
                     throws Exception {
 
         return new KeyedTwoInputStreamOperatorTestHarness<>(
                 temporalJoinOperator, keySelector, keySelector, keyType);
+    }
+
+    private TwoInputStreamOperator<RowData, RowData, RowData> createTemporalProcessTimeJoinOperator(
+            InternalTypeInfo<RowData> rightType,
+            GeneratedJoinCondition generatedJoinCondition,
+            long minRetentionTime,
+            long maxRetentionTime,
+            boolean isLeftOuterJoin) {
+        if (!enableAsyncState) {
+            return new TemporalProcessTimeJoinOperator(
+                    rightType,
+                    generatedJoinCondition,
+                    minRetentionTime,
+                    maxRetentionTime,
+                    isLeftOuterJoin);
+        } else {
+            return new AsyncStateTemporalProcessTimeJoinOperator(
+                    rightType,
+                    generatedJoinCondition,
+                    minRetentionTime,
+                    maxRetentionTime,
+                    isLeftOuterJoin);
+        }
     }
 }

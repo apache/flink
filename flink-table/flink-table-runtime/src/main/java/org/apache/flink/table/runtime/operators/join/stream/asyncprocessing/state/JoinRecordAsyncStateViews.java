@@ -63,6 +63,7 @@ public final class JoinRecordAsyncStateViews {
                         inputSideSpec.getUniqueKeySelector(),
                         ttlConfig);
             }
+
         } else {
             return new InputSideHasNoUniqueKey(ctx, stateName, recordType, ttlConfig);
         }

@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGenUtils;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -50,6 +51,7 @@ import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.temporal.TemporalProcessTimeJoinOperator;
 import org.apache.flink.table.runtime.operators.join.temporal.TemporalRowTimeJoinOperator;
+import org.apache.flink.table.runtime.operators.join.temporal.asyncprocessing.AsyncStateTemporalProcessTimeJoinOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
@@ -276,12 +278,21 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
                     isLeftOuterJoin);
         } else {
             if (isTemporalFunctionJoin) {
-                return new TemporalProcessTimeJoinOperator(
-                        InternalTypeInfo.of(rightInputType),
-                        generatedJoinCondition,
-                        minRetentionTime,
-                        maxRetentionTime,
-                        isLeftOuterJoin);
+                if (config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED)) {
+                    return new AsyncStateTemporalProcessTimeJoinOperator(
+                            InternalTypeInfo.of(rightInputType),
+                            generatedJoinCondition,
+                            minRetentionTime,
+                            maxRetentionTime,
+                            isLeftOuterJoin);
+                } else {
+                    return new TemporalProcessTimeJoinOperator(
+                            InternalTypeInfo.of(rightInputType),
+                            generatedJoinCondition,
+                            minRetentionTime,
+                            maxRetentionTime,
+                            isLeftOuterJoin);
+                }
             } else {
                 // The exsiting TemporalProcessTimeJoinOperator has already supported temporal table
                 // join.
