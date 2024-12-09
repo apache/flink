@@ -30,6 +30,8 @@ import org.apache.flink.util.IOUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -74,6 +76,7 @@ class PartitionedFileWriteReadTest {
             regionStat[subpartition] = new ArrayList<>();
         }
 
+        int[] writeOrder = DataBufferTest.getRandomSubpartitionOrder(numSubpartitions);
         PartitionedFile partitionedFile =
                 createPartitionedFile(
                         numSubpartitions,
@@ -84,7 +87,8 @@ class PartitionedFileWriteReadTest {
                         regionStat,
                         createPartitionedFileWriter(numSubpartitions),
                         subpartitionIndex -> subpartitionIndex,
-                        random.nextBoolean());
+                        random.nextBoolean(),
+                        writeOrder);
 
         FileChannel dataFileChannel = openFileChannel(partitionedFile.getDataFilePath());
         FileChannel indexFileChannel = openFileChannel(partitionedFile.getIndexFilePath());
@@ -96,7 +100,8 @@ class PartitionedFileWriteReadTest {
                             dataFileChannel,
                             indexFileChannel,
                             BufferReaderWriterUtil.allocatedHeaderBuffer(),
-                            createAndConfigIndexEntryBuffer());
+                            createAndConfigIndexEntryBuffer(),
+                            writeOrder[0]);
             while (fileReader.hasRemaining()) {
                 final int subIndex = subpartition;
                 fileReader.readCurrentRegion(
@@ -113,6 +118,140 @@ class PartitionedFileWriteReadTest {
                 assertBufferEquals(
                         buffersWritten[subpartition].get(i), buffersRead[subpartition].get(i));
             }
+        }
+    }
+
+    @ParameterizedTest
+    @CsvSource({"true", "false"})
+    void testComputeReadablePosition(boolean broadcastRegion) throws IOException {
+        int numSubpartitions = 10;
+        int bufferSize = 1024;
+        int numBuffers = 1000;
+        int numRegions = 1;
+
+        List<Buffer>[] buffersWritten = new List[numSubpartitions];
+        List<Buffer>[] buffersRead = new List[numSubpartitions];
+        List<Tuple2<Long, Long>>[] regionStat = new List[numSubpartitions];
+        for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
+            buffersWritten[subpartition] = new ArrayList<>();
+            buffersRead[subpartition] = new ArrayList<>();
+            regionStat[subpartition] = new ArrayList<>();
+        }
+
+        int[] writeOrder = DataBufferTest.getRandomSubpartitionOrder(numSubpartitions);
+        PartitionedFile nonBroadcastPartitionedFile =
+                createPartitionedFile(
+                        numSubpartitions,
+                        bufferSize,
+                        numBuffers,
+                        numRegions,
+                        buffersWritten,
+                        regionStat,
+                        createPartitionedFileWriter(numSubpartitions),
+                        subpartitionIndex -> subpartitionIndex,
+                        broadcastRegion,
+                        writeOrder);
+
+        FileChannel dataFileChannel =
+                openFileChannel(nonBroadcastPartitionedFile.getDataFilePath());
+        FileChannel indexFileChannel =
+                openFileChannel(nonBroadcastPartitionedFile.getIndexFilePath());
+
+        verifyReadablePosition(
+                0,
+                numSubpartitions - 1,
+                writeOrder[0],
+                dataFileChannel,
+                indexFileChannel,
+                nonBroadcastPartitionedFile,
+                regionStat,
+                broadcastRegion);
+
+        verifyReadablePosition(
+                0,
+                writeOrder[0],
+                writeOrder[0],
+                dataFileChannel,
+                indexFileChannel,
+                nonBroadcastPartitionedFile,
+                regionStat,
+                broadcastRegion);
+
+        verifyReadablePosition(
+                writeOrder[0],
+                numSubpartitions - 1,
+                writeOrder[0],
+                dataFileChannel,
+                indexFileChannel,
+                nonBroadcastPartitionedFile,
+                regionStat,
+                broadcastRegion);
+    }
+
+    private void verifyReadablePosition(
+            int start,
+            int end,
+            int subpartitionOrderRotationIndex,
+            FileChannel dataFileChannel,
+            FileChannel indexFileChannel,
+            PartitionedFile partitionedFile,
+            List<Tuple2<Long, Long>>[] regionStat,
+            boolean isBroadcastRegion)
+            throws IOException {
+        PartitionedFileReader fileReader =
+                new PartitionedFileReader(
+                        partitionedFile,
+                        new ResultSubpartitionIndexSet(start, end),
+                        dataFileChannel,
+                        indexFileChannel,
+                        BufferReaderWriterUtil.allocatedHeaderBuffer(),
+                        createAndConfigIndexEntryBuffer(),
+                        subpartitionOrderRotationIndex);
+
+        Queue<Tuple2<Long, Long>> offsetAndSizesToRead = new ArrayDeque<>();
+        fileReader.updateReadableOffsetAndSize(
+                createAndConfigIndexEntryBuffer(), offsetAndSizesToRead);
+
+        if (isBroadcastRegion) {
+            assertThat(offsetAndSizesToRead).hasSize(end - start + 1);
+            for (Tuple2<Long, Long> tuple2 : offsetAndSizesToRead) {
+                assertThat(tuple2.f0).isEqualTo(regionStat[start].get(0).f0);
+                assertThat(tuple2.f1).isEqualTo(regionStat[start].get(0).f1);
+            }
+            return;
+        }
+
+        if (start >= subpartitionOrderRotationIndex || end <= subpartitionOrderRotationIndex - 1) {
+            assertThat(offsetAndSizesToRead).hasSize(1);
+
+            Tuple2<Long, Long> offsetAndSize = offsetAndSizesToRead.poll();
+            assertThat(offsetAndSize.f0).isEqualTo(regionStat[start].get(0).f0);
+
+            long expectedSize = 0L;
+            for (int i = start; i <= end; i++) {
+                expectedSize += regionStat[i].get(0).f1;
+            }
+            assertThat(offsetAndSize.f1).isEqualTo(expectedSize);
+        } else {
+            assertThat(offsetAndSizesToRead).hasSize(2);
+
+            Tuple2<Long, Long> offsetAndSize1 = offsetAndSizesToRead.poll();
+            Tuple2<Long, Long> offsetAndSize2 = offsetAndSizesToRead.poll();
+            assertThat(offsetAndSize1.f0)
+                    .isEqualTo(regionStat[subpartitionOrderRotationIndex].get(0).f0);
+            assertThat(offsetAndSize2.f0).isEqualTo(regionStat[start].get(0).f0);
+
+            long expectedSize = 0L;
+            for (int i = subpartitionOrderRotationIndex; i <= end; i++) {
+                expectedSize += regionStat[i].get(0).f1;
+            }
+            assertThat(offsetAndSize1.f1).isEqualTo(expectedSize);
+
+            expectedSize = 0L;
+            for (int i = start; i < subpartitionOrderRotationIndex; i++) {
+                expectedSize += regionStat[i].get(0).f1;
+            }
+            assertThat(offsetAndSize2.f1).isEqualTo(expectedSize);
         }
     }
 
@@ -134,6 +273,7 @@ class PartitionedFileWriteReadTest {
             regionStat[subpartition] = new ArrayList<>();
         }
 
+        int[] writeOrder = DataBufferTest.getRandomSubpartitionOrder(numSubpartitions);
         PartitionedFile partitionedFile =
                 createPartitionedFile(
                         numSubpartitions,
@@ -144,7 +284,8 @@ class PartitionedFileWriteReadTest {
                         regionStat,
                         createPartitionedFileWriter(numSubpartitions),
                         subpartitionIndex -> subpartitionIndex / 2,
-                        false);
+                        false,
+                        writeOrder);
 
         FileChannel dataFileChannel = openFileChannel(partitionedFile.getDataFilePath());
         FileChannel indexFileChannel = openFileChannel(partitionedFile.getIndexFilePath());
@@ -157,7 +298,8 @@ class PartitionedFileWriteReadTest {
                             dataFileChannel,
                             indexFileChannel,
                             BufferReaderWriterUtil.allocatedHeaderBuffer(),
-                            createAndConfigIndexEntryBuffer());
+                            createAndConfigIndexEntryBuffer(),
+                            writeOrder[0]);
             while (fileReader.hasRemaining()) {
                 final int subIndex = subpartition;
                 fileReader.readCurrentRegion(
@@ -189,7 +331,8 @@ class PartitionedFileWriteReadTest {
             List<Tuple2<Long, Long>>[] regionStat,
             PartitionedFileWriter fileWriter,
             Function<Integer, Integer> writtenIndexRetriever,
-            boolean isBroadcastRegion)
+            boolean isBroadcastRegion,
+            int[] writeOrder)
             throws IOException {
         Random random = new Random(1111);
         long currentOffset = 0L;
@@ -214,7 +357,6 @@ class PartitionedFileWriteReadTest {
                 }
             }
 
-            int[] writeOrder = DataBufferTest.getRandomSubpartitionOrder(numSubpartitions);
             for (int index = 0; index < numSubpartitions; ++index) {
                 int subpartition = writeOrder[index];
                 fileWriter.writeBuffers(bufferWithSubpartitions[subpartition]);
@@ -318,7 +460,8 @@ class PartitionedFileWriteReadTest {
                             dataFileChannel,
                             indexFileChannel,
                             BufferReaderWriterUtil.allocatedHeaderBuffer(),
-                            createAndConfigIndexEntryBuffer());
+                            createAndConfigIndexEntryBuffer(),
+                            0);
             int bufferIndex = 0;
             while (fileReader.hasRemaining()) {
                 final int subIndex = subpartition;
@@ -418,7 +561,8 @@ class PartitionedFileWriteReadTest {
                         dataFileChannel,
                         indexFileChannel,
                         BufferReaderWriterUtil.allocatedHeaderBuffer(),
-                        createAndConfigIndexEntryBuffer());
+                        createAndConfigIndexEntryBuffer(),
+                        0);
 
         partitionedFileReader.readCurrentRegion(
                 allocateBuffers(bufferSize),
@@ -449,6 +593,7 @@ class PartitionedFileWriteReadTest {
             regionStat[subpartition] = new ArrayList<>();
         }
 
+        int[] writeOrder = DataBufferTest.getRandomSubpartitionOrder(numSubpartitions);
         PartitionedFile partitionedFile =
                 createPartitionedFile(
                         numSubpartitions,
@@ -462,7 +607,8 @@ class PartitionedFileWriteReadTest {
                                 PartitionedFile.INDEX_ENTRY_SIZE * numSubpartitions,
                                 PartitionedFile.INDEX_ENTRY_SIZE * numSubpartitions),
                         subpartitionIndex -> subpartitionIndex,
-                        random.nextBoolean());
+                        random.nextBoolean(),
+                        writeOrder);
 
         FileChannel dataFileChannel = openFileChannel(partitionedFile.getDataFilePath());
         FileChannel indexFileChannel = openFileChannel(partitionedFile.getIndexFilePath());

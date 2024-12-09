@@ -40,7 +40,6 @@ import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -537,7 +536,8 @@ public class SortMergeResultPartition extends ResultPartition {
     protected ResultSubpartitionView createSubpartitionView(
             int subpartitionIndex, BufferAvailabilityListener availabilityListener)
             throws IOException {
-        throw new UnsupportedEncodingException();
+        throw new IllegalStateException(
+                "This method should not be called for a sort merge result partition.");
     }
 
     @Override
@@ -554,7 +554,7 @@ public class SortMergeResultPartition extends ResultPartition {
             }
 
             return readScheduler.createSubpartitionReader(
-                    availabilityListener, indexSet, resultFile);
+                    availabilityListener, indexSet, resultFile, subpartitionOrder[0]);
         }
     }
 
