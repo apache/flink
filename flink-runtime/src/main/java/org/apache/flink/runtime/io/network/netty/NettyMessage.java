@@ -427,9 +427,19 @@ public abstract class NettyMessage {
             headerBuf.writeByte(dataType.ordinal());
             headerBuf.writeBoolean(isCompressed);
             headerBuf.writeInt(buffer.readableBytes());
-            for (int i = 0; i < numOfPartialBuffers; i++) {
-                int bytes = ((FullyFilledBuffer) buffer).getPartialBuffers().get(i).readableBytes();
-                headerBuf.writeInt(bytes);
+
+            if (numOfPartialBuffers > 0) {
+                checkArgument(
+                        buffer instanceof FullyFilledBuffer,
+                        "Partial buffers are only supported for fully filled buffers.");
+                List<Buffer> partialBuffers = ((FullyFilledBuffer) buffer).getPartialBuffers();
+                checkArgument(
+                        partialBuffers.size() == numOfPartialBuffers,
+                        "Mismatched number of partial buffers");
+                for (int i = 0; i < numOfPartialBuffers; i++) {
+                    int bytes = partialBuffers.get(i).readableBytes();
+                    headerBuf.writeInt(bytes);
+                }
             }
 
             return headerBuf;

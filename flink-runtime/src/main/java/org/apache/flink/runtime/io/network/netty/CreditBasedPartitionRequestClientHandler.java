@@ -390,7 +390,7 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
                                 i == bufferOrEvent.numOfPartialBuffers - 1
                                         ? bufferOrEvent.backlog
                                         : -1,
-                                bufferOrEvent.subpartitionId);
+                                -1);
                         offset += size;
                     }
                 } catch (Throwable throwable) {
@@ -414,6 +414,32 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
         }
     }
 
+    /**
+     * Creates a {@link NetworkBuffer} by wrapping the specified portion of a given buffer's
+     * underlying memory segment rather than creating a slice of the buffer.
+     *
+     * <p>Currently, there is an assumption that each buffer received from a {@link
+     * RemoteInputChannel} exclusively holds a single memory segment object.
+     *
+     * <p>If this assumption were violated and multiple buffers were allowed to share a single
+     * segment, it could introduce instability and unpredictable behavior.
+     *
+     * <p>For instance, the BufferManager releases buffers by directly operating on their underlying
+     * memory segments and adding them to a list designated for release. If buffers share the same
+     * segment, the segment might be added to the buffer pool multiple times, and subsequent buffers
+     * may inadvertently be allocated to the same segment for reading and writing.
+     *
+     * <p>Therefore, to avoid introducing potential risks, this method operates directly on the
+     * segment instead of slicing the buffer.
+     *
+     * @param bufferOrEvent the buffer or event containing the data to be wrapped into a network
+     *     buffer
+     * @param recycler the buffer recycler used to manage the lifecycle of the network buffer
+     * @param offset the offset within the buffer where the data begins
+     * @param size the size of the data to be wrapped
+     * @return a new {@link NetworkBuffer} wrapping the specified portion of the buffer's memory
+     *     segment
+     */
     private static NetworkBuffer sliceBuffer(
             NettyMessage.BufferResponse bufferOrEvent,
             BufferRecycler recycler,

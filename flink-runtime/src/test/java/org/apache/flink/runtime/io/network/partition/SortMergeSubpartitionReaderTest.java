@@ -247,7 +247,8 @@ class SortMergeSubpartitionReaderTest {
                         dataFileChannel,
                         indexFileChannel,
                         BufferReaderWriterUtil.allocatedHeaderBuffer(),
-                        createAndConfigIndexEntryBuffer());
+                        createAndConfigIndexEntryBuffer(),
+                        0);
         assertThat(fileReader.hasRemaining()).isTrue();
         return new SortMergeSubpartitionReader(bufferSize, listener, fileReader);
     }
