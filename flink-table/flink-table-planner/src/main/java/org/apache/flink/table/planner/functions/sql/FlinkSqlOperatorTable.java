@@ -37,6 +37,7 @@ import org.apache.calcite.sql.SqlPostfixOperator;
 import org.apache.calcite.sql.SqlPrefixOperator;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlBasicAggFunction;
+import org.apache.calcite.sql.fun.SqlBkDataSumAggFunction;
 import org.apache.calcite.sql.fun.SqlLibraryOperators;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.InferTypes;
@@ -1124,6 +1125,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlFunction GROUPING_ID = SqlStdOperatorTable.GROUPING_ID;
 
     // AGGREGATE OPERATORS
+    public static final SqlAggFunction BKDATA_SUM = new SqlBkDataSumAggFunction();
     public static final SqlAggFunction SUM = SqlStdOperatorTable.SUM;
     public static final SqlAggFunction SUM0 = SqlStdOperatorTable.SUM0;
     public static final SqlAggFunction COUNT = SqlStdOperatorTable.COUNT;
