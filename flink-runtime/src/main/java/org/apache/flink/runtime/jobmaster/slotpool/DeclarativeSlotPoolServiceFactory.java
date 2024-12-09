@@ -32,17 +32,12 @@ public class DeclarativeSlotPoolServiceFactory implements SlotPoolServiceFactory
     private final Clock clock;
     private final Duration idleSlotTimeout;
     private final Duration rpcTimeout;
-    private final @Nonnull Duration slotRequestMaxInterval;
 
     public DeclarativeSlotPoolServiceFactory(
-            Clock clock,
-            Duration idleSlotTimeout,
-            Duration rpcTimeout,
-            @Nonnull Duration slotRequestMaxInterval) {
+            Clock clock, Duration idleSlotTimeout, Duration rpcTimeout) {
         this.clock = clock;
         this.idleSlotTimeout = idleSlotTimeout;
         this.rpcTimeout = rpcTimeout;
-        this.slotRequestMaxInterval = slotRequestMaxInterval;
     }
 
     @Nonnull
@@ -57,7 +52,6 @@ public class DeclarativeSlotPoolServiceFactory implements SlotPoolServiceFactory
                 clock,
                 idleSlotTimeout,
                 rpcTimeout,
-                slotRequestMaxInterval,
                 componentMainThreadExecutor);
     }
 }
