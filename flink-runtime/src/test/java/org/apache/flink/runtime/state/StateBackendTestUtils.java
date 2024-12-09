@@ -143,16 +143,6 @@ public class StateBackendTestUtils {
 
         @Nonnull
         @Override
-        @SuppressWarnings("unchecked")
-        public <N, S extends org.apache.flink.api.common.state.v2.State, SV> S createState(
-                @Nonnull N defaultNamespace,
-                @Nonnull TypeSerializer<N> namespaceSerializer,
-                @Nonnull org.apache.flink.runtime.state.v2.StateDescriptor<SV> stateDesc) {
-            return (S) innerStateSupplier.get();
-        }
-
-        @Nonnull
-        @Override
         public <N, S extends InternalKeyedState, SV> S createStateInternal(
                 @Nonnull N defaultNamespace,
                 @Nonnull TypeSerializer<N> namespaceSerializer,

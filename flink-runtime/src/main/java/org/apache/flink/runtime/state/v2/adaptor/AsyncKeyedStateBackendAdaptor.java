@@ -98,17 +98,6 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend<
     @Nonnull
     @Override
     @SuppressWarnings({"rawtypes", "unchecked"})
-    public <N, S extends State, SV> S createState(
-            @Nonnull N defaultNamespace,
-            @Nonnull TypeSerializer<N> namespaceSerializer,
-            @Nonnull StateDescriptor<SV> stateDesc)
-            throws Exception {
-        return createStateInternal(defaultNamespace, namespaceSerializer, stateDesc);
-    }
-
-    @Nonnull
-    @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
     public <N, S extends InternalKeyedState, SV> S createStateInternal(
             @Nonnull N defaultNamespace,
             @Nonnull TypeSerializer<N> namespaceSerializer,
