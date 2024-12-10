@@ -21,8 +21,10 @@ package org.apache.flink.table.runtime.operators.over;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.RowData.FieldGetter;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
@@ -45,6 +47,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test for {@link NonTimeUnboundedPrecedingFunction}. */
 public class NonTimeUnboundedPrecedingFunctionTest extends RowTimeOverWindowTestBase {
 
+    private static final int SORT_KEY_IDX = 1;
+
+    private static final FieldGetter SORT_KEY_FIELD_GETTER =
+            RowData.createFieldGetter(DataTypes.BIGINT().getLogicalType(), SORT_KEY_IDX);
+
     private static final GeneratedRecordComparator GENERATED_SORT_KEY_COMPARATOR =
             new GeneratedRecordComparator("", "", new Object[0]) {
 
@@ -52,7 +59,7 @@ public class NonTimeUnboundedPrecedingFunctionTest extends RowTimeOverWindowTest
 
                 @Override
                 public RecordComparator newInstance(ClassLoader classLoader) {
-                    return new LongRecordComparator(1);
+                    return new LongRecordComparator(SORT_KEY_IDX);
                 }
             };
 
@@ -124,8 +131,11 @@ public class NonTimeUnboundedPrecedingFunctionTest extends RowTimeOverWindowTest
                         aggsHandleFunction,
                         GENERATED_RECORD_EQUALISER,
                         GENERATED_SORT_KEY_COMPARATOR,
+                        GENERATED_SORT_KEY_COMPARATOR,
                         accTypes,
-                        inputFieldTypes) {};
+                        inputFieldTypes,
+                        SORT_KEY_FIELD_GETTER,
+                        SORT_KEY_IDX) {};
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(function);
 
@@ -224,8 +234,11 @@ public class NonTimeUnboundedPrecedingFunctionTest extends RowTimeOverWindowTest
                         aggsHandleFunction,
                         GENERATED_RECORD_EQUALISER,
                         GENERATED_SORT_KEY_COMPARATOR,
+                        GENERATED_SORT_KEY_COMPARATOR,
                         accTypes,
-                        inputFieldTypes) {};
+                        inputFieldTypes,
+                        SORT_KEY_FIELD_GETTER,
+                        SORT_KEY_IDX) {};
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(function);
 
