@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
-import org.apache.flink.table.planner.plan.nodes.exec.common.OverAggregateTestPrograms;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 

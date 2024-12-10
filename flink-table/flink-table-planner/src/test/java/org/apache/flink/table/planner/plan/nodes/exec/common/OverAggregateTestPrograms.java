@@ -24,7 +24,6 @@ import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
-import org.apache.flink.types.RowKind;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.LOCAL_TIME_ZONE;
 

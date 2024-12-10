@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
@@ -402,6 +403,8 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                         genAggsHandler,
                         flattenAccTypes);
             case NON_TIME:
+                final int sortKeyIdx = orderKeys[0];
+                LogicalType sortKeyType = inputRowType.getTypeAt(sortKeyIdx);
                 final GeneratedRecordEqualiser generatedEqualiser =
                         new EqualiserCodeGenerator(inputRowType, ctx.classLoader())
                                 .generateRecordEqualiser("FirstMatchingRowEqualiser");
@@ -414,14 +417,28 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                                 inputRowType,
                                 SortUtil.getAscendingSortSpec(orderKeys));
 
+                final GeneratedRecordComparator keyGenRecordComparator =
+                        ComparatorCodeGenerator.gen(
+                                config,
+                                ctx.classLoader(),
+                                "KeySortComparator",
+                                RowType.of(DataTypes.BIGINT().getLogicalType(), sortKeyType),
+                                SortUtil.getAscendingSortSpec(orderKeys));
+
+                RowData.FieldGetter sortKeyFieldGetter =
+                        RowData.createFieldGetter(sortKeyType, sortKeyIdx);
+
                 return new NonTimeUnboundedPrecedingFunction<>(
                         config.getStateRetentionTime(),
                         TableConfigUtils.getMaxIdleStateRetentionTime(config),
                         genAggsHandler,
                         generatedEqualiser,
                         genRecordComparator,
+                        keyGenRecordComparator,
                         flattenAccTypes,
-                        fieldTypes);
+                        fieldTypes,
+                        sortKeyFieldGetter,
+                        sortKeyIdx);
             default:
                 throw new TableException("Unsupported unbounded operation");
         }
