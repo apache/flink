@@ -63,7 +63,7 @@ under the License.
 		<dependency>
 			<groupId>com.ververica</groupId>
 			<artifactId>forstjni</artifactId>
-			<version>0.1.3-beta</version>
+			<version>0.1.4-beta</version>
 		</dependency>
 
 		<!-- test dependencies -->

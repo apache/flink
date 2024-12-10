@@ -26,6 +26,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
+import org.apache.flink.state.forst.fs.StringifiedForStFileSystem;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -100,7 +101,7 @@ public final class ForStResourceContainer implements AutoCloseable {
     @Nullable private final ForStOptionsFactory optionsFactory;
 
     /** The ForSt file system. Null when remote dir is not set. */
-    @Nullable private ForStFlinkFileSystem forstFileSystem;
+    @Nullable private ForStFlinkFileSystem forStFileSystem;
 
     /**
      * The shared resource among ForSt instances. This resource is not part of the 'handlesToClose',
@@ -190,7 +191,10 @@ public final class ForStResourceContainer implements AutoCloseable {
         // configured,
         //  fallback to local directory currently temporarily.
         if (remoteForStPath != null) {
-            flinkEnv = new FlinkEnv(remoteForStPath.toString(), forstFileSystem);
+            flinkEnv =
+                    new FlinkEnv(
+                            remoteForStPath.toString(),
+                            new StringifiedForStFileSystem(forStFileSystem));
             opt.setEnv(flinkEnv);
         }
 
@@ -341,19 +345,19 @@ public final class ForStResourceContainer implements AutoCloseable {
                         "Cache base path is not configured, set to local base path: {}",
                         cacheBasePath);
             }
-            forstFileSystem =
+            forStFileSystem =
                     ForStFlinkFileSystem.get(
                             remoteForStPath.toUri(),
                             localForStPath,
                             ForStFlinkFileSystem.getFileBasedCache(
                                     cacheBasePath, cacheCapacity, cacheReservedSize));
         } else {
-            forstFileSystem = null;
+            forStFileSystem = null;
         }
     }
 
     public ForStFlinkFileSystem getFileSystem() {
-        return forstFileSystem;
+        return forStFileSystem;
     }
 
     private static void prepareDirectories(Path basePath, Path dbPath) throws IOException {
