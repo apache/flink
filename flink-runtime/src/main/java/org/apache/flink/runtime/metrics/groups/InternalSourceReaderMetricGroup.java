@@ -61,6 +61,7 @@ public class InternalSourceReaderMetricGroup extends ProxyMetricGroup<MetricGrou
         this.clock = clock;
         parentMetricGroup.gauge(MetricNames.SOURCE_IDLE_TIME, this::getIdleTime);
         parentMetricGroup.gauge(MetricNames.CURRENT_EMIT_EVENT_TIME_LAG, this::getEmitTimeLag);
+        operatorIOMetricGroup.reuseInputMetricsForTask();
     }
 
     public static InternalSourceReaderMetricGroup wrap(OperatorMetricGroup operatorMetricGroup) {
