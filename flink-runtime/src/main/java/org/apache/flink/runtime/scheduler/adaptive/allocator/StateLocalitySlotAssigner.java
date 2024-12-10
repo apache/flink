@@ -43,7 +43,8 @@ import java.util.stream.Collectors;
 
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
-import static org.apache.flink.runtime.scheduler.adaptive.allocator.DefaultSlotAssigner.createExecutionSlotSharingGroups;
+import static org.apache.flink.runtime.scheduler.adaptive.allocator.AllocatorUtil.checkMinimalRequiredSlots;
+import static org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAssigner.createExecutionSlotSharingGroups;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** A {@link SlotAssigner} that assigns slots based on the number of local key groups. */
@@ -95,22 +96,24 @@ public class StateLocalitySlotAssigner implements SlotAssigner {
             Collection<? extends SlotInfo> freeSlots,
             VertexParallelism vertexParallelism,
             JobAllocationsInformation previousAllocations) {
-        checkState(
-                freeSlots.size() >= jobInformation.getSlotSharingGroups().size(),
-                "Not enough slots to allocate all the slot sharing groups (have: %s, need: %s)",
-                freeSlots.size(),
-                jobInformation.getSlotSharingGroups().size());
+        checkMinimalRequiredSlots(jobInformation, freeSlots);
 
-        final List<ExecutionSlotSharingGroup> allGroups = new ArrayList<>();
+        final List<ExecutionSlotSharingGroup> allExecutionSlotSharingGroups = new ArrayList<>();
         for (SlotSharingGroup slotSharingGroup : jobInformation.getSlotSharingGroups()) {
-            allGroups.addAll(createExecutionSlotSharingGroups(vertexParallelism, slotSharingGroup));
+            allExecutionSlotSharingGroups.addAll(
+                    createExecutionSlotSharingGroups(vertexParallelism, slotSharingGroup));
         }
-        final Map<JobVertexID, Integer> parallelism = getParallelism(allGroups);
+        final Map<JobVertexID, Integer> parallelism = getParallelism(allExecutionSlotSharingGroups);
         final PriorityQueue<AllocationScore> scores =
-                calculateScores(jobInformation, previousAllocations, allGroups, parallelism);
+                calculateScores(
+                        jobInformation,
+                        previousAllocations,
+                        allExecutionSlotSharingGroups,
+                        parallelism);
 
         final Map<String, ExecutionSlotSharingGroup> groupsById =
-                allGroups.stream().collect(toMap(ExecutionSlotSharingGroup::getId, identity()));
+                allExecutionSlotSharingGroups.stream()
+                        .collect(toMap(ExecutionSlotSharingGroup::getId, identity()));
         final Map<AllocationID, SlotInfo> slotsById =
                 freeSlots.stream().collect(toMap(SlotInfo::getAllocationId, identity()));
         AllocationScore score;

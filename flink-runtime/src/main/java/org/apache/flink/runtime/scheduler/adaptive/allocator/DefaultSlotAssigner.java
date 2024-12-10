@@ -22,19 +22,25 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator.ExecutionSlotSharingGroup;
-import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Simple {@link SlotAssigner} that treats all slots and slot sharing groups equally. */
+import static java.util.function.Function.identity;
+import static org.apache.flink.runtime.scheduler.adaptive.allocator.AllocatorUtil.checkMinimalRequiredSlots;
+import static org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAssigner.createExecutionSlotSharingGroups;
+
+/**
+ * Simple {@link SlotAssigner} that selects all available slots in the minimal task executors to
+ * match requests.
+ */
 public class DefaultSlotAssigner implements SlotAssigner {
 
     @Override
@@ -43,35 +49,71 @@ public class DefaultSlotAssigner implements SlotAssigner {
             Collection<? extends SlotInfo> freeSlots,
             VertexParallelism vertexParallelism,
             JobAllocationsInformation previousAllocations) {
-        List<ExecutionSlotSharingGroup> allGroups = new ArrayList<>();
+        checkMinimalRequiredSlots(jobInformation, freeSlots);
+
+        final List<ExecutionSlotSharingGroup> allExecutionSlotSharingGroups = new ArrayList<>();
         for (SlotSharingGroup slotSharingGroup : jobInformation.getSlotSharingGroups()) {
-            allGroups.addAll(createExecutionSlotSharingGroups(vertexParallelism, slotSharingGroup));
+            allExecutionSlotSharingGroups.addAll(
+                    createExecutionSlotSharingGroups(vertexParallelism, slotSharingGroup));
         }
 
-        Iterator<? extends SlotInfo> iterator = freeSlots.iterator();
+        Collection<? extends SlotInfo> pickedSlots = freeSlots;
+        // To avoid the sort-work loading.
+        if (freeSlots.size() > allExecutionSlotSharingGroups.size()) {
+            final Map<TaskManagerLocation, ? extends Set<? extends SlotInfo>> slotsPerTaskExecutor =
+                    getSlotsPerTaskExecutor(freeSlots);
+            pickedSlots =
+                    pickSlotsInMinimalTaskExecutors(
+                            slotsPerTaskExecutor, allExecutionSlotSharingGroups.size());
+        }
+
+        Iterator<? extends SlotInfo> iterator = pickedSlots.iterator();
         Collection<SlotAssignment> assignments = new ArrayList<>();
-        for (ExecutionSlotSharingGroup group : allGroups) {
+        for (ExecutionSlotSharingGroup group : allExecutionSlotSharingGroups) {
             assignments.add(new SlotAssignment(iterator.next(), group));
         }
         return assignments;
     }
 
-    static List<ExecutionSlotSharingGroup> createExecutionSlotSharingGroups(
-            VertexParallelism vertexParallelism, SlotSharingGroup slotSharingGroup) {
-        final Map<Integer, Set<ExecutionVertexID>> sharedSlotToVertexAssignment = new HashMap<>();
-        slotSharingGroup
-                .getJobVertexIds()
-                .forEach(
-                        jobVertexId -> {
-                            int parallelism = vertexParallelism.getParallelism(jobVertexId);
-                            for (int subtaskIdx = 0; subtaskIdx < parallelism; subtaskIdx++) {
-                                sharedSlotToVertexAssignment
-                                        .computeIfAbsent(subtaskIdx, ignored -> new HashSet<>())
-                                        .add(new ExecutionVertexID(jobVertexId, subtaskIdx));
-                            }
-                        });
-        return sharedSlotToVertexAssignment.values().stream()
-                .map(ExecutionSlotSharingGroup::new)
-                .collect(Collectors.toList());
+    /**
+     * In order to minimize the using of task executors at the resource manager side in the
+     * session-mode and release more task executors in a timely manner, it is a good choice to
+     * prioritize selecting slots on task executors with the least available slots. This strategy
+     * also ensures that relatively fewer task executors can be used in application-mode.
+     */
+    private Iterator<TaskManagerLocation> getSortedTaskExecutors(
+            Map<TaskManagerLocation, ? extends Set<? extends SlotInfo>> slotsPerTaskExecutor) {
+        final Comparator<TaskManagerLocation> taskExecutorComparator =
+                Comparator.comparingInt(tml -> slotsPerTaskExecutor.get(tml).size());
+        return slotsPerTaskExecutor.keySet().stream().sorted(taskExecutorComparator).iterator();
+    }
+
+    /**
+     * Pick the target slots to assign with the requested groups.
+     *
+     * @param slotsByTaskExecutor slots per task executor.
+     * @param requestedGroups the number of the request execution slot sharing groups.
+     * @return the target slots that are distributed on the minimal task executors.
+     */
+    private Collection<? extends SlotInfo> pickSlotsInMinimalTaskExecutors(
+            Map<TaskManagerLocation, ? extends Set<? extends SlotInfo>> slotsByTaskExecutor,
+            int requestedGroups) {
+        final List<SlotInfo> pickedSlots = new ArrayList<>();
+        final Iterator<TaskManagerLocation> sortedTaskExecutors =
+                getSortedTaskExecutors(slotsByTaskExecutor);
+        while (pickedSlots.size() < requestedGroups) {
+            Set<? extends SlotInfo> slotInfos = slotsByTaskExecutor.get(sortedTaskExecutors.next());
+            pickedSlots.addAll(slotInfos);
+        }
+        return pickedSlots;
+    }
+
+    static Map<TaskManagerLocation, ? extends Set<? extends SlotInfo>> getSlotsPerTaskExecutor(
+            Collection<? extends SlotInfo> slots) {
+        return slots.stream()
+                .collect(
+                        Collectors.groupingBy(
+                                SlotInfo::getTaskManagerLocation,
+                                Collectors.mapping(identity(), Collectors.toSet())));
     }
 }
