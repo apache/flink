@@ -16,16 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.join.temporal;
+package org.apache.flink.table.runtime.operators.join.temporal.asyncprocessing;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.core.state.StateFutureUtils;
+import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateStreamOperator;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.streaming.api.SimpleTimerService;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.Triggerable;
@@ -37,7 +39,7 @@ import java.util.Optional;
 
 /**
  * An abstract {@link TwoInputStreamOperator} that allows its subclasses to clean up their state in
- * sync state based on a TTL. This TTL should be specified in the provided {@code minRetentionTime}
+ * async state based on a TTL. This TTL should be specified in the provided {@code minRetentionTime}
  * and {@code maxRetentionTime}.
  *
  * <p>For each known key, this operator registers a timer (in processing time) to fire after the TTL
@@ -56,8 +58,8 @@ import java.util.Optional;
  * the onProcessingTime with your logic would be also executed on each clean up timer.
  */
 @Internal
-public abstract class BaseTwoInputStreamOperatorWithStateRetention
-        extends AbstractStreamOperator<RowData>
+public abstract class BaseTwoInputAsyncStateStreamOperatorWithStateRetention
+        extends AbstractAsyncStateStreamOperator<RowData>
         implements TwoInputStreamOperator<RowData, RowData, RowData>,
                 Triggerable<Object, VoidNamespace> {
 
@@ -73,7 +75,7 @@ public abstract class BaseTwoInputStreamOperatorWithStateRetention
     private transient ValueState<Long> latestRegisteredCleanupTimer;
     private transient SimpleTimerService timerService;
 
-    protected BaseTwoInputStreamOperatorWithStateRetention(
+    protected BaseTwoInputAsyncStateStreamOperatorWithStateRetention(
             long minRetentionTime, long maxRetentionTime) {
         this.minRetentionTime = minRetentionTime;
         this.maxRetentionTime = maxRetentionTime;
@@ -92,7 +94,8 @@ public abstract class BaseTwoInputStreamOperatorWithStateRetention
         if (stateCleaningEnabled) {
             ValueStateDescriptor<Long> cleanupStateDescriptor =
                     new ValueStateDescriptor<>(CLEANUP_TIMESTAMP, Types.LONG);
-            latestRegisteredCleanupTimer = getRuntimeContext().getState(cleanupStateDescriptor);
+            latestRegisteredCleanupTimer =
+                    getRuntimeContext().getValueState(cleanupStateDescriptor);
         }
     }
 
@@ -109,38 +112,49 @@ public abstract class BaseTwoInputStreamOperatorWithStateRetention
      *
      * <p>When this timer fires, the {@link #cleanupState(long)} method is called.
      */
-    protected void registerProcessingCleanupTimer() throws IOException {
-        if (stateCleaningEnabled) {
-            long currentProcessingTime = timerService.currentProcessingTime();
-            Optional<Long> currentCleanupTime =
-                    Optional.ofNullable(latestRegisteredCleanupTimer.value());
-
-            if (currentCleanupTime.isEmpty()
-                    || (currentProcessingTime + minRetentionTime) > currentCleanupTime.get()) {
-
-                updateCleanupTimer(currentProcessingTime, currentCleanupTime);
-            }
+    protected StateFuture<Void> registerProcessingCleanupTimer() throws IOException {
+        if (!stateCleaningEnabled) {
+            return StateFutureUtils.completedFuture(null);
         }
+        long currentProcessingTime = timerService.currentProcessingTime();
+        StateFuture<Long> cleanupTimeFuture = latestRegisteredCleanupTimer.asyncValue();
+        return cleanupTimeFuture.thenCompose(
+                cleanupTime -> {
+                    Optional<Long> currentCleanupTime = Optional.ofNullable(cleanupTime);
+
+                    if (currentCleanupTime.isEmpty()
+                            || (currentProcessingTime + minRetentionTime)
+                                    > currentCleanupTime.get()) {
+                        return updateCleanupTimer(currentProcessingTime, currentCleanupTime);
+                    } else {
+                        return StateFutureUtils.completedFuture(null);
+                    }
+                });
     }
 
-    private void updateCleanupTimer(long currentProcessingTime, Optional<Long> currentCleanupTime)
-            throws IOException {
+    private StateFuture<Void> updateCleanupTimer(
+            long currentProcessingTime, Optional<Long> currentCleanupTime) throws IOException {
         currentCleanupTime.ifPresent(aLong -> timerService.deleteProcessingTimeTimer(aLong));
 
         long newCleanupTime = currentProcessingTime + maxRetentionTime;
         timerService.registerProcessingTimeTimer(newCleanupTime);
-        latestRegisteredCleanupTimer.update(newCleanupTime);
+        return latestRegisteredCleanupTimer.asyncUpdate(newCleanupTime);
     }
 
-    protected void cleanupLastTimer() throws IOException {
-        if (stateCleaningEnabled) {
-            Optional<Long> currentCleanupTime =
-                    Optional.ofNullable(latestRegisteredCleanupTimer.value());
-            if (currentCleanupTime.isPresent()) {
-                latestRegisteredCleanupTimer.clear();
-                timerService.deleteProcessingTimeTimer(currentCleanupTime.get());
-            }
+    protected StateFuture<Void> cleanupLastTimer() throws IOException {
+        if (!stateCleaningEnabled) {
+            return StateFutureUtils.completedFuture(null);
         }
+        StateFuture<Long> cleanupTimeFuture = latestRegisteredCleanupTimer.asyncValue();
+        return cleanupTimeFuture.thenCompose(
+                cleanupTime -> {
+                    Optional<Long> currentCleanupTime = Optional.ofNullable(cleanupTime);
+                    if (currentCleanupTime.isPresent()) {
+                        timerService.deleteProcessingTimeTimer(currentCleanupTime.get());
+                        return latestRegisteredCleanupTimer.asyncClear();
+                    }
+                    return StateFutureUtils.completedFuture(null);
+                });
     }
 
     /** The users of this class are not allowed to use processing time timers. See class javadoc. */
@@ -149,12 +163,16 @@ public abstract class BaseTwoInputStreamOperatorWithStateRetention
             throws Exception {
         if (stateCleaningEnabled) {
             long timerTime = timer.getTimestamp();
-            Long cleanupTime = latestRegisteredCleanupTimer.value();
+            StateFuture<Long> cleanupTimeFuture = latestRegisteredCleanupTimer.asyncValue();
 
-            if (cleanupTime != null && cleanupTime == timerTime) {
-                cleanupState(cleanupTime);
-                latestRegisteredCleanupTimer.clear();
-            }
+            cleanupTimeFuture.thenAccept(
+                    cleanupTime -> {
+                        if (cleanupTime != null && cleanupTime == timerTime) {
+                            StateFuture<Void> cleanupStateFuture = cleanupState(cleanupTime);
+                            cleanupStateFuture.thenAccept(
+                                    Void -> latestRegisteredCleanupTimer.asyncClear());
+                        }
+                    });
         }
     }
 
@@ -165,5 +183,5 @@ public abstract class BaseTwoInputStreamOperatorWithStateRetention
      *
      * @param time The timestamp of the fired timer.
      */
-    public abstract void cleanupState(long time);
+    public abstract StateFuture<Void> cleanupState(long time);
 }
