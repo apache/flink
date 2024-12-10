@@ -26,6 +26,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
+import org.apache.flink.state.forst.fs.StringifiedForStFileSystem;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -190,7 +191,10 @@ public final class ForStResourceContainer implements AutoCloseable {
         // configured,
         //  fallback to local directory currently temporarily.
         if (remoteForStPath != null) {
-            flinkEnv = new FlinkEnv(remoteForStPath.toString(), forstFileSystem);
+            flinkEnv =
+                    new FlinkEnv(
+                            remoteForStPath.toString(),
+                            new StringifiedForStFileSystem(forstFileSystem));
             opt.setEnv(flinkEnv);
         }
 
