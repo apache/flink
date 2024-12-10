@@ -85,6 +85,7 @@ public final class LastValueAggFunction<T> extends BuiltInAggregateFunction<T, R
         GenericRowData acc = (GenericRowData) rowData;
         if (value != null) {
             acc.setField(0, value);
+            acc.setField(1, System.currentTimeMillis());
         }
     }
 
@@ -105,6 +106,25 @@ public final class LastValueAggFunction<T> extends BuiltInAggregateFunction<T, R
     public void accumulate(GenericRowData acc, StringData value, Long order) {
         if (value != null) {
             accumulate(acc, (Object) ((BinaryStringData) value).copy(), order);
+        }
+    }
+
+    public void merge(RowData acc, Iterable<RowData> accIt) {
+        GenericRowData accRowData = (GenericRowData) acc;
+        long accOrder = accRowData.getLong(1);
+        GenericRowData lastAcc = accRowData;
+        boolean needUpdate = false;
+        for (RowData rowData : accIt) {
+            long order = rowData.getLong(1);
+            // if there is a upper order
+            if (order > accOrder) {
+                needUpdate = true;
+                lastAcc = (GenericRowData) rowData;
+            }
+        }
+        if (needUpdate) {
+            accRowData.setField(0, lastAcc.getField(0));
+            accRowData.setField(1, lastAcc.getField(1));
         }
     }
 

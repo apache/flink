@@ -73,8 +73,11 @@ public class KubernetesJobManagerFactory {
                                 new EnvSecretsDecorator(kubernetesJobManagerParameters),
                                 new MountSecretsDecorator(kubernetesJobManagerParameters),
                                 new CmdJobManagerDecorator(kubernetesJobManagerParameters),
-                                new InternalServiceDecorator(kubernetesJobManagerParameters),
-                                new ExternalServiceDecorator(kubernetesJobManagerParameters)));
+                                new InternalServiceDecorator(kubernetesJobManagerParameters)));
+
+        if (kubernetesJobManagerParameters.isServiceEnabled()) {
+            stepDecorators.add(new ExternalServiceDecorator(kubernetesJobManagerParameters));
+        }
 
         Configuration configuration = kubernetesJobManagerParameters.getFlinkConfiguration();
         if (configuration.get(KUBERNETES_HADOOP_CONF_MOUNT_DECORATOR_ENABLED)) {

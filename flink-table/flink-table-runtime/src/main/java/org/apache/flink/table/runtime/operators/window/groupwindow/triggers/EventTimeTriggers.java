@@ -18,9 +18,13 @@
 
 package org.apache.flink.table.runtime.operators.window.groupwindow.triggers;
 
+import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.Window;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -46,6 +50,21 @@ public class EventTimeTriggers {
 
     /** This class should never be instantiated. */
     private EventTimeTriggers() {}
+
+    /** 滚动及滑动窗口再开窗处理延迟数据. */
+    public static <W extends Window> AllowedLatenessEventTimeTrigger<W> allowedLatenessEventTimeTrigger(long processingTimeInterval) {
+        return new AllowedLatenessEventTimeTrigger<>(processingTimeInterval);
+    }
+
+    /** (有设置过期时间，有无设置延迟计算都可) 处理session过期时间配置. */
+    public static <W extends Window> ProcessingTimeAndEventTimeTrigger<W> expiredTimeTrigger(long processingTimeInterval) {
+        return new ProcessingTimeAndEventTimeTrigger<>(processingTimeInterval);
+    }
+
+    /** (无设置过期时间，有设置延迟计算) 再开窗处理session延迟数据. */
+    public static <W extends Window> AllowedLatenessSessionEventTimeTrigger<W> allowedLatenessSessionEventTimeTrigger() {
+        return new AllowedLatenessSessionEventTimeTrigger<>();
+    }
 
     /** Creates a trigger that fires when the watermark passes the end of the window. */
     public static <W extends Window> AfterEndOfWindow<W> afterEndOfWindow() {
@@ -341,4 +360,270 @@ public class EventTimeTriggers {
             return TO_STRING + ".withEarlyFirings(" + earlyTrigger + ")";
         }
     }
+
+    /**
+     * 允许延迟数据进入窗口计算的trigger
+     * 滚动及滑动窗口使用
+     */
+    public static final class AllowedLatenessEventTimeTrigger<W extends Window>
+            extends WindowTrigger<W> {
+        private static final long serialVersionUID = -800582945577030340L;
+        // 基于processingTime的统计频率
+        private final long processingTimeInterval;
+        /**
+         * When merging we take the lowest of all fire timestamps as the new fire timestamp.
+         */
+        private final ReducingStateDescriptor<Long> stateDesc;
+        AllowedLatenessEventTimeTrigger(long processingTimeInterval) {
+            this.processingTimeInterval = processingTimeInterval * 1000;
+            this.stateDesc = new ReducingStateDescriptor<>("fire-time-allowed-lateness", (a, b) -> Math.min(a, b), LongSerializer.INSTANCE);
+        }
+        @Override
+        public void open(TriggerContext ctx) throws Exception {
+            this.ctx = ctx;
+        }
+        @Override
+        public boolean onElement(Object element, long timestamp, W window) throws Exception {
+            if (triggerTime(window) <= ctx.getCurrentWatermark()) {
+                // 如果watermark已经越过了窗口，则注册一个指定时间基于ProcessingTime定时器，到时间后fire窗口
+                ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
+                if (fireTimestamp.get() == null) {
+                    long currentTime = ctx.getCurrentProcessingTime();
+                    long nextFireTimestamp = currentTime + processingTimeInterval;
+                    ctx.registerProcessingTimeTimer(nextFireTimestamp);
+                    fireTimestamp.add(nextFireTimestamp);
+                }
+            } else {
+                // we are in the early phase
+                ctx.registerEventTimeTimer(triggerTime(window));
+            }
+            //无论延迟还是非延迟数据，添加时均不执行计算
+            return false;
+        }
+        @Override
+        public boolean onProcessingTime(long time, W window) throws Exception {
+            return true;
+        }
+        @Override
+        public boolean onEventTime(long time, W window) throws Exception {
+            // fire 同时清理窗口state，使得延迟时间是增量的计算。
+            // 由于trigger内无法清洗窗口状态，放到 WindowOperator 中进行清理
+            if (time == triggerTime(window)) {
+                return true;
+            }
+            return false;
+        }
+        @Override
+        public boolean canMerge() {
+            return true;
+        }
+        @Override
+        public void onMerge(W window, OnMergeContext mergeContext) throws Exception {
+            // only register a timer if the watermark is not yet past the end of the merged window
+            // this is in line with the logic in onElement(). If the watermark is past the end of
+            // the window onElement() will fire and setting a timer here would fire the window twice.
+            if (triggerTime(window) > ctx.getCurrentWatermark()) {
+                ctx.registerEventTimeTimer(triggerTime(window));
+            }
+        }
+        @Override
+        public void clear(W window) throws Exception {
+            ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
+            if (fireTimestamp.get() != null) {
+                long timestamp = fireTimestamp.get();
+                ctx.deleteProcessingTimeTimer(timestamp);
+                fireTimestamp.clear();
+            }
+            ctx.deleteEventTimeTimer(window.maxTimestamp());
+        }
+        @Override
+        public String toString() {
+            return "AllowedLatenessEventTimeTrigger()" + processingTimeInterval + ")";
+        }
+    }
+    /**
+     * 会话窗口使用
+     * 应用于 设置过期时间的会话
+     */
+    public static final class ProcessingTimeAndEventTimeTrigger<W extends Window>
+            extends WindowTrigger<W> {
+        private static final long serialVersionUID = -800582945577030342L;
+        // 基于processingTime的等待时间(如果达到窗口长度 + 过期时间了，watermark没有触发将有由系统触发)
+        private final long processingTimeInterval;
+        /**
+         * When merging we take the lowest of all fire timestamps as the new fire timestamp.
+         */
+        private final ReducingStateDescriptor<Long> stateDesc;
+        private final ReducingStateDescriptor<Long> windowLengthStateDesc;
+        ProcessingTimeAndEventTimeTrigger(long processingTimeInterval) {
+            this.processingTimeInterval = processingTimeInterval * 1000;
+            this.stateDesc = new ReducingStateDescriptor<>("fire-time", (a, b) -> Math.min(a, b), LongSerializer.INSTANCE);
+            this.windowLengthStateDesc = new ReducingStateDescriptor<>("bk-window-length", (a, b) -> Math.max(a, b), LongSerializer.INSTANCE);
+        }
+        @Override
+        public void open(TriggerContext ctx) throws Exception {
+            this.ctx = ctx;
+        }
+        @Override
+        public boolean onElement(Object element, long timestamp, W window) throws Exception {
+            if (triggerTime(window) <= ctx.getCurrentWatermark()) {
+                return true;
+            } else {
+                ctx.registerEventTimeTimer(triggerTime(window));
+            }
+            // 需要继续注册ProcessingTimer
+            // 【重要】使用状态保证一个窗口只注册一个值ProcessingTimeTimer
+            ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
+            ReducingState<Long> windowLengthState = ctx.getPartitionedState(windowLengthStateDesc);
+            long processingTime = ctx.getCurrentProcessingTime();
+            Long oldFireTimestamp = fireTimestamp.get();
+            Long oldWindowLength = windowLengthState.get();
+            if (oldFireTimestamp == null) {
+                // 窗口被系统定时触发时间 = 当前系统时间 + 窗口长度 + 等待时间
+                long nextFireTimestamp = processingTime + processingTimeInterval;
+                ctx.registerProcessingTimeTimer(nextFireTimestamp);
+                fireTimestamp.add(nextFireTimestamp);
+            } else {
+                // 因为session窗口会改变窗口的namespace所以需要重新注册。
+                ctx.registerProcessingTimeTimer(oldFireTimestamp);
+            }
+            long windowLength = ((TimeWindow)window).getEnd() - ((TimeWindow)window).getStart();
+            if (oldWindowLength == null) {
+                windowLengthState.add(windowLength);
+            } else {
+                if (null != oldFireTimestamp) {
+                    // 针对session窗口场景，会改变窗口长度。
+                    long windowSizeIncrease = windowLength - oldWindowLength;
+                    if (windowSizeIncrease >= 1000) {
+                        // 如果窗口长度发生了变化，并且超过1s，
+                        windowLengthState.add(windowLength);
+                        // 重新所以需要删除
+                        ctx.deleteProcessingTimeTimer(oldFireTimestamp);
+                        // 需要重置fire-time 状态。
+                        fireTimestamp.clear();
+                        // 重新注册定时器。
+                        long nextFireTimestamp = processingTime + processingTimeInterval;
+                        ctx.registerProcessingTimeTimer(nextFireTimestamp);
+                        fireTimestamp.add(nextFireTimestamp);
+                    }
+                }
+            }
+            return false;
+        }
+        @Override
+        public boolean onProcessingTime(long time, W window) throws Exception {
+            ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
+            Long oldFireTimestamp = fireTimestamp.get();
+            if (oldFireTimestamp != null && oldFireTimestamp == time) {
+                ctx.deleteProcessingTimeTimer(time);
+                fireTimestamp.clear();
+                return true;
+            }
+            return false;
+        }
+        @Override
+        public boolean onEventTime(long time, W window) throws Exception {
+            if (time == triggerTime(window)) {
+                ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
+                Long oldFireTimestamp = fireTimestamp.get();
+                if (oldFireTimestamp != null) {
+                    ctx.deleteProcessingTimeTimer(oldFireTimestamp);
+                    fireTimestamp.clear();
+                }
+                ReducingState<Long> windowLengthState = ctx.getPartitionedState(windowLengthStateDesc);
+                if (windowLengthState.get() != null) {
+                    windowLengthState.clear();
+                }
+                return true;
+            }
+            return false;
+        }
+        @Override
+        public boolean canMerge() {
+            return true;
+        }
+        @Override
+        public void onMerge(W window, OnMergeContext mergeContext) throws Exception {
+            // only register a timer if the watermark is not yet past the end of the merged window
+            // this is in line with the logic in onElement(). If the watermark is past the end of
+            // the window onElement() will fire and setting a timer here would fire the window twice.
+            if (triggerTime(window) > ctx.getCurrentWatermark()) {
+                ctx.registerEventTimeTimer(triggerTime(window));
+            }
+        }
+        @Override
+        public void clear(W window) throws Exception {
+            ReducingState<Long> fireTimestamp = ctx.getPartitionedState(stateDesc);
+            if (fireTimestamp.get() != null) {
+                long timestamp = fireTimestamp.get();
+                ctx.deleteProcessingTimeTimer(timestamp);
+                fireTimestamp.clear();
+            }
+            ReducingState<Long> windowLengthState = ctx.getPartitionedState(windowLengthStateDesc);
+            if (windowLengthState.get() != null) {
+                windowLengthState.clear();
+            }
+            ctx.deleteEventTimeTimer(window.maxTimestamp());
+        }
+        @Override
+        public String toString() {
+            return "ProcessingTimeAndEventTimeTrigger(" + processingTimeInterval + ")";
+        }
+    }
+    /**
+     * 会话窗口使用
+     * 应用于 没有设置过期时间，但设置设置延迟计算
+     *
+     * TIP: 如果过期时间和延迟计算都未设置，则用普通的eventTime trigger
+     */
+    public static final class AllowedLatenessSessionEventTimeTrigger<W extends Window>
+            extends WindowTrigger<W> {
+        private static final long serialVersionUID = -800582945577030344L;
+        AllowedLatenessSessionEventTimeTrigger() {
+        }
+        @Override
+        public void open(TriggerContext ctx) throws Exception {
+            this.ctx = ctx;
+        }
+        @Override
+        public boolean onElement(Object element, long timestamp, W window) throws Exception {
+            if (triggerTime(window) <= ctx.getCurrentWatermark()) {
+                // if the watermark is already past the window fire immediately
+                return true;//需要清理数据
+            } else {
+                ctx.registerEventTimeTimer(triggerTime(window));
+                return false;
+            }
+        }
+        @Override
+        public boolean onProcessingTime(long time, W window) throws Exception {
+            return false;
+        }
+        @Override
+        public boolean onEventTime(long time, W window) throws Exception {
+            return time == triggerTime(window) ? true : false;
+        }
+        @Override
+        public boolean canMerge() {
+            return true;
+        }
+        @Override
+        public void onMerge(W window, OnMergeContext mergeContext) throws Exception {
+            // only register a timer if the watermark is not yet past the end of the merged window
+            // this is in line with the logic in onElement(). If the watermark is past the end of
+            // the window onElement() will fire and setting a timer here would fire the window twice.
+            if (triggerTime(window) > ctx.getCurrentWatermark()) {
+                ctx.registerEventTimeTimer(triggerTime(window));
+            }
+        }
+        @Override
+        public void clear(W window) throws Exception {
+            ctx.deleteEventTimeTimer(triggerTime(window));
+        }
+        @Override
+        public String toString() {
+            return "AllowedLatenessSessionEventTimeTrigger()";
+        }
+    }
+
 }

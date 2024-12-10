@@ -109,20 +109,20 @@
 		</file>
 
 		<!-- Python -->
-		<file>
+		<!--<file>
 			<source>../flink-python/target/flink-python-${project.version}.jar</source>
 			<outputDirectory>opt</outputDirectory>
 			<destName>flink-python-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
-		</file>
+		</file>-->
 	</files>
-	<fileSets>
+	<!--<fileSets>
 		<fileSet>
 			<directory>../flink-python/lib/</directory>
 			<outputDirectory>opt/python/</outputDirectory>
 			<fileMode>0644</fileMode>
 		</fileSet>
-	</fileSets>
+	</fileSets>-->
 	<dependencySets>
 		<dependencySet>
 			<unpack>false</unpack>

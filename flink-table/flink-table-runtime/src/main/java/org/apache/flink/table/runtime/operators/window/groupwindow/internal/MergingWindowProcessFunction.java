@@ -118,14 +118,19 @@ public class MergingWindowProcessFunction<K, W extends Window>
     @Override
     public void cleanWindowIfNeeded(W window, long currentTime) throws Exception {
         if (isCleanupTime(window, currentTime)) {
-            ctx.clearTrigger(window);
-            W stateWindow = mergingWindows.getStateWindow(window);
-            ctx.clearWindowState(stateWindow);
-            // retire expired window
-            mergingWindows.initializeCache(ctx.currentKey());
-            mergingWindows.retireWindow(window);
+            cleanWindowForce(window);
             // do not need to clear previous state, previous state is disabled in session window
         }
+    }
+
+    @Override
+    public void cleanWindowForce(W window) throws Exception {
+        ctx.clearTrigger(window);
+        W stateWindow = mergingWindows.getStateWindow(window);
+        ctx.clearWindowState(stateWindow);
+        // retire expired window
+        mergingWindows.initializeCache(ctx.currentKey());
+        mergingWindows.retireWindow(window);
     }
 
     /** Get the state window as the namespace stored acc in the data about this actual window. */

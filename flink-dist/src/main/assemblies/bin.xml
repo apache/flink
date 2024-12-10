@@ -151,11 +151,11 @@ under the License.
 		</fileSet>
 
 		<!-- copy python scripts -->
-		<fileSet>
+		<!--<fileSet>
 			<directory>../flink-python/bin/</directory>
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
-		</fileSet>
+		</fileSet>-->
 
 		<!-- copy SQL client -->
 		<fileSet>
@@ -277,7 +277,7 @@ under the License.
 		</fileSet>
 
 		<!-- copy files of the python examples -->
-		<fileSet>
+		<!--<fileSet>
 			<directory>../flink-python/pyflink/examples</directory>
 			<outputDirectory>examples/python</outputDirectory>
 			<fileMode>0755</fileMode>
@@ -287,7 +287,7 @@ under the License.
 			<directory>../flink-python/pyflink/table/examples</directory>
 			<outputDirectory>examples/python/table</outputDirectory>
 			<fileMode>0755</fileMode>
-		</fileSet>
+		</fileSet>-->
 
 		<!-- copy jar file of the table examples -->
 		<fileSet>
