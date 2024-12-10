@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferHeader;
@@ -28,6 +29,7 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.function.Consumer;
 
@@ -47,14 +49,20 @@ class PartitionedFileReader {
     /** Target {@link PartitionedFile} to read. */
     private final PartitionedFile partitionedFile;
 
-    /** Target subpartition to read. */
-    private final int targetSubpartition;
+    /** Target subpartitions to read. */
+    private final ResultSubpartitionIndexSet subpartitionIndexSet;
 
     /** Data file channel of the target {@link PartitionedFile}. */
     private final FileChannel dataFileChannel;
 
     /** Index file channel of the target {@link PartitionedFile}. */
     private final FileChannel indexFileChannel;
+
+    /**
+     * Records the shift position of the subpartition write order. For example, if the write order
+     * of subpartitions is [4, 5, 0, 1, 2, 3], then this value would be 4.
+     */
+    private final int subpartitionOrderRotationIndex;
 
     /** Next data region to be read. */
     private int nextRegionToRead;
@@ -65,33 +73,139 @@ class PartitionedFileReader {
     /** Number of remaining bytes in the current data region read. */
     private long currentRegionRemainingBytes;
 
+    /** A queue storing pairs of file offsets and sizes to be read. */
+    private final Queue<Tuple2<Long, Long>> offsetAndSizesToRead = new ArrayDeque<>();
+
     PartitionedFileReader(
             PartitionedFile partitionedFile,
-            int targetSubpartition,
+            ResultSubpartitionIndexSet subpartitionIndexSet,
             FileChannel dataFileChannel,
             FileChannel indexFileChannel,
             ByteBuffer headerBuffer,
-            ByteBuffer indexEntryBuffer) {
+            ByteBuffer indexEntryBuffer,
+            int subpartitionOrderRotationIndex) {
         checkArgument(checkNotNull(dataFileChannel).isOpen(), "Data file channel must be opened.");
         checkArgument(
                 checkNotNull(indexFileChannel).isOpen(), "Index file channel must be opened.");
 
         this.partitionedFile = checkNotNull(partitionedFile);
-        this.targetSubpartition = targetSubpartition;
+        this.subpartitionIndexSet = subpartitionIndexSet;
         this.dataFileChannel = dataFileChannel;
         this.indexFileChannel = indexFileChannel;
         this.headerBuf = headerBuffer;
         this.indexEntryBuf = indexEntryBuffer;
+        this.subpartitionOrderRotationIndex = subpartitionOrderRotationIndex;
     }
 
-    private void moveToNextReadableRegion(ByteBuffer indexEntryBuf) throws IOException {
-        while (currentRegionRemainingBytes <= 0
-                && nextRegionToRead < partitionedFile.getNumRegions()) {
+    private void moveToNextReadablePosition(ByteBuffer indexEntryBuf) throws IOException {
+        while (currentRegionRemainingBytes <= 0 && hasNextPositionToRead()) {
+            if (!offsetAndSizesToRead.isEmpty()) {
+                Tuple2<Long, Long> offsetAndSize = offsetAndSizesToRead.poll();
+                nextOffsetToRead = offsetAndSize.f0;
+                currentRegionRemainingBytes = offsetAndSize.f1;
+            } else {
+                // move to next region which has buffers
+                if (nextRegionToRead < partitionedFile.getNumRegions()) {
+                    updateReadableOffsetAndSize(indexEntryBuf);
+                    ++nextRegionToRead;
+                }
+            }
+        }
+    }
+
+    private boolean hasNextPositionToRead() {
+        return !offsetAndSizesToRead.isEmpty()
+                || nextRegionToRead < partitionedFile.getNumRegions();
+    }
+
+    /**
+     * Updates the readable offsets and sizes for subpartitions based on a given index buffer. This
+     * method handles cases where the subpartition range is split by a rotation index, ensuring that
+     * all necessary index entries are processed.
+     *
+     * <p>The method operates in the following way:
+     *
+     * <ol>
+     *   <li>It checks if the range of subpartition indices requires handling of a wrap around the
+     *       rotation index.
+     *   <li>If no wrap is necessary (when the range does not cross the rotation point), it directly
+     *       updates readable offsets and sizes for the entire range.
+     *   <li>If a wrap is necessary, it splits the process into two updates:
+     *       <ul>
+     *         <li>Firstly, it updates from the rotation index to the end subpartition.
+     *         <li>Secondly, it updates from the start subpartition to just before the rotation
+     *             index.
+     *       </ul>
+     * </ol>
+     *
+     * <p>This ensures that all relevant subpartitions are correctly processed and offsets and sizes
+     * are added to the queue for subsequent reading.
+     *
+     * @param indexEntryBuf A ByteBuffer containing index entries which provide offset and size
+     *     information.
+     * @throws IOException If an I/O error occurs when accessing the index file channel.
+     */
+    private void updateReadableOffsetAndSize(ByteBuffer indexEntryBuf) throws IOException {
+        int startSubpartition = subpartitionIndexSet.getStartIndex();
+        int endSubpartition = subpartitionIndexSet.getEndIndex();
+
+        if (startSubpartition >= subpartitionOrderRotationIndex
+                || endSubpartition < subpartitionOrderRotationIndex) {
+            updateReadableOffsetAndSize(startSubpartition, endSubpartition, indexEntryBuf);
+        } else {
+            updateReadableOffsetAndSize(
+                    subpartitionOrderRotationIndex, endSubpartition, indexEntryBuf);
+            updateReadableOffsetAndSize(
+                    startSubpartition, subpartitionOrderRotationIndex - 1, indexEntryBuf);
+        }
+    }
+
+    /**
+     * Updates the readable offsets and sizes for a specified range of subpartitions. It is required
+     * that the offsets provided for each subpartition are contiguous. This method reads offset and
+     * size information from the given ByteBuffer and throws an exception if the offsets are not
+     * contiguous.
+     *
+     * @param startSubpartition The starting index of the subpartition range to be processed.
+     * @param endSubpartition The ending index of the subpartition range to be processed.
+     * @param indexEntryBuf A ByteBuffer containing the index entries to read offsets and sizes
+     *     from.
+     */
+    private void updateReadableOffsetAndSize(
+            int startSubpartition, int endSubpartition, ByteBuffer indexEntryBuf)
+            throws IOException {
+        long start = -1L;
+        long length = 0L;
+        long expectedNextOffset = -1L;
+
+        for (int targetSubpartition = startSubpartition;
+                targetSubpartition <= endSubpartition;
+                targetSubpartition++) {
             partitionedFile.getIndexEntry(
                     indexFileChannel, indexEntryBuf, nextRegionToRead, targetSubpartition);
-            nextOffsetToRead = indexEntryBuf.getLong();
-            currentRegionRemainingBytes = indexEntryBuf.getLong();
-            ++nextRegionToRead;
+
+            long offset = indexEntryBuf.getLong();
+            long size = indexEntryBuf.getLong();
+
+            if (size > 0) {
+                if (start == -1) {
+                    start = offset;
+                    expectedNextOffset = start + size;
+                } else {
+                    checkArgument(
+                            offset == expectedNextOffset,
+                            "Offsets are not contiguous: expected "
+                                    + expectedNextOffset
+                                    + " but got "
+                                    + offset);
+                    expectedNextOffset = offset + size;
+                }
+                length += size;
+            }
+        }
+
+        if (start != -1 && length > 0) {
+            offsetAndSizesToRead.add(Tuple2.of(start, length));
         }
     }
 
@@ -164,12 +278,12 @@ class PartitionedFileReader {
     }
 
     boolean hasRemaining() throws IOException {
-        moveToNextReadableRegion(indexEntryBuf);
+        moveToNextReadablePosition(indexEntryBuf);
         return currentRegionRemainingBytes > 0;
     }
 
     void initRegionIndex(ByteBuffer initIndexEntryBuffer) throws IOException {
-        moveToNextReadableRegion(initIndexEntryBuffer);
+        moveToNextReadablePosition(initIndexEntryBuffer);
     }
 
     /** Gets read priority of this file reader. Smaller value indicates higher priority. */

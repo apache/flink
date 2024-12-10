@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
-import org.apache.flink.core.memory.MemorySegment;
-
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.CompositeByteBuf;
 
@@ -27,62 +25,40 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * An implementation of {@link Buffer} which contains multiple partial buffers for network data
- * communication.
+ * An implementation of {@link Buffer} represents a fully filled buffer which contains multiple
+ * partial buffers for network data communication.
  *
- * <p>This class used for that all partial buffers are derived from the same initial write buffer
- * due to the potential fragmentation during the read process.
+ * <p>All partial must have the same data type and compression status. And they are originate from
+ * different write buffers but are combined to minimize network overhead.
  */
-public class CompositeBuffer extends AbstractCompositeBuffer {
+public class FullyFilledBuffer extends AbstractCompositeBuffer {
 
-    public CompositeBuffer(DataType dataType, int length, boolean isCompressed) {
+    public FullyFilledBuffer(DataType dataType, int length, boolean isCompressed) {
         super(dataType, length, isCompressed);
-    }
-
-    public CompositeBuffer(BufferHeader header) {
-        this(header.getDataType(), header.getLength(), header.isCompressed());
     }
 
     @Override
     public ByteBuf asByteBuf() {
         CompositeByteBuf compositeByteBuf = checkNotNull(allocator).compositeDirectBuffer();
         for (Buffer buffer : partialBuffers) {
+            if (buffer instanceof CompositeBuffer) {
+                buffer.setAllocator(allocator);
+            }
             compositeByteBuf.addComponent(buffer.asByteBuf());
         }
         compositeByteBuf.writerIndex(currentLength);
         return compositeByteBuf;
     }
 
-    /**
-     * Returns the full buffer data in one piece of {@link MemorySegment}. If there is multiple
-     * partial buffers, the partial data will be copied to the given target {@link MemorySegment}.
-     */
-    public Buffer getFullBufferData(MemorySegment segment) {
-        checkState(!partialBuffers.isEmpty());
-        checkState(currentLength <= segment.size());
-
-        if (partialBuffers.size() == 1) {
-            return partialBuffers.get(0);
-        }
-
-        int offset = 0;
-        for (Buffer buffer : partialBuffers) {
-            segment.put(offset, buffer.getNioBufferReadable(), buffer.readableBytes());
-            offset += buffer.readableBytes();
-        }
-        recycleBuffer();
-        return new NetworkBuffer(
-                segment,
-                BufferRecycler.DummyBufferRecycler.INSTANCE,
-                dataType,
-                isCompressed,
-                currentLength);
-    }
-
     @Override
     public void addPartialBuffer(Buffer buffer) {
-        buffer.setDataType(dataType);
-        buffer.setCompressed(isCompressed);
+        checkState(
+                buffer.getDataType() == dataType,
+                "Partial buffer data type must be the same as the fully filled buffer.");
+        checkState(
+                buffer.isCompressed() == isCompressed,
+                "Partial buffer compression status must be the same as the fully filled buffer.");
+
         partialBuffers.add(buffer);
         currentLength += buffer.readableBytes();
         checkState(currentLength <= length);
