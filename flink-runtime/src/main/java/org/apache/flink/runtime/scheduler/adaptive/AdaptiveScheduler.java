@@ -403,6 +403,8 @@ public class AdaptiveScheduler
 
     private int numRestarts = 0;
 
+    private int numRescales = 0;
+
     private final MutableVertexAttemptNumberStore vertexAttemptNumberStore =
             new DefaultVertexAttemptNumberStore();
 
@@ -556,6 +558,7 @@ public class AdaptiveScheduler
                 jobManagerJobMetricGroup,
                 jobStatusStore,
                 () -> (long) numRestarts,
+                () -> (long) numRescales,
                 deploymentTimeMetrics,
                 tmpJobStatusListeners::add,
                 initializationTimestamp,
@@ -1243,7 +1246,8 @@ public class AdaptiveScheduler
             OperatorCoordinatorHandler operatorCoordinatorHandler,
             Duration backoffTime,
             boolean forcedRestart,
-            List<ExceptionHistoryEntry> failureCollection) {
+            List<ExceptionHistoryEntry> failureCollection,
+            boolean isFromFailure) {
 
         for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
             final int attemptNumber =
@@ -1266,7 +1270,12 @@ public class AdaptiveScheduler
                         forcedRestart,
                         userCodeClassLoader,
                         failureCollection));
-        numRestarts++;
+
+        if (isFromFailure) {
+            numRestarts++;
+        } else {
+            numRescales++;
+        }
     }
 
     @Override

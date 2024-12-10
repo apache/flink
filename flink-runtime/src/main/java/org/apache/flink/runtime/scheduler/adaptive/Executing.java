@@ -155,7 +155,8 @@ class Executing extends StateWithExecutionGraph
                 getOperatorCoordinatorHandler(),
                 Duration.ofMillis(0L),
                 true,
-                getFailures());
+                getFailures(),
+                false);
     }
 
     @Override

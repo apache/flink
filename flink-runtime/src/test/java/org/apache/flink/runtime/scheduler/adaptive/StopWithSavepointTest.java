@@ -581,7 +581,8 @@ class StopWithSavepointTest {
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Duration backoffTime,
                 boolean forcedRestart,
-                List<ExceptionHistoryEntry> failureCollection) {
+                List<ExceptionHistoryEntry> failureCollection,
+                boolean isFromFailure) {
             if (hadStateTransition) {
                 throw new IllegalStateException("Only one state transition is allowed.");
             }
