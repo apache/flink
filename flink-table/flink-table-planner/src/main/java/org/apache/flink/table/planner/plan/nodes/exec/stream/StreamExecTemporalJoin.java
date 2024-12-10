@@ -52,6 +52,7 @@ import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.temporal.TemporalProcessTimeJoinOperator;
 import org.apache.flink.table.runtime.operators.join.temporal.TemporalRowTimeJoinOperator;
 import org.apache.flink.table.runtime.operators.join.temporal.asyncprocessing.AsyncStateTemporalProcessTimeJoinOperator;
+import org.apache.flink.table.runtime.operators.join.temporal.asyncprocessing.AsyncStateTemporalRowTimeJoinOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
@@ -267,15 +268,28 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
         long minRetentionTime = config.getStateRetentionTime();
         long maxRetentionTime = TableConfigUtils.getMaxIdleStateRetentionTime(config);
         if (rightTimeAttributeIndex >= 0) {
-            return new TemporalRowTimeJoinOperator(
-                    InternalTypeInfo.of(leftInputType),
-                    InternalTypeInfo.of(rightInputType),
-                    generatedJoinCondition,
-                    leftTimeAttributeIndex,
-                    rightTimeAttributeIndex,
-                    minRetentionTime,
-                    maxRetentionTime,
-                    isLeftOuterJoin);
+            if (config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED)) {
+                return new AsyncStateTemporalRowTimeJoinOperator(
+                        InternalTypeInfo.of(leftInputType),
+                        InternalTypeInfo.of(rightInputType),
+                        generatedJoinCondition,
+                        leftTimeAttributeIndex,
+                        rightTimeAttributeIndex,
+                        minRetentionTime,
+                        maxRetentionTime,
+                        isLeftOuterJoin);
+            } else {
+                return new TemporalRowTimeJoinOperator(
+                        InternalTypeInfo.of(leftInputType),
+                        InternalTypeInfo.of(rightInputType),
+
+                        generatedJoinCondition,
+                        leftTimeAttributeIndex,
+                        rightTimeAttributeIndex,
+                        minRetentionTime,
+                        maxRetentionTime,
+                        isLeftOuterJoin);
+            }
         } else {
             if (isTemporalFunctionJoin) {
                 if (config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED)) {

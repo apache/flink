@@ -16,14 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.join.temporal;
+package org.apache.flink.table.runtime.operators.join.temporal.asyncprocessing;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.DefaultOpenContext;
-import org.apache.flink.api.common.state.MapState;
-import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.state.v2.MapState;
+import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.core.state.StateFutureUtils;
+import org.apache.flink.runtime.state.v2.MapStateDescriptor;
+import org.apache.flink.api.common.state.v2.ValueState;
+import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
@@ -33,7 +35,6 @@ import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
@@ -42,18 +43,15 @@ import org.apache.flink.table.runtime.operators.join.temporal.utils.TemporalRowT
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Iterator;
+import java.util.Arrays;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * The operator for temporal join (FOR SYSTEM_TIME AS OF o.rowtime) on row time in sync state, it has no
+ * The operator for temporal join (FOR SYSTEM_TIME AS OF o.rowtime) on row time in async state, it has no
  * limitation about message types of the left input and right input, this means the operator deals
  * changelog well.
  *
@@ -77,7 +75,7 @@ import java.util.TreeMap;
  * only one single registered timer for any given key, registered for the minimal value. Upon
  * triggering it, we process all records with event times older then or equal to currentWatermark.
  */
-public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithStateRetention {
+public class AsyncStateTemporalRowTimeJoinOperator extends BaseTwoInputAsyncStateStreamOperatorWithStateRetention {
 
     private static final long serialVersionUID = 6642514795175288193L;
 
@@ -125,9 +123,9 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
     private transient JoinedRowData outRow;
     private transient GenericRowData rightNullRow;
 
-    private transient SyncStateTemporalRowTimeJoinHelper temporalRowTimeJoinHelper;
+    private transient AsyncStateTemporalRowTimeJoinHelper temporalRowTimeJoinHelper;
 
-    public TemporalRowTimeJoinOperator(
+    public AsyncStateTemporalRowTimeJoinOperator(
             InternalTypeInfo<RowData> leftType,
             InternalTypeInfo<RowData> rightType,
             GeneratedJoinCondition generatedJoinCondition,
@@ -156,7 +154,7 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
 
         nextLeftIndex =
                 getRuntimeContext()
-                        .getState(
+                        .getValueState(
                                 new ValueStateDescriptor<>(NEXT_LEFT_INDEX_STATE_NAME, Types.LONG));
         leftState =
                 getRuntimeContext()
@@ -168,7 +166,7 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
                                 new MapStateDescriptor<>(RIGHT_STATE_NAME, Types.LONG, rightType));
         registeredTimer =
                 getRuntimeContext()
-                        .getState(
+                        .getValueState(
                                 new ValueStateDescriptor<>(
                                         REGISTERED_TIMER_STATE_NAME, Types.LONG));
 
@@ -178,16 +176,22 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
         outRow = new JoinedRowData();
         rightNullRow = new GenericRowData(rightType.toRowType().getFieldCount());
         collector = new TimestampedCollector<>(output);
-        this.temporalRowTimeJoinHelper = new SyncStateTemporalRowTimeJoinHelper();
+        this.temporalRowTimeJoinHelper = new AsyncStateTemporalRowTimeJoinHelper();
     }
 
     @Override
     public void processElement1(StreamRecord<RowData> element) throws Exception {
         RowData row = element.getValue();
-        leftState.put(getNextLeftIndex(), row);
-        registerSmallestTimer(this.temporalRowTimeJoinHelper.getLeftTime(row)); // Timer to emit and clean up the state
-
-        registerProcessingCleanupTimer();
+        getNextLeftIndex().thenAccept(nextLeftIndex -> {
+            StateFuture<Void> putFuture = leftState.asyncPut(nextLeftIndex, row);
+            putFuture.thenAccept(
+                    VOID -> {
+                        // Timer to emit and clean up the state
+                        registerSmallestTimer(this.temporalRowTimeJoinHelper.getLeftTime(row));
+                        registerProcessingCleanupTimer();
+                    }
+            );
+        });
     }
 
     @Override
@@ -195,29 +199,39 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
         RowData row = element.getValue();
 
         long rowTime = this.temporalRowTimeJoinHelper.getRightTime(row);
-        rightState.put(rowTime, row);
-        registerSmallestTimer(rowTime); // Timer to clean up the state
-
-        registerProcessingCleanupTimer();
+        StateFuture<Void> putFuture = rightState.asyncPut(rowTime, row);
+        putFuture.thenAccept(
+                VOID -> {
+                    // Timer to clean up the state
+                    registerSmallestTimer(rowTime);
+                    registerProcessingCleanupTimer();
+                }
+        );
     }
 
     @Override
     public void onEventTime(InternalTimer<Object, VoidNamespace> timer) throws Exception {
-        registeredTimer.clear();
-        long lastUnprocessedTime = this.temporalRowTimeJoinHelper.emitResultAndCleanUpState(timerService.currentWatermark());
-        if (lastUnprocessedTime < Long.MAX_VALUE) {
-            registerTimer(lastUnprocessedTime);
-        }
-
-        // if we have more state at any side, then update the timer, else clean it up.
-        if (stateCleaningEnabled) {
-            if (lastUnprocessedTime < Long.MAX_VALUE || !rightState.isEmpty()) {
-                registerProcessingCleanupTimer();
-            } else {
-                cleanupLastTimer();
-                nextLeftIndex.clear();
-            }
-        }
+        StateFuture<Void> clearFuture = registeredTimer.asyncClear();
+        clearFuture.thenAccept(
+                VOID -> {
+                    StateFuture<Long> lastUnprocessedTimeFuture = this.temporalRowTimeJoinHelper.emitResultAndCleanUpState(
+                            timerService.currentWatermark());
+                    lastUnprocessedTimeFuture.thenAccept(lastUnprocessedTime -> {
+                        if (lastUnprocessedTime < Long.MAX_VALUE) {
+                            registerTimer(lastUnprocessedTime);
+                        }
+                        // if we have more state at any side, then update the timer, else clean it up.
+                        if (stateCleaningEnabled) {
+                            if (lastUnprocessedTime < Long.MAX_VALUE || !rightState.isEmpty()) {
+                                registerProcessingCleanupTimer();
+                            } else {
+                                cleanupLastTimer();
+                                nextLeftIndex.asyncClear();
+                            }
+                        }
+                    });
+                }
+        );
     }
 
     @Override
@@ -231,16 +245,18 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
     /**
      * Removes all expired version in the versioned table's state according to current watermark.
      */
-    private void cleanupExpiredVersionInState(long currentWatermark, List<RowData> rightRowsSorted)
+    private StateFuture<Void> cleanupExpiredVersionInState(long currentWatermark, List<RowData> rightRowsSorted)
             throws Exception {
         int i = 0;
         int indexToKeep = this.temporalRowTimeJoinHelper.firstIndexToKeep(currentWatermark, rightRowsSorted);
+        List<StateFuture<Void>> removeFutureList = new ArrayList<>();
         // clean old version data that behind current watermark
         while (i < indexToKeep) {
             long rightTime = this.temporalRowTimeJoinHelper.getRightTime(rightRowsSorted.get(i));
-            rightState.remove(rightTime);
+            removeFutureList.add(rightState.asyncRemove(rightTime));
             i += 1;
         }
+        return StateFutureUtils.combineAll(removeFutureList).thenApply(VOID -> null);
     }
 
     /**
@@ -249,44 +265,56 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
      * @param time The timestamp of the fired timer.
      */
     @Override
-    public void cleanupState(long time) {
-        leftState.clear();
-        rightState.clear();
-        nextLeftIndex.clear();
-        registeredTimer.clear();
+    public StateFuture<Void> cleanupState(long time) {
+        return StateFutureUtils.combineAll(
+                        Arrays.asList(
+                                leftState.asyncClear(),
+                                rightState.asyncClear(),
+                                nextLeftIndex.asyncClear(),
+                                registeredTimer.asyncClear()))
+                .thenApply(VOID -> null);
     }
 
-    private void registerSmallestTimer(long timestamp) throws IOException {
-        Long currentRegisteredTimer = registeredTimer.value();
-        if (currentRegisteredTimer == null) {
-            registerTimer(timestamp);
-        } else if (currentRegisteredTimer > timestamp) {
-            timerService.deleteEventTimeTimer(VoidNamespace.INSTANCE, currentRegisteredTimer);
-            registerTimer(timestamp);
-        }
+    private StateFuture<Void> registerSmallestTimer(long timestamp) throws IOException {
+        return registeredTimer.asyncValue().thenAccept(currentRegisteredTimer -> {
+            if (currentRegisteredTimer == null) {
+                registerTimer(timestamp);
+            } else if (currentRegisteredTimer > timestamp) {
+                timerService.deleteEventTimeTimer(VoidNamespace.INSTANCE, currentRegisteredTimer);
+                registerTimer(timestamp);
+            }
+        });
     }
 
-    private void registerTimer(long timestamp) throws IOException {
-        registeredTimer.update(timestamp);
-        timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, timestamp);
+    private StateFuture<Void> registerTimer(long timestamp) throws IOException {
+        return registeredTimer.asyncUpdate(timestamp).thenCompose(VOID -> {
+            timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, timestamp);
+            return StateFutureUtils.completedVoidFuture();
+        });
     }
 
-    private List<RowData> getRightRowSorted(RowtimeComparator rowtimeComparator) throws Exception {
+    private StateFuture<List<RowData>> getRightRowSorted(RowtimeComparator rowtimeComparator) throws Exception {
         List<RowData> rightRows = new ArrayList<>();
-        for (RowData row : rightState.values()) {
-            rightRows.add(row);
-        }
-        rightRows.sort(rowtimeComparator);
-        return rightRows;
+        return rightState
+                .asyncValues()
+                .thenCompose(
+                        stateIterator ->
+                                stateIterator.onNext(
+                                        rowData -> {
+                                            rightRows.add(rowData);
+                                        })
+                )
+                .thenApply(VOID -> {
+                    rightRows.sort(rowtimeComparator);
+                    return rightRows;
+                });
     }
 
-    private long getNextLeftIndex() throws IOException {
-        Long index = nextLeftIndex.value();
-        if (index == null) {
-            index = 0L;
-        }
-        nextLeftIndex.update(index + 1);
-        return index;
+    private StateFuture<Long> getNextLeftIndex() throws IOException {
+        return nextLeftIndex.asyncValue().thenCompose(index -> {
+            long currentIndex = (index != null) ? index : 0L;
+            return nextLeftIndex.asyncUpdate(currentIndex + 1).thenApply(VOID -> currentIndex);
+        });
     }
 
     @VisibleForTesting
@@ -299,8 +327,8 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
         return REGISTERED_TIMER_STATE_NAME;
     }
 
-    private class SyncStateTemporalRowTimeJoinHelper extends TemporalRowTimeJoinHelper {
-        public SyncStateTemporalRowTimeJoinHelper() {
+    private class AsyncStateTemporalRowTimeJoinHelper extends TemporalRowTimeJoinHelper {
+        public AsyncStateTemporalRowTimeJoinHelper() {
             super(joinCondition,
                     isLeftOuterJoin,
                     rightNullRow,
@@ -314,29 +342,32 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
          * @return a row time of the oldest unprocessed probe record or Long.MaxValue, if all records
          *     have been processed.
          */
-        public long emitResultAndCleanUpState(long currentWatermark) throws Exception {
-            List<RowData> rightRowsSorted = getRightRowSorted(rightRowtimeComparator);
-            long lastUnprocessedTime = Long.MAX_VALUE;
+        public StateFuture<Long> emitResultAndCleanUpState(long currentWatermark) throws Exception {
+            StateFuture<List<RowData>> rightRowsSortedFuture = getRightRowSorted(rightRowtimeComparator);
 
-            Iterator<Map.Entry<Long, RowData>> leftIterator = leftState.entries().iterator();
-            // the output records' order should keep same with left input records arrival order
-            final Map<Long, RowData> orderedLeftRecords = new TreeMap<>();
-
-            while (leftIterator.hasNext()) {
-                Map.Entry<Long, RowData> entry = leftIterator.next();
-                Long leftSeq = entry.getKey();
-                RowData leftRow = entry.getValue();
-                long leftTime = getLeftTime(leftRow);
-                if (leftTime <= currentWatermark) {
-                    orderedLeftRecords.put(leftSeq, leftRow);
-                    leftIterator.remove();
-                } else {
-                    lastUnprocessedTime = Math.min(lastUnprocessedTime, leftTime);
-                }
-            }
-            emitTriggeredLeftRecordsInOrder(orderedLeftRecords, rightRowsSorted);
-            cleanupExpiredVersionInState(currentWatermark, rightRowsSorted);
-            return lastUnprocessedTime;
+            return rightRowsSortedFuture.thenCompose(rightRowsSorted -> {
+                return leftState.asyncEntries().thenCompose(leftEntriesIteratorFuture -> {
+                    final AtomicLong lastUnprocessedTime = new AtomicLong(Long.MAX_VALUE);
+                    // the output records' order should keep same with left input records arrival order
+                    final Map<Long, RowData> orderedLeftRecords = new TreeMap<>();
+                    return leftEntriesIteratorFuture.onNext(entry -> {
+                        Long leftSeq = entry.getKey();
+                        RowData leftRow = entry.getValue();
+                        long leftTime = getLeftTime(leftRow);
+                        if (leftTime <= currentWatermark) {
+                            orderedLeftRecords.put(leftSeq, leftRow);
+                            leftState.asyncRemove(leftSeq);
+                        } else {
+                            lastUnprocessedTime.updateAndGet(prev -> Math.min(prev, leftTime));
+                        }
+                    }).thenCompose(VOID -> {
+                        emitTriggeredLeftRecordsInOrder(orderedLeftRecords, rightRowsSorted);
+                        return cleanupExpiredVersionInState(currentWatermark, rightRowsSorted);
+                    }).thenCompose(VOID -> {
+                        return StateFutureUtils.completedFuture(lastUnprocessedTime.get());
+                    });
+                });
+            });
         }
     }
 }

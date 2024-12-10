@@ -116,10 +116,10 @@ public class AsyncStateTemporalProcessTimeJoinOperator
     public void processElement2(StreamRecord<RowData> element) throws Exception {
         if (RowDataUtil.isAccumulateMsg(element.getValue())) {
             StateFuture<Void> updateFuture = rightState.asyncUpdate(element.getValue());
-            updateFuture.thenAccept(Void -> registerProcessingCleanupTimer());
+            updateFuture.thenAccept(VOID -> registerProcessingCleanupTimer());
         } else {
             StateFuture<Void> clearFuture = rightState.asyncClear();
-            clearFuture.thenAccept(Void -> cleanupLastTimer());
+            clearFuture.thenAccept(VOID -> cleanupLastTimer());
         }
     }
 
