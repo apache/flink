@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.leaderelection;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * {@code LeaderElection} serves as a proxy between {@code LeaderElectionService} and {@link
@@ -33,6 +34,8 @@ public interface LeaderElection extends AutoCloseable {
      * Confirms that the {@link LeaderContender} has accepted the leadership identified by the given
      * leader session id. It also publishes the leader address under which the leader is reachable.
      *
+     * <p>The data is only confirmed if the leadership is still acquired.
+     *
      * <p>The intention of this method is to establish an order between setting the new leader
      * session ID in the {@link LeaderContender} and publishing the new leader session ID and the
      * related leader address to the leader retrieval services.
@@ -40,7 +43,7 @@ public interface LeaderElection extends AutoCloseable {
      * @param leaderSessionID The new leader session ID
      * @param leaderAddress The address of the new leader
      */
-    void confirmLeadership(UUID leaderSessionID, String leaderAddress);
+    CompletableFuture<Void> confirmLeadershipAsync(UUID leaderSessionID, String leaderAddress);
 
     /**
      * Returns {@code true} if the service's {@link LeaderContender} has the leadership under the
@@ -49,7 +52,7 @@ public interface LeaderElection extends AutoCloseable {
      * @param leaderSessionId identifying the current leader
      * @return true if the associated {@link LeaderContender} is the leader, otherwise false
      */
-    boolean hasLeadership(UUID leaderSessionId);
+    CompletableFuture<Boolean> hasLeadershipAsync(UUID leaderSessionId);
 
     /**
      * Closes the {@code LeaderElection} by deregistering the {@link LeaderContender} from the
