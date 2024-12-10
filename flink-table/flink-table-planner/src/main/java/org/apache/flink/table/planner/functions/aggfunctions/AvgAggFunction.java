@@ -69,31 +69,31 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
     @Override
     public Expression[] initialValuesExpressions() {
         return new Expression[] {
-            /* sum = */ literal(0L, getSumType().notNull()), /* count = */ literal(0L)
+            /* sum= */ literal(0L, getSumType().notNull()), /* count= */ literal(0L)
         };
     }
 
     @Override
     public Expression[] accumulateExpressions() {
         return new Expression[] {
-            /* sum = */ ifThenElse(isNull(operand(0)), sum, adjustedPlus(sum, operand(0))),
-            /* count = */ ifThenElse(isNull(operand(0)), count, plus(count, literal(1L))),
+            /* sum= */ ifThenElse(isNull(operand(0)), sum, adjustedPlus(sum, operand(0))),
+            /* count= */ ifThenElse(isNull(operand(0)), count, plus(count, literal(1L))),
         };
     }
 
     @Override
     public Expression[] retractExpressions() {
         return new Expression[] {
-            /* sum = */ ifThenElse(isNull(operand(0)), sum, adjustedMinus(sum, operand(0))),
-            /* count = */ ifThenElse(isNull(operand(0)), count, minus(count, literal(1L))),
+            /* sum= */ ifThenElse(isNull(operand(0)), sum, adjustedMinus(sum, operand(0))),
+            /* count= */ ifThenElse(isNull(operand(0)), count, minus(count, literal(1L))),
         };
     }
 
     @Override
     public Expression[] mergeExpressions() {
         return new Expression[] {
-            /* sum = */ adjustedPlus(sum, mergeOperand(sum)),
-            /* count = */ plus(count, mergeOperand(count))
+            /* sum= */ adjustedPlus(sum, mergeOperand(sum)),
+            /* count= */ plus(count, mergeOperand(count))
         };
     }
 

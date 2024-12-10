@@ -20,6 +20,7 @@ package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.ProcedureHint;
@@ -64,12 +65,16 @@ final class FunctionTemplate {
      * types.
      */
     static FunctionTemplate fromAnnotation(DataTypeFactory typeFactory, FunctionHint hint) {
+        if (hint.state().length > 0) {
+            throw extractionError("State hints are not supported yet.");
+        }
         return new FunctionTemplate(
                 createSignatureTemplate(
                         typeFactory,
                         defaultAsNull(hint, FunctionHint::input),
                         defaultAsNull(hint, FunctionHint::argumentNames),
                         defaultAsNull(hint, FunctionHint::argument),
+                        defaultAsNull(hint, FunctionHint::arguments),
                         hint.isVarArgs()),
                 createResultTemplate(typeFactory, defaultAsNull(hint, FunctionHint::accumulator)),
                 createResultTemplate(typeFactory, defaultAsNull(hint, FunctionHint::output)));
@@ -86,6 +91,7 @@ final class FunctionTemplate {
                         defaultAsNull(hint, ProcedureHint::input),
                         defaultAsNull(hint, ProcedureHint::argumentNames),
                         defaultAsNull(hint, ProcedureHint::argument),
+                        defaultAsNull(hint, ProcedureHint::arguments),
                         hint.isVarArgs()),
                 null,
                 createResultTemplate(typeFactory, defaultAsNull(hint, ProcedureHint::output)));
@@ -183,19 +189,44 @@ final class FunctionTemplate {
             DataTypeFactory typeFactory,
             @Nullable DataTypeHint[] inputs,
             @Nullable String[] argumentNames,
-            @Nullable ArgumentHint[] argumentHints,
+            @Nullable ArgumentHint[] singularArgumentHints,
+            @Nullable ArgumentHint[] pluralArgumentHints,
             boolean isVarArg) {
+        // Deal with #argument() and #arguments()
+        if (singularArgumentHints != null && pluralArgumentHints != null) {
+            throw extractionError(
+                    "Argument hints should only be defined once in the same function hint.");
+        }
+        final ArgumentHint[] argumentHints;
+        if (singularArgumentHints != null) {
+            argumentHints = singularArgumentHints;
+        } else {
+            argumentHints = pluralArgumentHints;
+        }
 
         String[] argumentHintNames;
         DataTypeHint[] argumentHintTypes;
 
+        // Deal with #arguments() and #input()
         if (argumentHints != null && inputs != null) {
             throw extractionError(
                     "Argument and input hints cannot be declared in the same function hint.");
         }
 
-        Boolean[] argumentOptionals = null;
+        Boolean[] argumentOptionals;
         if (argumentHints != null) {
+            final boolean allScalar =
+                    Arrays.stream(argumentHints)
+                            .allMatch(
+                                    h -> {
+                                        final ArgumentTrait[] traits = h.value();
+                                        return traits.length == 1
+                                                && traits[0] == ArgumentTrait.SCALAR;
+                                    });
+            if (!allScalar) {
+                throw extractionError("Only scalar arguments are supported so far.");
+            }
+
             argumentHintNames = new String[argumentHints.length];
             argumentHintTypes = new DataTypeHint[argumentHints.length];
             argumentOptionals = new Boolean[argumentHints.length];

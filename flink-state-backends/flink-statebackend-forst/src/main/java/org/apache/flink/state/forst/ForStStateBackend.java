@@ -146,6 +146,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
      * The configuration for rocksdb priorityQueue state settings (priorityQueue state type, etc.).
      */
     private final ForStPriorityQueueConfig priorityQueueConfig;
+
     // ------------------------------------------------------------------------
 
     /** Creates a new {@code ForStStateBackend} for storing state. */
@@ -329,8 +330,10 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                         "op_%s_attempt_%s",
                         fileCompatibleIdentifier, env.getTaskInfo().getAttemptNumber());
 
-        File localBasePath =
-                new File(new File(getNextStoragePath(), jobId.toHexString()), opChildPath);
+        Path localBasePath =
+                new Path(
+                        new File(new File(getNextStoragePath(), jobId.toHexString()), opChildPath)
+                                .getAbsolutePath());
         Path remoteBasePath =
                 remoteForStDirectory != null
                         ? new Path(new Path(remoteForStDirectory, jobId.toHexString()), opChildPath)
@@ -362,6 +365,8 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                                 parameters.getKeySerializer(),
                                 parameters.getNumberOfKeyGroups(),
                                 parameters.getKeyGroupRange(),
+                                priorityQueueConfig,
+                                parameters.getTtlTimeProvider(),
                                 parameters.getMetricGroup(),
                                 parameters.getCustomInitializationMetrics(),
                                 parameters.getStateHandles(),
@@ -389,15 +394,17 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
         lazyInitializeForJob(env, fileCompatibleIdentifier);
 
-        File instanceBasePath =
-                new File(
-                        getNextStoragePath(),
-                        "job_"
-                                + jobId
-                                + "_op_"
-                                + fileCompatibleIdentifier
-                                + "_uuid_"
-                                + UUID.randomUUID());
+        Path instanceBasePath =
+                new Path(
+                        new File(
+                                        getNextStoragePath(),
+                                        "job_"
+                                                + jobId
+                                                + "_op_"
+                                                + fileCompatibleIdentifier
+                                                + "_uuid_"
+                                                + UUID.randomUUID())
+                                .getAbsolutePath());
 
         LocalRecoveryConfig localRecoveryConfig =
                 env.getTaskStateManager().createLocalRecoveryConfig();
@@ -512,6 +519,11 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         }
 
         return optionsFactory;
+    }
+
+    /** Both ForStSyncKeyedStateBackend and ForStKeyedStateBackend support no claim mode. */
+    public boolean supportsNoClaimRestoreMode() {
+        return true;
     }
 
     // ------------------------------------------------------------------------
@@ -669,14 +681,14 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
     }
 
     @VisibleForTesting
-    ForStResourceContainer createOptionsAndResourceContainer(@Nullable File localBasePath) {
+    ForStResourceContainer createOptionsAndResourceContainer(@Nullable Path localBasePath) {
         return createOptionsAndResourceContainer(null, localBasePath, null, false);
     }
 
     @VisibleForTesting
     private ForStResourceContainer createOptionsAndResourceContainer(
             @Nullable OpaqueMemoryResource<ForStSharedResources> sharedResources,
-            @Nullable File localBasePath,
+            @Nullable Path localBasePath,
             @Nullable Path remoteBasePath,
             boolean enableStatistics) {
 

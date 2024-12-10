@@ -78,9 +78,9 @@ public class NTILEAggFunction extends DeclarativeAggregateFunction
     @Override
     public Expression[] accumulateExpressions() {
         return new Expression[] {
-            /* rowNumber = */ plus(rowNumber, literal(1L)),
-            /* bucket = */ plus(bucket, bucketOverflowThen(literal(1L))),
-            /* bucketThreshold = */ plus(
+            /* rowNumber= */ plus(rowNumber, literal(1L)),
+            /* bucket= */ plus(bucket, bucketOverflowThen(literal(1L))),
+            /* bucketThreshold= */ plus(
                     bucketThreshold,
                     bucketOverflowThen(
                             plus(

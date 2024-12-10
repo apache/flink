@@ -423,7 +423,7 @@ class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
                 TestSpec.forStrategy(WILDCARD)
                         .typedArguments(DataTypes.INT(), DataTypes.STRING())
                         .calledWithArgumentTypes(DataTypes.TINYINT(), DataTypes.STRING())
-                        .expectSignature("f(INT, STRING)")
+                        .expectSignature("f(arg0 => INT, arg1 => STRING)")
                         .expectArgumentTypes(DataTypes.INT(), DataTypes.STRING()),
 
                 // invalid typed arguments

@@ -321,8 +321,10 @@ public class ApproximateLocalRecoveryDownstreamITCase extends TestLogger {
 
     private static class InvertedKeyTuple {
         int index;
+
         /** Key based on which the tuple is partitioned. */
         int key;
+
         /** The selected channel of this tuple after key-partitioned. */
         int selectedChannel;
 

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.source.coordinator;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.connector.source.ReaderInfo;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceSplit;
@@ -41,6 +42,7 @@ import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.MdcUtils;
 import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.ThrowableCatchingRunnable;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -120,12 +122,14 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     private volatile TernaryBoolean backlog = TernaryBoolean.UNDEFINED;
 
     public SourceCoordinatorContext(
+            JobID jobID,
             SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory,
             int numWorkerThreads,
             OperatorCoordinator.Context operatorCoordinatorContext,
             SimpleVersionedSerializer<SplitT> splitSerializer,
             boolean supportsConcurrentExecutionAttempts) {
         this(
+                jobID,
                 Executors.newScheduledThreadPool(1, coordinatorThreadFactory),
                 Executors.newScheduledThreadPool(
                         numWorkerThreads,
@@ -141,6 +145,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     // Package private method for unit test.
     @VisibleForTesting
     SourceCoordinatorContext(
+            JobID jobID,
             ScheduledExecutorService coordinatorExecutor,
             ScheduledExecutorService workerExecutor,
             SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory,
@@ -149,7 +154,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
             SplitAssignmentTracker<SplitT> splitAssignmentTracker,
             boolean supportsConcurrentExecutionAttempts) {
         this.workerExecutor = workerExecutor;
-        this.coordinatorExecutor = coordinatorExecutor;
+        this.coordinatorExecutor = MdcUtils.scopeToJob(jobID, coordinatorExecutor);
         this.coordinatorThreadFactory = coordinatorThreadFactory;
         this.operatorCoordinatorContext = operatorCoordinatorContext;
         this.splitSerializer = splitSerializer;
@@ -160,7 +165,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 
         final Executor errorHandlingCoordinatorExecutor =
                 (runnable) ->
-                        coordinatorExecutor.execute(
+                        this.coordinatorExecutor.execute(
                                 new ThrowableCatchingRunnable(
                                         this::handleUncaughtExceptionFromAsyncCall, runnable));
 

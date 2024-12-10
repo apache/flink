@@ -111,7 +111,8 @@ public class EpochManager {
      * @param epoch the specific epoch
      */
     public void completeOneRecord(Epoch epoch) {
-        if (--epoch.ongoingRecordCount == 0) {
+        // Only the epoch that is not active can trigger finish.
+        if (--epoch.ongoingRecordCount == 0 && epoch != activeEpoch) {
             tryFinishInQueue();
         }
     }
@@ -162,6 +163,7 @@ public class EpochManager {
     public static class Epoch {
         /** The id of this epoch for easy debugging. */
         long id;
+
         /** The number of records that are still ongoing in this epoch. */
         int ongoingRecordCount;
 
@@ -180,11 +182,13 @@ public class EpochManager {
         /**
          * Try to finish this epoch.
          *
-         * @return whether this epoch has been finished.
+         * @return whether this epoch has been normally finished.
          */
         boolean tryFinish() {
             if (this.status == EpochStatus.FINISHED) {
-                return true;
+                // This epoch has been finished for some reason, but it is not finished here.
+                // Preventing recursive call of #tryFinishInQueue().
+                return false;
             }
             if (ongoingRecordCount == 0 && this.status == EpochStatus.CLOSED) {
                 this.status = EpochStatus.FINISHED;

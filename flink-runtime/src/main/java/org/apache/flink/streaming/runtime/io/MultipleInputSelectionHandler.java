@@ -95,7 +95,7 @@ public class MultipleInputSelectionHandler {
                 break;
             case STOPPED:
                 this.drainOnEndOfData = false;
-                // fall through
+            // fall through
             case END_OF_DATA:
                 dataFinishedButNotPartition = setBitMask(dataFinishedButNotPartition, inputIndex);
                 updateModeOnEndOfData();

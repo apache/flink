@@ -26,6 +26,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class StandaloneLeaderElectionTest {
@@ -79,26 +80,34 @@ class StandaloneLeaderElectionTest {
     }
 
     @Test
-    void testHasLeadershipWithContender() throws Exception {
+    void testHasLeadershipAsyncWithContender() throws Exception {
         final TestingGenericLeaderContender contender =
                 TestingGenericLeaderContender.newBuilder().build();
         try (final LeaderElection testInstance = new StandaloneLeaderElection(SESSION_ID)) {
             testInstance.startLeaderElection(contender);
 
-            assertThat(testInstance.hasLeadership(SESSION_ID)).isTrue();
+            assertThatFuture(testInstance.hasLeadershipAsync(SESSION_ID))
+                    .eventuallySucceeds()
+                    .isEqualTo(true);
 
             final UUID differentSessionID = UUID.randomUUID();
-            assertThat(testInstance.hasLeadership(differentSessionID)).isFalse();
+            assertThatFuture(testInstance.hasLeadershipAsync(differentSessionID))
+                    .eventuallySucceeds()
+                    .isEqualTo(false);
         }
     }
 
     @Test
-    void testHasLeadershipWithoutContender() throws Exception {
+    void testHasLeadershipAsyncWithoutContender() throws Exception {
         try (final LeaderElection testInstance = new StandaloneLeaderElection(SESSION_ID)) {
-            assertThat(testInstance.hasLeadership(SESSION_ID)).isFalse();
+            assertThatFuture(testInstance.hasLeadershipAsync(SESSION_ID))
+                    .eventuallySucceeds()
+                    .isEqualTo(false);
 
             final UUID differentSessionID = UUID.randomUUID();
-            assertThat(testInstance.hasLeadership(differentSessionID)).isFalse();
+            assertThatFuture(testInstance.hasLeadershipAsync(differentSessionID))
+                    .eventuallySucceeds()
+                    .isEqualTo(false);
         }
     }
 

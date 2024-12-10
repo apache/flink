@@ -223,7 +223,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
     //  Test file generation
     // ------------------------------------------------------------------------------
 
-    private static final int INITIAL_OUTPUT_BUFFER_SIZE = 64;
+    public static final int INITIAL_OUTPUT_BUFFER_SIZE = 64;
 
     /**
      * Execute this test to generate test files. Remember to be using the correct branch when
@@ -432,7 +432,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
      *       already.
      * </ul>
      */
-    private static <T> void assertSerializerIsValid(
+    private <T> void assertSerializerIsValid(
             TypeSerializer<T> serializer, DataInputView dataInput, Condition<T> testDataMatcher)
             throws Exception {
 
@@ -558,7 +558,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
                 in, userCodeClassLoader);
     }
 
-    private static <T> DataInputView readAndThenWriteData(
+    public <T> DataInputView readAndThenWriteData(
             DataInputView originalDataInput,
             TypeSerializer<T> readSerializer,
             TypeSerializer<T> writeSerializer,

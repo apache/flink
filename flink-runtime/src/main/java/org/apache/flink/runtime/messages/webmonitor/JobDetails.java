@@ -285,6 +285,7 @@ public class JobDetails implements Serializable {
     public Map<String, Map<Integer, CurrentAttempts>> getCurrentExecutionAttempts() {
         return currentExecutionAttempts;
     }
+
     // ------------------------------------------------------------------------
 
     private static int[] extractNumTasksPerState(Map<String, Integer> ex) {

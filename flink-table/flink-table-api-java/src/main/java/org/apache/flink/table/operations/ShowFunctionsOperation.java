@@ -88,7 +88,9 @@ public class ShowFunctionsOperation extends AbstractShowOperation {
                 if (preposition == null) {
                     return Arrays.asList(ctx.getFunctionCatalog().getUserDefinedFunctions());
                 }
-                return ctx.getFunctionCatalog().getUserDefinedFunctions(catalogName, databaseName)
+                return ctx
+                        .getFunctionCatalog()
+                        .getUserDefinedFunctions(catalogName, databaseName)
                         .stream()
                         .map(FunctionIdentifier::getFunctionName)
                         .collect(Collectors.toList());

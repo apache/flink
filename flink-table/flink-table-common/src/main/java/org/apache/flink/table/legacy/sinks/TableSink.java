@@ -80,13 +80,17 @@ public interface TableSink<T> {
         return new TableSchema(fieldNames, legacyFieldTypes);
     }
 
-    /** @deprecated Use the field names of {@link #getTableSchema()} instead. */
+    /**
+     * @deprecated Use the field names of {@link #getTableSchema()} instead.
+     */
     @Deprecated
     default String[] getFieldNames() {
         return null;
     }
 
-    /** @deprecated Use the field types of {@link #getTableSchema()} instead. */
+    /**
+     * @deprecated Use the field types of {@link #getTableSchema()} instead.
+     */
     @Deprecated
     default TypeInformation<?>[] getFieldTypes() {
         return null;

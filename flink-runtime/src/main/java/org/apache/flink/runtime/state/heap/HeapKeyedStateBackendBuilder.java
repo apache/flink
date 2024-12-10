@@ -53,8 +53,10 @@ import static org.apache.flink.runtime.state.SnapshotExecutionType.SYNCHRONOUS;
 public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBuilder<K> {
     /** The configuration of local recovery. */
     private final LocalRecoveryConfig localRecoveryConfig;
+
     /** Factory for state that is organized as priority queue. */
     private final HeapPriorityQueueSetFactory priorityQueueSetFactory;
+
     /** Whether asynchronous snapshot is enabled. */
     private final boolean asynchronousSnapshots;
 

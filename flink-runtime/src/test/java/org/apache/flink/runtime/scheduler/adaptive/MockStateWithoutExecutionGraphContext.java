@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
@@ -38,6 +39,7 @@ class MockStateWithoutExecutionGraphContext
             new StateValidator<>("Finished");
 
     private boolean hasStateTransition = false;
+    private final JobID jobId = new JobID();
 
     public void setExpectFinished(Consumer<ArchivedExecutionGraph> asserter) {
         finishedStateValidator.expectInput(asserter);
@@ -47,6 +49,11 @@ class MockStateWithoutExecutionGraphContext
     public void goToFinished(ArchivedExecutionGraph archivedExecutionGraph) {
         finishedStateValidator.validateInput(archivedExecutionGraph);
         registerStateTransition();
+    }
+
+    @Override
+    public JobID getJobId() {
+        return jobId;
     }
 
     @Override

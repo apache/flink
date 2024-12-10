@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.planner.plan.nodes.exec.common.MatchRecognizeTestPrograms;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
@@ -36,8 +37,8 @@ public class MatchRecognizeRestoreTest extends RestoreTestBase {
         return Arrays.asList(
                 MatchRecognizeTestPrograms.MATCH_SIMPLE,
                 MatchRecognizeTestPrograms.MATCH_COMPLEX,
-                MatchRecognizeTestPrograms.MATCH_ORDER_BY_EVENT_TIME,
-                MatchRecognizeTestPrograms.MATCH_ORDER_BY_INT_COLUMN,
+                MatchRecognizeTestPrograms.MATCH_ORDER_BY_EVENT_TIME_WITH_OUT_OF_ORDER_DATA,
+                MatchRecognizeTestPrograms.MATCH_ORDER_BY_INT_COLUMN_WITH_OUT_OF_ORDER_DATA,
                 MatchRecognizeTestPrograms.MATCH_SKIP_TO_FIRST,
                 MatchRecognizeTestPrograms.MATCH_SKIP_TO_LAST,
                 MatchRecognizeTestPrograms.MATCH_SKIP_TO_NEXT_ROW,

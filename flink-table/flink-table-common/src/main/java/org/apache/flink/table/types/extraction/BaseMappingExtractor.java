@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
@@ -461,7 +462,18 @@ abstract class BaseMappingExtractor {
         return Arrays.stream(method.getParameters())
                 .skip(offset)
                 .map(parameter -> parameter.getAnnotation(ArgumentHint.class))
-                .map(argumentHint -> argumentHint != null && argumentHint.isOptional())
+                .map(
+                        h -> {
+                            if (h == null) {
+                                return false;
+                            }
+                            final ArgumentTrait[] traits = h.value();
+                            if (traits.length != 1 || traits[0] != ArgumentTrait.SCALAR) {
+                                throw extractionError(
+                                        "Only scalar arguments are supported so far.");
+                            }
+                            return h.isOptional();
+                        })
                 .toArray(Boolean[]::new);
     }
 

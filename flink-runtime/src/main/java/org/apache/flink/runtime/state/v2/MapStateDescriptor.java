@@ -34,6 +34,8 @@ import javax.annotation.Nonnull;
  * @param <UV> The type of the values that the map state can hold.
  */
 public class MapStateDescriptor<UK, UV> extends StateDescriptor<UV> {
+    /** The type of the user key in the state. */
+    @Nonnull private final TypeInformation<UK> userKeyTypeInfo;
 
     /** The serializer for the user key. */
     @Nonnull private final TypeSerializer<UK> userKeySerializer;
@@ -67,7 +69,13 @@ public class MapStateDescriptor<UK, UV> extends StateDescriptor<UV> {
             TypeInformation<UV> userValueTypeInfo,
             SerializerConfig serializerConfig) {
         super(stateId, userValueTypeInfo, serializerConfig);
+        this.userKeyTypeInfo = userKeyTypeInfo;
         this.userKeySerializer = userKeyTypeInfo.createSerializer(serializerConfig);
+    }
+
+    @Nonnull
+    public TypeInformation<UK> getUserKeyType() {
+        return userKeyTypeInfo;
     }
 
     @Nonnull

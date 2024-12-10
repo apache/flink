@@ -86,7 +86,6 @@ under the License.
 		<module>flink-libraries</module>
 		<module>flink-table</module>
 		<module>flink-quickstart</module>
-		<module>flink-contrib</module>
 		<module>flink-dist</module>
 		<module>flink-dist-scala</module>
 		<module>flink-metrics</module>
@@ -152,14 +151,14 @@ under the License.
 		<junit4.version>4.13.2</junit4.version>
 		<junit5.version>5.10.1</junit5.version>
 		<archunit.version>1.2.0</archunit.version>
-		<mockito.version>3.4.6</mockito.version>
+		<mockito.version>4.11.0</mockito.version>
 		<hamcrest.version>1.3</hamcrest.version>
 		<assertj.version>3.23.1</assertj.version>
 		<py4j.version>0.10.9.7</py4j.version>
 		<beam.version>2.43.0</beam.version>
 		<protoc.version>3.21.7</protoc.version>
 		<okhttp.version>3.14.9</okhttp.version>
-		<testcontainers.version>1.19.1</testcontainers.version>
+		<testcontainers.version>1.20.2</testcontainers.version>
 		<lz4.version>1.8.0</lz4.version>
 		<commons.io.version>2.15.1</commons.io.version>
 		<japicmp.skip>false</japicmp.skip>
@@ -175,10 +174,9 @@ under the License.
 		<orc.version>1.5.6</orc.version>
 		<japicmp.referenceVersion>1.20.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
-		<checkstyle.version>9.3</checkstyle.version>
-		<!-- can be removed with maven-spotless-plugin:2.38+ -->
+		<checkstyle.version>10.18.2</checkstyle.version>
 		<spotless.skip>false</spotless.skip>
-		<spotless.version>2.27.1</spotless.version>
+		<spotless.version>2.43.0</spotless.version>
 		<spotless.scalafmt.version>3.4.3</spotless.scalafmt.version>
 		<spotless.delimiter>package</spotless.delimiter>
 		<spotless.license.header>
@@ -214,6 +212,7 @@ under the License.
 		<!-- Can be set to any value to reproduce a specific build. -->
 		<test.randomization.seed/>
 		<test.unit.pattern>**/*Test.*</test.unit.pattern>
+		<snappy.java.version>1.1.10.7</snappy.java.version>
 	</properties>
 
 	<dependencies>
@@ -547,7 +546,7 @@ under the License.
 			<dependency>
 				<groupId>org.xerial.snappy</groupId>
 				<artifactId>snappy-java</artifactId>
-				<version>1.1.10.4</version>
+				<version>${snappy.java.version}</version>
 				<exclusions>
 					<exclusion>
 						<!-- Causes unnecessary dependency convergence errors; see MENFORCER-437 -->
@@ -1137,16 +1136,6 @@ under the License.
 			<build>
 				<pluginManagement>
 					<plugins>
-						<plugin>
-							<groupId>com.diffplug.spotless</groupId>
-							<artifactId>spotless-maven-plugin</artifactId>
-							<configuration>
-								<!-- Current google format does not run on Java 21.
-									 Don't upgrade it in this profile because it formats code differently.
-									 Re-evaluate once support for Java 8 is dropped. -->
-								<skip>true</skip>
-							</configuration>
-						</plugin>
 						<plugin>
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-surefire-plugin</artifactId>
@@ -2152,10 +2141,9 @@ under the License.
 					<artifactId>spotless-maven-plugin</artifactId>
 					<version>${spotless.version}</version>
 					<configuration>
-						<skip>${spotless.skip}</skip>
 						<java>
 							<googleJavaFormat>
-								<version>1.7</version>
+								<version>1.24.0</version>
 								<style>AOSP</style>
 							</googleJavaFormat>
 

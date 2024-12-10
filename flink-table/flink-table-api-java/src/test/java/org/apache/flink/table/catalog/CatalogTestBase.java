@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.factories.FactoryUtil;
 
@@ -60,6 +61,26 @@ public abstract class CatalogTestBase extends CatalogTest {
                         Collections.emptyList(),
                         getBatchTableProperties());
         return new ResolvedCatalogTable(origin, resolvedSchema);
+    }
+
+    @Override
+    public CatalogModel createModel() {
+        Schema inputSchema =
+                Schema.newBuilder()
+                        .column("a", DataTypes.INT())
+                        .column("b", DataTypes.STRING())
+                        .build();
+        Schema outputSchema = Schema.newBuilder().column("label", DataTypes.STRING()).build();
+        return CatalogModel.of(
+                inputSchema,
+                outputSchema,
+                new HashMap<String, String>() {
+                    {
+                        put("task", "clustering");
+                        put("provider", "openai");
+                    }
+                },
+                null);
     }
 
     @Override

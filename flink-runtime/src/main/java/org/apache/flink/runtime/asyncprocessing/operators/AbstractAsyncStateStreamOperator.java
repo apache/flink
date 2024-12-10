@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.asyncprocessing.operators;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
@@ -27,18 +28,14 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.AsyncStateException;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.runtime.state.v2.adaptor.AsyncKeyedStateBackendAdaptor;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
-import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -46,6 +43,8 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessing;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessingOperator;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.ElementOrder;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
@@ -56,8 +55,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
-
-import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -97,29 +94,32 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
         final long asyncBufferTimeout =
                 environment.getExecutionConfig().getAsyncStateBufferTimeout();
 
-        AsyncKeyedStateBackend asyncKeyedStateBackend = stateHandler.getAsyncKeyedStateBackend();
-        if (asyncKeyedStateBackend != null) {
-            this.asyncExecutionController =
-                    new AsyncExecutionController(
-                            mailboxExecutor,
-                            this::handleAsyncStateException,
-                            asyncKeyedStateBackend.createStateExecutor(),
-                            maxParallelism,
-                            asyncBufferSize,
-                            asyncBufferTimeout,
-                            inFlightRecordsLimit,
-                            asyncKeyedStateBackend);
-            asyncKeyedStateBackend.setup(asyncExecutionController);
-            if (asyncKeyedStateBackend instanceof AsyncKeyedStateBackendAdaptor) {
-                LOG.warn(
-                        "A normal KeyedStateBackend({}) is used when enabling the async state "
-                                + "processing. Parallel asynchronous processing does not work. "
-                                + "All state access will be processed synchronously.",
-                        stateHandler.getKeyedStateBackend());
+        if (isAsyncStateProcessingEnabled()) {
+            AsyncKeyedStateBackend asyncKeyedStateBackend =
+                    stateHandler.getAsyncKeyedStateBackend();
+            if (asyncKeyedStateBackend != null) {
+                this.asyncExecutionController =
+                        new AsyncExecutionController(
+                                mailboxExecutor,
+                                this::handleAsyncStateException,
+                                asyncKeyedStateBackend.createStateExecutor(),
+                                maxParallelism,
+                                asyncBufferSize,
+                                asyncBufferTimeout,
+                                inFlightRecordsLimit,
+                                asyncKeyedStateBackend);
+                asyncKeyedStateBackend.setup(asyncExecutionController);
+                if (asyncKeyedStateBackend instanceof AsyncKeyedStateBackendAdaptor) {
+                    LOG.warn(
+                            "A normal KeyedStateBackend({}) is used when enabling the async state "
+                                    + "processing. Parallel asynchronous processing does not work. "
+                                    + "All state access will be processed synchronously.",
+                            stateHandler.getKeyedStateBackend());
+                }
+            } else if (stateHandler.getKeyedStateBackend() != null) {
+                throw new UnsupportedOperationException(
+                        "Current State Backend doesn't support async access, AsyncExecutionController could not work");
             }
-        } else if (stateHandler.getKeyedStateBackend() != null) {
-            throw new UnsupportedOperationException(
-                    "Current State Backend doesn't support async access, AsyncExecutionController could not work");
         }
     }
 
@@ -235,25 +235,6 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
         }
     }
 
-    @Override
-    public OperatorSnapshotFutures snapshotState(
-            long checkpointId,
-            long timestamp,
-            CheckpointOptions checkpointOptions,
-            CheckpointStreamFactory factory)
-            throws Exception {
-        return stateHandler.snapshotState(
-                this,
-                Optional.ofNullable(timeServiceManager),
-                getOperatorName(),
-                checkpointId,
-                timestamp,
-                checkpointOptions,
-                factory,
-                isUsingCustomRawKeyedState(),
-                true);
-    }
-
     /**
      * Returns a {@link InternalTimerService} that can be used to query current processing time and
      * event time and to set timers. An operator can have several timer services, where each has its
@@ -289,13 +270,13 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
 
         InternalTimeServiceManager<K> keyedTimeServiceHandler =
                 (InternalTimeServiceManager<K>) timeServiceManager;
-        KeyedStateBackend<K> keyedStateBackend = getKeyedStateBackend();
-        checkState(keyedStateBackend != null, "Timers can only be used on keyed operators.");
+        TypeSerializer<K> keySerializer = stateHandler.getKeySerializer();
+        checkState(keySerializer != null, "Timers can only be used on keyed operators.");
         // A {@link RecordContext} will be set as the current processing context to preserve record
         // order when the given {@link Triggerable} is invoked.
         return keyedTimeServiceHandler.getAsyncInternalTimerService(
                 name,
-                keyedStateBackend.getKeySerializer(),
+                keySerializer,
                 namespaceSerializer,
                 triggerable,
                 (AsyncExecutionController<K>) asyncExecutionController);
@@ -324,6 +305,24 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
         return currentProcessingContext.getKey();
     }
 
+    // ------------------------------------------------------------------------
+    //  Metrics
+    // ------------------------------------------------------------------------
+
+    @Override
+    protected void reportOrForwardLatencyMarker(LatencyMarker marker) {
+        if (!isAsyncStateProcessingEnabled()) {
+            // If async state processing is disabled, fallback to the super class.
+            super.reportOrForwardLatencyMarker(marker);
+            return;
+        }
+        asyncExecutionController.processNonRecord(() -> super.reportOrForwardLatencyMarker(marker));
+    }
+
+    // ------------------------------------------------------------------------
+    //  Watermark handling
+    // ------------------------------------------------------------------------
+
     @Override
     public void processWatermark(Watermark mark) throws Exception {
         if (!isAsyncStateProcessingEnabled()) {
@@ -345,6 +344,60 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
                 () -> super.processWatermarkStatus(watermarkStatus));
     }
 
+    @Override
+    protected void processWatermarkStatus(WatermarkStatus watermarkStatus, int index)
+            throws Exception {
+        if (!isAsyncStateProcessingEnabled()) {
+            super.processWatermarkStatus(watermarkStatus, index);
+            return;
+        }
+        asyncExecutionController.processNonRecord(
+                () -> {
+                    boolean wasIdle = combinedWatermark.isIdle();
+                    // index is 0-based
+                    if (combinedWatermark.updateStatus(index, watermarkStatus.isIdle())) {
+                        super.processWatermark(
+                                new Watermark(combinedWatermark.getCombinedWatermark()));
+                    }
+                    if (wasIdle != combinedWatermark.isIdle()) {
+                        output.emitWatermarkStatus(watermarkStatus);
+                    }
+                });
+    }
+
+    @Experimental
+    @Override
+    public void processRecordAttributes(RecordAttributes recordAttributes) throws Exception {
+        if (!isAsyncStateProcessingEnabled()) {
+            super.processRecordAttributes(recordAttributes);
+            return;
+        }
+        asyncExecutionController.processNonRecord(
+                () -> super.processRecordAttributes(recordAttributes));
+    }
+
+    @Experimental
+    @Override
+    public void processRecordAttributes1(RecordAttributes recordAttributes) {
+        if (!isAsyncStateProcessingEnabled()) {
+            super.processRecordAttributes1(recordAttributes);
+            return;
+        }
+        asyncExecutionController.processNonRecord(
+                () -> super.processRecordAttributes1(recordAttributes));
+    }
+
+    @Experimental
+    @Override
+    public void processRecordAttributes2(RecordAttributes recordAttributes) {
+        if (!isAsyncStateProcessingEnabled()) {
+            super.processRecordAttributes2(recordAttributes);
+            return;
+        }
+        asyncExecutionController.processNonRecord(
+                () -> super.processRecordAttributes2(recordAttributes));
+    }
+
     @VisibleForTesting
     AsyncExecutionController<?> getAsyncExecutionController() {
         return asyncExecutionController;
@@ -355,15 +408,25 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
         return currentProcessingContext;
     }
 
+    public void drainStateRequests() {
+        if (isAsyncStateProcessingEnabled()) {
+            asyncExecutionController.drainInflightRecords(0);
+        }
+    }
+
     @Override
     public void finish() throws Exception {
         super.finish();
-        asyncExecutionController.drainInflightRecords(0);
+        if (isAsyncStateProcessingEnabled()) {
+            asyncExecutionController.drainInflightRecords(0);
+        }
     }
 
     @Override
     public void close() throws Exception {
         super.close();
-        asyncExecutionController.close();
+        if (isAsyncStateProcessingEnabled()) {
+            asyncExecutionController.close();
+        }
     }
 }

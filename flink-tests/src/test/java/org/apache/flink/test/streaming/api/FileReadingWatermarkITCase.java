@@ -52,6 +52,7 @@ public class FileReadingWatermarkITCase extends TestLogger {
     @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     @Rule public final SharedObjects sharedObjects = SharedObjects.create();
+
     /**
      * Adds an infinite split that causes the input of {@link
      * org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator} to instantly go

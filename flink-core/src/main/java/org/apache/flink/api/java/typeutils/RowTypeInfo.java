@@ -73,6 +73,7 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
     // --------------------------------------------------------------------------------------------
 
     protected final String[] fieldNames;
+
     /** Temporary variable for directly passing orders to comparators. */
     private boolean[] comparatorOrders = null;
 

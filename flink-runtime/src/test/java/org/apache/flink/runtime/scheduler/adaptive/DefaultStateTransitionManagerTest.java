@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.ScheduledTask;
 import org.apache.flink.runtime.scheduler.adaptive.DefaultStateTransitionManager.Idling;
 import org.apache.flink.util.Preconditions;
@@ -464,6 +465,7 @@ class DefaultStateTransitionManagerTest {
         // Instant.MIN makes debugging easier because timestamps become human-readable
         private final Instant initializationTime = Instant.MIN;
         private Duration elapsedTime = Duration.ZERO;
+        private final JobID jobId = new JobID();
 
         // ///////////////////////////////////////////////
         // Context creation
@@ -535,6 +537,11 @@ class DefaultStateTransitionManagerTest {
                     new ScheduledTask<>(Executors.callable(callback), delay.toMillis());
             scheduledTasks.get(triggerTime).add(scheduledTask);
             return scheduledTask;
+        }
+
+        @Override
+        public JobID getJobId() {
+            return jobId;
         }
 
         // ///////////////////////////////////////////////

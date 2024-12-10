@@ -60,7 +60,12 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
                 QueryOperationTestPrograms.WINDOW_AGGREGATE_QUERY_OPERATION,
                 QueryOperationTestPrograms.UNION_ALL_QUERY_OPERATION,
                 QueryOperationTestPrograms.LATERAL_JOIN_QUERY_OPERATION,
-                QueryOperationTestPrograms.SQL_QUERY_OPERATION);
+                QueryOperationTestPrograms.SQL_QUERY_OPERATION,
+                QueryOperationTestPrograms.OVER_WINDOW_RANGE,
+                QueryOperationTestPrograms.OVER_WINDOW_ROWS,
+                QueryOperationTestPrograms.OVER_WINDOW_ROWS_UNBOUNDED_NO_PARTITION,
+                QueryOperationTestPrograms.OVER_WINDOW_LAG,
+                QueryOperationTestPrograms.ACCESSING_NESTED_COLUMN);
     }
 
     @ParameterizedTest

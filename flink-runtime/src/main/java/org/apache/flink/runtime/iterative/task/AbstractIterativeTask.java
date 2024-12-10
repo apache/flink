@@ -377,7 +377,9 @@ public abstract class AbstractIterativeTask<S extends Function, OT> extends Batc
         }
     }
 
-    /** @return output serializer of this task */
+    /**
+     * @return output serializer of this task
+     */
     private TypeSerializer<OT> getOutputSerializer() {
         TypeSerializerFactory<OT> serializerFactory;
 

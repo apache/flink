@@ -1053,7 +1053,9 @@ public class FutureUtils {
                 : completableFuture.handleAsync(handler, executor);
     }
 
-    /** @return true if future has completed normally, false otherwise. */
+    /**
+     * @return true if future has completed normally, false otherwise.
+     */
     public static boolean isCompletedNormally(CompletableFuture<?> future) {
         return future.isDone() && !future.isCompletedExceptionally();
     }

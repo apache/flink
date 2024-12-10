@@ -426,7 +426,9 @@ final class PythonEnvUtils {
      * @param gatewayServer the gateway which creates the callback server.
      */
     private static void resetCallbackClientExecutorService(GatewayServer gatewayServer)
-            throws NoSuchFieldException, IllegalAccessException, NoSuchMethodException,
+            throws NoSuchFieldException,
+                    IllegalAccessException,
+                    NoSuchMethodException,
                     InvocationTargetException {
         CallbackClient callbackClient = (CallbackClient) gatewayServer.getCallbackClient();
         // The Java API of py4j does not provide approach to set "daemonize_connections" parameter.
@@ -451,8 +453,11 @@ final class PythonEnvUtils {
             GatewayServer gatewayServer,
             String callbackServerListeningAddress,
             int callbackServerListeningPort)
-            throws UnknownHostException, InvocationTargetException, NoSuchMethodException,
-                    IllegalAccessException, NoSuchFieldException {
+            throws UnknownHostException,
+                    InvocationTargetException,
+                    NoSuchMethodException,
+                    IllegalAccessException,
+                    NoSuchFieldException {
 
         gatewayServer.resetCallbackClient(
                 InetAddress.getByName(callbackServerListeningAddress), callbackServerListeningPort);

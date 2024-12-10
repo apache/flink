@@ -456,14 +456,14 @@ public class StateTtlConfig implements Serializable {
 
         /**
          * @deprecated Use {@link
-         *     org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions#COMPACT_FILTER_PERIODIC_COMPACTION_TIME}
+         *     org.apache.flink.state.rocksdb.RocksDBConfigurableOptions#COMPACT_FILTER_PERIODIC_COMPACTION_TIME}
          *     instead.
          */
         @Deprecated static final Duration DEFAULT_PERIODIC_COMPACTION_TIME = Duration.ofDays(30);
 
         /**
          * @deprecated Use {@link
-         *     org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions#COMPACT_FILTER_QUERY_TIME_AFTER_NUM_ENTRIES}
+         *     org.apache.flink.state.rocksdb.RocksDBConfigurableOptions#COMPACT_FILTER_QUERY_TIME_AFTER_NUM_ENTRIES}
          *     instead.
          */
         @Deprecated

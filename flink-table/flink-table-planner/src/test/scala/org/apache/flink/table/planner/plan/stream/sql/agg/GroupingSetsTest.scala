@@ -497,6 +497,25 @@ class GroupingSetsTest extends TableTestBase {
     util.verifyExecPlan(rollupQuery)
   }
 
+  @Test
+  def testCaseWhenRefGroupingSetsNullableCols(): Unit = {
+    // https://issues.apache.org/jira/browse/CALCITE-6317
+    val groupingSetsQuery =
+      """
+        |SELECT
+        |    case
+        |     when g1 = 1 then 'aaa'
+        |     when g2 = 1 then 'bbb'
+        |    end as gt,
+        |    b, c,
+        |    AVG(a) AS a
+        |FROM (select *, 1 g1, 1 g2 from MyTable) t
+        |    GROUP BY GROUPING SETS ((g1, b), (g2, b, c))
+      """.stripMargin
+
+    util.verifyExecPlan(groupingSetsQuery)
+  }
+
   def verifyPlanIdentical(sql1: String, sql2: String): Unit = {
     val table1 = util.tableEnv.sqlQuery(sql1)
     val table2 = util.tableEnv.sqlQuery(sql2)

@@ -142,27 +142,37 @@ public class TestcontainersSettings {
         }
     }
 
-    /** @return The network. */
+    /**
+     * @return The network.
+     */
     public Network getNetwork() {
         return network;
     }
 
-    /** @return The logger. */
+    /**
+     * @return The logger.
+     */
     public Logger getLogger() {
         return logger;
     }
 
-    /** @return The base image. */
+    /**
+     * @return The base image.
+     */
     public String getBaseImage() {
         return baseImage;
     }
 
-    /** @return The environment variables. */
+    /**
+     * @return The environment variables.
+     */
     public Map<String, String> getEnvVars() {
         return envVars;
     }
 
-    /** @return The dependencies (other containers). */
+    /**
+     * @return The dependencies (other containers).
+     */
     public Collection<GenericContainer<?>> getDependencies() {
         return dependencies;
     }

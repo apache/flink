@@ -135,6 +135,7 @@ public final class WritableSerializer<T extends Writable> extends TypeSerializer
             this.kryo.register(typeClass);
         }
     }
+
     // --------------------------------------------------------------------------------------------
 
     @Override

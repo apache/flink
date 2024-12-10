@@ -60,6 +60,7 @@ import static org.apache.flink.core.memory.MemorySegmentFactory.allocateOffHeapU
 public class MemoryManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(MemoryManager.class);
+
     /** The default memory page size. Currently set to 32 KiBytes. */
     public static final int DEFAULT_PAGE_SIZE = 32 * 1024;
 

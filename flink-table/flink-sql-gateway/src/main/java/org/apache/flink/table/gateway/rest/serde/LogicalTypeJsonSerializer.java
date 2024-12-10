@@ -180,7 +180,7 @@ public final class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> 
                     serializeRaw((RawType<?>) logicalType, jsonGenerator);
                     break;
                 }
-                // fall through
+            // fall through
             default:
                 throw new UnsupportedOperationException(
                         String.format(

@@ -27,10 +27,8 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SubtaskCommittableManagerTest {
@@ -38,7 +36,7 @@ class SubtaskCommittableManagerTest {
             MetricsGroupTestUtils.mockCommitterMetricGroup();
 
     @Test
-    void testDrainCommittables() {
+    void testSuccessfulCommittables() {
         final SubtaskCommittableManager<Integer> subtaskCommittableManager =
                 new SubtaskCommittableManager<>(3, 1, 1L, METRIC_GROUP);
         final CommittableWithLineage<Integer> first = new CommittableWithLineage<>(1, 1L, 1);
@@ -53,7 +51,6 @@ class SubtaskCommittableManagerTest {
         subtaskCommittableManager.add(third);
         assertThat(subtaskCommittableManager.getPendingRequests()).hasSize(3);
         assertThat(subtaskCommittableManager.getNumCommittables()).isEqualTo(3);
-        assertThat(subtaskCommittableManager.getNumDrained()).isEqualTo(0);
         assertThat(subtaskCommittableManager.isFinished()).isFalse();
 
         // Trigger commit
@@ -62,29 +59,18 @@ class SubtaskCommittableManagerTest {
         IntStream.range(0, 2).forEach(i -> requests.next().setCommittedIfNoError());
         assertThat(subtaskCommittableManager.getPendingRequests()).hasSize(1);
         assertThat(subtaskCommittableManager.getNumCommittables()).isEqualTo(3);
-        assertThat(subtaskCommittableManager.getNumDrained()).isEqualTo(0);
 
-        // Drain committed committables
-        final List<CommittableWithLineage<Integer>> committables =
-                subtaskCommittableManager.drainCommitted();
-        assertThat(committables).hasSize(2);
-        assertThat(committables.get(0)).hasSubtaskId(1).hasCommittable(1).hasCheckpointId(1);
-        assertThat(committables.get(1)).hasSubtaskId(1).hasCommittable(2).hasCheckpointId(1);
-        assertThat(subtaskCommittableManager.getNumFailed()).isEqualTo(0);
-
-        // Drain again should not yield anything
-        assertThat(subtaskCommittableManager.drainCommitted()).hasSize(0);
+        // Check the successful committables
+        assertThat(subtaskCommittableManager.getSuccessfulCommittables())
+                .containsExactlyInAnyOrder(1, 2);
 
         // Fail commit
         requests.next().signalFailedWithKnownReason(new RuntimeException("Unused exception"));
-        assertThat(subtaskCommittableManager.getNumFailed()).isEqualTo(0);
         assertThat(subtaskCommittableManager.getPendingRequests()).hasSize(0);
         assertThat(subtaskCommittableManager.getNumCommittables()).isEqualTo(3);
-        assertThat(subtaskCommittableManager.isFinished()).isFalse();
-
-        // Drain to update fail count
-        assertThat(subtaskCommittableManager.drainCommitted()).hasSize(0);
-        assertThat(subtaskCommittableManager.getNumFailed()).isEqualTo(1);
+        // doesn't change the successful committables
+        assertThat(subtaskCommittableManager.getSuccessfulCommittables())
+                .containsExactlyInAnyOrder(1, 2);
         assertThat(subtaskCommittableManager.isFinished()).isTrue();
     }
 
@@ -94,7 +80,6 @@ class SubtaskCommittableManagerTest {
                 new SubtaskCommittableManager<>(
                         Collections.singletonList(new CommitRequestImpl<>(1, METRIC_GROUP)),
                         5,
-                        1,
                         2,
                         1,
                         2L,
@@ -106,13 +91,11 @@ class SubtaskCommittableManagerTest {
                                         new CommitRequestImpl<>(2, METRIC_GROUP),
                                         new CommitRequestImpl<>(3, METRIC_GROUP)),
                                 10,
-                                2,
                                 3,
                                 1,
                                 2L,
                                 METRIC_GROUP));
-        assertThat(merged.getNumCommittables()).isEqualTo(11);
-        assertThat(merged.getNumDrained()).isEqualTo(3);
+        assertThat(merged.getNumCommittables()).isEqualTo(3);
         assertThat(merged.isFinished()).isFalse();
         assertThat(merged.getNumFailed()).isEqualTo(5);
         assertThat(merged.getPendingRequests()).hasSize(3);

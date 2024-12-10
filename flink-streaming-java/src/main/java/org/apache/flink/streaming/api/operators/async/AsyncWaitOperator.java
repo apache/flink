@@ -565,13 +565,16 @@ public class AsyncWaitOperator<IN, OUT>
     private class ResultHandler implements ResultFuture<OUT> {
         /** Optional timeout timer used to signal the timeout to the AsyncFunction. */
         private ScheduledFuture<?> timeoutTimer;
+
         /** Record for which this result handler exists. Used only to report errors. */
         private final StreamRecord<IN> inputRecord;
+
         /**
          * The handle received from the queue to update the entry. Should only be used to inject the
          * result; exceptions are handled here.
          */
         private final ResultFuture<OUT> resultFuture;
+
         /**
          * A guard against ill-written AsyncFunction. Additional (parallel) invokations of {@link
          * #complete(Collection)} or {@link #completeExceptionally(Throwable)} will be ignored. This

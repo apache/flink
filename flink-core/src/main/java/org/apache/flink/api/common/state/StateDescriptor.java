@@ -67,7 +67,9 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
     // IMPORTANT: Do not change the order of the elements in this enum, ordinal is used in
     // serialization
     public enum Type {
-        /** @deprecated Enum for migrating from old checkpoints/savepoint versions. */
+        /**
+         * @deprecated Enum for migrating from old checkpoints/savepoint versions.
+         */
         @Deprecated
         UNKNOWN,
         VALUE,

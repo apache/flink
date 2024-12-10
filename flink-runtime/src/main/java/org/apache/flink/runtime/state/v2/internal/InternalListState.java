@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.v2.internal;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.v2.ListState;
+import org.apache.flink.api.common.state.v2.StateIterator;
 
 /**
  * This class defines the internal interface for list state.
@@ -29,4 +30,5 @@ import org.apache.flink.api.common.state.v2.ListState;
  * @param <V> The type of the intermediate state.
  */
 @Internal
-public interface InternalListState<K, N, V> extends InternalKeyedState<K, N, V>, ListState<V> {}
+public interface InternalListState<K, N, V>
+        extends InternalMergingState<K, N, V, V, StateIterator<V>, Iterable<V>>, ListState<V> {}

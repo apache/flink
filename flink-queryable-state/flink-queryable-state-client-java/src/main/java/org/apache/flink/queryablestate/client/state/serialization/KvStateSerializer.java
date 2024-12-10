@@ -35,6 +35,7 @@ public final class KvStateSerializer {
 
     // The magic number is as a flag between key and namespace.
     private static final int MAGIC_NUMBER = 42;
+
     // ------------------------------------------------------------------------
     // Generic serialization utils
     // ------------------------------------------------------------------------

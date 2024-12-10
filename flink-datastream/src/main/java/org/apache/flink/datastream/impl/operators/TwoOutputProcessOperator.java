@@ -19,7 +19,6 @@
 package org.apache.flink.datastream.impl.operators;
 
 import org.apache.flink.api.common.TaskInfo;
-import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
 import org.apache.flink.datastream.api.context.TwoOutputNonPartitionedContext;
 import org.apache.flink.datastream.api.function.TwoOutputStreamProcessFunction;
@@ -29,7 +28,8 @@ import org.apache.flink.datastream.impl.context.DefaultPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
 import org.apache.flink.datastream.impl.context.DefaultTwoOutputNonPartitionedContext;
 import org.apache.flink.datastream.impl.context.UnsupportedProcessingTimeManager;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateUdfStreamOperator;
+import org.apache.flink.runtime.state.v2.OperatorStateStore;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
@@ -37,13 +37,15 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.OutputTag;
 
+import java.util.function.BiConsumer;
+
 /**
  * Operator for {@link TwoOutputStreamProcessFunction}.
  *
  * <p>We support the second output via flink side-output mechanism.
  */
 public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
-        extends AbstractUdfStreamOperator<
+        extends AbstractAsyncStateUdfStreamOperator<
                 OUT_MAIN, TwoOutputStreamProcessFunction<IN, OUT_MAIN, OUT_SIDE>>
         implements OneInputStreamOperator<IN, OUT_MAIN>, BoundedOneInput {
     protected transient TimestampCollector<OUT_MAIN> mainCollector;
@@ -80,16 +82,19 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
                         taskInfo.getNumberOfParallelSubtasks(),
                         taskInfo.getMaxNumberOfParallelSubtasks(),
                         taskInfo.getTaskName(),
+                        taskInfo.getIndexOfThisSubtask(),
+                        taskInfo.getAttemptNumber(),
                         operatorContext.getMetricGroup());
         this.partitionedContext =
                 new DefaultPartitionedContext(
                         context,
                         this::currentKey,
-                        this::setCurrentKey,
+                        getProcessorWithKey(),
                         getProcessingTimeManager(),
                         operatorContext,
                         operatorStateStore);
         this.nonPartitionedContext = getNonPartitionedContext();
+        this.userFunction.open(this.nonPartitionedContext);
     }
 
     @Override
@@ -115,6 +120,21 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
 
     protected Object currentKey() {
         throw new UnsupportedOperationException("The key is only defined for keyed operator");
+    }
+
+    protected BiConsumer<Runnable, Object> getProcessorWithKey() {
+        if (isAsyncStateProcessingEnabled()) {
+            return (r, k) -> asyncProcessWithKey(k, r::run);
+        } else {
+            return (r, k) -> {
+                Object oldKey = currentKey();
+                try {
+                    r.run();
+                } finally {
+                    setCurrentKey(oldKey);
+                }
+            };
+        }
     }
 
     protected TwoOutputNonPartitionedContext<OUT_MAIN, OUT_SIDE> getNonPartitionedContext() {
@@ -147,5 +167,17 @@ public class TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
             setTimestamp(timestamp);
             output.collect(outputTag, reuse.replace(record));
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        super.close();
+        userFunction.close();
+    }
+
+    @Override
+    public boolean isAsyncStateProcessingEnabled() {
+        // For non-keyed operators, we disable async state processing.
+        return false;
     }
 }

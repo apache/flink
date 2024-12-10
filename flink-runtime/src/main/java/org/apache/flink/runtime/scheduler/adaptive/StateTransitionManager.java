@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import org.apache.flink.api.common.JobID;
+
 import java.time.Duration;
 import java.util.concurrent.ScheduledFuture;
 
@@ -68,5 +70,12 @@ public interface StateTransitionManager {
          * @return a ScheduledFuture representing pending completion of the operation.
          */
         ScheduledFuture<?> scheduleOperation(Runnable callback, Duration delay);
+
+        /**
+         * Gets the {@link JobID} of the job.
+         *
+         * @return the {@link JobID} of the job
+         */
+        JobID getJobId();
     }
 }

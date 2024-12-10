@@ -41,6 +41,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
 import org.apache.flink.util.ClassLoaderUtil;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
+import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -77,6 +78,7 @@ public class StreamConfig implements Serializable {
     // ------------------------------------------------------------------------
 
     public static final String SERIALIZED_UDF = "serializedUDF";
+
     /**
      * Introduce serializedUdfClassName to avoid unnecessarily heavy {@link
      * #getStreamOperatorFactory}.
@@ -662,6 +664,21 @@ public class StreamConfig implements Serializable {
         this.config.set(STATE_BACKEND_USE_MANAGED_MEMORY, usesManagedMemory);
     }
 
+    public void setSerializedStateBackend(
+            SerializedValue<StateBackend> serializedStateBackend, boolean useManagedMemory) {
+        if (serializedStateBackend != null) {
+            this.config.setBytes(STATE_BACKEND, serializedStateBackend.getByteArray());
+            setStateBackendUsesManagedMemory(useManagedMemory);
+        }
+    }
+
+    public void setSerializedCheckpointStorage(
+            SerializedValue<CheckpointStorage> serializedCheckpointStorage) {
+        if (serializedCheckpointStorage != null) {
+            this.config.setBytes(CHECKPOINT_STORAGE, serializedCheckpointStorage.getByteArray());
+        }
+    }
+
     public StateBackend getStateBackend(ClassLoader cl) {
         try {
             return InstantiationUtil.readObjectFromConfig(this.config, STATE_BACKEND, cl);
@@ -680,6 +697,7 @@ public class StreamConfig implements Serializable {
         }
     }
 
+    @VisibleForTesting
     public void setCheckpointStorage(CheckpointStorage storage) {
         if (storage != null) {
             toBeSerializedConfigObjects.put(CHECKPOINT_STORAGE, storage);

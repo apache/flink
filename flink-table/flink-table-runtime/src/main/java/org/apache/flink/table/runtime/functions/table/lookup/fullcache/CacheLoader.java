@@ -65,7 +65,9 @@ public abstract class CacheLoader implements AutoCloseable, Serializable {
 
     protected volatile boolean isStopped;
 
-    /** @return whether reload was successful and was not interrupted. */
+    /**
+     * @return whether reload was successful and was not interrupted.
+     */
     protected abstract boolean updateCache() throws Exception;
 
     public void open(Configuration parameters, ClassLoader userCodeClassLoader) throws Exception {

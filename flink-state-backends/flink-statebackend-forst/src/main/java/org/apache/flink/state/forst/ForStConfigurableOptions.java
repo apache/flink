@@ -39,6 +39,9 @@ import java.util.Set;
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.state.forst.ForStOptions.CACHE_DIRECTORY;
+import static org.apache.flink.state.forst.ForStOptions.CACHE_RESERVED_SIZE;
+import static org.apache.flink.state.forst.ForStOptions.CACHE_SIZE_BASE_LIMIT;
 import static org.apache.flink.state.forst.ForStOptions.EXECUTOR_COORDINATOR_INLINE;
 import static org.apache.flink.state.forst.ForStOptions.EXECUTOR_READ_IO_PARALLELISM;
 import static org.apache.flink.state.forst.ForStOptions.EXECUTOR_WRITE_IO_INLINE;
@@ -326,6 +329,10 @@ public class ForStConfigurableOptions implements Serializable {
 
     static final ConfigOption<?>[] CANDIDATE_CONFIGS =
             new ConfigOption<?>[] {
+                // cache
+                CACHE_DIRECTORY,
+                CACHE_SIZE_BASE_LIMIT,
+                CACHE_RESERVED_SIZE,
                 // configurable forst executor
                 EXECUTOR_COORDINATOR_INLINE,
                 EXECUTOR_WRITE_IO_INLINE,
