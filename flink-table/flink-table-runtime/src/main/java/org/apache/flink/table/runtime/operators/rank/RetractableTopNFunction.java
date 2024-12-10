@@ -53,7 +53,7 @@ import java.util.TreeMap;
  *
  * <p>Input stream can contain any change kind: INSERT, DELETE, UPDATE_BEFORE and UPDATE_AFTER.
  */
-public class RetractableTopNFunction extends AbstractTopNFunction {
+public class RetractableTopNFunction extends AbstractSyncStateTopNFunction {
 
     private static final long serialVersionUID = 1365312180599454480L;
 

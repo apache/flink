@@ -20,35 +20,55 @@ package org.apache.flink.table.runtime.operators.rank;
 
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.rank.asyncprocessing.AsyncStateAppendOnlyFirstNFunction;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 
-/** Tests for {@link AppendOnlyFirstNFunction}. */
+/** Tests for {@link AppendOnlyFirstNFunction} and {@link AsyncStateAppendOnlyFirstNFunction}. */
 class AppendOnlyFirstNFunctionTest extends TopNFunctionTestBase {
+
     @Override
     AbstractTopNFunction createFunction(
             RankType rankType,
             RankRange rankRange,
             boolean generateUpdateBefore,
-            boolean outputRankNumber) {
-        return new AppendOnlyFirstNFunction(
-                ttlConfig,
-                inputRowType,
-                generatedSortKeyComparator,
-                sortKeySelector,
-                rankType,
-                rankRange,
-                generateUpdateBefore,
-                outputRankNumber);
+            boolean outputRankNumber,
+            boolean enableAsyncState) {
+        if (enableAsyncState) {
+            return new AsyncStateAppendOnlyFirstNFunction(
+                    ttlConfig,
+                    inputRowType,
+                    generatedSortKeyComparator,
+                    sortKeySelector,
+                    rankType,
+                    rankRange,
+                    generateUpdateBefore,
+                    outputRankNumber);
+        } else {
+            return new AppendOnlyFirstNFunction(
+                    ttlConfig,
+                    inputRowType,
+                    generatedSortKeyComparator,
+                    sortKeySelector,
+                    rankType,
+                    rankRange,
+                    generateUpdateBefore,
+                    outputRankNumber);
+        }
     }
 
     @Override
-    @Test
+    boolean supportedAsyncState() {
+        return true;
+    }
+
+    @Override
+    @TestTemplate
     void testDisableGenerateUpdateBefore() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false, false);
@@ -72,7 +92,7 @@ class AppendOnlyFirstNFunctionTest extends TopNFunctionTestBase {
     }
 
     @Override
-    @Test
+    @TestTemplate
     void testDisableGenerateUpdateBeforeAndOutputRankNumber() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), false, true);
@@ -96,7 +116,7 @@ class AppendOnlyFirstNFunctionTest extends TopNFunctionTestBase {
     }
 
     @Override
-    @Test
+    @TestTemplate
     void testOutputRankNumberWithConstantRankRange() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true, true);
@@ -120,7 +140,7 @@ class AppendOnlyFirstNFunctionTest extends TopNFunctionTestBase {
     }
 
     @Override
-    @Test
+    @TestTemplate
     void testConstantRankRangeWithOffset() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(2, 2), true, false);
@@ -142,7 +162,7 @@ class AppendOnlyFirstNFunctionTest extends TopNFunctionTestBase {
     }
 
     @Override
-    @Test
+    @TestTemplate
     void testConstantRankRangeWithoutOffset() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true, false);
@@ -166,7 +186,7 @@ class AppendOnlyFirstNFunctionTest extends TopNFunctionTestBase {
     }
 
     @Override
-    @Test
+    @TestTemplate
     void testOutputRankNumberWithVariableRankRange() throws Exception {
         AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new VariableRankRange(1), false, true);
