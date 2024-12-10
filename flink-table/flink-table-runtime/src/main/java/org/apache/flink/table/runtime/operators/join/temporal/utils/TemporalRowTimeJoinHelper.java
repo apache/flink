@@ -7,12 +7,10 @@ import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.JoinCondition;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Optional;
-import java.util.TreeMap;
 
 public class TemporalRowTimeJoinHelper {
 
@@ -25,14 +23,14 @@ public class TemporalRowTimeJoinHelper {
 
     private TimestampedCollector<RowData> collector;
 
-    public TemporalRowTimeJoinHelper(JoinCondition joinCondition,
-                                     boolean isLeftOuterJoin,
-                                     GenericRowData rightNullRow,
-                                     TimestampedCollector<RowData> collector,
-                                     JoinedRowData outRow,
-                                     int leftTimeAttribute,
-                                     int rightTimeAttribute
-                                     ) {
+    public TemporalRowTimeJoinHelper(
+            JoinCondition joinCondition,
+            boolean isLeftOuterJoin,
+            GenericRowData rightNullRow,
+            TimestampedCollector<RowData> collector,
+            JoinedRowData outRow,
+            int leftTimeAttribute,
+            int rightTimeAttribute) {
         this.joinCondition = joinCondition;
         this.isLeftOuterJoin = isLeftOuterJoin;
         this.rightNullRow = rightNullRow;
@@ -42,8 +40,8 @@ public class TemporalRowTimeJoinHelper {
         this.rightTimeAttribute = rightTimeAttribute;
     }
 
-    public void emitTriggeredLeftRecordsInOrder(Map<Long, RowData> orderedLeftRecords,
-                                                List<RowData> rightRowsSorted) {
+    public void emitTriggeredLeftRecordsInOrder(
+            Map<Long, RowData> orderedLeftRecords, List<RowData> rightRowsSorted) {
         // iterate the triggered left records in the ascending order of the sequence key, i.e. the
         // arrival order.
         orderedLeftRecords.forEach(
@@ -67,14 +65,11 @@ public class TemporalRowTimeJoinHelper {
         orderedLeftRecords.clear();
     }
 
-
     public void collectJoinedRow(RowData leftSideRow, RowData rightRow) {
         outRow.setRowKind(leftSideRow.getRowKind());
         outRow.replace(leftSideRow, rightRow);
         collector.collect(outRow);
     }
-
-
 
     public int firstIndexToKeep(long timerTimestamp, List<RowData> rightRowsSorted) {
         int firstIndexNewerThenTimer =
@@ -146,5 +141,4 @@ public class TemporalRowTimeJoinHelper {
     public long getRightTime(RowData rightRow) {
         return rightRow.getLong(rightTimeAttribute);
     }
-
 }

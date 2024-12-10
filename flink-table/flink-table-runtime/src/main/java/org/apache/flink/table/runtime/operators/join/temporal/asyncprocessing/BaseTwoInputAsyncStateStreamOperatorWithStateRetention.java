@@ -61,7 +61,7 @@ import java.util.Optional;
 public abstract class BaseTwoInputAsyncStateStreamOperatorWithStateRetention
         extends AbstractAsyncStateStreamOperator<RowData>
         implements TwoInputStreamOperator<RowData, RowData, RowData>,
-        Triggerable<Object, VoidNamespace> {
+                Triggerable<Object, VoidNamespace> {
 
     private static final long serialVersionUID = -5953921797477294258L;
 
@@ -124,7 +124,7 @@ public abstract class BaseTwoInputAsyncStateStreamOperatorWithStateRetention
 
                     if (currentCleanupTime.isEmpty()
                             || (currentProcessingTime + minRetentionTime)
-                            > currentCleanupTime.get()) {
+                                    > currentCleanupTime.get()) {
                         return updateCleanupTimer(currentProcessingTime, currentCleanupTime);
                     } else {
                         return StateFutureUtils.completedFuture(null);

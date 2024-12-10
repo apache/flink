@@ -33,7 +33,6 @@ import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
@@ -42,20 +41,16 @@ import org.apache.flink.table.runtime.operators.join.temporal.utils.TemporalRowT
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TreeMap;
 
 /**
- * The operator for temporal join (FOR SYSTEM_TIME AS OF o.rowtime) on row time in sync state, it has no
- * limitation about message types of the left input and right input, this means the operator deals
- * changelog well.
+ * The operator for temporal join (FOR SYSTEM_TIME AS OF o.rowtime) on row time in sync state, it
+ * has no limitation about message types of the left input and right input, this means the operator
+ * deals changelog well.
  *
  * <p>For Event-time temporal join, its probe side is a regular table, its build side is a versioned
  * table, the version of versioned table can extract from the build side state. This operator works
@@ -185,7 +180,9 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
     public void processElement1(StreamRecord<RowData> element) throws Exception {
         RowData row = element.getValue();
         leftState.put(getNextLeftIndex(), row);
-        registerSmallestTimer(this.temporalRowTimeJoinHelper.getLeftTime(row)); // Timer to emit and clean up the state
+        registerSmallestTimer(
+                this.temporalRowTimeJoinHelper.getLeftTime(
+                        row)); // Timer to emit and clean up the state
 
         registerProcessingCleanupTimer();
     }
@@ -204,7 +201,9 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
     @Override
     public void onEventTime(InternalTimer<Object, VoidNamespace> timer) throws Exception {
         registeredTimer.clear();
-        long lastUnprocessedTime = this.temporalRowTimeJoinHelper.emitResultAndCleanUpState(timerService.currentWatermark());
+        long lastUnprocessedTime =
+                this.temporalRowTimeJoinHelper.emitResultAndCleanUpState(
+                        timerService.currentWatermark());
         if (lastUnprocessedTime < Long.MAX_VALUE) {
             registerTimer(lastUnprocessedTime);
         }
@@ -234,7 +233,8 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
     private void cleanupExpiredVersionInState(long currentWatermark, List<RowData> rightRowsSorted)
             throws Exception {
         int i = 0;
-        int indexToKeep = this.temporalRowTimeJoinHelper.firstIndexToKeep(currentWatermark, rightRowsSorted);
+        int indexToKeep =
+                this.temporalRowTimeJoinHelper.firstIndexToKeep(currentWatermark, rightRowsSorted);
         // clean old version data that behind current watermark
         while (i < indexToKeep) {
             long rightTime = this.temporalRowTimeJoinHelper.getRightTime(rightRowsSorted.get(i));
@@ -301,7 +301,8 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
 
     private class SyncStateTemporalRowTimeJoinHelper extends TemporalRowTimeJoinHelper {
         public SyncStateTemporalRowTimeJoinHelper() {
-            super(joinCondition,
+            super(
+                    joinCondition,
                     isLeftOuterJoin,
                     rightNullRow,
                     collector,
@@ -311,8 +312,8 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
         }
 
         /**
-         * @return a row time of the oldest unprocessed probe record or Long.MaxValue, if all records
-         *     have been processed.
+         * @return a row time of the oldest unprocessed probe record or Long.MaxValue, if all
+         *     records have been processed.
          */
         public long emitResultAndCleanUpState(long currentWatermark) throws Exception {
             List<RowData> rightRowsSorted = getRightRowSorted(rightRowtimeComparator);

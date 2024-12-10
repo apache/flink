@@ -282,7 +282,6 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
                 return new TemporalRowTimeJoinOperator(
                         InternalTypeInfo.of(leftInputType),
                         InternalTypeInfo.of(rightInputType),
-
                         generatedJoinCondition,
                         leftTimeAttributeIndex,
                         rightTimeAttributeIndex,

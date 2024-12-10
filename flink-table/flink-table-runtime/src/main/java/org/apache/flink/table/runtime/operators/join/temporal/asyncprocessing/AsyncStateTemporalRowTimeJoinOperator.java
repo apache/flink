@@ -22,13 +22,13 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.state.v2.MapState;
 import org.apache.flink.api.common.state.v2.StateFuture;
-import org.apache.flink.core.state.StateFutureUtils;
-import org.apache.flink.runtime.state.v2.MapStateDescriptor;
 import org.apache.flink.api.common.state.v2.ValueState;
-import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.v2.MapStateDescriptor;
+import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
@@ -51,9 +51,9 @@ import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * The operator for temporal join (FOR SYSTEM_TIME AS OF o.rowtime) on row time in async state, it has no
- * limitation about message types of the left input and right input, this means the operator deals
- * changelog well.
+ * The operator for temporal join (FOR SYSTEM_TIME AS OF o.rowtime) on row time in async state, it
+ * has no limitation about message types of the left input and right input, this means the operator
+ * deals changelog well.
  *
  * <p>For Event-time temporal join, its probe side is a regular table, its build side is a versioned
  * table, the version of versioned table can extract from the build side state. This operator works
@@ -75,7 +75,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * only one single registered timer for any given key, registered for the minimal value. Upon
  * triggering it, we process all records with event times older then or equal to currentWatermark.
  */
-public class AsyncStateTemporalRowTimeJoinOperator extends BaseTwoInputAsyncStateStreamOperatorWithStateRetention {
+public class AsyncStateTemporalRowTimeJoinOperator
+        extends BaseTwoInputAsyncStateStreamOperatorWithStateRetention {
 
     private static final long serialVersionUID = 6642514795175288193L;
 
@@ -182,16 +183,18 @@ public class AsyncStateTemporalRowTimeJoinOperator extends BaseTwoInputAsyncStat
     @Override
     public void processElement1(StreamRecord<RowData> element) throws Exception {
         RowData row = element.getValue();
-        getNextLeftIndex().thenAccept(nextLeftIndex -> {
-            StateFuture<Void> putFuture = leftState.asyncPut(nextLeftIndex, row);
-            putFuture.thenAccept(
-                    VOID -> {
-                        // Timer to emit and clean up the state
-                        registerSmallestTimer(this.temporalRowTimeJoinHelper.getLeftTime(row));
-                        registerProcessingCleanupTimer();
-                    }
-            );
-        });
+        getNextLeftIndex()
+                .thenAccept(
+                        nextLeftIndex -> {
+                            StateFuture<Void> putFuture = leftState.asyncPut(nextLeftIndex, row);
+                            putFuture.thenAccept(
+                                    VOID -> {
+                                        // Timer to emit and clean up the state
+                                        registerSmallestTimer(
+                                                this.temporalRowTimeJoinHelper.getLeftTime(row));
+                                        registerProcessingCleanupTimer();
+                                    });
+                        });
     }
 
     @Override
@@ -205,8 +208,7 @@ public class AsyncStateTemporalRowTimeJoinOperator extends BaseTwoInputAsyncStat
                     // Timer to clean up the state
                     registerSmallestTimer(rowTime);
                     registerProcessingCleanupTimer();
-                }
-        );
+                });
     }
 
     @Override
@@ -214,24 +216,27 @@ public class AsyncStateTemporalRowTimeJoinOperator extends BaseTwoInputAsyncStat
         StateFuture<Void> clearFuture = registeredTimer.asyncClear();
         clearFuture.thenAccept(
                 VOID -> {
-                    StateFuture<Long> lastUnprocessedTimeFuture = this.temporalRowTimeJoinHelper.emitResultAndCleanUpState(
-                            timerService.currentWatermark());
-                    lastUnprocessedTimeFuture.thenAccept(lastUnprocessedTime -> {
-                        if (lastUnprocessedTime < Long.MAX_VALUE) {
-                            registerTimer(lastUnprocessedTime);
-                        }
-                        // if we have more state at any side, then update the timer, else clean it up.
-                        if (stateCleaningEnabled) {
-                            if (lastUnprocessedTime < Long.MAX_VALUE || !rightState.isEmpty()) {
-                                registerProcessingCleanupTimer();
-                            } else {
-                                cleanupLastTimer();
-                                nextLeftIndex.asyncClear();
-                            }
-                        }
-                    });
-                }
-        );
+                    StateFuture<Long> lastUnprocessedTimeFuture =
+                            this.temporalRowTimeJoinHelper.emitResultAndCleanUpState(
+                                    timerService.currentWatermark());
+                    lastUnprocessedTimeFuture.thenAccept(
+                            lastUnprocessedTime -> {
+                                if (lastUnprocessedTime < Long.MAX_VALUE) {
+                                    registerTimer(lastUnprocessedTime);
+                                }
+                                // if we have more state at any side, then update the timer, else
+                                // clean it up.
+                                if (stateCleaningEnabled) {
+                                    if (lastUnprocessedTime < Long.MAX_VALUE
+                                            || !rightState.isEmpty()) {
+                                        registerProcessingCleanupTimer();
+                                    } else {
+                                        cleanupLastTimer();
+                                        nextLeftIndex.asyncClear();
+                                    }
+                                }
+                            });
+                });
     }
 
     @Override
@@ -245,10 +250,11 @@ public class AsyncStateTemporalRowTimeJoinOperator extends BaseTwoInputAsyncStat
     /**
      * Removes all expired version in the versioned table's state according to current watermark.
      */
-    private StateFuture<Void> cleanupExpiredVersionInState(long currentWatermark, List<RowData> rightRowsSorted)
-            throws Exception {
+    private StateFuture<Void> cleanupExpiredVersionInState(
+            long currentWatermark, List<RowData> rightRowsSorted) throws Exception {
         int i = 0;
-        int indexToKeep = this.temporalRowTimeJoinHelper.firstIndexToKeep(currentWatermark, rightRowsSorted);
+        int indexToKeep =
+                this.temporalRowTimeJoinHelper.firstIndexToKeep(currentWatermark, rightRowsSorted);
         List<StateFuture<Void>> removeFutureList = new ArrayList<>();
         // clean old version data that behind current watermark
         while (i < indexToKeep) {
@@ -276,24 +282,32 @@ public class AsyncStateTemporalRowTimeJoinOperator extends BaseTwoInputAsyncStat
     }
 
     private StateFuture<Void> registerSmallestTimer(long timestamp) throws IOException {
-        return registeredTimer.asyncValue().thenAccept(currentRegisteredTimer -> {
-            if (currentRegisteredTimer == null) {
-                registerTimer(timestamp);
-            } else if (currentRegisteredTimer > timestamp) {
-                timerService.deleteEventTimeTimer(VoidNamespace.INSTANCE, currentRegisteredTimer);
-                registerTimer(timestamp);
-            }
-        });
+        return registeredTimer
+                .asyncValue()
+                .thenAccept(
+                        currentRegisteredTimer -> {
+                            if (currentRegisteredTimer == null) {
+                                registerTimer(timestamp);
+                            } else if (currentRegisteredTimer > timestamp) {
+                                timerService.deleteEventTimeTimer(
+                                        VoidNamespace.INSTANCE, currentRegisteredTimer);
+                                registerTimer(timestamp);
+                            }
+                        });
     }
 
     private StateFuture<Void> registerTimer(long timestamp) throws IOException {
-        return registeredTimer.asyncUpdate(timestamp).thenCompose(VOID -> {
-            timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, timestamp);
-            return StateFutureUtils.completedVoidFuture();
-        });
+        return registeredTimer
+                .asyncUpdate(timestamp)
+                .thenCompose(
+                        VOID -> {
+                            timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, timestamp);
+                            return StateFutureUtils.completedVoidFuture();
+                        });
     }
 
-    private StateFuture<List<RowData>> getRightRowSorted(RowtimeComparator rowtimeComparator) throws Exception {
+    private StateFuture<List<RowData>> getRightRowSorted(RowtimeComparator rowtimeComparator)
+            throws Exception {
         List<RowData> rightRows = new ArrayList<>();
         return rightState
                 .asyncValues()
@@ -302,19 +316,24 @@ public class AsyncStateTemporalRowTimeJoinOperator extends BaseTwoInputAsyncStat
                                 stateIterator.onNext(
                                         rowData -> {
                                             rightRows.add(rowData);
-                                        })
-                )
-                .thenApply(VOID -> {
-                    rightRows.sort(rowtimeComparator);
-                    return rightRows;
-                });
+                                        }))
+                .thenApply(
+                        VOID -> {
+                            rightRows.sort(rowtimeComparator);
+                            return rightRows;
+                        });
     }
 
     private StateFuture<Long> getNextLeftIndex() throws IOException {
-        return nextLeftIndex.asyncValue().thenCompose(index -> {
-            long currentIndex = (index != null) ? index : 0L;
-            return nextLeftIndex.asyncUpdate(currentIndex + 1).thenApply(VOID -> currentIndex);
-        });
+        return nextLeftIndex
+                .asyncValue()
+                .thenCompose(
+                        index -> {
+                            long currentIndex = (index != null) ? index : 0L;
+                            return nextLeftIndex
+                                    .asyncUpdate(currentIndex + 1)
+                                    .thenApply(VOID -> currentIndex);
+                        });
     }
 
     @VisibleForTesting
@@ -329,7 +348,8 @@ public class AsyncStateTemporalRowTimeJoinOperator extends BaseTwoInputAsyncStat
 
     private class AsyncStateTemporalRowTimeJoinHelper extends TemporalRowTimeJoinHelper {
         public AsyncStateTemporalRowTimeJoinHelper() {
-            super(joinCondition,
+            super(
+                    joinCondition,
                     isLeftOuterJoin,
                     rightNullRow,
                     collector,
@@ -339,35 +359,64 @@ public class AsyncStateTemporalRowTimeJoinOperator extends BaseTwoInputAsyncStat
         }
 
         /**
-         * @return a row time of the oldest unprocessed probe record or Long.MaxValue, if all records
-         *     have been processed.
+         * @return a row time of the oldest unprocessed probe record or Long.MaxValue, if all
+         *     records have been processed.
          */
         public StateFuture<Long> emitResultAndCleanUpState(long currentWatermark) throws Exception {
-            StateFuture<List<RowData>> rightRowsSortedFuture = getRightRowSorted(rightRowtimeComparator);
+            StateFuture<List<RowData>> rightRowsSortedFuture =
+                    getRightRowSorted(rightRowtimeComparator);
 
-            return rightRowsSortedFuture.thenCompose(rightRowsSorted -> {
-                return leftState.asyncEntries().thenCompose(leftEntriesIteratorFuture -> {
-                    final AtomicLong lastUnprocessedTime = new AtomicLong(Long.MAX_VALUE);
-                    // the output records' order should keep same with left input records arrival order
-                    final Map<Long, RowData> orderedLeftRecords = new TreeMap<>();
-                    return leftEntriesIteratorFuture.onNext(entry -> {
-                        Long leftSeq = entry.getKey();
-                        RowData leftRow = entry.getValue();
-                        long leftTime = getLeftTime(leftRow);
-                        if (leftTime <= currentWatermark) {
-                            orderedLeftRecords.put(leftSeq, leftRow);
-                            leftState.asyncRemove(leftSeq);
-                        } else {
-                            lastUnprocessedTime.updateAndGet(prev -> Math.min(prev, leftTime));
-                        }
-                    }).thenCompose(VOID -> {
-                        emitTriggeredLeftRecordsInOrder(orderedLeftRecords, rightRowsSorted);
-                        return cleanupExpiredVersionInState(currentWatermark, rightRowsSorted);
-                    }).thenCompose(VOID -> {
-                        return StateFutureUtils.completedFuture(lastUnprocessedTime.get());
+            return rightRowsSortedFuture.thenCompose(
+                    rightRowsSorted -> {
+                        return leftState
+                                .asyncEntries()
+                                .thenCompose(
+                                        leftEntriesIteratorFuture -> {
+                                            final AtomicLong lastUnprocessedTime =
+                                                    new AtomicLong(Long.MAX_VALUE);
+                                            // the output records' order should keep same with left
+                                            // input records arrival order
+                                            final Map<Long, RowData> orderedLeftRecords =
+                                                    new TreeMap<>();
+                                            return leftEntriesIteratorFuture
+                                                    .onNext(
+                                                            entry -> {
+                                                                Long leftSeq = entry.getKey();
+                                                                RowData leftRow = entry.getValue();
+                                                                long leftTime =
+                                                                        getLeftTime(leftRow);
+                                                                if (leftTime <= currentWatermark) {
+                                                                    orderedLeftRecords.put(
+                                                                            leftSeq, leftRow);
+                                                                    leftState.asyncRemove(leftSeq);
+                                                                } else {
+                                                                    lastUnprocessedTime
+                                                                            .updateAndGet(
+                                                                                    prev ->
+                                                                                            Math
+                                                                                                    .min(
+                                                                                                            prev,
+                                                                                                            leftTime));
+                                                                }
+                                                            })
+                                                    .thenCompose(
+                                                            VOID -> {
+                                                                emitTriggeredLeftRecordsInOrder(
+                                                                        orderedLeftRecords,
+                                                                        rightRowsSorted);
+                                                                return cleanupExpiredVersionInState(
+                                                                        currentWatermark,
+                                                                        rightRowsSorted);
+                                                            })
+                                                    .thenCompose(
+                                                            VOID -> {
+                                                                return StateFutureUtils
+                                                                        .completedFuture(
+                                                                                lastUnprocessedTime
+                                                                                        .get());
+                                                            });
+                                        });
                     });
-                });
-            });
         }
     }
 }

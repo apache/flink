@@ -95,7 +95,7 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
 
     private void testRowTimeTemporalJoin(boolean isLeftOuterJoin, List<Object> expectedOutput)
             throws Exception {
-        TwoInputStreamOperator<RowData, RowData, RowData>  joinOperator =
+        TwoInputStreamOperator<RowData, RowData, RowData> joinOperator =
                 createTemporalRowTimeJoinOperator(
                         rowType, rowType, joinCondition, 0, 0, 0, 0, isLeftOuterJoin);
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
@@ -143,7 +143,7 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
     void testRowTimeTemporalJoinWithStateRetention() throws Exception {
         final int minRetentionTime = 4;
         final int maxRetentionTime = minRetentionTime * 3 / 2;
-        TwoInputStreamOperator<RowData, RowData, RowData>  joinOperator =
+        TwoInputStreamOperator<RowData, RowData, RowData> joinOperator =
                 createTemporalRowTimeJoinOperator(
                         rowType,
                         rowType,
@@ -189,24 +189,24 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
         assertThat(
-                ((AbstractStreamOperator) joinOperator)
-                        .getKeyedStateStore()
-                        .getState(
-                                new ValueStateDescriptor<>(
-                                        TemporalRowTimeJoinOperator
-                                                .getNextLeftIndexStateName(),
-                                        Types.LONG))
-                        .value())
+                        ((AbstractStreamOperator) joinOperator)
+                                .getKeyedStateStore()
+                                .getState(
+                                        new ValueStateDescriptor<>(
+                                                TemporalRowTimeJoinOperator
+                                                        .getNextLeftIndexStateName(),
+                                                Types.LONG))
+                                .value())
                 .isNull();
         assertThat(
-                ((AbstractStreamOperator) joinOperator)
-                        .getKeyedStateStore()
-                        .getState(
-                                new ValueStateDescriptor<>(
-                                        TemporalRowTimeJoinOperator
-                                                .getRegisteredTimerStateName(),
-                                        Types.LONG))
-                        .value())
+                        ((AbstractStreamOperator) joinOperator)
+                                .getKeyedStateStore()
+                                .getState(
+                                        new ValueStateDescriptor<>(
+                                                TemporalRowTimeJoinOperator
+                                                        .getRegisteredTimerStateName(),
+                                                Types.LONG))
+                                .value())
                 .isNull();
 
         testHarness.close();
@@ -248,7 +248,7 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
 
     private void testRowTimeTemporalJoinOnUpsertSource(
             boolean isLeftOuterJoin, List<Object> expectedOutput) throws Exception {
-        TwoInputStreamOperator<RowData, RowData, RowData>  joinOperator =
+        TwoInputStreamOperator<RowData, RowData, RowData> joinOperator =
                 createTemporalRowTimeJoinOperator(
                         rowType, rowType, joinCondition, 0, 0, 0, 0, isLeftOuterJoin);
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
@@ -299,7 +299,7 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
                 temporalJoinOperator, keySelector, keySelector, keyType);
     }
 
-    private TwoInputStreamOperator<RowData, RowData, RowData>  createTemporalRowTimeJoinOperator(
+    private TwoInputStreamOperator<RowData, RowData, RowData> createTemporalRowTimeJoinOperator(
             InternalTypeInfo<RowData> leftType,
             InternalTypeInfo<RowData> rightType,
             GeneratedJoinCondition generatedJoinCondition,
@@ -329,6 +329,5 @@ class TemporalRowTimeJoinOperatorTest extends TemporalTimeJoinOperatorTestBase {
                     maxRetentionTime,
                     isLeftOuterJoin);
         }
-
     }
 }
