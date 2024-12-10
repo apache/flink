@@ -1223,4 +1223,27 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
+	<TestCase name="testOptimizeSelectDistinct">
+		<Resource name="sql">
+			<![CDATA[
+SELECT DISTINCT a, b, c
+FROM MyTable
+        ]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalAggregate(group=[{0, 1, 2}])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a, b, c], orderBy=[a ASC, b ASC, c ASC], select=[a, b, c])
++- Exchange(distribution=[hash[a, b, c]])
+   +- Calc(select=[a, b, c])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+		</Resource>
+	</TestCase>
 </Root>

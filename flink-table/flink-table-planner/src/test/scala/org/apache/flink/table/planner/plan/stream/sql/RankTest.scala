@@ -1011,5 +1011,16 @@ class RankTest extends TableTestBase {
     util.verifyExplainInsert(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
+  @Test
+  def testOptimizeSelectDistinct(): Unit = {
+    val sql =
+      """
+        |SELECT DISTINCT a, b, c
+        |FROM MyTable
+        """.stripMargin
+
+    util.verifyExecPlan(sql)
+  }
+
   // TODO add tests about multi-sinks and udf
 }

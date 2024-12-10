@@ -928,7 +928,7 @@ LogicalIntersect(all=[false])
       <![CDATA[
 Join(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(random, random0)], select=[random], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[random]])
-:  +- GroupAggregate(groupBy=[random], select=[random])
+:  +- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[random], orderBy=[random ASC], select=[random])
 :     +- Exchange(distribution=[hash[random]])
 :        +- Join(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(random, random0)], select=[random], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :           :- Exchange(distribution=[hash[random]])(reuse_id=[1])
