@@ -16,16 +16,21 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.rank;
+package org.apache.flink.table.runtime.operators.rank.asyncprocessing;
 
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.StateTtlConfig;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.operators.rank.AppendOnlyFirstNFunction;
+import org.apache.flink.table.runtime.operators.rank.RankRange;
+import org.apache.flink.table.runtime.operators.rank.RankType;
 import org.apache.flink.table.runtime.operators.rank.utils.AppendOnlyFirstNHelper;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.types.RowKind;
@@ -33,22 +38,23 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * A variant of {@link AppendOnlyTopNFunction} to handle first-n case.
+ * A variant of {@link AppendOnlyFirstNFunction} to handle first-n case.
  *
  * <p>The input stream should only contain INSERT messages.
  */
-public class AppendOnlyFirstNFunction extends AbstractSyncStateTopNFunction {
+public class AsyncStateAppendOnlyFirstNFunction extends AbstractAsyncStateTopNFunction {
 
     private static final long serialVersionUID = -889227691088906247L;
 
     // state stores a counter to record the occurrence of key.
     private ValueState<Integer> state;
 
-    private transient AppendOnlyFirstNHelper helper;
+    private transient AsyncStateAppendOnlyFirstNHelper helper;
 
-    public AppendOnlyFirstNFunction(
+    public AsyncStateAppendOnlyFirstNFunction(
             StateTtlConfig ttlConfig,
             InternalTypeInfo<RowData> inputRowType,
             GeneratedRecordComparator sortKeyGeneratedRecordComparator,
@@ -76,9 +82,9 @@ public class AppendOnlyFirstNFunction extends AbstractSyncStateTopNFunction {
         if (ttlConfig.isEnabled()) {
             stateDesc.enableTimeToLive(ttlConfig);
         }
-        state = getRuntimeContext().getState(stateDesc);
+        state = ((StreamingRuntimeContext) getRuntimeContext()).getValueState(stateDesc);
 
-        helper = new SyncStateAppendOnlyFirstNHelper();
+        helper = new AsyncStateAppendOnlyFirstNHelper();
     }
 
     @Override
@@ -88,15 +94,23 @@ public class AppendOnlyFirstNFunction extends AbstractSyncStateTopNFunction {
 
         // Ensure the message is an insert-only operation.
         Preconditions.checkArgument(input.getRowKind() == RowKind.INSERT);
-        int currentRank = getCurrentRank();
+        AtomicLong currentRank = new AtomicLong(getCurrentRank());
         // Ignore record if it does not belong to the first-n rows
-        if (currentRank >= rankEnd) {
-            return;
-        }
-        currentRank++;
-        state.update(currentRank);
+        StateFuture<Long> rankEndFuture = getRankEnd();
+        rankEndFuture.thenCompose(
+                rankEnd -> {
+                    if (currentRank.get() >= rankEnd) {
+                        return null;
+                    }
+                    currentRank.set(currentRank.get() + 1);
+                    StateFuture<Void> updateFuture = state.asyncUpdate((int) currentRank.get());
 
-        helper.sendData(hasOffset(), out, input, currentRank, rankEnd);
+                    return updateFuture.thenAccept(
+                            VOID -> {
+                                helper.sendData(
+                                        hasOffset(), out, input, currentRank.get(), rankEnd);
+                            });
+                });
     }
 
     private int getCurrentRank() throws IOException {
@@ -104,9 +118,9 @@ public class AppendOnlyFirstNFunction extends AbstractSyncStateTopNFunction {
         return value == null ? 0 : value;
     }
 
-    private class SyncStateAppendOnlyFirstNHelper extends AppendOnlyFirstNHelper {
-        public SyncStateAppendOnlyFirstNHelper() {
-            super(AppendOnlyFirstNFunction.this);
+    private class AsyncStateAppendOnlyFirstNHelper extends AppendOnlyFirstNHelper {
+        public AsyncStateAppendOnlyFirstNHelper() {
+            super(AsyncStateAppendOnlyFirstNFunction.this);
         }
     }
 }
