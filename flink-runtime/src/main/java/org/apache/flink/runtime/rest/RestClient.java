@@ -144,7 +144,7 @@ public class RestClient implements AutoCloseableAsync {
             ConcurrentHashMap.newKeySet();
 
     private final List<OutboundChannelHandlerFactory> outboundChannelHandlerFactories;
-    private final Boolean useInternalEventLoopGroup;
+    private final boolean useInternalEventLoopGroup;
 
     /**
      * Creates a new RestClient for the provided root URL. If the protocol of the URL is "https",
