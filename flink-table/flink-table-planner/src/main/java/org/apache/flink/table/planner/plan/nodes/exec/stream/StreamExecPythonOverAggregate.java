@@ -46,7 +46,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil;
-import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -209,7 +208,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                         precedingOffset,
                         group.isRows(),
                         config.getStateRetentionTime(),
-                        TableConfigUtils.getMaxIdleStateRetentionTime(config),
+                        config.getStateRetentionTime() * 3 / 2,
                         pythonConfig,
                         config,
                         planner.getFlinkContext().getClassLoader());
