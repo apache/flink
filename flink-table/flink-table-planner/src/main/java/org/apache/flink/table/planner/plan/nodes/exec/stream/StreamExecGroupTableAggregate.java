@@ -22,6 +22,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.asyncprocessing.AsyncStateKeyedProcessOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -42,6 +43,7 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.generated.GeneratedTableAggsHandleFunction;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.aggregate.GroupTableAggFunction;
+import org.apache.flink.table.runtime.operators.aggregate.asyncprocessing.AsyncStateGroupTableAggFunction;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -150,16 +152,30 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
                         .map(LogicalTypeDataTypeConverter::fromDataTypeToLogicalType)
                         .toArray(LogicalType[]::new);
         final int inputCountIndex = aggInfoList.getIndexOfCountStar();
-        final GroupTableAggFunction aggFunction =
-                new GroupTableAggFunction(
-                        aggsHandler,
-                        accTypes,
-                        inputCountIndex,
-                        generateUpdateBefore,
-                        generator.isIncrementalUpdate(),
-                        config.getStateRetentionTime());
-        final OneInputStreamOperator<RowData, RowData> operator =
-                new KeyedProcessOperator<>(aggFunction);
+        final boolean enableAsyncState = AggregateUtil.enableAsyncState(config, aggInfoList);
+
+        final OneInputStreamOperator<RowData, RowData> operator;
+        if (!enableAsyncState) {
+            final GroupTableAggFunction aggFunction =
+                    new GroupTableAggFunction(
+                            aggsHandler,
+                            accTypes,
+                            inputCountIndex,
+                            generateUpdateBefore,
+                            generator.isIncrementalUpdate(),
+                            config.getStateRetentionTime());
+            operator = new KeyedProcessOperator<>(aggFunction);
+        } else {
+            final AsyncStateGroupTableAggFunction aggFunction =
+                    new AsyncStateGroupTableAggFunction(
+                            aggsHandler,
+                            accTypes,
+                            inputCountIndex,
+                            generateUpdateBefore,
+                            generator.isIncrementalUpdate(),
+                            config.getStateRetentionTime());
+            operator = new AsyncStateKeyedProcessOperator<>(aggFunction);
+        }
 
         // partitioned aggregation
         final OneInputTransformation<RowData, RowData> transform =

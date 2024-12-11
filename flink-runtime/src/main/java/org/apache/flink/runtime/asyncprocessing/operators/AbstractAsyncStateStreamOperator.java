@@ -408,12 +408,16 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     @Override
     public void finish() throws Exception {
         super.finish();
-        asyncExecutionController.drainInflightRecords(0);
+        if (asyncExecutionController != null) {
+            asyncExecutionController.drainInflightRecords(0);
+        }
     }
 
     @Override
     public void close() throws Exception {
         super.close();
-        asyncExecutionController.close();
+        if (asyncExecutionController != null) {
+            asyncExecutionController.close();
+        }
     }
 }
