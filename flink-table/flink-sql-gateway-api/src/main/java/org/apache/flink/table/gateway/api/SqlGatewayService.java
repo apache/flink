@@ -41,6 +41,7 @@ import org.apache.flink.table.gateway.api.utils.SqlGatewayException;
 
 import javax.annotation.Nullable;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -347,4 +348,23 @@ public interface SqlGatewayService {
             Map<String, String> dynamicOptions,
             Map<String, String> staticPartitions,
             Map<String, String> executionConfig);
+
+    // -------------------------------------------------------------------------------------------
+    // Deploy Script
+    // -------------------------------------------------------------------------------------------
+
+    /**
+     * Deploy the script in application mode.
+     *
+     * @param sessionHandle handle to identify the session.
+     * @param scriptPath path to the script.
+     * @param executionConfig to run the script.
+     * @return the cluster description.
+     */
+    <ClusterID> ClusterID deployScript(
+            SessionHandle sessionHandle,
+            @Nullable Path scriptPath,
+            @Nullable String script,
+            Configuration executionConfig)
+            throws SqlGatewayException;
 }
