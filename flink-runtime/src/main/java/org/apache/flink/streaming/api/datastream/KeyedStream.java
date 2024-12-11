@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -94,6 +95,9 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
     /** The type of the key by which the stream is partitioned. */
     private final TypeInformation<KEY> keyType;
+
+    /** Whether the async state has been enabled. */
+    private boolean isEnableAsyncState = false;
 
     /**
      * Creates a new {@link KeyedStream} using the given {@link KeySelector} to partition operator
@@ -285,6 +289,9 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
                 (OneInputTransformation<T, R>) returnStream.getTransformation();
         transform.setStateKeySelector(keySelector);
         transform.setStateKeyType(keyType);
+        if (isEnableAsyncState) {
+            transform.enableAsyncState();
+        }
 
         return returnStream;
     }
@@ -438,8 +445,19 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
             checkNotNull(lowerBound, "A lower bound needs to be provided for a time-bounded join");
             checkNotNull(upperBound, "An upper bound needs to be provided for a time-bounded join");
 
-            return new IntervalJoined<>(
-                    streamOne, streamTwo, lowerBound.toMillis(), upperBound.toMillis(), true, true);
+            IntervalJoined<T1, T2, KEY> intervalJoined =
+                    new IntervalJoined<>(
+                            streamOne,
+                            streamTwo,
+                            lowerBound.toMillis(),
+                            upperBound.toMillis(),
+                            true,
+                            true);
+            if (streamOne.isEnableAsyncState() || streamTwo.isEnableAsyncState()) {
+                // enable async state if any stream enabled the async state.
+                intervalJoined = intervalJoined.enableAsyncState();
+            }
+            return intervalJoined;
         }
     }
 
@@ -468,6 +486,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
         private OutputTag<IN1> leftLateDataOutputTag;
         private OutputTag<IN2> rightLateDataOutputTag;
+
+        private boolean isEnableAsyncState = false;
 
         public IntervalJoined(
                 KeyedStream<IN1, KEY> left,
@@ -595,6 +615,18 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
                     .keyBy(keySelector1, keySelector2)
                     .transform("Interval Join", outputType, operator);
         }
+
+        /**
+         * Enable the async state processing for following keyed processing function. This also
+         * requires only State V2 APIs are used in the function.
+         *
+         * @return the configured IntervalJoin itself.
+         */
+        @Experimental
+        public IntervalJoined<IN1, IN2, KEY> enableAsyncState() {
+            isEnableAsyncState = true;
+            return this;
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -663,6 +695,9 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
                         keySelector,
                         getKeyType(),
                         false);
+        if (isEnableAsyncState) {
+            reduce.enableAsyncState();
+        }
 
         getExecutionEnvironment().addOperator(reduce);
 
@@ -1017,5 +1052,22 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
                 queryableStateName,
                 stateDescriptor,
                 getKeyType().createSerializer(getExecutionConfig().getSerializerConfig()));
+    }
+
+    /**
+     * Enable the async state processing for following keyed processing function. This also requires
+     * only State V2 APIs are used in the function.
+     *
+     * @return the configured KeyedStream itself.
+     */
+    @Experimental
+    public KeyedStream<T, KEY> enableAsyncState() {
+        isEnableAsyncState = true;
+        return this;
+    }
+
+    @Internal
+    boolean isEnableAsyncState() {
+        return isEnableAsyncState;
     }
 }
