@@ -94,13 +94,6 @@ public class ConnectorCatalogTable<T1, T2> extends AbstractCatalogTable {
     }
 
     @Override
-    public Map<String, String> toProperties() {
-        // This effectively makes sure the table cannot be persisted in a catalog.
-        throw new UnsupportedOperationException(
-                "ConnectorCatalogTable cannot be converted to properties");
-    }
-
-    @Override
     public CatalogTable copy(Map<String, String> options) {
         throw new UnsupportedOperationException(
                 "ConnectorCatalogTable cannot copy with new table options");

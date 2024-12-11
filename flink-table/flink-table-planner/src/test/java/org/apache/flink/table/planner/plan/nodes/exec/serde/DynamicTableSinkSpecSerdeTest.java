@@ -87,12 +87,11 @@ class DynamicTableSinkSpecSerdeTest {
                         Collections.singletonList(Column.physical("a", DataTypes.BIGINT())),
                         Collections.emptyList(),
                         null);
-        final CatalogTable catalogTable1 =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema1).build(),
-                        null,
-                        Collections.emptyList(),
-                        options1);
+        final CatalogTable catalogTable1 = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema1).build())
+                .comment(null)
+                .partitionKeys(Collections.emptyList())
+                .options(options1).build();
 
         DynamicTableSinkSpec spec1 =
                 new DynamicTableSinkSpec(
@@ -118,12 +117,11 @@ class DynamicTableSinkSpecSerdeTest {
                                 Column.physical("p", DataTypes.STRING())),
                         Collections.emptyList(),
                         null);
-        final CatalogTable catalogTable2 =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema2).build(),
-                        null,
-                        Collections.emptyList(),
-                        options2);
+        final CatalogTable catalogTable2 = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema2).build())
+                .comment(null)
+                .partitionKeys(Collections.emptyList())
+                .options(options2).build();
 
         DynamicTableSinkSpec spec2 =
                 new DynamicTableSinkSpec(
@@ -155,12 +153,11 @@ class DynamicTableSinkSpecSerdeTest {
                                 Column.metadata("m", DataTypes.STRING(), null, false)),
                         Collections.emptyList(),
                         null);
-        final CatalogTable catalogTable3 =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema3).build(),
-                        null,
-                        Collections.emptyList(),
-                        options3);
+        final CatalogTable catalogTable3 = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema3).build())
+                .comment(null)
+                .partitionKeys(Collections.emptyList())
+                .options(options3).build();
 
         DynamicTableSinkSpec spec3 =
                 new DynamicTableSinkSpec(

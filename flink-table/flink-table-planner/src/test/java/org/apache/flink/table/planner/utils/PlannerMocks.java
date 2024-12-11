@@ -133,8 +133,11 @@ public class PlannerMocks {
     }
 
     public PlannerMocks registerTemporaryTable(String tableName, Schema tableSchema) {
-        final CatalogTable table =
-                CatalogTable.of(tableSchema, null, Collections.emptyList(), Collections.emptyMap());
+        final CatalogTable table = CatalogTable.newBuilder()
+                .schema(tableSchema)
+                .comment(null)
+                .partitionKeys(Collections.emptyList())
+                .options(Collections.emptyMap()).build();
 
         this.getCatalogManager()
                 .createTemporaryTable(
