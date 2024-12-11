@@ -29,6 +29,7 @@ import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.Sets;
 
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -43,7 +44,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.assertj.core.api.Assertions.allOf;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.MATCHER;
 
 /**
  * Tests for BashJavaUtils.
@@ -57,6 +60,8 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
             "src/test/bin/runBashJavaUtilsCmd.sh";
     private static final String RUN_EXTRACT_LOGGING_OUTPUTS_SCRIPT =
             "src/test/bin/runExtractLoggingOutputs.sh";
+    private static final String RUN_SET_JAVA_RUN_SCRIPT =
+            "src/test/bin/runSetJavaRun.sh";
 
     @TempDir private Path tmpDir;
 
@@ -351,6 +356,16 @@ class BashJavaUtilsITCase extends JavaBashTestBase {
                 Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
         assertThat(actualOutput).isEqualTo(expectedOutput);
+    }
+
+    @Test
+    void testSetJavaRun() throws Exception {
+        String[] commands = {RUN_SET_JAVA_RUN_SCRIPT};
+        List<String> lines =
+                Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+        assertThat(lines).hasSize(1);
+        assertThat(lines.get(0)).containsSubsequence("jdk");
     }
 
     private Configuration loadConfiguration(List<String> lines) throws IOException {
