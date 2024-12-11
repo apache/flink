@@ -116,6 +116,34 @@ $ curl --request GET http://localhost:8083/v1/sessions/${sessionHandle}/operatio
 
 结果中的 `nextResultUri` 不是null时，用于获取下一批结果。
 
+### Deploy Script
+
+SQL Gateway supports to deploy a script in [Application Mode]({{< ref "docs/deployment/overview" >}}). In application mode, Job Master is responsible for the script compiling.
+If you want to use custom resources in the script, e.g. Kafka Source, please use [ADD JAR]({{< ref "docs/dev/table/sql/jar">}}) command to download the required sources.
+
+Here is an example to deploy script to Flink native K8S Cluster with cluster id `CLUSTER_ID`.
+
+```bash
+$ curl --request POST http://localhost:8083/sessions/${SESSION_HANDLE}/scripts \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "script": "CREATE TEMPORARY TABLE sink(a INT) WITH ( '\''connector'\'' = '\''blackhole'\''); INSERT INTO sink VALUES (1), (2), (3);",
+    "executionConfig": {
+        "execution.target": "kubernetes-application",
+        "kubernetes.cluster-id": "'${CLUSTER_ID}'",
+        "kubernetes.container.image.ref": "'${FLINK_IMAGE_NAME}'",
+        "jobmanager.memory.process.size": "1000m",
+        "taskmanager.memory.process.size": "1000m",
+        "kubernetes.jobmanager.cpu": 0.5,
+        "kubernetes.taskmanager.cpu": 0.5,
+        "kubernetes.rest-service.exposed.type": "NodePort"
+    }
+}'
+```
+
+<span class="label label-info">Note</span> If you want to run script with PyFlink, please use an image with PyFlink installed. You can refer to
+[Enabling PyFlink in docker]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#enabling-python) for more details.
+
 ```bash
 $ curl --request GET ${nextResultUri}
 ```
