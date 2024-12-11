@@ -416,7 +416,9 @@ object FlinkStreamRuleSets {
     // Avoid async calls which call async calls.
     AsyncCalcSplitRule.NESTED_SPLIT,
     // Avoid having async calls in multiple projections in a single calc.
-    AsyncCalcSplitRule.ONE_PER_CALC_SPLIT
+    AsyncCalcSplitRule.ONE_PER_CALC_SPLIT,
+    // Optimize SELECT DISTINCT to use FlinkLogicalRank
+    StreamLogicalOptimizeSelectDistinctRule.INSTANCE
   )
 
   /** RuleSet to do physical optimize for stream */
