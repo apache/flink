@@ -142,8 +142,8 @@ public class DefaultContext {
 
         // 2. load the global configuration
         Configuration configuration = GlobalConfiguration.loadConfiguration(flinkConfigDir);
-        configuration.addAll(dynamicConfig);
         configuration.set(DeploymentOptionsInternal.CONF_DIR, flinkConfigDir);
+        configuration.addAll(dynamicConfig);
 
         // 3. load the custom command lines
         List<CustomCommandLine> commandLines =

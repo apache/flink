@@ -83,4 +83,9 @@ public class DeployScriptHeaders
     public Collection<? extends RestAPIVersion<?>> getSupportedAPIVersions() {
         return SqlGatewayRestAPIVersion.getHigherVersions(SqlGatewayRestAPIVersion.V3);
     }
+
+    @Override
+    public String operationId() {
+        return "deployScript";
+    }
 }
