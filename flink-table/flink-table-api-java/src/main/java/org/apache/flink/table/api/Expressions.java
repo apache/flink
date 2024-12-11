@@ -367,6 +367,19 @@ public final class Expressions {
     }
 
     /**
+     * Converts a numeric type epoch time to {@link DataTypes#TIMESTAMP_LTZ(int)}.
+     *
+     * <p>This method takes an object representing a timestamp and converts it to a TIMESTAMP_LTZ
+     * using the built-in TO_TIMESTAMP_LTZ function definition.
+     *
+     * @param timeStamp The timestamp to be converted.
+     * @return The timestamp value with {@link DataTypes#TIMESTAMP_LTZ(int)} type.
+     */
+    public static ApiExpression toTimestampLtz(Object timeStamp) {
+        return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP_LTZ, timeStamp);
+    }
+
+    /**
      * Determines whether two anchored time intervals overlap. Time point and temporal are
      * transformed into a range defined by two time points (start, end). The function evaluates
      * <code>leftEnd >= rightStart && rightEnd >= leftStart</code>.
