@@ -34,8 +34,6 @@ import javax.annotation.Nonnull;
  * @param <UV> The type of the values that the map state can hold.
  */
 public class MapStateDescriptor<UK, UV> extends StateDescriptor<UV> {
-    /** The type of the user key in the state. */
-    @Nonnull private final TypeInformation<UK> userKeyTypeInfo;
 
     /** The serializer for the user key. */
     @Nonnull private final TypeSerializer<UK> userKeySerializer;
@@ -48,9 +46,9 @@ public class MapStateDescriptor<UK, UV> extends StateDescriptor<UV> {
      * @param userValueTypeInfo The type of the values in the state.
      */
     public MapStateDescriptor(
-            String stateId,
-            TypeInformation<UK> userKeyTypeInfo,
-            TypeInformation<UV> userValueTypeInfo) {
+            @Nonnull String stateId,
+            @Nonnull TypeInformation<UK> userKeyTypeInfo,
+            @Nonnull TypeInformation<UV> userValueTypeInfo) {
         this(stateId, userKeyTypeInfo, userValueTypeInfo, new SerializerConfigImpl());
     }
 
@@ -64,18 +62,27 @@ public class MapStateDescriptor<UK, UV> extends StateDescriptor<UV> {
      *     TypeSerializer}.
      */
     public MapStateDescriptor(
-            String stateId,
-            TypeInformation<UK> userKeyTypeInfo,
-            TypeInformation<UV> userValueTypeInfo,
+            @Nonnull String stateId,
+            @Nonnull TypeInformation<UK> userKeyTypeInfo,
+            @Nonnull TypeInformation<UV> userValueTypeInfo,
             SerializerConfig serializerConfig) {
         super(stateId, userValueTypeInfo, serializerConfig);
-        this.userKeyTypeInfo = userKeyTypeInfo;
         this.userKeySerializer = userKeyTypeInfo.createSerializer(serializerConfig);
     }
 
-    @Nonnull
-    public TypeInformation<UK> getUserKeyType() {
-        return userKeyTypeInfo;
+    /**
+     * Create a new {@code MapStateDescriptor} with the given stateId and the given type serializer.
+     *
+     * @param stateId The (unique) stateId for the state.
+     * @param userKeySerializer The serializer for the user keys in the state.
+     * @param userValueSerializer The serializer for the user values in the state.
+     */
+    public MapStateDescriptor(
+            @Nonnull String stateId,
+            @Nonnull TypeSerializer<UK> userKeySerializer,
+            @Nonnull TypeSerializer<UV> userValueSerializer) {
+        super(stateId, userValueSerializer);
+        this.userKeySerializer = userKeySerializer;
     }
 
     @Nonnull
