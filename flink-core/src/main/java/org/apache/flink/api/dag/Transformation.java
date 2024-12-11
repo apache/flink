@@ -615,6 +615,15 @@ public abstract class Transformation<T> {
      */
     public abstract List<Transformation<?>> getInputs();
 
+    /** Enabling the async state for this transformation. */
+    public void enableAsyncState() {
+        // Subclass should override this method if they support async state processing.
+        throw new UnsupportedOperationException(
+                "The transformation does not support async state, "
+                        + "or you are enabling the async state without a keyed context "
+                        + "(not behind a keyBy()).");
+    }
+
     @Override
     public String toString() {
         return getClass().getSimpleName()
