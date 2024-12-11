@@ -52,6 +52,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.util.concurrent.CompletableFuture;
+
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -257,7 +259,17 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
             super.processWatermark(mark);
             return;
         }
-        asyncExecutionController.processNonRecord(() -> super.processWatermark(mark));
+        asyncExecutionController.processNonRecord(
+                () -> {
+                    // todo: make async operator deal with interruptible watermark
+                    if (timeServiceManager != null) {
+                        CompletableFuture<Void> future = timeServiceManager.advanceWatermark(mark);
+                        future.thenAccept(v -> output.emitWatermark(mark));
+                        asyncExecutionController.drainWithTimerIfNeeded(future);
+                    } else {
+                        output.emitWatermark(mark);
+                    }
+                });
     }
 
     @Override
