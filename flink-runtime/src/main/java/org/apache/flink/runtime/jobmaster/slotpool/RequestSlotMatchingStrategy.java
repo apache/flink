@@ -18,7 +18,12 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
 
 /** Strategy to match slot requests to slots. */
 public interface RequestSlotMatchingStrategy {
@@ -28,10 +33,13 @@ public interface RequestSlotMatchingStrategy {
      *
      * @param slots slots to match
      * @param pendingRequests slot requests to match
+     * @param taskExecutorsLoadingWeight current task executors loading weight information
      * @return resulting matches of this operation
      */
     Collection<RequestSlotMatch> matchRequestsAndSlots(
-            Collection<? extends PhysicalSlot> slots, Collection<PendingRequest> pendingRequests);
+            Collection<? extends PhysicalSlot> slots,
+            Collection<PendingRequest> pendingRequests,
+            Map<ResourceID, LoadingWeight> taskExecutorsLoadingWeight);
 
     /** Result class representing matches. */
     final class RequestSlotMatch {
@@ -53,6 +61,19 @@ public interface RequestSlotMatchingStrategy {
 
         static RequestSlotMatch createFor(PendingRequest pendingRequest, PhysicalSlot newSlot) {
             return new RequestSlotMatch(pendingRequest, newSlot);
+        }
+    }
+
+    /** The no actions implementation of {@link RequestSlotMatchingStrategy}. */
+    enum NoOpRequestSlotMatchingStrategy implements RequestSlotMatchingStrategy {
+        INSTANCE;
+
+        @Override
+        public Collection<RequestSlotMatch> matchRequestsAndSlots(
+                Collection<? extends PhysicalSlot> slots,
+                Collection<PendingRequest> pendingRequests,
+                Map<ResourceID, LoadingWeight> taskExecutorsLoadingWeight) {
+            return Collections.emptyList();
         }
     }
 }

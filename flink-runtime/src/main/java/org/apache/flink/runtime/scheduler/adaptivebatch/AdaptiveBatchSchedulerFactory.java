@@ -92,6 +92,7 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.ONLY_FINISHED_PRODUCERS;
 import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.UNFINISHED_PRODUCERS;
+import static org.apache.flink.runtime.jobmaster.slotpool.RequestSlotMatchingStrategy.NoOpRequestSlotMatchingStrategy;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** Factory for {@link AdaptiveBatchScheduler}. */
@@ -354,7 +355,11 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                 SlotSelectionStrategyUtils.selectSlotSelectionStrategy(
                         JobType.BATCH, configuration);
         final PhysicalSlotProvider physicalSlotProvider =
-                new PhysicalSlotProviderImpl(slotSelectionStrategy, slotPool);
+                new PhysicalSlotProviderImpl(
+                        slotSelectionStrategy,
+                        NoOpRequestSlotMatchingStrategy.INSTANCE,
+                        slotPool,
+                        false);
 
         return new SimpleExecutionSlotAllocator.Factory(physicalSlotProvider, false);
     }
