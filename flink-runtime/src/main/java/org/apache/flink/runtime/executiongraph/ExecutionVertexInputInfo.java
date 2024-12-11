@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.executiongraph;
 
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -32,27 +34,29 @@ public class ExecutionVertexInputInfo implements Serializable {
 
     private final int subtaskIndex;
 
-    private final IndexRange partitionIndexRange;
-
-    private final IndexRange subpartitionIndexRange;
+    // The keys of this Map are ordered, and there is no overlap between the IndexRange of the keys.
+    private final Map<IndexRange, IndexRange> consumedSubpartitionGroupsInOrder;
 
     public ExecutionVertexInputInfo(
             final int subtaskIndex,
             final IndexRange partitionIndexRange,
             final IndexRange subpartitionIndexRange) {
+        this(
+                subtaskIndex,
+                Collections.singletonMap(
+                        checkNotNull(partitionIndexRange), checkNotNull(subpartitionIndexRange)));
+    }
+
+    public ExecutionVertexInputInfo(
+            final int subtaskIndex,
+            final Map<IndexRange, IndexRange> consumedSubpartitionGroupsInOrder) {
         this.subtaskIndex = subtaskIndex;
-        this.partitionIndexRange = checkNotNull(partitionIndexRange);
-        this.subpartitionIndexRange = checkNotNull(subpartitionIndexRange);
+        this.consumedSubpartitionGroupsInOrder = checkNotNull(consumedSubpartitionGroupsInOrder);
     }
 
-    /** Get the subpartition range this subtask should consume. */
-    public IndexRange getSubpartitionIndexRange() {
-        return subpartitionIndexRange;
-    }
-
-    /** Get the partition range this subtask should consume. */
-    public IndexRange getPartitionIndexRange() {
-        return partitionIndexRange;
+    /** Get the subpartition groups this subtask should consume. */
+    public Map<IndexRange, IndexRange> getConsumedSubpartitionGroupsInOrder() {
+        return consumedSubpartitionGroupsInOrder;
     }
 
     /** Get the index of this subtask. */
@@ -67,8 +71,8 @@ public class ExecutionVertexInputInfo implements Serializable {
         } else if (obj != null && obj.getClass() == getClass()) {
             ExecutionVertexInputInfo that = (ExecutionVertexInputInfo) obj;
             return that.subtaskIndex == this.subtaskIndex
-                    && that.partitionIndexRange.equals(this.partitionIndexRange)
-                    && that.subpartitionIndexRange.equals(this.subpartitionIndexRange);
+                    && that.consumedSubpartitionGroupsInOrder.equals(
+                            this.consumedSubpartitionGroupsInOrder);
         } else {
             return false;
         }

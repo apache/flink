@@ -26,13 +26,15 @@ import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** Utilities for building {@link EdgeManager}. */
@@ -55,10 +57,8 @@ public class EdgeManagerBuildUtil {
 
         switch (distributionPattern) {
             case POINTWISE:
-                connectPointwise(vertex, intermediateResult, jobVertexInputInfo);
-                break;
             case ALL_TO_ALL:
-                connectAllToAll(vertex, intermediateResult, jobVertexInputInfo);
+                connect(vertex, intermediateResult, jobVertexInputInfo);
                 break;
             default:
                 throw new IllegalArgumentException("Unrecognized distribution pattern.");
@@ -87,62 +87,50 @@ public class EdgeManagerBuildUtil {
         }
     }
 
-    private static void connectAllToAll(
+    private static void connect(
             ExecutionJobVertex jobVertex,
             IntermediateResult result,
             JobVertexInputInfo jobVertexInputInfo) {
-        // check the vertex input info is legal
-        jobVertexInputInfo
-                .getExecutionVertexInputInfos()
-                .forEach(
-                        executionVertexInputInfo -> {
-                            IndexRange partitionRange =
-                                    executionVertexInputInfo.getPartitionIndexRange();
-                            checkArgument(partitionRange.getStartIndex() == 0);
-                            checkArgument(
-                                    partitionRange.getEndIndex()
-                                            == (result.getNumberOfAssignedPartitions() - 1));
-                        });
-
-        connectInternal(
-                Arrays.asList(jobVertex.getTaskVertices()),
-                Arrays.asList(result.getPartitions()),
-                result.getResultType(),
-                jobVertex.getGraph().getEdgeManager());
-    }
-
-    private static void connectPointwise(
-            ExecutionJobVertex jobVertex,
-            IntermediateResult result,
-            JobVertexInputInfo jobVertexInputInfo) {
-
-        Map<IndexRange, List<Integer>> consumersByPartition = new LinkedHashMap<>();
+        // Partition's IndexRange may be multiple, for example:
+        // [<PartitionIndexRange=[8,9],SubpartitionIndexRange=[1,1]>,<PartitionIndexRange=[1,2],SubpartitionIndexRange=[2,2]>].
+        Map<Set<IndexRange>, List<Integer>> consumersByPartitionRanges = new LinkedHashMap<>();
 
         for (ExecutionVertexInputInfo executionVertexInputInfo :
                 jobVertexInputInfo.getExecutionVertexInputInfos()) {
             int consumerIndex = executionVertexInputInfo.getSubtaskIndex();
-            IndexRange range = executionVertexInputInfo.getPartitionIndexRange();
-            consumersByPartition.compute(
-                    range,
-                    (ignore, consumers) -> {
-                        if (consumers == null) {
-                            consumers = new ArrayList<>();
-                        }
-                        consumers.add(consumerIndex);
-                        return consumers;
-                    });
+            Map<IndexRange, IndexRange> consumedSubpartitionGroups =
+                    executionVertexInputInfo.getConsumedSubpartitionGroupsInOrder();
+            Optional<IndexRange> mergedPartitionRange =
+                    mergePartitionIndexRanges(consumedSubpartitionGroups);
+            if (mergedPartitionRange.isPresent()) {
+                consumersByPartitionRanges
+                        .computeIfAbsent(
+                                Collections.singleton(mergedPartitionRange.get()),
+                                ignored -> new ArrayList<>())
+                        .add(consumerIndex);
+            } else {
+                consumersByPartitionRanges
+                        .computeIfAbsent(
+                                consumedSubpartitionGroups.keySet(), ignored -> new ArrayList<>())
+                        .add(consumerIndex);
+            }
         }
 
-        consumersByPartition.forEach(
-                (range, subtasks) -> {
+        consumersByPartitionRanges.forEach(
+                (partitionRanges, subtasks) -> {
                     List<ExecutionVertex> taskVertices = new ArrayList<>();
                     List<IntermediateResultPartition> partitions = new ArrayList<>();
                     for (int index : subtasks) {
                         taskVertices.add(jobVertex.getTaskVertices()[index]);
                     }
-                    for (int i = range.getStartIndex(); i <= range.getEndIndex(); ++i) {
-                        partitions.add(result.getPartitions()[i]);
-                    }
+                    partitionRanges.forEach(
+                            partitionRange -> {
+                                for (int i = partitionRange.getStartIndex();
+                                        i <= partitionRange.getEndIndex();
+                                        ++i) {
+                                    partitions.add(result.getPartitions()[i]);
+                                }
+                            });
                     connectInternal(
                             taskVertices,
                             partitions,
@@ -206,5 +194,26 @@ public class EdgeManagerBuildUtil {
                 consumedPartitionGroup.partitionFinished();
             }
         }
+    }
+
+    private static Optional<IndexRange> mergePartitionIndexRanges(
+            Map<IndexRange, IndexRange> consumedSubpartitionGroups) {
+        if (consumedSubpartitionGroups.isEmpty()) {
+            return Optional.empty();
+        }
+        Iterator<IndexRange> indexRangeIterator = consumedSubpartitionGroups.keySet().iterator();
+        IndexRange currentPartitionRange = indexRangeIterator.next();
+        int start = currentPartitionRange.startIndex, end = currentPartitionRange.endIndex;
+        while (indexRangeIterator.hasNext()) {
+            currentPartitionRange = indexRangeIterator.next();
+            if (start <= currentPartitionRange.getEndIndex()
+                    && currentPartitionRange.getStartIndex() <= end) {
+                start = Math.min(start, currentPartitionRange.startIndex);
+                end = Math.max(end, currentPartitionRange.endIndex);
+            } else {
+                return Optional.empty();
+            }
+        }
+        return Optional.of(new IndexRange(start, end));
     }
 }

@@ -23,6 +23,7 @@ import org.apache.flink.configuration.NettyShuffleEnvironmentOptions.Compression
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
+import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
@@ -53,7 +54,6 @@ import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration
 import org.apache.flink.runtime.throughput.BufferDebloatConfiguration;
 import org.apache.flink.runtime.throughput.BufferDebloater;
 import org.apache.flink.runtime.throughput.ThroughputCalculator;
-import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -67,6 +67,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.apache.flink.runtime.io.network.partition.consumer.InputGateSpecUtils.createGateBuffersSpec;
@@ -152,11 +153,6 @@ public class SingleInputGateFactory {
         // This variable describes whether it is supported to have one input channel consume
         // multiple subpartitions, if multiple subpartitions from the same partition are
         // assigned to this input gate.
-        //
-        // For now this function is only supported in the new mode of Hybrid Shuffle.
-        boolean isSharedInputChannelSupported =
-                igdd.getConsumedPartitionType().isHybridResultPartition()
-                        && tieredStorageConfiguration != null;
 
         GateBuffersSpec gateBuffersSpec =
                 createGateBuffersSpec(
@@ -164,10 +160,7 @@ public class SingleInputGateFactory {
                         configuredNetworkBuffersPerChannel,
                         floatingNetworkBuffersPerGate,
                         igdd.getConsumedPartitionType(),
-                        calculateNumChannels(
-                                igdd.getShuffleDescriptors().length,
-                                igdd.getConsumedSubpartitionIndexRange().size(),
-                                isSharedInputChannelSupported),
+                        igdd.getShuffleDescriptors().length,
                         tieredStorageConfiguration != null);
         SupplierWithException<BufferPool, IOException> bufferPoolFactory =
                 createBufferPoolFactory(
@@ -184,18 +177,13 @@ public class SingleInputGateFactory {
         final String owningTaskName = owner.getOwnerName();
         final MetricGroup networkInputGroup = owner.getInputGroup();
 
-        ResultSubpartitionIndexSet subpartitionIndexSet =
-                new ResultSubpartitionIndexSet(igdd.getConsumedSubpartitionIndexRange());
         SingleInputGate inputGate =
                 new SingleInputGate(
                         owningTaskName,
                         gateIndex,
                         igdd.getConsumedResultId(),
                         igdd.getConsumedPartitionType(),
-                        calculateNumChannels(
-                                igdd.getShuffleDescriptors().length,
-                                subpartitionIndexSet.size(),
-                                isSharedInputChannelSupported),
+                        igdd.getShuffleDescriptors().length,
                         partitionProducerStateProvider,
                         bufferPoolFactory,
                         bufferDecompressor,
@@ -206,13 +194,7 @@ public class SingleInputGateFactory {
                                 owningTaskName, gateIndex, networkInputGroup.addGroup(gateIndex)));
 
         createInputChannelsAndTieredStorageService(
-                owningTaskName,
-                igdd,
-                inputGate,
-                subpartitionIndexSet,
-                gateBuffersSpec,
-                metrics,
-                isSharedInputChannelSupported);
+                owningTaskName, igdd, inputGate, gateBuffersSpec, metrics);
         return inputGate;
     }
 
@@ -243,74 +225,48 @@ public class SingleInputGateFactory {
             String owningTaskName,
             InputGateDeploymentDescriptor inputGateDeploymentDescriptor,
             SingleInputGate inputGate,
-            ResultSubpartitionIndexSet subpartitionIndexSet,
             GateBuffersSpec gateBuffersSpec,
-            InputChannelMetrics metrics,
-            boolean isSharedInputChannelSupported) {
+            InputChannelMetrics metrics) {
         ShuffleDescriptor[] shuffleDescriptors =
                 inputGateDeploymentDescriptor.getShuffleDescriptors();
 
+        Map<IndexRange, IndexRange> consumedSubpartitionGroups =
+                inputGateDeploymentDescriptor.getConsumedSubpartitionGroups();
+
         // Create the input channels. There is one input channel for each consumed subpartition.
-        InputChannel[] inputChannels =
-                new InputChannel
-                        [calculateNumChannels(
-                                shuffleDescriptors.length,
-                                subpartitionIndexSet.size(),
-                                isSharedInputChannelSupported)];
+        InputChannel[] inputChannels = new InputChannel[shuffleDescriptors.length];
 
         ChannelStatistics channelStatistics = new ChannelStatistics();
 
         int channelIdx = 0;
         final List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs = new ArrayList<>();
         List<List<TierShuffleDescriptor>> tierShuffleDescriptors = new ArrayList<>();
-        for (ShuffleDescriptor descriptor : shuffleDescriptors) {
+        for (int i = 0; i < shuffleDescriptors.length; i++) {
+            ShuffleDescriptor descriptor = shuffleDescriptors[i];
+            ResultSubpartitionIndexSet subpartitionIndexSet =
+                    getResultSubpartitionIndexSet(consumedSubpartitionGroups, i);
             TieredStoragePartitionId partitionId =
                     TieredStorageIdMappingUtils.convertId(descriptor.getResultPartitionID());
-            if (isSharedInputChannelSupported) {
-                inputChannels[channelIdx] =
-                        createInputChannel(
-                                inputGate,
-                                channelIdx,
-                                gateBuffersSpec.getEffectiveExclusiveBuffersPerChannel(),
-                                descriptor,
-                                subpartitionIndexSet,
-                                channelStatistics,
-                                metrics);
-                if (tieredStorageConfiguration != null) {
-                    addTierShuffleDescriptors(tierShuffleDescriptors, descriptor);
+            inputChannels[channelIdx] =
+                    createInputChannel(
+                            inputGate,
+                            channelIdx,
+                            gateBuffersSpec.getEffectiveExclusiveBuffersPerChannel(),
+                            descriptor,
+                            subpartitionIndexSet,
+                            channelStatistics,
+                            metrics);
+            if (tieredStorageConfiguration != null) {
+                addTierShuffleDescriptors(tierShuffleDescriptors, descriptor);
 
-                    tieredStorageConsumerSpecs.add(
-                            new TieredStorageConsumerSpec(
-                                    inputGate.getInputGateIndex(),
-                                    partitionId,
-                                    new TieredStorageInputChannelId(channelIdx),
-                                    subpartitionIndexSet));
-                }
-                channelIdx++;
-            } else {
-                for (int subpartitionIndex : subpartitionIndexSet.values()) {
-                    inputChannels[channelIdx] =
-                            createInputChannel(
-                                    inputGate,
-                                    channelIdx,
-                                    gateBuffersSpec.getEffectiveExclusiveBuffersPerChannel(),
-                                    descriptor,
-                                    new ResultSubpartitionIndexSet(subpartitionIndex),
-                                    channelStatistics,
-                                    metrics);
-                    if (tieredStorageConfiguration != null) {
-                        addTierShuffleDescriptors(tierShuffleDescriptors, descriptor);
-
-                        tieredStorageConsumerSpecs.add(
-                                new TieredStorageConsumerSpec(
-                                        inputGate.getInputGateIndex(),
-                                        partitionId,
-                                        new TieredStorageInputChannelId(channelIdx),
-                                        new ResultSubpartitionIndexSet(subpartitionIndex)));
-                    }
-                    channelIdx++;
-                }
+                tieredStorageConsumerSpecs.add(
+                        new TieredStorageConsumerSpec(
+                                inputGate.getInputGateIndex(),
+                                partitionId,
+                                new TieredStorageInputChannelId(channelIdx),
+                                subpartitionIndexSet));
             }
+            channelIdx++;
         }
 
         inputGate.setInputChannels(inputChannels);
@@ -373,15 +329,16 @@ public class SingleInputGateFactory {
                                 metrics));
     }
 
-    private static int calculateNumChannels(
-            int numShuffleDescriptors,
-            int numSubpartitions,
-            boolean isSharedInputChannelSupported) {
-        if (isSharedInputChannelSupported) {
-            return numShuffleDescriptors;
-        } else {
-            return MathUtils.checkedDownCast(((long) numShuffleDescriptors) * numSubpartitions);
+    private ResultSubpartitionIndexSet getResultSubpartitionIndexSet(
+            Map<IndexRange, IndexRange> consumedSubpartitionGroups, int index) {
+        for (Map.Entry<IndexRange, IndexRange> entry : consumedSubpartitionGroups.entrySet()) {
+            IndexRange partitionRange = entry.getKey();
+            if (index >= partitionRange.getStartIndex() && index <= partitionRange.getEndIndex()) {
+                return new ResultSubpartitionIndexSet(entry.getValue());
+            }
         }
+        throw new IllegalStateException(
+                "SubpartitionIndexSet for channel " + index + " does not exist.");
     }
 
     @VisibleForTesting
