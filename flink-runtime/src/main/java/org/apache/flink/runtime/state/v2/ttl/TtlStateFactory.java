@@ -18,10 +18,8 @@
 
 package org.apache.flink.runtime.state.v2.ttl;
 
-import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.v2.State;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeSerializer;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -162,10 +160,8 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS> {
                         ? (ValueStateDescriptor<TtlValue<SV>>) stateDesc
                         : new ValueStateDescriptor<>(
                                 stateDesc.getStateId(),
-                                new TtlTypeInformation<>(
-                                        new TtlSerializer<>(
-                                                LongSerializer.INSTANCE,
-                                                stateDesc.getSerializer())));
+                                new TtlSerializer<>(
+                                        LongSerializer.INSTANCE, stateDesc.getSerializer()));
         return (IS) new TtlValueState<>(createTtlStateContext(ttlDescriptor));
     }
 
@@ -177,10 +173,8 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS> {
                         ? (ListStateDescriptor<TtlValue<T>>) stateDesc
                         : new ListStateDescriptor<>(
                                 stateDesc.getStateId(),
-                                new TtlTypeInformation<>(
-                                        new TtlSerializer<>(
-                                                LongSerializer.INSTANCE,
-                                                listStateDesc.getSerializer())));
+                                new TtlSerializer<>(
+                                        LongSerializer.INSTANCE, listStateDesc.getSerializer()));
         return (IS) new TtlListState<>(createTtlStateContext(ttlDescriptor));
     }
 
@@ -192,11 +186,9 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS> {
                         ? (MapStateDescriptor<UK, TtlValue<UV>>) stateDesc
                         : new MapStateDescriptor<>(
                                 stateDesc.getStateId(),
-                                mapStateDesc.getUserKeyType(),
-                                new TtlTypeInformation<>(
-                                        new TtlSerializer<>(
-                                                LongSerializer.INSTANCE,
-                                                mapStateDesc.getSerializer())));
+                                mapStateDesc.getUserKeySerializer(),
+                                new TtlSerializer<>(
+                                        LongSerializer.INSTANCE, mapStateDesc.getSerializer()));
         return (IS) new TtlMapState<>(createTtlStateContext(ttlDescriptor));
     }
 
@@ -212,10 +204,8 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS> {
                                         reducingStateDesc.getReduceFunction(),
                                         ttlConfig,
                                         timeProvider),
-                                new TtlTypeInformation<>(
-                                        new TtlSerializer<>(
-                                                LongSerializer.INSTANCE,
-                                                stateDesc.getSerializer())));
+                                new TtlSerializer<>(
+                                        LongSerializer.INSTANCE, stateDesc.getSerializer()));
         return (IS) new TtlReducingState<>(createTtlStateContext(ttlDescriptor));
     }
 
@@ -232,10 +222,8 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS> {
                         : new AggregatingStateDescriptor<>(
                                 stateDesc.getStateId(),
                                 ttlAggregateFunction,
-                                new TtlTypeInformation<>(
-                                        new TtlSerializer<>(
-                                                LongSerializer.INSTANCE,
-                                                stateDesc.getSerializer())));
+                                new TtlSerializer<>(
+                                        LongSerializer.INSTANCE, stateDesc.getSerializer()));
         return (IS)
                 new TtlAggregatingState<>(
                         createTtlStateContext(ttlDescriptor), ttlAggregateFunction);
@@ -259,79 +247,6 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS> {
                 timeProvider,
                 (TypeSerializer<V>) stateDesc.getSerializer(),
                 () -> {});
-    }
-
-    public static class TtlTypeInformation<T> extends TypeInformation<TtlValue<T>> {
-
-        Class<?> typeClass;
-
-        TypeSerializer<TtlValue<T>> typeSerializer;
-
-        TtlTypeInformation(TypeSerializer<TtlValue<T>> typeSerializer) {
-            this.typeSerializer = typeSerializer;
-            typeClass = TtlValue.class;
-        }
-
-        @Override
-        public boolean isBasicType() {
-            return false;
-        }
-
-        @Override
-        public boolean isTupleType() {
-            return false;
-        }
-
-        @Override
-        public int getArity() {
-            return 2;
-        }
-
-        @Override
-        public int getTotalFields() {
-            return 2;
-        }
-
-        @Override
-        public Class<TtlValue<T>> getTypeClass() {
-            return (Class<TtlValue<T>>) typeClass;
-        }
-
-        @Override
-        public boolean isKeyType() {
-            return false;
-        }
-
-        @Override
-        public TypeSerializer<TtlValue<T>> createSerializer(SerializerConfig config) {
-            return typeSerializer;
-        }
-
-        @Override
-        public String toString() {
-            return "TtlTypeInformation{}";
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj) {
-                return true;
-            }
-            if (obj == null || getClass() != obj.getClass()) {
-                return false;
-            }
-            return typeSerializer.equals(((TtlTypeInformation<T>) obj).typeSerializer);
-        }
-
-        @Override
-        public int hashCode() {
-            return typeSerializer.hashCode();
-        }
-
-        @Override
-        public boolean canEqual(Object obj) {
-            return obj instanceof TtlTypeInformation;
-        }
     }
 
     /**
