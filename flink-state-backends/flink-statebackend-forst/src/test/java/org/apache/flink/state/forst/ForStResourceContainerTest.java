@@ -19,10 +19,10 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
+import org.apache.flink.state.forst.fs.StringifiedForStFileSystem;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.forstdb.BlockBasedTableConfig;
@@ -331,9 +331,11 @@ public class ForStResourceContainerTest {
         columnFamilyDescriptors.add(new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY));
         DBOptions dbOptions2 =
                 new DBOptions().setCreateIfMissing(true).setAvoidFlushDuringShutdown(true);
-        FileSystem forstFileSystem =
+        ForStFlinkFileSystem fileSystem =
                 ForStFlinkFileSystem.get(remoteBasePath.toUri(), localBasePath, null);
-        dbOptions2.setEnv(new FlinkEnv(remoteBasePath.toString(), forstFileSystem));
+        dbOptions2.setEnv(
+                new FlinkEnv(
+                        remoteBasePath.toString(), new StringifiedForStFileSystem(fileSystem)));
         RocksDB db =
                 RocksDB.open(
                         dbOptions2,

@@ -373,4 +373,8 @@ public class ForStFlinkFileSystem extends FileSystem {
         }
         return Tuple2.of(false, null);
     }
+
+    public int link(Path src, Path dst) throws IOException {
+        return -1;
+    }
 }
