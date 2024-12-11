@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.datastream;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -849,6 +850,18 @@ public class WindowedStream<T, K, W extends Window> {
 
     private SingleOutputStreamOperator<T> aggregate(AggregationFunction<T> aggregator) {
         return reduce(aggregator);
+    }
+
+    /**
+     * Enable the async state processing for following keyed processing function. This also requires
+     * only State V2 APIs are used in the function.
+     *
+     * @return the configured WindowedStream itself.
+     */
+    @Experimental
+    public WindowedStream<T, K, W> enableAsyncState() {
+        input.enableAsyncState();
+        return this;
     }
 
     public StreamExecutionEnvironment getExecutionEnvironment() {
