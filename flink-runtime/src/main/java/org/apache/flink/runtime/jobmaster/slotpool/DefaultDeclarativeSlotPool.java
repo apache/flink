@@ -23,10 +23,11 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.slots.DefaultRequirementMatcher;
 import org.apache.flink.runtime.slots.RequirementMatcher;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -49,11 +50,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -107,69 +105,47 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
     private final RequirementMatcher requirementMatcher = new DefaultRequirementMatcher();
 
-    @Nonnull private final ComponentMainThreadExecutor componentMainThreadExecutor;
-
-    // For slots(resources) requests by batch.
-    @Nonnull private final Duration slotRequestMaxInterval;
-    @Nullable private ScheduledFuture<?> slotRequestFuture;
-
     public DefaultDeclarativeSlotPool(
             JobID jobId,
             AllocatedSlotPool slotPool,
             Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements,
             Duration idleSlotTimeout,
-            Duration rpcTimeout,
-            Duration slotRequestMaxInterval,
-            ComponentMainThreadExecutor componentMainThreadExecutor) {
+            Duration rpcTimeout) {
 
         this.jobId = jobId;
         this.slotPool = slotPool;
         this.notifyNewResourceRequirements = notifyNewResourceRequirements;
         this.idleSlotTimeout = idleSlotTimeout;
         this.rpcTimeout = rpcTimeout;
-        this.componentMainThreadExecutor = Preconditions.checkNotNull(componentMainThreadExecutor);
-        this.slotRequestMaxInterval = Preconditions.checkNotNull(slotRequestMaxInterval);
         this.totalResourceRequirements = ResourceCounter.empty();
         this.fulfilledResourceRequirements = ResourceCounter.empty();
         this.slotToRequirementProfileMappings = new HashMap<>();
     }
 
     @Override
-    public void increaseResourceRequirementsBy(ResourceCounter increment) {
+    public void increaseResourceRequirementsBy(
+            ResourceCounter increment, boolean autoDeclareResourceRequirements) {
         if (increment.isEmpty()) {
             return;
         }
         totalResourceRequirements = totalResourceRequirements.add(increment);
 
-        doDeclareResourceRequirements();
+        if (autoDeclareResourceRequirements) {
+            declareResourceRequirements();
+        }
     }
 
     @Override
-    public void decreaseResourceRequirementsBy(ResourceCounter decrement) {
+    public void decreaseResourceRequirementsBy(
+            ResourceCounter decrement, boolean autoDeclareResourceRequirements) {
         if (decrement.isEmpty()) {
             return;
         }
         totalResourceRequirements = totalResourceRequirements.subtract(decrement);
 
-        doDeclareResourceRequirements();
-    }
-
-    private void doDeclareResourceRequirements() {
-        if (slotRequestMaxInterval.toMillis() <= 0L) {
+        if (autoDeclareResourceRequirements) {
             declareResourceRequirements();
-            return;
         }
-
-        if (slotRequestFuture != null
-                && !slotRequestFuture.isDone()
-                && !slotRequestFuture.isCancelled()) {
-            slotRequestFuture.cancel(true);
-        }
-        slotRequestFuture =
-                componentMainThreadExecutor.schedule(
-                        this::declareResourceRequirements,
-                        slotRequestMaxInterval.toMillis(),
-                        TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -179,7 +155,8 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         declareResourceRequirements();
     }
 
-    private void declareResourceRequirements() {
+    @Override
+    public void declareResourceRequirements() {
         final Collection<ResourceRequirement> resourceRequirements = getResourceRequirements();
 
         log.debug(
@@ -352,7 +329,8 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
                 taskManagerLocation,
                 slotOffer.getSlotIndex(),
                 slotOffer.getResourceProfile(),
-                taskManagerGateway);
+                taskManagerGateway,
+                DefaultLoadingWeight.EMPTY);
     }
 
     private void increaseAvailableResources(ResourceCounter acceptedResources) {
@@ -369,8 +347,11 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
     @Override
     public PhysicalSlot reserveFreeSlot(
-            AllocationID allocationId, ResourceProfile requiredSlotProfile) {
-        final AllocatedSlot allocatedSlot = slotPool.reserveFreeSlot(allocationId);
+            AllocationID allocationId,
+            ResourceProfile requiredSlotProfile,
+            LoadingWeight loadingWeight,
+            boolean syncRequirements) {
+        final AllocatedSlot allocatedSlot = slotPool.reserveFreeSlot(allocationId, loadingWeight);
 
         Preconditions.checkState(
                 allocatedSlot.getResourceProfile().isMatching(requiredSlotProfile),
@@ -403,6 +384,9 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
                         previouslyMatchedResourceProfile,
                         requiredSlotProfile);
                 adjustRequirements(previouslyMatchedResourceProfile, requiredSlotProfile);
+                if (syncRequirements) {
+                    declareResourceRequirements();
+                }
             }
         }
 
@@ -450,8 +434,13 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         // offered, so we have to adjust the requirements accordingly to ensure we still request
         // enough slots to
         // be able to fulfill the total requirements
-        decreaseResourceRequirementsBy(ResourceCounter.withResource(newResourceProfile, 1));
-        increaseResourceRequirementsBy(ResourceCounter.withResource(oldResourceProfile, 1));
+
+        // Un-line the lines to minus a half of rpc requests to resourcemanager.
+        totalResourceRequirements =
+                totalResourceRequirements.subtract(
+                        ResourceCounter.withResource(newResourceProfile, 1));
+        totalResourceRequirements =
+                totalResourceRequirements.add(ResourceCounter.withResource(oldResourceProfile, 1));
     }
 
     @Override
@@ -605,6 +594,11 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     }
 
     @Override
+    public Map<ResourceID, LoadingWeight> getTaskExecutorsLoadingWeight() {
+        return slotPool.getTaskExecutorsLoadingWeight();
+    }
+
+    @Override
     public boolean containsFreeSlot(AllocationID allocationId) {
         return slotPool.containsFreeSlot(allocationId);
     }
@@ -630,16 +624,5 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     @VisibleForTesting
     ResourceCounter getFulfilledResourceRequirements() {
         return fulfilledResourceRequirements;
-    }
-
-    @VisibleForTesting
-    void tryWaitSlotRequestIsDone() {
-        if (Objects.nonNull(slotRequestFuture)) {
-            try {
-                slotRequestFuture.get();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
     }
 }

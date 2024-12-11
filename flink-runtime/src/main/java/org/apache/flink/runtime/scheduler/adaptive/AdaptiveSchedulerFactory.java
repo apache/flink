@@ -162,7 +162,9 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
     public static SlotSharingSlotAllocator createSlotSharingSlotAllocator(
             DeclarativeSlotPool declarativeSlotPool, boolean localRecoveryEnabled) {
         return SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
-                declarativeSlotPool::reserveFreeSlot,
+                (allocationId, requiredSlotProfile, loadingWeight) ->
+                        declarativeSlotPool.reserveFreeSlot(
+                                allocationId, requiredSlotProfile, loadingWeight, true),
                 declarativeSlotPool::freeReservedSlot,
                 declarativeSlotPool::containsFreeSlot,
                 localRecoveryEnabled);

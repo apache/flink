@@ -84,7 +84,6 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
             Clock clock,
             Duration idleSlotTimeout,
             Duration rpcTimeout,
-            Duration slotRequestMaxInterval,
             @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
         this.jobId = jobId;
         this.clock = clock;
@@ -94,12 +93,7 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
 
         this.declarativeSlotPool =
                 declarativeSlotPoolFactory.create(
-                        jobId,
-                        this::declareResourceRequirements,
-                        idleSlotTimeout,
-                        rpcTimeout,
-                        slotRequestMaxInterval,
-                        componentMainThreadExecutor);
+                        jobId, this::declareResourceRequirements, idleSlotTimeout, rpcTimeout);
     }
 
     protected DeclarativeSlotPool getDeclarativeSlotPool() {

@@ -28,6 +28,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotRequest;
 import org.apache.flink.runtime.jobmaster.slotpool.SingleLogicalSlot;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.DualKeyLinkedMap;
 import org.apache.flink.util.FlinkException;
@@ -100,7 +101,7 @@ public class SimpleExecutionSlotAllocator implements ExecutionSlotAllocator {
                 final SlotProfile slotProfile =
                         SlotProfile.priorAllocation(
                                 resourceProfile,
-                                resourceProfile,
+                                resourceProfile.toLoadable(new DefaultLoadingWeight(1f)),
                                 preferredLocations,
                                 Collections.emptyList(),
                                 Collections.emptySet());

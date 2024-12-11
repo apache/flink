@@ -354,7 +354,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                 SlotSelectionStrategyUtils.selectSlotSelectionStrategy(
                         JobType.BATCH, configuration);
         final PhysicalSlotProvider physicalSlotProvider =
-                new PhysicalSlotProviderImpl(slotSelectionStrategy, slotPool);
+                new PhysicalSlotProviderImpl(slotSelectionStrategy, slotPool, false);
 
         return new SimpleExecutionSlotAllocator.Factory(physicalSlotProvider, false);
     }
