@@ -139,7 +139,8 @@ public interface StateTransitions {
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Duration backoffTime,
                 boolean forcedRestart,
-                List<ExceptionHistoryEntry> failureCollection);
+                List<ExceptionHistoryEntry> failureCollection,
+                boolean isFromFailure);
     }
 
     /** Interface covering transition to the {@link StopWithSavepoint} state. */

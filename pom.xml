@@ -1819,7 +1819,7 @@ under the License.
 						<configuration>
 							<rules>
 								<requireMavenVersion>
-									<version>[3.8.6]</version>
+									<version>[3.8.6, 3.9.8]</version>
 								</requireMavenVersion>
 								<requireJavaVersion>
 									<version>${target.java.version}</version>
