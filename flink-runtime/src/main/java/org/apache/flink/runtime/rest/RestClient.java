@@ -59,6 +59,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelOption;
 import org.apache.flink.shaded.netty4.io.netty.channel.DefaultSelectStrategyFactory;
+import org.apache.flink.shaded.netty4.io.netty.channel.EventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.SelectStrategyFactory;
 import org.apache.flink.shaded.netty4.io.netty.channel.SimpleChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
@@ -143,6 +144,7 @@ public class RestClient implements AutoCloseableAsync {
             ConcurrentHashMap.newKeySet();
 
     private final List<OutboundChannelHandlerFactory> outboundChannelHandlerFactories;
+    private final Boolean useInternalEventLoopGroup;
 
     /**
      * Creates a new RestClient for the provided root URL. If the protocol of the URL is "https",
@@ -150,23 +152,34 @@ public class RestClient implements AutoCloseableAsync {
      */
     public static RestClient forUrl(Configuration configuration, Executor executor, URL rootUrl)
             throws ConfigurationException {
+        return forUrl(configuration, executor, rootUrl, null);
+    }
+
+    public static RestClient forUrl(
+            Configuration configuration, Executor executor, URL rootUrl, EventLoopGroup group)
+            throws ConfigurationException {
         Preconditions.checkNotNull(configuration);
         Preconditions.checkNotNull(rootUrl);
         if ("https".equals(rootUrl.getProtocol())) {
             configuration = configuration.clone();
             configuration.set(SSL_REST_ENABLED, true);
         }
-        return new RestClient(configuration, executor, rootUrl.getHost(), rootUrl.getPort());
+        return new RestClient(configuration, executor, rootUrl.getHost(), rootUrl.getPort(), group);
     }
 
     public RestClient(Configuration configuration, Executor executor)
             throws ConfigurationException {
-        this(configuration, executor, null, -1);
+        this(configuration, executor, null, -1, null);
     }
 
-    public RestClient(Configuration configuration, Executor executor, String host, int port)
+    public RestClient(
+            Configuration configuration,
+            Executor executor,
+            String host,
+            int port,
+            EventLoopGroup group)
             throws ConfigurationException {
-        this(configuration, executor, host, port, DefaultSelectStrategyFactory.INSTANCE);
+        this(configuration, executor, host, port, DefaultSelectStrategyFactory.INSTANCE, group);
     }
 
     @VisibleForTesting
@@ -175,7 +188,7 @@ public class RestClient implements AutoCloseableAsync {
             Executor executor,
             SelectStrategyFactory selectStrategyFactory)
             throws ConfigurationException {
-        this(configuration, executor, null, -1, selectStrategyFactory);
+        this(configuration, executor, null, -1, selectStrategyFactory, null);
     }
 
     private RestClient(
@@ -183,7 +196,8 @@ public class RestClient implements AutoCloseableAsync {
             Executor executor,
             String host,
             int port,
-            SelectStrategyFactory selectStrategyFactory)
+            SelectStrategyFactory selectStrategyFactory,
+            EventLoopGroup group)
             throws ConfigurationException {
         Preconditions.checkNotNull(configuration);
         this.executor = Preconditions.checkNotNull(executor);
@@ -264,15 +278,21 @@ public class RestClient implements AutoCloseableAsync {
                     }
                 };
 
-        // No NioEventLoopGroup constructor available that allows passing nThreads, threadFactory,
-        // and selectStrategyFactory without also passing a SelectorProvider, so mimicking its
-        // default value seen in other constructors
-        NioEventLoopGroup group =
-                new NioEventLoopGroup(
-                        1,
-                        new ExecutorThreadFactory("flink-rest-client-netty"),
-                        SelectorProvider.provider(),
-                        selectStrategyFactory);
+        if (group == null) {
+            // No NioEventLoopGroup constructor available that allows passing nThreads,
+            // threadFactory,
+            // and selectStrategyFactory without also passing a SelectorProvider, so mimicking its
+            // default value seen in other constructors
+            group =
+                    new NioEventLoopGroup(
+                            1,
+                            new ExecutorThreadFactory("flink-rest-client-netty"),
+                            SelectorProvider.provider(),
+                            selectStrategyFactory);
+            useInternalEventLoopGroup = true;
+        } else {
+            useInternalEventLoopGroup = false;
+        }
 
         bootstrap = new Bootstrap();
         bootstrap
@@ -317,7 +337,7 @@ public class RestClient implements AutoCloseableAsync {
             LOG.debug("Shutting down rest endpoint.");
 
             if (bootstrap != null) {
-                if (bootstrap.config().group() != null) {
+                if (bootstrap.config().group() != null && useInternalEventLoopGroup) {
                     bootstrap
                             .config()
                             .group()
