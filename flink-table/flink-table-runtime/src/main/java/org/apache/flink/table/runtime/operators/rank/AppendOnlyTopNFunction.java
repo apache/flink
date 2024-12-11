@@ -49,7 +49,7 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>The input stream should only contain INSERT messages.
  */
-public class AppendOnlyTopNFunction extends AbstractTopNFunction {
+public class AppendOnlyTopNFunction extends AbstractSyncStateTopNFunction {
 
     private static final long serialVersionUID = -4708453213104128011L;
 
