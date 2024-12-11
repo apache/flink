@@ -239,7 +239,7 @@ class TableConfig(object):
 
         :return: The minimum time until state which was not updated will be retained.
         """
-        return self._j_table_config.getMinIdleStateRetentionTime()
+        return self._j_table_config.getIdleStateRetention().toMillis()
 
     def get_max_idle_state_retention_time(self) -> int:
         """
@@ -254,7 +254,7 @@ class TableConfig(object):
 
         :return: The maximum time until state which was not updated will be retained.
         """
-        return self._j_table_config.getMaxIdleStateRetentionTime()
+        return self._j_table_config.getIdleStateRetention().toMillis() * 3 / 2
 
     def get_idle_state_retention(self) -> datetime.timedelta:
         """

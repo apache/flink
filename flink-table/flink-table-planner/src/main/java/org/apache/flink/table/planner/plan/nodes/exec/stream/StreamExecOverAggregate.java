@@ -45,6 +45,7 @@ import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.over.ProcTimeRangeBoundedPrecedingFunction;
@@ -319,7 +320,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                 // ROWS unbounded over process function
                 return new RowTimeRowsUnboundedPrecedingFunction<>(
                         config.getStateRetentionTime(),
-                        config.getStateRetentionTime() * 3 / 2,
+                        TableConfigUtils.getMaxIdleStateRetentionTime(config),
                         genAggsHandler,
                         flattenAccTypes,
                         fieldTypes,
@@ -328,7 +329,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                 // RANGE unbounded over process function
                 return new RowTimeRangeUnboundedPrecedingFunction<>(
                         config.getStateRetentionTime(),
-                        config.getStateRetentionTime() * 3 / 2,
+                        TableConfigUtils.getMaxIdleStateRetentionTime(config),
                         genAggsHandler,
                         flattenAccTypes,
                         fieldTypes,
@@ -406,7 +407,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             if (isRowsClause) {
                 return new RowTimeRowsBoundedPrecedingFunction<>(
                         config.getStateRetentionTime(),
-                        config.getStateRetentionTime() * 3 / 2,
+                        TableConfigUtils.getMaxIdleStateRetentionTime(config),
                         genAggsHandler,
                         flattenAccTypes,
                         fieldTypes,
@@ -420,7 +421,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             if (isRowsClause) {
                 return new ProcTimeRowsBoundedPrecedingFunction<>(
                         config.getStateRetentionTime(),
-                        config.getStateRetentionTime() * 3 / 2,
+                        TableConfigUtils.getMaxIdleStateRetentionTime(config),
                         genAggsHandler,
                         flattenAccTypes,
                         fieldTypes,
