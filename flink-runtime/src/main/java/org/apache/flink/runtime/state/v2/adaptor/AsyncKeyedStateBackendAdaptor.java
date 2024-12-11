@@ -68,13 +68,11 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend<
     @Override
     public void setup(@Nonnull StateRequestHandler stateRequestHandler) {}
 
-    @Nonnull
     @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    public <N, S extends State, SV> S createState(
-            @Nonnull N defaultNamespace,
-            @Nonnull TypeSerializer<N> namespaceSerializer,
-            @Nonnull StateDescriptor<SV> stateDesc)
+    public <N, S extends State, SV> S getOrCreateKeyedState(
+            N defaultNamespace,
+            TypeSerializer<N> namespaceSerializer,
+            StateDescriptor<SV> stateDesc)
             throws Exception {
         return createStateInternal(defaultNamespace, namespaceSerializer, stateDesc);
     }
@@ -190,5 +188,10 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend<
                     .requiresLegacySynchronousTimerSnapshots(checkpointType);
         }
         return false;
+    }
+
+    @Override
+    public boolean isSafeToReuseKVState() {
+        return keyedStateBackend.isSafeToReuseKVState();
     }
 }

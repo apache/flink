@@ -110,7 +110,7 @@ class AsyncExecutionControllerTest {
 
         try {
             valueState =
-                    asyncKeyedStateBackend.createState(
+                    asyncKeyedStateBackend.getOrCreateKeyedState(
                             VoidNamespace.INSTANCE,
                             VoidNamespaceSerializer.INSTANCE,
                             stateDescriptor);

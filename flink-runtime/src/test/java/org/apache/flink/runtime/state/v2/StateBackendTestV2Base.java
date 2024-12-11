@@ -229,7 +229,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                     new ValueStateDescriptor<>("test", BasicTypeInfo.INT_TYPE_INFO);
 
             ValueState<Integer> valueState =
-                    backend.createState(
+                    backend.getOrCreateKeyedState(
                             VoidNamespace.INSTANCE,
                             VoidNamespaceSerializer.INSTANCE,
                             stateDescriptor);
@@ -318,7 +318,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                     new ValueStateDescriptor<>("test", BasicTypeInfo.INT_TYPE_INFO);
 
             ValueState<Integer> valueState =
-                    backend.createState(
+                    backend.getOrCreateKeyedState(
                             VoidNamespace.INSTANCE,
                             VoidNamespaceSerializer.INSTANCE,
                             stateDescriptor);
@@ -432,7 +432,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
             kvId.enableTimeToLive(StateTtlConfig.newBuilder(Duration.ofSeconds(1)).build());
 
             ValueState<Long> state =
-                    backend.createState(
+                    backend.getOrCreateKeyedState(
                             VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
             RecordContext recordContext = aec.buildContext("record-1", 1L);
             recordContext.retain();
