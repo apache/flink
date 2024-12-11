@@ -18,32 +18,46 @@
 
 package org.apache.flink.table.runtime.operators.deduplicate;
 
+import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+
+import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfig;
 
 /**
- * Base class for deduplicate function.
+ * Base class for deduplicate function with sync state api.
  *
  * @param <T> Type of the value in the state.
  * @param <K> Type of the key.
  * @param <IN> Type of the input elements.
  * @param <OUT> Type of the returned elements.
  */
-public abstract class DeduplicateFunctionBase<T, K, IN, OUT>
-        extends KeyedProcessFunction<K, IN, OUT> {
+abstract class SyncStateDeduplicateFunctionBase<T, K, IN, OUT>
+        extends DeduplicateFunctionBase<T, K, IN, OUT> {
 
     private static final long serialVersionUID = 1L;
 
-    // the TypeInformation of the values in the state.
-    protected final TypeInformation<T> typeInfo;
-    protected final long stateRetentionTime;
-    protected final TypeSerializer<OUT> serializer;
+    // state stores previous message under the key.
+    protected ValueState<T> state;
 
-    public DeduplicateFunctionBase(
+    public SyncStateDeduplicateFunctionBase(
             TypeInformation<T> typeInfo, TypeSerializer<OUT> serializer, long stateRetentionTime) {
-        this.typeInfo = typeInfo;
-        this.stateRetentionTime = stateRetentionTime;
-        this.serializer = serializer;
+        super(typeInfo, serializer, stateRetentionTime);
+    }
+
+    @Override
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
+
+        ValueStateDescriptor<T> stateDesc =
+                new ValueStateDescriptor<>("deduplicate-state", typeInfo);
+        StateTtlConfig ttlConfig = createTtlConfig(stateRetentionTime);
+        if (ttlConfig.isEnabled()) {
+            stateDesc.enableTimeToLive(ttlConfig);
+        }
+        state = getRuntimeContext().getState(stateDesc);
     }
 }

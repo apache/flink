@@ -30,8 +30,8 @@ import javax.annotation.Nullable;
 
 import java.util.Map;
 
-import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processLastRowOnChangelog;
-import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processLastRowOnProcTime;
+import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.processLastRowOnChangelog;
+import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.processLastRowOnProcTime;
 
 /** This function is used to get the last row for every key partition in miniBatch mode. */
 public class ProcTimeMiniBatchDeduplicateKeepLastRowFunction

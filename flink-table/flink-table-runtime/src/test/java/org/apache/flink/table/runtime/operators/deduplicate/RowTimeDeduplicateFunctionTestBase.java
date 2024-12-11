@@ -19,12 +19,11 @@
 package org.apache.flink.table.runtime.operators.deduplicate;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
@@ -55,13 +54,7 @@ abstract class RowTimeDeduplicateFunctionTestBase {
                             rowKeyIndex, inputRowType.toRowFieldTypes()[rowKeyIndex]));
 
     protected OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
-            KeyedProcessOperator<RowData, RowData, RowData> operator) throws Exception {
-        return new KeyedOneInputStreamOperatorTestHarness<>(
-                operator, rowKeySelector, rowKeySelector.getProducedType());
-    }
-
-    protected OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
-            KeyedMapBundleOperator<RowData, RowData, RowData, RowData> operator) throws Exception {
+            OneInputStreamOperator<RowData, RowData> operator) throws Exception {
         return new KeyedOneInputStreamOperatorTestHarness<>(
                 operator, rowKeySelector, rowKeySelector.getProducedType());
     }
