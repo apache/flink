@@ -19,6 +19,7 @@
 package org.apache.flink.state.api.output.operators;
 
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.state.api.output.TaggedOperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
@@ -95,6 +96,9 @@ public class StateBootstrapWrapperOperatorFactory<
 
         @Override
         public void emitRecordAttributes(RecordAttributes recordAttributes) {}
+
+        @Override
+        public void emitWatermark(WatermarkEvent watermark) {}
 
         @Override
         public void collect(T record) {}

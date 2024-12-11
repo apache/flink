@@ -19,6 +19,8 @@
 package org.apache.flink.datastream.api.context;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.watermark.Watermark;
+import org.apache.flink.api.common.watermark.WatermarkManager;
 import org.apache.flink.datastream.api.function.TwoOutputApplyPartitionFunction;
 
 /**
@@ -33,4 +35,10 @@ public interface TwoOutputNonPartitionedContext<OUT1, OUT2> extends RuntimeConte
      */
     void applyToAllPartitions(TwoOutputApplyPartitionFunction<OUT1, OUT2> applyPartitionFunction)
             throws Exception;
+
+    /**
+     * Get {@link WatermarkManager} instance, which allow emitting a {@link Watermark} from the
+     * process function.
+     */
+    WatermarkManager getWatermarkManager();
 }
