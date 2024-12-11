@@ -247,7 +247,7 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
                 intermediateDataSetIdToOutputEdgesMap.get(intermediateDataSetId));
     }
 
-    private Optional<JobVertexID> findVertexByStreamNodeId(int streamNodeId) {
+    public Optional<JobVertexID> findVertexByStreamNodeId(int streamNodeId) {
         if (isNodeFrozen(streamNodeId)) {
             Integer startNodeId = getStartNodeId(streamNodeId);
             return Optional.of(startNodeToJobVertexMap.get(startNodeId).getID());
@@ -373,7 +373,11 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
                         edge.getPartitioner().isPointwise()
                                 ? DistributionPattern.POINTWISE
                                 : DistributionPattern.ALL_TO_ALL;
-                dataSet.configure(distributionPattern, edge.getPartitioner().isBroadcast());
+                dataSet.configure(
+                        distributionPattern,
+                        edge.getPartitioner().isBroadcast(),
+                        edge.getPartitioner().getClass().equals(ForwardPartitioner.class));
+                dataSet.increaseNumJobEdgesToCreate();
 
                 intermediateDataSetIdToOutputEdgesMap
                         .computeIfAbsent(dataSet.getId(), ignored -> new ArrayList<>())
