@@ -65,6 +65,14 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
     public static <K, IN, OUT> AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT> create(
             OneInputStreamOperator<IN, OUT> operator,
             final KeySelector<IN, K> keySelector,
+            TypeInformation<K> keyType)
+            throws Exception {
+        return create(operator, keySelector, keyType, 1, 1, 0);
+    }
+
+    public static <K, IN, OUT> AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT> create(
+            OneInputStreamOperator<IN, OUT> operator,
+            final KeySelector<IN, K> keySelector,
             TypeInformation<K> keyType,
             int maxParallelism,
             int numSubtasks,

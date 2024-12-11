@@ -21,6 +21,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.operators.Keys;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -30,13 +31,18 @@ import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
 import org.apache.flink.streaming.api.functions.aggregation.SumAggregator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamGroupedReduceAsyncStateOperator;
 import org.apache.flink.streaming.api.operators.StreamGroupedReduceOperator;
 import org.apache.flink.streaming.util.MockContext;
 import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableList;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -45,10 +51,12 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link AggregationFunction}. */
+@RunWith(Parameterized.class)
 class AggregationFunctionTest {
 
-    @Test
-    void groupSumIntegerTest() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void groupSumIntegerTest(boolean asyncState) throws Exception {
 
         // preparing expected outputs
         List<Tuple2<Integer, Integer>> expectedGroupSumList = new ArrayList<>();
@@ -99,27 +107,30 @@ class AggregationFunctionTest {
 
         List<Tuple2<Integer, Integer>> groupedSumList =
                 MockContext.createAndExecuteForKeyedStream(
-                        new StreamGroupedReduceOperator<>(
+                        createOperator(
                                 sumFunction,
-                                typeInfo.createSerializer(config.getSerializerConfig())),
+                                typeInfo.createSerializer(config.getSerializerConfig()),
+                                asyncState),
                         getInputList(),
                         keySelector,
                         keyType);
 
         List<Tuple2<Integer, Integer>> groupedMinList =
                 MockContext.createAndExecuteForKeyedStream(
-                        new StreamGroupedReduceOperator<>(
+                        createOperator(
                                 minFunction,
-                                typeInfo.createSerializer(config.getSerializerConfig())),
+                                typeInfo.createSerializer(config.getSerializerConfig()),
+                                asyncState),
                         getInputList(),
                         keySelector,
                         keyType);
 
         List<Tuple2<Integer, Integer>> groupedMaxList =
                 MockContext.createAndExecuteForKeyedStream(
-                        new StreamGroupedReduceOperator<>(
+                        createOperator(
                                 maxFunction,
-                                typeInfo.createSerializer(config.getSerializerConfig())),
+                                typeInfo.createSerializer(config.getSerializerConfig()),
+                                asyncState),
                         getInputList(),
                         keySelector,
                         keyType);
@@ -129,8 +140,9 @@ class AggregationFunctionTest {
         assertThat(groupedMaxList).isEqualTo(expectedGroupMaxList);
     }
 
-    @Test
-    void pojoGroupSumIntegerTest() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void pojoGroupSumIntegerTest(boolean asyncState) throws Exception {
 
         // preparing expected outputs
         List<MyPojo> expectedGroupSumList = new ArrayList<>();
@@ -179,27 +191,30 @@ class AggregationFunctionTest {
 
         List<MyPojo> groupedSumList =
                 MockContext.createAndExecuteForKeyedStream(
-                        new StreamGroupedReduceOperator<>(
+                        createOperator(
                                 sumFunction,
-                                typeInfo.createSerializer(config.getSerializerConfig())),
+                                typeInfo.createSerializer(config.getSerializerConfig()),
+                                asyncState),
                         getInputPojoList(),
                         keySelector,
                         keyType);
 
         List<MyPojo> groupedMinList =
                 MockContext.createAndExecuteForKeyedStream(
-                        new StreamGroupedReduceOperator<>(
+                        createOperator(
                                 minFunction,
-                                typeInfo.createSerializer(config.getSerializerConfig())),
+                                typeInfo.createSerializer(config.getSerializerConfig()),
+                                asyncState),
                         getInputPojoList(),
                         keySelector,
                         keyType);
 
         List<MyPojo> groupedMaxList =
                 MockContext.createAndExecuteForKeyedStream(
-                        new StreamGroupedReduceOperator<>(
+                        createOperator(
                                 maxFunction,
-                                typeInfo.createSerializer(config.getSerializerConfig())),
+                                typeInfo.createSerializer(config.getSerializerConfig()),
+                                asyncState),
                         getInputPojoList(),
                         keySelector,
                         keyType);
@@ -209,8 +224,9 @@ class AggregationFunctionTest {
         assertThat(groupedMaxList).isEqualTo(expectedGroupMaxList);
     }
 
-    @Test
-    void minMaxByTest() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void minMaxByTest(boolean asyncState) throws Exception {
         // Tuples are grouped on field 0, aggregated on field 1
 
         // preparing expected outputs
@@ -285,9 +301,10 @@ class AggregationFunctionTest {
 
         assertThat(
                         MockContext.createAndExecuteForKeyedStream(
-                                new StreamGroupedReduceOperator<>(
+                                createOperator(
                                         maxByFunctionFirst,
-                                        typeInfo.createSerializer(config.getSerializerConfig())),
+                                        typeInfo.createSerializer(config.getSerializerConfig()),
+                                        asyncState),
                                 getInputByList(),
                                 keySelector,
                                 keyType))
@@ -295,9 +312,10 @@ class AggregationFunctionTest {
 
         assertThat(
                         MockContext.createAndExecuteForKeyedStream(
-                                new StreamGroupedReduceOperator<>(
+                                createOperator(
                                         maxByFunctionLast,
-                                        typeInfo.createSerializer(config.getSerializerConfig())),
+                                        typeInfo.createSerializer(config.getSerializerConfig()),
+                                        asyncState),
                                 getInputByList(),
                                 keySelector,
                                 keyType))
@@ -305,9 +323,10 @@ class AggregationFunctionTest {
 
         assertThat(
                         MockContext.createAndExecuteForKeyedStream(
-                                new StreamGroupedReduceOperator<>(
+                                createOperator(
                                         minByFunctionLast,
-                                        typeInfo.createSerializer(config.getSerializerConfig())),
+                                        typeInfo.createSerializer(config.getSerializerConfig()),
+                                        asyncState),
                                 getInputByList(),
                                 keySelector,
                                 keyType))
@@ -315,17 +334,19 @@ class AggregationFunctionTest {
 
         assertThat(
                         MockContext.createAndExecuteForKeyedStream(
-                                new StreamGroupedReduceOperator<>(
+                                createOperator(
                                         minByFunctionFirst,
-                                        typeInfo.createSerializer(config.getSerializerConfig())),
+                                        typeInfo.createSerializer(config.getSerializerConfig()),
+                                        asyncState),
                                 getInputByList(),
                                 keySelector,
                                 keyType))
                 .isEqualTo(minByFirstExpected);
     }
 
-    @Test
-    void pojoMinMaxByTest() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void pojoMinMaxByTest(boolean asyncState) throws Exception {
         // Pojos are grouped on field 0, aggregated on field 1
 
         // preparing expected outputs
@@ -399,9 +420,10 @@ class AggregationFunctionTest {
 
         assertThat(
                         MockContext.createAndExecuteForKeyedStream(
-                                new StreamGroupedReduceOperator<>(
+                                createOperator(
                                         maxByFunctionFirst,
-                                        typeInfo.createSerializer(config.getSerializerConfig())),
+                                        typeInfo.createSerializer(config.getSerializerConfig()),
+                                        asyncState),
                                 getInputByPojoList(),
                                 keySelector,
                                 keyType))
@@ -409,9 +431,10 @@ class AggregationFunctionTest {
 
         assertThat(
                         MockContext.createAndExecuteForKeyedStream(
-                                new StreamGroupedReduceOperator<>(
+                                createOperator(
                                         maxByFunctionLast,
-                                        typeInfo.createSerializer(config.getSerializerConfig())),
+                                        typeInfo.createSerializer(config.getSerializerConfig()),
+                                        asyncState),
                                 getInputByPojoList(),
                                 keySelector,
                                 keyType))
@@ -419,9 +442,10 @@ class AggregationFunctionTest {
 
         assertThat(
                         MockContext.createAndExecuteForKeyedStream(
-                                new StreamGroupedReduceOperator<>(
+                                createOperator(
                                         minByFunctionLast,
-                                        typeInfo.createSerializer(config.getSerializerConfig())),
+                                        typeInfo.createSerializer(config.getSerializerConfig()),
+                                        asyncState),
                                 getInputByPojoList(),
                                 keySelector,
                                 keyType))
@@ -429,9 +453,10 @@ class AggregationFunctionTest {
 
         assertThat(
                         MockContext.createAndExecuteForKeyedStream(
-                                new StreamGroupedReduceOperator<>(
+                                createOperator(
                                         minByFunctionFirst,
-                                        typeInfo.createSerializer(config.getSerializerConfig())),
+                                        typeInfo.createSerializer(config.getSerializerConfig()),
+                                        asyncState),
                                 getInputByPojoList(),
                                 keySelector,
                                 keyType))
@@ -441,6 +466,13 @@ class AggregationFunctionTest {
     // *************************************************************************
     //     UTILS
     // *************************************************************************
+
+    private <IN> OneInputStreamOperator<IN, IN> createOperator(
+            ReduceFunction<IN> reducer, TypeSerializer<IN> serializer, boolean asyncState) {
+        return asyncState
+                ? new StreamGroupedReduceAsyncStateOperator<>(reducer, serializer)
+                : new StreamGroupedReduceOperator<>(reducer, serializer);
+    }
 
     private List<Tuple2<Integer, Integer>> getInputList() {
         ArrayList<Tuple2<Integer, Integer>> inputList = new ArrayList<>();
