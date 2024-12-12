@@ -172,13 +172,13 @@ public class ExpressionSerializationTest {
                         .expectStr("POSITION(`f0` IN 'ABC')"),
                 TestSpec.forExpr($("f0").trim("ABC"))
                         .withField("f0", DataTypes.STRING())
-                        .expectStr("TRIM BOTH 'ABC' FROM `f0`"),
+                        .expectStr("TRIM(BOTH 'ABC' FROM `f0`)"),
                 TestSpec.forExpr($("f0").trimLeading("ABC"))
                         .withField("f0", DataTypes.STRING())
-                        .expectStr("TRIM LEADING 'ABC' FROM `f0`"),
+                        .expectStr("TRIM(LEADING 'ABC' FROM `f0`)"),
                 TestSpec.forExpr($("f0").trimTrailing("ABC"))
                         .withField("f0", DataTypes.STRING())
-                        .expectStr("TRIM TRAILING 'ABC' FROM `f0`"),
+                        .expectStr("TRIM(TRAILING 'ABC' FROM `f0`)"),
                 TestSpec.forExpr($("f0").overlay("ABC", 2))
                         .withField("f0", DataTypes.STRING())
                         .expectStr("OVERLAY(`f0` PLACING 'ABC' FROM 2)"),
