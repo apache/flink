@@ -226,36 +226,6 @@ class TableConfig(object):
         j_duration = j_duration_class.ofMillis(long(round(duration.total_seconds() * 1000)))
         self._j_table_config.setIdleStateRetention(j_duration)
 
-    def get_min_idle_state_retention_time(self) -> int:
-        """
-        State might be cleared and removed if it was not updated for the defined period of time.
-
-        .. note::
-
-            Currently the concept of min/max idle state retention has been deprecated and only
-            idle state retention time is supported. The min idle state retention is regarded as
-            idle state retention and the max idle state retention is derived from idle state
-            retention as 1.5 x idle state retention.
-
-        :return: The minimum time until state which was not updated will be retained.
-        """
-        return self._j_table_config.getIdleStateRetention().toMillis()
-
-    def get_max_idle_state_retention_time(self) -> int:
-        """
-        State will be cleared and removed if it was not updated for the defined period of time.
-
-        .. note::
-
-            Currently the concept of min/max idle state retention has been deprecated and only
-            idle state retention time is supported. The min idle state retention is regarded as
-            idle state retention and the max idle state retention is derived from idle state
-            retention as 1.5 x idle state retention.
-
-        :return: The maximum time until state which was not updated will be retained.
-        """
-        return self._j_table_config.getIdleStateRetention().toMillis() * 3 / 2
-
     def get_idle_state_retention(self) -> datetime.timedelta:
         """
 

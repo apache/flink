@@ -49,8 +49,6 @@ class StreamTableEnvironmentImplTest {
     tEnv.toDataStream(table)
 
     assertThat(tEnv.getConfig.getIdleStateRetention.toMillis).isEqualTo(retention.toMillis)
-    assertThat(tEnv.getConfig.getIdleStateRetention.toMillis * 3 / 2)
-      .isEqualTo(retention.toMillis * 3 / 2)
   }
 
   @Test
@@ -65,8 +63,6 @@ class StreamTableEnvironmentImplTest {
     tEnv.toRetractStream[Row](table)
 
     assertThat(tEnv.getConfig.getIdleStateRetention.toMillis).isEqualTo(retention.toMillis)
-    assertThat(tEnv.getConfig.getIdleStateRetention.toMillis * 3 / 2)
-      .isEqualTo(retention.toMillis * 3 / 2)
   }
 
   private def getStreamTableEnvironment(
