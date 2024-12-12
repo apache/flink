@@ -45,6 +45,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.runtime.scheduler.strategy.StrategyTestUtil.assertLatestScheduledVerticesAreEqualTo;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link PipelinedRegionSchedulingStrategy}. */
@@ -226,12 +227,12 @@ class PipelinedRegionSchedulingStrategyTest {
         final JobVertex v2 = createJobVertex("v2", 3);
         final JobVertex v3 = createJobVertex("v3", 2);
 
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        v3.connectNewDataSetAsInput(
-                v2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        v3.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v2, v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v3, v2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                v3, v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
         final List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3));
         final JobGraph jobGraph =
@@ -290,12 +291,12 @@ class PipelinedRegionSchedulingStrategyTest {
         final JobVertex v2 = createJobVertex("v2", 3);
         final JobVertex v3 = createJobVertex("v3", 2);
 
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        v3.connectNewDataSetAsInput(
-                v2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        v3.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v2, v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v3, v2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                v3, v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
         final List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3));
         final JobGraph jobGraph =
@@ -363,12 +364,12 @@ class PipelinedRegionSchedulingStrategyTest {
         final JobVertex v2 = createJobVertex("v2", 3);
         final JobVertex v3 = createJobVertex("v3", 2);
 
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        v3.connectNewDataSetAsInput(
-                v2, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_FULL);
-        v3.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v2, v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v3, v2, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_FULL);
+        connectNewDataSetAsInput(
+                v3, v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
         final List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3));
         final JobGraph jobGraph =
@@ -431,8 +432,8 @@ class PipelinedRegionSchedulingStrategyTest {
         final JobVertex v1 = createJobVertex("v1", 2);
         final JobVertex v2 = createJobVertex("v2", 2);
 
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                v2, v1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 
         final List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2));
         final JobGraph jobGraph =
@@ -462,10 +463,10 @@ class PipelinedRegionSchedulingStrategyTest {
         final JobVertex v2 = createJobVertex("v2", 1);
         final JobVertex v3 = createJobVertex("v3", 1);
 
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_FULL);
-        v3.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_SELECTIVE);
+        connectNewDataSetAsInput(
+                v2, v1, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_FULL);
+        connectNewDataSetAsInput(
+                v3, v1, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_SELECTIVE);
 
         final List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3));
         final JobGraph jobGraph =
@@ -505,12 +506,12 @@ class PipelinedRegionSchedulingStrategyTest {
         final JobVertex v3 = createJobVertex("v3", 1);
         final JobVertex v4 = createJobVertex("v4", 1);
 
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_FULL);
-        v3.connectNewDataSetAsInput(
-                v2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        v4.connectNewDataSetAsInput(
-                v3, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_SELECTIVE);
+        connectNewDataSetAsInput(
+                v2, v1, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_FULL);
+        connectNewDataSetAsInput(
+                v3, v2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                v4, v3, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_SELECTIVE);
 
         final List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3, v4));
         final JobGraph jobGraph =
@@ -553,20 +554,20 @@ class PipelinedRegionSchedulingStrategyTest {
         final JobVertex v4 = createJobVertex("v4", 1);
         final JobVertex v5 = createJobVertex("v5", 1);
 
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        v3.connectNewDataSetAsInput(
-                v2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        v4.connectNewDataSetAsInput(
-                v2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        v5.connectNewDataSetAsInput(
-                v2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        v3.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_FULL);
-        v4.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_SELECTIVE);
-        v4.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                v2, v1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v3, v2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v4, v2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v5, v2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v3, v1, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_FULL);
+        connectNewDataSetAsInput(
+                v4, v1, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_SELECTIVE);
+        connectNewDataSetAsInput(
+                v4, v1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 
         final List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3, v4, v5));
         final JobGraph jobGraph =
@@ -597,12 +598,12 @@ class PipelinedRegionSchedulingStrategyTest {
         final JobVertex v3 = createJobVertex("v3", 1);
         final JobVertex v4 = createJobVertex("v4", 1);
 
-        v4.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        v4.connectNewDataSetAsInput(
-                v2, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_FULL);
-        v4.connectNewDataSetAsInput(
-                v3, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_SELECTIVE);
+        connectNewDataSetAsInput(
+                v4, v1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                v4, v2, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_FULL);
+        connectNewDataSetAsInput(
+                v4, v3, DistributionPattern.POINTWISE, ResultPartitionType.HYBRID_SELECTIVE);
 
         final List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3, v4));
         final JobGraph jobGraph =

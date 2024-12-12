@@ -50,6 +50,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
 import static org.apache.flink.configuration.ConfigurationUtils.getIntConfigOption;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 
 /** Manually test the throughput of the network stack. */
 public class NetworkStackThroughputITCase extends TestLogger {
@@ -363,13 +364,22 @@ public class NetworkStackThroughputITCase extends TestLogger {
         jobVertices.add(consumer);
 
         if (useForwarder) {
-            forwarder.connectNewDataSetAsInput(
-                    producer, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-            consumer.connectNewDataSetAsInput(
-                    forwarder, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    forwarder,
+                    producer,
+                    DistributionPattern.ALL_TO_ALL,
+                    ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    consumer,
+                    forwarder,
+                    DistributionPattern.ALL_TO_ALL,
+                    ResultPartitionType.PIPELINED);
         } else {
-            consumer.connectNewDataSetAsInput(
-                    producer, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    consumer,
+                    producer,
+                    DistributionPattern.ALL_TO_ALL,
+                    ResultPartitionType.PIPELINED);
         }
 
         return JobGraphTestUtils.streamingJobGraph(jobVertices.toArray(new JobVertex[0]));

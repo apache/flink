@@ -38,6 +38,7 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.cr
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
 import static org.apache.flink.runtime.jobgraph.topology.DefaultLogicalVertexTest.assertVertexInfoEquals;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -80,7 +81,7 @@ public class DefaultLogicalResultTest extends TestLogger {
 
         final JobVertex consumerVertex = createNoOpVertex(parallelism);
         final JobEdge edge =
-                consumerVertex.connectNewDataSetAsInput(producerVertex, ALL_TO_ALL, PIPELINED);
+                connectNewDataSetAsInput(consumerVertex, producerVertex, ALL_TO_ALL, PIPELINED);
         vertexMap.put(consumerVertex.getID(), consumerVertex);
 
         result = edge.getSource();
