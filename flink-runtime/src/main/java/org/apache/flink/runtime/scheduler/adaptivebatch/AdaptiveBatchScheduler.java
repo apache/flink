@@ -273,6 +273,14 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
 
         // 4. update json plan
         getExecutionGraph().setJsonPlan(JsonPlanGenerator.generatePlan(getJobGraph()));
+
+        // 5. try aggregate subpartition bytes
+        for (JobVertex newVertex : newVertices) {
+            for (JobEdge input : newVertex.getInputs()) {
+                Optional.ofNullable(blockingResultInfos.get(input.getSourceId()))
+                        .ifPresent(this::maybeAggregateSubpartitionBytes);
+            }
+        }
     }
 
     @Override
@@ -482,13 +490,27 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
                             result.getId(),
                             (ignored, resultInfo) -> {
                                 if (resultInfo == null) {
-                                    resultInfo = createFromIntermediateResult(result);
+                                    resultInfo =
+                                            createFromIntermediateResult(result, new HashMap<>());
                                 }
                                 resultInfo.recordPartitionInfo(
                                         partitionId.getPartitionNumber(), partitionBytes);
+                                maybeAggregateSubpartitionBytes(resultInfo);
                                 return resultInfo;
                             });
                 });
+    }
+
+    private void maybeAggregateSubpartitionBytes(BlockingResultInfo resultInfo) {
+        IntermediateResult intermediateResult =
+                getExecutionGraph().getAllIntermediateResults().get(resultInfo.getResultId());
+
+        if (intermediateResult.areAllConsumerVerticesCreated()
+                && intermediateResult.getConsumerVertices().stream()
+                        .map(this::getExecutionJobVertex)
+                        .allMatch(ExecutionJobVertex::isInitialized)) {
+            resultInfo.aggregateSubpartitionBytes();
+        }
     }
 
     @Override
@@ -657,6 +679,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
                                 parallelismAndInputInfos.getJobVertexInputInfos(),
                                 createTimestamp);
                         newlyInitializedJobVertices.add(jobVertex);
+                        consumedResultsInfo.get().forEach(this::maybeAggregateSubpartitionBytes);
                     }
                 }
             }

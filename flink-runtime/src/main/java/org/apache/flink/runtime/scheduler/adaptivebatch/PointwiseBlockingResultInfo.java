@@ -87,4 +87,9 @@ public class PointwiseBlockingResultInfo extends AbstractBlockingResultInfo {
         }
         return inputBytes;
     }
+
+    @Override
+    public void aggregateSubpartitionBytes() {
+        // do nothing because pointWise result should not be aggregated
+    }
 }

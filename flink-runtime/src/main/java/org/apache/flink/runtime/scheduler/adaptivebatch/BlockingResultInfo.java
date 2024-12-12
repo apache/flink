@@ -64,4 +64,7 @@ public interface BlockingResultInfo extends IntermediateResultInfo {
      * @param partitionIndex the intermediate result partition index
      */
     void resetPartitionInfo(int partitionIndex);
+
+    /** Aggregates the subpartition bytes to reduce space usage. */
+    void aggregateSubpartitionBytes();
 }
