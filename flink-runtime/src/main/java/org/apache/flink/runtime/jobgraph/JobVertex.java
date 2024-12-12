@@ -516,20 +516,6 @@ public class JobVertex implements java.io.Serializable {
     }
 
     public JobEdge connectNewDataSetAsInput(
-            JobVertex input, DistributionPattern distPattern, ResultPartitionType partitionType) {
-        return connectNewDataSetAsInput(input, distPattern, partitionType, false);
-    }
-
-    public JobEdge connectNewDataSetAsInput(
-            JobVertex input,
-            DistributionPattern distPattern,
-            ResultPartitionType partitionType,
-            boolean isBroadcast) {
-        return connectNewDataSetAsInput(
-                input, distPattern, partitionType, new IntermediateDataSetID(), isBroadcast);
-    }
-
-    public JobEdge connectNewDataSetAsInput(
             JobVertex input,
             DistributionPattern distPattern,
             ResultPartitionType partitionType,

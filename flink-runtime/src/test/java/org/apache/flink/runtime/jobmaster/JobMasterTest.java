@@ -177,6 +177,7 @@ import java.util.stream.IntStream;
 import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType.FIXED_DELAY;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -2521,8 +2522,8 @@ class JobMasterTest {
         consumer.setInvokableClass(NoOpInvokable.class);
         consumer.setParallelism(1);
 
-        consumer.connectNewDataSetAsInput(
-                producer, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                consumer, producer, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 
         return JobGraphTestUtils.batchJobGraph(producer, consumer);
     }

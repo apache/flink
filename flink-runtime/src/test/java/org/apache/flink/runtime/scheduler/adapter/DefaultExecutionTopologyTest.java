@@ -60,6 +60,8 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.cr
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
+import static org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler.computeVertexParallelismStoreForDynamicGraph;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -79,7 +81,7 @@ class DefaultExecutionTopologyTest {
         int parallelism = 3;
         jobVertices[0] = createNoOpVertex(parallelism);
         jobVertices[1] = createNoOpVertex(parallelism);
-        jobVertices[1].connectNewDataSetAsInput(jobVertices[0], ALL_TO_ALL, PIPELINED);
+        connectNewDataSetAsInput(jobVertices[1], jobVertices[0], ALL_TO_ALL, PIPELINED);
         executionGraph = createExecutionGraph(EXECUTOR_RESOURCE.getExecutor(), jobVertices);
         adapter = DefaultExecutionTopology.fromExecutionGraph(executionGraph);
     }
@@ -235,7 +237,7 @@ class DefaultExecutionTopologyTest {
         final int parallelism = 3;
         jobVertices[0] = createNoOpVertex(parallelism);
         jobVertices[1] = createNoOpVertex(parallelism);
-        jobVertices[1].connectNewDataSetAsInput(jobVertices[0], ALL_TO_ALL, resultPartitionType);
+        connectNewDataSetAsInput(jobVertices[1], jobVertices[0], ALL_TO_ALL, resultPartitionType);
 
         return jobVertices;
     }

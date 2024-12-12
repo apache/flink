@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integration tests for job scheduling. */
@@ -87,8 +88,8 @@ class JobExecutionITCase {
         sender.setSlotSharingGroup(slotSharingGroup);
         receiver.setStrictlyCoLocatedWith(sender);
 
-        receiver.connectNewDataSetAsInput(
-                sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                receiver, sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
         return JobGraphTestUtils.streamingJobGraph(sender, receiver);
     }

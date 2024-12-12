@@ -35,6 +35,7 @@ import org.junit.Test;
 
 import java.util.Iterator;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -61,25 +62,37 @@ public class JsonGeneratorTest {
             JobVertex sink1 = new JobVertex("sink 1");
             JobVertex sink2 = new JobVertex("sink 2");
 
-            intermediate1.connectNewDataSetAsInput(
-                    source1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            intermediate2.connectNewDataSetAsInput(
-                    source2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    intermediate1,
+                    source1,
+                    DistributionPattern.POINTWISE,
+                    ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    intermediate2,
+                    source2,
+                    DistributionPattern.ALL_TO_ALL,
+                    ResultPartitionType.PIPELINED);
 
-            join1.connectNewDataSetAsInput(
-                    intermediate1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-            join1.connectNewDataSetAsInput(
-                    intermediate2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+            connectNewDataSetAsInput(
+                    join1,
+                    intermediate1,
+                    DistributionPattern.POINTWISE,
+                    ResultPartitionType.BLOCKING);
+            connectNewDataSetAsInput(
+                    join1,
+                    intermediate2,
+                    DistributionPattern.ALL_TO_ALL,
+                    ResultPartitionType.BLOCKING);
 
-            join2.connectNewDataSetAsInput(
-                    join1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            join2.connectNewDataSetAsInput(
-                    source3, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+            connectNewDataSetAsInput(
+                    join2, join1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    join2, source3, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 
-            sink1.connectNewDataSetAsInput(
-                    join2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-            sink2.connectNewDataSetAsInput(
-                    join1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    sink1, join2, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+            connectNewDataSetAsInput(
+                    sink2, join1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
             JobGraph jg =
                     JobGraphTestUtils.batchJobGraph(

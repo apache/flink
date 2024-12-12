@@ -126,6 +126,7 @@ import java.util.stream.StreamSupport;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.waitUntilExecutionVertexState;
 import static org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder.createCustomParallelismDecider;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -991,10 +992,10 @@ public class BatchJobRecoveryTest {
         sink.setInvokableClass(NoOpInvokable.class);
         jobVertices.add(sink);
 
-        middle.connectNewDataSetAsInput(
-                source, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        sink.connectNewDataSetAsInput(
-                middle, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                middle, source, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                sink, middle, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
 
         return new JobGraph(JOB_ID, "TestJob", jobVertices.toArray(new JobVertex[0]));
     }
