@@ -99,6 +99,9 @@ class AllToAllBlockingResultInfoTest {
         // The result info should be (partitionBytes2 + partitionBytes3)
         assertThat(resultInfo.getNumBytesProduced()).isEqualTo(576L);
         assertThat(resultInfo.getAggregatedSubpartitionBytes()).containsExactly(192L, 384L);
+        // The raw info should not be clear
+        assertThat(resultInfo.getNumOfRecordedPartitions()).isGreaterThan(0);
+        resultInfo.aggregateSubpartitionBytes();
         // The raw info should be clear
         assertThat(resultInfo.getNumOfRecordedPartitions()).isZero();
 

@@ -609,6 +609,11 @@ class DefaultVertexParallelismAndInputInfosDeciderTest {
 
         @Override
         public void resetPartitionInfo(int partitionIndex) {}
+
+        @Override
+        public Map<Integer, long[]> getSubpartitionBytesByPartitionIndex() {
+            return Map.of();
+        }
     }
 
     private static BlockingResultInfo createFromBroadcastResult(long producedBytes) {
