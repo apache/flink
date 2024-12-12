@@ -48,6 +48,9 @@ jobs:
     - script: ./tools/azure-pipelines/free_disk_space.sh
       target: host
       displayName: Free up disk space
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.11'
     # the cache task does not create directories on a cache miss, and can later fail when trying to tar the directory if the test haven't created it
     # this may for example happen if a given directory is only used by a subset of tests, which are run in a different 'group'
     - bash: |

@@ -51,7 +51,7 @@ After setting up a [python virtual environment](#preparing-python-virtual-enviro
 #### Local
 
 ```shell
-# activate the conda python virtual environment
+# activate the python virtual environment
 $ source venv/bin/activate
 $ python xxx.py
 ```

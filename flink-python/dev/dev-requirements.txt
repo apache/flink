@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 pip>=20.3
-setuptools>=18.0
+setuptools>=75.3
 wheel
 apache-beam>=2.54.0,<=2.61.0
 cython>=0.29.24

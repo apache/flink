@@ -43,30 +43,30 @@ PyFlink depends on the following libraries to execute the above script:
 2. setuptools (>=37.0.0)
 3. pip (>=20.3)
 
-### Running Test Cases 
+### Running Test Cases
 
-Currently, we use conda and tox to verify the compatibility of the Flink Python API for multiple versions of Python and will integrate some useful plugins with tox, such as flake8.
+Currently, we use tox and to verify the compatibility of the Flink Python API for multiple versions of Python and will integrate some useful plugins with tox, such as flake8.
 We can enter the directory where this README.md file is located and run test cases by executing
 
 ```
 ./dev/lint-python.sh
 ```
 
-To use your system conda environment, you can set `FLINK_CONDA_HOME` variable:
+To use your system uv environment, you can set `FLINK_UV_HOME` variable:
 
 ```shell
-export FLINK_CONDA_HOME=$(dirname $(dirname $CONDA_EXE))
+export FLINK_UV_HOME=$(dirname $(dirname $(which uv)))
 ```
 
 Create a virtual environment:
 ```shell
-conda create -n pyflink_38 python=3.8
+uv venv pyflink_38 --python=3.8
 ```
 
 Then you can activate your environment and run tests, for example:
 
 ```shell
-conda activate pyflink_38
-pip install -r ./dev/dev-requirements.txt
+source pyflink_38/bin/activate
+uv pip install -r ./dev/dev-requirements.txt
 ./dev/lint-python.sh
 ```
