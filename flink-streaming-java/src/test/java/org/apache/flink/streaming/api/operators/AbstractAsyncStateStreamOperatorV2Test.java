@@ -30,6 +30,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.RecordProcessorUtils;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.ElementOrder;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
@@ -293,7 +294,11 @@ class AbstractAsyncStateStreamOperatorV2Test {
                     () -> {
                         try {
                             processor.accept(new StreamRecord<>(Tuple2.of(5, "5")));
-                            testOperator.processWatermarkStatus(new WatermarkStatus(0), 1);
+                            testOperator.getInputs().get(0).processWatermark(new Watermark(205L));
+                            testOperator
+                                    .getInputs()
+                                    .get(0)
+                                    .processWatermarkStatus(WatermarkStatus.IDLE);
                         } catch (Exception e) {
                         }
                     });
@@ -308,8 +313,12 @@ class AbstractAsyncStateStreamOperatorV2Test {
             Thread.sleep(3000);
             anotherThread.shutdown();
             assertThat(testOperator.getCurrentProcessingContext().getReferenceCount()).isEqualTo(0);
-            assertThat(testOperator.watermarkStatus.isActive()).isTrue();
-            assertThat(testOperator.watermarkIndex).isEqualTo(1);
+            assertThat(testOperator.watermarkStatus.isActive()).isFalse();
+            assertThat(testHarness.getOutput())
+                    .containsExactly(
+                            new StreamRecord<>("EventTimer-5-105"),
+                            new Watermark(205L),
+                            WatermarkStatus.IDLE);
         }
     }
 
@@ -372,6 +381,8 @@ class AbstractAsyncStateStreamOperatorV2Test {
         private WatermarkStatus watermarkStatus = new WatermarkStatus(-1);
         private int watermarkIndex = -1;
 
+        InternalTimerService<VoidNamespace> timerService;
+
         public SingleInputTestOperator(
                 StreamOperatorParameters<String> parameters, ElementOrder elementOrder) {
             super(parameters, 1);
@@ -385,6 +396,8 @@ class AbstractAsyncStateStreamOperatorV2Test {
                             synchronized (objectToWait) {
                                 objectToWait.wait();
                             }
+                            timerService.registerEventTimeTimer(
+                                    VoidNamespace.INSTANCE, element.getValue().f0 + 100L);
                         }
                     };
         }
@@ -392,6 +405,9 @@ class AbstractAsyncStateStreamOperatorV2Test {
         @Override
         public void open() throws Exception {
             super.open();
+            this.timerService =
+                    getInternalTimerService(
+                            "processing timer", VoidNamespaceSerializer.INSTANCE, this);
         }
 
         @Override
@@ -405,11 +421,18 @@ class AbstractAsyncStateStreamOperatorV2Test {
         }
 
         @Override
-        public void onEventTime(InternalTimer<Integer, VoidNamespace> timer) throws Exception {}
+        public void onEventTime(InternalTimer<Integer, VoidNamespace> timer) throws Exception {
+            output.collect(
+                    new StreamRecord<>(
+                            "EventTimer-" + timer.getKey() + "-" + timer.getTimestamp()));
+        }
 
         @Override
-        public void onProcessingTime(InternalTimer<Integer, VoidNamespace> timer)
-                throws Exception {}
+        public void onProcessingTime(InternalTimer<Integer, VoidNamespace> timer) throws Exception {
+            output.collect(
+                    new StreamRecord<>(
+                            "ProcessingTimer-" + timer.getKey() + "-" + timer.getTimestamp()));
+        }
 
         @Override
         public void processRecordAttributes(RecordAttributes recordAttributes, int inputId)

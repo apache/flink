@@ -55,6 +55,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -332,17 +333,33 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
             super.processWatermark(mark);
             return;
         }
-        asyncExecutionController.processNonRecord(
-                () -> {
-                    // todo: make async operator deal with interruptible watermark
-                    if (timeServiceManager != null) {
-                        CompletableFuture<Void> future = timeServiceManager.advanceWatermark(mark);
-                        future.thenAccept(v -> output.emitWatermark(mark));
-                        asyncExecutionController.drainWithTimerIfNeeded(future);
-                    } else {
-                        output.emitWatermark(mark);
-                    }
-                });
+        asyncExecutionController.processNonRecord(() -> doProcessWatermark(mark, null));
+    }
+
+    /**
+     * Handle the watermark and timers, then run a provided {@link Runnable} asynchronously right
+     * after the watermark is emitted.
+     *
+     * @param mark The watermark.
+     * @param postAction The runnable for post action.
+     */
+    protected void doProcessWatermark(Watermark mark, @Nullable Runnable postAction)
+            throws Exception {
+        // todo: make async operator deal with interruptible watermark
+        if (timeServiceManager != null) {
+            CompletableFuture<Void> future = timeServiceManager.advanceWatermark(mark);
+            future.thenAccept(v -> emitWatermark(mark, postAction));
+            asyncExecutionController.drainWithTimerIfNeeded(future);
+        } else {
+            emitWatermark(mark, postAction);
+        }
+    }
+
+    private void emitWatermark(Watermark mark, @Nullable Runnable postAction) {
+        output.emitWatermark(mark);
+        if (postAction != null) {
+            postAction.run();
+        }
     }
 
     @Override
@@ -368,10 +385,12 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
                     boolean wasIdle = combinedWatermark.isIdle();
                     // index is 0-based
                     if (combinedWatermark.updateStatus(index, watermarkStatus.isIdle())) {
-                        super.processWatermark(
-                                new Watermark(combinedWatermark.getCombinedWatermark()));
-                    }
-                    if (wasIdle != combinedWatermark.isIdle()) {
+                        doProcessWatermark(
+                                new Watermark(combinedWatermark.getCombinedWatermark()),
+                                wasIdle == combinedWatermark.isIdle()
+                                        ? null
+                                        : () -> output.emitWatermarkStatus(watermarkStatus));
+                    } else if (wasIdle != combinedWatermark.isIdle()) {
                         output.emitWatermarkStatus(watermarkStatus);
                     }
                 });
