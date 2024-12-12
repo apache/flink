@@ -107,6 +107,9 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
     private final Map<IntermediateDataSetID, List<StreamEdge>>
             intermediateDataSetIdToOutputEdgesMap;
 
+    private final Map<String, IntermediateDataSet> consumerEdgeIdToIntermediateDataSetMap =
+            new HashMap<>();
+
     // Records the ids of stream nodes in the StreamNodeForwardGroup.
     // When stream edge's partitioner is modified to forward, we need get forward groups by source
     // and target node id.
@@ -167,7 +170,8 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
                         streamGraph,
                         steamNodeIdToForwardGroupMap,
                         frozenNodeToStartNodeMap,
-                        intermediateOutputsCaches);
+                        intermediateOutputsCaches,
+                        consumerEdgeIdToIntermediateDataSetMap);
 
         this.jobGraph = createAndInitializeJobGraph(streamGraph, streamGraph.getJobID());
 
@@ -382,6 +386,7 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
                 intermediateDataSetIdToOutputEdgesMap
                         .computeIfAbsent(dataSet.getId(), ignored -> new ArrayList<>())
                         .add(edge);
+                consumerEdgeIdToIntermediateDataSetMap.put(edge.getEdgeId(), dataSet);
                 // we cache the output here for downstream vertex to create jobEdge.
                 intermediateOutputsCaches
                         .computeIfAbsent(edge.getSourceId(), k -> new HashMap<>())

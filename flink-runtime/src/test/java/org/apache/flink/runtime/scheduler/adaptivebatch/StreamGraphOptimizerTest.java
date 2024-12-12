@@ -23,7 +23,6 @@ import org.apache.flink.streaming.api.graph.StreamGraphContext;
 import org.apache.flink.streaming.api.graph.util.ImmutableStreamGraph;
 import org.apache.flink.streaming.api.graph.util.StreamEdgeUpdateRequestInfo;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

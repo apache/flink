@@ -134,6 +134,18 @@ public class IntermediateDataSet implements java.io.Serializable {
         }
     }
 
+    public void updateOutputPattern(
+            DistributionPattern distributionPattern, boolean isBroadcast, boolean isForward) {
+        checkState(consumers.isEmpty(), "The output job edges have already been added.");
+        checkState(
+                numJobEdgesToCreate == 1,
+                "Modification is not allowed when the subscribing output is reused.");
+
+        this.distributionPattern = distributionPattern;
+        this.isBroadcast = isBroadcast;
+        this.isForward = isForward;
+    }
+
     public void increaseNumJobEdgesToCreate() {
         this.numJobEdgesToCreate++;
     }
