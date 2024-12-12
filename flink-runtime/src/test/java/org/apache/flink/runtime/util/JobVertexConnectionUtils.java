@@ -46,13 +46,16 @@ public class JobVertexConnectionUtils {
             ResultPartitionType partitionType,
             boolean isBroadcast,
             boolean isForward) {
-        return currentJobVertex.connectNewDataSetAsInput(
-                input,
-                distPattern,
-                partitionType,
-                new IntermediateDataSetID(),
-                isBroadcast,
-                isForward);
+        JobEdge jobEdge =
+                currentJobVertex.connectNewDataSetAsInput(
+                        input,
+                        distPattern,
+                        partitionType,
+                        new IntermediateDataSetID(),
+                        isBroadcast,
+                        isForward);
+        jobEdge.getSource().increaseNumJobEdgesToCreate();
+        return jobEdge;
     }
 
     public static JobEdge connectNewDataSetAsInput(
@@ -62,7 +65,15 @@ public class JobVertexConnectionUtils {
             ResultPartitionType partitionType,
             IntermediateDataSetID intermediateDataSetId,
             boolean isBroadcast) {
-        return currentJobVertex.connectNewDataSetAsInput(
-                input, distPattern, partitionType, intermediateDataSetId, isBroadcast, false);
+        JobEdge jobEdge =
+                currentJobVertex.connectNewDataSetAsInput(
+                        input,
+                        distPattern,
+                        partitionType,
+                        intermediateDataSetId,
+                        isBroadcast,
+                        false);
+        jobEdge.getSource().increaseNumJobEdgesToCreate();
+        return jobEdge;
     }
 }

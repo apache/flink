@@ -377,6 +377,7 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
                         distributionPattern,
                         edge.getPartitioner().isBroadcast(),
                         edge.getPartitioner().getClass().equals(ForwardPartitioner.class));
+                dataSet.increaseNumJobEdgesToCreate();
 
                 intermediateDataSetIdToOutputEdgesMap
                         .computeIfAbsent(dataSet.getId(), ignored -> new ArrayList<>())
