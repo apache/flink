@@ -37,6 +37,7 @@ import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.InputOutputFormatVertex;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -1336,11 +1337,12 @@ public class StreamingJobGraphGenerator {
             NonChainedOutput output = opIntermediateOutputs.get(edge.getSourceId()).get(edge);
             transitiveOutputs.add(output);
             connect(
-                    startNodeId,
-                    edge,
-                    output,
-                    jobVertexBuildContext.getJobVerticesInOrder(),
-                    jobVertexBuildContext);
+                            startNodeId,
+                            edge,
+                            output,
+                            jobVertexBuildContext.getJobVerticesInOrder(),
+                            jobVertexBuildContext)
+                    .increaseNumJobEdgesToCreate();
         }
 
         config.setVertexNonChainedOutputs(new ArrayList<>(transitiveOutputs));
@@ -1541,7 +1543,7 @@ public class StreamingJobGraphGenerator {
         }
     }
 
-    public static void connect(
+    public static IntermediateDataSet connect(
             Integer headOfChain,
             StreamEdge edge,
             NonChainedOutput output,
@@ -1597,6 +1599,8 @@ public class StreamingJobGraphGenerator {
                     headOfChain,
                     downStreamVertexID);
         }
+
+        return jobEdge.getSource();
     }
 
     private static boolean isPersistentIntermediateDataset(
