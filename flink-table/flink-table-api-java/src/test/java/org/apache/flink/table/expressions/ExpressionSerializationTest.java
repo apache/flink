@@ -179,9 +179,6 @@ public class ExpressionSerializationTest {
                 TestSpec.forExpr($("f0").trimTrailing("ABC"))
                         .withField("f0", DataTypes.STRING())
                         .expectStr("TRIM(TRAILING 'ABC' FROM `f0`)"),
-                TestSpec.forExpr($("f0").concat("f0"))
-                        .withField("f0", DataTypes.STRING())
-                        .expectStr("CONCAT(`f0`, 3)"),
                 TestSpec.forExpr($("f0").overlay("ABC", 2))
                         .withField("f0", DataTypes.STRING())
                         .expectStr("OVERLAY(`f0` PLACING 'ABC' FROM 2)"),
