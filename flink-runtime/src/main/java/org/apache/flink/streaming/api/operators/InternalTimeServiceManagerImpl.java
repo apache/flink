@@ -44,6 +44,7 @@ import java.io.InputStream;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -238,10 +239,14 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
     }
 
     @Override
-    public void advanceWatermark(Watermark watermark) throws Exception {
+    public CompletableFuture<Void> advanceWatermark(Watermark watermark) throws Exception {
+        CompletableFuture<?>[] futures = new CompletableFuture[timerServices.size()];
+        int index = 0;
         for (InternalTimerServiceImpl<?, ?> service : timerServices.values()) {
-            service.advanceWatermark(watermark.getTimestamp());
+            futures[index] = service.advanceWatermark(watermark.getTimestamp());
+            index++;
         }
+        return CompletableFuture.allOf(futures);
     }
 
     @Override

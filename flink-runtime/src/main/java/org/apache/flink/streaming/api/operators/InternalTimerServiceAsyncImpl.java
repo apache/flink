@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -28,6 +29,10 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * An implementation of {@link InternalTimerService} that is used by {@link
@@ -97,20 +102,23 @@ public class InternalTimerServiceAsyncImpl<K, N> extends InternalTimerServiceImp
      * @param time the time in watermark.
      */
     @Override
-    public void advanceWatermark(long time) throws Exception {
+    public CompletableFuture<Void> advanceWatermark(long time) throws Exception {
         currentWatermark = time;
-
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
         InternalTimer<K, N> timer;
-
         while ((timer = eventTimeTimersQueue.peek()) != null
                 && timer.getTimestamp() <= time
                 && !cancellationContext.isCancelled()) {
             eventTimeTimersQueue.poll();
             final InternalTimer<K, N> timerToTrigger = timer;
+            CompletableFuture<Void> future = new CompletableFuture<>();
             maintainContextAndProcess(
-                    timerToTrigger, () -> triggerTarget.onEventTime(timerToTrigger));
+                            timerToTrigger, () -> triggerTarget.onEventTime(timerToTrigger))
+                    .thenAccept(v -> future.complete(null));
+            futures.add(future);
             taskIOMetricGroup.getNumFiredTimers().inc();
         }
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
     /**
@@ -125,13 +133,14 @@ public class InternalTimerServiceAsyncImpl<K, N> extends InternalTimerServiceImp
                 "Batch operation is not supported when using async state.");
     }
 
-    private void maintainContextAndProcess(
+    private StateFuture<Void> maintainContextAndProcess(
             InternalTimer<K, N> timer, ThrowingRunnable<Exception> runnable) {
-        RecordContext<K> recordCtx = asyncExecutionController.buildContext(null, timer.getKey());
+        RecordContext<K> recordCtx = asyncExecutionController.buildContext(timer, timer.getKey());
         recordCtx.retain();
         asyncExecutionController.setCurrentContext(recordCtx);
         keyContext.setCurrentKey(timer.getKey());
-        asyncExecutionController.syncPointRequestWithCallback(runnable);
+        StateFuture<Void> future = asyncExecutionController.syncPointRequestWithCallback(runnable);
         recordCtx.release();
+        return future;
     }
 }
