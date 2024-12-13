@@ -25,26 +25,26 @@ under the License.
 -->
 
 # Native Lineage Support
-Data lineage has gain more and more criticality in data ecosystem. As Apache Flink is widely used for data ingestion and ETL in Streaming Data Lake, we need 
+As organisations look to govern their data ecosystems; understanding data lineage, where data is coming from and going to, becomes critical. As Apache Flink is widely used for data ingestion and ETL in Streaming Data Lakes, we need 
 an end to end lineage solution for scenarios including but not limited to:
   - `Data Quality Assurance`: Identifying and rectifying data inconsistencies by tracing data errors back to their origin within the data pipeline.
   - `Data Governance`： Establishing clear data ownership and accountability by documenting data origins and transformations.
   - `Regulatory Compliance`: Ensuring adherence to data privacy and compliance regulations by tracking data flow and transformations throughout its lifecycle.
   - `Data Optimization`: Identifying redundant data processing steps and optimizing data flows to improve efficiency.
 
-Apache Flink provides a native lineage support for the community requirement by providing an internal lineage data model and [Job Status Listener]({{< ref "docs/deployment/advanced/job_status_listener" >}}) for
+Apache Flink provides a native lineage support by providing an internal lineage data model and [Job Status Listener]({{< ref "docs/deployment/advanced/job_status_listener" >}}) for
 developer to integrate lineage metadata into external lineage system, for example [OpenLineage](https://openlineage.io). When a job is created in Flink runtime, the JobCreatedEvent 
-contains the Lineage Graph metadata will be sent to Job Status Listeners.
+contains the Lineage Graph metadata that will be sent to Job Status Listeners.
 
 # Lineage Data Model
 Flink native lineage interfaces are defined in two layers. The first layer is the generic interface for all Flink jobs and connector, and the second layer defines
-the extended interfaces for Table and DataStream independently. The interface and class relationship are defined in the diagram below.
+the extended interfaces for Table and DataStream independently. The interface and class relationships are defined in the diagram below.
 
 {{< img src="/fig/lineage_interfaces.png" alt="Lineage Data Model" width="80%">}}
 
-By default, Table related lineage interfaces or classes are mainly used in Flink Table Runtime, thus Flink users doesn't need to touch these interfaces. Flink community will gradually support all
-of common connectors, such as Kafka, JDBC, Cassandra, Hive and so on. If you have customized connector defined, you need to have customized source/sink implements the LineageVertexProvider interface.
-Within a LineageVertex, a list of Lineage Dataset is defined as metadata for Flink source/sink. 
+By default, Table related lineage interfaces or classes are used in Flink Table environment, thus Flink users doesn't need to touch these interfaces. The Flink community will gradually support all
+of the common connectors, such as Kafka, JDBC, Cassandra, Hive. If you have a customized connector defined, you need to have customized source/sink implementations of the LineageVertexProvider interface.
+Within a LineageVertex, a list of Lineage Datasets are defined as metadata for Flink source/sink. 
 
 
 ```java
@@ -57,7 +57,7 @@ public interface LineageVertexProvider {
 For the interface details, please refer to [FLIP-314](https://cwiki.apache.org/confluence/display/FLINK/FLIP-314%3A+Support+Customized+Job+Lineage+Listener).
 
 # Naming Conventions
-For each of Lineage Dataset, we need to define its own name and namespace to distinguish different data store and corresponding instance used in the connector of a Flink application. 
+For each of the Lineage Dataset, we need to define its name and namespace, to distinguish different data stores and corresponding dynamic table associated with a Flink connector. 
 
 | Data Store | Connector Type  | Namespace                              | Name                                                     | 
 |------------|-----------------|----------------------------------------|----------------------------------------------------------|
@@ -71,4 +71,4 @@ For each of Lineage Dataset, we need to define its own name and namespace to dis
 | DB2        | JDBC Connector  | db2://{host}:{port}                    | {database}.{table}                                       | 
 | CrateDB    | JDBC Connector  | cratedb://{host}:{port}                | {database}.{table}                                       | 
 
-It is a running table. More and more naming info will be added after lineage integration is finished for a specific connector.
+If you would like to contribute to lineage integration with Flink Connectors that are not listed here, please finish the development in the connector repository and then update the table above.
