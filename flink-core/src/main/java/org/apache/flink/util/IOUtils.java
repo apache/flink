@@ -159,13 +159,7 @@ public final class IOUtils {
      *     EOF)
      */
     public static void skipFully(final InputStream in, long len) throws IOException {
-        while (len > 0) {
-            final long ret = in.skip(len);
-            if (ret < 0) {
-                throw new IOException("Premeture EOF from inputStream");
-            }
-            len -= ret;
-        }
+        org.apache.commons.io.IOUtils.skipFully(in, len);
     }
 
     // ------------------------------------------------------------------------
