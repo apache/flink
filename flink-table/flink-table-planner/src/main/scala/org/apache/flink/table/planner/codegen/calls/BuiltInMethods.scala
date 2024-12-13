@@ -23,7 +23,6 @@ import org.apache.flink.table.data.binary.{BinaryStringData, BinaryStringDataUti
 import org.apache.flink.table.functions.SqlLikeUtils
 import org.apache.flink.table.runtime.functions._
 import org.apache.flink.table.runtime.functions.SqlJsonUtils.JsonQueryReturnType
-import org.apache.flink.table.types.logical.LogicalTypeRoot
 import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.table.utils.DateTimeUtils.TimeUnitRange
 
@@ -338,12 +337,38 @@ object BuiltInMethods {
     classOf[DecimalData],
     classOf[Int])
 
+  val LONG_TO_TIMESTAMP_LTZ =
+    Types.lookupMethod(classOf[DateTimeUtils], "toTimestampData", classOf[Long])
+
+  val DOUBLE_TO_TIMESTAMP_LTZ =
+    Types.lookupMethod(classOf[DateTimeUtils], "toTimestampData", classOf[Double])
+
+  val DECIMAL_TO_TIMESTAMP_LTZ =
+    Types.lookupMethod(classOf[DateTimeUtils], "toTimestampData", classOf[DecimalData])
+
   val STRING_TO_TIMESTAMP =
     Types.lookupMethod(classOf[DateTimeUtils], "parseTimestampData", classOf[String])
 
   val STRING_TO_TIMESTAMP_WITH_FORMAT = Types.lookupMethod(
     classOf[DateTimeUtils],
     "parseTimestampData",
+    classOf[String],
+    classOf[String])
+
+  val STRING_TO_TIMESTAMP_LTZ =
+    Types.lookupMethod(classOf[DateTimeUtils], "parseTimestampData", classOf[String])
+
+  val STRING_TO_TIMESTAMP_LTZ_WITH_FORMAT =
+    Types.lookupMethod(
+      classOf[DateTimeUtils],
+      "parseTimestampData",
+      classOf[String],
+      classOf[String])
+
+  val STRING_TO_TIMESTAMP_LTZ_WITH_FORMAT_WITH_TIME_ZONE = Types.lookupMethod(
+    classOf[DateTimeUtils],
+    "parseTimestampData",
+    classOf[String],
     classOf[String],
     classOf[String])
 

@@ -59,6 +59,7 @@ import static java.time.temporal.ChronoField.MONTH_OF_YEAR;
 import static java.time.temporal.ChronoField.NANO_OF_SECOND;
 import static java.time.temporal.ChronoField.SECOND_OF_MINUTE;
 import static java.time.temporal.ChronoField.YEAR;
+import static org.apache.flink.table.types.logical.YearMonthIntervalType.DEFAULT_PRECISION;
 
 /**
  * Utility functions for datetime types: date, time, timestamp.
@@ -141,6 +142,8 @@ public class DateTimeUtils {
                     .appendFraction(NANO_OF_SECOND, 0, 9, true)
                     .optionalEnd()
                     .toFormatter();
+
+    private static final Integer DEFAULT_PRECISION = 3;
 
     /**
      * A ThreadLocal cache map for SimpleDateFormat, because SimpleDateFormat is not thread-safe.
@@ -385,6 +388,18 @@ public class DateTimeUtils {
         }
     }
 
+    public static TimestampData toTimestampData(long epoch) {
+        return toTimestampData(epoch, DEFAULT_PRECISION);
+    }
+
+    public static TimestampData toTimestampData(double epoch) {
+        return toTimestampData(epoch, DEFAULT_PRECISION);
+    }
+
+    public static TimestampData toTimestampData(DecimalData epoch) {
+        return toTimestampData(epoch, DEFAULT_PRECISION);
+    }
+
     public static TimestampData toTimestampData(DecimalData v, int precision) {
         long epochMills;
         switch (precision) {
@@ -404,18 +419,6 @@ public class DateTimeUtils {
                                 + "TO_TIMESTAMP_LTZ(numeric, precision) is unsupported,"
                                 + " the supported value is '0' for second or '3' for millisecond.");
         }
-    }
-
-    public static TimestampData toTimestampData(long epoch) {
-        return toTimestampData(epoch, 3);
-    }
-
-    public static TimestampData toTimestampData(double epoch) {
-        return toTimestampData(epoch, 3);
-    }
-
-    public static TimestampData toTimestampData(DecimalData epoch) {
-        return toTimestampData(epoch, 3);
     }
 
     private static TimestampData timestampDataFromEpochMills(long epochMills) {
@@ -453,7 +456,7 @@ public class DateTimeUtils {
                         .toInstant());
     }
 
-    public static TimestampData toTimestampData(String dateStr, String format, String timezone) {
+    public static TimestampData parseTimestampData(String dateStr, String format, String timezone) {
         if (dateStr == null || format == null || timezone == null) {
             return null;
         }

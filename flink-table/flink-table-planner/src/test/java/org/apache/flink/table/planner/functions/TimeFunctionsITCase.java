@@ -39,6 +39,7 @@ import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.DATE;
 import static org.apache.flink.table.api.DataTypes.DAY;
 import static org.apache.flink.table.api.DataTypes.DOUBLE;
+import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.HOUR;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
@@ -821,16 +822,22 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 1234,
                                 -100,
                                 null,
-                                DecimalDataUtils.castFrom(-Double.MAX_VALUE, 38, 18))
+                                DecimalDataUtils.castFrom(-Double.MAX_VALUE, 38, 18),
+                                100.01)
                         .andDataTypes(
-                                DOUBLE(), BIGINT(), BIGINT(), BIGINT(), DataTypes.DECIMAL(38, 18))
+                                DOUBLE(),
+                                BIGINT(),
+                                BIGINT(),
+                                BIGINT(),
+                                DataTypes.DECIMAL(38, 18),
+                                FLOAT())
                         .testResult(
-                                toTimestampLtz($("f0"), literal(0)),
-                                "TO_TIMESTAMP_LTZ(f0, 0)",
-                                LocalDateTime.of(1970, 1, 1, 0, 1, 40)
+                                toTimestampLtz($("f0")),
+                                "TO_TIMESTAMP_LTZ(f0)",
+                                LocalDateTime.of(1970, 1, 1, 0, 0, 0, 100000000)
                                         .atZone(ZoneOffset.UTC)
                                         .toInstant(),
-                                TIMESTAMP_LTZ(0).nullable())
+                                TIMESTAMP_LTZ(3).nullable())
                         .testResult(
                                 toTimestampLtz($("f1"), literal(3)),
                                 "TO_TIMESTAMP_LTZ(f1, 3)",
@@ -844,7 +851,7 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 LocalDateTime.of(1969, 12, 31, 23, 58, 20)
                                         .atZone(ZoneOffset.UTC)
                                         .toInstant(),
-                                TIMESTAMP_LTZ(0).nullable())
+                                TIMESTAMP_LTZ(3).nullable())
                         .testResult(
                                 toTimestampLtz($("f3"), literal(3)),
                                 "TO_TIMESTAMP_LTZ(f3, 3)",
@@ -853,8 +860,15 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                         .testResult(
                                 toTimestampLtz($("f4"), literal(0)),
                                 "TO_TIMESTAMP_LTZ(-" + Double.MAX_VALUE + ", 0)",
-                                null, // expecting NULL result
-                                TIMESTAMP_LTZ(0).nullable())
+                                null,
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz($("f5"), literal(3)),
+                                "TO_TIMESTAMP_LTZ(f5, 3)",
+                                LocalDateTime.of(1970, 1, 1, 0, 0, 0, 100000000)
+                                        .atZone(ZoneOffset.UTC)
+                                        .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
                         .testResult(
                                 toTimestampLtz("2023-01-01 00:00:00"),
                                 "TO_TIMESTAMP_LTZ('2023-01-01 00:00:00')",
@@ -866,7 +880,7 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 toTimestampLtz("01/01/2023 00:00:00", "dd/MM/yyyy HH:mm:ss"),
                                 "TO_TIMESTAMP_LTZ('01/01/2023 00:00:00', 'dd/MM/yyyy HH:mm:ss')",
                                 LocalDateTime.of(2023, 1, 1, 0, 0, 0)
-                                        .atZone(ZoneOffset.UTC) // why UTC?
+                                        .atZone(ZoneOffset.UTC)
                                         .toInstant(),
                                 TIMESTAMP_LTZ(3).nullable())
                         .testResult(
@@ -932,6 +946,14 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 LocalDateTime.of(2023, 1, 1, 0, 0, 0)
                                         .atZone(ZoneId.of("America/Los_Angeles"))
                                         .toInstant(),
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz(
+                                        "un-parsable timestamp",
+                                        literal("yyyy-MM-dd HH:mm:ss"),
+                                        literal("UTC")),
+                                "TO_TIMESTAMP_LTZ('invalid timestamp', 'yyyy-MM-dd HH:mm:ss', 'UTC')",
+                                null,
                                 TIMESTAMP_LTZ(3).nullable()));
     }
 }

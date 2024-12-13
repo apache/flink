@@ -20,9 +20,12 @@ package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.TypeStrategy;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import java.util.List;
@@ -40,37 +43,56 @@ public class ToTimestampLtzTypeStrategy implements TypeStrategy {
         int argCount = argumentTypes.size();
 
         if (argCount < 1 || argCount > 3) {
-            throw new IllegalArgumentException(
-                    "TO_TIMESTAMP_LTZ requires 1 to 3 arguments, but "
+            throw new ValidationException(
+                    "Unsupported argument type. "
+                            + "TO_TIMESTAMP_LTZ requires 1 to 3 arguments, but "
                             + argCount
-                            + "arguments were provided.");
+                            + " were provided.");
         }
 
+        LogicalType firstType = argumentTypes.get(0).getLogicalType();
+        LogicalTypeRoot firstTypeRoot = firstType.getTypeRoot();
+
         if (argCount == 1) {
-            // TO_TIMESTAMP_LTZ(numeric)
-            // TO_TIMESTAMP_LTZ(string)
-            return Optional.of(DataTypes.TIMESTAMP_LTZ(DEFAULT_PRECISION));
-        } else if (argCount == 2) {
-            LogicalTypeRoot firstArgTypeRoot = argumentTypes.get(0).getLogicalType().getTypeRoot();
-            boolean isFirstArgNumeric =
-                    firstArgTypeRoot == LogicalTypeRoot.TINYINT
-                            || firstArgTypeRoot == LogicalTypeRoot.SMALLINT
-                            || firstArgTypeRoot == LogicalTypeRoot.INTEGER
-                            || firstArgTypeRoot == LogicalTypeRoot.BIGINT
-                            || firstArgTypeRoot == LogicalTypeRoot.FLOAT
-                            || firstArgTypeRoot == LogicalTypeRoot.DOUBLE
-                            || firstArgTypeRoot == LogicalTypeRoot.DECIMAL;
-            // TO_TIMESTAMP_LTZ(numeric, precision)
-            if (callContext.isArgumentLiteral(1) && isFirstArgNumeric) {
-                final int precision = callContext.getArgumentValue(1, Integer.class).get();
-                return Optional.of(DataTypes.TIMESTAMP_LTZ(precision));
+            if (!isCharacterType(firstTypeRoot) && !firstType.is(LogicalTypeFamily.NUMERIC)) {
+                throw new ValidationException(
+                        "Unsupported argument type. "
+                                + "When taking 1 argument, TO_TIMESTAMP_LTZ accepts <CHARACTER> or <NUMERIC>.");
             }
-            // TO_TIMESTAMP_LTZ(string, format)
-            return Optional.of(DataTypes.TIMESTAMP_LTZ(DEFAULT_PRECISION));
-        } else {
-            // argCount == 3
-            // TO_TIMESTAMP_LTZ(string, format, timezone)
-            return Optional.of(DataTypes.TIMESTAMP_LTZ(DEFAULT_PRECISION));
+        } else if (argCount == 2) {
+            LogicalType secondType = argumentTypes.get(1).getLogicalType();
+            LogicalTypeRoot secondTypeRoot = secondType.getTypeRoot();
+            if (firstType.is(LogicalTypeFamily.NUMERIC)) {
+                if (secondTypeRoot != LogicalTypeRoot.INTEGER) {
+                    throw new ValidationException(
+                            "Unsupported argument type. "
+                                    + "TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>) requires the second argument to be <INTEGER>.");
+                }
+            } else if (isCharacterType(firstTypeRoot)) {
+                if (!isCharacterType(secondTypeRoot)) {
+                    throw new ValidationException(
+                            "Unsupported argument type. "
+                                    + "TO_TIMESTAMP_LTZ(<CHARACTER>, <CHARACTER>) requires the second argument to be <CHARACTER>.");
+                }
+            } else {
+                throw new ValidationException(
+                        "Unsupported argument type. "
+                                + "When taking 2 arguments, TO_TIMESTAMP_LTZ requires the first argument to be <NUMERIC> or <CHARACTER>.");
+            }
+        } else if (argCount == 3) {
+            if (!isCharacterType(firstTypeRoot)
+                    || !isCharacterType(argumentTypes.get(1).getLogicalType().getTypeRoot())
+                    || !isCharacterType(argumentTypes.get(2).getLogicalType().getTypeRoot())) {
+                throw new ValidationException(
+                        "Unsupported argument type. "
+                                + "When taking 3 arguments, TO_TIMESTAMP_LTZ requires all three arguments to be of type <CHARACTER>.");
+            }
         }
+
+        return Optional.of(DataTypes.TIMESTAMP_LTZ(DEFAULT_PRECISION).nullable());
+    }
+
+    private boolean isCharacterType(LogicalTypeRoot typeRoot) {
+        return typeRoot == LogicalTypeRoot.CHAR || typeRoot == LogicalTypeRoot.VARCHAR;
     }
 }

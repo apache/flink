@@ -306,19 +306,38 @@ def to_timestamp(timestamp_str: Union[str, Expression[str]],
         return _binary_op("toTimestamp", timestamp_str, format)
 
 
-def to_timestamp_ltz(numeric_epoch_time, precision) -> Expression:
+def to_timestamp_ltz(*args) -> Expression:
     """
-    Converts a numeric type epoch time to TIMESTAMP_LTZ.
+    Converts a value to a timestamp with local time zone.
 
-    The supported precision is 0 or 3:
-    0 means the numericEpochTime is in second.
-    3 means the numericEpochTime is in millisecond.
+    Supported signatures:
+    1. to_timestamp_ltz(numeric) -> timestamp_ltz
+    2. to_timestamp_ltz(numeric, precision) -> timestamp_ltz
+    3. to_timestamp_ltz(string) -> timestamp_ltz
+    4. to_timestamp_ltz(string, format) -> timestamp_ltz
+    5. to_timestamp_ltz(string, format, timezone) -> timestamp_ltz
 
-    :param numeric_epoch_time: The epoch time with numeric type
-    :param precision: The precision to indicate the epoch time is in second or millisecond
-    :return: The timestamp value with TIMESTAMP_LTZ type.
+    Example:
+    ::
+
+        >>> table.select(to_timestamp_ltz(100))  # numeric with default precision
+        >>> table.select(to_timestamp_ltz(100, 0))  # numeric with second precision
+        >>> table.select(to_timestamp_ltz("2023-01-01 00:00:00"))  # string with default format
+        >>> table.select(to_timestamp_ltz("01/01/2023", "MM/dd/yyyy"))  # string with format
+        >>> table.select(to_timestamp_ltz("2023-01-01 00:00:00",
+                                        "yyyy-MM-dd HH:mm:ss",
+                                        "UTC"))  # string with format and timezone
     """
-    return _binary_op("toTimestampLtz", numeric_epoch_time, precision)
+    if len(args) == 1:
+        return _unary_op("toTimestampLtz", lit(args[0]))
+
+    # For two arguments case (numeric + precision or string + format)
+    elif len(args) == 2:
+        return _binary_op("toTimestampLtz", lit(args[0]), lit(args[1]))
+
+    # For three arguments case (string + format + timezone)
+    else:
+        return _ternary_op("toTimestampLtz", lit(args[0]), lit(args[1]), lit(args[2]))
 
 
 def temporal_overlaps(left_time_point,

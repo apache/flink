@@ -26,22 +26,51 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.SpecializedFunction;
 import org.apache.flink.table.utils.DateTimeUtils;
 
+import javax.annotation.Nullable;
+
 /**
  * Implementation of {@link BuiltInFunctionDefinitions#TO_TIMESTAMP_LTZ}.
  *
- * <p>Supported function signatures: TO_TIMESTAMP_LTZ(numeric, precision) ->
- * TIMESTAMP_LTZ(precision) TO_TIMESTAMP_LTZ(string) -> TIMESTAMP_LTZ(3) TO_TIMESTAMP_LTZ(string,
- * format) -> TIMESTAMP_LTZ(3) TO_TIMESTAMP_LTZ(string, format, timezone) -> TIMESTAMP_LTZ(3)
- * TO_TIMESTAMP_LTZ(numeric) -> TIMESTAMP_LTZ(3)
+ * <p>A function that converts various time formats to TIMESTAMP_LTZ type.
+ *
+ * <p>Supported function signatures:
+ *
+ * <ul>
+ *   <li>{@code TO_TIMESTAMP_LTZ(numeric)} -> TIMESTAMP_LTZ(3) <br>
+ *       Converts numeric epoch time in milliseconds to timestamp with local timezone
+ *   <li>{@code TO_TIMESTAMP_LTZ(numeric, precision)} -> TIMESTAMP_LTZ(precision) <br>
+ *       Converts numeric epoch time to timestamp with specified precision (0 as seconds, 3 as
+ *       milliseconds)
+ *   <li>{@code TO_TIMESTAMP_LTZ(timestamp)} -> TIMESTAMP_LTZ(3) <br>
+ *       Parses string timestamp using default format 'yyyy-MM-dd HH:mm:ss'
+ *   <li>{@code TO_TIMESTAMP_LTZ(timestamp, format)} -> TIMESTAMP_LTZ(3) <br>
+ *       Parses string timestamp using input string of format
+ *   <li>{@code TO_TIMESTAMP_LTZ(timestamp, format, timezone)} -> TIMESTAMP_LTZ(3) <br>
+ *       Parses string timestamp using input strings of format and timezone
+ * </ul>
+ *
+ * <p>Example:
+ *
+ * <pre>{@code
+ * TO_TIMESTAMP_LTZ('2023-01-01 10:00:00')}  // Parses string using default format
+ * TO_TIMESTAMP_LTZ(1234567890123)}  // Converts epoch milliseconds
+ * TO_TIMESTAMP_LTZ(1234567890, 0)     // Converts epoch seconds
+ * TO_TIMESTAMP_LTZ(1234567890123, 3)  // Converts epoch milliseconds
+ * TO_TIMESTAMP_LTZ('2023-01-01 10:00:00')  // Parses string using default format
+ * TO_TIMESTAMP_LTZ('2023-01-01T10:00:00', 'yyyy-MM-dd\'T\'HH:mm:ss')} // Parses string using input format
+ * TO_TIMESTAMP_LTZ('2023-01-01 10:00:00', 'yyyy-MM-dd HH:mm:ss', 'UTC')} // Parses string using input format and timezone
+ * }</pre>
  */
 @Internal
 public class ToTimestampLtzFunction extends BuiltInScalarFunction {
+
+    private static final int DEFAULT_PRECISION = 3;
 
     public ToTimestampLtzFunction(SpecializedFunction.SpecializedContext context) {
         super(BuiltInFunctionDefinitions.TO_TIMESTAMP_LTZ, context);
     }
 
-    public TimestampData eval(Integer epoch, Integer precision) {
+    public @Nullable TimestampData eval(Integer epoch, Integer precision) {
         if (epoch == null || precision == null) {
             return null;
         }
@@ -49,7 +78,7 @@ public class ToTimestampLtzFunction extends BuiltInScalarFunction {
         return DateTimeUtils.toTimestampData(epoch, precision);
     }
 
-    public TimestampData eval(Long epoch, Integer precision) {
+    public @Nullable TimestampData eval(Long epoch, Integer precision) {
         if (epoch == null || precision == null) {
             return null;
         }
@@ -57,7 +86,7 @@ public class ToTimestampLtzFunction extends BuiltInScalarFunction {
         return DateTimeUtils.toTimestampData(epoch, precision);
     }
 
-    public TimestampData eval(Double epoch, Integer precision) {
+    public @Nullable TimestampData eval(Double epoch, Integer precision) {
         if (epoch == null || precision == null) {
             return null;
         }
@@ -65,21 +94,21 @@ public class ToTimestampLtzFunction extends BuiltInScalarFunction {
         return DateTimeUtils.toTimestampData(epoch, precision);
     }
 
-    public TimestampData eval(Float value, Integer precision) {
+    public @Nullable TimestampData eval(Float value, Integer precision) {
+        if (value == null || precision == null) {
+            return null;
+        }
+        return DateTimeUtils.toTimestampData(value.doubleValue(), precision);
+    }
+
+    public @Nullable TimestampData eval(Byte value, Integer precision) {
         if (value == null || precision == null) {
             return null;
         }
         return DateTimeUtils.toTimestampData(value.longValue(), precision);
     }
 
-    public TimestampData eval(Byte value, Integer precision) {
-        if (value == null || precision == null) {
-            return null;
-        }
-        return DateTimeUtils.toTimestampData(value.longValue(), precision);
-    }
-
-    public TimestampData eval(DecimalData epoch, Integer precision) {
+    public @Nullable TimestampData eval(DecimalData epoch, Integer precision) {
         if (epoch == null || precision == null) {
             return null;
         }
@@ -92,7 +121,7 @@ public class ToTimestampLtzFunction extends BuiltInScalarFunction {
             return null;
         }
 
-        return eval(epoch, 3);
+        return DateTimeUtils.toTimestampData(epoch);
     }
 
     public TimestampData eval(Long epoch) {
@@ -100,7 +129,7 @@ public class ToTimestampLtzFunction extends BuiltInScalarFunction {
             return null;
         }
 
-        return eval(epoch, 3);
+        return DateTimeUtils.toTimestampData(epoch);
     }
 
     public TimestampData eval(Float epoch) {
@@ -108,7 +137,7 @@ public class ToTimestampLtzFunction extends BuiltInScalarFunction {
             return null;
         }
 
-        return eval(epoch, 3);
+        return DateTimeUtils.toTimestampData(epoch);
     }
 
     public TimestampData eval(Byte epoch) {
@@ -116,7 +145,7 @@ public class ToTimestampLtzFunction extends BuiltInScalarFunction {
             return null;
         }
 
-        return eval(epoch, 3);
+        return DateTimeUtils.toTimestampData(epoch);
     }
 
     public TimestampData eval(Double epoch) {
@@ -124,7 +153,7 @@ public class ToTimestampLtzFunction extends BuiltInScalarFunction {
             return null;
         }
 
-        return eval(epoch, 3);
+        return DateTimeUtils.toTimestampData(epoch);
     }
 
     public TimestampData eval(DecimalData epoch) {
@@ -132,11 +161,10 @@ public class ToTimestampLtzFunction extends BuiltInScalarFunction {
             return null;
         }
 
-        return eval(epoch, 3);
+        return DateTimeUtils.toTimestampData(epoch);
     }
 
-    // Parse timestamp with default format
-    public TimestampData eval(StringData timestamp) {
+    public @Nullable TimestampData eval(StringData timestamp) {
         if (timestamp == null) {
             return null;
         }
@@ -144,8 +172,7 @@ public class ToTimestampLtzFunction extends BuiltInScalarFunction {
         return DateTimeUtils.parseTimestampData(timestamp.toString());
     }
 
-    // Parse timestamp with custom format
-    public TimestampData eval(StringData timestamp, StringData format) {
+    public @Nullable TimestampData eval(StringData timestamp, StringData format) {
         if (timestamp == null || format == null) {
             return null;
         }
@@ -153,13 +180,13 @@ public class ToTimestampLtzFunction extends BuiltInScalarFunction {
         return DateTimeUtils.parseTimestampData(timestamp.toString(), format.toString());
     }
 
-    // Parse timestamp with format and timezone
-    public TimestampData eval(StringData timestamp, StringData format, StringData timezone) {
+    public @Nullable TimestampData eval(
+            StringData timestamp, StringData format, StringData timezone) {
         if (timestamp == null || format == null || timezone == null) {
             return null;
         }
 
-        return DateTimeUtils.toTimestampData(
+        return DateTimeUtils.parseTimestampData(
                 timestamp.toString(), format.toString(), timezone.toString());
     }
 }

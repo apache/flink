@@ -1140,41 +1140,41 @@ class TemporalTypesTest extends ExpressionTestBase {
     tableConfig.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
 
     // INT -> TIMESTAMP_LTZ
-    testAllApis(toTimestampLtz(100, 0), "TO_TIMESTAMP_LTZ(100, 0)", "1970-01-01 08:01:40")
+    testAllApis(toTimestampLtz(100, 0), "TO_TIMESTAMP_LTZ(100, 0)", "1970-01-01 08:01:40.000")
 
     // TINYINT -> TIMESTAMP_LTZ
     testAllApis(
       toTimestampLtz(100.cast(DataTypes.TINYINT()), 0),
       "TO_TIMESTAMP_LTZ(CAST(100 AS TINYINT), 0)",
-      "1970-01-01 08:01:40")
+      "1970-01-01 08:01:40.000")
 
     // BIGINT -> TIMESTAMP_LTZ
     testAllApis(
       toTimestampLtz(100.cast(DataTypes.BIGINT()), 0),
       "TO_TIMESTAMP_LTZ(CAST(100 AS BIGINT), 0)",
-      "1970-01-01 08:01:40")
+      "1970-01-01 08:01:40.000")
 
     // FLOAT -> TIMESTAMP_LTZ
     testAllApis(
       toTimestampLtz(100.01.cast(DataTypes.FLOAT()), 0),
       "TO_TIMESTAMP_LTZ(CAST(100.01 AS FLOAT), 0)",
-      "1970-01-01 08:01:40")
+      "1970-01-01 08:01:40.010")
 
     // DOUBLE -> TIMESTAMP_LTZ
     testAllApis(
       toTimestampLtz(100.123.cast(DataTypes.DOUBLE()), 0),
       "TO_TIMESTAMP_LTZ(CAST(100.123 AS DOUBLE), 0)",
-      "1970-01-01 08:01:40")
+      "1970-01-01 08:01:40.123")
 
     // DECIMAL -> TIMESTAMP_LTZ
     testAllApis(
       toTimestampLtz(100.cast(DataTypes.DECIMAL(38, 18)), 0),
       "TO_TIMESTAMP_LTZ(100, 0)",
-      "1970-01-01 08:01:40")
+      "1970-01-01 08:01:40.000")
     testAllApis(
       toTimestampLtz(-100.cast(DataTypes.DECIMAL(38, 18)), 0),
       "TO_TIMESTAMP_LTZ(-100, 0)",
-      "1970-01-01 07:58:20")
+      "1970-01-01 07:58:20.000")
 
     // keep scale
     testAllApis(toTimestampLtz(1234, 3), "TO_TIMESTAMP_LTZ(1234, 3)", "1970-01-01 08:00:01.234")
@@ -1185,13 +1185,13 @@ class TemporalTypesTest extends ExpressionTestBase {
   @Test
   def testToTimestampLtzUTC(): Unit = {
     tableConfig.setLocalTimeZone(ZoneId.of("UTC"))
-    testAllApis(toTimestampLtz(100, 0), "TO_TIMESTAMP_LTZ(100, 0)", "1970-01-01 00:01:40")
+    testAllApis(toTimestampLtz(100, 0), "TO_TIMESTAMP_LTZ(100, 0)", "1970-01-01 00:01:40.000")
 
-    testAllApis(toTimestampLtz(100, 0), "TO_TIMESTAMP_LTZ(100, 0)", "1970-01-01 00:01:40")
+    testAllApis(toTimestampLtz(100, 0), "TO_TIMESTAMP_LTZ(100, 0)", "1970-01-01 00:01:40.000")
 
     testAllApis(toTimestampLtz(1234, 3), "TO_TIMESTAMP_LTZ(1234, 3)", "1970-01-01 00:00:01.234")
 
-    testAllApis(toTimestampLtz(-100, 0), "TO_TIMESTAMP_LTZ(-100, 0)", "1969-12-31 23:58:20")
+    testAllApis(toTimestampLtz(-100, 0), "TO_TIMESTAMP_LTZ(-100, 0)", "1969-12-31 23:58:20.000")
   }
 
   @Test
@@ -1202,21 +1202,21 @@ class TemporalTypesTest extends ExpressionTestBase {
     testAllApis(
       toTimestampLtz(JInt.MIN_VALUE.cast(DataTypes.INT()), 0),
       s"TO_TIMESTAMP_LTZ(CAST(${JInt.MIN_VALUE} AS INTEGER), 0)",
-      "1901-12-13 20:45:52")
+      "1901-12-13 20:45:52.000")
     testAllApis(
       toTimestampLtz(JInt.MAX_VALUE.cast(DataTypes.INT()), 0),
       s"TO_TIMESTAMP_LTZ(CAST(${JInt.MAX_VALUE} AS INTEGER), 0)",
-      "2038-01-19 03:14:07")
+      "2038-01-19 03:14:07.000")
 
     // TINYINT
     testAllApis(
       toTimestampLtz(-128.cast(DataTypes.TINYINT()), 0),
       s"TO_TIMESTAMP_LTZ(CAST(-128 AS TINYINT), 0)",
-      "1969-12-31 23:57:52")
+      "1969-12-31 23:57:52.000")
     testAllApis(
       toTimestampLtz(127.cast(DataTypes.TINYINT()), 0),
       s"TO_TIMESTAMP_LTZ(CAST(127 AS TINYINT), 0)",
-      "1970-01-01 00:02:07")
+      "1970-01-01 00:02:07.000")
 
     // BIGINT
     testAllApis(
@@ -1282,11 +1282,6 @@ class TemporalTypesTest extends ExpressionTestBase {
       s"TO_TIMESTAMP_LTZ(253402300800000, 3)",
       "NULL")
 
-    // test invalid number of arguments
-    testExpectedSqlException(
-      "TO_TIMESTAMP_LTZ(123)",
-      "Invalid number of arguments to function 'TO_TIMESTAMP_LTZ'. Was expecting 2 arguments")
-
     // invalid precision
     testExpectedAllApisException(
       toTimestampLtz(12, 1),
@@ -1308,29 +1303,42 @@ class TemporalTypesTest extends ExpressionTestBase {
     // invalid type for the first input
     testExpectedSqlException(
       "TO_TIMESTAMP_LTZ('test_string_type', 0)",
-      "Cannot apply 'TO_TIMESTAMP_LTZ' to arguments of type" +
-        " 'TO_TIMESTAMP_LTZ(<CHAR(16)>, <INTEGER>)'. Supported form(s):" +
-        " 'TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>)'",
+      "SQL validation failed. From line 1, column 8 to line 1, column 46: Cannot apply " +
+        "'TO_TIMESTAMP_LTZ' to arguments of type 'TO_TIMESTAMP_LTZ(<CHAR(16)>, <INTEGER>)'. " +
+        "Supported form(s): 'TO_TIMESTAMP_LTZ(<CHARACTER>)'\n" +
+        "'TO_TIMESTAMP_LTZ(<NUMERIC>)'\n" +
+        "'TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>)'\n" +
+        "'TO_TIMESTAMP_LTZ(<CHARACTER>, <CHARACTER>)'\n" +
+        "'TO_TIMESTAMP_LTZ(<CHARACTER>, <CHARACTER>, <CHARACTER>)'",
       classOf[ValidationException]
     )
+
     testExpectedTableApiException(
       toTimestampLtz("test_string_type", 0),
-      "Unsupported argument type. " +
-        "Expected type of family 'NUMERIC' but actual type was 'CHAR(16) NOT NULL'"
+      "Invalid input arguments. Expected signatures are:\n" +
+        "toTimestampLtz(<CHARACTER_STRING>)\n" +
+        "toTimestampLtz(<CHARACTER_STRING>, <CHARACTER_STRING>)\n" +
+        "toTimestampLtz(<CHARACTER_STRING>, <CHARACTER_STRING>, <CHARACTER_STRING>)\n" +
+        "toTimestampLtz(<NUMERIC>)\n" +
+        "toTimestampLtz(<NUMERIC>, <INTEGER_NUMERIC NOT NULL>)"
     )
 
     // invalid type for the second input
     testExpectedSqlException(
       "TO_TIMESTAMP_LTZ(123, 'test_string_type')",
-      "Cannot apply 'TO_TIMESTAMP_LTZ' to arguments of type" +
-        " 'TO_TIMESTAMP_LTZ(<INTEGER>, <CHAR(16)>)'. Supported form(s):" +
-        " 'TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>)'"
+      "SQL validation failed. From line 1, column 8 to line 1, column 48: Cannot apply " +
+        "'TO_TIMESTAMP_LTZ' to arguments of type 'TO_TIMESTAMP_LTZ(<INTEGER>, <CHAR(16)>)'. " +
+        "Supported form(s): 'TO_TIMESTAMP_LTZ(<CHARACTER>)'\n" +
+        "'TO_TIMESTAMP_LTZ(<NUMERIC>)'\n" +
+        "'TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>)'\n" +
+        "'TO_TIMESTAMP_LTZ(<CHARACTER>, <CHARACTER>)'\n" +
+        "'TO_TIMESTAMP_LTZ(<CHARACTER>, <CHARACTER>, <CHARACTER>)'"
     )
 
     testExpectedTableApiException(
       toTimestampLtz(123, "test_string_type"),
-      "Unsupported argument type. " +
-        "Expected type of family 'INTEGER_NUMERIC' but actual type was 'CHAR(16) NOT NULL'"
+      "Invalid function call:\n" +
+        "toTimestampLtz(INT NOT NULL, CHAR(16) NOT NULL"
     )
   }
 
