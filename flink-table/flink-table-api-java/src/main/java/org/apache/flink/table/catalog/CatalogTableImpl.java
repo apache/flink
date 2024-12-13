@@ -34,7 +34,7 @@ import static org.apache.flink.table.legacy.descriptors.Schema.SCHEMA;
 /**
  * A catalog table implementation.
  *
- * @deprecated Use {@link CatalogTable#of(Schema, String, List, Map)} or a custom implementation
+ * @deprecated Use {@link CatalogTable#newBuilder()} or a custom implementation
  *     instead. Don't implement against this internal class. It can lead to unintended side effects
  *     if code checks against this class instead of the common interface.
  */
@@ -74,7 +74,6 @@ public class CatalogTableImpl extends AbstractCatalogTable {
         return Optional.of("This is a catalog table in an im-memory catalog");
     }
 
-    @Override
     public Map<String, String> toProperties() {
         DescriptorProperties descriptor = new DescriptorProperties(false);
 

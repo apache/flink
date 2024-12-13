@@ -106,13 +106,11 @@ public class DynamicTableSourceSpecSerdeTest {
                         Collections.emptyList(),
                         null);
 
-        final CatalogTable catalogTable1 =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema1).build(),
-                        null,
-                        Collections.emptyList(),
-                        options1);
-
+        final CatalogTable catalogTable1 = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema1).build())
+                .comment(null)
+                .partitionKeys(Collections.emptyList())
+                .options(options1).build();
         DynamicTableSourceSpec spec1 =
                 new DynamicTableSourceSpec(
                         ContextResolvedTable.temporary(
@@ -144,12 +142,11 @@ public class DynamicTableSourceSpecSerdeTest {
                         Collections.emptyList(),
                         null);
 
-        final CatalogTable catalogTable2 =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema2).build(),
-                        null,
-                        Collections.emptyList(),
-                        options2);
+        final CatalogTable catalogTable2 = CatalogTable.newBuilder()
+                .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema2).build())
+                .comment(null)
+                .partitionKeys(Collections.emptyList())
+                .options(options2).build();
 
         FlinkTypeFactory factory =
                 new FlinkTypeFactory(
@@ -366,11 +363,11 @@ public class DynamicTableSourceSpecSerdeTest {
                         null);
 
         return new ResolvedCatalogTable(
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
-                        null,
-                        Collections.emptyList(),
-                        options),
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema).build())
+                        .comment(null)
+                        .partitionKeys(Collections.emptyList())
+                        .options(options).build(),
                 resolvedSchema);
     }
 }
