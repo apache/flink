@@ -68,4 +68,4 @@ public interface LineageVertexProvider {
 | DB2        | JDBC Connector  | db2://{host}:{port}                    | {database}.{table}                                       | 
 | CrateDB    | JDBC Connector  | cratedb://{host}:{port}                | {database}.{table}                                       | 
 
-这是一个正在更新的表。当特定连接器的血统集成完成后，添加越来越多的命名信息将被添加进入这个表中。
+如果您想为此处未列出的 Flink 连接器的血统集成做出贡献，请在Flink连接器的代码库中完成开发，然后更新上表。
