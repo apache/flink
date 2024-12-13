@@ -1,0 +1,12 @@
+# Dependency Licenses
+## <%- pkg.name %> (<%- pkg.version %>)
+-------------------
+
+| Package Name | Version | License |
+| ------------ | ------- | ------- |
+<% _.forEach(licenses, function(license) { %>| <%- license.name %> | <% if (license.version) { %><%- license.version %><% } else { %>-<% } %> | <% if (license.licenses) { %><%- license.licenses.join(', ') %><% } else { %>-<% } %> |
+<% }); %>
+
+## Licenses:
+<% _.forEach(licenses, function(license) { _.forEach(license.licenseSources.license.sources, function(source) { %><%- license.id + '\n---\n' %><% if (source.text) { %><%- source.text + '\n---\n' %><% } else { %>-<% } }) }); %>
+
