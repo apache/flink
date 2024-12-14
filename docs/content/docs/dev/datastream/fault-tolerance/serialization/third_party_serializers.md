@@ -28,8 +28,9 @@ under the License.
 # 3rd Party Serializers
 
 If you use a custom type in your Flink program which cannot be serialized by the
-Flink type serializer, Flink falls back to using the generic Kryo
-serializer. You may register your own serializer or a serialization system like
+Flink type serializer, Flink can fall back to using the generic Kryo
+serializer when enabling [pipeline.generic-types]({{< ref "docs/deployment/config#pipeline-generic-types" >}}).
+You may register your own serializer or a serialization system like
 Google Protobuf or Apache Thrift with Kryo. To do that, simply register the type
 class and the serializer via the configuration option
 [pipeline.serialization-config]({{< ref "docs/deployment/config#pipeline-serialization-config" >}}):
