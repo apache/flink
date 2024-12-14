@@ -211,8 +211,8 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
         return obj == this
                 || (obj != null
                         && obj.getClass() == getClass()
-                        && elementSerializer.equals(((ListSerializer<?>) obj).elementSerializer))
-                        && hasNullMask == ((ListSerializer<?>) obj).hasNullMask;
+                        && elementSerializer.equals(((ListSerializer<?>) obj).elementSerializer)
+                        && hasNullMask == ((ListSerializer<?>) obj).hasNullMask);
     }
 
     @Override
