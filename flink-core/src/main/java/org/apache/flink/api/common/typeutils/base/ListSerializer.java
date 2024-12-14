@@ -28,6 +28,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -210,12 +211,13 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
         return obj == this
                 || (obj != null
                         && obj.getClass() == getClass()
-                        && elementSerializer.equals(((ListSerializer<?>) obj).elementSerializer));
+                        && elementSerializer.equals(((ListSerializer<?>) obj).elementSerializer))
+                        && hasNullMask == ((ListSerializer<?>) obj).hasNullMask;
     }
 
     @Override
     public int hashCode() {
-        return elementSerializer.hashCode();
+        return Objects.hash(elementSerializer, hasNullMask);
     }
 
     // --------------------------------------------------------------------------------------------
