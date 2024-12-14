@@ -147,7 +147,7 @@ public class PipelineOptions {
     public static final ConfigOption<Boolean> GENERIC_TYPES =
             key("pipeline.generic-types")
                     .booleanType()
-                    .defaultValue(true)
+                    .defaultValue(false)
                     .withDescription(
                             Description.builder()
                                     .text(

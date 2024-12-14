@@ -58,7 +58,7 @@
         </tr>
         <tr>
             <td><h5>pipeline.generic-types</h5></td>
-            <td style="word-wrap: break-word;">true</td>
+            <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>If the use of generic types is disabled, Flink will throw an <code class="highlighter-rouge">UnsupportedOperationException</code> whenever it encounters a data type that would go through Kryo for serialization.<br /><br />Disabling generic types can be helpful to eagerly find and eliminate the use of types that would go through Kryo serialization during runtime. Rather than checking types individually, using this option will throw exceptions eagerly in the places where generic types are used.<br /><br />We recommend to use this option only during development and pre-production phases, not during actual production use. The application program and/or the input data may be such that new, previously unseen, types occur at some point. In that case, setting this option would cause the program to fail.</td>
         </tr>

@@ -191,6 +191,8 @@ resources. Classes that follow the Java Beans conventions work well in general.
 
 All classes that are not identified as POJO types (see POJO requirements above) are handled by Flink as general class types.
 Flink treats these data types as black boxes and is not able to access their content (e.g., for efficient sorting). General types are de/serialized using the serialization framework [Kryo](https://github.com/EsotericSoftware/kryo).
+Since Flink 2.0, Kryo is disabled by default. An exception will be raised whenever a data type is encountered that would go through Kryo.
+You can enable it via [pipeline.generic-types]({{< ref "docs/deployment/config#pipeline-generic-types" >}}). 
 
 #### Values
 
@@ -528,7 +530,12 @@ If you observe unexpected behavior, manually specify the return type using the `
 
 The `PojoTypeInfo` is creating serializers for all the fields inside the POJO. Standard types such as
 int, long, String etc. are handled by serializers we ship with Flink.
-For all other types, we fall back to [Kryo](https://github.com/EsotericSoftware/kryo).
+
+For other types, you can choose to fall back to [Kryo](https://github.com/EsotericSoftware/kryo) by setting:
+
+```yaml
+pipeline.generic-types: true 
+```
 
 If Kryo is not able to handle the type, you can ask the `PojoTypeInfo` to serialize the POJO using [Avro](https://avro.apache.org).
 To do so, make sure to include the `flink-avro` module, and set:
@@ -552,18 +559,6 @@ using [pipeline.serialization-config]({{< ref "docs/deployment/config#pipeline-s
 pipeline.serialization-config:
   - org.example.MyCustomType: {type: kryo, kryo-type: registered, class: org.example.MyCustomSerializer}
 ```
-
-## Disabling Kryo Fallback
-
-There are cases when programs may want to explicitly avoid using Kryo as a fallback for generic types. The most
-common one is wanting to ensure that all types are efficiently serialized either through Flink's own serializers,
-or via user-defined custom serializers. To do that, set:
-
-```yaml
-pipeline.generic-types: false 
-```
-
-An exception will be raised whenever a data type is encountered that would go through Kryo.
 
 ## Defining Type Information using a Factory
 
