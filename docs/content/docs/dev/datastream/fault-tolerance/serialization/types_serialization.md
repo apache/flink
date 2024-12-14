@@ -170,7 +170,7 @@ Flink supports all Java and Scala primitive types such as `Integer`, `String`, a
 
 #### Common Collection Types
 
-Flink comes with dedicated serialization support for common Java collection types, which is more efficient than going
+Since Flink 2.0, Flink comes with dedicated serialization support for common Java collection types, which is more efficient than going
 through a general purpose serialization framework. Currently, only `Map`, `List`, `Set` and its super interface `Collection`
 are supported. To utilize it, you need to declare the collection type with:
 
@@ -181,6 +181,10 @@ are supported. To utilize it, you need to declare the collection type with:
 
 Other nonqualified collection types will be handled by Flink as general class types. If the implementation types are
 also required to be preserved, you also need to register it with a custom serializer.
+
+You may disable the built-in type support for collection types via
+[pipeline.built-in-collection-types]({{< ref "docs/deployment/config#pipeline-built-in-collection-types" >}})
+to achieve the same serialization behavior in Flink versions prior to 2.0.
 
 #### General Class Types
 

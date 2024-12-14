@@ -2587,4 +2587,66 @@ public class TypeExtractorTest {
                                 .getTypeInformation())
                 .isInstanceOf(GenericTypeInfo.class);
     }
+
+    @Test
+    public <T> void testCollectionTypesWithoutBuiltInTypes() {
+        TypeExtractor.setBuiltInCollectionTypesEnabled(false);
+
+        MapFunction<?, ?> function =
+                new MapFunction<PojoWithCollections<T>, PojoWithCollections<T>>() {
+                    @Override
+                    public PojoWithCollections map(PojoWithCollections<T> value) {
+                        return null;
+                    }
+                };
+        TypeInformation<?> ti =
+                TypeExtractor.getMapReturnTypes(
+                        function,
+                        (TypeInformation)
+                                TypeInformation.of(new TypeHint<PojoWithCollections<T>>() {}));
+        assertThat(ti).isInstanceOf(PojoTypeInfo.class);
+        testGenericCollectionTypes(ti);
+
+        // use getForClass()
+        TypeInformation<?> ti2 = TypeExtractor.getForClass(PojoWithCollections.class);
+        assertThat(ti2).isInstanceOf(PojoTypeInfo.class);
+        testGenericCollectionTypes(ti2);
+
+        // use getForObject()
+        PojoWithCollections<T> t = new PojoWithCollections<>();
+        TypeInformation<?> ti3 = TypeExtractor.getForObject(t);
+        assertThat(ti3).isInstanceOf(PojoTypeInfo.class);
+        testGenericCollectionTypes(ti3);
+
+        // restore state
+        TypeExtractor.setBuiltInCollectionTypesEnabled(true);
+    }
+
+    private void testGenericCollectionTypes(TypeInformation<?> ti) {
+        PojoTypeInfo<?> pojoTi = (PojoTypeInfo<?>) ti;
+        assertThat(pojoTi.getPojoFieldAt(pojoTi.getFieldIndex("mapVal")).getTypeInformation())
+                .isInstanceOf(GenericTypeInfo.class);
+        assertThat(pojoTi.getPojoFieldAt(pojoTi.getFieldIndex("listVal")).getTypeInformation())
+                .isInstanceOf(GenericTypeInfo.class);
+        assertThat(
+                        pojoTi.getPojoFieldAt(pojoTi.getFieldIndex("collectionVal"))
+                                .getTypeInformation())
+                .isInstanceOf(GenericTypeInfo.class);
+        assertThat(pojoTi.getPojoFieldAt(pojoTi.getFieldIndex("setVal")).getTypeInformation())
+                .isInstanceOf(GenericTypeInfo.class);
+        assertThat(
+                        pojoTi.getPojoFieldAt(pojoTi.getFieldIndex("linkedListVal"))
+                                .getTypeInformation())
+                .isInstanceOf(GenericTypeInfo.class);
+        assertThat(pojoTi.getPojoFieldAt(pojoTi.getFieldIndex("rawListVal")).getTypeInformation())
+                .isInstanceOf(GenericTypeInfo.class);
+        assertThat(
+                        pojoTi.getPojoFieldAt(pojoTi.getFieldIndex("genericListVal"))
+                                .getTypeInformation())
+                .isInstanceOf(GenericTypeInfo.class);
+        assertThat(
+                        pojoTi.getPojoFieldAt(pojoTi.getFieldIndex("wildcardListVal"))
+                                .getTypeInformation())
+                .isInstanceOf(GenericTypeInfo.class);
+    }
 }

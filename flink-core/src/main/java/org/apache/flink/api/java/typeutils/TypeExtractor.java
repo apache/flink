@@ -134,6 +134,18 @@ public class TypeExtractor {
         // only create instances for special use cases
     }
 
+    /**
+     * Whether to use built-in types for common collection types, which need to be treated by Kyro
+     * otherwise. Since TypeExtractor methods are mostly static, we use a static variable to control
+     * their behavior as a temporary solution.
+     */
+    private static boolean builtInCollectionTypesEnabled = true;
+
+    @Internal
+    public static void setBuiltInCollectionTypesEnabled(boolean enabled) {
+        builtInCollectionTypesEnabled = enabled;
+    }
+
     // --------------------------------------------------------------------------------------------
     //  TypeInfoFactory registry
     // --------------------------------------------------------------------------------------------
@@ -1979,7 +1991,7 @@ public class TypeExtractor {
         // - OK: List<String>, Collection<String>
         // - not OK: LinkedList<String> (implementation type), List (raw type), List<T> (generic
         // type argument), or List<?> (wildcard type argument)
-        if (parameterizedType != null) {
+        if (parameterizedType != null && builtInCollectionTypesEnabled) {
             Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
             boolean allTypeArgumentsConcrete =
                     Arrays.stream(actualTypeArguments).allMatch(arg -> arg instanceof Class<?>);
