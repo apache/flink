@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.typeutils
 
-import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -200,12 +199,7 @@ object LegacyDataViewUtils {
           case _ =>
             instance.asInstanceOf[ListView[_]]
         }
-        val newTypeInfo = if (listView != null && listView.elementType != null) {
-          // use explicit element type if user has defined
-          new ListViewTypeInfo(listView.elementType)
-        } else {
-          list
-        }
+        val newTypeInfo = list
         if (!isStateBackedDataViews) {
           // add data view field if it is not backed by a state backend.
           // data view fields which are backed by state backend are not serialized.
