@@ -35,7 +35,7 @@ public class ListSerializerSnapshot<T>
 
     private static final int FIRST_VERSION_WITH_NULL_MASK = 2;
 
-    private boolean hasNullMask = true;
+    private boolean hasNullMarker = true;
 
     /** Constructor for read instantiation. */
     public ListSerializerSnapshot() {}
@@ -43,7 +43,7 @@ public class ListSerializerSnapshot<T>
     /** Constructor to create the snapshot for writing. */
     public ListSerializerSnapshot(ListSerializer<T> listSerializer) {
         super(listSerializer);
-        this.hasNullMask = listSerializer.isHasNullMask();
+        this.hasNullMarker = listSerializer.isHasNullMarker();
     }
 
     @Override
@@ -56,15 +56,15 @@ public class ListSerializerSnapshot<T>
             int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader)
             throws IOException {
         if (readOuterSnapshotVersion < FIRST_VERSION_WITH_NULL_MASK) {
-            hasNullMask = false;
+            hasNullMarker = false;
         } else {
-            hasNullMask = in.readBoolean();
+            hasNullMarker = in.readBoolean();
         }
     }
 
     @Override
     protected void writeOuterSnapshot(DataOutputView out) throws IOException {
-        out.writeBoolean(hasNullMask);
+        out.writeBoolean(hasNullMarker);
     }
 
     @Override
@@ -76,7 +76,7 @@ public class ListSerializerSnapshot<T>
 
         ListSerializerSnapshot<T> oldListSerializerSnapshot =
                 (ListSerializerSnapshot<T>) oldSerializerSnapshot;
-        if (hasNullMask != oldListSerializerSnapshot.hasNullMask) {
+        if (hasNullMarker != oldListSerializerSnapshot.hasNullMarker) {
             return OuterSchemaCompatibility.COMPATIBLE_AFTER_MIGRATION;
         }
         return OuterSchemaCompatibility.COMPATIBLE_AS_IS;
@@ -87,7 +87,7 @@ public class ListSerializerSnapshot<T>
             TypeSerializer<?>[] nestedSerializers) {
         @SuppressWarnings("unchecked")
         TypeSerializer<T> elementSerializer = (TypeSerializer<T>) nestedSerializers[0];
-        return new ListSerializer<>(elementSerializer, hasNullMask);
+        return new ListSerializer<>(elementSerializer, hasNullMarker);
     }
 
     @Override
