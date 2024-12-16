@@ -15,13 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators;
+package org.apache.flink.table.runtime.operators.join.adaptive;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
 import java.io.Serializable;
+import java.util.function.Function;
 
 /**
  * Interface for implementing an adaptive broadcast join operator. This interface allows a join
@@ -32,7 +34,7 @@ import java.io.Serializable;
 public interface AdaptiveJoin extends Serializable {
 
     /**
-     * Generates a StreamOperatorFactory for the join operator using the provided ClassLoader and
+     * Generates a StreamOperatorFactory for this join operator using the provided ClassLoader and
      * config.
      *
      * @param classLoader the ClassLoader to be used for loading classes.
@@ -51,6 +53,18 @@ public interface AdaptiveJoin extends Serializable {
      *     broadcast hash join, false else. The second element of tuple is true if left side is
      *     smaller, false else.
      */
-    Tuple2<Boolean, Boolean> enrichAndCheckBroadcast(
-            long leftInputBytes, long rightInputBytes, long threshold);
+    Tuple2<Boolean, Boolean> tryBroadcastOptimization(
+            Long leftInputBytes,
+            Long rightInputBytes,
+            Long threshold,
+            Function<Boolean, Boolean> tryTransformEdges);
+
+    /**
+     * Return whether the left input side is the build side in a join operation. It is specifically
+     * relevant for join types that are hash join. If the join type is sort merge join, this method
+     * will always return true.
+     *
+     * @return true if the left input side is the build side, false else.
+     */
+    boolean isLeftBuild();
 }

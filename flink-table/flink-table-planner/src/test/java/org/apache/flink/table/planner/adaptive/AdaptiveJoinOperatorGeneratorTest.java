@@ -19,19 +19,24 @@ package org.apache.flink.table.planner.adaptive;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.operators.AdaptiveJoin;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.planner.plan.utils.OperatorType;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
+import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.Int2HashJoinOperatorTestBase;
+import org.apache.flink.table.runtime.operators.join.adaptive.AdaptiveJoin;
 import org.apache.flink.table.runtime.util.UniformBinaryRowGenerator;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.jupiter.api.Test;
+
+import java.io.Serializable;
+import java.util.function.Function;
 
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY;
 import static org.apache.flink.table.runtime.util.JoinUtil.getJoinType;
@@ -41,53 +46,56 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Test for {@link AdaptiveJoinOperatorGenerator}. */
 class AdaptiveJoinOperatorGeneratorTest extends Int2HashJoinOperatorTestBase {
 
+    private final Function<Boolean, Boolean> areEdgesCanBeTransformed =
+            new StreamEdgesTransformationChecker();
+
     // --------- Test if the join operator can be converted to a broadcast hash join  -------------
     @Test
     void testInnerJoinCheckBroadcast() {
         AdaptiveJoin adaptiveJoin =
                 genAdaptiveJoin(FlinkJoinType.INNER, OperatorType.ShuffleHashJoin);
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(2, 10, 5))
+        assertThat(adaptiveJoin.tryBroadcastOptimization(2L, 10L, 5L, areEdgesCanBeTransformed))
                 .isEqualTo(new Tuple2<>(true, true));
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(10, 2, 5))
+        assertThat(adaptiveJoin.tryBroadcastOptimization(10L, 2L, 5L, areEdgesCanBeTransformed))
                 .isEqualTo(new Tuple2<>(true, false));
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(2, 10, 1))
+        assertThat(adaptiveJoin.tryBroadcastOptimization(2L, 10L, 1L, areEdgesCanBeTransformed))
                 .isEqualTo(new Tuple2<>(false, true));
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(10, 2, 1))
+        assertThat(adaptiveJoin.tryBroadcastOptimization(10L, 2L, 1L, areEdgesCanBeTransformed))
                 .isEqualTo(new Tuple2<>(false, false));
 
         adaptiveJoin = genAdaptiveJoin(FlinkJoinType.INNER, OperatorType.SortMergeJoin);
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(2, 10, 5))
+        assertThat(adaptiveJoin.tryBroadcastOptimization(2L, 10L, 5L, areEdgesCanBeTransformed))
                 .isEqualTo(new Tuple2<>(true, true));
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(10, 2, 5))
+        assertThat(adaptiveJoin.tryBroadcastOptimization(10L, 2L, 5L, areEdgesCanBeTransformed))
                 .isEqualTo(new Tuple2<>(true, false));
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(2, 10, 1))
+        assertThat(adaptiveJoin.tryBroadcastOptimization(2L, 10L, 1L, areEdgesCanBeTransformed))
                 .isEqualTo(new Tuple2<>(false, true));
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(10, 2, 1))
-                .isEqualTo(new Tuple2<>(false, true));
+        assertThat(adaptiveJoin.tryBroadcastOptimization(10L, 2L, 1L, areEdgesCanBeTransformed))
+                .isEqualTo(new Tuple2<>(false, false));
     }
 
     @Test
     void testRightJoinCheckBroadcast() {
         AdaptiveJoin adaptiveJoin =
                 genAdaptiveJoin(FlinkJoinType.RIGHT, OperatorType.ShuffleHashJoin);
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(2, 10, 5))
+        assertThat(adaptiveJoin.tryBroadcastOptimization(2L, 10L, 5L, areEdgesCanBeTransformed))
                 .isEqualTo(new Tuple2<>(true, true));
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(10, 2, 5))
+        assertThat(adaptiveJoin.tryBroadcastOptimization(10L, 2L, 5L, areEdgesCanBeTransformed))
                 .isEqualTo(new Tuple2<>(false, false));
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(2, 10, 1))
+        assertThat(adaptiveJoin.tryBroadcastOptimization(2L, 10L, 1L, areEdgesCanBeTransformed))
                 .isEqualTo(new Tuple2<>(false, true));
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(10, 2, 1))
+        assertThat(adaptiveJoin.tryBroadcastOptimization(10L, 2L, 1L, areEdgesCanBeTransformed))
                 .isEqualTo(new Tuple2<>(false, false));
 
         adaptiveJoin = genAdaptiveJoin(FlinkJoinType.RIGHT, OperatorType.SortMergeJoin);
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(2, 10, 5))
+        assertThat(adaptiveJoin.tryBroadcastOptimization(2L, 10L, 5L, areEdgesCanBeTransformed))
                 .isEqualTo(new Tuple2<>(true, true));
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(10, 2, 5))
+        assertThat(adaptiveJoin.tryBroadcastOptimization(10L, 2L, 5L, areEdgesCanBeTransformed))
+                .isEqualTo(new Tuple2<>(false, false));
+        assertThat(adaptiveJoin.tryBroadcastOptimization(2L, 10L, 1L, areEdgesCanBeTransformed))
                 .isEqualTo(new Tuple2<>(false, true));
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(2, 10, 1))
-                .isEqualTo(new Tuple2<>(false, true));
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(10, 2, 1))
-                .isEqualTo(new Tuple2<>(false, true));
+        assertThat(adaptiveJoin.tryBroadcastOptimization(10L, 2L, 1L, areEdgesCanBeTransformed))
+                .isEqualTo(new Tuple2<>(false, false));
     }
 
     @Test
@@ -106,93 +114,116 @@ class AdaptiveJoinOperatorGeneratorTest extends Int2HashJoinOperatorTestBase {
     }
 
     @Test
-    void testFULLJoinCheckBroadcast() {
+    void testFullJoinCheckBroadcast() {
         AdaptiveJoin adaptiveJoin =
                 genAdaptiveJoin(FlinkJoinType.FULL, OperatorType.ShuffleHashJoin);
-        assertThatThrownBy(() -> adaptiveJoin.enrichAndCheckBroadcast(2, 10, 5))
+        assertThatThrownBy(
+                        () ->
+                                adaptiveJoin.tryBroadcastOptimization(
+                                        2L, 10L, 5L, areEdgesCanBeTransformed))
                 .hasMessageContaining("Unexpected join type");
     }
 
     void testBuildRightCheckBroadcast(FlinkJoinType joinType) {
         AdaptiveJoin adaptiveJoin = genAdaptiveJoin(joinType, OperatorType.ShuffleHashJoin);
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(2, 10, 5))
+        assertThat(adaptiveJoin.tryBroadcastOptimization(2L, 10L, 5L, areEdgesCanBeTransformed))
                 .isEqualTo(new Tuple2<>(false, true));
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(10, 2, 5))
+        assertThat(adaptiveJoin.tryBroadcastOptimization(10L, 2L, 5L, areEdgesCanBeTransformed))
                 .isEqualTo(new Tuple2<>(true, false));
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(2, 10, 1))
+        assertThat(adaptiveJoin.tryBroadcastOptimization(2L, 10L, 1L, areEdgesCanBeTransformed))
                 .isEqualTo(new Tuple2<>(false, true));
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(10, 2, 1))
+        assertThat(adaptiveJoin.tryBroadcastOptimization(10L, 2L, 1L, areEdgesCanBeTransformed))
                 .isEqualTo(new Tuple2<>(false, false));
 
         adaptiveJoin = genAdaptiveJoin(joinType, OperatorType.SortMergeJoin);
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(2, 10, 5))
+        assertThat(adaptiveJoin.tryBroadcastOptimization(2L, 10L, 5L, areEdgesCanBeTransformed))
                 .isEqualTo(new Tuple2<>(false, true));
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(10, 2, 5))
+        assertThat(adaptiveJoin.tryBroadcastOptimization(10L, 2L, 5L, areEdgesCanBeTransformed))
                 .isEqualTo(new Tuple2<>(true, false));
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(2, 10, 1))
+        assertThat(adaptiveJoin.tryBroadcastOptimization(2L, 10L, 1L, areEdgesCanBeTransformed))
                 .isEqualTo(new Tuple2<>(false, true));
-        assertThat(adaptiveJoin.enrichAndCheckBroadcast(10, 2, 1))
-                .isEqualTo(new Tuple2<>(false, true));
+        assertThat(adaptiveJoin.tryBroadcastOptimization(10L, 2L, 1L, areEdgesCanBeTransformed))
+                .isEqualTo(new Tuple2<>(false, false));
     }
 
     // ---------------------- Test the correctness of the generated join operator -----------------
     @Test
-    void testInnerJoinCorrectness() throws Exception {
-        // Shuffle Hash join
-        testInnerJoin(true, OperatorType.ShuffleHashJoin, false);
-        testInnerJoin(false, OperatorType.ShuffleHashJoin, false);
-        // Sort merge join
-        testInnerJoin(true, OperatorType.SortMergeJoin, false);
-        testInnerJoin(true, OperatorType.SortMergeJoin, true);
-        // Broadcast Hash join
-        testInnerJoin(true, OperatorType.ShuffleHashJoin, true);
-        testInnerJoin(false, OperatorType.ShuffleHashJoin, true);
+    void testGenerateOperatorCorrectness() {
+        Object sortMergeJoinOperator =
+                newOperator(FlinkJoinType.INNER, true, false, OperatorType.SortMergeJoin);
+        assertThat(sortMergeJoinOperator).isInstanceOf(SimpleOperatorFactory.class);
+
+        Object broadcastHashJoinOperator =
+                newOperator(FlinkJoinType.INNER, true, true, OperatorType.SortMergeJoin);
+        assertThat(broadcastHashJoinOperator).isInstanceOf(CodeGenOperatorFactory.class);
+
+        Object hashJoinOperator =
+                newOperator(FlinkJoinType.INNER, true, false, OperatorType.ShuffleHashJoin);
+        assertThat(hashJoinOperator).isInstanceOf(CodeGenOperatorFactory.class);
+
+        Object broadcastHashJoinOperator2 =
+                newOperator(FlinkJoinType.INNER, true, true, OperatorType.ShuffleHashJoin);
+        assertThat(broadcastHashJoinOperator2).isInstanceOf(CodeGenOperatorFactory.class);
     }
 
     @Test
-    void testLeftOutJoinCorrectness() throws Exception {
-        // Shuffle Hash join
-        testLeftOutJoin(true, OperatorType.ShuffleHashJoin, false);
-        testLeftOutJoin(false, OperatorType.ShuffleHashJoin, false);
-        // Sort merge join
-        testLeftOutJoin(true, OperatorType.SortMergeJoin, false);
-        // Broadcast Hash join
-        testLeftOutJoin(false, OperatorType.ShuffleHashJoin, true);
-        testLeftOutJoin(false, OperatorType.SortMergeJoin, true);
+    void testShuffleHashJoinTransformationCorrectness() throws Exception {
+        OperatorType joinType = OperatorType.ShuffleHashJoin;
+
+        // all cases to ShuffleHashJoin
+        testInnerJoin(true, joinType, false);
+        testInnerJoin(false, joinType, false);
+
+        testLeftOutJoin(true, joinType, false);
+        testLeftOutJoin(false, joinType, false);
+
+        testRightOutJoin(true, joinType, false);
+        testRightOutJoin(false, joinType, false);
+
+        testSemiJoin(joinType, false);
+
+        testAntiJoin(joinType, false);
+
+        // all cases to BroadcastHashJoin
+        testInnerJoin(true, joinType, true);
+        testInnerJoin(false, joinType, true);
+
+        testLeftOutJoin(false, joinType, true);
+
+        testRightOutJoin(true, joinType, true);
+
+        testSemiJoin(joinType, true);
+
+        testAntiJoin(joinType, true);
     }
 
     @Test
-    void testRightOutJoinCorrectness() throws Exception {
-        // Shuffle Hash join
-        testRightOutJoin(true, OperatorType.ShuffleHashJoin, false);
-        testRightOutJoin(false, OperatorType.ShuffleHashJoin, false);
-        // Sort merge join
-        testRightOutJoin(true, OperatorType.SortMergeJoin, false);
-        // Broadcast Hash join
-        testRightOutJoin(true, OperatorType.ShuffleHashJoin, true);
-        testRightOutJoin(true, OperatorType.SortMergeJoin, true);
-    }
+    void testSortMergeJoinTransformationCorrectness() throws Exception {
+        OperatorType joinType = OperatorType.SortMergeJoin;
 
-    @Test
-    void testSemiJoinCorrectness() throws Exception {
-        // Shuffle Hash join
-        testSemiJoin(OperatorType.ShuffleHashJoin, false);
-        // Sort merge join
-        testAntiJoin(OperatorType.SortMergeJoin, false);
-        // Broadcast Hash join
-        testSemiJoin(OperatorType.ShuffleHashJoin, true);
-        testSemiJoin(OperatorType.SortMergeJoin, true);
-    }
+        // all cases to SortMergeJoin
+        testInnerJoin(true, joinType, false);
+        testInnerJoin(true, joinType, true);
 
-    @Test
-    void testAntiJoinCorrectness() throws Exception {
-        // Shuffle Hash join
-        testAntiJoin(OperatorType.ShuffleHashJoin, false);
-        // Sort merge join
-        testAntiJoin(OperatorType.SortMergeJoin, false);
-        // Broadcast Hash join
-        testAntiJoin(OperatorType.ShuffleHashJoin, true);
-        testAntiJoin(OperatorType.SortMergeJoin, true);
+        testLeftOutJoin(true, joinType, false);
+
+        testRightOutJoin(true, joinType, false);
+
+        testAntiJoin(joinType, false);
+
+        testAntiJoin(joinType, false);
+
+        // all cases to BroadcastHashJoin
+        testInnerJoin(true, joinType, true);
+        testInnerJoin(false, joinType, true);
+
+        testLeftOutJoin(false, joinType, true);
+
+        testRightOutJoin(true, joinType, true);
+
+        testSemiJoin(joinType, true);
+
+        testAntiJoin(joinType, true);
     }
 
     private void testInnerJoin(
@@ -344,10 +375,11 @@ class AdaptiveJoinOperatorGeneratorTest extends Int2HashJoinOperatorTestBase {
 
         long smallerInputSize = 2L;
         long biggerInputSize = 10L;
-        adaptiveJoin.enrichAndCheckBroadcast(
+        adaptiveJoin.tryBroadcastOptimization(
                 buildLeft ? smallerInputSize : biggerInputSize,
                 buildLeft ? biggerInputSize : smallerInputSize,
-                isBroadcast ? 5L : 1L);
+                isBroadcast ? 5L : 1L,
+                areEdgesCanBeTransformed);
 
         return adaptiveJoin.genOperatorFactory(getClass().getClassLoader(), new Configuration());
     }
@@ -378,6 +410,15 @@ class AdaptiveJoinOperatorGeneratorTest extends Int2HashJoinOperatorTestBase {
                 10000,
                 false,
                 TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY.defaultValue().getBytes(),
+                true,
                 operatorType);
+    }
+
+    private static class StreamEdgesTransformationChecker
+            implements Function<Boolean, Boolean>, Serializable {
+        @Override
+        public Boolean apply(Boolean aBoolean) {
+            return true;
+        }
     }
 }
