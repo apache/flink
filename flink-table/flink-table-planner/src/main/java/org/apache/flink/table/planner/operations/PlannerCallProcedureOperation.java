@@ -171,12 +171,13 @@ public class PlannerCallProcedureOperation implements CallProcedureOperation {
                 methods.stream()
                         .filter(
                                 method ->
-                                        ExtractionUtils.isInvokable(method, inputClz)
+                                        ExtractionUtils.isInvokable(false, method, inputClz)
                                                 && method.getReturnType().isArray()
                                                 && isAssignable(
                                                         outputType.getConversionClass(),
                                                         method.getReturnType().getComponentType(),
-                                                        true))
+                                                        true,
+                                                        false))
                         .collect(Collectors.toList());
         if (callMethods.isEmpty()) {
             throw new ValidationException(

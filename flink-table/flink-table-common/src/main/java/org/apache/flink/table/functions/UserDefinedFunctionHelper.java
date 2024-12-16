@@ -92,6 +92,8 @@ public final class UserDefinedFunctionHelper {
 
     public static final String ASYNC_TABLE_EVAL = "eval";
 
+    public static final String PROCESS_TABLE_EVAL = "eval";
+
     /**
      * Tries to infer the TypeInformation of an AggregateFunction's accumulator type.
      *
@@ -320,9 +322,12 @@ public final class UserDefinedFunctionHelper {
                 methods.stream()
                         .anyMatch(
                                 method ->
-                                        ExtractionUtils.isInvokable(method, argumentClasses)
+                                        ExtractionUtils.isInvokable(false, method, argumentClasses)
                                                 && ExtractionUtils.isAssignable(
-                                                        outputClass, method.getReturnType(), true));
+                                                        outputClass,
+                                                        method.getReturnType(),
+                                                        true,
+                                                        false));
         if (!isMatching) {
             throw new ValidationException(
                     String.format(

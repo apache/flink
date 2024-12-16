@@ -19,10 +19,8 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.api.ValidationException;
 
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -47,21 +45,7 @@ public enum StaticArgumentTrait {
         this.requirements = Arrays.stream(requirements).collect(Collectors.toSet());
     }
 
-    public static void checkIntegrity(EnumSet<StaticArgumentTrait> traits) {
-        if (traits.stream().filter(t -> t.requirements.isEmpty()).count() != 1) {
-            throw new ValidationException(
-                    "Invalid argument traits. An argument must be declared as either scalar, table, or model.");
-        }
-        traits.forEach(
-                trait ->
-                        trait.requirements.forEach(
-                                requirement -> {
-                                    if (!traits.contains(requirement)) {
-                                        throw new ValidationException(
-                                                String.format(
-                                                        "Invalid argument traits. Trait %s requires %s.",
-                                                        trait, requirement));
-                                    }
-                                }));
+    public Set<StaticArgumentTrait> getRequirements() {
+        return requirements;
     }
 }

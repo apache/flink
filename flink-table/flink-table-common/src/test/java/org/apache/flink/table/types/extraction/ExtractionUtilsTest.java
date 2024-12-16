@@ -35,6 +35,18 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 public class ExtractionUtilsTest {
 
     @Test
+    void testAutoboxing() {
+        assertThat(ExtractionUtils.isAssignable(int.class, Integer.class, true, true)).isTrue();
+
+        // In strict autoboxing this is not allowed
+        assertThat(ExtractionUtils.isAssignable(Integer.class, int.class, true, true)).isFalse();
+
+        assertThat(ExtractionUtils.isAssignable(Integer.class, int.class, true, false)).isTrue();
+
+        assertThat(ExtractionUtils.isAssignable(Integer.class, Number.class, true, true)).isTrue();
+    }
+
+    @Test
     void testResolveParameters() {
         List<Method> methods = ExtractionUtils.collectMethods(LongClass.class, "method");
         Method method = methods.get(0);

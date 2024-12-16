@@ -24,6 +24,7 @@ import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.types.extraction.TypeInferenceExtractor;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.util.Collector;
 
@@ -225,8 +226,9 @@ public abstract class ProcessTableFunction<T> extends UserDefinedFunction {
     }
 
     @Override
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-        throw new UnsupportedOperationException("Type inference is not implemented yet.");
+        return TypeInferenceExtractor.forProcessTableFunction(typeFactory, (Class) getClass());
     }
 
     /**

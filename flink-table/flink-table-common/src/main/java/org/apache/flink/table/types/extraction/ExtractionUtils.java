@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.StateHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
@@ -91,7 +92,8 @@ public final class ExtractionUtils {
      * <p>E.g., {@code (int.class, int.class)} matches {@code f(Object...), f(int, int), f(Integer,
      * Object)} and so forth.
      */
-    public static boolean isInvokable(Executable executable, Class<?>... classes) {
+    public static boolean isInvokable(
+            boolean strictAutoboxing, Executable executable, Class<?>... classes) {
         final int m = executable.getModifiers();
         if (!Modifier.isPublic(m)) {
             return false;
@@ -110,21 +112,25 @@ public final class ExtractionUtils {
             if (currentParam == paramCount - 1 && executable.isVarArgs()) {
                 final Class<?> paramComponent =
                         executable.getParameterTypes()[currentParam].getComponentType();
-                // we have more than 1 classes left so the vararg needs to consume them all
+                // we have more than one class left so the vararg needs to consume them all
                 if (classCount - currentClass > 1) {
                     while (currentClass < classCount
                             && ExtractionUtils.isAssignable(
-                                    classes[currentClass], paramComponent, true)) {
+                                    classes[currentClass],
+                                    paramComponent,
+                                    true,
+                                    strictAutoboxing)) {
                         currentClass++;
                     }
                 } else if (currentClass < classCount
-                        && (parameterMatches(classes[currentClass], param)
-                                || parameterMatches(classes[currentClass], paramComponent))) {
+                        && (parameterMatches(strictAutoboxing, classes[currentClass], param)
+                                || parameterMatches(
+                                        strictAutoboxing, classes[currentClass], paramComponent))) {
                     currentClass++;
                 }
             }
             // entire parameter matches
-            else if (parameterMatches(classes[currentClass], param)) {
+            else if (parameterMatches(strictAutoboxing, classes[currentClass], param)) {
                 currentClass++;
             }
         }
@@ -132,8 +138,9 @@ public final class ExtractionUtils {
         return currentClass == classCount;
     }
 
-    private static boolean parameterMatches(Class<?> clz, Class<?> param) {
-        return clz == null || ExtractionUtils.isAssignable(clz, param, true);
+    private static boolean parameterMatches(
+            boolean strictAutoboxing, Class<?> clz, Class<?> param) {
+        return clz == null || ExtractionUtils.isAssignable(clz, param, true, strictAutoboxing);
     }
 
     /** Creates a method signature string like {@code int eval(Integer, String)}. */
@@ -298,11 +305,11 @@ public final class ExtractionUtils {
     /**
      * Checks for an invokable constructor matching the given arguments.
      *
-     * @see #isInvokable(Executable, Class[])
+     * @see #isInvokable(boolean, Executable, Class[])
      */
     public static boolean hasInvokableConstructor(Class<?> clazz, Class<?>... classes) {
         for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
-            if (isInvokable(constructor, classes)) {
+            if (isInvokable(false, constructor, classes)) {
                 return true;
             }
         }
@@ -758,16 +765,20 @@ public final class ExtractionUtils {
         } else {
             offset = 0;
         }
-        // by default parameter names are "arg0, arg1, arg2, ..." if compiler flag is not set
-        // so we need to extract them manually if possible
+        // by default parameter names are "arg0, arg1, arg2, ..." if compiler flag is not set,
+        // we need to extract them manually if possible
         List<String> parameterNames =
                 Stream.of(executable.getParameters())
                         .map(
                                 parameter -> {
-                                    ArgumentHint argumentHint =
+                                    final StateHint stateHint =
+                                            parameter.getAnnotation(StateHint.class);
+                                    final ArgumentHint argHint =
                                             parameter.getAnnotation(ArgumentHint.class);
-                                    if (argumentHint != null && !argumentHint.name().isEmpty()) {
-                                        return argumentHint.name();
+                                    if (stateHint != null && !stateHint.name().isEmpty()) {
+                                        return stateHint.name();
+                                    } else if (argHint != null && !argHint.name().isEmpty()) {
+                                        return argHint.name();
                                     } else {
                                         return parameter.getName();
                                     }
@@ -787,7 +798,7 @@ public final class ExtractionUtils {
                 return null;
             }
             // remove "this" and additional local variables
-            // select less names if class file has not the required information
+            // select fewer names if class file has not the required information
             parameterNames =
                     extractedNames.subList(
                             offset,
@@ -936,10 +947,11 @@ public final class ExtractionUtils {
      * @param cls the Class to check, may be null
      * @param toClass the Class to try to assign into, returns false if null
      * @param autoboxing whether to use implicit autoboxing/unboxing between primitives and wrappers
+     * @param strictAutoboxing checks whether null would end up in a primitive type and forbids it
      * @return {@code true} if assignment possible
      */
     public static boolean isAssignable(
-            Class<?> cls, final Class<?> toClass, final boolean autoboxing) {
+            Class<?> cls, final Class<?> toClass, boolean autoboxing, boolean strictAutoboxing) {
         if (toClass == null) {
             return false;
         }
@@ -955,10 +967,12 @@ public final class ExtractionUtils {
                     return false;
                 }
             }
-            if (toClass.isPrimitive() && !cls.isPrimitive()) {
-                cls = wrapperToPrimitive(cls);
-                if (cls == null) {
-                    return false;
+            if (!strictAutoboxing) {
+                if (toClass.isPrimitive() && !cls.isPrimitive()) {
+                    cls = wrapperToPrimitive(cls);
+                    if (cls == null) {
+                        return false;
+                    }
                 }
             }
         }

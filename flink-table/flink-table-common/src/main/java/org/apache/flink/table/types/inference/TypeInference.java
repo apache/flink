@@ -19,6 +19,7 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
@@ -28,6 +29,8 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -47,6 +50,10 @@ import java.util.stream.IntStream;
 @PublicEvolving
 public final class TypeInference {
 
+    /** Format for both arguments and state entries. */
+    static final Predicate<String> PARAMETER_NAME_FORMAT =
+            Pattern.compile("^[a-zA-Z_$][a-zA-Z_$0-9]*$").asPredicate();
+
     private final @Nullable List<StaticArgument> staticArguments;
     private final InputTypeStrategy inputTypeStrategy;
     private final LinkedHashMap<String, StateTypeStrategy> stateTypeStrategies;
@@ -61,6 +68,7 @@ public final class TypeInference {
         this.inputTypeStrategy = inputTypeStrategy;
         this.stateTypeStrategies = stateTypeStrategies;
         this.outputTypeStrategy = outputTypeStrategy;
+        checkStateEntries();
     }
 
     /** Builder for configuring and creating instances of {@link TypeInference}. */
@@ -142,6 +150,19 @@ public final class TypeInference {
                     "An accumulator should contain exactly one state type strategy.");
         }
         return Optional.of(stateTypeStrategies.values().iterator().next());
+    }
+
+    private void checkStateEntries() {
+        // Verify state
+        final List<String> invalidStateEntries =
+                stateTypeStrategies.keySet().stream()
+                        .filter(n -> !PARAMETER_NAME_FORMAT.test(n))
+                        .collect(Collectors.toList());
+        if (!invalidStateEntries.isEmpty()) {
+            throw new ValidationException(
+                    "Invalid state names. A state entry must follow the pattern [a-zA-Z_$][a-zA-Z_$0-9]. But found: "
+                            + invalidStateEntries);
+        }
     }
 
     // --------------------------------------------------------------------------------------------

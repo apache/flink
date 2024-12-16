@@ -212,7 +212,7 @@ public class SqlNodeToCallOperationTest extends SqlNodeToOperationConversionTest
                 input = {@DataTypeHint("STRING"), @DataTypeHint("STRING")},
                 output = @DataTypeHint("INT"),
                 argumentNames = {"c", "d"})
-        public int[] call(ProcedureContext context, String arg3, String arg4) {
+        public java.lang.Integer[] call(ProcedureContext context, String arg3, String arg4) {
             return null;
         }
     }
