@@ -19,14 +19,17 @@ package org.apache.flink.table.planner.adaptive;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.streaming.api.operators.AdaptiveJoin;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.table.planner.plan.utils.HashJoinOperatorUtil;
 import org.apache.flink.table.planner.plan.utils.OperatorType;
 import org.apache.flink.table.planner.plan.utils.SorMergeJoinOperatorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
+import org.apache.flink.table.runtime.operators.join.adaptive.AdaptiveJoin;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.Preconditions;
+
+import java.util.function.Function;
 
 /**
  * Implementation class for {@link AdaptiveJoin}. It can selectively generate broadcast hash join,
@@ -80,6 +83,7 @@ public class AdaptiveJoinOperatorGenerator implements AdaptiveJoin {
             long rightRowCount,
             boolean tryDistinctBuildRow,
             long managedMemory,
+            boolean leftIsBuild,
             OperatorType originalJoin) {
         this.leftKeys = leftKeys;
         this.rightKeys = rightKeys;
@@ -94,6 +98,15 @@ public class AdaptiveJoinOperatorGenerator implements AdaptiveJoin {
         this.rightRowCount = rightRowCount;
         this.tryDistinctBuildRow = tryDistinctBuildRow;
         this.managedMemory = managedMemory;
+        Preconditions.checkState(
+                originalJoin == OperatorType.ShuffleHashJoin
+                        || originalJoin == OperatorType.SortMergeJoin,
+                String.format(
+                        "Adaptive join "
+                                + "currently only supports adaptive optimization for ShuffleHashJoin and "
+                                + "SortMergeJoin, not including %s.",
+                        originalJoin.toString()));
+        this.leftIsBuild = leftIsBuild;
         this.originalJoin = originalJoin;
     }
 
@@ -135,26 +148,26 @@ public class AdaptiveJoinOperatorGenerator implements AdaptiveJoin {
     }
 
     @Override
-    public Tuple2<Boolean, Boolean> enrichAndCheckBroadcast(
-            long leftInputSize, long rightInputSize, long threshold) {
-        Tuple2<Boolean, Boolean> isBroadcastAndLeftBuild;
+    public Tuple2<Boolean, Boolean> tryBroadcastOptimization(
+            Long leftInputSize,
+            Long rightInputSize,
+            Long threshold,
+            Function<Boolean, Boolean> tryTransformEdges) {
         boolean leftSizeSmallerThanThreshold = leftInputSize <= threshold;
         boolean rightSizeSmallerThanThreshold = rightInputSize <= threshold;
         boolean leftSmallerThanRight = leftInputSize < rightInputSize;
+        boolean isBroadcastJoinTemp;
+        boolean leftIsBuildTemp;
         switch (joinType) {
             case RIGHT:
                 // For a right outer join, if the left side can be broadcast, then the left side is
                 // always the build side; otherwise, the smaller side is the build side.
-                isBroadcastAndLeftBuild =
-                        new Tuple2<>(
-                                leftSizeSmallerThanThreshold,
-                                leftSizeSmallerThanThreshold ? true : leftSmallerThanRight);
+                isBroadcastJoinTemp = leftSizeSmallerThanThreshold;
+                leftIsBuildTemp = isBroadcastJoinTemp ? true : leftSmallerThanRight;
                 break;
             case INNER:
-                isBroadcastAndLeftBuild =
-                        new Tuple2<>(
-                                leftSizeSmallerThanThreshold || rightSizeSmallerThanThreshold,
-                                leftSmallerThanRight);
+                isBroadcastJoinTemp = leftSizeSmallerThanThreshold || rightSizeSmallerThanThreshold;
+                leftIsBuildTemp = leftSmallerThanRight;
                 break;
             case LEFT:
             case SEMI:
@@ -162,23 +175,33 @@ public class AdaptiveJoinOperatorGenerator implements AdaptiveJoin {
                 // For left outer / semi / anti join, if the right side can be broadcast, then the
                 // right side is always the build side; otherwise, the smaller side is the build
                 // side.
-                isBroadcastAndLeftBuild =
-                        new Tuple2<>(
-                                rightSizeSmallerThanThreshold,
-                                rightSizeSmallerThanThreshold ? false : leftSmallerThanRight);
+                isBroadcastJoinTemp = rightSizeSmallerThanThreshold;
+                leftIsBuildTemp = isBroadcastJoinTemp ? false : leftSmallerThanRight;
                 break;
             case FULL:
             default:
                 throw new RuntimeException(String.format("Unexpected join type %s.", joinType));
         }
 
-        isBroadcastJoin = isBroadcastAndLeftBuild.f0;
-        leftIsBuild = isBroadcastAndLeftBuild.f1;
+        if (isBroadcastJoinTemp && tryTransformEdges.apply(leftIsBuildTemp)) {
+            isBroadcastJoin = true;
+            leftIsBuild = leftIsBuildTemp;
+        } else {
+            isBroadcastJoin = false;
+            leftIsBuild = leftSmallerThanRight;
+        }
+
+        return new Tuple2<>(isBroadcastJoin, leftIsBuild);
+    }
+
+    @Override
+    public boolean isLeftBuild() {
         // Sort merge join requires the left side to be read first if the broadcast threshold is not
         // met.
         if (!isBroadcastJoin && originalJoin == OperatorType.SortMergeJoin) {
-            return new Tuple2<>(false, true);
+            return true;
         }
-        return isBroadcastAndLeftBuild;
+
+        return leftIsBuild;
     }
 }
