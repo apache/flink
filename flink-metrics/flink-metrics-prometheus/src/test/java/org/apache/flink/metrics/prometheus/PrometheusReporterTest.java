@@ -174,6 +174,21 @@ class PrometheusReporterTest {
     }
 
     @Test
+    void testRemoveFilterCharactersWithLabelValue() throws UnirestException {
+        String[] labelNames = {"MY_LABEL"};
+        String[] labelValues = {"测试作业_VALUE"};
+
+        metricGroup =
+                TestUtils.createTestMetricGroup(
+                        LOGICAL_SCOPE, TestUtils.toMap(labelNames, labelValues));
+
+        reporter.notifyOfAddedMetric(new SimpleCounter(), "metric", metricGroup);
+        String response = pollMetrics(reporter.getPort()).getBody();
+        String metricStr = String.format("%s=\"%s\"", labelNames[0], labelValues[0]);
+        assertThat(response).contains(metricStr);
+    }
+
+    @Test
     void invalidCharactersAreReplacedWithUnderscore() {
         assertThat(PrometheusReporter.replaceInvalidChars("")).isEqualTo("");
         assertThat(PrometheusReporter.replaceInvalidChars("abc")).isEqualTo("abc");
