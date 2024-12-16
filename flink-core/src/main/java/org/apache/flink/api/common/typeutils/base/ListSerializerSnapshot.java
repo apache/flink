@@ -21,14 +21,21 @@ package org.apache.flink.api.common.typeutils.base;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
 import java.util.List;
 
 /** Snapshot class for the {@link ListSerializer}. */
 public class ListSerializerSnapshot<T>
         extends CompositeTypeSerializerSnapshot<List<T>, ListSerializer<T>> {
 
-    private static final int CURRENT_VERSION = 1;
+    private static final int CURRENT_VERSION = 2;
+
+    private static final int FIRST_VERSION_WITH_NULL_MASK = 2;
+
+    private boolean hasNullMarker = true;
 
     /** Constructor for read instantiation. */
     public ListSerializerSnapshot() {}
@@ -36,6 +43,7 @@ public class ListSerializerSnapshot<T>
     /** Constructor to create the snapshot for writing. */
     public ListSerializerSnapshot(ListSerializer<T> listSerializer) {
         super(listSerializer);
+        this.hasNullMarker = listSerializer.isHasNullMarker();
     }
 
     @Override
@@ -44,11 +52,42 @@ public class ListSerializerSnapshot<T>
     }
 
     @Override
+    protected void readOuterSnapshot(
+            int readOuterSnapshotVersion, DataInputView in, ClassLoader userCodeClassLoader)
+            throws IOException {
+        if (readOuterSnapshotVersion < FIRST_VERSION_WITH_NULL_MASK) {
+            hasNullMarker = false;
+        } else {
+            hasNullMarker = in.readBoolean();
+        }
+    }
+
+    @Override
+    protected void writeOuterSnapshot(DataOutputView out) throws IOException {
+        out.writeBoolean(hasNullMarker);
+    }
+
+    @Override
+    protected OuterSchemaCompatibility resolveOuterSchemaCompatibility(
+            TypeSerializerSnapshot<List<T>> oldSerializerSnapshot) {
+        if (!(oldSerializerSnapshot instanceof ListSerializerSnapshot)) {
+            return OuterSchemaCompatibility.INCOMPATIBLE;
+        }
+
+        ListSerializerSnapshot<T> oldListSerializerSnapshot =
+                (ListSerializerSnapshot<T>) oldSerializerSnapshot;
+        if (hasNullMarker != oldListSerializerSnapshot.hasNullMarker) {
+            return OuterSchemaCompatibility.COMPATIBLE_AFTER_MIGRATION;
+        }
+        return OuterSchemaCompatibility.COMPATIBLE_AS_IS;
+    }
+
+    @Override
     protected ListSerializer<T> createOuterSerializerWithNestedSerializers(
             TypeSerializer<?>[] nestedSerializers) {
         @SuppressWarnings("unchecked")
         TypeSerializer<T> elementSerializer = (TypeSerializer<T>) nestedSerializers[0];
-        return new ListSerializer<>(elementSerializer);
+        return new ListSerializer<>(elementSerializer, hasNullMarker);
     }
 
     @Override
