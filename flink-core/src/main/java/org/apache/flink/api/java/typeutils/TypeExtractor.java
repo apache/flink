@@ -2224,7 +2224,9 @@ public class TypeExtractor {
      */
     @PublicEvolving
     public static boolean isRecord(Class<?> clazz) {
-        return clazz.getSuperclass().getName().equals("java.lang.Record")
+        Class<?> superclass = clazz.getSuperclass();
+        return superclass != null
+                && superclass.getName().equals("java.lang.Record")
                 && (clazz.getModifiers() & Modifier.FINAL) != 0;
     }
 
