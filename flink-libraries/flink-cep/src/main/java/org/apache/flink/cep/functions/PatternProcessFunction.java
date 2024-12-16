@@ -20,6 +20,8 @@ package org.apache.flink.cep.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.cep.listen.CepListener;
+import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.time.TimeContext;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
@@ -43,6 +45,36 @@ import java.util.Map;
  */
 @PublicEvolving
 public abstract class PatternProcessFunction<IN, OUT> extends AbstractRichFunction {
+
+    //	--------------------
+    private Boolean flagNeedListern = false;
+
+    private CepListener<IN> listerner = null;
+
+    public Boolean getFlagNeedListern() {
+        return flagNeedListern;
+    }
+    /**
+     * @Description: 用于注册一个监听对象，需要实现，什么数据触发规则改变，以及规则如何改变方法
+     *
+     * @param: [listern]
+     * @return: void
+     * @auther: greenday
+     * @date: 2019/9/9 10:28
+     */
+    public void registerListener(CepListener<IN> listerner) {
+        flagNeedListern = true;
+        this.listerner = listerner;
+    }
+
+    public Pattern getNewPattern(IN flagElement) {
+        return listerner.returnPattern(flagElement);
+    }
+
+    public Boolean needchange(IN element) {
+        return listerner.needChange(element);
+    }
+    //	----------------------
 
     /**
      * Generates resulting elements given a map of detected pattern events. The events are

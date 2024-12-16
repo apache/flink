@@ -139,7 +139,8 @@ public class NFACompiler {
      *
      * @param <T>
      */
-    static class NFAFactoryCompiler<T> {
+    //	修改default->public
+    public static class NFAFactoryCompiler<T> {
 
         private final NFAStateNameHandler stateNameHandler = new NFAStateNameHandler();
         private final Map<String, State<T>> stopStates = new HashMap<>();
@@ -154,7 +155,8 @@ public class NFACompiler {
         private final AfterMatchSkipStrategy afterMatchSkipStrategy;
         private Map<String, State<T>> originalStateMap = new HashMap<>();
 
-        NFAFactoryCompiler(final Pattern<T, ?> pattern) {
+        //	修改default->public
+        public NFAFactoryCompiler(final Pattern<T, ?> pattern) {
             this.currentPattern = pattern;
             afterMatchSkipStrategy = pattern.getAfterMatchSkipStrategy();
             windowTime = Optional.empty();
@@ -164,7 +166,8 @@ public class NFACompiler {
          * Compiles the given pattern into a {@link NFAFactory}. The NFA factory can be used to
          * create multiple NFAs.
          */
-        void compileFactory() {
+        //	修改default->public
+        public void compileFactory() {
 
             Pattern<T, ?> lastPattern = currentPattern;
 
@@ -197,15 +200,17 @@ public class NFACompiler {
             return afterMatchSkipStrategy;
         }
 
-        List<State<T>> getStates() {
+        //  修改default->public
+        public List<State<T>> getStates() {
             return states;
         }
 
-        long getWindowTime() {
+        // 修改default->public
+        public long getWindowTime() {
             return windowTime.orElse(0L);
         }
 
-        Map<String, Long> getWindowTimes() {
+        public Map<String, Long> getWindowTimes() {
             return windowTimes;
         }
 
