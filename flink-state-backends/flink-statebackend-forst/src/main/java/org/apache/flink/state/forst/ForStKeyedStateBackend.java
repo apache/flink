@@ -386,7 +386,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                             columnFamilyOptionsFactory,
                             ttlCompactFiltersManager,
                             optionsContainer.getWriteBufferManagerCapacity(),
-                            null);
+                            cancelStreamRegistry);
             ForStOperationUtils.registerKvStateInformation(
                     this.kvStateInformation,
                     this.nativeMetricMonitor,

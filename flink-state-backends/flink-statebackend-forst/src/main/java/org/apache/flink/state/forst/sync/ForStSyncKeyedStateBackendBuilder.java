@@ -90,6 +90,9 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
+import static org.apache.flink.state.forst.ForStConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD;
+import static org.apache.flink.state.forst.ForStConfigurableOptions.USE_DELETE_FILES_IN_RANGE_DURING_RESCALING;
+import static org.apache.flink.state.forst.ForStConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -100,7 +103,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBuilder<K> {
 
-    static final String DB_INSTANCE_DIR_STRING = "db";
+    private static final String DB_INSTANCE_DIR_STRING = "db";
 
     /** String that identifies the operator that owns this backend. */
     private final String operatorIdentifier;
@@ -132,17 +135,16 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
     /** RocksDB property-based and statistics-based native metrics options. */
     private ForStNativeMetricOptions nativeMetricOptions;
 
-    private int numberOfTransferingThreads;
     private long writeBatchSize =
             ForStConfigurableOptions.WRITE_BATCH_SIZE.defaultValue().getBytes();
 
     private RocksDB injectedTestDB; // for testing
-    // todo: checkpoint/restore related
     private boolean incrementalRestoreAsyncCompactAfterRescale = false;
-    private boolean rescalingUseDeleteFilesInRange = false;
 
-    private double overlapFractionThreshold = 0.5;
-    private boolean useIngestDbRestoreMode = false;
+    private double overlapFractionThreshold = RESTORE_OVERLAP_FRACTION_THRESHOLD.defaultValue();
+    private boolean useIngestDbRestoreMode = USE_INGEST_DB_RESTORE_MODE.defaultValue();
+    private boolean rescalingUseDeleteFilesInRange =
+            USE_DELETE_FILES_IN_RANGE_DURING_RESCALING.defaultValue();
     private ColumnFamilyHandle injectedDefaultColumnFamilyHandle; // for testing
     private AsyncExceptionHandler asyncExceptionHandler;
 
@@ -166,7 +168,6 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
             @Nonnull Collection<KeyedStateHandle> stateHandles,
             StreamCompressionDecorator keyGroupCompressionDecorator,
             CloseableRegistry cancelStreamRegistry) {
-
         super(
                 kvStateRegistry,
                 keySerializer,
@@ -192,7 +193,6 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
         this.customInitializationMetrics = customInitializationMetrics;
         this.enableIncrementalCheckpointing = false;
         this.nativeMetricOptions = new ForStNativeMetricOptions();
-        this.numberOfTransferingThreads = 4;
     }
 
     @VisibleForTesting
@@ -304,7 +304,12 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
             SortedMap<Long, Collection<HandleAndLocalPath>> materializedSstFiles = new TreeMap<>();
             long lastCompletedCheckpointId = -1L;
             prepareDirectories();
-            restoreOperation = getForStDBRestoreOperation(kvStateInformation, registeredPQStates);
+            restoreOperation =
+                    getForStDBRestoreOperation(
+                            keyGroupPrefixBytes,
+                            kvStateInformation,
+                            registeredPQStates,
+                            ttlCompactFiltersManager);
             ForStRestoreResult restoreResult = restoreOperation.restore();
             db = restoreResult.getDb();
             defaultColumnFamilyHandle = restoreResult.getDefaultColumnFamilyHandle();
@@ -415,6 +420,24 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
                 asyncCompactAfterRestoreFuture);
     }
 
+    public ForStSyncKeyedStateBackendBuilder<K> setOverlapFractionThreshold(
+            double overlapFractionThreshold) {
+        this.overlapFractionThreshold = overlapFractionThreshold;
+        return this;
+    }
+
+    public ForStSyncKeyedStateBackendBuilder<K> setUseIngestDbRestoreMode(
+            boolean useIngestDbRestoreMode) {
+        this.useIngestDbRestoreMode = useIngestDbRestoreMode;
+        return this;
+    }
+
+    public ForStSyncKeyedStateBackendBuilder<K> setRescalingUseDeleteFilesInRange(
+            boolean rescalingUseDeleteFilesInRange) {
+        this.rescalingUseDeleteFilesInRange = rescalingUseDeleteFilesInRange;
+        return this;
+    }
+
     private ForStSnapshotStrategyBase<K, ?> initializeSnapshotStrategy(
             @Nonnull RocksDB db,
             @Nonnull ResourceGuard forstResourceGuard,
@@ -431,9 +454,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
 
         ForStFlinkFileSystem forStFs =
                 optionsContainer.getRemoteForStPath() != null
-                        ? (ForStFlinkFileSystem)
-                                ForStFlinkFileSystem.get(
-                                        optionsContainer.getRemoteForStPath().toUri())
+                        ? ForStFlinkFileSystem.get(optionsContainer.getRemoteForStPath().toUri())
                         : null;
         ForStStateDataTransfer stateTransfer =
                 new ForStStateDataTransfer(ForStStateDataTransfer.DEFAULT_THREAD_NUM, forStFs);
@@ -466,8 +487,10 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
     }
 
     private ForStRestoreOperation getForStDBRestoreOperation(
+            int keyGroupPrefixBytes,
             LinkedHashMap<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation,
-            LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates) {
+            LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
+            ForStDBTtlCompactFiltersManager ttlCompactFiltersManager) {
         // Currently, ForStDB does not support mixing local-dir and remote-dir, and ForStDB will
         // concatenates the dfs directory with the local directory as working dir when using flink
         // env. We expect to directly use the dfs directory in flink env or local directory as
@@ -481,13 +504,17 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
                     optionsContainer.getDbOptions(),
                     columnFamilyOptionsFactory,
                     nativeMetricOptions,
-                    metricGroup);
+                    metricGroup,
+                    ttlCompactFiltersManager,
+                    writeBatchSize,
+                    optionsContainer.getWriteBufferManagerCapacity());
         }
         KeyedStateHandle firstStateHandle = restoreStateHandles.iterator().next();
         if (firstStateHandle instanceof IncrementalRemoteKeyedStateHandle) {
             return new ForStIncrementalRestoreOperation<>(
                     operatorIdentifier,
                     keyGroupRange,
+                    keyGroupPrefixBytes,
                     cancelStreamRegistry,
                     userCodeClassLoader,
                     kvStateInformation,
@@ -499,9 +526,15 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
                     columnFamilyOptionsFactory,
                     nativeMetricOptions,
                     metricGroup,
+                    ttlCompactFiltersManager,
+                    writeBatchSize,
+                    optionsContainer.getWriteBufferManagerCapacity(),
                     customInitializationMetrics,
                     CollectionUtil.checkedSubTypeCast(
-                            restoreStateHandles, IncrementalRemoteKeyedStateHandle.class));
+                            restoreStateHandles, IncrementalRemoteKeyedStateHandle.class),
+                    overlapFractionThreshold,
+                    useIngestDbRestoreMode,
+                    rescalingUseDeleteFilesInRange);
         } else if (priorityQueueConfig.getPriorityQueueStateType()
                 == ForStStateBackend.PriorityQueueStateType.HEAP) {
             // Note: This branch can be touched after ForSt Support canonical savepoint,
@@ -519,6 +552,9 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
                     columnFamilyOptionsFactory,
                     nativeMetricOptions,
                     metricGroup,
+                    ttlCompactFiltersManager,
+                    writeBatchSize,
+                    optionsContainer.getWriteBufferManagerCapacity(),
                     restoreStateHandles,
                     cancelStreamRegistry);
         }

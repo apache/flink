@@ -306,7 +306,7 @@ public class ForStStateDataTransfer implements Closeable {
                                     FileSystem fs = forStFs != null ? forStFs : dir.getFileSystem();
                                     fs.delete(dir, true);
                                 } catch (IOException ignored) {
-
+                                    LOG.warn("Failed to delete transfer destination.", ignored);
                                 }
                             });
 
