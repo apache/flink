@@ -29,9 +29,11 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.operators.InternalTimer;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.InternalTimerServiceAsyncImpl;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Triggerable;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.RecordProcessorUtils;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.ElementOrder;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -292,7 +294,9 @@ public class AbstractAsyncStateStreamOperatorTest {
                     () -> {
                         try {
                             processor.accept(new StreamRecord<>(Tuple2.of(5, "5")));
-                            testOperator.processWatermarkStatus(new WatermarkStatus(0), 1);
+                            testOperator.processWatermark1(new Watermark(205L));
+                            testOperator.processWatermark2(new Watermark(105L));
+                            testOperator.processWatermarkStatus(WatermarkStatus.IDLE, 1);
                         } catch (Exception e) {
                         }
                     });
@@ -309,8 +313,12 @@ public class AbstractAsyncStateStreamOperatorTest {
             anotherThread.shutdown();
             Thread.sleep(1000);
             assertThat(testOperator.getCurrentProcessingContext().getReferenceCount()).isEqualTo(0);
-            assertThat(testOperator.watermarkStatus.isActive()).isTrue();
-            assertThat(testOperator.watermarkIndex).isEqualTo(1);
+            assertThat(testOperator.watermarkStatus.isActive()).isFalse();
+            assertThat(testHarness.getOutput())
+                    .containsExactly(
+                            new StreamRecord<>("EventTimer-5-105"),
+                            new Watermark(105L),
+                            new Watermark(205L));
         }
     }
 
@@ -332,6 +340,8 @@ public class AbstractAsyncStateStreamOperatorTest {
         private WatermarkStatus watermarkStatus = new WatermarkStatus(-1);
         private int watermarkIndex = -1;
 
+        InternalTimerService<VoidNamespace> timerService;
+
         TestOperator(ElementOrder elementOrder) {
             this.elementOrder = elementOrder;
         }
@@ -339,6 +349,9 @@ public class AbstractAsyncStateStreamOperatorTest {
         @Override
         public void open() throws Exception {
             super.open();
+            this.timerService =
+                    getInternalTimerService(
+                            "processing timer", VoidNamespaceSerializer.INSTANCE, this);
         }
 
         @Override
@@ -352,6 +365,8 @@ public class AbstractAsyncStateStreamOperatorTest {
             synchronized (objectToWait) {
                 objectToWait.wait();
             }
+            timerService.registerEventTimeTimer(
+                    VoidNamespace.INSTANCE, element.getValue().f0 + 100L);
         }
 
         @Override
@@ -369,11 +384,18 @@ public class AbstractAsyncStateStreamOperatorTest {
         }
 
         @Override
-        public void onEventTime(InternalTimer<Integer, VoidNamespace> timer) throws Exception {}
+        public void onEventTime(InternalTimer<Integer, VoidNamespace> timer) throws Exception {
+            output.collect(
+                    new StreamRecord<>(
+                            "EventTimer-" + timer.getKey() + "-" + timer.getTimestamp()));
+        }
 
         @Override
-        public void onProcessingTime(InternalTimer<Integer, VoidNamespace> timer)
-                throws Exception {}
+        public void onProcessingTime(InternalTimer<Integer, VoidNamespace> timer) throws Exception {
+            output.collect(
+                    new StreamRecord<>(
+                            "ProcessingTimer-" + timer.getKey() + "-" + timer.getTimestamp()));
+        }
 
         public int getProcessed() {
             return processed.get();
