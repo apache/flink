@@ -298,4 +298,4 @@ See the [Apache Avro Format]({{< ref "docs/connectors/table/formats/avro" >}}#da
 
 In addition to the types listed there, Flink supports reading/writing nullable types. Flink maps nullable types to Avro `union(something, null)`, where `something` is the Avro type converted from Flink type.
 
-You can refer to [Avro Specification](https://avro.apache.org/docs/current/spec.html) for more information about Avro types.
+You can refer to [Avro Specification](https://avro.apache.org/docs/++version++/specification/) for more information about Avro types.

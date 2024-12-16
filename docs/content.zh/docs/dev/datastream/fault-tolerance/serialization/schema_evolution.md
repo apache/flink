@@ -91,7 +91,7 @@ Flink 基于下面的规则来支持 [POJO 类型]({{< ref "docs/dev/datastream/
 ### Avro 类型
 
 Flink 完全支持 Avro 状态类型的升级，只要数据结构的修改是被
-[Avro 的数据结构解析规则](http://avro.apache.org/docs/current/spec.html#Schema+Resolution)认为兼容的即可。
+[Avro 的数据结构解析规则](https://avro.apache.org/docs/++version++/specification/_print/#schema-resolution)认为兼容的即可。
 
 一个例外是如果新的 Avro 数据 schema 生成的类无法被重定位或者使用了不同的命名空间，在作业恢复时状态数据会被认为是不兼容的。
 
