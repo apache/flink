@@ -244,34 +244,31 @@ public class HiveCatalog extends AbstractCatalog {
             @Nullable String hiveConfDir,
             @Nullable String hadoopConfDir,
             @Nullable ReadableConfig flinkConfiguration) {
-        HiveConf hiveconf = initHiveConf(hiveConfDir, hadoopConfDir);
+        HiveConf hiveconf = createHiveConf(hiveConfDir, hadoopConfDir);
         // add all configuration key with prefix 'flink.hive.hadoop.' and 'flink.hive.' in flink
         // conf to hive conf
         String hivePrefix = FLINK_HIVE_CONFIG_PREFIXES;
         String hadoopPrefix = "hadoop.";
         if (flinkConfiguration != null) {
-            for (String key : flinkConfiguration.toMap().keySet()) {
-                if (key.startsWith(hivePrefix)) {
-                    String newKey = key.substring(hivePrefix.length());
+            for (Map.Entry<String, String> conf : flinkConfiguration.toMap().entrySet()) {
+                if (conf.getKey().startsWith(hivePrefix)) {
+                    String newKey = conf.getKey().substring(hivePrefix.length());
                     if (newKey.startsWith(hadoopPrefix)) {
                         newKey = newKey.substring(hadoopPrefix.length());
                     }
-                    String value =
-                            flinkConfiguration.get(
-                                    ConfigOptions.key(key).stringType().noDefaultValue());
-                    hiveconf.set(newKey, value);
+                    hiveconf.set(newKey, conf.getValue());
                     LOG.debug(
                             "Adding Flink config entry for {} as {}={} to Hive config",
-                            key,
+                            conf.getKey(),
                             newKey,
-                            value);
+                            conf.getValue());
                 }
             }
         }
         return hiveconf;
     }
 
-    public static HiveConf initHiveConf(
+    public static HiveConf createHiveConf(
             @Nullable String hiveConfDir, @Nullable String hadoopConfDir) {
         // create HiveConf from hadoop configuration with hadoop conf directory configured.
         Configuration hadoopConf = null;

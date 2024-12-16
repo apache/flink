@@ -19,8 +19,6 @@
 package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.datagen.table.DataGenTableSourceFactory;
-
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogBaseTable;
