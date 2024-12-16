@@ -61,6 +61,29 @@ public class HistoryServerOptions {
                                             + " that are no longer present `%s`.",
                                     HISTORY_SERVER_ARCHIVE_DIRS.key()));
 
+    /** If this option is enabled then deleted job archives from HistoryServer regularly. */
+    public static final ConfigOption<Boolean> HISTORY_SERVER_CLEANUP_ENABLE =
+            key("historyserver.cleanup.enable")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            String.format(
+                                    "Whether HistoryServer should cleanup jobs"
+                                            + " that are present `%s`.",
+                                    HISTORY_SERVER_ARCHIVE_DIRS.key()));
+
+    /** HistoryServer will delete jobs archives regularly according to this config. */
+    public static final ConfigOption<Duration> HISTORY_SERVER_CLEANUP_INTERVAL =
+            key("historyserver.cleanup.interval")
+                    .durationType()
+                    .defaultValue(Duration.ofDays(7))
+                    .withDescription(
+                            String.format(
+                                    "If `%s` is set to true, HistoryServer will cleanup jobs"
+                                            + " that are present `%s` according to this config.",
+                                    HISTORY_SERVER_CLEANUP_ENABLE.key(),
+                                    HISTORY_SERVER_ARCHIVE_DIRS.key()));
+
     /**
      * Pattern of the log URL of TaskManager. The HistoryServer will generate actual URLs from it.
      */
