@@ -108,6 +108,13 @@ re-compilation:
 $ npm run lint
 ```
 
+### How to update the NOTICE
+> Tip: If you've made a modification to any of the dependencies, make sure you've run `dev/generate_notice` before committing to update the `NOTICE` file.
+
+```bash
+./web-dashboard/dev/generate_notice.sh
+```
+
 ### Dependency
 
 - Framework: [Angular](https://angular.io)
