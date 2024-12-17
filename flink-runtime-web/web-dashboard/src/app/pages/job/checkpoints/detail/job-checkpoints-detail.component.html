@@ -16,7 +16,6 @@
   ~ limitations under the License.
   -->
 <div class="extra">
-  <strong>Checkpoint Detail:</strong>
   <div class="more-detail">
     <strong>Path:</strong>
     {{ checkPointDetail?.external_path || '-' }}
@@ -26,6 +25,9 @@
     <nz-divider nzType="vertical"></nz-divider>
     <strong>Checkpoint Type:</strong>
     {{ checkPointType }}
+    <nz-divider nzType="vertical"></nz-divider>
+    <strong>Full Checkpoint:</strong>
+    {{ checkPointDetail?.is_full_checkpoint }}
     <ng-container *ngIf="checkPointDetail?.savepointFormat">
       <nz-divider nzType="vertical"></nz-divider>
       <strong>Savepoint Format:</strong>
