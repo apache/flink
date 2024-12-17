@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.planner.functions;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
@@ -90,7 +93,7 @@ abstract class BuiltInFunctionTestBase {
 
     private Stream<TestCase> getTestCases() {
         return this.getTestSetSpecs()
-                .flatMap(testSpec -> testSpec.getTestCases(this.getConfiguration()));
+                .flatMap(testSpec -> testSpec.getTestCases(testSpec.configuration));
     }
 
     @ParameterizedTest
@@ -143,11 +146,14 @@ abstract class BuiltInFunctionTestBase {
 
         private @Nullable AbstractDataType<?>[] fieldDataTypes;
 
+        private @Nullable Configuration configuration;
+
         private TestSetSpec(BuiltInFunctionDefinition definition, @Nullable String description) {
             this.definition = definition;
             this.description = description;
             this.functions = new ArrayList<>();
             this.testItems = new ArrayList<>();
+            this.configuration = new Configuration();
         }
 
         static TestSetSpec forFunction(BuiltInFunctionDefinition definition) {
@@ -160,6 +166,16 @@ abstract class BuiltInFunctionTestBase {
 
         static TestSetSpec forExpression(String description) {
             return new TestSetSpec(null, Preconditions.checkNotNull(description));
+        }
+
+        TestSetSpec withConfiguration(Configuration configuration) {
+            this.configuration = configuration;
+            return this;
+        }
+
+        TestSetSpec withConfiguration(TableConfig configuration) {
+            this.configuration = configuration.getConfiguration();
+            return this;
         }
 
         TestSetSpec onFieldsWithData(Object... fieldData) {
@@ -325,10 +341,15 @@ abstract class BuiltInFunctionTestBase {
             return new TestCase(
                     testItem.toString(),
                     () -> {
+                        EnvironmentSettings envSettings =
+                                configuration
+                                                .get(ExecutionOptions.RUNTIME_MODE)
+                                                .equals(RuntimeExecutionMode.BATCH)
+                                        ? EnvironmentSettings.inBatchMode()
+                                        : EnvironmentSettings.inStreamingMode();
+
                         final TableEnvironmentInternal env =
-                                (TableEnvironmentInternal)
-                                        TableEnvironment.create(
-                                                EnvironmentSettings.newInstance().build());
+                                (TableEnvironmentInternal) TableEnvironment.create(envSettings);
                         env.getConfig().addConfiguration(configuration);
 
                         functions.forEach(
