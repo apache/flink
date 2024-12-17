@@ -1048,7 +1048,7 @@ public interface TableEnvironment {
     boolean dropTemporaryView(String path);
 
     /**
-     * Drops a table in a given fully qualified path.
+     * Drops a view in a given fully qualified path.
      *
      * @return true if a view existed in the given path and was removed
      */

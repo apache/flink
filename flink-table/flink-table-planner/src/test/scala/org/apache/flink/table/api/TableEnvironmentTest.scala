@@ -2809,16 +2809,8 @@ class TableEnvironmentTest {
   }
 
   private def createViewsForDropTests(): Unit = {
+    createTableForTests()
     val viewDdls = Array[String](
-      """
-        |CREATE TABLE T1(
-        |  a int,
-        |  b varchar,
-        |  c int
-        |) with (
-        |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin,
       """
         |CREATE VIEW T2(d, e, f) AS SELECT a, b, c FROM T1
       """.stripMargin,
