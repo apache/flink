@@ -16,11 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.sort;
+package org.apache.flink.table.runtime.operators.sort.asyncprocessing;
 
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.v2.ListState;
+import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.v2.ListStateDescriptor;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
@@ -35,12 +37,12 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Sort on proc-time and additional secondary sort attributes. */
-public class ProcTimeSortOperator extends BaseTemporalSortOperator {
+/** Sort on proc-time and additional secondary sort attributes in async state. */
+public class AsyncStateProcTimeSortOperator extends AsyncStateBaseTemporalSortOperator {
 
-    private static final long serialVersionUID = -2028983921907321193L;
+    private static final long serialVersionUID = 1L;
 
-    private static final Logger LOG = LoggerFactory.getLogger(ProcTimeSortOperator.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AsyncStateProcTimeSortOperator.class);
 
     private final InternalTypeInfo<RowData> inputRowType;
 
@@ -50,13 +52,13 @@ public class ProcTimeSortOperator extends BaseTemporalSortOperator {
 
     private transient ListState<RowData> dataState;
 
-    private transient SyncProcTimeSortHelper sortHelper = null;
+    private transient AsyncProcTimeSortHelper sortHelper = null;
 
     /**
      * @param inputRowType The data type of the input data.
      * @param gComparator generated comparator.
      */
-    public ProcTimeSortOperator(
+    public AsyncStateProcTimeSortOperator(
             InternalTypeInfo<RowData> inputRowType, GeneratedRecordComparator gComparator) {
         this.inputRowType = inputRowType;
         this.gComparator = gComparator;
@@ -76,7 +78,7 @@ public class ProcTimeSortOperator extends BaseTemporalSortOperator {
                 new ListStateDescriptor<>("sortState", inputRowType);
         dataState = getRuntimeContext().getListState(sortDescriptor);
 
-        sortHelper = new SyncProcTimeSortHelper();
+        sortHelper = new AsyncProcTimeSortHelper();
     }
 
     @Override
@@ -95,13 +97,19 @@ public class ProcTimeSortOperator extends BaseTemporalSortOperator {
     public void onProcessingTime(InternalTimer<RowData, VoidNamespace> timer) throws Exception {
 
         // gets all rows for the triggering timestamps
-        Iterable<RowData> inputs = dataState.get();
+        StateFuture<StateIterator<RowData>> inputsFuture = dataState.asyncGet();
 
-        // insert all rows into the sort buffer
-        sortBuffer.clear();
-        inputs.forEach(sortBuffer::add);
+        inputsFuture.thenAccept(
+                inputsIterator -> {
+                    // insert all rows into the sort buffer
+                    sortBuffer.clear();
+                    inputsIterator.onNext(
+                            (RowData row) -> {
+                                sortBuffer.add(row);
+                            });
 
-        sortHelper.emitData(sortBuffer);
+                    sortHelper.emitData(sortBuffer);
+                });
     }
 
     @Override
@@ -110,13 +118,15 @@ public class ProcTimeSortOperator extends BaseTemporalSortOperator {
                 "Now Sort only is supported based processing time here!");
     }
 
-    private class SyncProcTimeSortHelper extends ProcTimeSortHelper {
-        public SyncProcTimeSortHelper() {
-            super(sortBuffer, comparator, ProcTimeSortOperator.this.collector);
+    private class AsyncProcTimeSortHelper extends ProcTimeSortHelper {
+
+        public AsyncProcTimeSortHelper() {
+            super(sortBuffer, comparator, AsyncStateProcTimeSortOperator.this.collector);
         }
 
         @Override
         protected void clearDataState() {
+            // no need to wait for the future
             // remove all buffered rows
             dataState.clear();
         }

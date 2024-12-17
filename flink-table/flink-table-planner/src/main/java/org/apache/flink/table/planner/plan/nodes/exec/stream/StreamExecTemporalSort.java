@@ -21,8 +21,10 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -39,6 +41,7 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector;
 import org.apache.flink.table.runtime.operators.sort.ProcTimeSortOperator;
 import org.apache.flink.table.runtime.operators.sort.RowTimeSortOperator;
+import org.apache.flink.table.runtime.operators.sort.asyncprocessing.AsyncStateProcTimeSortOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -59,6 +62,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
         name = "stream-exec-temporal-sort",
         version = 1,
         producedTransformations = StreamExecTemporalSort.TEMPORAL_SORT_TRANSFORMATION,
+        consumedOptions = {"table.exec.async-state.enabled"},
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecTemporalSort extends ExecNodeBase<RowData>
@@ -151,8 +155,15 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
                             "ProcTimeSortComparator",
                             inputType,
                             specExcludeTime);
-            ProcTimeSortOperator sortOperator =
-                    new ProcTimeSortOperator(InternalTypeInfo.of(inputType), rowComparator);
+            OneInputStreamOperator<RowData, RowData> sortOperator;
+            if (config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED)) {
+                sortOperator =
+                        new AsyncStateProcTimeSortOperator(
+                                InternalTypeInfo.of(inputType), rowComparator);
+            } else {
+                sortOperator =
+                        new ProcTimeSortOperator(InternalTypeInfo.of(inputType), rowComparator);
+            }
 
             OneInputTransformation<RowData, RowData> transform =
                     ExecNodeUtil.createOneInputTransformation(
