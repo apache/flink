@@ -410,19 +410,19 @@ class OverloadedFunction extends ScalarFunction {
 
   // 定义 decimal 的精度和小数位
   @DataTypeHint("DECIMAL(12, 3)")
-  def eval(double a, double b): BigDecimal = {
-    java.lang.BigDecimal.valueOf(a + b)
+  def eval(a: Double, b: Double): BigDecimal = {
+    BigDecimal(a + b)
   }
 
   // 定义嵌套数据类型
   @DataTypeHint("ROW<s STRING, t TIMESTAMP_LTZ(3)>")
-  def eval(Int i): Row = {
-    Row.of(java.lang.String.valueOf(i), java.time.Instant.ofEpochSecond(i))
+  def eval(i: Int): Row = {
+    Row.of(i.toString, java.time.Instant.ofEpochSecond(i))
   }
 
   // 允许任意类型的符入，并输出定制序列化后的值
   @DataTypeHint(value = "RAW", bridgedTo = classOf[java.nio.ByteBuffer])
-  def eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object o): java.nio.ByteBuffer = {
+  def eval(@DataTypeHint(inputGroup = InputGroup.ANY) o: Any): java.nio.ByteBuffer = {
     MyUtils.serializeToByteBuffer(o)
   }
 }
