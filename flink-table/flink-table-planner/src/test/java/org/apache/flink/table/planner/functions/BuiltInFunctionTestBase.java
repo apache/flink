@@ -520,15 +520,21 @@ abstract class BuiltInFunctionTestBase {
         }
 
         @Override
-        Table query(TableEnvironment env, Table inputTable) {
-            final Table select = inputTable.select(expression.toArray(new Expression[] {}));
+        Table query(TableEnvironment env, @Nullable Table inputTable) {
+            final Table select =
+                    inputTable == null
+                            ? env.fromValues(row(0)).select(expression.toArray(new Expression[] {}))
+                            : inputTable.select(expression.toArray(new Expression[] {}));
             final ProjectQueryOperation projectQueryOperation =
                     (ProjectQueryOperation) select.getQueryOperation();
             final String exprAsSerializableString =
                     projectQueryOperation.getProjectList().stream()
                             .map(ResolvedExpression::asSerializableString)
                             .collect(Collectors.joining(", "));
-            return env.sqlQuery("SELECT " + exprAsSerializableString + " FROM " + inputTable);
+
+            return inputTable == null
+                    ? env.sqlQuery("SELECT " + exprAsSerializableString)
+                    : env.sqlQuery("SELECT " + exprAsSerializableString + " FROM " + inputTable);
         }
 
         @Override
