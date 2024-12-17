@@ -109,10 +109,6 @@ public class JavaUserDefinedTableFunctions {
             }
         }
 
-        @Override
-        public TypeInformation<String> getResultType() {
-            return Types.STRING;
-        }
     }
 
     /** Non-deterministic table function. */
