@@ -54,6 +54,10 @@ public class SavepointType implements SnapshotType {
         return true;
     }
 
+    public boolean isFullCheckpoint() {
+        return false;
+    }
+
     public boolean isSynchronous() {
         return postCheckpointAction != PostCheckpointAction.NONE;
     }

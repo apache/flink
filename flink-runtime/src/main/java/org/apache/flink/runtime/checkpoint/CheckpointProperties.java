@@ -183,6 +183,16 @@ public class CheckpointProperties implements Serializable {
     }
 
     /**
+     * Returns whether the checkpoint properties describe a full checkpoint.
+     *
+     * @return <code>true</code> if the properties describe a full checkpoint, <code>false</code>
+     *     otherwise.
+     */
+    public boolean isFullCheckpoint() {
+        return checkpointType.isFullCheckpoint();
+    }
+
+    /**
      * Returns whether the checkpoint properties describe a synchronous savepoint/checkpoint.
      *
      * @return <code>true</code> if the properties describe a synchronous operation, <code>false

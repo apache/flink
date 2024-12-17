@@ -78,6 +78,7 @@ class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase<Checkp
                         1L,
                         CheckpointStatsStatus.COMPLETED,
                         false,
+                        false,
                         null,
                         42L,
                         41L,
@@ -99,6 +100,7 @@ class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase<Checkp
                         2L,
                         CheckpointStatsStatus.COMPLETED,
                         true,
+                        false,
                         SavepointFormatType.CANONICAL.name(),
                         11L,
                         10L,
@@ -120,6 +122,7 @@ class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase<Checkp
                 new CheckpointStatistics.FailedCheckpointStatistics(
                         3L,
                         CheckpointStatsStatus.FAILED,
+                        false,
                         false,
                         null,
                         5L,
@@ -144,6 +147,7 @@ class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase<Checkp
                 new CheckpointStatistics.PendingCheckpointStatistics(
                         5L,
                         CheckpointStatsStatus.IN_PROGRESS,
+                        false,
                         false,
                         null,
                         42L,
