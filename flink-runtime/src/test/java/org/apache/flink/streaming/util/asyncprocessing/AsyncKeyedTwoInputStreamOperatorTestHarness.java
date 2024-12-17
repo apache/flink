@@ -26,15 +26,20 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.RecordProcessorUtils;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessingOperator;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static org.apache.flink.streaming.util.asyncprocessing.AsyncProcessingTestUtil.drain;
+import static org.apache.flink.streaming.util.asyncprocessing.AsyncProcessingTestUtil.execute;
 
 /**
  * A test harness for testing a {@link OneInputStreamOperator} which uses async state.
@@ -106,6 +111,9 @@ public class AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
                 keyType.createSerializer(executionConfig.getSerializerConfig()));
         config.serializeAllConfigs();
 
+        Preconditions.checkState(
+                operator instanceof AsyncStateProcessingOperator,
+                "Operator is not an AsyncStateProcessingOperator");
         this.twoInputOperator = operator;
         this.executor = executor;
     }
@@ -125,7 +133,7 @@ public class AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
     }
 
     public void processElement1(StreamRecord<IN1> element) throws Exception {
-        execute((ignore) -> getRecordProcessor1().accept(element)).get();
+        execute(executor, (ignore) -> getRecordProcessor1().accept(element)).get();
     }
 
     public void processElement1(IN1 value, long timestamp) throws Exception {
@@ -133,7 +141,7 @@ public class AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
     }
 
     public void processElement2(StreamRecord<IN2> element) throws Exception {
-        execute((ignore) -> getRecordProcessor2().accept(element)).get();
+        execute(executor, (ignore) -> getRecordProcessor2().accept(element)).get();
     }
 
     public void processElement2(IN2 value, long timestamp) throws Exception {
@@ -141,50 +149,45 @@ public class AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
     }
 
     public void processWatermark1(Watermark mark) throws Exception {
-        execute((ignore) -> twoInputOperator.processWatermark1(mark)).get();
+        execute(executor, (ignore) -> twoInputOperator.processWatermark1(mark)).get();
     }
 
     public void processWatermark2(Watermark mark) throws Exception {
-        execute((ignore) -> twoInputOperator.processWatermark2(mark)).get();
+        execute(executor, (ignore) -> twoInputOperator.processWatermark2(mark)).get();
     }
 
     public void processWatermarkStatus1(WatermarkStatus watermarkStatus) throws Exception {
-        execute((ignore) -> twoInputOperator.processWatermarkStatus1(watermarkStatus)).get();
+        execute(executor, (ignore) -> twoInputOperator.processWatermarkStatus1(watermarkStatus))
+                .get();
     }
 
     public void processWatermarkStatus2(WatermarkStatus watermarkStatus) throws Exception {
-        execute((ignore) -> twoInputOperator.processWatermarkStatus2(watermarkStatus)).get();
+        execute(executor, (ignore) -> twoInputOperator.processWatermarkStatus2(watermarkStatus))
+                .get();
     }
 
     public void processRecordAttributes1(RecordAttributes recordAttributes) throws Exception {
-        execute((ignore) -> twoInputOperator.processRecordAttributes1(recordAttributes)).get();
+        execute(executor, (ignore) -> twoInputOperator.processRecordAttributes1(recordAttributes))
+                .get();
     }
 
     public void processRecordAttributes2(RecordAttributes recordAttributes) throws Exception {
-        execute((ignore) -> twoInputOperator.processRecordAttributes2(recordAttributes)).get();
+        execute(executor, (ignore) -> twoInputOperator.processRecordAttributes2(recordAttributes))
+                .get();
+    }
+
+    public void drainStateRequests() throws Exception {
+        execute(executor, (ignore) -> drain(operator)).get();
     }
 
     @Override
     public void close() throws Exception {
         execute(
+                        executor,
                         (ignore) -> {
                             super.close();
                         })
                 .get();
         executor.shutdown();
-    }
-
-    private CompletableFuture<Void> execute(ThrowingConsumer<Void, Exception> processor) {
-        CompletableFuture<Void> future = new CompletableFuture();
-        executor.execute(
-                () -> {
-                    try {
-                        processor.accept(null);
-                        future.complete(null);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                });
-        return future;
     }
 }

@@ -38,6 +38,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static org.apache.flink.streaming.util.asyncprocessing.AsyncProcessingTestUtil.drain;
+import static org.apache.flink.streaming.util.asyncprocessing.AsyncProcessingTestUtil.execute;
+
 /**
  * A test harness for testing a {@link MultipleInputStreamOperator}.
  *
@@ -109,28 +112,33 @@ public class AsyncKeyedMultiInputStreamOperatorTestHarness<K, OUT>
         Input input = getCastedOperator().getInputs().get(idx);
         ThrowingConsumer<StreamRecord<?>, Exception> inputProcessor =
                 RecordProcessorUtils.getRecordProcessor(input);
-        execute((ignore) -> inputProcessor.accept(element)).get();
+        execute(executor, (ignore) -> inputProcessor.accept(element)).get();
     }
 
     public void processWatermark(int idx, Watermark mark) throws Exception {
         Input input = getCastedOperator().getInputs().get(idx);
-        execute((ignore) -> input.processWatermark(mark)).get();
+        execute(executor, (ignore) -> input.processWatermark(mark)).get();
     }
 
     public void processWatermarkStatus(int idx, WatermarkStatus watermarkStatus) throws Exception {
         Input input = getCastedOperator().getInputs().get(idx);
-        execute((ignore) -> input.processWatermarkStatus(watermarkStatus)).get();
+        execute(executor, (ignore) -> input.processWatermarkStatus(watermarkStatus)).get();
     }
 
     public void processRecordAttributes(int idx, RecordAttributes recordAttributes)
             throws Exception {
         Input input = getCastedOperator().getInputs().get(idx);
-        execute((ignore) -> input.processRecordAttributes(recordAttributes)).get();
+        execute(executor, (ignore) -> input.processRecordAttributes(recordAttributes)).get();
+    }
+
+    public void drainStateRequests() throws Exception {
+        execute(executor, (ignore) -> drain(operator)).get();
     }
 
     @Override
     public void close() throws Exception {
         execute(
+                        executor,
                         (ignore) -> {
                             super.close();
                         })
@@ -140,19 +148,5 @@ public class AsyncKeyedMultiInputStreamOperatorTestHarness<K, OUT>
 
     private MultipleInputStreamOperator<OUT> getCastedOperator() {
         return (MultipleInputStreamOperator<OUT>) operator;
-    }
-
-    private CompletableFuture<Void> execute(ThrowingConsumer<Void, Exception> processor) {
-        CompletableFuture<Void> future = new CompletableFuture();
-        executor.execute(
-                () -> {
-                    try {
-                        processor.accept(null);
-                        future.complete(null);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                });
-        return future;
     }
 }

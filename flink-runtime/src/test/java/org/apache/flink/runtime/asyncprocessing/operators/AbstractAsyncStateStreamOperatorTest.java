@@ -189,7 +189,7 @@ public class AbstractAsyncStateStreamOperatorTest {
             ((AbstractAsyncStateStreamOperator<String>) testHarness.getOperator())
                     .postProcessElement();
             assertThat(asyncExecutionController.getInFlightRecordNum()).isEqualTo(1);
-            testHarness.prepareSnapshotPreBarrier(1);
+            testHarness.drainStateRequests();
             assertThat(asyncExecutionController.getInFlightRecordNum()).isEqualTo(0);
         }
     }
