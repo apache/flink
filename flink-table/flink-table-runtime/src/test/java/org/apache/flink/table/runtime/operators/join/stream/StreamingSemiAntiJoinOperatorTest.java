@@ -18,35 +18,69 @@
 
 package org.apache.flink.table.runtime.operators.join.stream;
 
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.operators.join.stream.asyncprocessing.AsyncStateStreamingSemiAntiJoinOperator;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.RowKind;
 
 import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.function.Predicate;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.rowOfKind;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 /** Test for {@link StreamingSemiAntiJoinOperator}. */
+@ExtendWith(ParameterizedTestExtension.class)
 class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
+
+    @Parameters(name = "enableAsyncState = {0}")
+    public static List<Boolean> enableAsyncState() {
+        return Arrays.asList(false, true);
+    }
+
+    @Parameter private boolean enableAsyncState;
+
     @Override
-    protected StreamingSemiAntiJoinOperator createJoinOperator(TestInfo testInfo) {
+    protected TwoInputStreamOperator<RowData, RowData, RowData> createJoinOperator(
+            TestInfo testInfo) {
+        String displayName = testInfo.getTestMethod().get().getName();
         Long[] ttl = STATE_RETENTION_TIME_EXTRACTOR.apply(testInfo.getTags());
-        return new StreamingSemiAntiJoinOperator(
-                ANTI_JOIN_CHECKER.test(testInfo.getDisplayName()),
-                leftTypeInfo,
-                rightTypeInfo,
-                joinCondition,
-                leftInputSpec,
-                rightInputSpec,
-                new boolean[] {true},
-                ttl[0],
-                ttl[1]);
+        if (enableAsyncState) {
+            return new AsyncStateStreamingSemiAntiJoinOperator(
+                    ANTI_JOIN_CHECKER.test(displayName),
+                    leftTypeInfo,
+                    rightTypeInfo,
+                    joinCondition,
+                    leftInputSpec,
+                    rightInputSpec,
+                    new boolean[] {true},
+                    ttl[0],
+                    ttl[1]);
+        } else {
+            return new StreamingSemiAntiJoinOperator(
+                    ANTI_JOIN_CHECKER.test(displayName),
+                    leftTypeInfo,
+                    rightTypeInfo,
+                    joinCondition,
+                    leftInputSpec,
+                    rightInputSpec,
+                    new boolean[] {true},
+                    ttl[0],
+                    ttl[1]);
+        }
     }
 
     @Override
@@ -62,8 +96,11 @@ class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
      */
     @Tag("leftStateRetentionTime=4000")
     @Tag("rightStateRetentionTime=1000")
-    @Test
+    @TestTemplate
     void testLeftSemiJoinWithDifferentStateRetentionTime() throws Exception {
+        // async state op is not supported to set ttl yet
+        assumeFalse(enableAsyncState);
+
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
                 insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
@@ -115,7 +152,7 @@ class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
      * The equivalent SQL is the same as {@link #testLeftSemiJoinWithDifferentStateRetentionTime()}.
      * The only difference is that the state retention is disabled.
      */
-    @Test
+    @TestTemplate
     void testLeftSemiJoinWithStateRetentionDisabled() throws Exception {
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
@@ -183,8 +220,11 @@ class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
      */
     @Tag("leftStateRetentionTime=4000")
     @Tag("rightStateRetentionTime=1000")
-    @Test
+    @TestTemplate
     void testLeftAntiJoinWithDifferentStateRetentionTime() throws Exception {
+        // async state op is not supported to set ttl yet
+        assumeFalse(enableAsyncState);
+
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(
                 insertRecord("Ord#1", "LineOrd#1", "3 Bellevue Drive, Pottstown, PA 19464"));
@@ -239,7 +279,7 @@ class StreamingSemiAntiJoinOperatorTest extends StreamingJoinOperatorTestBase {
      * The equivalent SQL is the same as {@link #testLeftAntiJoinWithDifferentStateRetentionTime()}.
      * The only difference is that the state retention is disabled.
      */
-    @Test
+    @TestTemplate
     void testLeftAntiJoinWithStateRetentionTimeDisabled() throws Exception {
         testHarness.setStateTtlProcessingTime(1);
         testHarness.processElement1(

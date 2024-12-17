@@ -16,16 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.join.stream;
+package org.apache.flink.table.runtime.operators.join.stream.asyncprocessing;
 
+import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
-import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateView;
-import org.apache.flink.table.runtime.operators.join.stream.state.JoinRecordStateViews;
-import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateView;
-import org.apache.flink.table.runtime.operators.join.stream.state.OuterJoinRecordStateViews;
+import org.apache.flink.table.runtime.operators.join.stream.asyncprocessing.state.JoinRecordAsyncStateView;
+import org.apache.flink.table.runtime.operators.join.stream.asyncprocessing.state.JoinRecordAsyncStateViews;
+import org.apache.flink.table.runtime.operators.join.stream.asyncprocessing.state.OuterJoinRecordAsyncStateView;
+import org.apache.flink.table.runtime.operators.join.stream.asyncprocessing.state.OuterJoinRecordAsyncStateViews;
 import org.apache.flink.table.runtime.operators.join.stream.utils.AssociatedRecords;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.operators.join.stream.utils.SemiAntiJoinHelper;
@@ -33,21 +34,22 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.types.RowKind;
 
 /** Streaming unbounded Join operator which supports SEMI/ANTI JOIN. */
-public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator {
+public class AsyncStateStreamingSemiAntiJoinOperator
+        extends AbstractAsyncStateStreamingJoinOperator {
 
-    private static final long serialVersionUID = -3135772379944924519L;
+    private static final long serialVersionUID = 1L;
 
     // true if it is anti join, otherwise is semi join
     private final boolean isAntiJoin;
 
     // left join state
-    private transient OuterJoinRecordStateView leftRecordStateView;
+    private transient OuterJoinRecordAsyncStateView leftRecordAsyncStateView;
     // right join state
-    private transient JoinRecordStateView rightRecordStateView;
+    private transient JoinRecordAsyncStateView rightRecordAsyncStateView;
 
-    private transient SyncStateSemiAntiJoinHelper semiAntiJoinHelper;
+    private transient AsyncStateSemiAntiJoinHelper semiAntiJoinHelper;
 
-    public StreamingSemiAntiJoinOperator(
+    public AsyncStateStreamingSemiAntiJoinOperator(
             boolean isAntiJoin,
             InternalTypeInfo<RowData> leftType,
             InternalTypeInfo<RowData> rightType,
@@ -73,31 +75,36 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
     public void open() throws Exception {
         super.open();
 
-        this.leftRecordStateView =
-                OuterJoinRecordStateViews.create(
+        this.leftRecordAsyncStateView =
+                OuterJoinRecordAsyncStateViews.create(
                         getRuntimeContext(),
                         LEFT_RECORDS_STATE_NAME,
                         leftInputSideSpec,
                         leftType,
                         leftStateRetentionTime);
 
-        this.rightRecordStateView =
-                JoinRecordStateViews.create(
+        this.rightRecordAsyncStateView =
+                JoinRecordAsyncStateViews.create(
                         getRuntimeContext(),
                         RIGHT_RECORDS_STATE_NAME,
                         rightInputSideSpec,
                         rightType,
                         rightStateRetentionTime);
-        this.semiAntiJoinHelper = new SyncStateSemiAntiJoinHelper();
+
+        this.semiAntiJoinHelper = new AsyncStateSemiAntiJoinHelper();
     }
 
     @Override
     public void processElement1(StreamRecord<RowData> element) throws Exception {
         RowData input = element.getValue();
-        AssociatedRecords associatedRecords =
-                AssociatedRecords.fromSyncStateView(
-                        input, true, rightRecordStateView, joinCondition);
-        semiAntiJoinHelper.processLeftJoin(associatedRecords, input, leftRecordStateView);
+        StateFuture<AssociatedRecords> associatedRecordsFuture =
+                AssociatedRecords.fromAsyncStateView(
+                        input, true, rightRecordAsyncStateView, joinCondition);
+        associatedRecordsFuture.thenAccept(
+                associatedRecords -> {
+                    semiAntiJoinHelper.processLeftJoin(
+                            associatedRecords, input, leftRecordAsyncStateView);
+                });
     }
 
     @Override
@@ -107,55 +114,59 @@ public class StreamingSemiAntiJoinOperator extends AbstractStreamingJoinOperator
         RowKind inputRowKind = input.getRowKind();
         input.setRowKind(RowKind.INSERT); // erase RowKind for later state updating
 
-        AssociatedRecords associatedRecords =
-                AssociatedRecords.fromSyncStateView(
-                        input, false, leftRecordStateView, joinCondition);
-        semiAntiJoinHelper.processRightJoin(
-                isAccumulateMsg,
-                leftRecordStateView,
-                rightRecordStateView,
-                input,
-                associatedRecords,
-                inputRowKind);
+        StateFuture<AssociatedRecords> associatedRecordsFuture =
+                AssociatedRecords.fromAsyncStateView(
+                        input, false, leftRecordAsyncStateView, joinCondition);
+        associatedRecordsFuture.thenAccept(
+                associatedRecords -> {
+                    semiAntiJoinHelper.processRightJoin(
+                            isAccumulateMsg,
+                            leftRecordAsyncStateView,
+                            rightRecordAsyncStateView,
+                            input,
+                            associatedRecords,
+                            inputRowKind);
+                });
     }
 
-    private class SyncStateSemiAntiJoinHelper
-            extends SemiAntiJoinHelper<JoinRecordStateView, OuterJoinRecordStateView> {
+    private class AsyncStateSemiAntiJoinHelper
+            extends SemiAntiJoinHelper<JoinRecordAsyncStateView, OuterJoinRecordAsyncStateView> {
 
-        public SyncStateSemiAntiJoinHelper() {
+        public AsyncStateSemiAntiJoinHelper() {
             super(isAntiJoin, collector);
         }
 
         @Override
-        public void addRecord(JoinRecordStateView stateView, RowData record) throws Exception {
+        public void addRecord(JoinRecordAsyncStateView stateView, RowData record) throws Exception {
             // no need to wait for the future
             stateView.addRecord(record);
         }
 
         @Override
-        public void retractRecord(JoinRecordStateView stateView, RowData record) throws Exception {
+        public void retractRecord(JoinRecordAsyncStateView stateView, RowData record)
+                throws Exception {
             // no need to wait for the future
             stateView.retractRecord(record);
         }
 
         @Override
         public void addRecordInOuterSide(
-                OuterJoinRecordStateView stateView, RowData record, int numOfAssociations)
+                OuterJoinRecordAsyncStateView stateView, RowData record, int numOfAssociations)
                 throws Exception {
             // no need to wait for the future
             stateView.addRecord(record, numOfAssociations);
         }
 
         @Override
-        public void retractRecordInOuterSide(OuterJoinRecordStateView stateView, RowData record)
-                throws Exception {
+        public void retractRecordInOuterSide(
+                OuterJoinRecordAsyncStateView stateView, RowData record) throws Exception {
             // no need to wait for the future
             stateView.retractRecord(record);
         }
 
         @Override
         public void updateNumOfAssociationsInOuterSide(
-                OuterJoinRecordStateView stateView, RowData record, int numOfAssociations)
+                OuterJoinRecordAsyncStateView stateView, RowData record, int numOfAssociations)
                 throws Exception {
             // no need to wait for the future
             stateView.updateNumOfAssociations(record, numOfAssociations);
