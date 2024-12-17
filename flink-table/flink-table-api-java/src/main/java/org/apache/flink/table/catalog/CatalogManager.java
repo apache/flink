@@ -1275,8 +1275,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * @param ignoreIfNotExists If false exception will be thrown if the table to drop does not
      *     exist.
      */
-    public void dropTable(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-        dropTableInternal(objectIdentifier, ignoreIfNotExists, true, false);
+    public boolean dropTable(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+        return dropTableInternal(objectIdentifier, ignoreIfNotExists, true, false);
     }
 
     /**
@@ -1286,9 +1286,9 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * @param ignoreIfNotExists If false exception will be thrown if the table to drop does not
      *     exist.
      */
-    public void dropMaterializedTable(
+    public boolean dropMaterializedTable(
             ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-        dropTableInternal(objectIdentifier, ignoreIfNotExists, true, true);
+        return dropTableInternal(objectIdentifier, ignoreIfNotExists, true, true);
     }
 
     /**
@@ -1298,11 +1298,11 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * @param ignoreIfNotExists If false exception will be thrown if the view to drop does not
      *     exist.
      */
-    public void dropView(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-        dropTableInternal(objectIdentifier, ignoreIfNotExists, false, false);
+    public boolean dropView(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+        return dropTableInternal(objectIdentifier, ignoreIfNotExists, false, false);
     }
 
-    private void dropTableInternal(
+    private boolean dropTableInternal(
             ObjectIdentifier objectIdentifier,
             boolean ignoreIfNotExists,
             boolean isDropTable,
@@ -1350,6 +1350,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                     objectIdentifier,
                     ignoreIfNotExists,
                     "DropTable");
+            return true;
         } else if (!ignoreIfNotExists) {
             String tableOrView =
                     isDropTable ? isDropMaterializedTable ? "Materialized Table" : "Table" : "View";
@@ -1358,6 +1359,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                             "%s with identifier '%s' does not exist.",
                             tableOrView, objectIdentifier.asSummaryString()));
         }
+        return false;
     }
 
     /**

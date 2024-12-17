@@ -657,6 +657,20 @@ class TableEnvironment(object):
         """
         return self._j_tenv.dropTemporaryTable(table_path)
 
+    def drop_table(self, table_path: str) -> bool:
+        """
+        Drops a table registered in the given path.
+
+        If a permanent table with a given path exists, it will be used
+        from now on for any queries that reference this path.
+
+        :param table_path: The path of the registered table.
+        :return: True if a table existed in the given path and was removed.
+
+        .. versionadded:: 2.0.0
+        """
+        return self._j_tenv.dropTable(table_path)
+
     def drop_temporary_view(self, view_path: str) -> bool:
         """
         Drops a temporary view registered in the given path.
@@ -664,11 +678,28 @@ class TableEnvironment(object):
         If a permanent table or view with a given path exists, it will be used
         from now on for any queries that reference this path.
 
+        :param view_path: The path of the registered temporary view.
         :return: True if a view existed in the given path and was removed.
 
         .. versionadded:: 1.10.0
         """
         return self._j_tenv.dropTemporaryView(view_path)
+
+    def dropView(self, view_path: str) -> bool:
+        """
+
+        Drops a view registered in the given path.
+
+        Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+        it will be inaccessible in the current session. To make the permanent object available again
+        one can drop the corresponding temporary object.
+
+        :param view_path: The path of the registered temporary view.
+        :return: True if a view existed in the given path and was removed
+
+        .. versionadded:: 2.0.0
+        """
+        return self._j_tenv.dropView(view_path)
 
     def explain_sql(self, stmt: str, *extra_details: ExplainDetail) -> str:
         """
