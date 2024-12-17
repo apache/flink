@@ -91,6 +91,7 @@ import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
@@ -158,6 +159,20 @@ public class FunctionITCase extends StreamingTestBase {
 
         tEnv().executeSql("DROP FUNCTION IF EXISTS default_catalog.default_database.f3");
         assertThat(Arrays.asList(tEnv().listFunctions())).doesNotContain("f3");
+    }
+
+    @Test
+    void testSelectDynamicDatetimeFunctions() {
+        assertThatNoException()
+                .isThrownBy(
+                        () ->
+                                tEnv().sqlQuery(
+                                                "SELECT CURRENT_TIMESTAMP, CURRENT_TIMESTAMP(),"
+                                                        + " LOCALTIME, LOCALTIME(),"
+                                                        + " CURRENT_TIME, CURRENT_TIME(),"
+                                                        + " LOCALTIMESTAMP, LOCALTIMESTAMP(),"
+                                                        + " CURRENT_DATE, CURRENT_DATE()")
+                                        .execute());
     }
 
     @Test
