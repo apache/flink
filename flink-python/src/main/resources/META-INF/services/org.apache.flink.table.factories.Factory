@@ -14,3 +14,4 @@
 # limitations under the License.
 
 org.apache.flink.table.utils.python.PythonDynamicTableFactory
+org.apache.flink.table.runtime.arrow.sources.ArrowTableSourceFactory
