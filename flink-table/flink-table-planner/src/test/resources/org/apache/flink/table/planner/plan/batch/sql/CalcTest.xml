@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[ARRAY(_UTF-16LE'Hi':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'Hello':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", $2)])
+LogicalProject(EXPR$0=[ARRAY(_UTF-16LE'Hi', _UTF-16LE'Hello', $2)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
@@ -144,7 +144,7 @@ Calc(select=[a, b, c], where=[((a < 10) AND (b > 20))])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[ARRAY(0.12:DECIMAL(3, 2), 0.5:DECIMAL(3, 2), 0.99:DECIMAL(3, 2))])
+LogicalProject(EXPR$0=[ARRAY(0.12:DECIMAL(3, 2), 0.5:DECIMAL(2, 1), 0.99:DECIMAL(3, 2))])
 +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
@@ -161,7 +161,7 @@ Calc(select=[ARRAY(0.12, 0.5, 0.99) AS EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[MAP(_UTF-16LE'a', 0.12:DECIMAL(3, 2), _UTF-16LE'b', 0.5:DECIMAL(3, 2))])
+LogicalProject(EXPR$0=[MAP(_UTF-16LE'a', 0.12:DECIMAL(3, 2), _UTF-16LE'b', 0.5:DECIMAL(2, 1))])
 +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
@@ -465,7 +465,7 @@ LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable4, sourc
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[MAP($1, 30:BIGINT, 10, $0)])
+LogicalProject(EXPR$0=[MAP($1, 30, 10, $0)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>

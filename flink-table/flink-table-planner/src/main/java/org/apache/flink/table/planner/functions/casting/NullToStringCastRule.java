@@ -24,6 +24,9 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
+import java.util.function.BiFunction;
+import java.util.function.Function;
+
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.accessStaticField;
 
 /** {@link LogicalTypeRoot#NULL} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
@@ -45,7 +48,9 @@ class NullToStringCastRule extends AbstractCodeGeneratorCastRule<Object, StringD
             String inputTerm,
             String inputIsNullTerm,
             LogicalType inputLogicalType,
-            LogicalType targetLogicalType) {
+            LogicalType targetLogicalType,
+            Function<CodeGeneratorCastRule.Context, String> nullTermDeclaration,
+            BiFunction<CodeGeneratorCastRule.Context, LogicalType, String> resultTermDeclaration) {
         return CastCodeBlock.withoutCode(
                 accessStaticField(BinaryStringDataUtil.class, "NULL_STRING"), "false");
     }
