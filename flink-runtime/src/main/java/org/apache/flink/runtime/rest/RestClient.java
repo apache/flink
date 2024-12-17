@@ -90,6 +90,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.timeout.IdleStateHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -197,7 +199,7 @@ public class RestClient implements AutoCloseableAsync {
             String host,
             int port,
             SelectStrategyFactory selectStrategyFactory,
-            EventLoopGroup group)
+            @Nullable EventLoopGroup group)
             throws ConfigurationException {
         Preconditions.checkNotNull(configuration);
         this.executor = Preconditions.checkNotNull(executor);
@@ -291,6 +293,9 @@ public class RestClient implements AutoCloseableAsync {
                             selectStrategyFactory);
             useInternalEventLoopGroup = true;
         } else {
+            Preconditions.checkArgument(
+                    !group.isShuttingDown() && !group.isShutdown(),
+                    "provided eventLoopGroup is shut/shutting down");
             useInternalEventLoopGroup = false;
         }
 
