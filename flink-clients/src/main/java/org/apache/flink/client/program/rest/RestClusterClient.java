@@ -250,7 +250,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
             T clusterId,
             WaitStrategy waitStrategy,
             ClientHighAvailabilityServicesFactory clientHAServicesFactory,
-            EventLoopGroup group)
+            @Nullable EventLoopGroup group)
             throws Exception {
         this.configuration = checkNotNull(configuration);
 
