@@ -439,6 +439,11 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
         return currentProcessingContext;
     }
 
+    @VisibleForTesting
+    public <K> AsyncKeyedStateBackend<K> getAsyncKeyedStateBackend() {
+        return stateHandler.getAsyncKeyedStateBackend();
+    }
+
     public void drainStateRequests() {
         if (isAsyncStateProcessingEnabled()) {
             asyncExecutionController.drainInflightRecords(0);

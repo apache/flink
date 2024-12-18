@@ -21,6 +21,7 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.RecordProcessorUtils;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
@@ -54,8 +55,7 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT>
     }
 
     public void processElement1(StreamRecord<IN1> element) throws Exception {
-        twoInputOperator.setKeyContextElement1(element);
-        twoInputOperator.processElement1(element);
+        RecordProcessorUtils.getRecordProcessor1(twoInputOperator).accept(element);
     }
 
     public void processElement1(IN1 value, long timestamp) throws Exception {
@@ -63,8 +63,7 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT>
     }
 
     public void processElement2(StreamRecord<IN2> element) throws Exception {
-        twoInputOperator.setKeyContextElement2(element);
-        twoInputOperator.processElement2(element);
+        RecordProcessorUtils.getRecordProcessor2(twoInputOperator).accept(element);
     }
 
     public void processElement2(IN2 value, long timestamp) throws Exception {
