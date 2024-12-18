@@ -233,6 +233,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                         results.addAll(sinkTestStep.getExpectedAfterRestoreAsStrings());
                     }
                     List<String> expectedResults = getExpectedResults(sinkTestStep, tableName);
+                    System.out.println(expectedResults);
                     final boolean shouldComplete =
                             CollectionUtils.isEqualCollection(expectedResults, results);
                     if (shouldComplete) {
