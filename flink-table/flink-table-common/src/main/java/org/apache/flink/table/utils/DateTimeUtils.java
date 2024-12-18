@@ -368,16 +368,17 @@ public class DateTimeUtils {
         }
     }
 
-    public static TimestampData toTimestampData(int v, int precision) {
+    public static TimestampData toTimestampData(DecimalData v, int precision) {
+        long epochMills;
         switch (precision) {
             case 0:
-                if (MIN_EPOCH_SECONDS <= v && v <= MAX_EPOCH_SECONDS) {
-                    return timestampDataFromEpochMills((v * MILLIS_PER_SECOND));
-                } else {
-                    return null;
-                }
+                epochMills =
+                        v.toBigDecimal().setScale(0, RoundingMode.DOWN).longValue()
+                                * MILLIS_PER_SECOND;
+                return timestampDataFromEpochMills(epochMills);
             case 3:
-                return timestampDataFromEpochMills(v);
+                epochMills = toMillis(v);
+                return timestampDataFromEpochMills(epochMills);
             default:
                 throw new TableException(
                         "The precision value '"
@@ -398,27 +399,6 @@ public class DateTimeUtils {
 
     public static TimestampData toTimestampData(DecimalData epoch) {
         return toTimestampData(epoch, DEFAULT_PRECISION);
-    }
-
-    public static TimestampData toTimestampData(DecimalData v, int precision) {
-        long epochMills;
-        switch (precision) {
-            case 0:
-                epochMills =
-                        v.toBigDecimal().setScale(0, RoundingMode.DOWN).longValue()
-                                * MILLIS_PER_SECOND;
-                return timestampDataFromEpochMills(epochMills);
-            case 3:
-                epochMills = toMillis(v);
-                return timestampDataFromEpochMills(epochMills);
-            default:
-                throw new TableException(
-                        "The precision value '"
-                                + precision
-                                + "' for function "
-                                + "TO_TIMESTAMP_LTZ(numeric, precision) is unsupported,"
-                                + " the supported value is '0' for second or '3' for millisecond.");
-        }
     }
 
     private static TimestampData timestampDataFromEpochMills(long epochMills) {
@@ -466,7 +446,7 @@ public class DateTimeUtils {
             return null;
         }
 
-        ZonedDateTime utcZoned = ts.toLocalDateTime().atZone(ZoneId.of("UTC"));
+        ZonedDateTime utcZoned = ts.toLocalDateTime().atZone(UTC_ZONE.toZoneId());
         ZonedDateTime targetTime = utcZoned.withZoneSameInstant(ZoneId.of(timezone));
         return TimestampData.fromInstant(targetTime.toInstant());
     }

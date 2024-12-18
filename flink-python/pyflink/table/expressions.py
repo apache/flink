@@ -310,12 +310,12 @@ def to_timestamp_ltz(*args) -> Expression:
     """
     Converts a value to a timestamp with local time zone.
 
-    Supported signatures:
-    1. to_timestamp_ltz(numeric) -> timestamp_ltz
-    2. to_timestamp_ltz(numeric, precision) -> timestamp_ltz
-    3. to_timestamp_ltz(string) -> timestamp_ltz
-    4. to_timestamp_ltz(string, format) -> timestamp_ltz
-    5. to_timestamp_ltz(string, format, timezone) -> timestamp_ltz
+    Supported functions:
+    1. to_timestamp_ltz(Numeric) -> DataTypes.TIMESTAMP_LTZ
+    2. to_timestamp_ltz(Numeric, Integer) -> DataTypes.TIMESTAMP_LTZ
+    3. to_timestamp_ltz(String) -> DataTypes.TIMESTAMP_LTZ
+    4. to_timestamp_ltz(String, String) -> DataTypes.TIMESTAMP_LTZ
+    5. to_timestamp_ltz(String, String, String) -> DataTypes.TIMESTAMP_LTZ
 
     Example:
     ::

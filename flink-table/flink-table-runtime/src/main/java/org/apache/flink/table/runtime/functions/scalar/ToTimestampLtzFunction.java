@@ -70,42 +70,14 @@ public class ToTimestampLtzFunction extends BuiltInScalarFunction {
         super(BuiltInFunctionDefinitions.TO_TIMESTAMP_LTZ, context);
     }
 
-    public @Nullable TimestampData eval(Integer epoch, Integer precision) {
+    public @Nullable TimestampData eval(Number epoch, Integer precision) {
         if (epoch == null || precision == null) {
             return null;
         }
-
-        return DateTimeUtils.toTimestampData(epoch, precision);
-    }
-
-    public @Nullable TimestampData eval(Long epoch, Integer precision) {
-        if (epoch == null || precision == null) {
-            return null;
+        if (epoch instanceof Float || epoch instanceof Double) {
+            return DateTimeUtils.toTimestampData(epoch.doubleValue(), precision);
         }
-
-        return DateTimeUtils.toTimestampData(epoch, precision);
-    }
-
-    public @Nullable TimestampData eval(Double epoch, Integer precision) {
-        if (epoch == null || precision == null) {
-            return null;
-        }
-
-        return DateTimeUtils.toTimestampData(epoch, precision);
-    }
-
-    public @Nullable TimestampData eval(Float value, Integer precision) {
-        if (value == null || precision == null) {
-            return null;
-        }
-        return DateTimeUtils.toTimestampData(value.doubleValue(), precision);
-    }
-
-    public @Nullable TimestampData eval(Byte value, Integer precision) {
-        if (value == null || precision == null) {
-            return null;
-        }
-        return DateTimeUtils.toTimestampData(value.longValue(), precision);
+        return DateTimeUtils.toTimestampData(epoch.longValue(), precision);
     }
 
     public @Nullable TimestampData eval(DecimalData epoch, Integer precision) {
@@ -116,44 +88,14 @@ public class ToTimestampLtzFunction extends BuiltInScalarFunction {
         return DateTimeUtils.toTimestampData(epoch, precision);
     }
 
-    public TimestampData eval(Integer epoch) {
+    public @Nullable TimestampData eval(Number epoch) {
         if (epoch == null) {
             return null;
         }
-
-        return DateTimeUtils.toTimestampData(epoch);
-    }
-
-    public TimestampData eval(Long epoch) {
-        if (epoch == null) {
-            return null;
+        if (epoch instanceof Float || epoch instanceof Double) {
+            return DateTimeUtils.toTimestampData(epoch.doubleValue());
         }
-
-        return DateTimeUtils.toTimestampData(epoch);
-    }
-
-    public TimestampData eval(Float epoch) {
-        if (epoch == null) {
-            return null;
-        }
-
-        return DateTimeUtils.toTimestampData(epoch);
-    }
-
-    public TimestampData eval(Byte epoch) {
-        if (epoch == null) {
-            return null;
-        }
-
-        return DateTimeUtils.toTimestampData(epoch);
-    }
-
-    public TimestampData eval(Double epoch) {
-        if (epoch == null) {
-            return null;
-        }
-
-        return DateTimeUtils.toTimestampData(epoch);
+        return DateTimeUtils.toTimestampData(epoch.longValue());
     }
 
     public TimestampData eval(DecimalData epoch) {
