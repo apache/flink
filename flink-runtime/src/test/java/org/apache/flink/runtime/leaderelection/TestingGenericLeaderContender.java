@@ -29,21 +29,30 @@ public class TestingGenericLeaderContender implements LeaderContender {
 
     private final Object lock = new Object();
 
+    private final Runnable preLockAcquireAction;
+
     private final Consumer<UUID> grantLeadershipConsumer;
     private final Runnable revokeLeadershipRunnable;
     private final Consumer<Exception> handleErrorConsumer;
 
     private TestingGenericLeaderContender(
+            Runnable preLockAcquireAction,
             Consumer<UUID> grantLeadershipConsumer,
             Runnable revokeLeadershipRunnable,
             Consumer<Exception> handleErrorConsumer) {
+        this.preLockAcquireAction = preLockAcquireAction;
         this.grantLeadershipConsumer = grantLeadershipConsumer;
         this.revokeLeadershipRunnable = revokeLeadershipRunnable;
         this.handleErrorConsumer = handleErrorConsumer;
     }
 
+    public Object getLock() {
+        return lock;
+    }
+
     @Override
     public void grantLeadership(UUID leaderSessionID) {
+        preLockAcquireAction.run();
         synchronized (lock) {
             grantLeadershipConsumer.accept(leaderSessionID);
         }
@@ -51,6 +60,7 @@ public class TestingGenericLeaderContender implements LeaderContender {
 
     @Override
     public void revokeLeadership() {
+        preLockAcquireAction.run();
         synchronized (lock) {
             revokeLeadershipRunnable.run();
         }
@@ -58,6 +68,7 @@ public class TestingGenericLeaderContender implements LeaderContender {
 
     @Override
     public void handleError(Exception exception) {
+        preLockAcquireAction.run();
         synchronized (lock) {
             handleErrorConsumer.accept(exception);
         }
@@ -69,6 +80,7 @@ public class TestingGenericLeaderContender implements LeaderContender {
 
     /** {@code Builder} for creating {@code TestingGenericLeaderContender} instances. */
     public static class Builder {
+        private Runnable preLockAcquireAction = () -> {};
         private Consumer<UUID> grantLeadershipConsumer = ignoredSessionID -> {};
         private Runnable revokeLeadershipRunnable = () -> {};
         private Consumer<Exception> handleErrorConsumer =
@@ -93,9 +105,17 @@ public class TestingGenericLeaderContender implements LeaderContender {
             return this;
         }
 
+        public Builder setPreLockAcquireAction(Runnable preLockAcquireAction) {
+            this.preLockAcquireAction = preLockAcquireAction;
+            return this;
+        }
+
         public TestingGenericLeaderContender build() {
             return new TestingGenericLeaderContender(
-                    grantLeadershipConsumer, revokeLeadershipRunnable, handleErrorConsumer);
+                    preLockAcquireAction,
+                    grantLeadershipConsumer,
+                    revokeLeadershipRunnable,
+                    handleErrorConsumer);
         }
     }
 }

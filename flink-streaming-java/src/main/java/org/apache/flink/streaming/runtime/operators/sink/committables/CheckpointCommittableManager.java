@@ -20,8 +20,6 @@ package org.apache.flink.streaming.runtime.operators.sink.committables;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink2.Committer;
-import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
-import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -50,21 +48,23 @@ public interface CheckpointCommittableManager<CommT> {
     /** Returns the number of upstream subtasks belonging to the checkpoint. */
     int getNumberOfSubtasks();
 
+    boolean isFinished();
+
     /**
-     * Returns a summary of the current commit progress for the emitting subtask identified by the
-     * parameters.
+     * Returns true if all committables of all upstream subtasks arrived, which is only guaranteed
+     * to happen if the DOP of the caller is 1.
      */
-    CommittableSummary<CommT> getSummary(int emittingSubtaskId, int emittingNumberOfSubtasks);
+    boolean hasGloballyReceivedAll();
 
     /**
      * Commits all due committables if all respective committables of the specific subtask and
      * checkpoint have been received.
      *
      * @param committer used to commit to the external system
-     * @return successfully committed committables with meta information
-     * @throws IOException
-     * @throws InterruptedException
+     * @param maxRetries
      */
-    Collection<CommittableWithLineage<CommT>> commit(Committer<CommT> committer)
+    void commit(Committer<CommT> committer, int maxRetries)
             throws IOException, InterruptedException;
+
+    Collection<CommT> getSuccessfulCommittables();
 }

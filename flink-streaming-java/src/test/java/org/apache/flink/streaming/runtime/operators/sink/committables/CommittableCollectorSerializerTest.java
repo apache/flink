@@ -27,11 +27,7 @@ import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 import org.apache.flink.streaming.api.connector.sink2.IntegerSerializer;
-import org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Streams;
-
-import org.apache.commons.lang3.tuple.Pair;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 
@@ -43,7 +39,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertAll;
 
 class CommittableCollectorSerializerTest {
 
@@ -200,45 +195,26 @@ class CommittableCollectorSerializerTest {
             CommittableCollector<Integer> committableCollector,
             List<List<Integer>> committablesPerSubtaskPerCheckpoint) {
 
-        assertAll(
-                assertMessageHeading,
-                () -> {
-                    final Collection<CheckpointCommittableManagerImpl<Integer>>
-                            checkpointCommittables =
-                                    committableCollector.getCheckpointCommittables();
-                    final int expectedCommittableSize = committablesPerSubtaskPerCheckpoint.size();
-                    assertThat(checkpointCommittables).hasSize(expectedCommittableSize);
+        assertThat(committableCollector.getCheckpointCommittables())
+                .describedAs(assertMessageHeading)
+                .zipSatisfy(
+                        committablesPerSubtaskPerCheckpoint,
+                        (checkpointCommittableManager, expectedPendingRequestCount) -> {
+                            final SubtaskCommittableManager<Integer> subtaskCommittableManager =
+                                    checkpointCommittableManager.getSubtaskCommittableManager(
+                                            subtaskId);
 
-                    Streams.zip(
-                                    checkpointCommittables.stream(),
-                                    committablesPerSubtaskPerCheckpoint.stream(),
-                                    Pair::of)
-                            .forEach(
-                                    pair -> {
-                                        CheckpointCommittableManagerImpl<Integer>
-                                                checkpointCommittableManager = pair.getKey();
-                                        List<Integer> expectedPendingRequestCount = pair.getValue();
+                            assertThat(checkpointCommittableManager)
+                                    .returns(
+                                            numberOfSubtasks,
+                                            CheckpointCommittableManagerImpl::getNumberOfSubtasks);
 
-                                        final SubtaskCommittableManager<Integer>
-                                                subtaskCommittableManager =
-                                                        checkpointCommittableManager
-                                                                .getSubtaskCommittableManager(
-                                                                        subtaskId);
+                            assertPendingRequests(
+                                    subtaskCommittableManager, expectedPendingRequestCount);
 
-                                        SinkV2Assertions.assertThat(
-                                                        checkpointCommittableManager.getSummary(
-                                                                subtaskId, numberOfSubtasks))
-                                                .hasSubtaskId(subtaskId)
-                                                .hasNumberOfSubtasks(numberOfSubtasks);
-
-                                        assertPendingRequests(
-                                                subtaskCommittableManager,
-                                                expectedPendingRequestCount);
-
-                                        assertThat(subtaskCommittableManager.getSubtaskId())
-                                                .isEqualTo(subtaskId);
-                                    });
-                });
+                            assertThat(subtaskCommittableManager.getSubtaskId())
+                                    .isEqualTo(subtaskId);
+                        });
     }
 
     private void assertPendingRequests(

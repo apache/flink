@@ -21,6 +21,7 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.util.Preconditions;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * {@code DefaultLeaderElection} implements the {@link LeaderElection} based on the {@link
@@ -43,13 +44,14 @@ class DefaultLeaderElection implements LeaderElection {
     }
 
     @Override
-    public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {
-        parentService.confirmLeadership(componentId, leaderSessionID, leaderAddress);
+    public CompletableFuture<Void> confirmLeadershipAsync(
+            UUID leaderSessionID, String leaderAddress) {
+        return parentService.confirmLeadershipAsync(componentId, leaderSessionID, leaderAddress);
     }
 
     @Override
-    public boolean hasLeadership(UUID leaderSessionId) {
-        return parentService.hasLeadership(componentId, leaderSessionId);
+    public CompletableFuture<Boolean> hasLeadershipAsync(UUID leaderSessionId) {
+        return parentService.hasLeadershipAsync(componentId, leaderSessionId);
     }
 
     @Override
@@ -78,9 +80,10 @@ class DefaultLeaderElection implements LeaderElection {
 
         /**
          * Confirms the leadership with the {@code leaderSessionID} and {@code leaderAddress} for
-         * the {@link LeaderContender} that is associated with the {@code componentId}.
+         * the {@link LeaderContender} that is associated with the {@code componentId}. The
+         * information is only propagated to the HA backend if the leadership is still acquired.
          */
-        abstract void confirmLeadership(
+        abstract CompletableFuture<Void> confirmLeadershipAsync(
                 String componentId, UUID leaderSessionID, String leaderAddress);
 
         /**
@@ -90,6 +93,7 @@ class DefaultLeaderElection implements LeaderElection {
          * @return {@code true} if the service has leadership with the passed {@code
          *     leaderSessionID} acquired; {@code false} otherwise.
          */
-        abstract boolean hasLeadership(String componentId, UUID leaderSessionID);
+        abstract CompletableFuture<Boolean> hasLeadershipAsync(
+                String componentId, UUID leaderSessionID);
     }
 }

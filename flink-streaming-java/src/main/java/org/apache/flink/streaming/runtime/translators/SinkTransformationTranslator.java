@@ -59,12 +59,14 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A {@link org.apache.flink.streaming.api.graph.TransformationTranslator} for the {@link
- * org.apache.flink.streaming.api.transformations.SinkTransformation}.
+ * SinkTransformation}.
  */
 @Internal
 public class SinkTransformationTranslator<Input, Output>
@@ -177,6 +179,12 @@ public class SinkTransformationTranslator<Input, Output>
 
             getSinkTransformations(sizeBefore).forEach(context::transform);
 
+            repeatUntilConverged(
+                    () ->
+                            getSinkTransformations(sizeBefore).stream()
+                                    .flatMap(t -> context.transform(t).stream())
+                                    .collect(Collectors.toList()));
+
             disallowUnalignedCheckpoint(getSinkTransformations(sizeBefore));
 
             // Remove all added sink subtransformations to avoid duplications and allow additional
@@ -185,6 +193,14 @@ public class SinkTransformationTranslator<Input, Output>
                 executionEnvironment
                         .getTransformations()
                         .remove(executionEnvironment.getTransformations().size() - 1);
+            }
+        }
+
+        private <R> void repeatUntilConverged(Supplier<R> producer) {
+            R lastResult = producer.get();
+            R nextResult;
+            while (!lastResult.equals(nextResult = producer.get())) {
+                lastResult = nextResult;
             }
         }
 

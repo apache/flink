@@ -28,6 +28,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.io.SimpleVersionedSerializerAdapter;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
+import org.apache.flink.streaming.api.connector.sink2.StandardSinkTopologies;
 import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.util.Preconditions;
@@ -215,7 +216,8 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
 
         @Override
         public void addPostCommitTopology(DataStream<CommittableMessage<String>> committables) {
-            // We do not need to do anything for tests
+            StandardSinkTopologies.addGlobalCommitter(
+                    committables, DefaultCommitter::new, this::getCommittableSerializer);
         }
     }
 
@@ -404,17 +406,17 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
     /** A {@link Committer} that always re-commits the committables data it received. */
     public static class RetryOnceCommitter extends DefaultCommitter {
 
-        private final Set<CommitRequest<String>> seen = new LinkedHashSet<>();
+        private final Set<String> seen = new LinkedHashSet<>();
 
         @Override
         public void commit(Collection<CommitRequest<String>> committables) {
             committables.forEach(
                     c -> {
-                        if (seen.remove(c)) {
+                        if (seen.remove(c.getCommittable())) {
                             checkNotNull(committedData);
                             committedData.add(c);
                         } else {
-                            seen.add(c);
+                            seen.add(c.getCommittable());
                             c.retryLater();
                         }
                     });
