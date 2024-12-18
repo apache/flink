@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -106,7 +107,7 @@ class DefaultAllocatedSlotPoolTest {
         final AllocatedSlot slot2 = createAllocatedSlot(owner);
 
         slotPool.addSlots(Arrays.asList(slot1, slot2), 0);
-        slotPool.reserveFreeSlot(slot1.getAllocationId());
+        slotPool.reserveFreeSlot(slot1.getAllocationId(), DefaultLoadingWeight.EMPTY);
 
         final AllocatedSlotPool.AllocatedSlotsAndReservationStatus
                 allocatedSlotsAndReservationStatus = slotPool.removeSlots(owner);
@@ -151,7 +152,9 @@ class DefaultAllocatedSlotPoolTest {
 
         slotPool.addSlots(allSlots, 0);
 
-        assertThat(slotPool.reserveFreeSlot(allocatedSlot.getAllocationId()))
+        assertThat(
+                        slotPool.reserveFreeSlot(
+                                allocatedSlot.getAllocationId(), DefaultLoadingWeight.EMPTY))
                 .isEqualTo(allocatedSlot);
 
         assertSlotPoolContainsFreeSlots(slotPool, freeSlots);
@@ -165,8 +168,11 @@ class DefaultAllocatedSlotPoolTest {
 
         slotPool.addSlots(Collections.singleton(slot), 0);
 
-        slotPool.reserveFreeSlot(slot.getAllocationId());
-        assertThatThrownBy(() -> slotPool.reserveFreeSlot(slot.getAllocationId()))
+        slotPool.reserveFreeSlot(slot.getAllocationId(), DefaultLoadingWeight.EMPTY);
+        assertThatThrownBy(
+                        () ->
+                                slotPool.reserveFreeSlot(
+                                        slot.getAllocationId(), DefaultLoadingWeight.EMPTY))
                 .isInstanceOf(IllegalStateException.class);
     }
 
@@ -180,7 +186,7 @@ class DefaultAllocatedSlotPoolTest {
 
         final AllocatedSlot slot = slots.iterator().next();
 
-        slotPool.reserveFreeSlot(slot.getAllocationId());
+        slotPool.reserveFreeSlot(slot.getAllocationId(), DefaultLoadingWeight.EMPTY);
 
         final int releaseTime = 1;
         assertThat(slotPool.freeReservedSlot(slot.getAllocationId(), releaseTime)).isPresent();
@@ -235,7 +241,8 @@ class DefaultAllocatedSlotPoolTest {
 
         int numAllocatedSlots = 0;
         for (AllocatedSlot slot : slots) {
-            assertThat(slotPool.reserveFreeSlot(slot.getAllocationId())).isEqualTo(slot);
+            assertThat(slotPool.reserveFreeSlot(slot.getAllocationId(), DefaultLoadingWeight.EMPTY))
+                    .isEqualTo(slot);
             freeSlotTracker.reserveSlot(slot.getAllocationId());
             numAllocatedSlots++;
             final double utilization = (double) numAllocatedSlots / slots.size();
@@ -281,7 +288,7 @@ class DefaultAllocatedSlotPoolTest {
         final AllocatedSlot allocatedSlot = createAllocatedSlot(ResourceID.generate());
 
         slotPool.addSlots(Collections.singleton(allocatedSlot), 0);
-        slotPool.reserveFreeSlot(allocatedSlot.getAllocationId());
+        slotPool.reserveFreeSlot(allocatedSlot.getAllocationId(), DefaultLoadingWeight.EMPTY);
 
         assertThat(slotPool.containsFreeSlot(allocatedSlot.getAllocationId())).isFalse();
     }
@@ -361,6 +368,7 @@ class DefaultAllocatedSlotPoolTest {
                 ResourceProfile.UNKNOWN,
                 new RpcTaskManagerGateway(
                         new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway(),
-                        JobMasterId.generate()));
+                        JobMasterId.generate()),
+                DefaultLoadingWeight.EMPTY);
     }
 }
