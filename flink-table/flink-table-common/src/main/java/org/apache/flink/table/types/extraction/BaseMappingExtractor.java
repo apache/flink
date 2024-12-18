@@ -113,6 +113,10 @@ abstract class BaseMappingExtractor {
 
     /**
      * Extraction that uses the method parameters for producing a {@link FunctionSignatureTemplate}.
+     *
+     * @param offset excludes the first n method parameters as arguments. This is necessary for
+     *     aggregating functions which don't require a {@link StateHint}. Accumulators are mandatory
+     *     and are kind of an implicit {@link StateHint}.
      */
     static SignatureExtraction createArgumentsFromParametersExtraction(
             int offset, @Nullable Class<?> contextClass) {
@@ -141,6 +145,10 @@ abstract class BaseMappingExtractor {
 
     /**
      * Extraction that uses the method parameters for producing a {@link FunctionSignatureTemplate}.
+     *
+     * @param offset excludes the first n method parameters as arguments. This is necessary for
+     *     aggregating functions which don't require a {@link StateHint}. Accumulators are mandatory
+     *     and are kind of an implicit {@link StateHint}.
      */
     static SignatureExtraction createArgumentsFromParametersExtraction(int offset) {
         return createArgumentsFromParametersExtraction(offset, null);
@@ -158,7 +166,7 @@ abstract class BaseMappingExtractor {
      * Extraction that uses a generic type variable for producing a {@link FunctionStateTemplate}.
      * Or method parameters with {@link StateHint} for state entries as a fallback.
      */
-    static ResultExtraction createStateFromGenericInClassOrParameters(
+    static ResultExtraction createStateFromGenericInClassOrParametersExtraction(
             Class<? extends UserDefinedFunction> baseClass, int genericPos) {
         return (extractor, method) -> {
             final List<StateParameter> stateParameters = extractStateParameters(method);

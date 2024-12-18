@@ -24,6 +24,7 @@ import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.extraction.ExtractionUtils.Autoboxing;
 import org.apache.flink.table.types.extraction.FunctionResultTemplate.FunctionOutputTemplate;
 import org.apache.flink.table.types.extraction.FunctionResultTemplate.FunctionStateTemplate;
 import org.apache.flink.util.Preconditions;
@@ -171,9 +172,11 @@ final class FunctionMappingExtractor extends BaseMappingExtractor {
             assert result != null;
             final Class<?> resultClass = result.toClass();
             final Class<?> returnType = method.getReturnType();
+            // Parameters should be validated using strict autoboxing.
+            // For return types, we can be more flexible as the UDF should know what it declared.
             final boolean isValid =
-                    isInvokable(true, method, parameters)
-                            && isAssignable(resultClass, returnType, true, false);
+                    isInvokable(Autoboxing.STRICT, method, parameters)
+                            && isAssignable(resultClass, returnType, Autoboxing.JVM);
             if (!isValid) {
                 throw createMethodNotFoundError(method.getName(), parameters, resultClass, "");
             }
@@ -190,7 +193,8 @@ final class FunctionMappingExtractor extends BaseMappingExtractor {
             }
             checkScalarArgumentsOnly(arguments);
             final Class<?>[] parameters = assembleParameters(state, arguments);
-            if (!isInvokable(true, method, parameters)) {
+            // Parameters should be validated using strict autoboxing.
+            if (!isInvokable(Autoboxing.STRICT, method, parameters)) {
                 throw createMethodNotFoundError(
                         method.getName(),
                         parameters,
@@ -223,8 +227,10 @@ final class FunctionMappingExtractor extends BaseMappingExtractor {
             }
             final Type returnType = ((ParameterizedType) genericType).getActualTypeArguments()[0];
             Class<?> returnTypeClass = getClassFromType(returnType);
-            if (!(isInvokable(true, method, parametersWithFuture)
-                    && isAssignable(resultClass, returnTypeClass, true, false))) {
+            // Parameters should be validated using strict autoboxing.
+            // For return types, we can be more flexible as the UDF should know what it declared.
+            if (!(isInvokable(Autoboxing.STRICT, method, parametersWithFuture)
+                    && isAssignable(resultClass, returnTypeClass, Autoboxing.JVM))) {
                 throw createMethodNotFoundError(
                         method.getName(),
                         parametersWithFuture,
@@ -247,8 +253,9 @@ final class FunctionMappingExtractor extends BaseMappingExtractor {
             final Class<?>[] parametersWithContext =
                     Stream.concat(Stream.of(context), Arrays.stream(parameters))
                             .toArray(Class<?>[]::new);
-            if (!isInvokable(true, method, parameters)
-                    && !isInvokable(true, method, parametersWithContext)) {
+            // Parameters should be validated using strict autoboxing.
+            if (!isInvokable(Autoboxing.STRICT, method, parameters)
+                    && !isInvokable(Autoboxing.STRICT, method, parametersWithContext)) {
                 throw createMethodNotFoundError(
                         method.getName(),
                         parameters,

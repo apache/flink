@@ -93,7 +93,7 @@ public final class ExtractionUtils {
      * Object)} and so forth.
      */
     public static boolean isInvokable(
-            boolean strictAutoboxing, Executable executable, Class<?>... classes) {
+            Autoboxing autoboxing, Executable executable, Class<?>... classes) {
         final int m = executable.getModifiers();
         if (!Modifier.isPublic(m)) {
             return false;
@@ -115,22 +115,18 @@ public final class ExtractionUtils {
                 // we have more than one class left so the vararg needs to consume them all
                 if (classCount - currentClass > 1) {
                     while (currentClass < classCount
-                            && ExtractionUtils.isAssignable(
-                                    classes[currentClass],
-                                    paramComponent,
-                                    true,
-                                    strictAutoboxing)) {
+                            && isAssignable(classes[currentClass], paramComponent, autoboxing)) {
                         currentClass++;
                     }
                 } else if (currentClass < classCount
-                        && (parameterMatches(strictAutoboxing, classes[currentClass], param)
+                        && (parameterMatches(autoboxing, classes[currentClass], param)
                                 || parameterMatches(
-                                        strictAutoboxing, classes[currentClass], paramComponent))) {
+                                        autoboxing, classes[currentClass], paramComponent))) {
                     currentClass++;
                 }
             }
             // entire parameter matches
-            else if (parameterMatches(strictAutoboxing, classes[currentClass], param)) {
+            else if (parameterMatches(autoboxing, classes[currentClass], param)) {
                 currentClass++;
             }
         }
@@ -138,9 +134,8 @@ public final class ExtractionUtils {
         return currentClass == classCount;
     }
 
-    private static boolean parameterMatches(
-            boolean strictAutoboxing, Class<?> clz, Class<?> param) {
-        return clz == null || ExtractionUtils.isAssignable(clz, param, true, strictAutoboxing);
+    private static boolean parameterMatches(Autoboxing autoboxing, Class<?> clz, Class<?> param) {
+        return clz == null || isAssignable(clz, param, autoboxing);
     }
 
     /** Creates a method signature string like {@code int eval(Integer, String)}. */
@@ -305,11 +300,11 @@ public final class ExtractionUtils {
     /**
      * Checks for an invokable constructor matching the given arguments.
      *
-     * @see #isInvokable(boolean, Executable, Class[])
+     * @see #isInvokable(Autoboxing, Executable, Class[])
      */
     public static boolean hasInvokableConstructor(Class<?> clazz, Class<?>... classes) {
         for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
-            if (isInvokable(false, constructor, classes)) {
+            if (isInvokable(Autoboxing.JVM, constructor, classes)) {
                 return true;
             }
         }
@@ -923,8 +918,29 @@ public final class ExtractionUtils {
     // --------------------------------------------------------------------------------------------
     // Class Assignment and Boxing
     //
-    // copied from o.a.commons.lang3.ClassUtils (commons-lang3:3.3.2)
+    // inspired by o.a.commons.lang3.ClassUtils (commons-lang3:3.3.2)
     // --------------------------------------------------------------------------------------------
+
+    /** Checks the relation between primitive and boxed types. */
+    public enum Autoboxing {
+        /**
+         * int.class cannot be passed into f(Integer.class). Integer.class cannot be passed into
+         * f(int.class).
+         */
+        NONE,
+
+        /**
+         * int.class can be passed into f(Integer.class). Integer.class can be passed into
+         * f(int.class). The latter could cause a {@link NullPointerException}.
+         */
+        JVM,
+
+        /**
+         * int.class can be passed into f(Integer.class). Integer.class cannot be passed into
+         * f(int.class).
+         */
+        STRICT
+    }
 
     /**
      * Checks if one {@code Class} can be assigned to a variable of another {@code Class}.
@@ -947,11 +963,10 @@ public final class ExtractionUtils {
      * @param cls the Class to check, may be null
      * @param toClass the Class to try to assign into, returns false if null
      * @param autoboxing whether to use implicit autoboxing/unboxing between primitives and wrappers
-     * @param strictAutoboxing checks whether null would end up in a primitive type and forbids it
+     * @param autoboxing checks whether null would end up in a primitive type and forbids it
      * @return {@code true} if assignment possible
      */
-    public static boolean isAssignable(
-            Class<?> cls, final Class<?> toClass, boolean autoboxing, boolean strictAutoboxing) {
+    public static boolean isAssignable(Class<?> cls, Class<?> toClass, Autoboxing autoboxing) {
         if (toClass == null) {
             return false;
         }
@@ -960,14 +975,14 @@ public final class ExtractionUtils {
             return !toClass.isPrimitive();
         }
         // autoboxing:
-        if (autoboxing) {
+        if (autoboxing != Autoboxing.NONE) {
             if (cls.isPrimitive() && !toClass.isPrimitive()) {
                 cls = primitiveToWrapper(cls);
                 if (cls == null) {
                     return false;
                 }
             }
-            if (!strictAutoboxing) {
+            if (autoboxing == Autoboxing.JVM) {
                 if (toClass.isPrimitive() && !cls.isPrimitive()) {
                     cls = wrapperToPrimitive(cls);
                     if (cls == null) {
@@ -1062,7 +1077,7 @@ public final class ExtractionUtils {
      *     {@code null} if null input.
      * @since 2.1
      */
-    public static Class<?> primitiveToWrapper(final Class<?> cls) {
+    public static Class<?> primitiveToWrapper(Class<?> cls) {
         Class<?> convertedClass = cls;
         if (cls != null && cls.isPrimitive()) {
             convertedClass = primitiveWrapperMap.get(cls);
@@ -1084,7 +1099,7 @@ public final class ExtractionUtils {
      * @see #primitiveToWrapper(Class)
      * @since 2.4
      */
-    public static Class<?> wrapperToPrimitive(final Class<?> cls) {
+    public static Class<?> wrapperToPrimitive(Class<?> cls) {
         return wrapperPrimitiveMap.get(cls);
     }
 

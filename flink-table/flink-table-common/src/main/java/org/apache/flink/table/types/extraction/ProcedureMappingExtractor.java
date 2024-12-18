@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.procedures.Procedure;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.extraction.ExtractionUtils.Autoboxing;
 import org.apache.flink.table.types.extraction.FunctionResultTemplate.FunctionOutputTemplate;
 
 import java.lang.reflect.Array;
@@ -96,11 +97,14 @@ final class ProcedureMappingExtractor extends BaseMappingExtractor {
             assert result != null;
             final Class<?> resultClass = result.toClass();
             final Class<?> returnType = method.getReturnType();
+            // Parameters should be validated using strict autoboxing.
+            // For return types, we can be more flexible as the procedure should know what it
+            // declared.
             final boolean isValid =
-                    isInvokable(true, method, parametersWithContext)
+                    isInvokable(Autoboxing.STRICT, method, parametersWithContext)
                             && returnType.isArray()
                             && isAssignable(
-                                    resultClass, returnType.getComponentType(), true, false);
+                                    resultClass, returnType.getComponentType(), Autoboxing.JVM);
             if (!isValid) {
                 throw createMethodNotFoundError(
                         method.getName(),

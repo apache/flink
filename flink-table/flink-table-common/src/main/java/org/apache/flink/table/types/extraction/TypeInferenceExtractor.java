@@ -62,7 +62,7 @@ import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.c
 import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createParameterAndOptionalContextVerification;
 import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createParameterAndReturnTypeVerification;
 import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createParameterVerification;
-import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createStateFromGenericInClassOrParameters;
+import static org.apache.flink.table.types.extraction.FunctionMappingExtractor.createStateFromGenericInClassOrParametersExtraction;
 import static org.apache.flink.table.types.extraction.ProcedureMappingExtractor.createOutputFromArrayReturnTypeInMethod;
 import static org.apache.flink.table.types.extraction.ProcedureMappingExtractor.createParameterWithOptionalContextAndArrayReturnTypeVerification;
 
@@ -120,7 +120,8 @@ public final class TypeInferenceExtractor {
                         function,
                         UserDefinedFunctionHelper.AGGREGATE_ACCUMULATE,
                         createArgumentsFromParametersExtraction(1),
-                        createStateFromGenericInClassOrParameters(AggregateFunction.class, 1),
+                        createStateFromGenericInClassOrParametersExtraction(
+                                AggregateFunction.class, 1),
                         createParameterVerification(true),
                         createOutputFromGenericInClass(AggregateFunction.class, 0, true),
                         null);
@@ -152,7 +153,8 @@ public final class TypeInferenceExtractor {
                         function,
                         UserDefinedFunctionHelper.TABLE_AGGREGATE_ACCUMULATE,
                         createArgumentsFromParametersExtraction(1),
-                        createStateFromGenericInClassOrParameters(TableAggregateFunction.class, 1),
+                        createStateFromGenericInClassOrParametersExtraction(
+                                TableAggregateFunction.class, 1),
                         createParameterVerification(true),
                         createOutputFromGenericInClass(TableAggregateFunction.class, 0, true),
                         null);

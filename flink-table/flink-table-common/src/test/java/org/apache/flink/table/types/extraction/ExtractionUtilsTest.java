@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.types.extraction;
 
+import org.apache.flink.table.types.extraction.ExtractionUtils.Autoboxing;
+
 import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableList;
 
 import org.junit.jupiter.api.Test;
@@ -36,14 +38,17 @@ public class ExtractionUtilsTest {
 
     @Test
     void testAutoboxing() {
-        assertThat(ExtractionUtils.isAssignable(int.class, Integer.class, true, true)).isTrue();
+        assertThat(ExtractionUtils.isAssignable(int.class, Integer.class, Autoboxing.STRICT))
+                .isTrue();
 
         // In strict autoboxing this is not allowed
-        assertThat(ExtractionUtils.isAssignable(Integer.class, int.class, true, true)).isFalse();
+        assertThat(ExtractionUtils.isAssignable(Integer.class, int.class, Autoboxing.STRICT))
+                .isFalse();
 
-        assertThat(ExtractionUtils.isAssignable(Integer.class, int.class, true, false)).isTrue();
+        assertThat(ExtractionUtils.isAssignable(Integer.class, int.class, Autoboxing.JVM)).isTrue();
 
-        assertThat(ExtractionUtils.isAssignable(Integer.class, Number.class, true, true)).isTrue();
+        assertThat(ExtractionUtils.isAssignable(Integer.class, Number.class, Autoboxing.STRICT))
+                .isTrue();
     }
 
     @Test

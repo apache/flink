@@ -36,6 +36,7 @@ import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.functions.python.utils.PythonFunctionUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.extraction.ExtractionUtils;
+import org.apache.flink.table.types.extraction.ExtractionUtils.Autoboxing;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -322,12 +323,13 @@ public final class UserDefinedFunctionHelper {
                 methods.stream()
                         .anyMatch(
                                 method ->
-                                        ExtractionUtils.isInvokable(false, method, argumentClasses)
+                                        // Strict autoboxing is disabled for backwards compatibility
+                                        ExtractionUtils.isInvokable(
+                                                        Autoboxing.JVM, method, argumentClasses)
                                                 && ExtractionUtils.isAssignable(
                                                         outputClass,
                                                         method.getReturnType(),
-                                                        true,
-                                                        false));
+                                                        Autoboxing.JVM));
         if (!isMatching) {
             throw new ValidationException(
                     String.format(
