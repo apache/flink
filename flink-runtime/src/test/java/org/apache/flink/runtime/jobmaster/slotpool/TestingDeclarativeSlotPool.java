@@ -87,6 +87,8 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
 
     private final Consumer<ResourceCounter> setResourceRequirementsConsumer;
 
+    private final Supplier<TaskExecutorsLoadInformation> taskExecutorsLoadInformationSupplier;
+
     TestingDeclarativeSlotPool(
             Consumer<ResourceCounter> increaseResourceRequirementsByConsumer,
             Consumer<ResourceCounter> decreaseResourceRequirementsByConsumer,
@@ -115,7 +117,8 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
             Function<ResourceID, Boolean> containsSlotsFunction,
             Function<AllocationID, Boolean> containsFreeSlotFunction,
             LongConsumer releaseIdleSlotsConsumer,
-            Consumer<ResourceCounter> setResourceRequirementsConsumer) {
+            Consumer<ResourceCounter> setResourceRequirementsConsumer,
+            Supplier<TaskExecutorsLoadInformation> taskExecutorsLoadInformationSupplier) {
         this.increaseResourceRequirementsByConsumer = increaseResourceRequirementsByConsumer;
         this.decreaseResourceRequirementsByConsumer = decreaseResourceRequirementsByConsumer;
         this.getResourceRequirementsSupplier = getResourceRequirementsSupplier;
@@ -132,6 +135,7 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
         this.containsFreeSlotFunction = containsFreeSlotFunction;
         this.releaseIdleSlotsConsumer = releaseIdleSlotsConsumer;
         this.setResourceRequirementsConsumer = setResourceRequirementsConsumer;
+        this.taskExecutorsLoadInformationSupplier = taskExecutorsLoadInformationSupplier;
     }
 
     @Override
@@ -182,6 +186,11 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
     @Override
     public Collection<? extends SlotInfo> getAllSlotsInformation() {
         return getAllSlotsInformationSupplier.get();
+    }
+
+    @Override
+    public TaskExecutorsLoadInformation getTaskExecutorsLoadInformation() {
+        return taskExecutorsLoadInformationSupplier.get();
     }
 
     @Override
