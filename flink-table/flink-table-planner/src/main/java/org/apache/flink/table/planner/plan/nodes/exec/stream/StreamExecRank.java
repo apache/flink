@@ -59,9 +59,10 @@ import org.apache.flink.table.runtime.operators.rank.RankRange;
 import org.apache.flink.table.runtime.operators.rank.RankType;
 import org.apache.flink.table.runtime.operators.rank.RetractableTopNFunction;
 import org.apache.flink.table.runtime.operators.rank.UpdatableTopNFunction;
-import org.apache.flink.table.runtime.operators.rank.asyncprocessing.AbstractAsyncSyncStateTopNFunction;
+import org.apache.flink.table.runtime.operators.rank.asyncprocessing.AbstractAsyncStateTopNFunction;
 import org.apache.flink.table.runtime.operators.rank.asyncprocessing.AsyncStateAppendOnlyTopNFunction;
 import org.apache.flink.table.runtime.operators.rank.asyncprocessing.AsyncStateFastTop1Function;
+import org.apache.flink.table.runtime.operators.rank.asyncprocessing.AsyncStateUpdatableTopNFunction;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.runtime.util.StateConfigUtil;
@@ -86,7 +87,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-rank",
         version = 1,
-        consumedOptions = {"table.exec.rank.topn-cache-size"},
+        consumedOptions = {"table.exec.rank.topn-cache-size", "table.exec.async-state.enabled"},
         producedTransformations = StreamExecRank.RANK_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
@@ -346,18 +347,33 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                                 planner.getFlinkContext().getClassLoader(),
                                 primaryKeys,
                                 inputRowTypeInfo);
-                processFunction =
-                        new UpdatableTopNFunction(
-                                ttlConfig,
-                                inputRowTypeInfo,
-                                rowKeySelector,
-                                sortKeyComparator,
-                                sortKeySelector,
-                                rankType,
-                                rankRange,
-                                generateUpdateBefore,
-                                outputRankNumber,
-                                cacheSize);
+                if (enableAsyncState) {
+                    processFunction =
+                            new AsyncStateUpdatableTopNFunction(
+                                    ttlConfig,
+                                    inputRowTypeInfo,
+                                    rowKeySelector,
+                                    sortKeyComparator,
+                                    sortKeySelector,
+                                    rankType,
+                                    rankRange,
+                                    generateUpdateBefore,
+                                    outputRankNumber,
+                                    cacheSize);
+                } else {
+                    processFunction =
+                            new UpdatableTopNFunction(
+                                    ttlConfig,
+                                    inputRowTypeInfo,
+                                    rowKeySelector,
+                                    sortKeyComparator,
+                                    sortKeySelector,
+                                    rankType,
+                                    rankRange,
+                                    generateUpdateBefore,
+                                    outputRankNumber,
+                                    cacheSize);
+                }
             }
             // TODO Use UnaryUpdateTopNFunction after SortedMapState is merged
         } else if (rankStrategy instanceof RankProcessStrategy.RetractStrategy) {
@@ -393,7 +409,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
         }
 
         StreamOperator<RowData> operator;
-        if (processFunction instanceof AbstractAsyncSyncStateTopNFunction) {
+        if (processFunction instanceof AbstractAsyncStateTopNFunction) {
             operator = new AsyncStateKeyedProcessOperator<>(processFunction);
             processFunction.setKeyContext(operator);
         } else {

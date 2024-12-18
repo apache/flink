@@ -50,7 +50,7 @@ import java.util.List;
  *
  * <p>Different with {@link AppendOnlyTopNFunction}, this function is used with async state api.
  */
-public class AsyncStateAppendOnlyTopNFunction extends AbstractAsyncSyncStateTopNFunction {
+public class AsyncStateAppendOnlyTopNFunction extends AbstractAsyncStateTopNFunction {
 
     private static final long serialVersionUID = 1L;
 

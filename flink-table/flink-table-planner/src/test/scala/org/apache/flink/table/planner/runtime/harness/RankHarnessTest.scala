@@ -268,8 +268,6 @@ class RankHarnessTest(mode: StateBackendMode, enableAsyncState: Boolean)
         DataTypes.INT().getLogicalType,
         DataTypes.BIGINT().getLogicalType))
 
-    assertThat(isAsyncStateOperator(testHarness)).isFalse
-
     (testHarness, assertor)
   }
 

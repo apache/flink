@@ -41,11 +41,11 @@ import java.util.Objects;
  *
  * <p>Currently, only constant rank end is supported in async state rank.
  */
-public abstract class AbstractAsyncSyncStateTopNFunction extends AbstractTopNFunction {
+public abstract class AbstractAsyncStateTopNFunction extends AbstractTopNFunction {
 
     private ValueState<Long> rankEndState;
 
-    public AbstractAsyncSyncStateTopNFunction(
+    public AbstractAsyncStateTopNFunction(
             StateTtlConfig ttlConfig,
             InternalTypeInfo<RowData> inputRowType,
             GeneratedRecordComparator generatedSortKeyComparator,
@@ -88,6 +88,7 @@ public abstract class AbstractAsyncSyncStateTopNFunction extends AbstractTopNFun
      */
     protected StateFuture<Long> initRankEnd(RowData row) throws Exception {
         if (isConstantRankEnd) {
+            rankEnd = Objects.requireNonNull(constantRankEnd);
             return StateFutureUtils.completedFuture(Objects.requireNonNull(constantRankEnd));
         } else {
             return rankEndState
@@ -97,16 +98,18 @@ public abstract class AbstractAsyncSyncStateTopNFunction extends AbstractTopNFun
                                 long curRankEnd = rankEndFetcher.apply(row);
                                 if (rankEndInState == null) {
                                     // no need to wait this future
+                                    rankEnd = curRankEnd;
                                     rankEndState.asyncUpdate(curRankEnd);
-                                    return curRankEnd;
+                                    return rankEnd;
                                 } else {
-                                    if (rankEndInState != curRankEnd) {
+                                    rankEnd = rankEndInState;
+                                    if (rankEnd != curRankEnd) {
                                         // increment the invalid counter when the current rank end
                                         // not equal to previous
                                         // rank end
                                         invalidCounter.inc();
                                     }
-                                    return rankEndInState;
+                                    return rankEnd;
                                 }
                             });
         }
