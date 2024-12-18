@@ -31,7 +31,6 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 
 import java.io.Serializable;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * An entity keeping all the time-related services.
@@ -85,7 +84,7 @@ public interface InternalTimeServiceManager<K> {
      * Advances the Watermark of all managed {@link InternalTimerService timer services},
      * potentially firing event time timers.
      */
-    CompletableFuture<Void> advanceWatermark(Watermark watermark) throws Exception;
+    void advanceWatermark(Watermark watermark) throws Exception;
 
     /**
      * Try to {@link #advanceWatermark(Watermark)}, but if {@link ShouldStopAdvancingFn} returns

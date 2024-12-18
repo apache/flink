@@ -39,9 +39,6 @@ import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link InternalTimerServiceAsyncImpl}. */
@@ -187,11 +184,8 @@ class InternalTimerServiceAsyncImplTest {
         service.registerEventTimeTimer("event-timer-2", 2L);
         service.registerEventTimeTimer("event-timer-3", 3L);
         assertThat(testTriggerable.eventTriggerCount).isEqualTo(1);
-        CompletableFuture<Void> future = service.advanceWatermark(3L);
-        AtomicBoolean done = new AtomicBoolean(false);
+        service.advanceWatermark(3L);
         assertThat(asyncExecutionController.getInFlightRecordNum()).isEqualTo(0);
-        future.thenAccept((v) -> done.set(true)).get();
-        assertThat(done.get()).isTrue();
         assertThat(testTriggerable.eventTriggerCount).isEqualTo(3);
     }
 
