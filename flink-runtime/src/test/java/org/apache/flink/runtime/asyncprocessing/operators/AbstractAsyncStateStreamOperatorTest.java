@@ -24,7 +24,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
@@ -33,19 +32,22 @@ import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.InternalTimerServiceAsyncImpl;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Triggerable;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.RecordProcessorUtils;
 import org.apache.flink.streaming.runtime.operators.asyncprocessing.ElementOrder;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
-import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.runtime.state.StateBackendTestUtils.buildAsyncStateBackend;
@@ -54,14 +56,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Basic tests for {@link AbstractAsyncStateStreamOperator}. */
 public class AbstractAsyncStateStreamOperatorTest {
 
-    protected KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+    protected AsyncKeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
             createTestHarness(
                     int maxParalelism, int numSubtasks, int subtaskIndex, ElementOrder elementOrder)
                     throws Exception {
         TestOperator testOperator = new TestOperator(elementOrder);
-        KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+        AsyncKeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness =
-                        new KeyedOneInputStreamOperatorTestHarness<>(
+                        AsyncKeyedOneInputStreamOperatorTestHarness.create(
                                 testOperator,
                                 new TestKeySelector(),
                                 BasicTypeInfo.INT_TYPE_INFO,
@@ -74,7 +76,7 @@ public class AbstractAsyncStateStreamOperatorTest {
 
     @Test
     void testCreateAsyncExecutionController() throws Exception {
-        try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+        try (AsyncKeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
             testHarness.open();
             assertThat(testHarness.getOperator())
@@ -93,21 +95,12 @@ public class AbstractAsyncStateStreamOperatorTest {
 
     @Test
     void testRecordProcessorWithFirstStateOrder() throws Exception {
-        try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+        try (AsyncKeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness(128, 1, 0, ElementOrder.FIRST_STATE_ORDER)) {
             testHarness.open();
             TestOperator testOperator = (TestOperator) testHarness.getOperator();
-            ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> processor =
-                    RecordProcessorUtils.getRecordProcessor(testOperator);
-            ExecutorService anotherThread = Executors.newSingleThreadExecutor();
-            // Trigger the processor
-            anotherThread.execute(
-                    () -> {
-                        try {
-                            processor.accept(new StreamRecord<>(Tuple2.of(5, "5")));
-                        } catch (Exception e) {
-                        }
-                    });
+            CompletableFuture<Void> future =
+                    testHarness.processElementInternal(new StreamRecord<>(Tuple2.of(5, "5")));
 
             Thread.sleep(1000);
             assertThat(testOperator.getProcessed()).isEqualTo(1);
@@ -115,29 +108,19 @@ public class AbstractAsyncStateStreamOperatorTest {
 
             // Proceed processing
             testOperator.proceed();
-            anotherThread.shutdown();
-            Thread.sleep(1000);
+            future.get();
             assertThat(testOperator.getCurrentProcessingContext().getReferenceCount()).isEqualTo(0);
         }
     }
 
     @Test
     void testRecordProcessorWithRecordOrder() throws Exception {
-        try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+        try (AsyncKeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
             testHarness.open();
             TestOperator testOperator = (TestOperator) testHarness.getOperator();
-            ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> processor =
-                    RecordProcessorUtils.getRecordProcessor(testOperator);
-            ExecutorService anotherThread = Executors.newSingleThreadExecutor();
-            // Trigger the processor
-            anotherThread.execute(
-                    () -> {
-                        try {
-                            processor.accept(new StreamRecord<>(Tuple2.of(5, "5")));
-                        } catch (Exception e) {
-                        }
-                    });
+            CompletableFuture<Void> future =
+                    testHarness.processElementInternal(new StreamRecord<>(Tuple2.of(5, "5")));
 
             Thread.sleep(1000);
             assertThat(testOperator.getProcessed()).isEqualTo(1);
@@ -147,19 +130,19 @@ public class AbstractAsyncStateStreamOperatorTest {
 
             // Proceed processing
             testOperator.proceed();
-            anotherThread.shutdown();
-            Thread.sleep(1000);
+            future.get();
             assertThat(testOperator.getCurrentProcessingContext().getReferenceCount()).isEqualTo(0);
         }
     }
 
     @Test
     void testAsyncProcessWithKey() throws Exception {
+
         TestOperatorWithDirectAsyncProcess testOperator =
                 new TestOperatorWithDirectAsyncProcess(ElementOrder.RECORD_ORDER);
-        KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+        AsyncKeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness =
-                        new KeyedOneInputStreamOperatorTestHarness<>(
+                        AsyncKeyedOneInputStreamOperatorTestHarness.create(
                                 testOperator,
                                 new TestKeySelector(),
                                 BasicTypeInfo.INT_TYPE_INFO,
@@ -169,17 +152,8 @@ public class AbstractAsyncStateStreamOperatorTest {
         testHarness.setStateBackend(buildAsyncStateBackend(new HashMapStateBackend()));
         try {
             testHarness.open();
-            ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> processor =
-                    RecordProcessorUtils.getRecordProcessor(testOperator);
-            ExecutorService anotherThread = Executors.newSingleThreadExecutor();
-            // Trigger the processor
-            anotherThread.execute(
-                    () -> {
-                        try {
-                            processor.accept(new StreamRecord<>(Tuple2.of(5, "5")));
-                        } catch (Exception e) {
-                        }
-                    });
+            CompletableFuture<Void> future =
+                    testHarness.processElementInternal(new StreamRecord<>(Tuple2.of(5, "5")));
 
             Thread.sleep(1000);
             assertThat(testOperator.getProcessed()).isEqualTo(0);
@@ -189,8 +163,7 @@ public class AbstractAsyncStateStreamOperatorTest {
 
             // Proceed processing
             testOperator.proceed();
-            anotherThread.shutdown();
-            Thread.sleep(1000);
+            future.get();
             assertThat(testOperator.getCurrentProcessingContext().getReferenceCount()).isEqualTo(0);
 
             // We don't have the mailbox executor actually running, so the new context is blocked
@@ -203,11 +176,9 @@ public class AbstractAsyncStateStreamOperatorTest {
 
     @Test
     void testCheckpointDrain() throws Exception {
-        try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+        try (AsyncKeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
             testHarness.open();
-            CheckpointStorageLocationReference locationReference =
-                    CheckpointStorageLocationReference.getDefault();
             AsyncExecutionController asyncExecutionController =
                     ((AbstractAsyncStateStreamOperator) testHarness.getOperator())
                             .getAsyncExecutionController();
@@ -218,14 +189,14 @@ public class AbstractAsyncStateStreamOperatorTest {
             ((AbstractAsyncStateStreamOperator<String>) testHarness.getOperator())
                     .postProcessElement();
             assertThat(asyncExecutionController.getInFlightRecordNum()).isEqualTo(1);
-            testHarness.getOperator().prepareSnapshotPreBarrier(1);
+            testHarness.drainStateRequests();
             assertThat(asyncExecutionController.getInFlightRecordNum()).isEqualTo(0);
         }
     }
 
     @Test
     void testTimerServiceIsAsync() throws Exception {
-        try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+        try (AsyncKeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
             testHarness.open();
             assertThat(testHarness.getOperator())
@@ -249,22 +220,14 @@ public class AbstractAsyncStateStreamOperatorTest {
 
     @Test
     void testNonRecordProcess() throws Exception {
-        try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+        try (AsyncKeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
             testHarness.open();
             TestOperator testOperator = (TestOperator) testHarness.getOperator();
-            ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> processor =
-                    RecordProcessorUtils.getRecordProcessor(testOperator);
-            ExecutorService anotherThread = Executors.newSingleThreadExecutor();
-            anotherThread.execute(
-                    () -> {
-                        try {
-                            processor.accept(new StreamRecord<>(Tuple2.of(5, "5")));
-                            testOperator.processLatencyMarker(
-                                    new LatencyMarker(1234, new OperatorID(), 0));
-                        } catch (Exception e) {
-                        }
-                    });
+            testHarness.processElementInternal(new StreamRecord<>(Tuple2.of(5, "5")));
+            CompletableFuture<Void> future =
+                    testHarness.processLatencyMarkerInternal(
+                            new LatencyMarker(1234, new OperatorID(), 0));
 
             Thread.sleep(1000);
             assertThat(testOperator.getProcessed()).isEqualTo(1);
@@ -274,8 +237,7 @@ public class AbstractAsyncStateStreamOperatorTest {
 
             // Proceed processing
             testOperator.proceed();
-            anotherThread.shutdown();
-            Thread.sleep(1000);
+            future.get();
             assertThat(testOperator.getCurrentProcessingContext().getReferenceCount()).isEqualTo(0);
             assertThat(testOperator.getLatencyProcessed()).isEqualTo(1);
         }
@@ -283,23 +245,16 @@ public class AbstractAsyncStateStreamOperatorTest {
 
     @Test
     void testWatermarkStatus() throws Exception {
-        try (KeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+        try (AsyncKeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
             testHarness.open();
             TestOperator testOperator = (TestOperator) testHarness.getOperator();
             ThrowingConsumer<StreamRecord<Tuple2<Integer, String>>, Exception> processor =
                     RecordProcessorUtils.getRecordProcessor(testOperator);
-            ExecutorService anotherThread = Executors.newSingleThreadExecutor();
-            anotherThread.execute(
-                    () -> {
-                        try {
-                            processor.accept(new StreamRecord<>(Tuple2.of(5, "5")));
-                            testOperator.processWatermark1(new Watermark(205L));
-                            testOperator.processWatermark2(new Watermark(105L));
-                            testOperator.processWatermarkStatus(WatermarkStatus.IDLE, 1);
-                        } catch (Exception e) {
-                        }
-                    });
+            testHarness.processElementInternal(new StreamRecord<>(Tuple2.of(5, "5")));
+            testHarness.processWatermarkInternal(new Watermark(205L));
+            CompletableFuture<Void> future =
+                    testHarness.processWatermarkStatusInternal(WatermarkStatus.IDLE);
 
             Thread.sleep(1000);
             assertThat(testOperator.getProcessed()).isEqualTo(1);
@@ -310,15 +265,57 @@ public class AbstractAsyncStateStreamOperatorTest {
 
             // Proceed processing
             testOperator.proceed();
-            anotherThread.shutdown();
-            Thread.sleep(1000);
+            future.get();
             assertThat(testOperator.getCurrentProcessingContext().getReferenceCount()).isEqualTo(0);
             assertThat(testOperator.watermarkStatus.isActive()).isFalse();
             assertThat(testHarness.getOutput())
                     .containsExactly(
                             new StreamRecord<>("EventTimer-5-105"),
-                            new Watermark(105L),
-                            new Watermark(205L));
+                            new Watermark(205L),
+                            WatermarkStatus.IDLE);
+        }
+    }
+
+    @Test
+    void testIdleWatermarkHandling() throws Exception {
+        final WatermarkTestingOperator testOperator = new WatermarkTestingOperator();
+
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        KeySelector<Long, Integer> dummyKeySelector = l -> 0;
+        try (AsyncKeyedTwoInputStreamOperatorTestHarness<Integer, Long, Long, Long> testHarness =
+                AsyncKeyedTwoInputStreamOperatorTestHarness.create(
+                        testOperator,
+                        dummyKeySelector,
+                        dummyKeySelector,
+                        BasicTypeInfo.INT_TYPE_INFO,
+                        1,
+                        1,
+                        0)) {
+            testHarness.setup();
+            testHarness.open();
+            testHarness.processElement1(1L, 1L);
+            testHarness.processElement1(3L, 3L);
+            testHarness.processElement1(4L, 4L);
+            testHarness.processWatermark1(new Watermark(1L));
+            assertThat(testHarness.getOutput()).isEmpty();
+
+            testHarness.processWatermarkStatus2(WatermarkStatus.IDLE);
+            expectedOutput.add(new StreamRecord<>(1L));
+            expectedOutput.add(new Watermark(1L));
+            TestHarnessUtil.assertOutputEquals(
+                    "Output was not correct", expectedOutput, testHarness.getOutput());
+
+            testHarness.processWatermark1(new Watermark(3L));
+            expectedOutput.add(new StreamRecord<>(3L));
+            expectedOutput.add(new Watermark(3L));
+            TestHarnessUtil.assertOutputEquals(
+                    "Output was not correct", expectedOutput, testHarness.getOutput());
+
+            testHarness.processWatermarkStatus2(WatermarkStatus.ACTIVE);
+            // the other input is active now, we should not emit the watermark
+            testHarness.processWatermark1(new Watermark(4L));
+            TestHarnessUtil.assertOutputEquals(
+                    "Output was not correct", expectedOutput, testHarness.getOutput());
         }
     }
 
@@ -420,15 +417,53 @@ public class AbstractAsyncStateStreamOperatorTest {
 
         @Override
         public void processElement(StreamRecord<Tuple2<Integer, String>> element) throws Exception {
+            System.out.println("processElement " + Thread.currentThread().getName());
             asyncProcessWithKey(
                     element.getValue().f0,
                     () -> {
+                        System.out.println(
+                                "asyncProcessWithKey " + Thread.currentThread().getName());
                         processed.incrementAndGet();
                     });
             synchronized (objectToWait) {
                 objectToWait.wait();
             }
+            System.out.println("processElement " + Thread.currentThread().getName());
             processed.incrementAndGet();
+        }
+    }
+
+    private static class WatermarkTestingOperator extends AbstractAsyncStateStreamOperator<Long>
+            implements TwoInputStreamOperator<Long, Long, Long>,
+                    Triggerable<Integer, VoidNamespace> {
+
+        private transient InternalTimerService<VoidNamespace> timerService;
+
+        @Override
+        public void open() throws Exception {
+            super.open();
+
+            this.timerService =
+                    getInternalTimerService("test-timers", VoidNamespaceSerializer.INSTANCE, this);
+        }
+
+        @Override
+        public void onEventTime(InternalTimer<Integer, VoidNamespace> timer) throws Exception {
+            output.collect(new StreamRecord<>(timer.getTimestamp()));
+        }
+
+        @Override
+        public void onProcessingTime(InternalTimer<Integer, VoidNamespace> timer)
+                throws Exception {}
+
+        @Override
+        public void processElement1(StreamRecord<Long> element) throws Exception {
+            timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, element.getValue());
+        }
+
+        @Override
+        public void processElement2(StreamRecord<Long> element) throws Exception {
+            timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, element.getValue());
         }
     }
 
