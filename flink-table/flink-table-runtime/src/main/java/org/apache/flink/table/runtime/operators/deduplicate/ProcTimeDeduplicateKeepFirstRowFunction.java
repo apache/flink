@@ -22,11 +22,11 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Collector;
 
-import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processFirstRowOnProcTime;
+import static org.apache.flink.table.runtime.operators.deduplicate.utils.DeduplicateFunctionHelper.processFirstRowOnProcTime;
 
 /** This function is used to deduplicate on keys and keeps only first row. */
 public class ProcTimeDeduplicateKeepFirstRowFunction
-        extends DeduplicateFunctionBase<Boolean, RowData, RowData, RowData> {
+        extends SyncStateDeduplicateFunctionBase<Boolean, RowData, RowData, RowData> {
 
     private static final long serialVersionUID = 5865777137707602549L;
 
