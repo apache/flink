@@ -661,8 +661,11 @@ class TableEnvironment(object):
         """
         Drops a table registered in the given path.
 
-        If a permanent table with a given path exists, it will be used
-        from now on for any queries that reference this path.
+        Temporary objects can shadow permanent ones.
+        If a permanent object in a given path exists,
+        it will be inaccessible in the current session.
+        To make the permanent object available again
+        one can drop the corresponding temporary object.
 
         :param table_path: The path of the registered table.
         :return: True if a table existed in the given path and was removed.
@@ -690,8 +693,10 @@ class TableEnvironment(object):
 
         Drops a view registered in the given path.
 
-        Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
-        it will be inaccessible in the current session. To make the permanent object available again
+        Temporary objects can shadow permanent ones.
+        If a permanent object in a given path exists,
+        it will be inaccessible in the current session.
+        To make the permanent object available again
         one can drop the corresponding temporary object.
 
         :param view_path: The path of the registered temporary view.
