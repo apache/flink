@@ -688,9 +688,8 @@ class TableEnvironment(object):
         """
         return self._j_tenv.dropTemporaryView(view_path)
 
-    def dropView(self, view_path: str) -> bool:
+    def drop_view(self, view_path: str) -> bool:
         """
-
         Drops a view registered in the given path.
 
         Temporary objects can shadow permanent ones.
