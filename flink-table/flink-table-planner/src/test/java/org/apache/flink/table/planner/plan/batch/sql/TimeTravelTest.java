@@ -133,7 +133,7 @@ class TimeTravelTest extends TableTestBase {
                                                         + "    t1 FOR SYSTEM_TIME AS OF TO_TIMESTAMP_LTZ (0, 3)"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Unsupported time travel expression: TO_TIMESTAMP_LTZ(0, 3) for the expression can not be reduced to a constant by Flink.");
+                        "SQL validation failed. Unsupported time travel expression: `TO_TIMESTAMP_LTZ`(0, 3) for the expression can not be reduced to a constant by Flink.");
 
         assertThatThrownBy(
                         () ->

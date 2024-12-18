@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.Expressions.toTimestampLtz
 import org.apache.flink.table.expressions.TimeIntervalUnit
 import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
@@ -1303,42 +1304,28 @@ class TemporalTypesTest extends ExpressionTestBase {
     // invalid type for the first input
     testExpectedSqlException(
       "TO_TIMESTAMP_LTZ('test_string_type', 0)",
-      "SQL validation failed. From line 1, column 8 to line 1, column 46: Cannot apply " +
-        "'TO_TIMESTAMP_LTZ' to arguments of type 'TO_TIMESTAMP_LTZ(<CHAR(16)>, <INTEGER>)'. " +
-        "Supported form(s): 'TO_TIMESTAMP_LTZ(<CHARACTER>)'\n" +
-        "'TO_TIMESTAMP_LTZ(<NUMERIC>)'\n" +
-        "'TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>)'\n" +
-        "'TO_TIMESTAMP_LTZ(<CHARACTER>, <CHARACTER>)'\n" +
-        "'TO_TIMESTAMP_LTZ(<CHARACTER>, <CHARACTER>, <CHARACTER>)'",
+      "SQL validation failed. Invalid function call:\n" +
+        "TO_TIMESTAMP_LTZ(CHAR(16) NOT NULL, INT NOT NULL)",
       classOf[ValidationException]
     )
 
     testExpectedTableApiException(
       toTimestampLtz("test_string_type", 0),
-      "Invalid input arguments. Expected signatures are:\n" +
-        "toTimestampLtz(<CHARACTER_STRING>)\n" +
-        "toTimestampLtz(<CHARACTER_STRING>, <CHARACTER_STRING>)\n" +
-        "toTimestampLtz(<CHARACTER_STRING>, <CHARACTER_STRING>, <CHARACTER_STRING>)\n" +
-        "toTimestampLtz(<NUMERIC>)\n" +
-        "toTimestampLtz(<NUMERIC>, <INTEGER_NUMERIC NOT NULL>)"
+      "Invalid function call:\n" +
+        "TO_TIMESTAMP_LTZ(CHAR(16) NOT NULL, INT NOT NULL)"
     )
 
     // invalid type for the second input
     testExpectedSqlException(
       "TO_TIMESTAMP_LTZ(123, 'test_string_type')",
-      "SQL validation failed. From line 1, column 8 to line 1, column 48: Cannot apply " +
-        "'TO_TIMESTAMP_LTZ' to arguments of type 'TO_TIMESTAMP_LTZ(<INTEGER>, <CHAR(16)>)'. " +
-        "Supported form(s): 'TO_TIMESTAMP_LTZ(<CHARACTER>)'\n" +
-        "'TO_TIMESTAMP_LTZ(<NUMERIC>)'\n" +
-        "'TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>)'\n" +
-        "'TO_TIMESTAMP_LTZ(<CHARACTER>, <CHARACTER>)'\n" +
-        "'TO_TIMESTAMP_LTZ(<CHARACTER>, <CHARACTER>, <CHARACTER>)'"
+      "SQL validation failed. Invalid function call:\n" +
+        "TO_TIMESTAMP_LTZ(INT NOT NULL, CHAR(16) NOT NULL)"
     )
 
     testExpectedTableApiException(
       toTimestampLtz(123, "test_string_type"),
       "Invalid function call:\n" +
-        "toTimestampLtz(INT NOT NULL, CHAR(16) NOT NULL"
+        "TO_TIMESTAMP_LTZ(INT NOT NULL, CHAR(16) NOT NULL)"
     )
   }
 

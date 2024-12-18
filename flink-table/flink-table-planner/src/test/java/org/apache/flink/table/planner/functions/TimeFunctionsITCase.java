@@ -926,7 +926,7 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                         "yyyy-MM-dd HH:mm:ss",
                                         "Asia/Shanghai"),
                                 "TO_TIMESTAMP_LTZ('2023-01-01 00:00:00', 'yyyy-MM-dd HH:mm:ss', 'Asia/Shanghai')",
-                                LocalDateTime.of(2023, 1, 1, 8, 0, 0)
+                                LocalDateTime.of(2023, 1, 1, 0, 0, 0)
                                         .atZone(ZoneId.of("Asia/Shanghai"))
                                         .toInstant(),
                                 TIMESTAMP_LTZ(3).nullable())
@@ -943,7 +943,7 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                         "dd/MM/yyyy HH:mm:ss",
                                         "America/Los_Angeles"),
                                 "TO_TIMESTAMP_LTZ('01/01/2023 08:00:00', 'dd/MM/yyyy HH:mm:ss', 'America/Los_Angeles')",
-                                LocalDateTime.of(2023, 1, 1, 0, 0, 0)
+                                LocalDateTime.of(2023, 1, 1, 8, 0, 0)
                                         .atZone(ZoneId.of("America/Los_Angeles"))
                                         .toInstant(),
                                 TIMESTAMP_LTZ(3).nullable())

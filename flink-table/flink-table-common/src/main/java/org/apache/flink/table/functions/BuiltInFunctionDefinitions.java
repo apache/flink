@@ -2332,8 +2332,7 @@ public final class BuiltInFunctionDefinitions {
 
     public static final BuiltInFunctionDefinition TO_TIMESTAMP_LTZ =
             BuiltInFunctionDefinition.newBuilder()
-                    .name("toTimestampLtz")
-                    .sqlName("TO_TIMESTAMP_LTZ")
+                    .name("TO_TIMESTAMP_LTZ")
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             or(

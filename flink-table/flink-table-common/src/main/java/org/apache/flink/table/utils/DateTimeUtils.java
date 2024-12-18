@@ -59,7 +59,6 @@ import static java.time.temporal.ChronoField.MONTH_OF_YEAR;
 import static java.time.temporal.ChronoField.NANO_OF_SECOND;
 import static java.time.temporal.ChronoField.SECOND_OF_MINUTE;
 import static java.time.temporal.ChronoField.YEAR;
-import static org.apache.flink.table.types.logical.YearMonthIntervalType.DEFAULT_PRECISION;
 
 /**
  * Utility functions for datetime types: date, time, timestamp.
@@ -389,18 +388,6 @@ public class DateTimeUtils {
         }
     }
 
-    public static TimestampData toTimestampData(long epoch) {
-        return toTimestampData(epoch, DEFAULT_PRECISION);
-    }
-
-    public static TimestampData toTimestampData(double epoch) {
-        return toTimestampData(epoch, DEFAULT_PRECISION);
-    }
-
-    public static TimestampData toTimestampData(DecimalData epoch) {
-        return toTimestampData(epoch, DEFAULT_PRECISION);
-    }
-
     private static TimestampData timestampDataFromEpochMills(long epochMills) {
         if (MIN_EPOCH_MILLS <= epochMills && epochMills <= MAX_EPOCH_MILLS) {
             return TimestampData.fromEpochMillis(epochMills);
@@ -434,21 +421,6 @@ public class DateTimeUtils {
                 fromTemporalAccessor(DEFAULT_TIMESTAMP_FORMATTER.parse(dateStr), precision)
                         .atZone(timeZone.toZoneId())
                         .toInstant());
-    }
-
-    public static TimestampData parseTimestampData(String dateStr, String format, String timezone) {
-        if (dateStr == null || format == null || timezone == null) {
-            return null;
-        }
-
-        TimestampData ts = parseTimestampData(dateStr, format);
-        if (ts == null) {
-            return null;
-        }
-
-        ZonedDateTime utcZoned = ts.toLocalDateTime().atZone(UTC_ZONE.toZoneId());
-        ZonedDateTime targetTime = utcZoned.withZoneSameInstant(ZoneId.of(timezone));
-        return TimestampData.fromInstant(targetTime.toInstant());
     }
 
     public static TimestampData parseTimestampData(String dateStr, String format) {

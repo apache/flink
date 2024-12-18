@@ -325,50 +325,12 @@ object BuiltInMethods {
     classOf[Long],
     classOf[TimeZone])
 
-  val LONG_TO_TIMESTAMP_LTZ_WITH_PRECISION =
-    Types.lookupMethod(classOf[DateTimeUtils], "toTimestampData", classOf[Long], classOf[Int])
-
-  val DOUBLE_TO_TIMESTAMP_LTZ_WITH_PRECISION =
-    Types.lookupMethod(classOf[DateTimeUtils], "toTimestampData", classOf[Double], classOf[Int])
-
-  val DECIMAL_TO_TIMESTAMP_LTZ_WITH_PRECISION = Types.lookupMethod(
-    classOf[DateTimeUtils],
-    "toTimestampData",
-    classOf[DecimalData],
-    classOf[Int])
-
-  val LONG_TO_TIMESTAMP_LTZ =
-    Types.lookupMethod(classOf[DateTimeUtils], "toTimestampData", classOf[Long])
-
-  val DOUBLE_TO_TIMESTAMP_LTZ =
-    Types.lookupMethod(classOf[DateTimeUtils], "toTimestampData", classOf[Double])
-
-  val DECIMAL_TO_TIMESTAMP_LTZ =
-    Types.lookupMethod(classOf[DateTimeUtils], "toTimestampData", classOf[DecimalData])
-
   val STRING_TO_TIMESTAMP =
     Types.lookupMethod(classOf[DateTimeUtils], "parseTimestampData", classOf[String])
 
   val STRING_TO_TIMESTAMP_WITH_FORMAT = Types.lookupMethod(
     classOf[DateTimeUtils],
     "parseTimestampData",
-    classOf[String],
-    classOf[String])
-
-  val STRING_TO_TIMESTAMP_LTZ =
-    Types.lookupMethod(classOf[DateTimeUtils], "parseTimestampData", classOf[String])
-
-  val STRING_TO_TIMESTAMP_LTZ_WITH_FORMAT =
-    Types.lookupMethod(
-      classOf[DateTimeUtils],
-      "parseTimestampData",
-      classOf[String],
-      classOf[String])
-
-  val STRING_TO_TIMESTAMP_LTZ_WITH_FORMAT_WITH_TIME_ZONE = Types.lookupMethod(
-    classOf[DateTimeUtils],
-    "parseTimestampData",
-    classOf[String],
     classOf[String],
     classOf[String])
 
