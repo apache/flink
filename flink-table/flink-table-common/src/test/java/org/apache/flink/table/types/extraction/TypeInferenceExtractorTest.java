@@ -305,6 +305,12 @@ class TypeInferenceExtractorTest {
                                 TypeStrategies.explicit(
                                         DataTypes.DOUBLE().notNull().bridgedTo(double.class))),
                 // ---
+                // non-scalar args
+                TestSpec.forScalarFunction(TableArgScalarFunction.class)
+                        .expectErrorMessage(
+                                "Only scalar arguments are supported at this location. "
+                                        + "But argument 't' declared the following traits: [TABLE_AS_ROW]"),
+                // ---
                 // different accumulator depending on input
                 TestSpec.forAggregateFunction(InputDependentAccumulatorFunction.class)
                         .expectAccumulator(
@@ -2400,5 +2406,11 @@ class TypeInferenceExtractorTest {
         public void eval(int i) {}
 
         public void eval(String i) {}
+    }
+
+    private static class TableArgScalarFunction extends ScalarFunction {
+        public int eval(@ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row t) {
+            return 0;
+        }
     }
 }

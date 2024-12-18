@@ -72,6 +72,9 @@ import static org.apache.flink.table.types.extraction.TemplateUtils.findResultOn
  */
 abstract class BaseMappingExtractor {
 
+    private static final EnumSet<StaticArgumentTrait> SCALAR_TRAITS =
+            EnumSet.of(StaticArgumentTrait.SCALAR);
+
     protected final DataTypeFactory typeFactory;
 
     protected final String methodName;
@@ -188,8 +191,15 @@ abstract class BaseMappingExtractor {
 
     protected abstract String getHintType();
 
-    protected static Class<?>[] assembleParameters(List<Class<?>> state, List<Class<?>> arguments) {
-        return Stream.concat(state.stream(), arguments.stream()).toArray(Class[]::new);
+    protected static Class<?>[] assembleParameters(
+            @Nullable FunctionStateTemplate state, FunctionSignatureTemplate arguments) {
+        return Stream.concat(
+                        Optional.ofNullable(state)
+                                .map(FunctionStateTemplate::toClassList)
+                                .orElse(List.of())
+                                .stream(),
+                        arguments.toClassList().stream())
+                .toArray(Class[]::new);
     }
 
     protected static ValidationException createMethodNotFoundError(
@@ -258,17 +268,31 @@ abstract class BaseMappingExtractor {
         return (Map<FunctionSignatureTemplate, T>) collectedMappings;
     }
 
-    protected static void checkNoState(@Nullable List<Class<?>> state) {
-        if (state != null && !state.isEmpty()) {
+    protected static void checkNoState(@Nullable FunctionStateTemplate state) {
+        if (state != null) {
             throw extractionError("State is not supported for this kind of function.");
         }
     }
 
-    protected static void checkSingleState(@Nullable List<Class<?>> state) {
-        if (state == null || state.size() != 1) {
+    protected static void checkSingleState(@Nullable FunctionStateTemplate state) {
+        if (state == null || state.toClassList().size() != 1) {
             throw extractionError(
                     "Aggregating functions need exactly one state entry for the accumulator.");
         }
+    }
+
+    protected static void checkScalarArgumentsOnly(FunctionSignatureTemplate arguments) {
+        final EnumSet<StaticArgumentTrait>[] argumentTraits = arguments.argumentTraits;
+        IntStream.range(0, argumentTraits.length)
+                .forEach(
+                        pos -> {
+                            if (!argumentTraits[pos].equals(SCALAR_TRAITS)) {
+                                throw extractionError(
+                                        "Only scalar arguments are supported at this location. "
+                                                + "But argument '%s' declared the following traits: %s",
+                                        arguments.argumentNames[pos], argumentTraits[pos]);
+                            }
+                        });
     }
 
     // --------------------------------------------------------------------------------------------
@@ -472,16 +496,11 @@ abstract class BaseMappingExtractor {
                 (signature, result) -> {
                     if (result instanceof FunctionStateTemplate) {
                         final FunctionStateTemplate stateTemplate = (FunctionStateTemplate) result;
-                        verification.verify(
-                                method, stateTemplate.toClassList(), signature.toClassList(), null);
+                        verification.verify(method, stateTemplate, signature, null);
                     } else if (result instanceof FunctionOutputTemplate) {
                         final FunctionOutputTemplate outputTemplate =
                                 (FunctionOutputTemplate) result;
-                        verification.verify(
-                                method,
-                                List.of(),
-                                signature.toClassList(),
-                                outputTemplate.toClass());
+                        verification.verify(method, null, signature, outputTemplate);
                     }
                 });
     }
@@ -668,7 +687,7 @@ abstract class BaseMappingExtractor {
                             final ArgumentHint argumentHint =
                                     arg.parameter.getAnnotation(ArgumentHint.class);
                             if (argumentHint == null) {
-                                return EnumSet.of(StaticArgumentTrait.SCALAR);
+                                return SCALAR_TRAITS;
                             }
                             final List<StaticArgumentTrait> traits =
                                     Arrays.stream(argumentHint.value())
@@ -735,11 +754,11 @@ abstract class BaseMappingExtractor {
     }
 
     /** Verifies the signature of a method. */
-    protected interface MethodVerification {
+    interface MethodVerification {
         void verify(
                 Method method,
-                List<Class<?>> state,
-                List<Class<?>> arguments,
-                @Nullable Class<?> result);
+                @Nullable FunctionStateTemplate state,
+                FunctionSignatureTemplate arguments,
+                @Nullable FunctionOutputTemplate result);
     }
 }

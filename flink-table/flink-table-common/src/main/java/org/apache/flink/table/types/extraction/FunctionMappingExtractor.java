@@ -166,14 +166,16 @@ final class FunctionMappingExtractor extends BaseMappingExtractor {
     static MethodVerification createParameterAndReturnTypeVerification() {
         return (method, state, arguments, result) -> {
             checkNoState(state);
-            final Class<?>[] parameters = assembleParameters(state, arguments);
+            checkScalarArgumentsOnly(arguments);
+            final Class<?>[] parameters = assembleParameters(null, arguments);
+            assert result != null;
+            final Class<?> resultClass = result.toClass();
             final Class<?> returnType = method.getReturnType();
-            // TODO enable strict autoboxing
             final boolean isValid =
-                    isInvokable(false, method, parameters)
-                            && isAssignable(result, returnType, true, false);
+                    isInvokable(true, method, parameters)
+                            && isAssignable(resultClass, returnType, true, false);
             if (!isValid) {
-                throw createMethodNotFoundError(method.getName(), parameters, result, "");
+                throw createMethodNotFoundError(method.getName(), parameters, resultClass, "");
             }
         };
     }
@@ -186,9 +188,9 @@ final class FunctionMappingExtractor extends BaseMappingExtractor {
             } else {
                 checkNoState(state);
             }
+            checkScalarArgumentsOnly(arguments);
             final Class<?>[] parameters = assembleParameters(state, arguments);
-            // TODO enable strict autoboxing
-            if (!isInvokable(false, method, parameters)) {
+            if (!isInvokable(true, method, parameters)) {
                 throw createMethodNotFoundError(
                         method.getName(),
                         parameters,
@@ -205,11 +207,13 @@ final class FunctionMappingExtractor extends BaseMappingExtractor {
     static MethodVerification createParameterAndCompletableFutureVerification(Class<?> baseClass) {
         return (method, state, arguments, result) -> {
             checkNoState(state);
-            final Class<?>[] parameters = assembleParameters(state, arguments);
+            checkScalarArgumentsOnly(arguments);
+            final Class<?>[] parameters = assembleParameters(null, arguments);
             final Class<?>[] parametersWithFuture =
                     Stream.concat(Stream.of(CompletableFuture.class), Arrays.stream(parameters))
                             .toArray(Class<?>[]::new);
-
+            assert result != null;
+            final Class<?> resultClass = result.toClass();
             Type genericType = method.getGenericParameterTypes()[0];
             genericType = resolveVariableWithClassContext(baseClass, genericType);
             if (!(genericType instanceof ParameterizedType)) {
@@ -218,10 +222,9 @@ final class FunctionMappingExtractor extends BaseMappingExtractor {
                         method.getName(), 0);
             }
             final Type returnType = ((ParameterizedType) genericType).getActualTypeArguments()[0];
-            Class<?> returnClazz = getClassFromType(returnType);
-            // TODO enable strict autoboxing
-            if (!(isInvokable(false, method, parametersWithFuture)
-                    && isAssignable(result, returnClazz, true, false))) {
+            Class<?> returnTypeClass = getClassFromType(returnType);
+            if (!(isInvokable(true, method, parametersWithFuture)
+                    && isAssignable(resultClass, returnTypeClass, true, false))) {
                 throw createMethodNotFoundError(
                         method.getName(),
                         parametersWithFuture,

@@ -87,21 +87,25 @@ final class ProcedureMappingExtractor extends BaseMappingExtractor {
     static MethodVerification createParameterWithOptionalContextAndArrayReturnTypeVerification() {
         return (method, state, arguments, result) -> {
             checkNoState(state);
-            final Class<?>[] parameters = assembleParameters(state, arguments);
+            checkScalarArgumentsOnly(arguments);
+            final Class<?>[] parameters = assembleParameters(null, arguments);
             // ignore the ProcedureContext in the first argument
             final Class<?>[] parametersWithContext =
                     Stream.concat(Stream.of((Class<?>) null), Arrays.stream(parameters))
                             .toArray(Class<?>[]::new);
+            assert result != null;
+            final Class<?> resultClass = result.toClass();
             final Class<?> returnType = method.getReturnType();
             final boolean isValid =
                     isInvokable(true, method, parametersWithContext)
                             && returnType.isArray()
-                            && isAssignable(result, returnType.getComponentType(), true, false);
+                            && isAssignable(
+                                    resultClass, returnType.getComponentType(), true, false);
             if (!isValid) {
                 throw createMethodNotFoundError(
                         method.getName(),
                         parametersWithContext,
-                        Array.newInstance(result, 0).getClass(),
+                        Array.newInstance(resultClass, 0).getClass(),
                         "(<context> [, <argument>]*)");
             }
         };
