@@ -1274,8 +1274,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * @param objectIdentifier The fully qualified path of the table to drop.
      * @param ignoreIfNotExists If false exception will be thrown if the table to drop does not
      *     exist.
-     * @return true if table was dropped, it will return false if table was not found and ignore if
-     *     exists flag is true.
+     * @return true if table existed in the given path and was dropped, false if table didn't exist
+     *     in the given path and ignoreIfNotExists was true.
      */
     public boolean dropTable(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
         return dropTableInternal(objectIdentifier, ignoreIfNotExists, true, false);
@@ -1287,8 +1287,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * @param objectIdentifier The fully qualified path of the materialized table to drop.
      * @param ignoreIfNotExists If false exception will be thrown if the table to drop does not
      *     exist.
-     * @return true if materialized table was dropped, it will return false if materialized table
-     *     was not found and ignore if exists flag is true.
+     * @return true if materialized table existed in the given path and was dropped, false if
+     *     materialized table didn't exist in the given path and ignoreIfNotExists was true.
      */
     public boolean dropMaterializedTable(
             ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
@@ -1301,8 +1301,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * @param objectIdentifier The fully qualified path of the view to drop.
      * @param ignoreIfNotExists If false exception will be thrown if the view to drop does not
      *     exist.
-     * @return true if view was dropped, it will return false if view was not found and ignore if
-     *     exists flag is true.
+     * @return true if view existed in the given path and was dropped, false if view didn't exist in
+     *     the given path and ignoreIfNotExists was true.
      */
     public boolean dropView(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
         return dropTableInternal(objectIdentifier, ignoreIfNotExists, false, false);

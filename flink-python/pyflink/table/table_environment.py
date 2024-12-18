@@ -699,7 +699,7 @@ class TableEnvironment(object):
         To make the permanent object available again
         one can drop the corresponding temporary object.
 
-        :param view_path: The path of the registered temporary view.
+        :param view_path: The path of the registered view.
         :return: True if a view existed in the given path and was removed
 
         .. versionadded:: 2.0.0
