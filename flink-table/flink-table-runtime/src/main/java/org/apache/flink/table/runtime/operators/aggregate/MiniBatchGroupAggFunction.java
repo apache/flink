@@ -149,7 +149,9 @@ public class MiniBatchGroupAggFunction
     }
 
     @Override
-    public List<RowData> addInput(@Nullable List<RowData> value, RowData input) throws Exception {
+    public List<RowData> addInput(
+            RowData key, @Nullable List<RowData> value, RowData input, Collector<RowData> out)
+            throws Exception {
         List<RowData> bufferedRows = value;
         if (value == null) {
             bufferedRows = new ArrayList<>();
