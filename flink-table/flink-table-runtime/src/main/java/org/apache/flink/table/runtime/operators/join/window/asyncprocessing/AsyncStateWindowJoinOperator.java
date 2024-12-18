@@ -16,14 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.join.window;
+package org.apache.flink.table.runtime.operators.join.window.asyncprocessing;
 
 import org.apache.flink.api.common.functions.DefaultOpenContext;
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.v2.ListState;
+import org.apache.flink.api.common.state.v2.StateFuture;
+import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.runtime.state.internal.InternalListState;
+import org.apache.flink.runtime.state.v2.ListStateDescriptor;
+import org.apache.flink.runtime.state.v2.internal.InternalListState;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
@@ -34,27 +36,23 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
-import org.apache.flink.table.runtime.operators.TableStreamOperator;
+import org.apache.flink.table.runtime.operators.AsyncStateTableStreamOperator;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.JoinConditionWithNullFilters;
+import org.apache.flink.table.runtime.operators.join.window.WindowJoinOperator;
 import org.apache.flink.table.runtime.operators.join.window.utils.WindowJoinHelper;
+import org.apache.flink.table.runtime.operators.window.tvf.asyncprocessing.state.WindowListAsyncState;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowTimerService;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindowTimerServiceImpl;
-import org.apache.flink.table.runtime.operators.window.tvf.state.WindowListState;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * Streaming window join operator.
- *
- * <p>Note: currently, {@link WindowJoinOperator} doesn't support early-fire and late-arrival. Thus
- * late elements (elements belong to emitted windows) will be simply dropped.
- *
- * <p>Note: currently, {@link WindowJoinOperator} doesn't support DELETE or UPDATE_BEFORE input row.
- */
-public class WindowJoinOperator extends TableStreamOperator<RowData>
+/** A {@link WindowJoinOperator} implemented by async state api. */
+public class AsyncStateWindowJoinOperator extends AsyncStateTableStreamOperator<RowData>
         implements TwoInputStreamOperator<RowData, RowData, RowData>,
                 Triggerable<RowData, Long>,
                 KeyContext {
@@ -84,12 +82,12 @@ public class WindowJoinOperator extends TableStreamOperator<RowData>
     /** This is used for emitting elements with a given timestamp. */
     private transient TimestampedCollector<RowData> collector;
 
-    private transient WindowListState<Long> leftWindowState;
-    private transient WindowListState<Long> rightWindowState;
+    private transient WindowListAsyncState<Long> leftWindowState;
+    private transient WindowListAsyncState<Long> rightWindowState;
 
     private transient WindowJoinHelper helper;
 
-    WindowJoinOperator(
+    public AsyncStateWindowJoinOperator(
             TypeSerializer<RowData> leftSerializer,
             TypeSerializer<RowData> rightSerializer,
             GeneratedJoinCondition generatedJoinCondition,
@@ -133,18 +131,20 @@ public class WindowJoinOperator extends TableStreamOperator<RowData>
         ListStateDescriptor<RowData> leftRecordStateDesc =
                 new ListStateDescriptor<>(LEFT_RECORDS_STATE_NAME, leftSerializer);
         ListState<RowData> leftListState =
-                getOrCreateKeyedState(windowSerializer, leftRecordStateDesc);
+                getOrCreateKeyedState(Long.MIN_VALUE, windowSerializer, leftRecordStateDesc);
         this.leftWindowState =
-                new WindowListState<>((InternalListState<RowData, Long, RowData>) leftListState);
+                new WindowListAsyncState<>(
+                        (InternalListState<RowData, Long, RowData>) leftListState);
 
         ListStateDescriptor<RowData> rightRecordStateDesc =
                 new ListStateDescriptor<>(RIGHT_RECORDS_STATE_NAME, rightSerializer);
         ListState<RowData> rightListState =
-                getOrCreateKeyedState(windowSerializer, rightRecordStateDesc);
+                getOrCreateKeyedState(Long.MIN_VALUE, windowSerializer, rightRecordStateDesc);
         this.rightWindowState =
-                new WindowListState<>((InternalListState<RowData, Long, RowData>) rightListState);
+                new WindowListAsyncState<>(
+                        (InternalListState<RowData, Long, RowData>) rightListState);
 
-        this.helper = new SyncStateWindowJoinHelper();
+        this.helper = new AsyncStateWindowJoinHelper();
     }
 
     @Override
@@ -175,45 +175,78 @@ public class WindowJoinOperator extends TableStreamOperator<RowData>
 
     @Override
     public void onEventTime(InternalTimer<RowData, Long> timer) throws Exception {
-        setCurrentKey(timer.getKey());
-        Long window = timer.getNamespace();
-        // join left records and right records
-        List<RowData> leftData = leftWindowState.get(window);
-        List<RowData> rightData = rightWindowState.get(window);
-        helper.joinAndClear(window, leftData, rightData);
+        asyncProcessWithKey(timer.getKey(), () -> triggerJoin(timer.getNamespace()));
     }
 
-    private class SyncStateWindowJoinHelper extends WindowJoinHelper {
+    /**
+     * Currently, similar to the {@link WindowJoinOperator#onEventTime} that uses the sync state
+     * api, we directly load the list data from the state into memory to perform join operations.
+     *
+     * <p>Note: The order of data in the left and right side lists must be preserved to ensure the
+     * output data sequence is maintained.
+     */
+    private void triggerJoin(long window) {
+        StateFuture<StateIterator<RowData>> leftDataFuture = leftWindowState.asyncGet(window);
+        StateFuture<StateIterator<RowData>> rightDataFuture = rightWindowState.asyncGet(window);
 
-        public SyncStateWindowJoinHelper() {
+        // join left records and right records
+        AtomicReference<List<RowData>> leftDataRef = new AtomicReference<>(new ArrayList<>());
+        AtomicReference<List<RowData>> rightDataRef = new AtomicReference<>(new ArrayList<>());
+        leftDataFuture.thenCombine(
+                rightDataFuture,
+                (leftDataIterator, rightDataIterator) -> {
+                    StateFuture<Void> leftLoadToMemFuture =
+                            leftDataIterator.onNext(
+                                    data -> {
+                                        leftDataRef.get().add(data);
+                                    });
+                    StateFuture<Void> rightLoadToMemFuture =
+                            rightDataIterator.onNext(
+                                    data -> {
+                                        rightDataRef.get().add(data);
+                                    });
+                    return leftLoadToMemFuture.thenCombine(
+                            rightLoadToMemFuture,
+                            (VOID1, VOID2) -> {
+                                helper.joinAndClear(window, leftDataRef.get(), rightDataRef.get());
+                                return null;
+                            });
+                });
+    }
+
+    private class AsyncStateWindowJoinHelper extends WindowJoinHelper {
+
+        public AsyncStateWindowJoinHelper() {
             super(
-                    WindowJoinOperator.this.leftSerializer,
-                    WindowJoinOperator.this.rightSerializer,
-                    WindowJoinOperator.this.shiftTimeZone,
-                    WindowJoinOperator.this.windowTimerService,
-                    WindowJoinOperator.this.joinCondition,
-                    WindowJoinOperator.this.leftWindowEndIndex,
-                    WindowJoinOperator.this.rightWindowEndIndex,
-                    WindowJoinOperator.this.collector,
-                    WindowJoinOperator.this.joinType,
-                    WindowJoinOperator.this.metrics);
+                    AsyncStateWindowJoinOperator.this.leftSerializer,
+                    AsyncStateWindowJoinOperator.this.rightSerializer,
+                    AsyncStateWindowJoinOperator.this.shiftTimeZone,
+                    AsyncStateWindowJoinOperator.this.windowTimerService,
+                    AsyncStateWindowJoinOperator.this.joinCondition,
+                    AsyncStateWindowJoinOperator.this.leftWindowEndIndex,
+                    AsyncStateWindowJoinOperator.this.rightWindowEndIndex,
+                    AsyncStateWindowJoinOperator.this.collector,
+                    AsyncStateWindowJoinOperator.this.joinType,
+                    AsyncStateWindowJoinOperator.this.metrics);
         }
 
         @Override
         public void accToState(long windowEnd, RowData rowData, boolean isLeft) throws Exception {
+            // no need to wait these async requests to end
             if (isLeft) {
-                leftWindowState.add(windowEnd, rowData);
+                leftWindowState.asyncAdd(windowEnd, rowData);
             } else {
-                rightWindowState.add(windowEnd, rowData);
+                rightWindowState.asyncAdd(windowEnd, rowData);
             }
         }
 
         @Override
         public void clearState(long windowEnd, boolean isLeft) throws Exception {
+            // no need to wait these async requests to end
             if (isLeft) {
-                leftWindowState.clear(windowEnd);
+                leftWindowState.asyncClear(windowEnd);
             } else {
-                rightWindowState.clear(windowEnd);
+                rightWindowState.asyncClear(windowEnd);
             }
         }
     }
