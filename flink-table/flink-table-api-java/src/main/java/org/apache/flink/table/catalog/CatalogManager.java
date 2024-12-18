@@ -1274,6 +1274,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * @param objectIdentifier The fully qualified path of the table to drop.
      * @param ignoreIfNotExists If false exception will be thrown if the table to drop does not
      *     exist.
+     * @return true if table was dropped, it will return false if table was not found and ignore if
+     *     exists flag is true.
      */
     public boolean dropTable(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
         return dropTableInternal(objectIdentifier, ignoreIfNotExists, true, false);
@@ -1285,6 +1287,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * @param objectIdentifier The fully qualified path of the materialized table to drop.
      * @param ignoreIfNotExists If false exception will be thrown if the table to drop does not
      *     exist.
+     * @return true if materialized table was dropped, it will return false if materialized table
+     *     was not found and ignore if exists flag is true.
      */
     public boolean dropMaterializedTable(
             ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
@@ -1297,6 +1301,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * @param objectIdentifier The fully qualified path of the view to drop.
      * @param ignoreIfNotExists If false exception will be thrown if the view to drop does not
      *     exist.
+     * @return true if view was dropped, it will return false if view was not found and ignore if
+     *     exists flag is true.
      */
     public boolean dropView(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
         return dropTableInternal(objectIdentifier, ignoreIfNotExists, false, false);
