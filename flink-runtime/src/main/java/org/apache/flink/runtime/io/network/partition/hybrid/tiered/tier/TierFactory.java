@@ -72,4 +72,7 @@ public interface TierFactory {
             List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs,
             List<TierShuffleDescriptor> shuffleDescriptors,
             TieredStorageNettyService nettyService);
+
+    /** The unique identifier of this tier. */
+    String identifier();
 }

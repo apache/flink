@@ -16,69 +16,55 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.memory;
+package org.apache.flink.runtime.scheduler.adaptivebatch;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyService;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemoryManager;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemorySpec;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.NoOpMasterAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierConsumerAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierFactory;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierMasterAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierProducerAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
-import org.apache.flink.runtime.util.ConfigurationParserUtils;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleHandler;
 
 import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageUtils.getMemoryTierName;
-import static org.apache.flink.util.Preconditions.checkState;
-
-/** The implementation of {@link TierFactory} for memory tier. */
-public class MemoryTierFactory implements TierFactory {
-
-    private static final int DEFAULT_MEMORY_TIER_EXCLUSIVE_BUFFERS = 100;
-
-    private static final int DEFAULT_MEMORY_TIER_SUBPARTITION_MAX_QUEUED_BUFFERS = 3;
-
-    private static final int DEFAULT_MEMORY_TIER_NUM_BYTES_PER_SEGMENT = 2 * 32 * 1024;
-
-    private int bufferSizeBytes = -1;
-
+/** Dummy {@link TierFactory} for testing purpose only. */
+public class DummyTierFactory implements TierFactory {
     @Override
-    public void setup(Configuration configuration) {
-        this.bufferSizeBytes = ConfigurationParserUtils.getPageSize(configuration);
-    }
+    public void setup(Configuration configuration) {}
 
     @Override
     public TieredStorageMemorySpec getMasterAgentMemorySpec() {
-        return new TieredStorageMemorySpec(getMemoryTierName(), 0);
+        return null;
     }
 
     @Override
     public TieredStorageMemorySpec getProducerAgentMemorySpec() {
-        return new TieredStorageMemorySpec(
-                getMemoryTierName(), DEFAULT_MEMORY_TIER_EXCLUSIVE_BUFFERS);
+        return null;
     }
 
     @Override
     public TieredStorageMemorySpec getConsumerAgentMemorySpec() {
-        return new TieredStorageMemorySpec(getMemoryTierName(), 0);
+        return null;
     }
 
     @Override
     public TierMasterAgent createMasterAgent(
             TieredStorageResourceRegistry tieredStorageResourceRegistry) {
-        return NoOpMasterAgent.INSTANCE;
+        return new DummyTierMasterAgent();
     }
 
     @Override
@@ -88,27 +74,15 @@ public class MemoryTierFactory implements TierFactory {
             TieredStoragePartitionId partitionID,
             String dataFileBasePath,
             boolean isBroadcastOnly,
-            TieredStorageMemoryManager memoryManager,
+            TieredStorageMemoryManager storageMemoryManager,
             TieredStorageNettyService nettyService,
             TieredStorageResourceRegistry resourceRegistry,
             BatchShuffleReadBufferPool bufferPool,
             ScheduledExecutorService ioExecutor,
             List<TierShuffleDescriptor> shuffleDescriptors,
-            int maxRequestedBuffers,
+            int maxRequestedBuffer,
             @Nullable BufferCompressor bufferCompressor) {
-        checkState(bufferSizeBytes > 0);
-
-        return new MemoryTierProducerAgent(
-                partitionID,
-                numSubpartitions,
-                bufferSizeBytes,
-                DEFAULT_MEMORY_TIER_NUM_BYTES_PER_SEGMENT,
-                DEFAULT_MEMORY_TIER_SUBPARTITION_MAX_QUEUED_BUFFERS,
-                isBroadcastOnly,
-                memoryManager,
-                nettyService,
-                resourceRegistry,
-                bufferCompressor);
+        return null;
     }
 
     @Override
@@ -116,11 +90,32 @@ public class MemoryTierFactory implements TierFactory {
             List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs,
             List<TierShuffleDescriptor> shuffleDescriptors,
             TieredStorageNettyService nettyService) {
-        return new MemoryTierConsumerAgent(tieredStorageConsumerSpecs, nettyService);
+        return null;
     }
 
     @Override
     public String identifier() {
-        return "memory";
+        return "dummy";
+    }
+
+    public static class DummyTierMasterAgent implements TierMasterAgent {
+
+        @Override
+        public void registerJob(JobID jobID, TierShuffleHandler tierShuffleHandler) {}
+
+        @Override
+        public void unregisterJob(JobID jobID) {}
+
+        @Override
+        public TierShuffleDescriptor addPartitionAndGetShuffleDescriptor(
+                JobID jobID, int numSubpartitions, ResultPartitionID resultPartitionID) {
+            return null;
+        }
+
+        @Override
+        public void releasePartition(TierShuffleDescriptor shuffleDescriptor) {}
+
+        @Override
+        public void close() {}
     }
 }
