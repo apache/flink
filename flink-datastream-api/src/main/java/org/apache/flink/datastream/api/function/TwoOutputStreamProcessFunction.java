@@ -19,9 +19,11 @@
 package org.apache.flink.datastream.api.function;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.watermark.Watermark;
+import org.apache.flink.api.common.watermark.WatermarkHandlingResult;
 import org.apache.flink.datastream.api.common.Collector;
-import org.apache.flink.datastream.api.context.PartitionedContext;
 import org.apache.flink.datastream.api.context.TwoOutputNonPartitionedContext;
+import org.apache.flink.datastream.api.context.TwoOutputPartitionedContext;
 
 /** This contains all logical related to process and emit records to two output streams. */
 @Experimental
@@ -47,7 +49,10 @@ public interface TwoOutputStreamProcessFunction<IN, OUT1, OUT2> extends ProcessF
      * @param ctx runtime context in which this function is executed.
      */
     void processRecord(
-            IN record, Collector<OUT1> output1, Collector<OUT2> output2, PartitionedContext ctx)
+            IN record,
+            Collector<OUT1> output1,
+            Collector<OUT2> output2,
+            TwoOutputPartitionedContext ctx)
             throws Exception;
 
     /**
@@ -70,5 +75,21 @@ public interface TwoOutputStreamProcessFunction<IN, OUT1, OUT2> extends ProcessF
             long timestamp,
             Collector<OUT1> output1,
             Collector<OUT2> output2,
-            PartitionedContext ctx) {}
+            TwoOutputPartitionedContext ctx) {}
+
+    /**
+     * Callback function when receive the watermark from the input.
+     *
+     * @param watermark to process.
+     * @param output1 to emit data to the first output.
+     * @param output2 to emit data to the second output.
+     * @param ctx runtime context in which this function is executed.
+     */
+    default WatermarkHandlingResult onWatermark(
+            Watermark watermark,
+            Collector<OUT1> output1,
+            Collector<OUT2> output2,
+            TwoOutputNonPartitionedContext<OUT1, OUT2> ctx) {
+        return WatermarkHandlingResult.PEEK;
+    }
 }
