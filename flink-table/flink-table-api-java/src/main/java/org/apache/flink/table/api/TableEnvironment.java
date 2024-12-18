@@ -1033,9 +1033,9 @@ public interface TableEnvironment {
     /**
      * Drops a table registered in the given path.
      *
-     * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
-     * it will be inaccessible in the current session. To make the permanent object available again
-     * one can drop the corresponding temporary object.
+     * <p>Temporary objects can shadow permanent ones. If a temporary object exists in a given path,
+     * make sure to drop the temporary object first using {@link #dropTemporaryTable}. This method
+     * can only drop permanent objects.
      *
      * @return true if a table existed in the given path and was removed
      */
@@ -1054,9 +1054,9 @@ public interface TableEnvironment {
     /**
      * Drops a view registered in the given path.
      *
-     * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
-     * it will be inaccessible in the current session. To make the permanent object available again
-     * one can drop the corresponding temporary object.
+     * <p>Temporary objects can shadow permanent ones. If a temporary object exists in a given path,
+     * make sure to drop the temporary object first using {@link #dropTemporaryView}. This method
+     * can only drop permanent objects.
      *
      * @return true if a view existed in the given path and was removed
      */
