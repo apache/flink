@@ -922,6 +922,7 @@ public final class ExtractionUtils {
     // --------------------------------------------------------------------------------------------
 
     /** Checks the relation between primitive and boxed types. */
+    @Internal
     public enum Autoboxing {
         /**
          * int.class cannot be passed into f(Integer.class). Integer.class cannot be passed into
