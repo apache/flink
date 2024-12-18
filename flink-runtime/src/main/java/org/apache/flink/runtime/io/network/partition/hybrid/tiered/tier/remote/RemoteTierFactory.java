@@ -137,4 +137,9 @@ public class RemoteTierFactory implements TierFactory {
                 partitionFileReader,
                 bufferSizeBytes);
     }
+
+    @Override
+    public String identifier() {
+        return "remote";
+    }
 }
