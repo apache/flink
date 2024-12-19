@@ -55,9 +55,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -178,7 +178,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
         RecordContext<K> previousContext = currentProcessingContext;
 
         // build a context and switch to the new context
-        currentProcessingContext = asyncExecutionController.buildContext(null, key);
+        currentProcessingContext = asyncExecutionController.buildContext(null, key, true);
         currentProcessingContext.retain();
         asyncExecutionController.setCurrentContext(currentProcessingContext);
         // Same logic as RECORD_ORDER, since FIRST_STATE_ORDER is problematic when the call's key
@@ -319,7 +319,8 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
             super.reportOrForwardLatencyMarker(marker);
             return;
         }
-        asyncExecutionController.processNonRecord(() -> super.reportOrForwardLatencyMarker(marker));
+        asyncExecutionController.processNonRecord(
+                null, () -> super.reportOrForwardLatencyMarker(marker));
     }
 
     // ------------------------------------------------------------------------
@@ -333,33 +334,9 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
             super.processWatermark(mark);
             return;
         }
-        asyncExecutionController.processNonRecord(() -> doProcessWatermark(mark, null));
-    }
-
-    /**
-     * Handle the watermark and timers, then run a provided {@link Runnable} asynchronously right
-     * after the watermark is emitted.
-     *
-     * @param mark The watermark.
-     * @param postAction The runnable for post action.
-     */
-    protected void doProcessWatermark(Watermark mark, @Nullable Runnable postAction)
-            throws Exception {
-        // todo: make async operator deal with interruptible watermark
-        if (timeServiceManager != null) {
-            CompletableFuture<Void> future = timeServiceManager.advanceWatermark(mark);
-            future.thenAccept(v -> emitWatermark(mark, postAction));
-            asyncExecutionController.drainWithTimerIfNeeded(future);
-        } else {
-            emitWatermark(mark, postAction);
-        }
-    }
-
-    private void emitWatermark(Watermark mark, @Nullable Runnable postAction) {
-        output.emitWatermark(mark);
-        if (postAction != null) {
-            postAction.run();
-        }
+        asyncExecutionController.processNonRecord(
+                timeServiceManager == null ? null : () -> timeServiceManager.advanceWatermark(mark),
+                () -> output.emitWatermark(mark));
     }
 
     @Override
@@ -370,7 +347,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
             return;
         }
         asyncExecutionController.processNonRecord(
-                () -> super.processWatermarkStatus(watermarkStatus));
+                null, () -> super.processWatermarkStatus(watermarkStatus));
     }
 
     @Override
@@ -380,17 +357,24 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
             super.processWatermarkStatus(watermarkStatus, index);
             return;
         }
+        final AtomicBoolean wasIdle = new AtomicBoolean(false);
+        final AtomicReference<Watermark> watermarkRef = new AtomicReference<>(null);
         asyncExecutionController.processNonRecord(
                 () -> {
-                    boolean wasIdle = combinedWatermark.isIdle();
+                    wasIdle.set(combinedWatermark.isIdle());
                     // index is 0-based
                     if (combinedWatermark.updateStatus(index, watermarkStatus.isIdle())) {
-                        doProcessWatermark(
-                                new Watermark(combinedWatermark.getCombinedWatermark()),
-                                wasIdle == combinedWatermark.isIdle()
-                                        ? null
-                                        : () -> output.emitWatermarkStatus(watermarkStatus));
-                    } else if (wasIdle != combinedWatermark.isIdle()) {
+                        watermarkRef.set(new Watermark(combinedWatermark.getCombinedWatermark()));
+                        if (timeServiceManager != null) {
+                            timeServiceManager.advanceWatermark(watermarkRef.get());
+                        }
+                    }
+                },
+                () -> {
+                    if (watermarkRef.get() != null) {
+                        output.emitWatermark(watermarkRef.get());
+                    }
+                    if (wasIdle.get() != combinedWatermark.isIdle()) {
                         output.emitWatermarkStatus(watermarkStatus);
                     }
                 });
@@ -404,7 +388,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
             return;
         }
         asyncExecutionController.processNonRecord(
-                () -> super.processRecordAttributes(recordAttributes));
+                null, () -> super.processRecordAttributes(recordAttributes));
     }
 
     @Experimental
@@ -415,7 +399,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
             return;
         }
         asyncExecutionController.processNonRecord(
-                () -> super.processRecordAttributes1(recordAttributes));
+                null, () -> super.processRecordAttributes1(recordAttributes));
     }
 
     @Experimental
@@ -426,7 +410,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
             return;
         }
         asyncExecutionController.processNonRecord(
-                () -> super.processRecordAttributes2(recordAttributes));
+                null, () -> super.processRecordAttributes2(recordAttributes));
     }
 
     @VisibleForTesting
@@ -437,6 +421,10 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     @VisibleForTesting
     RecordContext getCurrentProcessingContext() {
         return currentProcessingContext;
+    }
+
+    public <K> AsyncKeyedStateBackend<K> getAsyncKeyedStateBackend() {
+        return stateHandler.getAsyncKeyedStateBackend();
     }
 
     public void drainStateRequests() {

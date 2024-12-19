@@ -36,7 +36,6 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -108,7 +107,7 @@ class MailboxWatermarkProcessorTest {
         }
 
         @Override
-        public CompletableFuture<Void> advanceWatermark(Watermark watermark) throws Exception {
+        public void advanceWatermark(Watermark watermark) throws Exception {
             throw new UnsupportedOperationException();
         }
 

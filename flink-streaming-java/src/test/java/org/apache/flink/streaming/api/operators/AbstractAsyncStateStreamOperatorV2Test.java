@@ -241,6 +241,40 @@ class AbstractAsyncStateStreamOperatorV2Test {
     }
 
     @Test
+    void testWatermark() throws Exception {
+        KeyedOneInputStreamOperatorV2TestHarness<Integer, Tuple2<Integer, String>, String>
+                testHarness =
+                        KeyedOneInputStreamOperatorV2TestHarness.create(
+                                new TestWithAsyncProcessTimerOperatorFactory(
+                                        ElementOrder.RECORD_ORDER),
+                                new TestKeySelector(),
+                                BasicTypeInfo.INT_TYPE_INFO,
+                                128,
+                                1,
+                                0);
+        testHarness.setStateBackend(buildAsyncStateBackend(new HashMapStateBackend()));
+
+        try {
+            testHarness.open();
+            ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+            testHarness.processElementInternal(new StreamRecord<>(Tuple2.of(1, "1")));
+            expectedOutput.add(new StreamRecord<>("EventTimer-1-1"));
+            testHarness.processElementInternal(new StreamRecord<>(Tuple2.of(1, "3")));
+            expectedOutput.add(new StreamRecord<>("EventTimer-1-3"));
+            testHarness.processElementInternal(new StreamRecord<>(Tuple2.of(1, "6")));
+            expectedOutput.add(new StreamRecord<>("EventTimer-1-6"));
+            testHarness.processElementInternal(new StreamRecord<>(Tuple2.of(1, "9")));
+            expectedOutput.add(new StreamRecord<>("EventTimer-1-9"));
+            testHarness.processWatermark(10L);
+            expectedOutput.add(new Watermark(10L));
+            TestHarnessUtil.assertOutputEquals(
+                    "Output was not correct", expectedOutput, testHarness.getOutput());
+        } finally {
+            testHarness.close();
+        }
+    }
+
+    @Test
     void testWatermarkStatus() throws Exception {
         try (KeyedOneInputStreamOperatorV2TestHarness<Integer, Tuple2<Integer, String>, String>
                 testHarness = createTestHarness(128, 1, 0, ElementOrder.RECORD_ORDER)) {
@@ -608,6 +642,56 @@ class AbstractAsyncStateStreamOperatorV2Test {
                             processed.incrementAndGet();
                         }
                     };
+        }
+    }
+
+    private static class TestWithAsyncProcessTimerOperatorFactory
+            extends AbstractStreamOperatorFactory<String> {
+
+        private final ElementOrder elementOrder;
+
+        TestWithAsyncProcessTimerOperatorFactory(ElementOrder elementOrder) {
+            this.elementOrder = elementOrder;
+        }
+
+        @Override
+        public <T extends StreamOperator<String>> T createStreamOperator(
+                StreamOperatorParameters<String> parameters) {
+            return (T) new SingleInputTestOperatorWithAsyncProcessTimer(parameters, elementOrder);
+        }
+
+        @Override
+        public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+            return SingleInputTestOperatorWithAsyncProcessTimer.class;
+        }
+    }
+
+    private static class SingleInputTestOperatorWithAsyncProcessTimer
+            extends SingleInputTestOperator {
+
+        SingleInputTestOperatorWithAsyncProcessTimer(
+                StreamOperatorParameters<String> parameters, ElementOrder elementOrder) {
+            super(parameters, elementOrder);
+            input =
+                    new AbstractInput<Tuple2<Integer, String>, String>(this, 1) {
+                        @Override
+                        public void processElement(StreamRecord<Tuple2<Integer, String>> element)
+                                throws Exception {
+                            processed.incrementAndGet();
+                            timerService.registerEventTimeTimer(
+                                    VoidNamespace.INSTANCE, Long.parseLong(element.getValue().f1));
+                        }
+                    };
+        }
+
+        @Override
+        public void onEventTime(InternalTimer<Integer, VoidNamespace> timer) throws Exception {
+            asyncProcessWithKey(timer.getKey(), () -> super.onEventTime(timer));
+        }
+
+        @Override
+        public void onProcessingTime(InternalTimer<Integer, VoidNamespace> timer) throws Exception {
+            asyncProcessWithKey(timer.getKey(), () -> super.onProcessingTime(timer));
         }
     }
 

@@ -30,10 +30,6 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-
 /**
  * An implementation of {@link InternalTimerService} that is used by {@link
  * org.apache.flink.streaming.runtime.operators.asyncprocessing.AbstractAsyncStateStreamOperator}.
@@ -102,23 +98,18 @@ public class InternalTimerServiceAsyncImpl<K, N> extends InternalTimerServiceImp
      * @param time the time in watermark.
      */
     @Override
-    public CompletableFuture<Void> advanceWatermark(long time) throws Exception {
+    public void advanceWatermark(long time) throws Exception {
         currentWatermark = time;
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
         InternalTimer<K, N> timer;
         while ((timer = eventTimeTimersQueue.peek()) != null
                 && timer.getTimestamp() <= time
                 && !cancellationContext.isCancelled()) {
             eventTimeTimersQueue.poll();
             final InternalTimer<K, N> timerToTrigger = timer;
-            CompletableFuture<Void> future = new CompletableFuture<>();
             maintainContextAndProcess(
-                            timerToTrigger, () -> triggerTarget.onEventTime(timerToTrigger))
-                    .thenAccept(v -> future.complete(null));
-            futures.add(future);
+                    timerToTrigger, () -> triggerTarget.onEventTime(timerToTrigger));
             taskIOMetricGroup.getNumFiredTimers().inc();
         }
-        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
     /**

@@ -37,7 +37,6 @@ import org.apache.flink.util.WrappingRuntimeException;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -87,11 +86,10 @@ public class BatchExecutionInternalTimeServiceManager<K>
     }
 
     @Override
-    public CompletableFuture<Void> advanceWatermark(Watermark watermark) {
+    public void advanceWatermark(Watermark watermark) {
         if (watermark.getTimestamp() == Long.MAX_VALUE) {
             keySelected(null);
         }
-        return CompletableFuture.completedFuture(null);
     }
 
     @Override

@@ -196,20 +196,38 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
      * @return the built record context.
      */
     public RecordContext<K> buildContext(Object record, K key) {
+        return buildContext(record, key, false);
+    }
+
+    /**
+     * Build a new context based on record and key. Also wired with internal {@link
+     * KeyAccountingUnit}.
+     *
+     * @param record the given record.
+     * @param key the given key.
+     * @param inheritEpoch whether to inherit epoch from the current context. Or otherwise create a
+     *     new one.
+     * @return the built record context.
+     */
+    public RecordContext<K> buildContext(Object record, K key, boolean inheritEpoch) {
         if (record == null) {
             return new RecordContext<>(
                     RecordContext.EMPTY_RECORD,
                     key,
                     this::disposeContext,
                     KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism),
-                    epochManager.onRecord());
+                    inheritEpoch
+                            ? epochManager.onEpoch(currentContext.getEpoch())
+                            : epochManager.onRecord());
         }
         return new RecordContext<>(
                 record,
                 key,
                 this::disposeContext,
                 KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism),
-                epochManager.onRecord());
+                inheritEpoch
+                        ? epochManager.onEpoch(currentContext.getEpoch())
+                        : epochManager.onRecord());
     }
 
     /**
@@ -430,16 +448,31 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         }
     }
 
-    public void processNonRecord(ThrowingRunnable<? extends Exception> action) {
-        Runnable wrappedAction =
-                () -> {
-                    try {
-                        action.run();
-                    } catch (Exception e) {
-                        exceptionHandler.handleException("Failed to process non-record.", e);
-                    }
-                };
-        epochManager.onNonRecord(wrappedAction, epochParallelMode);
+    public void processNonRecord(
+            @Nullable ThrowingRunnable<? extends Exception> triggerAction,
+            @Nullable ThrowingRunnable<? extends Exception> finalAction) {
+        epochManager.onNonRecord(
+                triggerAction == null
+                        ? null
+                        : () -> {
+                            try {
+                                triggerAction.run();
+                            } catch (Exception e) {
+                                exceptionHandler.handleException(
+                                        "Failed to process non-record.", e);
+                            }
+                        },
+                finalAction == null
+                        ? null
+                        : () -> {
+                            try {
+                                finalAction.run();
+                            } catch (Exception e) {
+                                exceptionHandler.handleException(
+                                        "Failed to process non-record.", e);
+                            }
+                        },
+                epochParallelMode);
     }
 
     @VisibleForTesting
