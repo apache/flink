@@ -21,11 +21,14 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.examples.wordcount.util.CLI;
@@ -33,6 +36,8 @@ import org.apache.flink.streaming.examples.wordcount.util.WordCountData;
 import org.apache.flink.util.Collector;
 
 import java.time.Duration;
+
+import static org.apache.flink.runtime.state.StateBackendLoader.FORST_STATE_BACKEND_NAME;
 
 /**
  * Implements the "WordCount" program that computes a simple word occurrence histogram over text
@@ -76,6 +81,11 @@ public class WordCount {
         // to building a Flink application.
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
+        // For async state, by default we will use the forst state backend.
+        Configuration config = Configuration.fromMap(env.getConfiguration().toMap());
+        config.set(StateBackendOptions.STATE_BACKEND, FORST_STATE_BACKEND_NAME);
+        env.configure(config);
+
         // Apache Flink’s unified approach to stream and batch processing means that a DataStream
         // application executed over bounded input will produce the same final results regardless
         // of the configured execution mode. It is important to note what final means here: a job
@@ -118,7 +128,7 @@ public class WordCount {
             text = env.fromData(WordCountData.WORDS).name("in-memory-input");
         }
 
-        DataStream<Tuple2<String, Integer>> counts =
+        KeyedStream<Tuple2<String, Integer>, String> keyedStream =
                 // The text lines read from the source are split into words
                 // using a user-defined function. The tokenizer, implemented below,
                 // will output each word as a (2-tuple) containing (word, 1)
@@ -128,7 +138,12 @@ public class WordCount {
                         // Using a keyBy allows performing aggregations and other
                         // stateful transformations over data on a per-key basis.
                         // This is similar to a GROUP BY clause in a SQL query.
-                        .keyBy(value -> value.f0)
+                        .keyBy(value -> value.f0);
+        if (params.isAsyncState()) {
+            keyedStream.enableAsyncState();
+        }
+        DataStream<Tuple2<String, Integer>> counts =
+                keyedStream
                         // For each key, we perform a simple sum of the "1" field, the count.
                         // If the input data stream is bounded, sum will output a final count for
                         // each word. If it is unbounded, it will continuously output updates
