@@ -40,7 +40,7 @@ public enum ArgumentTrait {
      *
      * <p>It's the default if no {@link ArgumentHint} is provided.
      */
-    SCALAR(StaticArgumentTrait.SCALAR),
+    SCALAR(true, StaticArgumentTrait.SCALAR),
 
     /**
      * An argument that accepts a table "as row" (i.e. with row semantics). This trait only applies
@@ -56,7 +56,7 @@ public enum ArgumentTrait {
      * can be processed independently. The framework is free in how to distribute rows across
      * virtual processors and each virtual processor has access only to the currently processed row.
      */
-    TABLE_AS_ROW(StaticArgumentTrait.TABLE_AS_ROW),
+    TABLE_AS_ROW(true, StaticArgumentTrait.TABLE_AS_ROW),
 
     /**
      * An argument that accepts a table "as set" (i.e. with set semantics). This trait only applies
@@ -77,20 +77,26 @@ public enum ArgumentTrait {
      * <p>It is also possible not to provide a key ({@link #OPTIONAL_PARTITION_BY}), in which case
      * only one virtual processor handles the entire table, thereby losing scalability benefits.
      */
-    TABLE_AS_SET(StaticArgumentTrait.TABLE_AS_SET),
+    TABLE_AS_SET(true, StaticArgumentTrait.TABLE_AS_SET),
 
     /**
      * Defines that a PARTITION BY clause is optional for {@link #TABLE_AS_SET}. By default, it is
      * mandatory for improving the parallel execution by distributing the table by key.
      */
-    OPTIONAL_PARTITION_BY(StaticArgumentTrait.OPTIONAL_PARTITION_BY, TABLE_AS_SET);
+    OPTIONAL_PARTITION_BY(false, StaticArgumentTrait.OPTIONAL_PARTITION_BY, TABLE_AS_SET);
 
+    private final boolean isRoot;
     private final StaticArgumentTrait staticTrait;
     private final Set<ArgumentTrait> requirements;
 
-    ArgumentTrait(StaticArgumentTrait staticTrait, ArgumentTrait... requirements) {
+    ArgumentTrait(boolean isRoot, StaticArgumentTrait staticTrait, ArgumentTrait... requirements) {
+        this.isRoot = isRoot;
         this.staticTrait = staticTrait;
         this.requirements = Arrays.stream(requirements).collect(Collectors.toSet());
+    }
+
+    public boolean isRoot() {
+        return isRoot;
     }
 
     public Set<ArgumentTrait> getRequirements() {

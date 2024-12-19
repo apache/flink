@@ -21,12 +21,13 @@ import org.apache.flink.table.annotation.{DataTypeHint, FunctionHint}
 import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.types.extraction.TypeInferenceExtractorTest.TestSpec
-import org.apache.flink.table.types.inference.{ArgumentTypeStrategy, InputTypeStrategies, TypeStrategies}
+import org.apache.flink.table.types.inference.{ArgumentTypeStrategy, InputTypeStrategies, StaticArgument, TypeStrategies}
 
 import org.assertj.core.api.AssertionsForClassTypes.assertThat
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 
+import java.util
 import java.util.{stream, Optional}
 
 import scala.annotation.varargs
@@ -36,19 +37,10 @@ class TypeInferenceExtractorScalaTest {
 
   @ParameterizedTest
   @MethodSource(Array("testData"))
-  def testArgumentNames(testSpec: TestSpec): Unit = {
-    if (testSpec.expectedArgumentNames != null) {
-      assertThat(testSpec.typeInferenceExtraction.get.getNamedArguments)
-        .isEqualTo(Optional.of(testSpec.expectedArgumentNames))
-    }
-  }
-
-  @ParameterizedTest
-  @MethodSource(Array("testData"))
-  def testArgumentTypes(testSpec: TestSpec): Unit = {
-    if (testSpec.expectedArgumentTypes != null) {
-      assertThat(testSpec.typeInferenceExtraction.get.getTypedArguments)
-        .isEqualTo(Optional.of(testSpec.expectedArgumentTypes))
+  def testStaticArguments(testSpec: TestSpec): Unit = {
+    if (testSpec.expectedStaticArguments != null) {
+      val staticArguments = testSpec.typeInferenceExtraction.get.getStaticArguments
+      assertThat(staticArguments).isEqualTo(Optional.of(testSpec.expectedStaticArguments))
     }
   }
 
@@ -56,8 +48,13 @@ class TypeInferenceExtractorScalaTest {
   @MethodSource(Array("testData"))
   def testOutputTypeStrategy(testSpec: TestSpec): Unit = {
     if (!testSpec.expectedOutputStrategies.isEmpty) {
-      assertThat(testSpec.typeInferenceExtraction.get.getOutputTypeStrategy)
-        .isEqualTo(TypeStrategies.mapping(testSpec.expectedOutputStrategies))
+      if (testSpec.expectedOutputStrategies.size == 1) {
+        assertThat(testSpec.typeInferenceExtraction.get.getOutputTypeStrategy)
+          .isEqualTo(testSpec.expectedOutputStrategies.values.iterator.next)
+      } else {
+        assertThat(testSpec.typeInferenceExtraction.get.getOutputTypeStrategy)
+          .isEqualTo(TypeStrategies.mapping(testSpec.expectedOutputStrategies))
+      }
     }
   }
 }
@@ -68,22 +65,12 @@ object TypeInferenceExtractorScalaTest {
     // Scala function with data type hint
     TestSpec
       .forScalarFunction(classOf[ScalaScalarFunction])
-      .expectNamedArguments("i", "s", "d")
-      .expectTypedArguments(
-        DataTypes.INT.notNull().bridgedTo(classOf[Int]),
-        DataTypes.STRING,
-        DataTypes.DECIMAL(10, 4))
-      .expectOutputMapping(
-        InputTypeStrategies.sequence(
-          Array[String]("i", "s", "d"),
-          Array[ArgumentTypeStrategy](
-            InputTypeStrategies.explicit(DataTypes.INT.notNull().bridgedTo(classOf[Int])),
-            InputTypeStrategies.explicit(DataTypes.STRING),
-            InputTypeStrategies.explicit(DataTypes.DECIMAL(10, 4))
-          )
-        ),
-        TypeStrategies.explicit(DataTypes.BOOLEAN.notNull().bridgedTo(classOf[Boolean]))
-      ),
+      .expectStaticArgument(
+        StaticArgument.scalar("i", DataTypes.INT.notNull().bridgedTo(classOf[Int]), false))
+      .expectStaticArgument(StaticArgument.scalar("s", DataTypes.STRING, false))
+      .expectStaticArgument(StaticArgument.scalar("d", DataTypes.DECIMAL(10, 4), false))
+      .expectOutput(TypeStrategies.explicit(
+        DataTypes.BOOLEAN.notNull().bridgedTo(classOf[Boolean]))),
     TestSpec
       .forScalarFunction(classOf[ScalaPrimitiveVarArgScalarFunction])
       .expectOutputMapping(
@@ -128,11 +115,17 @@ object TypeInferenceExtractorScalaTest {
     TestSpec
       .forScalarFunction(classOf[ScalaGlobalOutputFunctionHint])
       .expectOutputMapping(
-        InputTypeStrategies.sequence(InputTypeStrategies.explicit(DataTypes.INT)),
-        TypeStrategies.explicit(DataTypes.INT))
+        InputTypeStrategies.sequence(
+          Array[String]("arg0"),
+          Array[ArgumentTypeStrategy](InputTypeStrategies.explicit(DataTypes.INT))),
+        TypeStrategies.explicit(DataTypes.INT)
+      )
       .expectOutputMapping(
-        InputTypeStrategies.sequence(InputTypeStrategies.explicit(DataTypes.STRING)),
-        TypeStrategies.explicit(DataTypes.INT))
+        InputTypeStrategies.sequence(
+          Array[String]("arg0"),
+          Array[ArgumentTypeStrategy](InputTypeStrategies.explicit(DataTypes.STRING))),
+        TypeStrategies.explicit(DataTypes.INT)
+      )
   )
 
   // ----------------------------------------------------------------------------------------------
