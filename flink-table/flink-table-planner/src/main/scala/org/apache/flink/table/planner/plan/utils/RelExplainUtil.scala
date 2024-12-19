@@ -945,12 +945,21 @@ object RelExplainUtil {
           if (hint.listOptions.size > 0) {
             sb.append(hint.listOptions.toString)
           } else {
-            sb.append(hint.kvOptions.toString)
+            sb.append(kvHintsToConsistentString(hint.kvOptions))
           }
         }
         sb.append("]")
     }
     sb.append("]")
+    sb.toString
+  }
+
+  def kvHintsToConsistentString(kvOptions: util.Map[String, String]): String = {
+    val sb = new mutable.StringBuilder
+    val entries = kvOptions.entrySet().map(_.toString).toList.sorted
+    sb.append("{")
+    sb.append(String.join(", ", entries))
+    sb.append("}")
     sb.toString
   }
 }
