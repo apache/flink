@@ -279,8 +279,8 @@ public class DeduplicateFunctionHelper {
         }
     }
 
-    /** Returns current row is duplicate row or not compared to previous row. */
-    public static boolean isDuplicate(
+    /** Returns true if currentRow should be kept. */
+    public static boolean shouldKeepCurrentRow(
             RowData preRow, RowData currentRow, int rowtimeIndex, boolean keepLastRow) {
         if (keepLastRow) {
             return preRow == null
