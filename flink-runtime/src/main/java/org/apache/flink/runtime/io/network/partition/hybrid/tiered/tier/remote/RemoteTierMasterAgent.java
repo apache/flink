@@ -56,7 +56,7 @@ public class RemoteTierMasterAgent implements TierMasterAgent {
 
     @Override
     public TierShuffleDescriptor addPartitionAndGetShuffleDescriptor(
-            JobID jobID, ResultPartitionID resultPartitionID) {
+            JobID jobID, int numSubpartitions, ResultPartitionID resultPartitionID) {
         TieredStoragePartitionId partitionId = convertId(resultPartitionID);
         resourceRegistry.registerResource(
                 partitionId,

@@ -108,7 +108,9 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
         if (tieredInternalShuffleMaster != null) {
             tierShuffleDescriptors =
                     tieredInternalShuffleMaster.addPartitionAndGetShuffleDescriptor(
-                            jobID, resultPartitionID);
+                            jobID,
+                            partitionDescriptor.getNumberOfSubpartitions(),
+                            resultPartitionID);
         }
 
         NettyShuffleDescriptor shuffleDeploymentDescriptor =
