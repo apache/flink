@@ -19,12 +19,14 @@
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.streaming.api.graph.StreamGraphContext;
 import org.apache.flink.streaming.api.graph.util.ImmutableStreamGraph;
 import org.apache.flink.streaming.api.graph.util.ImmutableStreamNode;
 import org.apache.flink.streaming.api.graph.util.StreamEdgeUpdateRequestInfo;
 import org.apache.flink.streaming.api.graph.util.StreamNodeUpdateRequestInfo;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -89,6 +91,18 @@ class StreamGraphOptimizerTest {
                     @Override
                     public boolean areAllUpstreamNodesFinished(ImmutableStreamNode streamNode) {
                         return false;
+                    }
+
+                    @Override
+                    public IntermediateDataSetID getConsumedIntermediateDataSetId(String edgeId) {
+                        return null;
+                    }
+
+                    @Override
+                    public @org.jetbrains.annotations.Nullable StreamPartitioner<?>
+                            getOutputPartitioner(
+                                    Integer sourceId, Integer targetId, String edgeId) {
+                        return null;
                     }
                 };
 

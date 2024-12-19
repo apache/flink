@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.streaming.api.graph.util.ImmutableStreamGraph;
 import org.apache.flink.streaming.api.graph.util.ImmutableStreamNode;
 import org.apache.flink.streaming.api.graph.util.StreamEdgeUpdateRequestInfo;
@@ -80,4 +81,12 @@ public interface StreamGraphContext {
      * @return true if all upstream nodes are finished, false otherwise.
      */
     boolean areAllUpstreamNodesFinished(ImmutableStreamNode streamNode);
+
+    /**
+     * Retrieves the IntermediateDataSetID consumed by the specified edge.
+     *
+     * @param edgeId id of the edge
+     * @return the consumed IntermediateDataSetID
+     */
+    IntermediateDataSetID getConsumedIntermediateDataSetId(String edgeId);
 }

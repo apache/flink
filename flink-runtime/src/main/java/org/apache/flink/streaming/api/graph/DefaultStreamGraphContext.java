@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.graph;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.forwardgroup.StreamNodeForwardGroup;
 import org.apache.flink.streaming.api.graph.util.ImmutableStreamEdge;
 import org.apache.flink.streaming.api.graph.util.ImmutableStreamGraph;
@@ -160,6 +161,11 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
         }
 
         return true;
+    }
+
+    @Override
+    public IntermediateDataSetID getConsumedIntermediateDataSetId(String edgeId) {
+        return consumerEdgeIdToIntermediateDataSetMap.get(edgeId).getId();
     }
 
     private boolean validateStreamEdgeUpdateRequest(StreamEdgeUpdateRequestInfo requestInfo) {
