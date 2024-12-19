@@ -131,6 +131,9 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
     // Records the ID of the job vertex that has completed execution.
     private final Set<JobVertexID> finishedJobVertices;
 
+    // Records the ID of the stream nodes that has completed execution.
+    private final Set<Integer> finishedStreamNodeIds;
+
     private final AtomicBoolean hasHybridResultPartition;
 
     private final SlotSharingGroup defaultSlotSharingGroup;
@@ -164,6 +167,7 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
         this.jobVertexToChainedStreamNodeIdsMap = new HashMap<>();
 
         this.finishedJobVertices = new HashSet<>();
+        this.finishedStreamNodeIds = new HashSet<>();
 
         this.streamGraphContext =
                 new DefaultStreamGraphContext(
@@ -171,7 +175,9 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
                         steamNodeIdToForwardGroupMap,
                         frozenNodeToStartNodeMap,
                         intermediateOutputsCaches,
-                        consumerEdgeIdToIntermediateDataSetMap);
+                        consumerEdgeIdToIntermediateDataSetMap,
+                        finishedStreamNodeIds,
+                        userClassloader);
 
         this.jobGraph = createAndInitializeJobGraph(streamGraph, streamGraph.getJobID());
 
@@ -198,6 +204,10 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
             streamNodes.add(streamGraph.getStreamNode(outEdge.getTargetId()));
         }
         return createJobVerticesAndUpdateGraph(streamNodes);
+    }
+
+    public void addFinishedStreamNodeIds(List<Integer> finishedStreamNodeIds) {
+        this.finishedStreamNodeIds.addAll(finishedStreamNodeIds);
     }
 
     /**

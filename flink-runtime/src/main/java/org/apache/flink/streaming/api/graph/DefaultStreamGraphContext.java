@@ -22,8 +22,11 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.forwardgroup.StreamNodeForwardGroup;
+import org.apache.flink.streaming.api.graph.util.ImmutableStreamEdge;
 import org.apache.flink.streaming.api.graph.util.ImmutableStreamGraph;
+import org.apache.flink.streaming.api.graph.util.ImmutableStreamNode;
 import org.apache.flink.streaming.api.graph.util.StreamEdgeUpdateRequestInfo;
+import org.apache.flink.streaming.api.graph.util.StreamNodeUpdateRequestInfo;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.partitioner.ForwardForConsecutiveHashPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardForUnspecifiedPartitioner;
@@ -73,20 +76,24 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
     private final Map<Integer, Map<StreamEdge, NonChainedOutput>> opIntermediateOutputsCaches;
 
     private final Map<String, IntermediateDataSet> consumerEdgeIdToIntermediateDataSetMap;
+    private final Set<Integer> finishedStreamNodeIds;
 
     public DefaultStreamGraphContext(
             StreamGraph streamGraph,
             Map<Integer, StreamNodeForwardGroup> steamNodeIdToForwardGroupMap,
             Map<Integer, Integer> frozenNodeToStartNodeMap,
             Map<Integer, Map<StreamEdge, NonChainedOutput>> opIntermediateOutputsCaches,
-            Map<String, IntermediateDataSet> consumerEdgeIdToIntermediateDataSetMap) {
+            Map<String, IntermediateDataSet> consumerEdgeIdToIntermediateDataSetMap,
+            Set<Integer> finishedStreamNodeIds,
+            ClassLoader userClassloader) {
         this.streamGraph = checkNotNull(streamGraph);
         this.steamNodeIdToForwardGroupMap = checkNotNull(steamNodeIdToForwardGroupMap);
         this.frozenNodeToStartNodeMap = checkNotNull(frozenNodeToStartNodeMap);
         this.opIntermediateOutputsCaches = checkNotNull(opIntermediateOutputsCaches);
-        this.immutableStreamGraph = new ImmutableStreamGraph(this.streamGraph);
+        this.immutableStreamGraph = new ImmutableStreamGraph(this.streamGraph, userClassloader);
         this.consumerEdgeIdToIntermediateDataSetMap =
                 checkNotNull(consumerEdgeIdToIntermediateDataSetMap);
+        this.finishedStreamNodeIds = finishedStreamNodeIds;
     }
 
     @Override
@@ -119,6 +126,37 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
             if (newPartitioner != null) {
                 modifyOutputPartitioner(targetEdge, newPartitioner);
             }
+            if (targetEdge != null && requestInfo.getTypeNumber() != 0) {
+                targetEdge.setTypeNumber(requestInfo.getTypeNumber());
+            }
+        }
+
+        return true;
+    }
+
+    @Override
+    public boolean modifyStreamNode(List<StreamNodeUpdateRequestInfo> requestInfos) {
+        for (StreamNodeUpdateRequestInfo requestInfo : requestInfos) {
+            StreamNode streamNode = streamGraph.getStreamNode(requestInfo.getNodeId());
+            if (requestInfo.getTypeSerializersIn().length
+                    != streamNode.getTypeSerializersIn().length) {
+                LOG.info(
+                        "Modification for node {} is not allowed as the array size of typeSerializersIn is not matched.",
+                        requestInfo.getNodeId());
+                return false;
+            }
+            streamNode.setSerializersIn(requestInfo.getTypeSerializersIn());
+        }
+
+        return true;
+    }
+
+    @Override
+    public boolean areAllUpstreamNodesFinished(ImmutableStreamNode streamNode) {
+        for (ImmutableStreamEdge streamEdge : streamNode.getInEdges()) {
+            if (!finishedStreamNodeIds.contains(streamEdge.getSourceId())) {
+                return false;
+            }
         }
 
         return true;
@@ -135,21 +173,23 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
         }
 
         // Modification is not allowed when the subscribing output is reused.
-        Map<StreamEdge, NonChainedOutput> opIntermediateOutputs =
-                opIntermediateOutputsCaches.get(sourceNodeId);
-        NonChainedOutput output =
-                opIntermediateOutputs != null ? opIntermediateOutputs.get(targetEdge) : null;
-        if (output != null) {
-            Set<StreamEdge> consumerStreamEdges =
-                    opIntermediateOutputs.entrySet().stream()
-                            .filter(entry -> entry.getValue().equals(output))
-                            .map(Map.Entry::getKey)
-                            .collect(Collectors.toSet());
-            if (consumerStreamEdges.size() != 1) {
-                LOG.info(
-                        "Skip modifying edge {} because the subscribing output is reused.",
-                        targetEdge);
-                return false;
+        if (requestInfo.getOutputPartitioner() != null) {
+            Map<StreamEdge, NonChainedOutput> opIntermediateOutputs =
+                    opIntermediateOutputsCaches.get(sourceNodeId);
+            NonChainedOutput output =
+                    opIntermediateOutputs != null ? opIntermediateOutputs.get(targetEdge) : null;
+            if (output != null) {
+                Set<StreamEdge> consumerStreamEdges =
+                        opIntermediateOutputs.entrySet().stream()
+                                .filter(entry -> entry.getValue().equals(output))
+                                .map(Map.Entry::getKey)
+                                .collect(Collectors.toSet());
+                if (consumerStreamEdges.size() != 1) {
+                    LOG.info(
+                            "Skip modifying edge {} because the subscribing output is reused.",
+                            targetEdge);
+                    return false;
+                }
             }
         }
 

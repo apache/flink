@@ -107,10 +107,11 @@ public class DefaultAdaptiveExecutionHandler implements AdaptiveExecutionHandler
                                                 return existing;
                                             }));
 
+            List<Integer> finishedStreamNodeIds =
+                    adaptiveGraphManager.getStreamNodeIdsByJobVertexId(vertexId);
             OperatorsFinished operatorsFinished =
-                    new OperatorsFinished(
-                            adaptiveGraphManager.getStreamNodeIdsByJobVertexId(vertexId),
-                            resultInfoMap);
+                    new OperatorsFinished(finishedStreamNodeIds, resultInfoMap);
+            adaptiveGraphManager.addFinishedStreamNodeIds(finishedStreamNodeIds);
 
             streamGraphOptimizer.maybeOptimizeStreamGraph(
                     operatorsFinished, adaptiveGraphManager.getStreamGraphContext());
