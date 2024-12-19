@@ -44,7 +44,7 @@ public final class ReduceTransformation<IN, K> extends PhysicalTransformation<IN
     private final KeySelector<IN, K> keySelector;
     private final TypeInformation<K> keyTypeInfo;
     private ChainingStrategy chainingStrategy = ChainingStrategy.DEFAULT_CHAINING_STRATEGY;
-    private boolean isEnableAsyncState;
+    private boolean isEnableAsyncState = false;
 
     public ReduceTransformation(
             String name,

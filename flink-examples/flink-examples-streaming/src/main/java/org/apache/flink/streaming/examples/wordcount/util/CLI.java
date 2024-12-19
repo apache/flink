@@ -41,6 +41,7 @@ public class CLI extends ExecutionConfig.GlobalJobParameters {
     public static final String OUTPUT_KEY = "output";
     public static final String DISCOVERY_INTERVAL = "discovery-interval";
     public static final String EXECUTION_MODE = "execution-mode";
+    public static final String ASYNC_STATE = "async-state";
 
     public static CLI fromArgs(String[] args) throws Exception {
         MultipleParameterTool params = MultipleParameterTool.fromArgs(args);
@@ -72,7 +73,12 @@ public class CLI extends ExecutionConfig.GlobalJobParameters {
             executionMode = RuntimeExecutionMode.valueOf(params.get(EXECUTION_MODE).toUpperCase());
         }
 
-        return new CLI(inputs, output, watchInterval, executionMode, params);
+        boolean asyncState = false;
+        if (params.has(ASYNC_STATE)) {
+            asyncState = true;
+        }
+
+        return new CLI(inputs, output, watchInterval, executionMode, params, asyncState);
     }
 
     private final Path[] inputs;
@@ -80,18 +86,21 @@ public class CLI extends ExecutionConfig.GlobalJobParameters {
     private final Duration discoveryInterval;
     private final RuntimeExecutionMode executionMode;
     private final MultipleParameterTool params;
+    private final boolean asyncState;
 
     private CLI(
             Path[] inputs,
             Path output,
             Duration discoveryInterval,
             RuntimeExecutionMode executionMode,
-            MultipleParameterTool params) {
+            MultipleParameterTool params,
+            boolean asyncState) {
         this.inputs = inputs;
         this.output = output;
         this.discoveryInterval = discoveryInterval;
         this.executionMode = executionMode;
         this.params = params;
+        this.asyncState = asyncState;
     }
 
     public Optional<Path[]> getInputs() {
@@ -108,6 +117,10 @@ public class CLI extends ExecutionConfig.GlobalJobParameters {
 
     public RuntimeExecutionMode getExecutionMode() {
         return executionMode;
+    }
+
+    public boolean isAsyncState() {
+        return asyncState;
     }
 
     public OptionalInt getInt(String key) {
@@ -137,7 +150,8 @@ public class CLI extends ExecutionConfig.GlobalJobParameters {
         CLI cli = (CLI) o;
         return Arrays.equals(inputs, cli.inputs)
                 && Objects.equals(output, cli.output)
-                && Objects.equals(discoveryInterval, cli.discoveryInterval);
+                && Objects.equals(discoveryInterval, cli.discoveryInterval)
+                && asyncState == cli.asyncState;
     }
 
     @Override
