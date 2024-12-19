@@ -73,6 +73,7 @@ public class HiveCatalogFactory implements CatalogFactory {
                 helper.getOptions().get(DEFAULT_DATABASE),
                 helper.getOptions().get(HIVE_CONF_DIR),
                 helper.getOptions().get(HADOOP_CONF_DIR),
-                helper.getOptions().get(HIVE_VERSION));
+                helper.getOptions().get(HIVE_VERSION),
+                context.getConfiguration());
     }
 }
