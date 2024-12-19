@@ -49,12 +49,12 @@ public class TieredStorageMasterClient {
     }
 
     public List<TierShuffleDescriptor> addPartitionAndGetShuffleDescriptor(
-            JobID jobID, ResultPartitionID resultPartitionID) {
+            JobID jobID, int numSubpartitions, ResultPartitionID resultPartitionID) {
         return tiers.stream()
                 .map(
                         tierMasterAgent ->
                                 tierMasterAgent.addPartitionAndGetShuffleDescriptor(
-                                        jobID, resultPartitionID))
+                                        jobID, numSubpartitions, resultPartitionID))
                 .collect(Collectors.toList());
     }
 
