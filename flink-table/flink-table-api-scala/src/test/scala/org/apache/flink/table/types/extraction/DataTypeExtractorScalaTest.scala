@@ -37,8 +37,8 @@ class DataTypeExtractorScalaTest {
   def testScalaExtraction(testSpec: DataTypeExtractorTest.TestSpec): Unit = {
     if (testSpec.hasErrorMessage) {
       assertThatThrownBy(() => runExtraction(testSpec))
-        .isInstanceOf(classOf[ValidationException])
         .is(HamcrestCondition.matching(errorMatcher(testSpec)))
+        .isInstanceOf[ValidationException]
     } else {
       runExtraction(testSpec)
     }
