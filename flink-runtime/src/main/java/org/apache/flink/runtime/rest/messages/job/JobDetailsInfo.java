@@ -79,6 +79,10 @@ public class JobDetailsInfo implements ResponseBody {
 
     public static final String FIELD_NAME_JSON_PLAN = "plan";
 
+    public static final String FIELD_NAME_STREAM_GRAPH_JSON_PLAN = "stream-graph-plan";
+
+    public static final String FIELD_NAME_PENDING_OPERATOR_COUNT = "pending-operator-count";
+
     @JsonProperty(FIELD_NAME_JOB_ID)
     @JsonSerialize(using = JobIDSerializer.class)
     private final JobID jobId;
@@ -122,6 +126,12 @@ public class JobDetailsInfo implements ResponseBody {
     @JsonProperty(FIELD_NAME_JSON_PLAN)
     private final JobPlanInfo.RawJson jsonPlan;
 
+    @JsonProperty(FIELD_NAME_STREAM_GRAPH_JSON_PLAN)
+    private final JobPlanInfo.RawJson streamGraphJsonPlan;
+
+    @JsonProperty(FIELD_NAME_PENDING_OPERATOR_COUNT)
+    private final int pendingOperatorCount;
+
     @JsonCreator
     public JobDetailsInfo(
             @JsonDeserialize(using = JobIDDeserializer.class) @JsonProperty(FIELD_NAME_JOB_ID)
@@ -140,7 +150,10 @@ public class JobDetailsInfo implements ResponseBody {
                     Collection<JobVertexDetailsInfo> jobVertexInfos,
             @JsonProperty(FIELD_NAME_JOB_VERTICES_PER_STATE)
                     Map<ExecutionState, Integer> jobVerticesPerState,
-            @JsonProperty(FIELD_NAME_JSON_PLAN) JobPlanInfo.RawJson jsonPlan) {
+            @JsonProperty(FIELD_NAME_JSON_PLAN) JobPlanInfo.RawJson jsonPlan,
+            @JsonProperty(FIELD_NAME_STREAM_GRAPH_JSON_PLAN)
+                    JobPlanInfo.RawJson streamGraphJsonPlan,
+            @JsonProperty(FIELD_NAME_PENDING_OPERATOR_COUNT) int pendingOperatorCount) {
         this.jobId = Preconditions.checkNotNull(jobId);
         this.name = Preconditions.checkNotNull(name);
         this.isStoppable = isStoppable;
@@ -155,6 +168,8 @@ public class JobDetailsInfo implements ResponseBody {
         this.jobVertexInfos = Preconditions.checkNotNull(jobVertexInfos);
         this.jobVerticesPerState = Preconditions.checkNotNull(jobVerticesPerState);
         this.jsonPlan = Preconditions.checkNotNull(jsonPlan);
+        this.streamGraphJsonPlan = streamGraphJsonPlan;
+        this.pendingOperatorCount = pendingOperatorCount;
     }
 
     @Override
@@ -179,7 +194,9 @@ public class JobDetailsInfo implements ResponseBody {
                 && Objects.equals(timestamps, that.timestamps)
                 && Objects.equals(jobVertexInfos, that.jobVertexInfos)
                 && Objects.equals(jobVerticesPerState, that.jobVerticesPerState)
-                && Objects.equals(jsonPlan, that.jsonPlan);
+                && Objects.equals(jsonPlan, that.jsonPlan)
+                && Objects.equals(streamGraphJsonPlan, that.streamGraphJsonPlan)
+                && Objects.equals(pendingOperatorCount, that.pendingOperatorCount);
     }
 
     @Override
@@ -198,7 +215,9 @@ public class JobDetailsInfo implements ResponseBody {
                 timestamps,
                 jobVertexInfos,
                 jobVerticesPerState,
-                jsonPlan);
+                jsonPlan,
+                streamGraphJsonPlan,
+                pendingOperatorCount);
     }
 
     @JsonIgnore
@@ -269,6 +288,16 @@ public class JobDetailsInfo implements ResponseBody {
     @JsonIgnore
     public String getJsonPlan() {
         return jsonPlan.toString();
+    }
+
+    @JsonIgnore
+    public String getStreamGraphJsonPlan() {
+        return streamGraphJsonPlan.toString();
+    }
+
+    @JsonIgnore
+    public int getPendingOperatorCount() {
+        return pendingOperatorCount;
     }
 
     // ---------------------------------------------------
