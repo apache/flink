@@ -211,11 +211,6 @@ class GenericInMemoryCatalogTest extends CatalogTestBase {
 
     // ------ utilities ------
 
-    @Override
-    protected boolean isGeneric() {
-        return true;
-    }
-
     private CatalogColumnStatistics createColumnStats() {
         CatalogColumnStatisticsDataBoolean booleanColStats =
                 new CatalogColumnStatisticsDataBoolean(55L, 45L, 5L);
