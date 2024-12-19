@@ -609,10 +609,8 @@ LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[d, e, f, g, h, a, b, c], build=[right])
-:- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
-+- Exchange(distribution=[broadcast])
-   +- Values(tuples=[[]], values=[a, b, c])
+Calc(select=[d, e, f, g, h, null:INTEGER AS a, null:BIGINT AS b, null:VARCHAR(2147483647) AS c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 ]]>
     </Resource>
   </TestCase>
@@ -1033,11 +1031,8 @@ LogicalProject(k=[$0], v=[$1], k0=[$2], v0=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-NestedLoopJoin(joinType=[LeftOuterJoin], where=[(k = k0)], select=[k, v, k0, v0], build=[right])
-:- Calc(select=[CAST(0 AS BIGINT) AS k, v], where=[(k = 0)])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, src, source: [TestTableSource(k, v)]]], fields=[k, v])
-+- Exchange(distribution=[broadcast])
-   +- Values(tuples=[[]], values=[k, v])
+Calc(select=[CAST(0 AS BIGINT) AS k, v, null:BIGINT AS k0, null:VARCHAR(2147483647) AS v0], where=[(k = 0)])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, src, source: [TestTableSource(k, v)]]], fields=[k, v])
 ]]>
     </Resource>
   </TestCase>
