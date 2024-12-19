@@ -142,6 +142,8 @@ public class DateTimeUtils {
                     .optionalEnd()
                     .toFormatter();
 
+    private static final Integer DEFAULT_PRECISION = 3;
+
     /**
      * A ThreadLocal cache map for SimpleDateFormat, because SimpleDateFormat is not thread-safe.
      * (string_format) => formatter
