@@ -52,7 +52,7 @@ public class AdaptiveJoinProcessor implements ExecNodeGraphProcessor {
         if (execGraph.getRootNodes().get(0) instanceof StreamExecNode) {
             throw new TableException("StreamExecNode is not supported yet");
         }
-        if (!isAdaptiveBroadcastJoinEnabled(context)) {
+        if (!isAdaptiveJoinEnabled(context)) {
             return execGraph;
         }
 
@@ -66,8 +66,7 @@ public class AdaptiveJoinProcessor implements ExecNodeGraphProcessor {
                         }
                         for (int i = 0; i < node.getInputEdges().size(); ++i) {
                             ExecEdge edge = node.getInputEdges().get(i);
-                            ExecNode<?> newNode =
-                                    replaceAdaptiveBroadcastJoinNode(edge.getSource());
+                            ExecNode<?> newNode = replaceAdaptiveJoinNode(edge.getSource());
                             node.replaceInputEdge(
                                     i,
                                     ExecEdge.builder()
@@ -84,7 +83,7 @@ public class AdaptiveJoinProcessor implements ExecNodeGraphProcessor {
                 execGraph.getRootNodes().stream()
                         .map(
                                 node -> {
-                                    node = replaceAdaptiveBroadcastJoinNode(node);
+                                    node = replaceAdaptiveJoinNode(node);
                                     node.accept(visitor);
                                     return node;
                                 })
@@ -93,7 +92,7 @@ public class AdaptiveJoinProcessor implements ExecNodeGraphProcessor {
         return new ExecNodeGraph(execGraph.getFlinkVersion(), newRootNodes);
     }
 
-    private ExecNode<?> replaceAdaptiveBroadcastJoinNode(ExecNode<?> node) {
+    private ExecNode<?> replaceAdaptiveJoinNode(ExecNode<?> node) {
         if (!(checkAllInputShuffleIsHash(node))
                 || isUpstreamNodeKeepInputAsIs(node.getInputEdges())) {
             return node;
@@ -124,9 +123,9 @@ public class AdaptiveJoinProcessor implements ExecNodeGraphProcessor {
                 .anyMatch(exchange -> checkKeepInputAsIsExisted(exchange.getInputProperties()));
     }
 
-    private boolean isAdaptiveBroadcastJoinEnabled(ProcessorContext context) {
+    private boolean isAdaptiveJoinEnabled(ProcessorContext context) {
         TableConfig tableConfig = context.getPlanner().getTableConfig();
-        boolean isAdaptiveBroadcastJoinEnabled =
+        boolean isAdaptiveJoinEnabled =
                 tableConfig.get(
                                         OptimizerConfigOptions
                                                 .TABLE_OPTIMIZER_ADAPTIVE_BROADCAST_JOIN_STRATEGY)
@@ -142,7 +141,7 @@ public class AdaptiveJoinProcessor implements ExecNodeGraphProcessor {
         boolean isAdaptiveBatchSchedulerEnabled =
                 schedulerType == JobManagerOptions.SchedulerType.AdaptiveBatch;
 
-        return isAdaptiveBroadcastJoinEnabled && isAdaptiveBatchSchedulerEnabled;
+        return isAdaptiveJoinEnabled && isAdaptiveBatchSchedulerEnabled;
     }
 
     private boolean checkAllInputShuffleIsHash(ExecNode<?> node) {
