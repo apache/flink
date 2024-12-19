@@ -651,6 +651,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public boolean dropTable(String path) {
+        return dropTable(path, true);
+    }
+
+    @Override
+    public boolean dropTable(String path, boolean ignoreIfNotExists) {
         UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(path);
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
         return catalogManager.dropTable(identifier, true);
@@ -670,9 +675,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public boolean dropView(String path) {
+        return dropView(path, true);
+    }
+
+    @Override
+    public boolean dropView(String path, boolean ignoreIfNotExists) {
         UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(path);
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-        return catalogManager.dropView(identifier, true);
+        return catalogManager.dropView(identifier, ignoreIfNotExists);
     }
 
     @Override

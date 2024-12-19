@@ -657,7 +657,7 @@ class TableEnvironment(object):
         """
         return self._j_tenv.dropTemporaryTable(table_path)
 
-    def drop_table(self, table_path: str) -> bool:
+    def drop_table(self, table_path: str, ignore_if_not_exists: Optional[bool] = True) -> bool:
         """
         Drops a table registered in the given path.
 
@@ -670,7 +670,7 @@ class TableEnvironment(object):
 
         .. versionadded:: 2.0.0
         """
-        return self._j_tenv.dropTable(table_path)
+        return self._j_tenv.dropTable(table_path, ignore_if_not_exists)
 
     def drop_temporary_view(self, view_path: str) -> bool:
         """
@@ -686,7 +686,7 @@ class TableEnvironment(object):
         """
         return self._j_tenv.dropTemporaryView(view_path)
 
-    def drop_view(self, view_path: str) -> bool:
+    def drop_view(self, view_path: str, ignore_if_not_exists: Optional[bool] = True) -> bool:
         """
         Drops a view registered in the given path.
 
@@ -699,7 +699,7 @@ class TableEnvironment(object):
 
         .. versionadded:: 2.0.0
         """
-        return self._j_tenv.dropView(view_path)
+        return self._j_tenv.dropView(view_path, ignore_if_not_exists)
 
     def explain_sql(self, stmt: str, *extra_details: ExplainDetail) -> str:
         """
