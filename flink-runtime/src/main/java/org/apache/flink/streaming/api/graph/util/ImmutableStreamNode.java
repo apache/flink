@@ -68,4 +68,12 @@ public class ImmutableStreamNode {
     public int getParallelism() {
         return streamNode.getParallelism();
     }
+
+    public String getOperatorName() {
+        return streamNode.getOperatorName();
+    }
+
+    public String getOperatorDescription() {
+        return streamNode.getOperatorDescription();
+    }
 }

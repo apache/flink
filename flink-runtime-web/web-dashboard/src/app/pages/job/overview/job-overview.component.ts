@@ -50,11 +50,13 @@ import { JobLocalService } from '../job-local.service';
 })
 export class JobOverviewComponent implements OnInit, OnDestroy {
   public nodes: NodesItemCorrect[] = [];
+  public initializedNodes: NodesItemCorrect[] = [];
   public links: NodesItemLink[] = [];
   public selectedNode: NodesItemCorrect | null;
   public top = 500;
   public jobId: string;
   public timeoutId: number;
+  public jobType: string = 'STREAMING';
 
   @ViewChild(DagreComponent, { static: true }) private readonly dagreComponent: DagreComponent;
 
@@ -79,11 +81,13 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe(data => {
-        if (this.jobId !== data.plan.jid || this.nodes.length === 0) {
-          this.nodes = data.plan.nodes;
-          this.links = data.plan.links;
+        if (this.jobId !== data.plan.jid || this.checkNodesChanged(data.plan.nodes)) {
           this.jobId = data.plan.jid;
-          this.dagreComponent.flush(this.nodes, this.links, true).then();
+          this.jobType = data['job-type'];
+          this.nodes = data.plan.nodes;
+          this.initializedNodes = this.filterInitializedNodes(this.nodes);
+          this.links = data.plan.links;
+          this.refreshGraph(this.dagreComponent.showPendingOperators);
           this.refreshNodesWithMetrics();
         } else {
           this.nodes = data.plan.nodes;
@@ -104,6 +108,14 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
         this.selectedNode = data;
         this.cdr.markForCheck();
       });
+  }
+
+  private filterInitializedNodes(nodes: NodesItemCorrect[]): NodesItemCorrect[] {
+    return nodes.filter(node => node.initialized);
+  }
+
+  private initializedLinks(): NodesItemLink[] {
+    return this.links.filter(link => link.initialized);
   }
 
   public ngOnDestroy(): void {
@@ -137,7 +149,10 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
   }
 
   public refreshNodesWithMetrics(): void {
-    this.mergeWithBackPressureAndSkew(this.nodes)
+    if (this.dagreComponent.showPendingOperators) {
+      return;
+    }
+    this.mergeWithBackPressureAndSkew(this.initializedNodes)
       .pipe(
         mergeMap(nodes => this.mergeWithWatermarks(nodes)),
         takeUntil(this.destroy$)
@@ -183,5 +198,18 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
         );
       })
     ).pipe(catchError(() => of(nodes)));
+  }
+
+  private checkNodesChanged(updatedNodes: NodesItemCorrect[]): boolean {
+    const updatedInitializedNodes = this.filterInitializedNodes(updatedNodes);
+    return updatedInitializedNodes.length !== this.initializedNodes.length;
+  }
+
+  refreshGraph(showPendingOperators: boolean): void {
+    if (showPendingOperators) {
+      this.dagreComponent.flush(this.nodes, this.links, true).then();
+    } else {
+      this.dagreComponent.flush(this.initializedNodes, this.initializedLinks(), true).then();
+    }
   }
 }

@@ -188,6 +188,11 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     }
 
     @Override
+    public String getJsonStreamGraph() {
+        return "";
+    }
+
+    @Override
     public void setJsonPlan(String jsonPlan) {}
 
     @Override

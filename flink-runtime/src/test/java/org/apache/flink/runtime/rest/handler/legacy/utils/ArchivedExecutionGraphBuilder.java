@@ -57,6 +57,7 @@ public class ArchivedExecutionGraphBuilder {
     private boolean isStoppable;
     private Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators;
     private CheckpointStatsSnapshot checkpointStatsSnapshot;
+    private String jsonStreamGraph;
 
     public ArchivedExecutionGraphBuilder setJobID(JobID jobID) {
         this.jobID = jobID;
@@ -98,6 +99,11 @@ public class ArchivedExecutionGraphBuilder {
 
     public ArchivedExecutionGraphBuilder setJsonPlan(String jsonPlan) {
         this.jsonPlan = jsonPlan;
+        return this;
+    }
+
+    public ArchivedExecutionGraphBuilder setJsonStreamGraph(String jsonStreamGraph) {
+        this.jsonStreamGraph = jsonStreamGraph;
         return this;
     }
 
@@ -171,6 +177,7 @@ public class ArchivedExecutionGraphBuilder {
                 "stateBackendName",
                 "checkpointStorageName",
                 TernaryBoolean.UNDEFINED,
-                "changelogStorageName");
+                "changelogStorageName",
+                jsonStreamGraph);
     }
 }

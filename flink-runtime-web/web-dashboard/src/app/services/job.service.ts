@@ -41,8 +41,8 @@ import {
   SubTaskAccumulators,
   TaskStatus,
   UserAccumulators,
-  VerticesLink,
-  JobVertexSubTaskDetail
+  JobVertexSubTaskDetail,
+  NodesItemLink
 } from '@flink-runtime-web/interfaces';
 import { JobResourceRequirements } from '@flink-runtime-web/interfaces/job-resource-requirements';
 
@@ -207,7 +207,7 @@ export class JobService {
 
   /** nodes to nodes links in order to generate graph */
   private convertJob(job: JobDetail): JobDetailCorrect {
-    const links: VerticesLink[] = [];
+    const links: NodesItemLink[] = [];
     let nodes: NodesItemCorrect[] = [];
     if (job.plan?.nodes?.length) {
       nodes = job.plan.nodes.map(node => {
@@ -217,18 +217,66 @@ export class JobService {
         }
         return {
           ...node,
-          detail
+          detail,
+          initialized: true
         };
       });
       nodes.forEach(node => {
         if (node.inputs && node.inputs.length) {
           node.inputs.forEach(input => {
-            links.push({ ...input, source: input.id, target: node.id, id: `${input.id}-${node.id}` });
+            links.push({
+              ship_strategy: input.ship_strategy,
+              source: input.id,
+              target: node.id,
+              id: `${input.id}-${node.id}`,
+              initialized: true
+            });
           });
         }
       });
       const listOfVerticesId = job.vertices.map(item => item.id);
       nodes.sort((pre, next) => listOfVerticesId.indexOf(pre.id) - listOfVerticesId.indexOf(next.id));
+    }
+    if (job['stream-graph-plan']?.nodes?.length) {
+      job['status-counts']['PENDING'] = job['stream-graph-plan']['pending_operator_count'];
+      const streamNodes = job['stream-graph-plan'].nodes;
+      streamNodes.forEach(node => {
+        // merge uninitialized stream node to job graph
+        if (!node.job_vertex_id) {
+          nodes.push({
+            ...node,
+            initialized: false
+          } as NodesItemCorrect);
+        }
+        if (node.inputs && node.inputs.length) {
+          node.inputs.forEach(input => {
+            const source_node = job['stream-graph-plan'].nodes.find(vertex => vertex.id === input.id);
+            if (!source_node) {
+              return;
+            }
+            const source_id = source_node.job_vertex_id ? source_node.job_vertex_id : source_node.id;
+            const link: NodesItemLink = {
+              ship_strategy: input.ship_strategy,
+              source: source_id,
+              target: node.id,
+              id: `${source_id}-${node.id}`,
+              initialized: false
+            };
+            if (!node.job_vertex_id) {
+              // merge uninitialized stream link to job graph
+              links.push(link);
+            }
+          });
+        }
+      });
+      return {
+        ...job,
+        plan: {
+          ...job.plan,
+          nodes,
+          links
+        }
+      };
     }
     return {
       ...job,

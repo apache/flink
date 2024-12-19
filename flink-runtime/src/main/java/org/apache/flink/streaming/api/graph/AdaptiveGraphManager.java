@@ -125,6 +125,8 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
     // We need cache all job vertices to create JobEdge for downstream vertex.
     private final Map<Integer, JobVertex> startNodeToJobVertexMap;
 
+    private final Map<Integer, JobVertexID> streamNodeIdsToJobVertexMap;
+
     // Records the ID of the job vertex that has completed execution.
     private final Set<JobVertexID> finishedJobVertices;
 
@@ -159,6 +161,7 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
 
         this.jobVertexToStartNodeMap = new HashMap<>();
         this.jobVertexToChainedStreamNodeIdsMap = new HashMap<>();
+        this.streamNodeIdsToJobVertexMap = new HashMap<>();
 
         this.finishedJobVertices = new HashSet<>();
 
@@ -224,6 +227,15 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
      */
     public List<Integer> getStreamNodeIdsByJobVertexId(JobVertexID jobVertexId) {
         return jobVertexToChainedStreamNodeIdsMap.get(jobVertexId);
+    }
+
+    /**
+     * Retrieves the mapping between stream node IDs and job vertices.
+     *
+     * @return A map of stream node IDs to job vertices.
+     */
+    public Map<Integer, JobVertexID> getStreamNodeIdsToJobVertexMap() {
+        return this.streamNodeIdsToJobVertexMap;
     }
 
     /**
@@ -433,6 +445,7 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
                                         .computeIfAbsent(
                                                 jobVertex.getID(), key -> new ArrayList<>())
                                         .add(node.getId());
+                                streamNodeIdsToJobVertexMap.put(node.getId(), jobVertex.getID());
                             });
         }
     }

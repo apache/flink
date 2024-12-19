@@ -45,4 +45,12 @@ public class ImmutableStreamEdge {
     public String getEdgeId() {
         return streamEdge.getEdgeId();
     }
+
+    public ImmutableStreamPartitioner getPartitioner() {
+        return new ImmutableStreamPartitioner(streamEdge.getPartitioner());
+    }
+
+    public ImmutableStreamExchangeMode getExchangeMode() {
+        return new ImmutableStreamExchangeMode(streamEdge.getExchangeMode());
+    }
 }
