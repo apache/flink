@@ -28,6 +28,7 @@ import org.apache.flink.table.utils.DateTimeUtils;
 
 import javax.annotation.Nullable;
 
+import java.time.DateTimeException;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
@@ -128,7 +129,11 @@ public class ToTimestampLtzFunction extends BuiltInScalarFunction {
             return null;
         }
 
-        ZonedDateTime zoneDate = ts.toLocalDateTime().atZone(ZoneId.of(timezone.toString()));
-        return TimestampData.fromInstant(zoneDate.toInstant());
+        try {
+            ZonedDateTime zoneDate = ts.toLocalDateTime().atZone(ZoneId.of(timezone.toString()));
+            return TimestampData.fromInstant(zoneDate.toInstant());
+        } catch (DateTimeException e) {
+            return null;
+        }
     }
 }

@@ -424,8 +424,12 @@ public class DateTimeUtils {
     }
 
     public static TimestampData parseTimestampData(String dateStr, String format) {
-        DateTimeFormatter formatter = DATETIME_FORMATTER_CACHE.get(format);
-
+        DateTimeFormatter formatter;
+        try {
+            formatter = DATETIME_FORMATTER_CACHE.get(format);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
         try {
             TemporalAccessor accessor = formatter.parse(dateStr);
             // Precision is hardcoded to match signature of TO_TIMESTAMP

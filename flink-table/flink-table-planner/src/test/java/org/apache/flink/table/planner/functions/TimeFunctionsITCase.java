@@ -949,10 +949,26 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 TIMESTAMP_LTZ(3).nullable())
                         .testResult(
                                 toTimestampLtz(
+                                        "01/01/2023 08:00:00",
+                                        literal("yyyy-MM-dd HH:mm:ss"),
+                                        literal("un-parsable timezone")),
+                                "TO_TIMESTAMP_LTZ('01/01/2023 08:00:00', 'yyyy-MM-dd HH:mm:ss', 'un-parsable timezone')",
+                                null,
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz(
+                                        "01/01/2023 08:00:00",
+                                        literal("un-parsable format"),
+                                        literal("UTC")),
+                                "TO_TIMESTAMP_LTZ('01/01/2023 08:00:00', 'un-parsable format', 'UTC')",
+                                null,
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testResult(
+                                toTimestampLtz(
                                         "un-parsable timestamp",
                                         literal("yyyy-MM-dd HH:mm:ss"),
                                         literal("UTC")),
-                                "TO_TIMESTAMP_LTZ('invalid timestamp', 'yyyy-MM-dd HH:mm:ss', 'UTC')",
+                                "TO_TIMESTAMP_LTZ('un-parsable timestamp', 'yyyy-MM-dd HH:mm:ss', 'UTC')",
                                 null,
                                 TIMESTAMP_LTZ(3).nullable()));
     }
