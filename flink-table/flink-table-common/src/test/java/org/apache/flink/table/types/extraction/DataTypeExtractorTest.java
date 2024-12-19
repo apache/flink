@@ -44,7 +44,6 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.types.Row;
 
-import org.hamcrest.Matcher;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -64,7 +63,6 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
-import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.table.test.TableAssertions.assertThat;
 import static org.apache.flink.table.types.utils.DataTypeFactoryMock.dummyRaw;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -506,7 +504,7 @@ class DataTypeExtractorTest {
 
         private @Nullable DataType expectedDataType;
 
-        private @Nullable String expectedErrorMessage;
+        @Nullable String expectedErrorMessage;
 
         private TestSpec(
                 @Nullable String description, Function<DataTypeFactory, DataType> extractor) {
@@ -624,10 +622,6 @@ class DataTypeExtractorTest {
         if (testSpec.expectedDataType != null) {
             assertThat(dataType).isEqualTo(testSpec.expectedDataType);
         }
-    }
-
-    static Matcher<Throwable> errorMatcher(TestSpec testSpec) {
-        return containsCause(new ValidationException(testSpec.expectedErrorMessage));
     }
 
     /** Testing data type shared with the Scala tests. */
