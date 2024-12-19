@@ -1031,6 +1031,17 @@ public interface TableEnvironment {
     boolean dropTemporaryTable(String path);
 
     /**
+     * Drops a table registered in the given path.
+     *
+     * <p>Temporary objects can shadow permanent ones. If a temporary object exists in a given path,
+     * make sure to drop the temporary object first using {@link #dropTemporaryTable}. This method
+     * can only drop permanent objects.
+     *
+     * @return true if a table existed in the given path and was removed
+     */
+    boolean dropTable(String path);
+
+    /**
      * Drops a temporary view registered in the given path.
      *
      * <p>If a permanent table or view with a given path exists, it will be used from now on for any
@@ -1039,6 +1050,17 @@ public interface TableEnvironment {
      * @return true if a view existed in the given path and was removed
      */
     boolean dropTemporaryView(String path);
+
+    /**
+     * Drops a view registered in the given path.
+     *
+     * <p>Temporary objects can shadow permanent ones. If a temporary object exists in a given path,
+     * make sure to drop the temporary object first using {@link #dropTemporaryView}. This method
+     * can only drop permanent objects.
+     *
+     * @return true if a view existed in the given path and was removed
+     */
+    boolean dropView(String path);
 
     /**
      * Returns the AST of the specified statement and the execution plan to compute the result of
