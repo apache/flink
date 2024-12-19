@@ -40,6 +40,7 @@ import java.lang.reflect.Modifier;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Set;
+import java.util.Stack;
 
 /**
  * The closure cleaner is a utility that tries to truncate the closure (enclosing instance) of
@@ -66,14 +67,20 @@ public class ClosureCleaner {
      */
     public static void clean(
             Object func, ExecutionConfig.ClosureCleanerLevel level, boolean checkSerializable) {
-        clean(func, level, checkSerializable, Collections.newSetFromMap(new IdentityHashMap<>()));
+        clean(
+                func,
+                level,
+                checkSerializable,
+                Collections.newSetFromMap(new IdentityHashMap<>()),
+                new Stack<>());
     }
 
     private static void clean(
             Object func,
             ExecutionConfig.ClosureCleanerLevel level,
             boolean checkSerializable,
-            Set<Object> visited) {
+            Set<Object> visited,
+            Stack<Class<?>> clsReferences) {
         if (func == null) {
             return;
         }
@@ -102,6 +109,7 @@ public class ClosureCleaner {
         // be "this$x" depending on the nesting
         boolean closureAccessed = false;
 
+        clsReferences.push(cls);
         for (Field f : cls.getDeclaredFields()) {
             if (f.getName().startsWith("this$")) {
                 // found a closure referencing field - now try to clean
@@ -139,7 +147,8 @@ public class ClosureCleaner {
                             fieldObject,
                             ExecutionConfig.ClosureCleanerLevel.RECURSIVE,
                             true,
-                            visited);
+                            visited,
+                            clsReferences);
                 }
             }
         }
@@ -150,26 +159,32 @@ public class ClosureCleaner {
             } catch (Exception e) {
                 String functionType = getSuperClassOrInterfaceName(func.getClass());
 
-                String msg =
-                        functionType == null
-                                ? (func + " is not serializable.")
-                                : ("The implementation of the "
-                                        + functionType
-                                        + " is not serializable.");
-
+                final StringBuilder msgBuilder =
+                        new StringBuilder()
+                                .append(
+                                        functionType == null
+                                                ? (func + " is not serializable.")
+                                                : ("The implementation of the "
+                                                        + functionType
+                                                        + " is not serializable."))
+                                .append(" Referenced via ")
+                                .append(clsReferences);
                 if (closureAccessed) {
-                    msg +=
+                    msgBuilder.append(
                             " The implementation accesses fields of its enclosing class, which is "
                                     + "a common reason for non-serializability. "
                                     + "A common solution is to make the function a proper (non-inner) class, or "
-                                    + "a static inner class.";
+                                    + "a static inner class.");
                 } else {
-                    msg += " The object probably contains or references non serializable fields.";
+                    msgBuilder.append(
+                            " The object probably contains or references non serializable fields.");
                 }
 
-                throw new InvalidProgramException(msg, e);
+                throw new InvalidProgramException(msgBuilder.toString(), e);
             }
         }
+
+        clsReferences.pop();
     }
 
     private static boolean needsRecursion(Field f, Object fo) {
