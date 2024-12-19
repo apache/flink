@@ -22,8 +22,10 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.logical.WindowAttachedWindowingStrategy;
@@ -42,7 +44,6 @@ import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
-import org.apache.flink.table.runtime.operators.join.window.WindowJoinOperator;
 import org.apache.flink.table.runtime.operators.join.window.WindowJoinOperatorBuilder;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.TimeWindowUtil;
@@ -172,7 +173,7 @@ public class StreamExecWindowJoin extends ExecNodeBase<RowData>
                 TimeWindowUtil.getShiftTimeZone(
                         leftWindowing.getTimeAttributeType(),
                         TableConfigUtils.getLocalTimeZone(config));
-        WindowJoinOperator operator =
+        WindowJoinOperatorBuilder operatorBuilder =
                 WindowJoinOperatorBuilder.builder()
                         .leftSerializer(leftTypeInfo.toRowSerializer())
                         .rightSerializer(rightTypeInfo.toRowSerializer())
@@ -181,8 +182,12 @@ public class StreamExecWindowJoin extends ExecNodeBase<RowData>
                         .rightWindowEndIndex(rightWindowEndIndex)
                         .filterNullKeys(joinSpec.getFilterNulls())
                         .joinType(joinSpec.getJoinType())
-                        .withShiftTimezone(shiftTimeZone)
-                        .build();
+                        .withShiftTimezone(shiftTimeZone);
+        if (config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED)) {
+            operatorBuilder.enableAsyncState();
+        }
+
+        TwoInputStreamOperator<RowData, RowData, RowData> operator = operatorBuilder.build();
 
         final RowType returnType = (RowType) getOutputType();
         final TwoInputTransformation<RowData, RowData, RowData> transform =
