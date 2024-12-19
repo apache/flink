@@ -26,9 +26,9 @@ import java.io.Serializable;
 import java.util.function.Function;
 
 /**
- * Interface for implementing an adaptive broadcast join operator. This interface allows a join
- * operator to be dynamically optimized to a broadcast join during runtime if a specific input side
- * meets the conditions. If not, the join operator can revert to its original implementation.
+ * Interface for implementing an adaptive join operator. This interface allows a join operator to be
+ * dynamically optimized to a broadcast join during runtime if a specific input side meets the
+ * conditions. If not, the join operator can revert to its original implementation.
  */
 @Internal
 public interface AdaptiveJoin extends Serializable {
