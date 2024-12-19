@@ -890,4 +890,29 @@ public interface Catalog {
                         "alterModel(ObjectPath, CatalogModel, boolean) is not implemented for %s.",
                         this.getClass()));
     }
+
+    /**
+     * Modifies an existing model.
+     *
+     * <p>The framework will make sure to call this method with fully validated {@link
+     * ResolvedCatalogModel}. Those instances are easy to serialize for a durable catalog
+     * implementation.
+     *
+     * @param modelPath path of the model to be modified
+     * @param newModel the new model definition
+     * @param modelChanges changes to describe the modification between the newModel and the
+     *     original model
+     * @param ignoreIfNotExists flag to specify behavior when the model does not exist: if set to
+     *     false, throw an exception, if set to true, do nothing.
+     * @throws ModelNotExistException if the model does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default void alterModel(
+            ObjectPath modelPath,
+            CatalogModel newModel,
+            List<ModelChange> modelChanges,
+            boolean ignoreIfNotExists)
+            throws ModelNotExistException, CatalogException {
+        alterModel(modelPath, newModel, ignoreIfNotExists);
+    }
 }

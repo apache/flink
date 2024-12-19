@@ -22,6 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.CatalogModel;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
+import javax.annotation.Nullable;
+
 /** When a model is altered, a {@link AlterModelEvent} event will be created and fired. */
 @PublicEvolving
 public interface AlterModelEvent extends CatalogModificationEvent {
@@ -39,6 +41,7 @@ public interface AlterModelEvent extends CatalogModificationEvent {
             final CatalogModel newModel,
             final boolean ignoreIfNotExists) {
         return new AlterModelEvent() {
+            @Nullable
             @Override
             public CatalogModel newModel() {
                 return newModel;

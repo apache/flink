@@ -3274,7 +3274,7 @@ SqlTruncateTable SqlTruncateTable() :
 }
 
 /**
-* SHOW MODELS [FROM [catalog.] database] sql call.
+* SHOW MODELS [FROM [catalog.] database] [[NOT] LIKE pattern]; sql call.
 */
 SqlShowModels SqlShowModels() :
 {
@@ -3313,6 +3313,7 @@ SqlShowModels SqlShowModels() :
 /**
 * ALTER MODEL [IF EXISTS] modelName SET (property_key = property_val, ...)
 * ALTER MODEL [IF EXISTS] modelName RENAME TO newModelName
+* ALTER MODEL [IF EXISTS] modelName RESET (property_key, ...)
 */
 SqlAlterModel SqlAlterModel() :
 {
@@ -3321,6 +3322,7 @@ SqlAlterModel SqlAlterModel() :
     SqlIdentifier modelIdentifier;
     SqlIdentifier newModelIdentifier = null;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
+    SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
 }
 {
     <ALTER> <MODEL> { startPos = getPos(); }
@@ -3331,21 +3333,31 @@ SqlAlterModel SqlAlterModel() :
         <RENAME> <TO>
         newModelIdentifier = CompoundIdentifier()
         {
-            return new SqlAlterModel(
+            return new SqlAlterModelRename(
                         startPos.plus(getPos()),
                         modelIdentifier,
-                        newModelIdentifier,
-                        ifExists);
+                        ifExists,
+                        newModelIdentifier);
         }
     |
         <SET>
         propertyList = Properties()
         {
-            return new SqlAlterModel(
+            return new SqlAlterModelSet(
                         startPos.plus(getPos()),
                         modelIdentifier,
-                        propertyList,
-                        ifExists);
+                        ifExists,
+                        propertyList);
+        }
+    |
+        <RESET>
+        propertyKeyList = PropertyKeys()
+        {
+            return new SqlAlterModelReset(
+                        startPos.plus(getPos()),
+                        modelIdentifier,
+                        ifExists,
+                        propertyKeyList);
         }
     )
 }

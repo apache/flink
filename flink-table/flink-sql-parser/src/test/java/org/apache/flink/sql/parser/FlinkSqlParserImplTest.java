@@ -3215,6 +3215,20 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testAlterModelReset() {
+        final String sql = "alter model m1 reset ('key1', 'key2')";
+        final String expected = "ALTER MODEL `M1` RESET (\n  'key1',\n  'key2'\n)";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testAlterModelResetIfExists() {
+        final String sql = "alter model if exists m1 reset ('key1', 'key2')";
+        final String expected = "ALTER MODEL IF EXISTS `M1` RESET (\n  'key1',\n  'key2'\n)";
+        sql(sql).ok(expected);
+    }
+
+    @Test
     void testCreateModel() {
         sql("create model m1\n"
                         + " INPUT(col1 INT, col2 STRING)\n"
