@@ -32,7 +32,7 @@ public interface TierMasterAgent {
 
     /** Add a new tiered storage partition and get the {@link TierShuffleDescriptor}. */
     TierShuffleDescriptor addPartitionAndGetShuffleDescriptor(
-            JobID jobID, ResultPartitionID resultPartitionID);
+            JobID jobID, int numSubpartitions, ResultPartitionID resultPartitionID);
 
     /**
      * Release a tiered storage partition.
