@@ -243,7 +243,7 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
                     .forEach(
                             dir -> {
                                 try {
-                                    FileSystem fs = dir.getFileSystem();
+                                    FileSystem fs = getFileSystem(dir);
                                     fs.delete(dir, true);
                                 } catch (IOException ignored) {
                                     logger.warn("Failed to delete transfer destination {}", dir);
@@ -253,11 +253,7 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
     }
 
     private void transferAllStateHandles(List<StateHandleTransferSpec> specs) throws Exception {
-        FileSystem forStFs = optionsContainer.getFileSystem();
-        if (forStFs == null) {
-            forStFs = FileSystem.getLocalFileSystem();
-        }
-
+        FileSystem forStFs = getFileSystem(optionsContainer.getBasePath());
         try (ForStStateDataTransfer transfer =
                 new ForStStateDataTransfer(ForStStateDataTransfer.DEFAULT_THREAD_NUM, forStFs)) {
             transfer.transferAllStateDataToDirectory(specs, cancelStreamRegistry);
@@ -558,7 +554,7 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
 
     private void cleanUpPathQuietly(@Nonnull Path path) {
         try {
-            path.getFileSystem().delete(path, true);
+            getFileSystem(forstBasePath).delete(path, true);
         } catch (IOException ex) {
             logger.warn("Failed to clean up path " + path, ex);
         }
@@ -664,7 +660,7 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
             throws Exception {
 
         Path exportCfBasePath = new Path(forstBasePath, "export-cfs");
-        forstBasePath.getFileSystem().mkdirs(exportCfBasePath);
+        getFileSystem(forstBasePath).mkdirs(exportCfBasePath);
 
         final Map<RegisteredStateMetaInfoBase.Key, List<ExportImportFilesMetaData>>
                 exportedColumnFamilyMetaData = new HashMap<>(keyedStateHandles.size());
@@ -750,7 +746,7 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
                         checkpoint.exportColumnFamily(columnFamilyHandles.get(i), subPathStr);
 
                 FileStatus[] exportedSstFiles =
-                        exportBasePath.getFileSystem().listStatus(new Path(exportBasePath, uuid));
+                        getFileSystem(exportBasePath).listStatus(new Path(exportBasePath, uuid));
 
                 if (exportedSstFiles != null) {
                     int sstFileCount = 0;
@@ -965,6 +961,14 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
                 stateMetaInfoSnapshots,
                 stateHandleSpec.getStateHandle(),
                 stateHandleSpec.getTransferDestination().toString());
+    }
+
+    private FileSystem getFileSystem(Path path) throws IOException {
+        if (optionsContainer.getFileSystem() != null) {
+            return optionsContainer.getFileSystem();
+        } else {
+            return path.getFileSystem();
+        }
     }
 
     /** Entity to hold the temporary RocksDB instance created for restore. */
