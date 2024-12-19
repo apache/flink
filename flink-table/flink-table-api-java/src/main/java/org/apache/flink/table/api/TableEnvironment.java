@@ -1037,6 +1037,9 @@ public interface TableEnvironment {
      * make sure to drop the temporary object first using {@link #dropTemporaryTable}. This method
      * can only drop permanent objects.
      *
+     * <p>Compared to SQL, this method will not throw an error if the table does not exist. Use
+     * {@link #dropTable(java.lang.String, boolean)} to change the default behavior.
+     *
      * @return true if a table existed in the given path and was removed
      */
     boolean dropTable(String path);
@@ -1048,7 +1051,8 @@ public interface TableEnvironment {
      * make sure to drop the temporary object first using {@link #dropTemporaryTable}. This method
      * can only drop permanent objects.
      *
-     * @return true if a table existed in the given path and was removed
+     * @return true if a table existed in the given path and was removed. Throws {@link
+     *     ValidationException} if table not exists and ignoreIfNotExists is false
      */
     boolean dropTable(String path, boolean ignoreIfNotExists);
 
@@ -1069,6 +1073,9 @@ public interface TableEnvironment {
      * make sure to drop the temporary object first using {@link #dropTemporaryView}. This method
      * can only drop permanent objects.
      *
+     * <p>* Compared to SQL, this method will not throw an error if the table does not exist. Use
+     * {@link #dropView(java.lang.String, boolean)} to change the default behavior.
+     *
      * @return true if a view existed in the given path and was removed
      */
     boolean dropView(String path);
@@ -1080,7 +1087,8 @@ public interface TableEnvironment {
      * make sure to drop the temporary object first using {@link #dropTemporaryView}. This method
      * can only drop permanent objects.
      *
-     * @return true if a view existed in the given path and was removed
+     * @return true if a view existed in the given path and was removed Throws {@link
+     *     ValidationException} if view not exists and ignoreIfNotExists is false
      */
     boolean dropView(String path, boolean ignoreIfNotExists);
 
