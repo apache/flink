@@ -30,9 +30,11 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
 
 /** Tests for {@link ClosureCleaner}. */
@@ -131,6 +133,27 @@ class ClosureCleanerTest {
         int result = complexMap.map(3);
 
         assertThat(result).isEqualTo(5);
+    }
+
+    @Test
+    public void testCleanNonSerializableNestedMap() throws Exception {
+        MapFunction<Integer, Integer> complexMap =
+                new ComplexMap(
+                        new MapFunction<>() {
+                            private final Object obj = new Object(); // non-serializable
+
+                            @Override
+                            public Integer map(Integer value) {
+                                return value + obj.hashCode();
+                            }
+                        });
+        try {
+            ClosureCleaner.clean(complexMap, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+            fail("Should have failed with InvalidProgramException exception");
+        } catch (InvalidProgramException e) {
+            final String regex = ".*ComplexMap.*LocalMap.*ClosureCleanerTest.*Object.*";
+            assertThat(e.getMessage()).matches(Pattern.compile(regex));
+        }
     }
 
     @Test
