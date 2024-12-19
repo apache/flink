@@ -94,7 +94,7 @@ Streams can transport data between two operators in a `one-to-one `(or forwardin
 
 ## Timely Stream Processing
 
-For most streaming applications it is very valuable to be able re-process historic data with the same code that is used to process live data – and to produce deterministic, consistent results, regardless.
+For most streaming applications it is very valuable to be able to re-process historic data with the same code that is used to process live data – and to produce deterministic, consistent results, regardless.
 
 It can also be crucial to pay attention to the order in which events occurred, rather than the order in which they are delivered for processing, and to be able to reason about when a set of events is (or should be) complete.
 For example, consider the set of events involved in an e-commerce transaction, or financial trade.
