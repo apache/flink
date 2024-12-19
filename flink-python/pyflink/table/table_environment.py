@@ -666,6 +666,7 @@ class TableEnvironment(object):
         This method can only drop permanent objects.
 
         :param table_path: The path of the registered table.
+        :param ignore_if_not_exists: Ignore if table not exists.
         :return: True if a table existed in the given path and was removed.
 
         .. versionadded:: 2.0.0
@@ -695,6 +696,7 @@ class TableEnvironment(object):
         This method can only drop permanent objects.
 
         :param view_path: The path of the registered view.
+        :param ignore_if_not_exists: Ignore if view not exists.
         :return: True if a view existed in the given path and was removed
 
         .. versionadded:: 2.0.0
