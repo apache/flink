@@ -449,7 +449,9 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     public void finish() throws Exception {
         super.finish();
         if (isAsyncStateProcessingEnabled()) {
-            asyncExecutionController.drainInflightRecords(0);
+            if (asyncExecutionController != null) {
+                asyncExecutionController.drainInflightRecords(0);
+            }
         }
     }
 
@@ -457,7 +459,9 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     public void close() throws Exception {
         super.close();
         if (isAsyncStateProcessingEnabled()) {
-            asyncExecutionController.close();
+            if (asyncExecutionController != null) {
+                asyncExecutionController.close();
+            }
         }
     }
 }
