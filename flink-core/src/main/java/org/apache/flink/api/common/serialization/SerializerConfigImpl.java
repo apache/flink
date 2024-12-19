@@ -356,6 +356,9 @@ public final class SerializerConfigImpl implements SerializerConfig {
         configuration
                 .getOptional(PipelineOptions.FORCE_KRYO_AVRO)
                 .ifPresent(this::setForceKryoAvro);
+        configuration
+                .getOptional(PipelineOptions.BUILT_IN_COLLECTION_TYPES)
+                .ifPresent(TypeExtractor::setBuiltInCollectionTypesEnabled);
 
         try {
             configuration
