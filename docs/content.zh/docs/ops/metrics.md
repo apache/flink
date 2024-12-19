@@ -1274,6 +1274,11 @@ Whether these metrics are reported depends on the [metrics.job.status.enable]({{
       <td>The total number of restarts since this job was submitted, including full restarts and fine-grained restarts.</td>
       <td>Gauge</td>
     </tr>
+    <tr>
+      <td>numRescales</td>
+      <td>The total number of restarts triggered by rescaling, including scale up and scale down.</td>
+      <td>Gauge</td>
+    </tr>
   </tbody>
 </table>
 
