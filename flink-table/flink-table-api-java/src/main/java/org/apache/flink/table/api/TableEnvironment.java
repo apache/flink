@@ -1081,7 +1081,7 @@ public interface TableEnvironment {
      * If a temporary object exists in a given path, make sure to drop the temporary object first
      * using {@link #dropTemporaryView}.
      *
-     * <p>Compared to SQL, this method will not throw an error if the table does not exist. Use
+     * <p>Compared to SQL, this method will not throw an error if the view does not exist. Use
      * {@link #dropView(java.lang.String, boolean)} to change the default behavior.
      *
      * @param path The given path under which the view will be dropped. See also the {@link
