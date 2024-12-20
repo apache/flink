@@ -18,15 +18,18 @@
 
 package org.apache.flink.table.planner.plan.utils;
 
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.SortMergeJoinFunction;
 import org.apache.flink.table.runtime.operators.join.SortMergeJoinOperator;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.util.stream.IntStream;
@@ -36,7 +39,7 @@ public class SorMergeJoinOperatorUtil {
 
     public static SortMergeJoinFunction getSortMergeJoinFunction(
             ClassLoader classLoader,
-            ExecNodeConfig config,
+            ReadableConfig config,
             FlinkJoinType joinType,
             RowType leftType,
             RowType rightType,
@@ -93,6 +96,42 @@ public class SorMergeJoinOperatorUtil {
                 SortUtil.newSortGen(config, classLoader, keyPositions, keyType)
                         .generateRecordComparator("KeyComparator"),
                 filterNulls);
+    }
+
+    public static SimpleOperatorFactory<RowData> generateOperatorFactory(
+            GeneratedJoinCondition condFunc,
+            RowType leftType,
+            RowType rightType,
+            int[] leftKeys,
+            int[] rightKeys,
+            FlinkJoinType joinType,
+            ReadableConfig config,
+            boolean leftIsSmaller,
+            boolean[] filterNulls,
+            long managedMemory,
+            ClassLoader classLoader) {
+        LogicalType[] keyFieldTypes =
+                IntStream.of(leftKeys).mapToObj(leftType::getTypeAt).toArray(LogicalType[]::new);
+        RowType keyType = RowType.of(keyFieldTypes);
+        long externalBufferMemory =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
+                        .getBytes();
+
+        SortMergeJoinFunction sortMergeJoinFunction =
+                SorMergeJoinOperatorUtil.getSortMergeJoinFunction(
+                        classLoader,
+                        config,
+                        joinType,
+                        leftType,
+                        rightType,
+                        leftKeys,
+                        rightKeys,
+                        keyType,
+                        leftIsSmaller,
+                        filterNulls,
+                        condFunc,
+                        1.0 * externalBufferMemory / managedMemory);
+        return SimpleOperatorFactory.of(new SortMergeJoinOperator(sortMergeJoinFunction));
     }
 
     private SorMergeJoinOperatorUtil() {}
