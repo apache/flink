@@ -367,7 +367,7 @@ public final class Expressions {
     }
 
     /**
-     * * Converts the given time string with the specified format to {@link
+     * Converts the given time string with the specified format to {@link
      * DataTypes#TIMESTAMP_LTZ(int)}.
      *
      * @param timestampStr The timestamp string to convert.
