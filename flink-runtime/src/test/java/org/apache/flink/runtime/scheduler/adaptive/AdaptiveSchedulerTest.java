@@ -592,6 +592,82 @@ public class AdaptiveSchedulerTest {
     }
 
     @Test
+    void testNumRescalesMetric() throws Exception {
+        final CompletableFuture<Gauge<Long>> numRescalesMetricFuture = new CompletableFuture<>();
+        final MetricRegistry metricRegistry =
+                TestingMetricRegistry.builder()
+                        .setRegisterConsumer(
+                                (metric, name, group) -> {
+                                    if (MetricNames.NUM_RESCALES.equals(name)) {
+                                        numRescalesMetricFuture.complete((Gauge<Long>) metric);
+                                    }
+                                })
+                        .build();
+
+        final JobGraph jobGraph = createJobGraph();
+
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                new DefaultDeclarativeSlotPool(
+                        jobGraph.getJobID(),
+                        new DefaultAllocatedSlotPool(),
+                        ignored -> {},
+                        Duration.ofMinutes(10),
+                        Duration.ofMinutes(10),
+                        Duration.ZERO,
+                        mainThreadExecutor);
+
+        scheduler =
+                new AdaptiveSchedulerBuilder(
+                                jobGraph,
+                                singleThreadMainThreadExecutor,
+                                EXECUTOR_RESOURCE.getExecutor())
+                        .setJobMasterConfiguration(createConfigurationWithNoTimeouts())
+                        .setJobManagerJobMetricGroup(
+                                JobManagerMetricGroup.createJobManagerMetricGroup(
+                                                metricRegistry, "localhost")
+                                        .addJob(new JobID(), "jobName"))
+                        .setDeclarativeSlotPool(declarativeSlotPool)
+                        .build();
+
+        final Gauge<Long> numRescalesMetric = numRescalesMetricFuture.get();
+
+        final SubmissionBufferingTaskManagerGateway taskManagerGateway =
+                new SubmissionBufferingTaskManagerGateway(1 + PARALLELISM);
+
+        taskManagerGateway.setCancelConsumer(createCancelConsumer(scheduler));
+
+        startTestInstanceInMainThread();
+        runInMainThread(
+                () ->
+                        declarativeSlotPool.offerSlots(
+                                createSlotOffersForResourceRequirements(
+                                        ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1)),
+                                new LocalTaskManagerLocation(),
+                                taskManagerGateway,
+                                System.currentTimeMillis()));
+
+        // wait for the first task submission
+        taskManagerGateway.waitForSubmissions(1);
+
+        assertThat(numRescalesMetric.getValue()).isEqualTo(0L);
+
+        // offer more slots, which will cause a restart in order to scale up
+        runInMainThread(
+                () ->
+                        offerSlots(
+                                declarativeSlotPool,
+                                createSlotOffersForResourceRequirements(
+                                        ResourceCounter.withResource(
+                                                ResourceProfile.UNKNOWN, PARALLELISM)),
+                                taskManagerGateway));
+
+        // wait for the second task submissions
+        taskManagerGateway.waitForSubmissions(PARALLELISM);
+
+        assertThat(numRescalesMetric.getValue()).isEqualTo(1L);
+    }
+
+    @Test
     void testNumRestartsMetric() throws Exception {
         final CompletableFuture<Gauge<Long>> numRestartsMetricFuture = new CompletableFuture<>();
         final MetricRegistry metricRegistry =
@@ -605,7 +681,6 @@ public class AdaptiveSchedulerTest {
                         .build();
 
         final JobGraph jobGraph = createJobGraph();
-
         final DefaultDeclarativeSlotPool declarativeSlotPool =
                 new DefaultDeclarativeSlotPool(
                         jobGraph.getJobID(),
@@ -637,6 +712,7 @@ public class AdaptiveSchedulerTest {
         taskManagerGateway.setCancelConsumer(createCancelConsumer(scheduler));
 
         startTestInstanceInMainThread();
+
         runInMainThread(
                 () ->
                         declarativeSlotPool.offerSlots(
@@ -648,7 +724,6 @@ public class AdaptiveSchedulerTest {
 
         // wait for the first task submission
         taskManagerGateway.waitForSubmissions(1);
-
         assertThat(numRestartsMetric.getValue()).isEqualTo(0L);
 
         // offer more slots, which will cause a restart in order to scale up
@@ -663,8 +738,7 @@ public class AdaptiveSchedulerTest {
 
         // wait for the second task submissions
         taskManagerGateway.waitForSubmissions(PARALLELISM);
-
-        assertThat(numRestartsMetric.getValue()).isEqualTo(1L);
+        assertThat(numRestartsMetric.getValue()).isEqualTo(0L);
     }
 
     @Test
