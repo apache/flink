@@ -216,7 +216,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
                     key,
                     this::disposeContext,
                     KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism),
-                    inheritEpoch
+                    inheritEpoch && currentContext != null
                             ? epochManager.onEpoch(currentContext.getEpoch())
                             : epochManager.onRecord());
         }
@@ -225,7 +225,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
                 key,
                 this::disposeContext,
                 KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism),
-                inheritEpoch
+                inheritEpoch && currentContext != null
                         ? epochManager.onEpoch(currentContext.getEpoch())
                         : epochManager.onRecord());
     }
@@ -456,7 +456,11 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
                         ? null
                         : () -> {
                             try {
+                                // We clear the current context since this is a non-record context.
+                                RecordContext<K> previousContext = currentContext;
+                                currentContext = null;
                                 triggerAction.run();
+                                currentContext = previousContext;
                             } catch (Exception e) {
                                 exceptionHandler.handleException(
                                         "Failed to process non-record.", e);
@@ -466,7 +470,10 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
                         ? null
                         : () -> {
                             try {
+                                RecordContext<K> previousContext = currentContext;
+                                currentContext = null;
                                 finalAction.run();
+                                currentContext = previousContext;
                             } catch (Exception e) {
                                 exceptionHandler.handleException(
                                         "Failed to process non-record.", e);

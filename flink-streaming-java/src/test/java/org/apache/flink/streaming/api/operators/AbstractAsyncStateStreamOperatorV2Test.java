@@ -38,6 +38,8 @@ import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedMultiInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.util.function.BiConsumerWithException;
+import org.apache.flink.util.function.BiFunctionWithException;
 
 import org.junit.jupiter.api.Test;
 
@@ -271,6 +273,66 @@ class AbstractAsyncStateStreamOperatorV2Test {
                     "Output was not correct", expectedOutput, testHarness.getOutput());
         } finally {
             testHarness.close();
+        }
+    }
+
+    @Test
+    void testWatermarkHooks() throws Exception {
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        KeySelector<Long, Integer> dummyKeySelector = l -> 0;
+        List<KeySelector<?, Integer>> keySelectors =
+                Arrays.asList(dummyKeySelector, dummyKeySelector, dummyKeySelector);
+
+        WatermarkTestingOperatorFactory factory = new WatermarkTestingOperatorFactory();
+        AtomicInteger counter = new AtomicInteger(0);
+        factory.setPreProcessFunction(
+                (operator, watermark) -> {
+                    operator.asyncProcessWithKey(
+                            1L,
+                            () -> {
+                                operator.output(watermark.getTimestamp() + 1000L);
+                            });
+                    if (counter.incrementAndGet() % 2 == 0) {
+                        return null;
+                    } else {
+                        return new Watermark(watermark.getTimestamp() + 1L);
+                    }
+                });
+
+        factory.setPostProcessFunction(
+                (operator, watermark) -> {
+                    operator.output(watermark.getTimestamp() + 100L);
+                });
+        try (AsyncKeyedMultiInputStreamOperatorTestHarness<Integer, Long> testHarness =
+                AsyncKeyedMultiInputStreamOperatorTestHarness.create(
+                        factory, BasicTypeInfo.INT_TYPE_INFO, keySelectors, 1, 1, 0)) {
+            testHarness.setup();
+            testHarness.open();
+            testHarness.processElement(0, new StreamRecord<>(1L, 1L));
+            testHarness.processElement(0, new StreamRecord<>(3L, 3L));
+            testHarness.processElement(0, new StreamRecord<>(4L, 4L));
+            testHarness.processWatermark(0, new Watermark(2L));
+            testHarness.processWatermark(1, new Watermark(2L));
+            testHarness.processWatermark(2, new Watermark(2L));
+            expectedOutput.add(new StreamRecord<>(1002L));
+            expectedOutput.add(new StreamRecord<>(1L));
+            expectedOutput.add(new StreamRecord<>(3L));
+            expectedOutput.add(new Watermark(3L));
+            expectedOutput.add(new StreamRecord<>(103L));
+            testHarness.processWatermark(0, new Watermark(4L));
+            testHarness.processWatermark(1, new Watermark(4L));
+            testHarness.processWatermark(2, new Watermark(4L));
+            expectedOutput.add(new StreamRecord<>(1004L));
+            testHarness.processWatermark(0, new Watermark(5L));
+            testHarness.processWatermark(1, new Watermark(5L));
+            testHarness.processWatermark(2, new Watermark(5L));
+            expectedOutput.add(new StreamRecord<>(1005L));
+            expectedOutput.add(new StreamRecord<>(4L));
+            expectedOutput.add(new Watermark(6L));
+            expectedOutput.add(new StreamRecord<>(106L));
+
+            TestHarnessUtil.assertOutputEquals(
+                    "Output was not correct", expectedOutput, testHarness.getOutput());
         }
     }
 
@@ -697,10 +759,31 @@ class AbstractAsyncStateStreamOperatorV2Test {
 
     private static class WatermarkTestingOperatorFactory
             extends AbstractStreamOperatorFactory<Long> {
+
+        private BiFunctionWithException<WatermarkTestingOperator, Watermark, Watermark, Exception>
+                preProcessFunction;
+
+        private BiConsumerWithException<WatermarkTestingOperator, Watermark, Exception>
+                postProcessFunction;
+
+        public void setPreProcessFunction(
+                BiFunctionWithException<WatermarkTestingOperator, Watermark, Watermark, Exception>
+                        preProcessFunction) {
+            this.preProcessFunction = preProcessFunction;
+        }
+
+        public void setPostProcessFunction(
+                BiConsumerWithException<WatermarkTestingOperator, Watermark, Exception>
+                        postProcessFunction) {
+            this.postProcessFunction = postProcessFunction;
+        }
+
         @Override
         public <T extends StreamOperator<Long>> T createStreamOperator(
                 StreamOperatorParameters<Long> parameters) {
-            return (T) new WatermarkTestingOperator(parameters);
+            return (T)
+                    new WatermarkTestingOperator(
+                            parameters, preProcessFunction, postProcessFunction);
         }
 
         @Override
@@ -714,8 +797,25 @@ class AbstractAsyncStateStreamOperatorV2Test {
 
         private transient InternalTimerService<VoidNamespace> timerService;
 
-        public WatermarkTestingOperator(StreamOperatorParameters<Long> parameters) {
+        private BiFunctionWithException<WatermarkTestingOperator, Watermark, Watermark, Exception>
+                preProcessFunction;
+
+        private BiConsumerWithException<WatermarkTestingOperator, Watermark, Exception>
+                postProcessFunction;
+
+        public WatermarkTestingOperator(
+                StreamOperatorParameters<Long> parameters,
+                BiFunctionWithException<WatermarkTestingOperator, Watermark, Watermark, Exception>
+                        preProcessFunction,
+                BiConsumerWithException<WatermarkTestingOperator, Watermark, Exception>
+                        postProcessFunction) {
             super(parameters, 3);
+            this.preProcessFunction = preProcessFunction;
+            this.postProcessFunction = postProcessFunction;
+        }
+
+        public void output(Long o) {
+            output.collect(new StreamRecord<>(o));
         }
 
         @Override
@@ -724,6 +824,20 @@ class AbstractAsyncStateStreamOperatorV2Test {
 
             this.timerService =
                     getInternalTimerService("test-timers", VoidNamespaceSerializer.INSTANCE, this);
+        }
+
+        @Override
+        public Watermark preProcessWatermark(Watermark watermark) throws Exception {
+            return preProcessFunction == null
+                    ? watermark
+                    : preProcessFunction.apply(this, watermark);
+        }
+
+        @Override
+        public void postProcessWatermark(Watermark watermark) throws Exception {
+            if (postProcessFunction != null) {
+                postProcessFunction.accept(this, watermark);
+            }
         }
 
         @Override
