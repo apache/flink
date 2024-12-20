@@ -610,7 +610,7 @@ SQL Client will print success message if the statement is executed successfully.
 By default, the error message only contains the error cause. In order to print the full exception stack for debugging, please set the
 `sql-client.verbose` to true through command `SET 'sql-client.verbose' = 'true';`.
 
-### Execute SQL Files
+### Execute SQL Files in a Session Cluster
 
 SQL Client supports to execute a SQL script file with the `-f` option. SQL Client will execute
 statements one by one in the SQL script file and print execution messages for each executed statements.
@@ -662,6 +662,24 @@ This configuration:
 - submit a sql job that load the savepoint from the specified savepoint path.
 
 <span class="label label-danger">Attention</span> Compared to the interactive mode, SQL Client will stop execution and exits when there are errors.
+
+### Deploy SQL Files in an Application Cluster
+
+SQL Client also supports to deploy a SQL script file to an application cluster with the `-f` option if you specify the deployment target in the config.yaml or startup options.
+Here is an example to deploy script file in an application cluster.
+
+```bash 
+./bin/sql-client.sh -f oss://path/to/script.sql \
+      -Dexecution.target=kubernetes-application \
+      -Dkubernetes.cluster-id=${CLUSTER_ID} \
+      -Dkubernetes.container.image.ref=${FLINK_IMAGE_NAME}'
+```
+
+After execution, SQL Client print the cluster id on the terminal. The script can contain any statement that is supported by Flink. But Application cluster only supports one job, please refer to the
+[Application Mode]({{< ref "docs/deployment/overview#application-mode" >}}) for the limitations.
+
+<span class="label label-danger">Attention</span> When deploying a script to the cluster, SQL Client only supports to run with `--jars` startup option, other options, e.g. `--init`
+are not supported.
 
 ### Execute a set of SQL statements
 
