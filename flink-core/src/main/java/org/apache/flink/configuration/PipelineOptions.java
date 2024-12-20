@@ -170,6 +170,13 @@ public class PipelineOptions {
                                                     + " would cause the program to fail.")
                                     .build());
 
+    public static final ConfigOption<Boolean> BUILT_IN_COLLECTION_TYPES =
+            key("pipeline.built-in-collection-types")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "If enabled, TypeExtractor will use built-in serializers for Maps, Lists, and Sets, which need to be treated by Kyro otherwise.");
+
     public static final ConfigOption<Map<String, String>> GLOBAL_JOB_PARAMETERS =
             key("pipeline.global-job-parameters")
                     .mapType()
