@@ -64,7 +64,7 @@ public interface ModelChange {
      * <p>It is equal to the following statement:
      *
      * <pre>
-     *    ALTER TABLE &lt;model_name&gt; SET (key=value);
+     *    ALTER MODEL &lt;model_name&gt; SET (key=value);
      * </pre>
      */
     @PublicEvolving
@@ -114,7 +114,7 @@ public interface ModelChange {
      * <p>It is equal to the following statement:
      *
      * <pre>
-     *    ALTER TABLE &lt;model_name&gt; RESET (key);
+     *    ALTER MODEL &lt;model_name&gt; RESET (key);
      * </pre>
      */
     @PublicEvolving
