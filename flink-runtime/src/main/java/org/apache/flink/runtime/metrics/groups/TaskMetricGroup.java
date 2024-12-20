@@ -26,6 +26,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
+import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.util.AbstractID;
 
 import javax.annotation.Nullable;
@@ -156,7 +157,9 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
                     "The operator name {} exceeded the {} characters length limit and was truncated.",
                     operatorName,
                     METRICS_OPERATOR_NAME_MAX_LENGTH);
-            truncatedOperatorName = operatorName.substring(0, METRICS_OPERATOR_NAME_MAX_LENGTH);
+            truncatedOperatorName =
+                    MetricUtils.truncateOperatorName(
+                            operatorName, METRICS_OPERATOR_NAME_MAX_LENGTH);
         } else {
             truncatedOperatorName = operatorName;
         }

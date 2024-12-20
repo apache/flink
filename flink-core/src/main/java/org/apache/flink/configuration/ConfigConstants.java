@@ -109,6 +109,11 @@ public final class ConfigConstants {
 
     public static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
 
+    /** The suffix of sink operator name. */
+    public static final String COMMITTER_NAME = "Committer";
+
+    public static final String WRITER_NAME = "Writer";
+
     /** Not instantiable. */
     private ConfigConstants() {}
 }
