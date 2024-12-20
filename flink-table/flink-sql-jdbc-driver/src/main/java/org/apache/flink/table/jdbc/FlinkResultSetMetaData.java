@@ -174,13 +174,16 @@ public class FlinkResultSetMetaData implements ResultSetMetaData {
 
     @Override
     public <T> T unwrap(Class<T> iface) throws SQLException {
-        throw new SQLFeatureNotSupportedException("FlinkResultSetMetaData#unwrap is not supported");
+        try {
+            return iface.cast(this);
+        } catch (ClassCastException cce) {
+            throw new SQLException("Unable to unwrap to " + iface);
+        }
     }
 
     @Override
-    public boolean isWrapperFor(Class<?> iface) throws SQLException {
-        throw new SQLFeatureNotSupportedException(
-                "FlinkResultSetMetaData#isWrapperFor is not supported");
+    public boolean isWrapperFor(Class<?> iface) {
+        return iface.isInstance(this);
     }
 
     private ColumnInfo column(int columnIndex) {
