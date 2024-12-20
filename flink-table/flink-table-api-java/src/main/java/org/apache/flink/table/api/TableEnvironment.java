@@ -1026,9 +1026,44 @@ public interface TableEnvironment {
      * <p>If a permanent table with a given path exists, it will be used from now on for any queries
      * that reference this path.
      *
+     * @param path The given path under which the temporary table will be dropped. See also the
+     *     {@link TableEnvironment} class description for the format of the path.
      * @return true if a table existed in the given path and was removed
      */
     boolean dropTemporaryTable(String path);
+
+    /**
+     * Drops a table registered in the given path.
+     *
+     * <p>This method can only drop permanent objects. Temporary objects can shadow permanent ones.
+     * If a temporary object exists in a given path, make sure to drop the temporary object first
+     * using {@link #dropTemporaryTable}.
+     *
+     * <p>Compared to SQL, this method will not throw an error if the table does not exist. Use
+     * {@link #dropTable(java.lang.String, boolean)} to change the default behavior.
+     *
+     * @param path The given path under which the table will be dropped. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @return true if table existed in the given path and was dropped, false if table didn't exist
+     *     in the given path.
+     */
+    boolean dropTable(String path);
+
+    /**
+     * Drops a table registered in the given path.
+     *
+     * <p>This method can only drop permanent objects. Temporary objects can shadow permanent ones.
+     * If a temporary object exists in a given path, make sure to drop the temporary object first
+     * using {@link #dropTemporaryTable}.
+     *
+     * @param path The given path under which the given table will be dropped. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param ignoreIfNotExists If false exception will be thrown if the view to drop does not
+     *     exist.
+     * @return true if table existed in the given path and was dropped, false if table didn't exist
+     *     in the given path.
+     */
+    boolean dropTable(String path, boolean ignoreIfNotExists);
 
     /**
      * Drops a temporary view registered in the given path.
@@ -1036,9 +1071,44 @@ public interface TableEnvironment {
      * <p>If a permanent table or view with a given path exists, it will be used from now on for any
      * queries that reference this path.
      *
+     * @param path The given path under which the temporary view will be dropped. See also the
+     *     {@link TableEnvironment} class description for the format of the path.
      * @return true if a view existed in the given path and was removed
      */
     boolean dropTemporaryView(String path);
+
+    /**
+     * Drops a view registered in the given path.
+     *
+     * <p>This method can only drop permanent objects. Temporary objects can shadow permanent ones.
+     * If a temporary object exists in a given path, make sure to drop the temporary object first
+     * using {@link #dropTemporaryView}.
+     *
+     * <p>Compared to SQL, this method will not throw an error if the view does not exist. Use
+     * {@link #dropView(java.lang.String, boolean)} to change the default behavior.
+     *
+     * @param path The given path under which the view will be dropped. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @return true if view existed in the given path and was dropped, false if view didn't exist in
+     *     the given path.
+     */
+    boolean dropView(String path);
+
+    /**
+     * Drops a view registered in the given path.
+     *
+     * <p>This method can only drop permanent objects. Temporary objects can shadow permanent ones.
+     * If a temporary object exists in a given path, make sure to drop the temporary object first
+     * using {@link #dropTemporaryView}.
+     *
+     * @param path The given path under which the view will be dropped. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param ignoreIfNotExists If false exception will be thrown if the view to drop does not
+     *     exist.
+     * @return true if view existed in the given path and was dropped, false if view didn't exist in
+     *     the given path and ignoreIfNotExists was true.
+     */
+    boolean dropView(String path, boolean ignoreIfNotExists);
 
     /**
      * Returns the AST of the specified statement and the execution plan to compute the result of
