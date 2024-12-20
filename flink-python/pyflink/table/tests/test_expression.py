@@ -275,6 +275,15 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
                              lit(2).hours)))
         self.assertEqual("dateFormat(time, '%Y, %d %M')",
                          str(date_format(col("time"), "%Y, %d %M")))
+        self.assertEqual("dateFormat(toTimestamp('1970-01-01 08:01:40'), 'yyyy-MM-dd HH:mm:ss')",
+                         str(date_format(to_timestamp('1970-01-01 08:01:40'),
+                             "yyyy-MM-dd HH:mm:ss")))
+        self.assertEqual("dateFormat(toTimestamp('1970-01-01 08:01:40.123456+02:00'), "
+                         "'yyyy-MM-dd HH:mm:ss.SSSSSS z')",
+                         str(date_format(to_timestamp('1970-01-01 08:01:40.123456+02:00'),
+                             'yyyy-MM-dd HH:mm:ss.SSSSSS z')))
+        self.assertEqual("dateFormat('1970-01-01 08:01:40', 'yyyy-MM-dd HH:mm:ss')",
+                         str(date_format("1970-01-01 08:01:40", "yyyy-MM-dd HH:mm:ss")))
         self.assertEqual("timestampDiff(DAY, cast('2016-06-15', DATE), cast('2016-06-18', DATE))",
                          str(timestamp_diff(
                              TimePointUnit.DAY,
