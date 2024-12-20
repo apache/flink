@@ -51,4 +51,8 @@ public interface OperatorIOMetricGroup extends MetricGroup {
      * numBytesOutPerSecond meter.
      */
     Counter getNumBytesOutCounter();
+
+    void reuseInputMetricsForTask();
+
+    void reuseOutputMetricsForTask();
 }
