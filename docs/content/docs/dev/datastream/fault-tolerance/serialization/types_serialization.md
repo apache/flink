@@ -274,8 +274,8 @@ while block-style YAML list is used in the above example for better readability)
 ```java
 Configuration config = new Configuration();
 config.set(PipelineOptions.SERIALIZATION_CONFIG,
-    "[org.example.MyCustomType1: {type: pojo, class: org.example.MyCustomSerializer1},"
-        + "org.example.MyCustomType2: {type: kryo, kryo-type: registered, class: org.example.MyCustomSerializer2}]");
+    List.of("org.example.MyCustomType1: {type: pojo, class: org.example.MyCustomSerializer1}",
+        "org.example.MyCustomType2: {type: kryo, kryo-type: registered, class: org.example.MyCustomSerializer2}"));
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 
