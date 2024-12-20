@@ -1044,7 +1044,8 @@ public interface TableEnvironment {
      *
      * @param path The given path under which the table will be dropped. See also the {@link
      *     TableEnvironment} class description for the format of the path.
-     * @return true if a table existed in the given path and was removed
+     * @return true if table existed in the given path and was dropped, false if table didn't exist
+     *     in the given path.
      */
     boolean dropTable(String path);
 
@@ -1057,9 +1058,10 @@ public interface TableEnvironment {
      *
      * @param path The given path under which the given table will be dropped. See also the {@link
      *     TableEnvironment} class description for the format of the path.
-     * @param ignoreIfNotExists whether to ignore if table does not exist.
-     * @return true if a table existed in the given path and was removed, throws {@link
-     *     ValidationException} if the table does not exist and ignoreIfNotExists is false
+     * @param ignoreIfNotExists If false exception will be thrown if the view to drop does not
+     *     exist.
+     * @return true if table existed in the given path and was dropped, false if table didn't exist
+     *     in the given path.
      */
     boolean dropTable(String path, boolean ignoreIfNotExists);
 
@@ -1087,7 +1089,8 @@ public interface TableEnvironment {
      *
      * @param path The given path under which the view will be dropped. See also the {@link
      *     TableEnvironment} class description for the format of the path.
-     * @return true if a view existed in the given path and was removed
+     * @return true if view existed in the given path and was dropped, false if view didn't exist in
+     *     the given path.
      */
     boolean dropView(String path);
 
@@ -1100,9 +1103,10 @@ public interface TableEnvironment {
      *
      * @param path The given path under which the view will be dropped. See also the {@link
      *     TableEnvironment} class description for the format of the path.
-     * @param ignoreIfNotExists whether to ignore if view does not exist.
-     * @return true if a view existed in the given path and was removed, throws {@link
-     *     ValidationException} if the view does not exist and ignoreIfNotExists is false
+     * @param ignoreIfNotExists If false exception will be thrown if the view to drop does not
+     *     exist.
+     * @return true if view existed in the given path and was dropped, false if view didn't exist in
+     *     the given path and ignoreIfNotExists was true.
      */
     boolean dropView(String path, boolean ignoreIfNotExists);
 
