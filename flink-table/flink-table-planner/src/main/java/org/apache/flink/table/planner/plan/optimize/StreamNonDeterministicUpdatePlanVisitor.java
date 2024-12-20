@@ -629,10 +629,9 @@ public class StreamNonDeterministicUpdatePlanVisitor {
             }
             return transmitDeterminismRequirement(overAgg, NO_REQUIRED_DETERMINISM);
         } else {
-            // OverAgg does not support input with updates currently, so this branch will not be
-            // reached for now.
-
-            // We should append partition keys and order key to requireDeterminism
+            // OverAgg does not support input with updates when order by column is a time-attribute
+            // Only non-time order by attribute can support updates
+            // Append partition and order keys to requireDeterminism
             return transmitDeterminismRequirement(
                     overAgg, mappingRequireDeterminismToInput(requireDeterminism, overAgg));
         }
@@ -982,6 +981,10 @@ public class StreamNonDeterministicUpdatePlanVisitor {
             // add aggCall's input
             int aggOutputIndex = inputFieldCnt;
             for (OverSpec.GroupSpec groupSpec : overSpec.getGroups()) {
+                // Add sort fields
+                Arrays.stream(groupSpec.getSort().getFieldIndices())
+                        .forEach(allRequiredInputSet::add);
+                // Add aggregation fields
                 for (AggregateCall aggCall : groupSpec.getAggCalls()) {
                     if (requireDeterminism.get(aggOutputIndex)) {
                         requiredSourceInput(aggCall, allRequiredInputSet);
