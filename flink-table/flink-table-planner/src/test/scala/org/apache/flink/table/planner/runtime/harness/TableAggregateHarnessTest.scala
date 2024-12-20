@@ -21,15 +21,16 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
 import org.apache.flink.table.api.{EnvironmentSettings, _}
 import org.apache.flink.table.api.bridge.scala.{dataStreamConversions, tableConversions}
 import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.runtime.utils.StreamingEnvUtil
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.utils.{Top3WithMapView, Top3WithRetractInput}
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.{deleteRecord, insertRecord}
 import org.apache.flink.table.types.logical.LogicalType
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
@@ -37,18 +38,24 @@ import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Integer => JInt}
 import java.time.Duration
+import java.util.{Collection => JCollection}
 import java.util.concurrent.ConcurrentLinkedQueue
 
+import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
+class TableAggregateHarnessTest(mode: StateBackendMode, enableAsyncState: Boolean)
+  extends HarnessTestBase(mode) {
 
   @BeforeEach
   override def before(): Unit = {
     super.before()
     val setting = EnvironmentSettings.newInstance().inStreamingMode().build()
     this.tEnv = StreamTableEnvironmentImpl.create(env, setting)
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED,
+      Boolean.box(enableAsyncState))
   }
 
   val data = new mutable.MutableList[(Int, Int)]
@@ -181,5 +188,17 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
     testHarness.setup(new RowDataSerializer(outputTypes: _*))
     // simulate a failover after a failed task open, expect no exception happens
     testHarness.close()
+  }
+}
+
+object TableAggregateHarnessTest {
+
+  @Parameters(name = "StateBackend={0}, EnableAsyncState={1}")
+  def parameters(): JCollection[Array[java.lang.Object]] = {
+    Seq[Array[AnyRef]](
+      Array(HEAP_BACKEND, Boolean.box(false)),
+      Array(HEAP_BACKEND, Boolean.box(true)),
+      Array(ROCKSDB_BACKEND, Boolean.box(false))
+    )
   }
 }
