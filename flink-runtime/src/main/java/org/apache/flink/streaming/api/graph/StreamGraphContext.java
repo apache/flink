@@ -62,4 +62,13 @@ public interface StreamGraphContext {
      * @return true if all modifications were successful and applied atomically, false otherwise.
      */
     boolean modifyStreamEdge(List<StreamEdgeUpdateRequestInfo> requestInfos);
+
+    interface StreamGraphUpdateListener {
+        /**
+         * This method is called whenever the StreamGraph is updated.
+         *
+         * @param streamGraph the updated StreamGraph
+         */
+        void onStreamGraphUpdated(StreamGraph streamGraph);
+    }
 }
