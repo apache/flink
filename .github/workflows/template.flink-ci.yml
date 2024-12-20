@@ -72,7 +72,7 @@ jobs:
     name: "Compile"
     runs-on: ubuntu-22.04
     container:
-      image: mapohl/flink-ci:FLINK-34194
+      image: chesnay/flink-ci:java_8_11_17_21_maven_386_jammy
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
       # --privileged allows writing coredumps in docker (FLINK-16973)
       options: --init --privileged
@@ -133,7 +133,7 @@ jobs:
     needs: compile
     runs-on: ubuntu-22.04
     container:
-      image: mapohl/flink-ci:FLINK-34194
+      image: chesnay/flink-ci:java_8_11_17_21_maven_386_jammy
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
       # --privileged allows writing coredumps in docker (FLINK-16973)
       options: --init --privileged
@@ -173,7 +173,7 @@ jobs:
     needs: compile
     runs-on: ubuntu-22.04
     container:
-      image: mapohl/flink-ci:FLINK-34194
+      image: chesnay/flink-ci:java_8_11_17_21_maven_386_jammy
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
       # --privileged allows writing coredumps in docker (FLINK-16973)
       options: --init --privileged
