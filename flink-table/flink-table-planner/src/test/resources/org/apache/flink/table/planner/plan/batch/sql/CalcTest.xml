@@ -115,8 +115,7 @@ LogicalProject(EXPR$0=[$0], EXPR$1=[CAST($1):VARCHAR(2147483647) CHARACTER SET "
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a AS EXPR$0, CAST(b AS VARCHAR(2147483647)) AS EXPR$1])
-+- Values(tuples=[[{ 3, _UTF-16LE'c' }]], values=[a, b])
+Values(tuples=[[{ 3, _UTF-16LE'c' }]], values=[EXPR$0, EXPR$1])
 ]]>
     </Resource>
   </TestCase>

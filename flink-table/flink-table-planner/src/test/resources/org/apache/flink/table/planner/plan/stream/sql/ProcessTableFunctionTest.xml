@@ -321,8 +321,7 @@ LogicalProject(out=[$0])
     <Resource name="optimized rel plan">
       <![CDATA[
 ProcessTableFunction(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
-+- Calc(select=['Bob' AS name, 12 AS different])
-   +- Values(tuples=[[{ 0 }]])
++- Values(tuples=[[{ _UTF-16LE'Bob', 12 }]])
 ]]>
     </Resource>
   </TestCase>
