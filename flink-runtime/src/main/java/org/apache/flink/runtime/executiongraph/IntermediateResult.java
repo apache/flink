@@ -63,6 +63,7 @@ public class IntermediateResult {
     private final int numParallelProducers;
 
     private final ExecutionPlanSchedulingContext executionPlanSchedulingContext;
+    private final boolean produceBroadcastResult;
 
     private int partitionsAssigned;
 
@@ -102,6 +103,8 @@ public class IntermediateResult {
         this.shuffleDescriptorCache = new HashMap<>();
 
         this.executionPlanSchedulingContext = checkNotNull(executionPlanSchedulingContext);
+
+        this.produceBroadcastResult = intermediateDataSet.isBroadcast();
     }
 
     public boolean areAllConsumerVerticesCreated() {
@@ -205,6 +208,10 @@ public class IntermediateResult {
 
     public boolean isForward() {
         return intermediateDataSet.isForward();
+    }
+
+    public boolean isEveryConsumerConsumeAllSubPartitions() {
+        return !produceBroadcastResult && intermediateDataSet.isBroadcast();
     }
 
     public int getConnectionIndex() {

@@ -107,6 +107,9 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
     private final Map<IntermediateDataSetID, List<StreamEdge>>
             intermediateDataSetIdToOutputEdgesMap;
 
+    private final Map<String, IntermediateDataSet> consumerEdgeIdToIntermediateDataSetMap =
+            new HashMap<>();
+
     // Records the ids of stream nodes in the StreamNodeForwardGroup.
     // When stream edge's partitioner is modified to forward, we need get forward groups by source
     // and target node id.
@@ -127,6 +130,9 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
 
     // Records the ID of the job vertex that has completed execution.
     private final Set<JobVertexID> finishedJobVertices;
+
+    // Records the ID of the stream nodes that has completed execution.
+    private final Set<Integer> finishedStreamNodeIds;
 
     private final AtomicBoolean hasHybridResultPartition;
 
@@ -161,13 +167,17 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
         this.jobVertexToChainedStreamNodeIdsMap = new HashMap<>();
 
         this.finishedJobVertices = new HashSet<>();
+        this.finishedStreamNodeIds = new HashSet<>();
 
         this.streamGraphContext =
                 new DefaultStreamGraphContext(
                         streamGraph,
                         steamNodeIdToForwardGroupMap,
                         frozenNodeToStartNodeMap,
-                        intermediateOutputsCaches);
+                        intermediateOutputsCaches,
+                        consumerEdgeIdToIntermediateDataSetMap,
+                        finishedStreamNodeIds,
+                        userClassloader);
 
         this.jobGraph = createAndInitializeJobGraph(streamGraph, streamGraph.getJobID());
 
@@ -194,6 +204,10 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
             streamNodes.add(streamGraph.getStreamNode(outEdge.getTargetId()));
         }
         return createJobVerticesAndUpdateGraph(streamNodes);
+    }
+
+    public void addFinishedStreamNodeIds(List<Integer> finishedStreamNodeIds) {
+        this.finishedStreamNodeIds.addAll(finishedStreamNodeIds);
     }
 
     /**
@@ -382,6 +396,7 @@ public class AdaptiveGraphManager implements AdaptiveGraphGenerator {
                 intermediateDataSetIdToOutputEdgesMap
                         .computeIfAbsent(dataSet.getId(), ignored -> new ArrayList<>())
                         .add(edge);
+                consumerEdgeIdToIntermediateDataSetMap.put(edge.getEdgeId(), dataSet);
                 // we cache the output here for downstream vertex to create jobEdge.
                 intermediateOutputsCaches
                         .computeIfAbsent(edge.getSourceId(), k -> new HashMap<>())

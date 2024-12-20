@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>table.optimizer.adaptive-broadcast-join.strategy</h5><br> <span class="label label-primary">Batch</span></td>
+            <td style="word-wrap: break-word;">none</td>
+            <td><p>Enum</p></td>
+            <td>Flink will perform broadcast hash join optimization when the runtime statistics on one side of a join operator is less than the threshold `table.optimizer.join.broadcast-threshold`. The value of this configuration option decides when Flink should perform this optimization. AUTO means Flink will automatically choose the timing for optimization, RUNTIME_ONLY means broadcast hash join optimization is only performed at runtime, and NONE means the optimization is only carried out at compile time.<br /><br />Possible values:<ul><li>"auto": Flink will automatically choose the timing for optimization</li><li>"runtime_only": Broadcast hash join optimization is only performed at runtime.</li><li>"none": Broadcast hash join optimization is only carried out at compile time.</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>table.optimizer.agg-phase-strategy</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">AUTO</td>
             <td><p>Enum</p></td>
