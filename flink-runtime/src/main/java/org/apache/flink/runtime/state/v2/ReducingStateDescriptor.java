@@ -21,6 +21,9 @@ package org.apache.flink.runtime.state.v2;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+
+import javax.annotation.Nonnull;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -41,7 +44,9 @@ public class ReducingStateDescriptor<T> extends StateDescriptor<T> {
      * @param typeInfo The type of the values in the state.
      */
     public ReducingStateDescriptor(
-            String name, ReduceFunction<T> reduceFunction, TypeInformation<T> typeInfo) {
+            @Nonnull String name,
+            @Nonnull ReduceFunction<T> reduceFunction,
+            @Nonnull TypeInformation<T> typeInfo) {
         super(name, typeInfo);
         this.reduceFunction = checkNotNull(reduceFunction);
     }
@@ -54,11 +59,26 @@ public class ReducingStateDescriptor<T> extends StateDescriptor<T> {
      * @param typeInfo The type of the values in the state.
      */
     public ReducingStateDescriptor(
-            String name,
-            ReduceFunction<T> reduceFunction,
-            TypeInformation<T> typeInfo,
+            @Nonnull String name,
+            @Nonnull ReduceFunction<T> reduceFunction,
+            @Nonnull TypeInformation<T> typeInfo,
             SerializerConfig serializerConfig) {
         super(name, typeInfo, serializerConfig);
+        this.reduceFunction = checkNotNull(reduceFunction);
+    }
+
+    /**
+     * Create a new {@code ReducingStateDescriptor} with the given stateId and the given type
+     * serializer.
+     *
+     * @param stateId The (unique) stateId for the state.
+     * @param serializer The type serializer for the values in the state.
+     */
+    public ReducingStateDescriptor(
+            @Nonnull String stateId,
+            @Nonnull ReduceFunction<T> reduceFunction,
+            @Nonnull TypeSerializer<T> serializer) {
+        super(stateId, serializer);
         this.reduceFunction = checkNotNull(reduceFunction);
     }
 
