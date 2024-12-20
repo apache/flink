@@ -33,13 +33,18 @@ import org.apache.flink.state.forst.fs.cache.CachedDataOutputStream;
 import org.apache.flink.state.forst.fs.cache.FileBasedCache;
 import org.apache.flink.state.forst.fs.cache.SizeBasedCacheLimitPolicy;
 import org.apache.flink.state.forst.fs.cache.SpaceBasedCacheLimitPolicy;
+import org.apache.flink.state.forst.fs.filemapping.FileMappingManager;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -66,6 +71,7 @@ public class ForStFlinkFileSystem extends FileSystem {
     private final Function<String, Boolean> localFileFilter;
     private final String localBase;
     @Nullable private final FileBasedCache fileBasedCache;
+    private FileMappingManager fileMappingManager;
 
     public ForStFlinkFileSystem(
             FileSystem delegateFS,
@@ -78,6 +84,7 @@ public class ForStFlinkFileSystem extends FileSystem {
         this.remoteBase = remoteBase;
         this.localBase = localBase;
         this.fileBasedCache = fileBasedCache;
+        this.fileMappingManager = new FileMappingManager(delegateFS);
     }
 
     /**
@@ -164,12 +171,15 @@ public class ForStFlinkFileSystem extends FileSystem {
                     DEFAULT_INPUT_STREAM_CAPACITY,
                     localFS.getFileStatus(localPathTuple.f1).getLen());
         }
-        FileStatus fileStatus = checkNotNull(getFileStatus(path));
+        Path truePath = new Path(fileMappingManager.originalPath(path.toString()));
+        FileStatus fileStatus = checkNotNull(getFileStatus(truePath));
         return new ByteBufferReadableFSDataInputStream(
                 () -> {
-                    FSDataInputStream inputStream = delegateFS.open(path, bufferSize);
+                    FSDataInputStream inputStream = delegateFS.open(truePath, bufferSize);
                     CachedDataInputStream cachedDataInputStream =
-                            fileBasedCache == null ? null : fileBasedCache.open(path, inputStream);
+                            fileBasedCache == null
+                                    ? null
+                                    : fileBasedCache.open(truePath, inputStream);
                     return cachedDataInputStream == null ? inputStream : cachedDataInputStream;
                 },
                 DEFAULT_INPUT_STREAM_CAPACITY,
@@ -185,12 +195,15 @@ public class ForStFlinkFileSystem extends FileSystem {
                     DEFAULT_INPUT_STREAM_CAPACITY,
                     localFS.getFileStatus(localPathTuple.f1).getLen());
         }
-        FileStatus fileStatus = checkNotNull(getFileStatus(path));
+        Path truePath = new Path(fileMappingManager.originalPath(path.toString()));
+        FileStatus fileStatus = checkNotNull(getFileStatus(truePath));
         return new ByteBufferReadableFSDataInputStream(
                 () -> {
-                    FSDataInputStream inputStream = delegateFS.open(path);
+                    FSDataInputStream inputStream = delegateFS.open(truePath);
                     CachedDataInputStream cachedDataInputStream =
-                            fileBasedCache == null ? null : fileBasedCache.open(path, inputStream);
+                            fileBasedCache == null
+                                    ? null
+                                    : fileBasedCache.open(truePath, inputStream);
                     return cachedDataInputStream == null ? inputStream : cachedDataInputStream;
                 },
                 DEFAULT_INPUT_STREAM_CAPACITY,
@@ -213,6 +226,8 @@ public class ForStFlinkFileSystem extends FileSystem {
                 return success;
             }
         }
+
+        fileMappingManager.renameFile(src.toString(), dst.toString());
 
         if (delegateFS.exists(dst)) {
             boolean deleted = delegateFS.delete(dst, false);
@@ -244,7 +259,9 @@ public class ForStFlinkFileSystem extends FileSystem {
         if (localPathTuple.f0) {
             return localFS.exists(localPathTuple.f1);
         }
-        return delegateFS.exists(f);
+        Path truePath = new Path(fileMappingManager.originalPath(f.toString()));
+        boolean ex = delegateFS.exists(truePath);
+        return ex;
     }
 
     @Override
@@ -253,7 +270,12 @@ public class ForStFlinkFileSystem extends FileSystem {
         if (localPathTuple.f0) {
             return localFS.getFileStatus(localPathTuple.f1);
         }
-        return delegateFS.getFileStatus(path);
+        Path truePath = new Path(fileMappingManager.originalPath(path.toString()));
+        try {
+            return delegateFS.getFileStatus(truePath);
+        } catch (FileNotFoundException e) {
+            throw new FileNotFoundException(truePath.toString());
+        }
     }
 
     @Override
@@ -270,21 +292,35 @@ public class ForStFlinkFileSystem extends FileSystem {
 
     @Override
     public FileStatus[] listStatus(Path path) throws IOException {
+        // mapping files
+        List<FileStatus> fileStatuses = new ArrayList<>();
+        List<String> mappingFiles = fileMappingManager.listByPrefix(path.toString());
+        for (String mappingFile : mappingFiles) {
+            fileStatuses.add(getFileStatus(new Path(mappingFile)));
+        }
+
+        // local files
         FileStatus[] localFiles = new FileStatus[0];
         Tuple2<Boolean, Path> localPathTuple = tryBuildLocalPath(path);
         if (localPathTuple.f0) {
             localFiles = localFS.listStatus(localPathTuple.f1);
         }
         int localFileNum = localFiles == null ? 0 : localFiles.length;
+
+        // remote files
         FileStatus[] remoteFiles = delegateFS.listStatus(path);
-        if (localFileNum == 0) {
-            return remoteFiles;
-        }
         int remoteFileNum = remoteFiles == null ? 0 : remoteFiles.length;
-        FileStatus[] fileStatuses = new FileStatus[localFileNum + remoteFileNum];
+        if (remoteFileNum != 0) {
+            fileStatuses.addAll(Arrays.asList(remoteFiles));
+        }
+
+        if (localFileNum == 0) {
+            return fileStatuses.toArray(new FileStatus[0]);
+        }
+
         for (int index = 0; index < localFileNum; index++) {
             final FileStatus localFile = localFiles[index];
-            fileStatuses[index] =
+            fileStatuses.add(
                     new FileStatus() {
                         @Override
                         public long getLen() {
@@ -325,12 +361,9 @@ public class ForStFlinkFileSystem extends FileSystem {
                                     remoteBase,
                                     localFile.getPath().toString().substring(localBase.length()));
                         }
-                    };
+                    });
         }
-        if (remoteFileNum != 0) {
-            System.arraycopy(remoteFiles, 0, fileStatuses, localFileNum, remoteFileNum);
-        }
-        return fileStatuses;
+        return fileStatuses.toArray(new FileStatus[0]);
     }
 
     @Override
@@ -340,8 +373,9 @@ public class ForStFlinkFileSystem extends FileSystem {
         if (localPathTuple.f0) {
             success = localFS.delete(localPathTuple.f1, recursive); // delete from local
         }
-        success |= delegateFS.delete(path, recursive); // and delete from remote
+        success |= fileMappingManager.deleteFile(path, recursive);
         if (fileBasedCache != null) {
+            // only new generated file will put into cache, no need to consider file mapping
             fileBasedCache.delete(path);
         }
         return success;
@@ -376,7 +410,6 @@ public class ForStFlinkFileSystem extends FileSystem {
     }
 
     public int link(Path src, Path dst) throws IOException {
-        // let forstdb copy the file
-        return -1;
+        return fileMappingManager.put(src.toString(), dst.toString());
     }
 }
