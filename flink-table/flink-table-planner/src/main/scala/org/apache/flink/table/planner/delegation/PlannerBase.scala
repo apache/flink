@@ -572,11 +572,18 @@ abstract class PlannerBase(
   protected def beforeTranslation(): Unit = {
     // Add query start time to TableConfig, these config are used internally,
     // these configs will be used by temporal functions like CURRENT_TIMESTAMP,LOCALTIMESTAMP.
-    val epochTime: JLong = System.currentTimeMillis()
-    tableConfig.set(TABLE_QUERY_START_EPOCH_TIME, epochTime)
-    val localTime: JLong = epochTime +
-      TimeZone.getTimeZone(TableConfigUtils.getLocalTimeZone(tableConfig)).getOffset(epochTime)
-    tableConfig.set(TABLE_QUERY_START_LOCAL_TIME, localTime)
+    if (tableConfig.getOptional(TABLE_QUERY_START_EPOCH_TIME).isEmpty) {
+      val epochTime: JLong = System.currentTimeMillis()
+      tableConfig.set(TABLE_QUERY_START_EPOCH_TIME, epochTime)
+    }
+
+    if (tableConfig.getOptional(TABLE_QUERY_START_LOCAL_TIME).isEmpty) {
+      val localTime: JLong = tableConfig.get(TABLE_QUERY_START_EPOCH_TIME) +
+        TimeZone
+          .getTimeZone(TableConfigUtils.getLocalTimeZone(tableConfig))
+          .getOffset(tableConfig.get(TABLE_QUERY_START_EPOCH_TIME))
+      tableConfig.set(TABLE_QUERY_START_LOCAL_TIME, localTime)
+    }
 
     val currentDatabase = Option(catalogManager.getCurrentDatabase).getOrElse("")
     tableConfig.set(TABLE_QUERY_CURRENT_DATABASE, currentDatabase)
