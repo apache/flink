@@ -1026,6 +1026,8 @@ public interface TableEnvironment {
      * <p>If a permanent table with a given path exists, it will be used from now on for any queries
      * that reference this path.
      *
+     * @param path The given path under which the temporary table will be dropped. See also the
+     *     {@link TableEnvironment} class description for the format of the path.
      * @return true if a table existed in the given path and was removed
      */
     boolean dropTemporaryTable(String path);
@@ -1033,13 +1035,15 @@ public interface TableEnvironment {
     /**
      * Drops a table registered in the given path.
      *
-     * <p>Temporary objects can shadow permanent ones. If a temporary object exists in a given path,
-     * make sure to drop the temporary object first using {@link #dropTemporaryTable}. This method
-     * can only drop permanent objects.
+     * <p>This method can only drop permanent objects. Temporary objects can shadow permanent ones.
+     * If a temporary object exists in a given path, make sure to drop the temporary object first
+     * using {@link #dropTemporaryTable}.
      *
      * <p>Compared to SQL, this method will not throw an error if the table does not exist. Use
      * {@link #dropTable(java.lang.String, boolean)} to change the default behavior.
      *
+     * @param path The given path under which the table will be dropped. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
      * @return true if a table existed in the given path and was removed
      */
     boolean dropTable(String path);
@@ -1047,12 +1051,14 @@ public interface TableEnvironment {
     /**
      * Drops a table registered in the given path.
      *
-     * <p>Temporary objects can shadow permanent ones. If a temporary object exists in a given path,
-     * make sure to drop the temporary object first using {@link #dropTemporaryTable}. This method
-     * can only drop permanent objects.
+     * <p>This method can only drop permanent objects. Temporary objects can shadow permanent ones.
+     * If a temporary object exists in a given path, make sure to drop the temporary object first
+     * using {@link #dropTemporaryTable}.
      *
+     * @param path The given path under which the given table will be dropped. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
      * @return true if a table existed in the given path and was removed. Throws {@link
-     *     ValidationException} if table not exists and ignoreIfNotExists is false
+     *     ValidationException} if the table does not exist and ignoreIfNotExists is false
      */
     boolean dropTable(String path, boolean ignoreIfNotExists);
 
@@ -1062,6 +1068,8 @@ public interface TableEnvironment {
      * <p>If a permanent table or view with a given path exists, it will be used from now on for any
      * queries that reference this path.
      *
+     * @param path The given path under which the temporary view will be dropped. See also the
+     *     {@link TableEnvironment} class description for the format of the path.
      * @return true if a view existed in the given path and was removed
      */
     boolean dropTemporaryView(String path);
@@ -1069,13 +1077,15 @@ public interface TableEnvironment {
     /**
      * Drops a view registered in the given path.
      *
-     * <p>Temporary objects can shadow permanent ones. If a temporary object exists in a given path,
-     * make sure to drop the temporary object first using {@link #dropTemporaryView}. This method
-     * can only drop permanent objects.
+     * <p>This method can only drop permanent objects. Temporary objects can shadow permanent ones.
+     * If a temporary object exists in a given path, make sure to drop the temporary object first
+     * using {@link #dropTemporaryView}.
      *
-     * <p>* Compared to SQL, this method will not throw an error if the table does not exist. Use
+     * <p>Compared to SQL, this method will not throw an error if the table does not exist. Use
      * {@link #dropView(java.lang.String, boolean)} to change the default behavior.
      *
+     * @param path The given path under which the view will be dropped. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
      * @return true if a view existed in the given path and was removed
      */
     boolean dropView(String path);
@@ -1083,12 +1093,15 @@ public interface TableEnvironment {
     /**
      * Drops a view registered in the given path.
      *
-     * <p>Temporary objects can shadow permanent ones. If a temporary object exists in a given path,
-     * make sure to drop the temporary object first using {@link #dropTemporaryView}. This method
-     * can only drop permanent objects.
+     * <p>This method can only drop permanent objects. Temporary objects can shadow permanent ones.
+     * If a temporary object exists in a given path, make sure to drop the temporary object first
+     * using {@link #dropTemporaryView}.
      *
-     * @return true if a view existed in the given path and was removed Throws {@link
-     *     ValidationException} if view not exists and ignoreIfNotExists is false
+     * @param path The given path under which the view will be dropped. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param ignoreIfNotExists whether to ignore if view not exists.
+     * @return true if a view existed in the given path and was removed, throws {@link
+     *     ValidationException} if the view does not exist and ignoreIfNotExists is false
      */
     boolean dropView(String path, boolean ignoreIfNotExists);
 
