@@ -1057,6 +1057,7 @@ public interface TableEnvironment {
      *
      * @param path The given path under which the given table will be dropped. See also the {@link
      *     TableEnvironment} class description for the format of the path.
+     * @param ignoreIfNotExists whether to ignore if table does not exist.
      * @return true if a table existed in the given path and was removed. Throws {@link
      *     ValidationException} if the table does not exist and ignoreIfNotExists is false
      */
@@ -1099,7 +1100,7 @@ public interface TableEnvironment {
      *
      * @param path The given path under which the view will be dropped. See also the {@link
      *     TableEnvironment} class description for the format of the path.
-     * @param ignoreIfNotExists whether to ignore if view not exists.
+     * @param ignoreIfNotExists whether to ignore if view does not exist.
      * @return true if a view existed in the given path and was removed, throws {@link
      *     ValidationException} if the view does not exist and ignoreIfNotExists is false
      */
