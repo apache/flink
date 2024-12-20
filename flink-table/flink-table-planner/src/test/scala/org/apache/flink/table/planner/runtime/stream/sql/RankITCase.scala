@@ -21,20 +21,35 @@ import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.{Disabled, TestTemplate}
+import org.junit.jupiter.api.{BeforeEach, Disabled, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
+import java.util
+
+import scala.collection.JavaConversions._
+
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
+class RankITCase(mode: StateBackendMode, enableAsyncState: Boolean)
+  extends StreamingWithStateTestBase(mode) {
+
+  @BeforeEach
+  override def before(): Unit = {
+    super.before()
+
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED,
+      Boolean.box(enableAsyncState))
+  }
 
   @TestTemplate
   def testTopN(): Unit = {
@@ -1347,5 +1362,16 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     env.execute()
     val expected = List("book,aws,1", "book,aws,2", "fruit,aws,3", "fruit,aws,4")
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+}
+
+object RankITCase {
+
+  @Parameters(name = "StateBackend={0}, EnableAsyncState={1}")
+  def parameters(): util.Collection[Array[java.lang.Object]] = {
+    Seq[Array[AnyRef]](
+      Array(HEAP_BACKEND, Boolean.box(false)),
+      Array(HEAP_BACKEND, Boolean.box(true)),
+      Array(ROCKSDB_BACKEND, Boolean.box(false)))
   }
 }

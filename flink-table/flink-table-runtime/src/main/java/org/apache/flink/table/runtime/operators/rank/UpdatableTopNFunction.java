@@ -65,7 +65,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * input data has unique keys and unique key must contain partition key 3. input stream could not
  * contain DELETE record or UPDATE_BEFORE record
  */
-public class UpdatableTopNFunction extends AbstractTopNFunction implements CheckpointedFunction {
+public class UpdatableTopNFunction extends AbstractSyncStateTopNFunction
+        implements CheckpointedFunction {
 
     private static final long serialVersionUID = 6786508184355952781L;
 
@@ -191,8 +192,7 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
         for (Map.Entry<RowData, Tuple2<TopNBuffer, Map<RowData, RankRow>>> entry :
                 kvRowKeyMap.asMap().entrySet()) {
             RowData partitionKey = entry.getKey();
-            keyContext.setCurrentKey(partitionKey);
-            flushBufferToState(entry.getValue());
+            flushBufferToState(partitionKey, entry.getValue());
         }
     }
 
@@ -541,8 +541,10 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
         }
     }
 
-    private void flushBufferToState(Tuple2<TopNBuffer, Map<RowData, RankRow>> bufferEntry)
+    private void flushBufferToState(
+            RowData currentKey, Tuple2<TopNBuffer, Map<RowData, RankRow>> bufferEntry)
             throws Exception {
+        keyContext.setCurrentKey(currentKey);
         Map<RowData, RankRow> curRowKeyMap = bufferEntry.f1;
         for (Map.Entry<RowData, RankRow> entry : curRowKeyMap.entrySet()) {
             RowData key = entry.getKey();
