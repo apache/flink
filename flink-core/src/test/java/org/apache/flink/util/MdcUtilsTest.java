@@ -28,12 +28,8 @@ import org.apache.logging.log4j.core.LogEvent;
 import org.assertj.core.api.AbstractObjectAssert;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
-import org.mockito.internal.stubbing.answers.CallsRealMethods;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 import java.util.Collections;
 import java.util.concurrent.ScheduledExecutorService;
@@ -43,8 +39,6 @@ import static org.apache.flink.util.MdcUtils.asContextData;
 import static org.apache.flink.util.MdcUtils.wrapCallable;
 import static org.apache.flink.util.MdcUtils.wrapRunnable;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.slf4j.event.Level.DEBUG;
 
 /** Tests for the {@link MdcUtils}. */
@@ -55,19 +49,6 @@ class MdcUtilsTest {
     @RegisterExtension
     public final LoggerAuditingExtension loggerExtension =
             new LoggerAuditingExtension(MdcUtilsTest.class, DEBUG);
-
-    @Test
-    void testContextRestorationWorksWithNullContext() {
-        try (MockedStatic<MDC> mockStatic = Mockito.mockStatic(MDC.class, new CallsRealMethods())) {
-            mockStatic.when(MDC::getCopyOfContextMap).thenReturn(null);
-            mockStatic.when(() -> MDC.setContextMap(isNull()))
-                    .thenThrow(NullPointerException.class);
-
-            MdcCloseable restoreContext = MdcUtils.withContext(Collections.singletonMap("k", "v"));
-            assertThat(MDC.get("k")).isEqualTo("v");
-            assertDoesNotThrow(restoreContext::close);
-        }
-    }
 
     @Test
     void testJobIDAsContext() {

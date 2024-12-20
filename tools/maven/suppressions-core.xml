@@ -122,6 +122,4 @@ under the License.
 		files="(.*)test[/\\](.*)testutils[/\\](.*)"
 		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|StaticVariableNameCheck|LocalFinalVariableName|EmptyLineSeparator"/>
 
-	<!-- Mockito is used to force Log4j's MDC adapter to behave like the one in old Logback (< 1.3.2) -->
-	<suppress files="MdcUtilsTest.java" checks="IllegalImport"/>
 </suppressions>
