@@ -192,6 +192,13 @@ trait BatchPhysicalJoinRuleBase {
           (false, false)
       }
     } else {
+      if (
+        tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_ADAPTIVE_BROADCAST_JOIN_STRATEGY)
+          == OptimizerConfigOptions.AdaptiveBroadcastJoinStrategy.RUNTIME_ONLY
+      ) {
+        return (false, false)
+      }
+
       val leftSize = JoinUtil.binaryRowRelNodeSize(join.getLeft)
       val rightSize = JoinUtil.binaryRowRelNodeSize(join.getRight)
 
