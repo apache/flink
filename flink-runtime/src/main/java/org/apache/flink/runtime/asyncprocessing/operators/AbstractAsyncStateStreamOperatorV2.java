@@ -260,15 +260,66 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     // ------------------------------------------------------------------------
     //  Watermark handling
     // ------------------------------------------------------------------------
+
+    /**
+     * A hook that will be triggered when receiving a watermark. Some async state can safely go
+     * within this method. Return the watermark that should be normally processed.
+     *
+     * @param watermark the receiving watermark.
+     * @return the watermark that should be processed. Null if there is no need for following
+     *     processing.
+     */
+    public Watermark preProcessWatermark(Watermark watermark) throws Exception {
+        return watermark;
+    }
+
+    /**
+     * A hook that will be invoked after finishing advancing the watermark. It is not recommended to
+     * perform async state here. Only some synchronous logic is suggested.
+     *
+     * @param watermark the advanced watermark.
+     */
+    public void postProcessWatermark(Watermark watermark) throws Exception {}
+
+    /**
+     * Process a watermark when receiving it. Do not override this method since the async processing
+     * is difficult to write. Please override the hooks, see {@link #preProcessWatermark(Watermark)}
+     * and {@link #postProcessWatermark(Watermark)}. The basic logic of processWatermark with hooks
+     * in sync form would be:
+     *
+     * <pre>
+     *             Watermark watermark = preProcessWatermark(mark);
+     *             if (watermark != null) {
+     *                 super.processWatermark(watermark);
+     *                 postProcessWatermark(watermark);
+     *             }
+     * </pre>
+     */
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
+    public final void processWatermark(Watermark mark) throws Exception {
         if (!isAsyncStateProcessingEnabled()) {
-            super.processWatermark(mark);
+            // If async state processing is disabled, fallback to the super class.
+            Watermark watermark = preProcessWatermark(mark);
+            if (watermark != null) {
+                super.processWatermark(watermark);
+                postProcessWatermark(watermark);
+            }
             return;
         }
+        AtomicReference<Watermark> watermarkRef = new AtomicReference<>(null);
         asyncExecutionController.processNonRecord(
-                timeServiceManager == null ? null : () -> timeServiceManager.advanceWatermark(mark),
-                () -> output.emitWatermark(mark));
+                () -> {
+                    watermarkRef.set(preProcessWatermark(mark));
+                    if (timeServiceManager != null && watermarkRef.get() != null) {
+                        timeServiceManager.advanceWatermark(watermarkRef.get());
+                    }
+                },
+                () -> {
+                    if (watermarkRef.get() != null) {
+                        output.emitWatermark(watermarkRef.get());
+                        postProcessWatermark(watermarkRef.get());
+                    }
+                });
     }
 
     @Override
@@ -284,8 +335,10 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
                 () -> {
                     wasIdle.set(combinedWatermark.isIdle());
                     if (combinedWatermark.updateStatus(inputId - 1, watermarkStatus.isIdle())) {
-                        watermarkRef.set(new Watermark(combinedWatermark.getCombinedWatermark()));
-                        if (timeServiceManager != null) {
+                        watermarkRef.set(
+                                preProcessWatermark(
+                                        new Watermark(combinedWatermark.getCombinedWatermark())));
+                        if (timeServiceManager != null && watermarkRef.get() != null) {
                             timeServiceManager.advanceWatermark(watermarkRef.get());
                         }
                     }
