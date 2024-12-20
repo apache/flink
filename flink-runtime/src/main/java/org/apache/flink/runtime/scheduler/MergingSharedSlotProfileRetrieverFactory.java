@@ -107,7 +107,7 @@ class MergingSharedSlotProfileRetrieverFactory
 
             return SlotProfile.priorAllocation(
                     physicalSlotResourceProfile,
-                    physicalSlotResourceProfile,
+                    physicalSlotResourceProfile.toLoadable(executionSlotSharingGroup.getLoading()),
                     preferredLocations,
                     priorAllocations,
                     reservedAllocationIds);
