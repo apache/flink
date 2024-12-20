@@ -134,7 +134,7 @@ TableEnvironment API
     </tr>
     <tr>
       <td>
-        <strong>drop_view(view_path)</strong>
+        <strong>drop_view(view_path, ignore_if_not_exists=True)</strong>
       </td>
       <td>
         Drops a view registered in the given path.
@@ -157,7 +157,7 @@ TableEnvironment API
     </tr>
     <tr>
       <td>
-        <strong>drop_table(table_path)</strong>
+        <strong>drop_table(table_path, ignore_if_not_exists=True)</strong>
       </td>
       <td>
         Drops a table registered under the given path.

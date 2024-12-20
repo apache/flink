@@ -134,18 +134,7 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
     </tr>
     <tr>
       <td>
-        <strong>drop_view(view_path)</strong>
-      </td>
-      <td>
-        Drops a view registered in the given path.
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_view" name="link">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <strong>drop_view(view_path, ignore_if_not_exists)</strong>
+        <strong>drop_view(view_path, ignore_if_not_exists=True)</strong>
       </td>
       <td>
         Drops a view registered in the given path.
@@ -168,18 +157,7 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
     </tr>
     <tr>
       <td>
-        <strong>drop_table(table_path)</strong>
-      </td>
-      <td>
-        Drops a table registered under the given path.
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_table" name="link">}}
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <strong>drop_table(table_path, ignore_if_not_exists)</strong>
+        <strong>drop_table(table_path, ignore_if_not_exists=True)</strong>
       </td>
       <td>
         Drops a table registered under the given path.
