@@ -100,18 +100,18 @@
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "options": {
-            "browserTarget": "flink:build"
+            "buildTarget": "flink:build"
           },
           "configurations": {
             "production": {
-              "browserTarget": "flink:build:production"
+              "buildTarget": "flink:build:production"
             }
           }
         },
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n",
           "options": {
-            "browserTarget": "flink:build"
+            "buildTarget": "flink:build"
           }
         },
         "test": {
