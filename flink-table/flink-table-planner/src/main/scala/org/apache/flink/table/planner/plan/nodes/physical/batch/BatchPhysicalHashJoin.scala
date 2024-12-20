@@ -49,7 +49,8 @@ class BatchPhysicalHashJoin(
     val leftIsBuild: Boolean,
     // true if build side is broadcast, else false
     val isBroadcast: Boolean,
-    val tryDistinctBuildRow: Boolean)
+    val tryDistinctBuildRow: Boolean,
+    val withHint: Boolean)
   extends BatchPhysicalJoinBase(cluster, traitSet, leftRel, rightRel, condition, joinType) {
 
   val hashJoinType: HashJoinType = HashJoinType.of(
@@ -75,7 +76,8 @@ class BatchPhysicalHashJoin(
       joinType,
       leftIsBuild,
       isBroadcast,
-      tryDistinctBuildRow)
+      tryDistinctBuildRow,
+      withHint)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -176,6 +178,7 @@ class BatchPhysicalHashJoin(
       leftEdge,
       rightEdge,
       FlinkTypeFactory.toLogicalRowType(getRowType),
+      withHint,
       getRelDetailedDescription)
   }
 

@@ -220,6 +220,7 @@
     "isBroadcast" : false,
     "leftIsBuild" : true,
     "tryDistinctBuildRow" : false,
+    "withHint": false,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
