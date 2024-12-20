@@ -23,7 +23,6 @@ import org.apache.flink.table.data.binary.{BinaryStringData, BinaryStringDataUti
 import org.apache.flink.table.functions.SqlLikeUtils
 import org.apache.flink.table.runtime.functions._
 import org.apache.flink.table.runtime.functions.SqlJsonUtils.JsonQueryReturnType
-import org.apache.flink.table.types.logical.LogicalTypeRoot
 import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.table.utils.DateTimeUtils.TimeUnitRange
 
@@ -325,18 +324,6 @@ object BuiltInMethods {
     "formatUnixTimestamp",
     classOf[Long],
     classOf[TimeZone])
-
-  val LONG_TO_TIMESTAMP_LTZ_WITH_PRECISION =
-    Types.lookupMethod(classOf[DateTimeUtils], "toTimestampData", classOf[Long], classOf[Int])
-
-  val DOUBLE_TO_TIMESTAMP_LTZ_WITH_PRECISION =
-    Types.lookupMethod(classOf[DateTimeUtils], "toTimestampData", classOf[Double], classOf[Int])
-
-  val DECIMAL_TO_TIMESTAMP_LTZ_WITH_PRECISION = Types.lookupMethod(
-    classOf[DateTimeUtils],
-    "toTimestampData",
-    classOf[DecimalData],
-    classOf[Int])
 
   val STRING_TO_TIMESTAMP =
     Types.lookupMethod(classOf[DateTimeUtils], "parseTimestampData", classOf[String])
