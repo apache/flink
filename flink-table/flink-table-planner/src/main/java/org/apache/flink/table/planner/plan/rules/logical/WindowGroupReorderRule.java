@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
-
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.RelCollation;
@@ -78,7 +76,9 @@ public class WindowGroupReorderRule
                     }
                 });
 
-        if (!sequenceGroups.equals(oldGroups) && !Lists.reverse(sequenceGroups).equals(oldGroups)) {
+        List<Group> reverseSequenceGroups = new ArrayList<>(window.groups);
+        Collections.reverse(reverseSequenceGroups);
+        if (!sequenceGroups.equals(oldGroups) && !reverseSequenceGroups.equals(oldGroups)) {
             int offset = input.getRowType().getFieldCount();
             List<int[]> aggTypeIndexes = new ArrayList<>();
             for (Group group : oldGroups) {
