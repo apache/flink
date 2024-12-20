@@ -54,8 +54,10 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -151,16 +153,19 @@ public class TaskDeploymentDescriptorFactory {
 
             IntermediateDataSetID resultId = consumedIntermediateResult.getId();
             ResultPartitionType partitionType = consumedIntermediateResult.getResultType();
-            IndexRange subpartitionRange =
-                    executionVertex
-                            .getExecutionVertexInputInfo(resultId)
-                            .getSubpartitionIndexRange();
 
             inputGates.add(
                     new InputGateDeploymentDescriptor(
                             resultId,
                             partitionType,
-                            subpartitionRange,
+                            ConsumedSubpartitionContext.buildConsumedSubpartitionContext(
+                                    executionVertex
+                                            .getExecutionVertexInputInfo(resultId)
+                                            .getConsumedSubpartitionGroups(),
+                                    consumedPartitionGroup.iterator(),
+                                    Arrays.stream(consumedIntermediateResult.getPartitions())
+                                            .map(IntermediateResultPartition::getPartitionId)
+                                            .toArray(IntermediateResultPartitionID[]::new)),
                             consumedPartitionGroup.size(),
                             getConsumedPartitionShuffleDescriptors(
                                     consumedIntermediateResult,
@@ -396,6 +401,35 @@ public class TaskDeploymentDescriptorFactory {
         return producerState == ExecutionState.CANCELING
                 || producerState == ExecutionState.CANCELED
                 || producerState == ExecutionState.FAILED;
+    }
+
+    private Map<IndexRange, IndexRange> constructConsumedSubpartitionGroupByChannelRange(
+            Map<IndexRange, IndexRange> consumedSubpartitionGroups,
+            Iterator<IntermediateResultPartitionID> consumedResultPartitions,
+            IntermediateResult consumedIntermediateResult) {
+        Map<IntermediateResultPartitionID, Integer> channelIndexByPartitionId = new HashMap<>();
+        while (consumedResultPartitions.hasNext()) {
+            IntermediateResultPartitionID partitionId = consumedResultPartitions.next();
+            channelIndexByPartitionId.put(partitionId, channelIndexByPartitionId.size());
+        }
+        Map<IndexRange, IndexRange> subPartitionGroupByChannelRange = new HashMap<>();
+        for (Map.Entry<IndexRange, IndexRange> entry : consumedSubpartitionGroups.entrySet()) {
+            IndexRange partitionIndexRange = entry.getKey();
+            IndexRange subPartitionIndexRange = entry.getValue();
+            int channelStartIndex =
+                    channelIndexByPartitionId.get(
+                            consumedIntermediateResult
+                                    .getPartitions()[partitionIndexRange.getStartIndex()]
+                                    .getPartitionId());
+            int channelEndIndex =
+                    channelIndexByPartitionId.get(
+                            consumedIntermediateResult
+                                    .getPartitions()[partitionIndexRange.getEndIndex()]
+                                    .getPartitionId());
+            subPartitionGroupByChannelRange.put(
+                    new IndexRange(channelStartIndex, channelEndIndex), subPartitionIndexRange);
+        }
+        return subPartitionGroupByChannelRange;
     }
 
     /**
