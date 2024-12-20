@@ -21,8 +21,8 @@ import org.apache.flink.table.annotation.{DataTypeHint, HintFlag}
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.types.extraction.DataTypeExtractorTest._
 
+import org.assertj.core.api.{AbstractAssert, HamcrestCondition}
 import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.assertj.core.api.HamcrestCondition
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 
