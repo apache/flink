@@ -72,10 +72,15 @@ object FlinkStreamRuleSets {
 
   /** RuleSet to reduce expressions */
   private val REDUCE_EXPRESSION_RULES: RuleSet = RuleSets.ofList(
-    CoreRules.FILTER_REDUCE_EXPRESSIONS,
     CoreRules.PROJECT_REDUCE_EXPRESSIONS,
+    CoreRules.FILTER_REDUCE_EXPRESSIONS,
     CoreRules.CALC_REDUCE_EXPRESSIONS,
-    CoreRules.JOIN_REDUCE_EXPRESSIONS
+    CoreRules.WINDOW_REDUCE_EXPRESSIONS,
+    CoreRules.JOIN_REDUCE_EXPRESSIONS,
+    CoreRules.FILTER_VALUES_MERGE,
+    CoreRules.PROJECT_FILTER_VALUES_MERGE,
+    CoreRules.PROJECT_VALUES_MERGE,
+    CoreRules.AGGREGATE_VALUES
   )
 
   /** RuleSet to simplify coalesce invocations */
@@ -180,13 +185,16 @@ object FlinkStreamRuleSets {
 
   /** RuleSet to prune empty results rules */
   val PRUNE_EMPTY_RULES: RuleSet = RuleSets.ofList(
-    PruneEmptyRules.AGGREGATE_INSTANCE,
+    PruneEmptyRules.UNION_INSTANCE,
+    PruneEmptyRules.INTERSECT_INSTANCE,
+    PruneEmptyRules.MINUS_INSTANCE,
+    PruneEmptyRules.PROJECT_INSTANCE,
     PruneEmptyRules.FILTER_INSTANCE,
+    PruneEmptyRules.SORT_INSTANCE,
+    PruneEmptyRules.AGGREGATE_INSTANCE,
     PruneEmptyRules.JOIN_LEFT_INSTANCE,
     PruneEmptyRules.JOIN_RIGHT_INSTANCE,
-    PruneEmptyRules.PROJECT_INSTANCE,
-    PruneEmptyRules.SORT_INSTANCE,
-    PruneEmptyRules.UNION_INSTANCE
+    PruneEmptyRules.EMPTY_TABLE_INSTANCE
   )
 
   /** RuleSet about project */

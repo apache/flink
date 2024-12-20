@@ -233,11 +233,8 @@ LogicalMinus(all=[false])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashAggregate(isMerge=[true], groupBy=[c], select=[c])
-+- Exchange(distribution=[hash[c]])
-   +- LocalHashAggregate(groupBy=[c], select=[c])
-      +- Calc(select=[c])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+Calc(select=[c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
