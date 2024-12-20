@@ -274,7 +274,6 @@ public class StreamNode implements Serializable {
         this.bufferTimeout = bufferTimeout;
     }
 
-    @VisibleForTesting
     public StreamOperator<?> getOperator() {
         assert operatorFactory != null && operatorFactory instanceof SimpleOperatorFactory;
         return (StreamOperator<?>) ((SimpleOperatorFactory) operatorFactory).getOperator();

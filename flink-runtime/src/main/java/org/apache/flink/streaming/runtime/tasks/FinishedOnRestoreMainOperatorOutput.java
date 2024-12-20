@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
@@ -74,6 +75,13 @@ public class FinishedOnRestoreMainOperatorOutput<OUT> implements WatermarkGaugeE
     public void emitRecordAttributes(RecordAttributes recordAttributes) {
         for (RecordWriterOutput<?> streamOutput : streamOutputs) {
             streamOutput.emitRecordAttributes(recordAttributes);
+        }
+    }
+
+    @Override
+    public void emitWatermark(WatermarkEvent watermark) {
+        for (RecordWriterOutput<?> streamOutput : streamOutputs) {
+            streamOutput.emitWatermark(watermark);
         }
     }
 

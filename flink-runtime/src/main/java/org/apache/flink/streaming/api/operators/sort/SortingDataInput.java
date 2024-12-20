@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
@@ -190,6 +191,9 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
             // The SortingDataInput is only used in batch execution mode. The RecordAttributes is
             // not used in batch execution mode. We will ignore all the RecordAttributes.
         }
+
+        @Override
+        public void emitWatermark(WatermarkEvent watermark) throws Exception {}
     }
 
     @Override
