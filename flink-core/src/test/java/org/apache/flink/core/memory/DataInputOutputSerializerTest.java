@@ -30,8 +30,10 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.Random;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 /** Tests for the combination of {@link DataOutputSerializer} and {@link DataInputDeserializer}. */
 class DataInputOutputSerializerTest {
@@ -138,5 +140,29 @@ class DataInputOutputSerializerTest {
 
         String actual = deserializer.readUTF();
         assertThat(actual).isEqualTo(expected);
+    }
+
+    @Test
+    void testWriteBytes() {
+        DataOutputSerializer serializer = new DataOutputSerializer(1);
+        String givenStr = "Hello, World!";
+
+        assertThatCode(() -> serializer.writeBytes(givenStr)).doesNotThrowAnyException();
+
+        ByteBuffer wrote = serializer.wrapAsByteBuffer();
+        String actual = Charset.defaultCharset().decode(wrote).toString();
+        assertThat(actual).isEqualTo(givenStr);
+    }
+
+    @Test
+    void testWriteBytesRandomly() {
+        DataOutputSerializer serializer = new DataOutputSerializer(1);
+        String randomStr = UUID.randomUUID().toString();
+
+        assertThatCode(() -> serializer.writeBytes(randomStr)).doesNotThrowAnyException();
+
+        ByteBuffer wrote = serializer.wrapAsByteBuffer();
+        String actual = Charset.defaultCharset().decode(wrote).toString();
+        assertThat(actual).isEqualTo(randomStr);
     }
 }
