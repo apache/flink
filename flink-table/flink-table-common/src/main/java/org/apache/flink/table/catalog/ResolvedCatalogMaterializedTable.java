@@ -84,6 +84,13 @@ public class ResolvedCatalogMaterializedTable
     }
 
     @Override
+    public ResolvedCatalogMaterializedTable copy(
+            IntervalFreshness intervalFreshness, RefreshMode refreshMode) {
+        return new ResolvedCatalogMaterializedTable(
+                origin.copy(intervalFreshness, refreshMode), resolvedSchema);
+    }
+
+    @Override
     public Optional<String> getDescription() {
         return origin.getDescription();
     }
