@@ -25,6 +25,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 /** A {@link StreamOperator} for executing {@link SinkFunction SinkFunctions}. */
+@Deprecated
 @Internal
 public class StreamSink<IN> extends AbstractUdfStreamOperator<Object, SinkFunction<IN>>
         implements OneInputStreamOperator<IN, Object> {
