@@ -34,6 +34,7 @@ import org.apache.flink.table.data.TimestampData;
  * A {@link StreamOperator} for executing {@link SinkFunction SinkFunctions}. This operator also
  * checks writing null values into NOT NULL columns.
  */
+@Deprecated
 public class SinkOperator extends AbstractUdfStreamOperator<Object, SinkFunction<RowData>>
         implements OneInputStreamOperator<RowData, Object> {
 
