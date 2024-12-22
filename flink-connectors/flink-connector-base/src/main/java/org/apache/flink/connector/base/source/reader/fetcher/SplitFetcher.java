@@ -54,6 +54,7 @@ public class SplitFetcher<E, SplitT extends SourceSplit> implements Runnable {
 
     @GuardedBy("lock")
     private final Deque<SplitFetcherTask> taskQueue = new ArrayDeque<>();
+
     // track the assigned splits so we can suspend the reader when there is no splits assigned.
     private final Map<String, SplitT> assignedSplits = new HashMap<>();
     private final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue;

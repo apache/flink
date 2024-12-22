@@ -65,6 +65,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
     }
 
     @Parameterized.Parameter public boolean wrapsSystemClassLoader;
+
     /**
      * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs are recoverable from
      * any participating BlobLibraryCacheManager.

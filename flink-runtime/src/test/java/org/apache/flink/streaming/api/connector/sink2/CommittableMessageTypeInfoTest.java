@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.connector.sink2;
 
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
+import org.apache.flink.streaming.runtime.operators.sink.IntegerSerializer;
 
 /** Test for {@link CommittableMessageTypeInfo}. */
 class CommittableMessageTypeInfoTest

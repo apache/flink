@@ -19,13 +19,12 @@ package org.apache.flink.state.forst;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.fs.ICloseableRegistry;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
-import org.apache.flink.state.forst.ForStKeyedStateBackend.ForStKvStateInfo;
 import org.apache.flink.state.forst.sync.ForStIteratorWrapper;
-import org.apache.flink.state.forst.sync.ForStSyncKeyedStateBackend;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.OperatingSystem;
@@ -36,6 +35,7 @@ import org.forstdb.ColumnFamilyHandle;
 import org.forstdb.ColumnFamilyOptions;
 import org.forstdb.DBOptions;
 import org.forstdb.ExportImportFilesMetaData;
+import org.forstdb.ImportColumnFamilyOptions;
 import org.forstdb.ReadOptions;
 import org.forstdb.RocksDB;
 import org.forstdb.RocksDBException;
@@ -104,44 +104,29 @@ public class ForStOperationUtils {
         return dbRef;
     }
 
-    /** Creates a column family handle from a state id. */
-    public static ColumnFamilyHandle createColumnFamilyHandle(
-            String stateId,
+    private static ColumnFamilyHandle createColumnFamily(
+            ColumnFamilyDescriptor columnDescriptor,
             RocksDB db,
-            Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory) {
-
-        ColumnFamilyDescriptor columnFamilyDescriptor =
-                createColumnFamilyDescriptor(stateId, columnFamilyOptionsFactory);
-
-        final ColumnFamilyHandle columnFamilyHandle;
-        try {
-            columnFamilyHandle = createColumnFamily(columnFamilyDescriptor, db);
-        } catch (Exception ex) {
-            IOUtils.closeQuietly(columnFamilyDescriptor.getOptions());
-            throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", ex);
+            List<ExportImportFilesMetaData> importFilesMetaData,
+            ICloseableRegistry cancelStreamRegistryForRestore)
+            throws RocksDBException, InterruptedException {
+        if (Thread.currentThread().isInterrupted()) {
+            // abort recovery if the task thread was already interrupted
+            // e.g. because the task was cancelled
+            throw new InterruptedException("The thread was interrupted, aborting recovery");
+        } else if (cancelStreamRegistryForRestore.isClosed()) {
+            throw new CancelTaskException("The stream was closed, aborting recovery");
         }
 
-        return columnFamilyHandle;
-    }
-
-    /** Creates a column descriptor for a state column family. */
-    public static ColumnFamilyDescriptor createColumnFamilyDescriptor(
-            String stateId, Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory) {
-
-        byte[] nameBytes = stateId.getBytes(ConfigConstants.DEFAULT_CHARSET);
-        Preconditions.checkState(
-                !Arrays.equals(RocksDB.DEFAULT_COLUMN_FAMILY, nameBytes),
-                "The chosen state name 'default' collides with the name of the default column family!");
-
-        ColumnFamilyOptions options =
-                createColumnFamilyOptions(columnFamilyOptionsFactory, stateId);
-
-        return new ColumnFamilyDescriptor(nameBytes, options);
-    }
-
-    private static ColumnFamilyHandle createColumnFamily(
-            ColumnFamilyDescriptor columnDescriptor, RocksDB db) throws RocksDBException {
-        return db.createColumnFamily(columnDescriptor);
+        if (importFilesMetaData.isEmpty()) {
+            return db.createColumnFamily(columnDescriptor);
+        } else {
+            try (ImportColumnFamilyOptions importColumnFamilyOptions =
+                    new ImportColumnFamilyOptions().setMoveFiles(true)) {
+                return db.createColumnFamilyWithImport(
+                        columnDescriptor, importColumnFamilyOptions, importFilesMetaData);
+            }
+        }
     }
 
     public static ColumnFamilyOptions createColumnFamilyOptions(
@@ -209,7 +194,7 @@ public class ForStOperationUtils {
      * @param importFilesMetaData if not empty, we import the files specified in the metadata to the
      *     column family.
      */
-    public static ForStSyncKeyedStateBackend.ForStDbKvStateInfo createStateInfo(
+    public static ForStKvStateInfo createStateInfo(
             RegisteredStateMetaInfoBase metaInfoBase,
             RocksDB db,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
@@ -226,9 +211,13 @@ public class ForStOperationUtils {
                         writeBufferManagerCapacity);
 
         try {
-            ColumnFamilyHandle columnFamilyHandle = createColumnFamily(columnFamilyDescriptor, db);
-            return new ForStSyncKeyedStateBackend.ForStDbKvStateInfo(
-                    columnFamilyHandle, metaInfoBase);
+            ColumnFamilyHandle columnFamilyHandle =
+                    createColumnFamily(
+                            columnFamilyDescriptor,
+                            db,
+                            importFilesMetaData,
+                            cancelStreamRegistryForRestore);
+            return new ForStKvStateInfo(columnFamilyHandle, metaInfoBase);
         } catch (Exception ex) {
             IOUtils.closeQuietly(columnFamilyDescriptor.getOptions());
             throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", ex);
@@ -241,7 +230,7 @@ public class ForStOperationUtils {
      * @param cancelStreamRegistryForRestore {@link ICloseableRegistry#close closing} it interrupts
      *     KV state creation
      */
-    public static ForStSyncKeyedStateBackend.ForStDbKvStateInfo createStateInfo(
+    public static ForStKvStateInfo createStateInfo(
             RegisteredStateMetaInfoBase metaInfoBase,
             RocksDB db,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
@@ -279,7 +268,7 @@ public class ForStOperationUtils {
 
         if (ttlCompactFiltersManager != null) {
             if (metaInfoBase instanceof RegisteredKeyValueStateBackendMetaInfo) {
-                ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtlV2(
+                ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtl(
                         metaInfoBase, options);
             } else {
                 ttlCompactFiltersManager.setAndRegisterCompactFilterIfStateTtlV2(
@@ -341,19 +330,6 @@ public class ForStOperationUtils {
     }
 
     public static void registerKvStateInformation(
-            Map<String, ForStSyncKeyedStateBackend.ForStDbKvStateInfo> kvStateInformation,
-            ForStNativeMetricMonitor nativeMetricMonitor,
-            String columnFamilyName,
-            ForStSyncKeyedStateBackend.ForStDbKvStateInfo registeredColumn) {
-
-        kvStateInformation.put(columnFamilyName, registeredColumn);
-        if (nativeMetricMonitor != null) {
-            nativeMetricMonitor.registerColumnFamily(
-                    columnFamilyName, registeredColumn.columnFamilyHandle);
-        }
-    }
-
-    public static void registerKvStateInformation(
             Map<String, ForStKvStateInfo> kvStateInformation,
             ForStNativeMetricMonitor nativeMetricMonitor,
             String columnFamilyName,
@@ -363,47 +339,6 @@ public class ForStOperationUtils {
         if (nativeMetricMonitor != null) {
             nativeMetricMonitor.registerColumnFamily(
                     columnFamilyName, registeredColumn.columnFamilyHandle);
-        }
-    }
-
-    public static ForStKvStateInfo createStateInfo(
-            RegisteredStateMetaInfoBase metaInfoBase,
-            RocksDB db,
-            Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory) {
-
-        ColumnFamilyDescriptor columnFamilyDescriptor =
-                createColumnFamilyDescriptor(metaInfoBase.getName(), columnFamilyOptionsFactory);
-
-        final ColumnFamilyHandle columnFamilyHandle;
-        try {
-            columnFamilyHandle = createColumnFamily(columnFamilyDescriptor, db);
-        } catch (Exception ex) {
-            IOUtils.closeQuietly(columnFamilyDescriptor.getOptions());
-            throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", ex);
-        }
-
-        return new ForStKvStateInfo(columnFamilyHandle, metaInfoBase);
-    }
-
-    public static ForStKvStateInfo createAsyncStateInfo(
-            RegisteredStateMetaInfoBase metaInfoBase,
-            RocksDB db,
-            Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
-            @Nullable ForStDBTtlCompactFiltersManager ttlCompactFiltersManager,
-            @Nullable Long writeBufferManagerCapacity) {
-
-        ColumnFamilyDescriptor columnFamilyDescriptor =
-                createColumnFamilyDescriptor(
-                        metaInfoBase,
-                        columnFamilyOptionsFactory,
-                        ttlCompactFiltersManager,
-                        writeBufferManagerCapacity);
-        try {
-            ColumnFamilyHandle columnFamilyHandle = createColumnFamily(columnFamilyDescriptor, db);
-            return new ForStKvStateInfo(columnFamilyHandle, metaInfoBase);
-        } catch (Exception ex) {
-            IOUtils.closeQuietly(columnFamilyDescriptor.getOptions());
-            throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", ex);
         }
     }
 
@@ -420,6 +355,23 @@ public class ForStOperationUtils {
                             "The directory path length (%d) is longer than the directory path length limit for Windows (%d): %s",
                             path.length(), maxWinDirPathLen, path),
                     cause);
+        }
+    }
+
+    /** ForSt specific information about the k/v states. */
+    public static class ForStKvStateInfo implements AutoCloseable {
+        public final ColumnFamilyHandle columnFamilyHandle;
+        public final RegisteredStateMetaInfoBase metaInfo;
+
+        public ForStKvStateInfo(
+                ColumnFamilyHandle columnFamilyHandle, RegisteredStateMetaInfoBase metaInfo) {
+            this.columnFamilyHandle = columnFamilyHandle;
+            this.metaInfo = metaInfo;
+        }
+
+        @Override
+        public void close() throws Exception {
+            this.columnFamilyHandle.close();
         }
     }
 }

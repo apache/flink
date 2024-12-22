@@ -36,6 +36,7 @@ import org.apache.flink.table.functions.SpecializedFunction.SpecializedContext;
 import org.apache.flink.table.functions.python.utils.PythonFunctionUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.extraction.ExtractionUtils;
+import org.apache.flink.table.types.extraction.ExtractionUtils.Autoboxing;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -91,6 +92,8 @@ public final class UserDefinedFunctionHelper {
     public static final String TABLE_AGGREGATE_EMIT_RETRACT = "emitUpdateWithRetract";
 
     public static final String ASYNC_TABLE_EVAL = "eval";
+
+    public static final String PROCESS_TABLE_EVAL = "eval";
 
     /**
      * Tries to infer the TypeInformation of an AggregateFunction's accumulator type.
@@ -320,9 +323,13 @@ public final class UserDefinedFunctionHelper {
                 methods.stream()
                         .anyMatch(
                                 method ->
-                                        ExtractionUtils.isInvokable(method, argumentClasses)
+                                        // Strict autoboxing is disabled for backwards compatibility
+                                        ExtractionUtils.isInvokable(
+                                                        Autoboxing.JVM, method, argumentClasses)
                                                 && ExtractionUtils.isAssignable(
-                                                        outputClass, method.getReturnType(), true));
+                                                        outputClass,
+                                                        method.getReturnType(),
+                                                        Autoboxing.JVM));
         if (!isMatching) {
             throw new ValidationException(
                     String.format(

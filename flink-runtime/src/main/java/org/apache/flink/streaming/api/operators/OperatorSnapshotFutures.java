@@ -155,7 +155,9 @@ public class OperatorSnapshotFutures {
         this.resultSubpartitionStateFuture = resultSubpartitionStateFuture;
     }
 
-    /** @return discarded state size (if available). */
+    /**
+     * @return discarded state size (if available).
+     */
     public Tuple2<Long, Long> cancel() throws Exception {
         List<Tuple2<Future<? extends StateObject>, String>> pairs = new ArrayList<>();
         pairs.add(new Tuple2<>(getKeyedStateManagedFuture(), "managed keyed"));

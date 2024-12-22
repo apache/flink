@@ -71,12 +71,16 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
         return new KeyGroupsStateHandle(groupRangeOffsets, streamStateHandle, stateHandleId);
     }
 
-    /** @return the internal key-group range to offsets metadata */
+    /**
+     * @return the internal key-group range to offsets metadata
+     */
     public KeyGroupRangeOffsets getGroupRangeOffsets() {
         return groupRangeOffsets;
     }
 
-    /** @return The handle to the actual states */
+    /**
+     * @return The handle to the actual states
+     */
     public StreamStateHandle getDelegateStateHandle() {
         return stateHandle;
     }

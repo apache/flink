@@ -196,6 +196,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
 
     /** Factory for Write Buffer Manager and Block Cache. */
     private RocksDBMemoryFactory rocksDBMemoryFactory;
+
     // ------------------------------------------------------------------------
 
     private final RocksDBManualCompactionConfig manualCompactionConfig;

@@ -406,7 +406,9 @@ public final class Record implements Value, CopyableValue<Record> {
         internallySetField(fieldNum, value);
     }
 
-    /** @param value */
+    /**
+     * @param value
+     */
     public void addField(Value value) {
         final int num = this.numFields;
         setNumFields(num + 1);
@@ -745,7 +747,9 @@ public final class Record implements Value, CopyableValue<Record> {
                         : this.writeFields;
     }
 
-    /** @param target */
+    /**
+     * @param target
+     */
     public void copyTo(Record target) {
         updateBinaryRepresenation();
 
@@ -803,7 +807,8 @@ public final class Record implements Value, CopyableValue<Record> {
         }
 
         target.write(source, val);
-    };
+    }
+    ;
 
     /**
      * Creates an exact copy of this record.

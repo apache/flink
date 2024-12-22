@@ -30,6 +30,7 @@ import org.apache.flink.util.function.ThrowingConsumer;
 public class CompletedStateFuture<T> implements InternalStateFuture<T> {
 
     T result;
+
     // no public access
     CompletedStateFuture(T result) {
         this.result = result;

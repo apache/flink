@@ -54,6 +54,7 @@ import java.util.stream.IntStream;
 
 import static java.util.EnumSet.complementOf;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -296,7 +297,8 @@ class DefaultCheckpointPlanCalculatorTest {
         }
 
         for (EdgeDeclaration edgeDeclaration : edgeDeclarations) {
-            jobVertices[edgeDeclaration.target].connectNewDataSetAsInput(
+            connectNewDataSetAsInput(
+                    jobVertices[edgeDeclaration.target],
                     jobVertices[edgeDeclaration.source],
                     edgeDeclaration.distributionPattern,
                     ResultPartitionType.PIPELINED);

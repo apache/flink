@@ -57,13 +57,13 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
 
     @Override
     public Expression[] initialValuesExpressions() {
-        return new Expression[] {/* sum = */ nullOf(getResultType())};
+        return new Expression[] {/* sum= */ nullOf(getResultType())};
     }
 
     @Override
     public Expression[] accumulateExpressions() {
         return new Expression[] {
-            /* sum = */ ifThenElse(
+            /* sum= */ ifThenElse(
                     isNull(operand(0)),
                     sum,
                     ifThenElse(isNull(sum), operand(0), adjustedPlus(sum, operand(0))))
@@ -79,7 +79,7 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
     @Override
     public Expression[] mergeExpressions() {
         return new Expression[] {
-            /* sum = */ ifThenElse(
+            /* sum= */ ifThenElse(
                     isNull(mergeOperand(sum)),
                     sum,
                     ifThenElse(

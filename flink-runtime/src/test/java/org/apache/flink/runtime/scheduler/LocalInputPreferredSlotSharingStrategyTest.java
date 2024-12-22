@@ -52,6 +52,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link LocalInputPreferredSlotSharingStrategy}. */
@@ -244,10 +245,10 @@ class LocalInputPreferredSlotSharingStrategyTest extends AbstractSlotSharingStra
         JobVertex v1 = createJobVertex("v1", jobVertexId1, parallelism);
         JobVertex v2 = createJobVertex("v2", jobVertexId2, parallelism);
 
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                v2, v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                v2, v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
 
         assertThat(v1.getProducedDataSets()).hasSize(2);
         assertThat(v2.getInputs()).hasSize(2);

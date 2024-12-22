@@ -1763,7 +1763,9 @@ public class TypeExtractor {
         return (TypeInfoFactory<OUT>) InstantiationUtil.instantiate(factoryClass);
     }
 
-    /** @return number of items with equal type or same raw type */
+    /**
+     * @return number of items with equal type or same raw type
+     */
     private static int countTypeInHierarchy(List<Type> typeHierarchy, Type type) {
         int count = 0;
         for (Type t : typeHierarchy) {
@@ -2046,7 +2048,9 @@ public class TypeExtractor {
                 }
                 // check for setters (<FieldName>_$eq for scala)
                 if ((methodNameLow.equals("set" + fieldNameLow)
-                                || methodNameLow.equals(fieldNameLow + "_$eq"))
+                                || methodNameLow.equals(fieldNameLow + "_$eq")
+                                || (fieldNameLow.startsWith("is")
+                                        && methodNameLow.equals("set" + fieldNameLow.substring(2))))
                         && m.getParameterCount() == 1
                         && // one parameter of the field's type
                         (m.getGenericParameterTypes()[0].equals(fieldType)

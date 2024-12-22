@@ -104,16 +104,18 @@ class SqlCreateTableConverter {
                 UnresolvedIdentifier.of(sqlCreateTableAs.fullTableName());
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
+        SqlNode asQuerySqlNode = sqlCreateTableAs.getAsQuery();
+        SqlNode validatedAsQuery = flinkPlanner.validate(asQuerySqlNode);
+
         PlannerQueryOperation query =
                 (PlannerQueryOperation)
                         SqlNodeToOperationConversion.convert(
-                                        flinkPlanner, catalogManager, sqlCreateTableAs.getAsQuery())
+                                        flinkPlanner, catalogManager, validatedAsQuery)
                                 .orElseThrow(
                                         () ->
                                                 new TableException(
                                                         "CTAS unsupported node type "
-                                                                + sqlCreateTableAs
-                                                                        .getAsQuery()
+                                                                + validatedAsQuery
                                                                         .getClass()
                                                                         .getSimpleName()));
         ResolvedCatalogTable tableWithResolvedSchema =
@@ -125,7 +127,7 @@ class SqlCreateTableConverter {
                         catalogManager,
                         flinkPlanner,
                         query,
-                        sqlCreateTableAs.getAsQuery(),
+                        validatedAsQuery,
                         tableWithResolvedSchema);
 
         CreateTableOperation createTableOperation =

@@ -33,6 +33,7 @@ public class MiniBatchInterval {
     /** interval of mini-batch. */
     @JsonProperty(FIELD_NAME_INTERVAL)
     private final long interval;
+
     /** The type of mini-batch: rowtime/proctime. */
     @JsonProperty(FIELD_NAME_MODE)
     private final MiniBatchMode mode;

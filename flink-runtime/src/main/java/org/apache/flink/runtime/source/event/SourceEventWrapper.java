@@ -32,7 +32,9 @@ public class SourceEventWrapper implements OperatorEvent {
         this.sourceEvent = sourceEvent;
     }
 
-    /** @return The {@link SourceEvent} in this SourceEventWrapper. */
+    /**
+     * @return The {@link SourceEvent} in this SourceEventWrapper.
+     */
     public SourceEvent getSourceEvent() {
         return sourceEvent;
     }

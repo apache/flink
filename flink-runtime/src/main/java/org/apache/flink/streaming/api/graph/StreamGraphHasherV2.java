@@ -148,6 +148,18 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
         return hasher.hash().asBytes();
     }
 
+    @Override
+    public boolean generateHashesByStreamNodeId(
+            int streamNodeId, StreamGraph streamGraph, Map<Integer, byte[]> hashes) {
+        StreamNode streamNode = streamGraph.getStreamNode(streamNodeId);
+        return generateNodeHash(
+                streamNode,
+                getHashFunction(),
+                hashes,
+                streamGraph.isChainingEnabled(),
+                streamGraph);
+    }
+
     /**
      * Generates a hash for the node and returns whether the operation was successful.
      *

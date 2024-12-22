@@ -27,7 +27,9 @@ import org.apache.flink.util.UserCodeClassLoader;
 @Public
 public interface SourceReaderContext {
 
-    /** @return The metric group this source belongs to. */
+    /**
+     * @return The metric group this source belongs to.
+     */
     SourceReaderMetricGroup metricGroup();
 
     /** Gets the configuration with which Flink was started. */
@@ -39,7 +41,9 @@ public interface SourceReaderContext {
      */
     String getLocalHostName();
 
-    /** @return The index of this subtask. */
+    /**
+     * @return The index of this subtask.
+     */
     int getIndexOfSubtask();
 
     /**

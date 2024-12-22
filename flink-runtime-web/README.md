@@ -57,7 +57,7 @@ Depending on your version of Linux, Windows or MacOS, you may need to manually i
 
 Install *node.js* by following [these instructions](https://nodejs.org/en/download/).
 
-Verify that the installed version is at least *10.9.0*, via `node --version`.
+Verify that the installed version is at least *18.19.1*, via `node --version`.
 
 
 #### MacOS
@@ -108,8 +108,15 @@ re-compilation:
 $ npm run lint
 ```
 
+### How to update the NOTICE
+> Tip: If you've made a modification to any of the dependencies, make sure you've run `dev/generate_notice` before committing to update the `NOTICE` file.
+
+```bash
+./web-dashboard/dev/generate_notice.sh
+```
+
 ### Dependency
 
-- Framework: [Angular](https://angular.io)
-- CLI Tools: [Angular CLI](https://cli.angular.io)
+- Framework: [Angular](https://angular.dev)
+- CLI Tools: [Angular CLI](https://angular.dev/tools/cli)
 - UI Components: [NG-ZORRO](https://github.com/NG-ZORRO/ng-zorro-antd)

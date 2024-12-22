@@ -183,7 +183,8 @@ public class Tuple22Builder<
                     T19,
                     T20,
                     T21>
-            [] build() {
+            []
+            build() {
         return tuples.toArray(new Tuple22[tuples.size()]);
     }
 }

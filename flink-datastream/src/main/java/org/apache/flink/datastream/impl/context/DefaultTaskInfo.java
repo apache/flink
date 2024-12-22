@@ -28,10 +28,21 @@ public class DefaultTaskInfo implements TaskInfo {
 
     private final String taskName;
 
-    public DefaultTaskInfo(int parallelism, int maxParallelism, String taskName) {
+    private final int indexOfSubtask;
+
+    private final int attemptNumber;
+
+    public DefaultTaskInfo(
+            int parallelism,
+            int maxParallelism,
+            String taskName,
+            int indexOfSubtask,
+            int attemptNumber) {
         this.parallelism = parallelism;
         this.maxParallelism = maxParallelism;
         this.taskName = taskName;
+        this.indexOfSubtask = indexOfSubtask;
+        this.attemptNumber = attemptNumber;
     }
 
     @Override
@@ -47,5 +58,15 @@ public class DefaultTaskInfo implements TaskInfo {
     @Override
     public String getTaskName() {
         return taskName;
+    }
+
+    @Override
+    public int getIndexOfThisSubtask() {
+        return indexOfSubtask;
+    }
+
+    @Override
+    public int getAttemptNumber() {
+        return attemptNumber;
     }
 }

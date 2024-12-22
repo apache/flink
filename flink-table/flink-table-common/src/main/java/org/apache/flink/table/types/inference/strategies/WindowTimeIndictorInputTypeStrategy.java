@@ -46,7 +46,9 @@ import java.util.Optional;
 public final class WindowTimeIndictorInputTypeStrategy implements InputTypeStrategy {
     private final TimestampKind timestampKind;
 
-    /** @param timestampKind if null the window can be either proctime or rowtime window. */
+    /**
+     * @param timestampKind if null the window can be either proctime or rowtime window.
+     */
     public WindowTimeIndictorInputTypeStrategy(@Nullable TimestampKind timestampKind) {
         this.timestampKind = timestampKind;
     }

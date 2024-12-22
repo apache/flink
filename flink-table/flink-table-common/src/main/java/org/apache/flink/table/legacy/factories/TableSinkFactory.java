@@ -82,10 +82,14 @@ public interface TableSinkFactory<T> extends TableFactory {
     @Internal
     interface Context {
 
-        /** @return full identifier of the given {@link CatalogTable}. */
+        /**
+         * @return full identifier of the given {@link CatalogTable}.
+         */
         ObjectIdentifier getObjectIdentifier();
 
-        /** @return table {@link CatalogTable} instance. */
+        /**
+         * @return table {@link CatalogTable} instance.
+         */
         CatalogTable getTable();
 
         /**

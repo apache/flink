@@ -242,6 +242,7 @@ public class CheckpointOptions implements Serializable {
                 + alignedCheckpointTimeout
                 + '}';
     }
+
     // ------------------------------------------------------------------------
     //  Factory methods
     // ------------------------------------------------------------------------

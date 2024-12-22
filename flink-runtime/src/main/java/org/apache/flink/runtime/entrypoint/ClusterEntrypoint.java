@@ -510,6 +510,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             if (executionGraphInfoStore != null) {
                 try {
                     executionGraphInfoStore.close();
+                    executionGraphInfoStore = null;
                 } catch (Throwable t) {
                     exception = ExceptionUtils.firstOrSuppressed(t, exception);
                 }

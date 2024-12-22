@@ -38,6 +38,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** SlotSharing tests for the adaptive scheduler. */
@@ -115,8 +116,8 @@ class AdaptiveSchedulerSlotSharingITCase {
         sink.setParallelism(PARALLELISM);
         sink.setSlotSharingGroup(slotSharingGroup);
 
-        sink.connectNewDataSetAsInput(
-                source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                sink, source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
         return JobGraphTestUtils.streamingJobGraph(source, sink);
     }

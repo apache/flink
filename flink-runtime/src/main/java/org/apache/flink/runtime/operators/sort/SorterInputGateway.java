@@ -35,6 +35,7 @@ final class SorterInputGateway<E> {
     private static final Logger LOG = LoggerFactory.getLogger(SorterInputGateway.class);
 
     private final LargeRecordHandler<E> largeRecords;
+
     /** The object into which the thread reads the data from the input. */
     private final StageRunner.StageMessageDispatcher<E> dispatcher;
 

@@ -67,7 +67,9 @@ public abstract class Projection {
         return this.project(DataTypes.of(logicalType)).getLogicalType();
     }
 
-    /** @return {@code true} whether this projection is nested or not. */
+    /**
+     * @return {@code true} whether this projection is nested or not.
+     */
     public abstract boolean isNested();
 
     /**

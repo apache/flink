@@ -94,6 +94,7 @@ import java.util.function.BiFunction;
 
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.spy;
@@ -711,8 +712,8 @@ public class CheckpointCoordinatorTestingUtils {
             // Lets connect source vertices and non-source vertices
             for (JobVertex source : sourceVertices) {
                 for (JobVertex nonSource : nonSourceVertices) {
-                    nonSource.connectNewDataSetAsInput(
-                            source, distributionPattern, ResultPartitionType.PIPELINED);
+                    connectNewDataSetAsInput(
+                            nonSource, source, distributionPattern, ResultPartitionType.PIPELINED);
                 }
             }
 

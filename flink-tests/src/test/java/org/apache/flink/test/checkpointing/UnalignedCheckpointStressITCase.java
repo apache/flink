@@ -387,7 +387,9 @@ class UnalignedCheckpointStressITCase {
             }
         };
 
-        /** @return sleep time in milliseconds */
+        /**
+         * @return sleep time in milliseconds
+         */
         public abstract int getSleep();
 
         public static SpeedMode valueOf(int n) {

@@ -90,6 +90,7 @@ import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.shuffle.ShuffleMasterSnapshotUtil;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
@@ -368,6 +369,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private void startDispatcherServices() throws Exception {
         try {
+            ShuffleMasterSnapshotUtil.restoreOrSnapshotShuffleMaster(
+                    jobManagerSharedServices.getShuffleMaster(),
+                    configuration,
+                    jobManagerSharedServices.getIoExecutor());
             registerDispatcherMetrics(jobManagerMetricGroup);
         } catch (Exception e) {
             handleStartDispatcherServicesException(e);

@@ -1829,6 +1829,7 @@ public class NFAITCase extends TestLogger {
                                 ConsecutiveData.end),
                         Lists.newArrayList(ConsecutiveData.startEvent, ConsecutiveData.end)));
     }
+
     ///////////////////////////////         Consecutive
     // ////////////////////////////////////////
 

@@ -214,14 +214,20 @@ public abstract class AbstractBinaryExternalMerger<Entry> implements Closeable {
 
     // -------------------------------------------------------------------------------------------
 
-    /** @return entry iterator reading from inView. */
+    /**
+     * @return entry iterator reading from inView.
+     */
     protected abstract MutableObjectIterator<Entry> channelReaderInputViewIterator(
             AbstractChannelReaderInputView inView);
 
-    /** @return merging comparator used in merging. */
+    /**
+     * @return merging comparator used in merging.
+     */
     protected abstract Comparator<Entry> mergeComparator();
 
-    /** @return reused entry object used in merging. */
+    /**
+     * @return reused entry object used in merging.
+     */
     protected abstract List<Entry> mergeReusedEntries(int size);
 
     /** read the merged stream and write the data back. */

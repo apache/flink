@@ -174,7 +174,9 @@ public final class ApiExpressionUtils {
     }
 
     private static Optional<Expression> convertScalaMap(Object obj)
-            throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException,
+            throws ClassNotFoundException,
+                    NoSuchMethodException,
+                    IllegalAccessException,
                     InvocationTargetException {
         Class<?> mapClass = Class.forName("scala.collection.Map");
         if (mapClass.isAssignableFrom(obj.getClass())) {
@@ -202,7 +204,9 @@ public final class ApiExpressionUtils {
     }
 
     private static Optional<Expression> convertScalaSeq(Object obj)
-            throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException,
+            throws ClassNotFoundException,
+                    NoSuchMethodException,
+                    IllegalAccessException,
                     InvocationTargetException {
         Class<?> seqClass = Class.forName("scala.collection.Seq");
         if (seqClass.isAssignableFrom(obj.getClass())) {
@@ -220,7 +224,9 @@ public final class ApiExpressionUtils {
     }
 
     private static Optional<Expression> convertScalaBigDecimal(Object obj)
-            throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException,
+            throws ClassNotFoundException,
+                    NoSuchMethodException,
+                    IllegalAccessException,
                     InvocationTargetException {
         Class<?> decimalClass = Class.forName("scala.math.BigDecimal");
         if (decimalClass.equals(obj.getClass())) {

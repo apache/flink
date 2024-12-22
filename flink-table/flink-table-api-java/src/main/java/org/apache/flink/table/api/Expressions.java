@@ -89,6 +89,7 @@ public final class Expressions {
     public static ApiExpression $(String name) {
         return new ApiExpression(unresolvedRef(name));
     }
+
     // CHECKSTYLE.ON: MethodName
 
     /**

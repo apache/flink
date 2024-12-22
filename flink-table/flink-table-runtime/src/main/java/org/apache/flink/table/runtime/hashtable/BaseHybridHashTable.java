@@ -117,6 +117,7 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 
     /** The reader for the spilled-file of the build partition that is currently read. */
     protected HeaderlessChannelReaderInputView currentSpilledBuildSide;
+
     /** The reader for the spilled-file of the probe partition that is currently read. */
     protected AbstractChannelReaderInputView currentSpilledProbeSide;
 

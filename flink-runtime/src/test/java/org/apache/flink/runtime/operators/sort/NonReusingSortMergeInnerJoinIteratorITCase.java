@@ -195,7 +195,8 @@ class NonReusingSortMergeInnerJoinIteratorITCase {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(joinFunction, collector)) ;
+            while (iterator.callWithNextKey(joinFunction, collector))
+                ;
 
             iterator.close();
 
@@ -314,7 +315,8 @@ class NonReusingSortMergeInnerJoinIteratorITCase {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(joinFunction, collector)) ;
+            while (iterator.callWithNextKey(joinFunction, collector))
+                ;
 
             iterator.close();
 

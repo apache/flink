@@ -26,12 +26,18 @@ import java.io.Serializable;
 @PublicEvolving
 public interface AsyncRetryStrategy<OUT> extends Serializable {
 
-    /** @return whether the next attempt can happen */
+    /**
+     * @return whether the next attempt can happen
+     */
     boolean canRetry(int currentAttempts);
 
-    /** @return the delay time of next attempt */
+    /**
+     * @return the delay time of next attempt
+     */
     long getBackoffTimeMillis(int currentAttempts);
 
-    /** @return the defined retry predicate {@link AsyncRetryPredicate} */
+    /**
+     * @return the defined retry predicate {@link AsyncRetryPredicate}
+     */
     AsyncRetryPredicate<OUT> getRetryPredicate();
 }

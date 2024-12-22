@@ -368,14 +368,14 @@ class ValuesITCase extends StreamingTestBase {
             })
     public static class CustomScalarFunction extends ScalarFunction {
         public String eval(
-                byte tinyint,
-                short smallInt,
-                int integer,
-                long bigint,
-                float floating,
-                double doublePrecision,
+                Byte tinyint,
+                Short smallInt,
+                Integer integer,
+                Long bigint,
+                Float floating,
+                Double doublePrecision,
                 BigDecimal decimal,
-                boolean bool,
+                Boolean bool,
                 LocalTime time,
                 LocalDate date,
                 //				Period dateTimeInteraval, TODO TIMESTAMP WITH TIMEZONE not supported yet

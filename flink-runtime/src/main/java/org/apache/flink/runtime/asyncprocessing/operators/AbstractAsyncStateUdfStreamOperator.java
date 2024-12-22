@@ -93,6 +93,8 @@ public abstract class AbstractAsyncStateUdfStreamOperator<OUT, F extends Functio
         super.snapshotState(context);
         StreamingFunctionUtils.snapshotFunctionState(
                 context, getOperatorStateBackend(), userFunction);
+        // Drain state requests in case the user function modifies the state.
+        drainStateRequests();
     }
 
     @Override

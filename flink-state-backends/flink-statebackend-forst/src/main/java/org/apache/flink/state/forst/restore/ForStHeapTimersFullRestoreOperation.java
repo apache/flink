@@ -19,6 +19,7 @@
 package org.apache.flink.state.forst.restore;
 
 import org.apache.flink.core.fs.ICloseableRegistry;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
@@ -40,9 +41,10 @@ import org.apache.flink.runtime.state.restore.KeyGroup;
 import org.apache.flink.runtime.state.restore.KeyGroupEntry;
 import org.apache.flink.runtime.state.restore.SavepointRestoreResult;
 import org.apache.flink.runtime.state.restore.ThrowingIterator;
+import org.apache.flink.state.forst.ForStDBTtlCompactFiltersManager;
 import org.apache.flink.state.forst.ForStDBWriteBatchWrapper;
-import org.apache.flink.state.forst.ForStKeyedStateBackend;
 import org.apache.flink.state.forst.ForStNativeMetricOptions;
+import org.apache.flink.state.forst.ForStOperationUtils;
 import org.apache.flink.util.StateMigrationException;
 
 import org.forstdb.ColumnFamilyHandle;
@@ -50,10 +52,10 @@ import org.forstdb.ColumnFamilyOptions;
 import org.forstdb.DBOptions;
 import org.forstdb.RocksDBException;
 
+import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
@@ -81,15 +83,18 @@ public class ForStHeapTimersFullRestoreOperation<K> implements ForStRestoreOpera
             KeyGroupRange keyGroupRange,
             int numberOfKeyGroups,
             ClassLoader userCodeClassLoader,
-            Map<String, ForStKeyedStateBackend.ForStKvStateInfo> kvStateInformation,
+            Map<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation,
             LinkedHashMap<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             HeapPriorityQueueSetFactory priorityQueueFactory,
             StateSerializerProvider<K> keySerializerProvider,
-            File instanceRocksDBPath,
+            Path instanceRocksDBPath,
             DBOptions dbOptions,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             ForStNativeMetricOptions nativeMetricOptions,
             MetricGroup metricGroup,
+            @Nonnull ForStDBTtlCompactFiltersManager ttlCompactFiltersManager,
+            @Nonnegative long writeBatchSize,
+            Long writeBufferManagerCapacity,
             @Nonnull Collection<KeyedStateHandle> restoreStateHandles,
             ICloseableRegistry cancelStreamRegistryForRestore) {
         this.rocksHandle =
@@ -99,7 +104,9 @@ public class ForStHeapTimersFullRestoreOperation<K> implements ForStRestoreOpera
                         dbOptions,
                         columnFamilyOptionsFactory,
                         nativeMetricOptions,
-                        metricGroup);
+                        metricGroup,
+                        ttlCompactFiltersManager,
+                        writeBufferManagerCapacity);
         this.savepointRestoreOperation =
                 new FullSnapshotRestoreOperation<>(
                         keyGroupRange,
@@ -155,9 +162,9 @@ public class ForStHeapTimersFullRestoreOperation<K> implements ForStRestoreOpera
                                                         restoredMetaInfo)));
                 restoredPQStates.put(i, queueWrapper);
             } else {
-                ForStKeyedStateBackend.ForStKvStateInfo registeredStateCFHandle =
+                ForStOperationUtils.ForStKvStateInfo registeredStateCFHandle =
                         this.rocksHandle.getOrRegisterStateColumnFamilyHandle(
-                                null, restoredMetaInfo);
+                                null, restoredMetaInfo, cancelStreamRegistryForRestore);
                 columnFamilyHandles.put(i, registeredStateCFHandle.columnFamilyHandle);
             }
         }

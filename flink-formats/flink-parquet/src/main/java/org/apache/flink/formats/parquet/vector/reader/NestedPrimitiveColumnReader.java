@@ -72,8 +72,10 @@ public class NestedPrimitiveColumnReader implements ColumnReader<WritableColumnV
     private final ColumnDescriptor descriptor;
     private final Type type;
     private final LogicalType logicalType;
+
     /** The dictionary, if this column has dictionary encoding. */
     private final ParquetDataColumnReader dictionary;
+
     /** Maximum definition level for this column. */
     private final int maxDefLevel;
 

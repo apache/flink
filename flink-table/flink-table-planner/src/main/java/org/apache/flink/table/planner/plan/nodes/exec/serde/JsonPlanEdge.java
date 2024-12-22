@@ -48,14 +48,17 @@ final class JsonPlanEdge {
     /** The source node id of this edge. */
     @JsonProperty(FIELD_NAME_SOURCE)
     private final int sourceId;
+
     /** The target node id of this edge. */
     @JsonProperty(FIELD_NAME_TARGET)
     private final int targetId;
+
     /** The {@link ExecEdge.Shuffle} on this edge from source to target. */
     @JsonProperty(FIELD_NAME_SHUFFLE)
     @JsonSerialize(using = ShuffleJsonSerializer.class)
     @JsonDeserialize(using = ShuffleJsonDeserializer.class)
     private final ExecEdge.Shuffle shuffle;
+
     /** The {@link StreamExchangeMode} on this edge. */
     @JsonProperty(FIELD_NAME_SHUFFLE_MODE)
     private final StreamExchangeMode exchangeMode;

@@ -28,6 +28,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static java.util.Collections.emptyList;
+import static org.apache.flink.shaded.guava32.com.google.common.util.concurrent.Uninterruptibles.awaitTerminationUninterruptibly;
 
 /**
  * Schedules manual compactions of small disjoint SST files created by RocksDB. It does so
@@ -88,7 +89,7 @@ class CompactionScheduler {
                 scheduledExecutor.shutdownNow();
             }
         }
-        if (!scheduledExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+        if (!awaitTerminationUninterruptibly(scheduledExecutor, 5, TimeUnit.SECONDS)) {
             LOG.warn("Unable to terminate scheduled tasks in 5s");
         }
     }

@@ -78,8 +78,10 @@ class TaskStateAssignment {
 
     final Map<OperatorInstanceID, List<InputChannelStateHandle>> inputChannelStates;
     final Map<OperatorInstanceID, List<ResultSubpartitionStateHandle>> resultSubpartitionStates;
+
     /** The subtask mapping when the output operator was rescaled. */
     private final Map<Integer, SubtasksRescaleMapping> outputSubtaskMappings = new HashMap<>();
+
     /** The subtask mapping when the input operator was rescaled. */
     private final Map<Integer, SubtasksRescaleMapping> inputSubtaskMappings = new HashMap<>();
 
@@ -444,6 +446,7 @@ class TaskStateAssignment {
 
     static class SubtasksRescaleMapping {
         private final RescaleMappings rescaleMappings;
+
         /**
          * If channel data cannot be safely divided into subtasks (several new subtask indexes are
          * associated with the same old subtask index). Mostly used for range partitioners.

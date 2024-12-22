@@ -42,6 +42,7 @@ import java.net.URLClassLoader;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -57,13 +58,15 @@ class JobTaskVertexTest {
         JobVertex consumer2 = new JobVertex("consumer2");
 
         IntermediateDataSetID dataSetId = new IntermediateDataSetID();
-        consumer1.connectNewDataSetAsInput(
+        connectNewDataSetAsInput(
+                consumer1,
                 producer,
                 DistributionPattern.ALL_TO_ALL,
                 ResultPartitionType.BLOCKING,
                 dataSetId,
                 false);
-        consumer2.connectNewDataSetAsInput(
+        connectNewDataSetAsInput(
+                consumer2,
                 producer,
                 DistributionPattern.ALL_TO_ALL,
                 ResultPartitionType.BLOCKING,
@@ -71,8 +74,8 @@ class JobTaskVertexTest {
                 false);
 
         JobVertex consumer3 = new JobVertex("consumer3");
-        consumer3.connectNewDataSetAsInput(
-                producer, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                consumer3, producer, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
 
         assertThat(producer.getProducedDataSets()).hasSize(2);
 
@@ -93,8 +96,8 @@ class JobTaskVertexTest {
     void testConnectDirectly() {
         JobVertex source = new JobVertex("source");
         JobVertex target = new JobVertex("target");
-        target.connectNewDataSetAsInput(
-                source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                target, source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
         assertThat(source.isInputVertex()).isTrue();
         assertThat(source.isOutputVertex()).isFalse();

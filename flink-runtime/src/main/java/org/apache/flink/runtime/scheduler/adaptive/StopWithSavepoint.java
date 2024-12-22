@@ -77,6 +77,7 @@ import java.util.concurrent.ScheduledFuture;
 class StopWithSavepoint extends StateWithExecutionGraph {
 
     private final Context context;
+
     /**
      * The result future of this operation, containing the path to the savepoint. This is the future
      * that other components (e.g., the REST API) wait for.

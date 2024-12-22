@@ -94,17 +94,23 @@ public final class ExecNodeConfig implements ReadableConfig {
         return tableConfigMap;
     }
 
-    /** @return The duration until state which was not updated will be retained. */
+    /**
+     * @return The duration until state which was not updated will be retained.
+     */
     public long getStateRetentionTime() {
         return get(ExecutionConfigOptions.IDLE_STATE_RETENTION).toMillis();
     }
 
-    /** @return Whether the {@link ExecNode} translation happens as part of a plan compilation. */
+    /**
+     * @return Whether the {@link ExecNode} translation happens as part of a plan compilation.
+     */
     public boolean isCompiled() {
         return isCompiled;
     }
 
-    /** @return Whether transformations should set a UID. */
+    /**
+     * @return Whether transformations should set a UID.
+     */
     public boolean shouldSetUid() {
         final UidGeneration uidGeneration = get(ExecutionConfigOptions.TABLE_EXEC_UID_GENERATION);
         switch (uidGeneration) {

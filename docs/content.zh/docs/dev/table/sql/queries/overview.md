@@ -426,6 +426,21 @@ Flink SQL> SELECT 'Hello World', 'It''s me';
 - 使用反斜杠(`\`)作为转义字符 (默认)：`SELECT U&'\263A'`
 - 使用自定义的转义字符：`SELECT U&'#263A' UESCAPE '#'`
 
+Starting Flink 2.0 there is C-style escape available
+
+| Backslash Escape Sequence         | 	Interpretation                                   |
+|:----------------------------------|:--------------------------------------------------|
+| \b                                | 	backspace                                        |
+| \f                                | 	form feed                                        |
+| \n                                | 	newline                                          |
+| \r                                | 	carriage return                                  |
+| \t                                | 	tab                                              |
+| \o, \oo, \ooo (o = 0–7) 	         | octal byte value                                  |
+| \xh, \xhh (h = 0–9, A–F)          | 	hexadecimal byte value                           |
+| \uxxxx, \Uxxxxxxxx (x = 0–9, A–F) | 	16 or 32-bit hexadecimal Unicode character value |
+
+Example: `SELECT e'\u0061\x61\141' AS c` or `SELECT E'\u0061\x61\141' AS c`;
+
 {{< top >}}
 
 ## 操作

@@ -53,7 +53,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Should be removed after fixing CALCITE-6342 (Calcite 1.36.0): Lines 84-89
+ *   <li>Should be removed after fixing CALCITE-6342 (Calcite 1.36.0): Lines 83-87
  * </ol>
  */
 public class RexFieldAccess extends RexNode {

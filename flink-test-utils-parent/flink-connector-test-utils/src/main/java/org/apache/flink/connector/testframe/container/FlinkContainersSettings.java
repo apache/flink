@@ -76,6 +76,7 @@ public class FlinkContainersSettings {
 
     private static final String DEFAULT_ZOOKEEPER_HOSTNAME = "zookeeper";
     private static final String DEFAULT_ZOOKEEPER_QUORUM = DEFAULT_ZOOKEEPER_HOSTNAME + ":2181";
+
     // --
 
     private FlinkContainersSettings(Builder builder) {

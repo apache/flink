@@ -81,18 +81,24 @@ public class KeyGroupRange implements KeyGroupsList, Serializable {
         return start <= end ? new KeyGroupRange(start, end) : EMPTY_KEY_GROUP_RANGE;
     }
 
-    /** @return The number of key-groups in the range */
+    /**
+     * @return The number of key-groups in the range
+     */
     @Override
     public int getNumberOfKeyGroups() {
         return 1 + endKeyGroup - startKeyGroup;
     }
 
-    /** @return The first key-group in the range. */
+    /**
+     * @return The first key-group in the range.
+     */
     public int getStartKeyGroup() {
         return startKeyGroup;
     }
 
-    /** @return The last key-group in the range. */
+    /**
+     * @return The last key-group in the range.
+     */
     public int getEndKeyGroup() {
         return endKeyGroup;
     }

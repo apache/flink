@@ -72,6 +72,7 @@ public class ResourceManager implements Closeable {
     private static final String FILE_SCHEME = "file";
 
     protected final Path localResourceDir;
+
     /** Resource infos for functions. */
     private final Map<ResourceUri, ResourceCounter> functionResourceInfos;
 

@@ -74,7 +74,7 @@ public abstract class SingleValueAggFunction extends DeclarativeAggregateFunctio
     @Override
     public Expression[] initialValuesExpressions() {
         return new Expression[] {
-            /* value = */ nullOf(getResultType()), /* count = */ ZERO,
+            /* value= */ nullOf(getResultType()), /* count= */ ZERO,
         };
     }
 

@@ -175,9 +175,8 @@ under the License.
 		<japicmp.referenceVersion>1.20.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<checkstyle.version>10.18.2</checkstyle.version>
-		<!-- can be removed with maven-spotless-plugin:2.38+ -->
 		<spotless.skip>false</spotless.skip>
-		<spotless.version>2.35.0</spotless.version>
+		<spotless.version>2.43.0</spotless.version>
 		<spotless.scalafmt.version>3.4.3</spotless.scalafmt.version>
 		<spotless.delimiter>package</spotless.delimiter>
 		<spotless.license.header>
@@ -213,6 +212,7 @@ under the License.
 		<!-- Can be set to any value to reproduce a specific build. -->
 		<test.randomization.seed/>
 		<test.unit.pattern>**/*Test.*</test.unit.pattern>
+		<snappy.java.version>1.1.10.7</snappy.java.version>
 	</properties>
 
 	<dependencies>
@@ -546,7 +546,7 @@ under the License.
 			<dependency>
 				<groupId>org.xerial.snappy</groupId>
 				<artifactId>snappy-java</artifactId>
-				<version>1.1.10.4</version>
+				<version>${snappy.java.version}</version>
 				<exclusions>
 					<exclusion>
 						<!-- Causes unnecessary dependency convergence errors; see MENFORCER-437 -->
@@ -1137,16 +1137,6 @@ under the License.
 				<pluginManagement>
 					<plugins>
 						<plugin>
-							<groupId>com.diffplug.spotless</groupId>
-							<artifactId>spotless-maven-plugin</artifactId>
-							<configuration>
-								<!-- Current google format does not run on Java 21.
-									 Don't upgrade it in this profile because it formats code differently.
-									 Re-evaluate once support for Java 8 is dropped. -->
-								<skip>true</skip>
-							</configuration>
-						</plugin>
-						<plugin>
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-surefire-plugin</artifactId>
 							<configuration>
@@ -1631,7 +1621,7 @@ under the License.
 						<exclude>flink-table/flink-table-code-splitter/src/test/resources/**</exclude>
 						<exclude>flink-tests/src/test/resources/avro/*.avsc</exclude>
 						<exclude>flink-connectors/flink-connector-datagen-test/src/test/resources/avro/*.avsc</exclude>
-
+						<exclude>flink-runtime-web/web-dashboard/dev/notice-template</exclude>
 						<!-- ArchUnit violation stores  -->
 						<exclude>**/archunit-violations/**</exclude>
 
@@ -2151,10 +2141,9 @@ under the License.
 					<artifactId>spotless-maven-plugin</artifactId>
 					<version>${spotless.version}</version>
 					<configuration>
-						<skip>${spotless.skip}</skip>
 						<java>
 							<googleJavaFormat>
-								<version>1.7</version>
+								<version>1.24.0</version>
 								<style>AOSP</style>
 							</googleJavaFormat>
 

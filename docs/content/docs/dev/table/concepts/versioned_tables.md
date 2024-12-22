@@ -164,12 +164,8 @@ In general, the results of a query with the following format produces a versione
 
 ```sql
 SELECT [column_list]
-FROM (
-   SELECT [column_list],
-     ROW_NUMBER() OVER ([PARTITION BY col1[, col2...]]
-       ORDER BY time_attr DESC) AS rownum
-   FROM table_name)
-WHERE rownum = 1
+FROM table_name
+QUALIFY ROW_NUMBER() OVER ([PARTITION BY col1[, col2...]] ORDER BY time_attr [asc|desc]) = 1
 ```
 
 **Parameter Specification:**

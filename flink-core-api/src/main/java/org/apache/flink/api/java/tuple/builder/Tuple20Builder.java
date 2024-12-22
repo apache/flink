@@ -152,7 +152,8 @@ public class Tuple20Builder<
                     T17,
                     T18,
                     T19>
-            [] build() {
+            []
+            build() {
         return tuples.toArray(new Tuple20[tuples.size()]);
     }
 }

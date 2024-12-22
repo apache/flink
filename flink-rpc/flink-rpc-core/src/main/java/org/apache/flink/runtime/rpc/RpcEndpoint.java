@@ -482,6 +482,7 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 
         private final MainThreadExecutable gateway;
         private final Runnable mainThreadCheck;
+
         /**
          * The main scheduled executor manages the scheduled tasks and send them to gateway when
          * they should be executed.

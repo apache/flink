@@ -19,10 +19,13 @@
 package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * {@code StandaloneLeaderElection} implements {@link LeaderElection} for non-HA cases. This
@@ -34,7 +37,10 @@ public class StandaloneLeaderElection implements LeaderElection {
     private final Object lock = new Object();
 
     private final UUID sessionID;
-    @Nullable private LeaderContender leaderContender;
+
+    @GuardedBy("lock")
+    @Nullable
+    private LeaderContender leaderContender;
 
     public StandaloneLeaderElection(UUID sessionID) {
         this.sessionID = sessionID;
@@ -53,12 +59,16 @@ public class StandaloneLeaderElection implements LeaderElection {
     }
 
     @Override
-    public void confirmLeadership(UUID leaderSessionID, String leaderAddress) {}
+    public CompletableFuture<Void> confirmLeadershipAsync(
+            UUID leaderSessionID, String leaderAddress) {
+        return FutureUtils.completedVoidFuture();
+    }
 
     @Override
-    public boolean hasLeadership(UUID leaderSessionId) {
+    public CompletableFuture<Boolean> hasLeadershipAsync(UUID leaderSessionId) {
         synchronized (lock) {
-            return this.leaderContender != null && this.sessionID.equals(leaderSessionId);
+            return CompletableFuture.completedFuture(
+                    this.leaderContender != null && this.sessionID.equals(leaderSessionId));
         }
     }
 

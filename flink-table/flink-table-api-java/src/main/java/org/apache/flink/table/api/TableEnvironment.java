@@ -719,6 +719,37 @@ public interface TableEnvironment {
     void createTemporaryTable(String path, TableDescriptor descriptor);
 
     /**
+     * Registers the given {@link TableDescriptor} as a temporary catalog table.
+     *
+     * <p>The {@link TableDescriptor descriptor} is converted into a {@link CatalogTable} and stored
+     * in the catalog.
+     *
+     * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+     * it will be inaccessible in the current session. To make the permanent object available again
+     * one can drop the corresponding temporary object.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * tEnv.createTemporaryTable("MyTable", TableDescriptor.forConnector("datagen")
+     *   .schema(Schema.newBuilder()
+     *     .column("f0", DataTypes.STRING())
+     *     .build())
+     *   .option(DataGenOptions.ROWS_PER_SECOND, 10)
+     *   .option("fields.f0.kind", "random")
+     *   .build(),
+     *  true);
+     * }</pre>
+     *
+     * @param path The path under which the table will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param descriptor Template for creating a {@link CatalogTable} instance.
+     * @param ignoreIfExists If a table exists under the given path and this flag is set, no
+     *     operation is executed. An exception is thrown otherwise.
+     */
+    void createTemporaryTable(String path, TableDescriptor descriptor, boolean ignoreIfExists);
+
+    /**
      * Registers the given {@link TableDescriptor} as a catalog table.
      *
      * <p>The {@link TableDescriptor descriptor} is converted into a {@link CatalogTable} and stored
@@ -744,6 +775,36 @@ public interface TableEnvironment {
      * @param descriptor Template for creating a {@link CatalogTable} instance.
      */
     void createTable(String path, TableDescriptor descriptor);
+
+    /**
+     * Registers the given {@link TableDescriptor} as a catalog table.
+     *
+     * <p>The {@link TableDescriptor descriptor} is converted into a {@link CatalogTable} and stored
+     * in the catalog.
+     *
+     * <p>If the table should not be permanently stored in a catalog, use {@link
+     * #createTemporaryTable(String, TableDescriptor, boolean)} instead.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * tEnv.createTable("MyTable", TableDescriptor.forConnector("datagen")
+     *   .schema(Schema.newBuilder()
+     *     .column("f0", DataTypes.STRING())
+     *     .build())
+     *   .option(DataGenOptions.ROWS_PER_SECOND, 10)
+     *   .option("fields.f0.kind", "random")
+     *   .build(),
+     *  true);
+     * }</pre>
+     *
+     * @param path The path under which the table will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param descriptor Template for creating a {@link CatalogTable} instance.
+     * @param ignoreIfExists If a table exists under the given path and this flag is set, no
+     *     operation is executed. An exception is thrown otherwise.
+     */
+    void createTable(String path, TableDescriptor descriptor, boolean ignoreIfExists);
 
     /**
      * Registers a {@link Table} under a unique name in the TableEnvironment's catalog. Registered

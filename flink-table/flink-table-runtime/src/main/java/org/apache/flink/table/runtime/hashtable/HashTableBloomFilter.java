@@ -61,7 +61,9 @@ class HashTableBloomFilter {
         return filter.testHash(hash);
     }
 
-    /** @return false if the accuracy of the BloomFilter is not high. */
+    /**
+     * @return false if the accuracy of the BloomFilter is not high.
+     */
     boolean addHash(int hash) {
         setLocation(hash);
         filter.addHash(hash);

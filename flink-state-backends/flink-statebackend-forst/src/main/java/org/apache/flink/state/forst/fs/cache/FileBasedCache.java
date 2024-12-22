@@ -36,6 +36,7 @@ import java.io.IOException;
  */
 public class FileBasedCache extends LruCache<String, FileCacheEntry> {
     private static final Logger LOG = LoggerFactory.getLogger(FileBasedCache.class);
+
     /** The file system of cache. */
     final FileSystem cacheFs;
 

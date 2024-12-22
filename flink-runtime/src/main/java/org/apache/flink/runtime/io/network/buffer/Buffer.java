@@ -226,10 +226,14 @@ public interface Buffer {
      */
     void setAllocator(ByteBufAllocator allocator);
 
-    /** @return self as ByteBuf implementation. */
+    /**
+     * @return self as ByteBuf implementation.
+     */
     ByteBuf asByteBuf();
 
-    /** @return whether the buffer is compressed or not. */
+    /**
+     * @return whether the buffer is compressed or not.
+     */
     boolean isCompressed();
 
     /** Tags the buffer as compressed or uncompressed. */
@@ -330,6 +334,7 @@ public interface Buffer {
         private final boolean isEvent;
         private final boolean isBlockingUpstream;
         private final boolean hasPriority;
+
         /**
          * If buffer (currently only Events are supported in that case) requires announcement, it's
          * arrival in the {@link

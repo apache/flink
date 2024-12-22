@@ -285,7 +285,8 @@ public class FlinkS3FileSystem extends HadoopFileSystem
                     || runningSizeFiles >= s5CmdConfiguration.maxBatchSizeFiles
                     || i == requests.size() - 1) {
                 LOG.info(
-                        "Copy {} files using s5cmd, total size: {}, args: {}",
+                        "Copy {} files out of {} using s5cmd, total size: {}, args: {}",
+                        batch.size(),
                         requests.size(),
                         runningSizeBytes,
                         artefacts);

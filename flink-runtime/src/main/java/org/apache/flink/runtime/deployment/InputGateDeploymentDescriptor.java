@@ -59,6 +59,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class InputGateDeploymentDescriptor implements Serializable {
 
     private static final long serialVersionUID = -7143441863165366704L;
+
     /**
      * The ID of the consumed intermediate result. Each input gate consumes partitions of the
      * intermediate result specified by this ID. This ID also identifies the input gate at the

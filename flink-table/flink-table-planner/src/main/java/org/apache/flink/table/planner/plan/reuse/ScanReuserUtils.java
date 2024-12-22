@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.reuse;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
 import org.apache.flink.table.planner.plan.abilities.source.FilterPushDownSpec;
 import org.apache.flink.table.planner.plan.abilities.source.ProjectPushDownSpec;
@@ -50,6 +51,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -58,6 +60,7 @@ import java.util.stream.Stream;
 import scala.Option;
 
 import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.createRequiredMetadataColumns;
+import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.extractMetadataMap;
 
 /** Utils for {@link ScanReuser}. */
 public class ScanReuserUtils {
@@ -268,6 +271,15 @@ public class ScanReuserUtils {
                         .map(col -> col.getMetadataKey().orElse(col.getName()))
                         .collect(Collectors.toList())
                 : meta.getMetadataKeys();
+    }
+
+    public static List<String> enforceMetadataKeyOrder(
+            Set<String> allUsedMetadataKeys, DynamicTableSource source) {
+        Set<String> allOrderedMetadataKeysFromTable = extractMetadataMap(source).keySet();
+
+        return allOrderedMetadataKeysFromTable.stream()
+                .filter(allUsedMetadataKeys::contains)
+                .collect(Collectors.toList());
     }
 
     public static int[][] concatProjectedFields(

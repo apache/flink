@@ -53,22 +53,8 @@ class SortMergeJoinTest extends JoinTestBase {
   }
 
   @Test
-  override def testLeftOuterJoinOnFalse(): Unit = {
-    assertThatThrownBy(() => super.testLeftOuterJoinOnFalse())
-      .hasMessageContaining("Cannot generate a valid execution plan for the given query")
-      .isInstanceOf[TableException]
-  }
-
-  @Test
   override def testRightOuterJoinOnTrue(): Unit = {
     assertThatThrownBy(() => super.testRightOuterJoinOnTrue())
-      .hasMessageContaining("Cannot generate a valid execution plan for the given query")
-      .isInstanceOf[TableException]
-  }
-
-  @Test
-  override def testRightOuterJoinOnFalse(): Unit = {
-    assertThatThrownBy(() => super.testRightOuterJoinOnFalse())
       .hasMessageContaining("Cannot generate a valid execution plan for the given query")
       .isInstanceOf[TableException]
   }

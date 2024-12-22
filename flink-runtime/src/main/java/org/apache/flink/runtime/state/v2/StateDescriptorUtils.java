@@ -65,4 +65,43 @@ public class StateDescriptorUtils {
                         "Unsupported state type: " + stateDescriptor.getType());
         }
     }
+
+    public static <V> org.apache.flink.api.common.state.ValueStateDescriptor<V> transformFromV2ToV1(
+            ValueStateDescriptor<V> stateDescriptor) {
+        return new org.apache.flink.api.common.state.ValueStateDescriptor<>(
+                stateDescriptor.getStateId(), stateDescriptor.getSerializer());
+    }
+
+    public static <UK, UV>
+            org.apache.flink.api.common.state.MapStateDescriptor<UK, UV> transformFromV2ToV1(
+                    MapStateDescriptor<UK, UV> stateDescriptor) {
+        return new org.apache.flink.api.common.state.MapStateDescriptor<>(
+                stateDescriptor.getStateId(),
+                stateDescriptor.getUserKeySerializer(),
+                stateDescriptor.getSerializer());
+    }
+
+    public static <V> org.apache.flink.api.common.state.ListStateDescriptor<V> transformFromV2ToV1(
+            ListStateDescriptor<V> stateDescriptor) {
+        return new org.apache.flink.api.common.state.ListStateDescriptor<>(
+                stateDescriptor.getStateId(), stateDescriptor.getSerializer());
+    }
+
+    public static <V>
+            org.apache.flink.api.common.state.ReducingStateDescriptor<V> transformFromV2ToV1(
+                    ReducingStateDescriptor<V> stateDescriptor) {
+        return new org.apache.flink.api.common.state.ReducingStateDescriptor<>(
+                stateDescriptor.getStateId(),
+                stateDescriptor.getReduceFunction(),
+                stateDescriptor.getSerializer());
+    }
+
+    public static <IN, ACC, OUT>
+            org.apache.flink.api.common.state.AggregatingStateDescriptor<IN, ACC, OUT>
+                    transformFromV2ToV1(AggregatingStateDescriptor<IN, ACC, OUT> stateDescriptor) {
+        return new org.apache.flink.api.common.state.AggregatingStateDescriptor<>(
+                stateDescriptor.getStateId(),
+                stateDescriptor.getAggregateFunction(),
+                stateDescriptor.getSerializer());
+    }
 }

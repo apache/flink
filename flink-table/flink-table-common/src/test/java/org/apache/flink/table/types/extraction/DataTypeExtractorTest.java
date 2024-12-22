@@ -579,7 +579,8 @@ class DataTypeExtractorTest {
             final Method method = clazz.getMethods()[0];
             return new TestSpec(
                     description,
-                    (lookup) -> DataTypeExtractor.extractFromMethodOutput(lookup, clazz, method));
+                    (lookup) ->
+                            DataTypeExtractor.extractFromMethodReturnType(lookup, clazz, method));
         }
 
         static TestSpec forMethodOutput(Class<?> clazz) {
@@ -1106,6 +1107,7 @@ class DataTypeExtractorTest {
         // CHECKSTYLE.OFF: MemberName
         private final String string_field;
         private final Integer int_field;
+
         // CHECKSTYLE.ON: MemberName
 
         public PojoWithUnderscore(Integer intField, String stringField) {

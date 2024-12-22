@@ -59,22 +59,22 @@ public class Count1AggFunction extends DeclarativeAggregateFunction {
 
     @Override
     public Expression[] initialValuesExpressions() {
-        return new Expression[] {/* count1 = */ literal(0L, getResultType().notNull())};
+        return new Expression[] {/* count1= */ literal(0L, getResultType().notNull())};
     }
 
     @Override
     public Expression[] accumulateExpressions() {
-        return new Expression[] {/* count1 = */ plus(count1, literal(1L))};
+        return new Expression[] {/* count1= */ plus(count1, literal(1L))};
     }
 
     @Override
     public Expression[] retractExpressions() {
-        return new Expression[] {/* count1 = */ minus(count1, literal(1L))};
+        return new Expression[] {/* count1= */ minus(count1, literal(1L))};
     }
 
     @Override
     public Expression[] mergeExpressions() {
-        return new Expression[] {/* count1 = */ plus(count1, mergeOperand(count1))};
+        return new Expression[] {/* count1= */ plus(count1, mergeOperand(count1))};
     }
 
     @Override

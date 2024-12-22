@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
-import org.apache.flink.streaming.api.connector.sink2.GlobalCommitterOperator;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -31,14 +30,18 @@ import org.apache.flink.streaming.api.transformations.GlobalCommitterTransform;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
 import org.apache.flink.streaming.runtime.operators.sink.CommitterOperatorFactory;
+import org.apache.flink.streaming.runtime.operators.sink.GlobalCommitterOperator;
 import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFactory;
 
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Queue;
 import java.util.Set;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import static org.apache.flink.streaming.api.connector.sink2.StandardSinkTopologies.GLOBAL_COMMITTER_TRANSFORMATION_NAME;
 
@@ -74,11 +77,10 @@ public class GlobalCommitterTransformationTranslator<CommT>
         boolean commitOnInput = batch || !checkpointingEnabled || hasUpstreamCommitter(inputStream);
 
         // Create a global shuffle and add the global committer with parallelism 1.
+        DataStream<CommittableMessage<CommT>> global = inputStream.global();
         final PhysicalTransformation<Void> transformation =
                 (PhysicalTransformation<Void>)
-                        inputStream
-                                .global()
-                                .transform(
+                        global.transform(
                                         GLOBAL_COMMITTER_TRANSFORMATION_NAME,
                                         Types.VOID,
                                         new GlobalCommitterOperator<>(
@@ -87,10 +89,20 @@ public class GlobalCommitterTransformationTranslator<CommT>
                                                 commitOnInput))
                                 .getTransformation();
         transformation.setChainingStrategy(ChainingStrategy.ALWAYS);
-        transformation.setName(GLOBAL_COMMITTER_TRANSFORMATION_NAME);
         transformation.setParallelism(1);
         transformation.setMaxParallelism(1);
-        return Collections.emptyList();
+        copySafely(transformation::setName, globalCommitterTransform::getName);
+        copySafely(transformation::setUid, globalCommitterTransform::getUid);
+        copySafely(transformation::setUidHash, globalCommitterTransform::getUserProvidedNodeHash);
+
+        return Arrays.asList(global.getId(), transformation.getId());
+    }
+
+    private static <T> void copySafely(Consumer<T> consumer, Supplier<T> provider) {
+        T value = provider.get();
+        if (value != null) {
+            consumer.accept(value);
+        }
     }
 
     /**

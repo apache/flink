@@ -22,10 +22,13 @@ import org.apache.flink.util.Preconditions;
 public interface SequenceNumberRange {
     /** Inclusive. */
     SequenceNumber from();
+
     /** Exclusive. */
     SequenceNumber to();
 
-    /** @return the size of this range (positive) or zero if it is empty */
+    /**
+     * @return the size of this range (positive) or zero if it is empty
+     */
     long size();
 
     /**
@@ -34,7 +37,9 @@ public interface SequenceNumberRange {
      */
     boolean contains(SequenceNumber sqn);
 
-    /** @return true if {@link #from} &ge; {@link #to}, false otherwise. */
+    /**
+     * @return true if {@link #from} &ge; {@link #to}, false otherwise.
+     */
     boolean isEmpty();
 
     /**

@@ -39,6 +39,7 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
     private static final long serialVersionUID = -8070326169926626355L;
 
     private final KeyGroupRange keyGroupRange;
+
     /** NOTE: order is important as it reflects the order of changes. */
     private final List<Tuple2<StreamStateHandle, Long>> handlesAndOffsets;
 

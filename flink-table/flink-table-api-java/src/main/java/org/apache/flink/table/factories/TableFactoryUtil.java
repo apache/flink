@@ -183,8 +183,10 @@ public class TableFactoryUtil {
     /** Find and create modification listener list from configuration. */
     public static List<CatalogModificationListener> findCatalogModificationListenerList(
             final ReadableConfig configuration, final ClassLoader classLoader) {
-        return configuration.getOptional(TableConfigOptions.TABLE_CATALOG_MODIFICATION_LISTENERS)
-                .orElse(Collections.emptyList()).stream()
+        return configuration
+                .getOptional(TableConfigOptions.TABLE_CATALOG_MODIFICATION_LISTENERS)
+                .orElse(Collections.emptyList())
+                .stream()
                 .map(
                         identifier ->
                                 FactoryUtil.discoverFactory(

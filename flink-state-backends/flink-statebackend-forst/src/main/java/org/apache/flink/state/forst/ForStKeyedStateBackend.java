@@ -39,7 +39,6 @@ import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
-import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
@@ -71,8 +70,8 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 
-import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -83,6 +82,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.state.SnapshotExecutionType.ASYNCHRONOUS;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A KeyedStateBackend that stores its state in {@code ForSt}. This state backend can store very
@@ -158,7 +158,10 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
      * retrieve the column family that is used for a state and also for sanity checks when
      * restoring.
      */
-    private final LinkedHashMap<String, ForStKvStateInfo> kvStateInformation;
+    private final LinkedHashMap<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation;
+
+    /** So that we can give out state when the user uses the same key. */
+    private final HashMap<String, InternalKeyedState<K, ?, ?>> keyValueStatesByName;
 
     /** Lock guarding the {@code managedStateExecutors} and {@code disposed}. */
     private final Object lock = new Object();
@@ -182,7 +185,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
             Supplier<DataOutputSerializer> valueSerializerView,
             Supplier<DataInputDeserializer> valueDeserializerView,
             RocksDB db,
-            LinkedHashMap<String, ForStKvStateInfo> kvStateInformation,
+            LinkedHashMap<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation,
             Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             ColumnFamilyHandle defaultColumnFamilyHandle,
@@ -203,6 +206,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
         this.valueDeserializerView = valueDeserializerView;
         this.db = db;
         this.kvStateInformation = kvStateInformation;
+        this.keyValueStatesByName = new HashMap<>();
         this.columnFamilyOptionsFactory = columnFamilyOptionsFactory;
         this.defaultColumnFamily = defaultColumnFamilyHandle;
         this.snapshotStrategy = snapshotStrategy;
@@ -229,10 +233,24 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
         this.stateRequestHandler = stateRequestHandler;
     }
 
-    @Nonnull
     @Override
+    public <N, S extends State, SV> S getOrCreateKeyedState(
+            N defaultNamespace,
+            TypeSerializer<N> namespaceSerializer,
+            StateDescriptor<SV> stateDesc)
+            throws Exception {
+        checkNotNull(namespaceSerializer, "Namespace serializer");
+        InternalKeyedState<K, ?, ?> kvState = keyValueStatesByName.get(stateDesc.getStateId());
+        if (kvState == null) {
+            kvState = createState(defaultNamespace, namespaceSerializer, stateDesc);
+            keyValueStatesByName.put(stateDesc.getStateId(), kvState);
+        }
+        return (S) kvState;
+    }
+
+    @Nonnull
     @SuppressWarnings("unchecked")
-    public <N, S extends State, SV> S createState(
+    protected <N, S extends State, SV> S createState(
             @Nonnull N defaultNamespace,
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull StateDescriptor<SV> stateDesc)
@@ -329,11 +347,12 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                             StateDescriptor<SV> stateDesc, TypeSerializer<N> namespaceSerializer)
                             throws Exception {
 
-        ForStKvStateInfo oldStateInfo = kvStateInformation.get(stateDesc.getStateId());
+        ForStOperationUtils.ForStKvStateInfo oldStateInfo =
+                kvStateInformation.get(stateDesc.getStateId());
 
         TypeSerializer<SV> stateSerializer = stateDesc.getSerializer();
 
-        ForStKvStateInfo newStateInfo;
+        ForStOperationUtils.ForStKvStateInfo newStateInfo;
         RegisteredKeyValueStateBackendMetaInfo<N, SV> newMetaInfo;
         if (oldStateInfo != null) {
             @SuppressWarnings("unchecked")
@@ -347,7 +366,9 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                             stateSerializer,
                             namespaceSerializer);
 
-            newStateInfo = new ForStKvStateInfo(oldStateInfo.columnFamilyHandle, newMetaInfo);
+            newStateInfo =
+                    new ForStOperationUtils.ForStKvStateInfo(
+                            oldStateInfo.columnFamilyHandle, newMetaInfo);
             kvStateInformation.put(stateDesc.getStateId(), newStateInfo);
         } else {
             newMetaInfo =
@@ -359,12 +380,13 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                             StateSnapshotTransformer.StateSnapshotTransformFactory.noTransform());
 
             newStateInfo =
-                    ForStOperationUtils.createAsyncStateInfo(
+                    ForStOperationUtils.createStateInfo(
                             newMetaInfo,
                             db,
                             columnFamilyOptionsFactory,
                             ttlCompactFiltersManager,
-                            optionsContainer.getWriteBufferManagerCapacity());
+                            optionsContainer.getWriteBufferManagerCapacity(),
+                            cancelStreamRegistry);
             ForStOperationUtils.registerKvStateInformation(
                     this.kvStateInformation,
                     this.nativeMetricMonitor,
@@ -521,8 +543,13 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
         }
     }
 
+    @Override
+    public boolean isSafeToReuseKVState() {
+        return true;
+    }
+
     @VisibleForTesting
-    File getLocalBasePath() {
+    Path getLocalBasePath() {
         return optionsContainer.getLocalBasePath();
     }
 
@@ -557,23 +584,6 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
         } else {
             return priorityQueueFactory.create(
                     stateName, byteOrderedElementSerializer, allowFutureMetadataUpdates);
-        }
-    }
-
-    /** ForSt specific information about the k/v states. */
-    public static class ForStKvStateInfo implements AutoCloseable {
-        public final ColumnFamilyHandle columnFamilyHandle;
-        public final RegisteredStateMetaInfoBase metaInfo;
-
-        public ForStKvStateInfo(
-                ColumnFamilyHandle columnFamilyHandle, RegisteredStateMetaInfoBase metaInfo) {
-            this.columnFamilyHandle = columnFamilyHandle;
-            this.metaInfo = metaInfo;
-        }
-
-        @Override
-        public void close() throws Exception {
-            this.columnFamilyHandle.close();
         }
     }
 }

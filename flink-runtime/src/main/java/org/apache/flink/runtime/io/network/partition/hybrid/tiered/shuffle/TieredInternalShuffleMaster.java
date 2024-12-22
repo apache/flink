@@ -81,9 +81,9 @@ public class TieredInternalShuffleMaster {
     }
 
     public List<TierShuffleDescriptor> addPartitionAndGetShuffleDescriptor(
-            JobID jobID, ResultPartitionID resultPartitionID) {
+            JobID jobID, int numSubpartitions, ResultPartitionID resultPartitionID) {
         return tieredStorageMasterClient.addPartitionAndGetShuffleDescriptor(
-                jobID, resultPartitionID);
+                jobID, numSubpartitions, resultPartitionID);
     }
 
     public void releasePartition(ShuffleDescriptor shuffleDescriptor) {

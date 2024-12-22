@@ -28,7 +28,9 @@ import org.apache.flink.configuration.Configuration;
  */
 public interface ShuffleMasterContext {
 
-    /** @return the cluster configuration. */
+    /**
+     * @return the cluster configuration.
+     */
     Configuration getConfiguration();
 
     /** Handles the fatal error if any. */

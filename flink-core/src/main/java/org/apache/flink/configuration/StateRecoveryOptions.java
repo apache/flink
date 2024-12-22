@@ -54,6 +54,7 @@ public class StateRecoveryOptions {
                     .withDescription(
                             "Allow to skip savepoint state that cannot be restored. "
                                     + "Allow this if you removed an operator from your pipeline after the savepoint was triggered.");
+
     /**
      * Describes the mode how Flink should restore from the given savepoint or retained checkpoint.
      */

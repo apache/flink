@@ -40,6 +40,8 @@ public interface MemorySegmentPool extends MemorySegmentSource {
      */
     void returnAll(List<MemorySegment> memory);
 
-    /** @return Free page number. */
+    /**
+     * @return Free page number.
+     */
     int freePages();
 }

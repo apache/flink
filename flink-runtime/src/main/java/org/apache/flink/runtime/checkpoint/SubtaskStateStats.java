@@ -161,12 +161,16 @@ public class SubtaskStateStats implements Serializable {
         return asyncCheckpointDuration;
     }
 
-    /** @return the total number of processed bytes during the checkpoint. */
+    /**
+     * @return the total number of processed bytes during the checkpoint.
+     */
     public long getProcessedData() {
         return processedData;
     }
 
-    /** @return the total number of persisted bytes during the checkpoint. */
+    /**
+     * @return the total number of persisted bytes during the checkpoint.
+     */
     public long getPersistedData() {
         return persistedData;
     }

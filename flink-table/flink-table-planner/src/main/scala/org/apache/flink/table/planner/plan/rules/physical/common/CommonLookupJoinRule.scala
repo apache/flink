@@ -20,16 +20,22 @@ package org.apache.flink.table.planner.plan.rules.physical.common
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.connector.source.LookupTableSource
 import org.apache.flink.table.legacy.sources.LookupableTableSource
+import org.apache.flink.table.planner.hint.JoinStrategy
+import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
+import org.apache.flink.table.planner.plan.nodes.{FlinkConvention, FlinkConventions}
 import org.apache.flink.table.planner.plan.nodes.logical._
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.nodes.physical.common.{CommonPhysicalLegacyTableSourceScan, CommonPhysicalLookupJoin, CommonPhysicalTableSourceScan}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.rules.common.CommonTemporalTableJoinRule
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
-import org.apache.flink.table.planner.plan.utils.JoinUtil
+import org.apache.flink.table.planner.plan.utils.{JoinUtil, LookupJoinUtil, TemporalJoinUtil}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptTable}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.TableScan
+import org.apache.calcite.rel.core.{Calc, TableScan}
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rex.RexProgram
 
 import java.util
@@ -108,11 +114,94 @@ trait CommonLookupJoinRule extends CommonTemporalTableJoinRule {
     }
   }
 
+  private def checkLookupShuffle(
+      lookupHint: Option[RelHint],
+      temporalTable: RelOptTable
+  ): (Boolean, Boolean) = {
+    lookupHint match {
+      case Some(hint) =>
+        val enableLookupShuffle = LookupJoinUtil.enableLookupShuffle(hint)
+        val preferCustomShuffle = enableLookupShuffle &&
+          LookupJoinUtil.tableProvidesCustomPartitioner(temporalTable)
+        (enableLookupShuffle, preferCustomShuffle)
+      case None => (false, false)
+    }
+  }
+
   protected def transform(
       join: FlinkLogicalJoin,
       input: FlinkLogicalRel,
       temporalTable: RelOptTable,
       calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin
+
+  protected def transformToLookupJoin(
+      join: FlinkLogicalJoin,
+      input: FlinkLogicalRel,
+      temporalTable: RelOptTable,
+      calcProgram: Option[RexProgram],
+      convention: FlinkConvention): CommonPhysicalLookupJoin = {
+    val joinInfo = join.analyzeCondition
+    val cluster = join.getCluster
+    val isStream = if (convention == FlinkConventions.STREAM_PHYSICAL) {
+      true
+    } else {
+      false
+    }
+
+    val providedTrait = join.getTraitSet.replace(convention)
+    var requiredTrait = input.getTraitSet.replace(convention)
+
+    val lookupRelHint = join.getHints
+      .stream()
+      .filter(hint => JoinStrategy.isLookupHint(hint.hintName))
+      .findFirst()
+
+    val lookupHint = if (lookupRelHint.isPresent) {
+      Option.apply(lookupRelHint.get())
+    } else {
+      Option.empty[RelHint]
+    }
+
+    val (enableLookupShuffle, preferCustomShuffle) = checkLookupShuffle(lookupHint, temporalTable)
+    val enableHashShuffle = enableLookupShuffle && !preferCustomShuffle
+    if (enableHashShuffle) {
+      val joinKeyPairs = TemporalJoinUtil.getTemporalTableJoinKeyPairs(joinInfo, calcProgram).toList
+      if (joinKeyPairs.nonEmpty) {
+        val leftJoinKeys = joinKeyPairs.map(p => p.source).toArray
+        requiredTrait =
+          requiredTrait.plus(FlinkRelDistribution.hash(leftJoinKeys, requireStrict = true))
+      }
+    }
+
+    val convInput = RelOptRule.convert(input, requiredTrait)
+
+    if (isStream) {
+      new StreamPhysicalLookupJoin(
+        cluster,
+        providedTrait,
+        convInput,
+        temporalTable,
+        calcProgram,
+        joinInfo,
+        join.getJoinType,
+        lookupHint,
+        false,
+        enableLookupShuffle,
+        preferCustomShuffle)
+    } else {
+      new BatchPhysicalLookupJoin(
+        cluster,
+        providedTrait,
+        convInput,
+        temporalTable,
+        calcProgram,
+        joinInfo,
+        join.getJoinType,
+        lookupHint,
+        enableLookupShuffle,
+        preferCustomShuffle)
+    }
+  }
 }
 
 abstract class BaseSnapshotOnTableScanRule(description: String)

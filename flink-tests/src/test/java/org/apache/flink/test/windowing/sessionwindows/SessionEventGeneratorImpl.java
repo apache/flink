@@ -85,13 +85,17 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
         this.timingAwareEventGenerator = new TimelyGenerator();
     }
 
-    /** @see EventGenerator */
+    /**
+     * @see EventGenerator
+     */
     @Override
     public boolean canGenerateEventAtWatermark(long globalWatermark) {
         return timingAwareEventGenerator.canGenerateEventAtWatermark(globalWatermark);
     }
 
-    /** @see EventGenerator */
+    /**
+     * @see EventGenerator
+     */
     @Override
     public E generateEvent(long globalWatermark) {
         if (hasMoreEvents()) {
@@ -109,13 +113,17 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
         }
     }
 
-    /** @see EventGenerator */
+    /**
+     * @see EventGenerator
+     */
     @Override
     public long getLocalWatermark() {
         return timingAwareEventGenerator.getLocalWatermark();
     }
 
-    /** @see EventGenerator */
+    /**
+     * @see EventGenerator
+     */
     @Override
     public boolean hasMoreEvents() {
         return producedEventsCount < getAllEventsCount();
@@ -149,7 +157,9 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
                         timing);
     }
 
-    /** @return a timestamp in the session that is timely */
+    /**
+     * @return a timestamp in the session that is timely
+     */
     private long generateTimelyInSessionTimestamp() {
         int chosenTimestampIndex = randomGenerator.choseRandomIndex(orderedTimelyTimestamps);
         // performance: consider that remove is an O(n) operation here, with n being the number of
@@ -158,7 +168,9 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
         return orderedTimelyTimestamps.remove(chosenTimestampIndex);
     }
 
-    /** @return a timestamp in the session */
+    /**
+     * @return a timestamp in the session
+     */
     private long generateArbitraryInSessionTimestamp() {
         return randomGenerator.randomLongBetween(minTimestamp, maxTimestamp + 1);
     }
@@ -179,12 +191,16 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
         return globalWatermark >= getAfterLatenessTimestamp();
     }
 
-    /** @return timestamp of the watermark at events for this session are after the lateness */
+    /**
+     * @return timestamp of the watermark at events for this session are after the lateness
+     */
     private long getAfterLatenessTimestamp() {
         return getTriggerTimestamp() + getLateness();
     }
 
-    /** @return timestamp of the watermark at which the window for this session will trigger */
+    /**
+     * @return timestamp of the watermark at which the window for this session will trigger
+     */
     private long getTriggerTimestamp() {
         return maxTimestamp + getGap() - 1;
     }
@@ -232,7 +248,9 @@ public class SessionEventGeneratorImpl<K, E> implements EventGenerator<K, E> {
         return producedEventsCount < getLateEventsCount();
     }
 
-    /** @see EventGenerator */
+    /**
+     * @see EventGenerator
+     */
     @Override
     public EventGenerator<K, E> getNextGenerator(long globalWatermark) {
         GeneratorConfiguration generatorConfiguration = configuration.getGeneratorConfiguration();

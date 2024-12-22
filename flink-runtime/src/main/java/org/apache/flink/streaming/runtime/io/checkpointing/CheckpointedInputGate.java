@@ -271,7 +271,9 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
         return barrierHandler.getCheckpointStartDelayNanos();
     }
 
-    /** @return number of underlying input channels. */
+    /**
+     * @return number of underlying input channels.
+     */
     public int getNumberOfInputChannels() {
         return inputGate.getNumberOfInputChannels();
     }

@@ -121,7 +121,8 @@ public class IntPairSerializer extends TypeSerializer<IntPair> {
 
         public boolean equals(Object obj) {
             return obj.getClass() == IntPairSerializerFactory.class;
-        };
+        }
+        ;
     }
 
     @Override

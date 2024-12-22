@@ -35,5 +35,7 @@ public enum FunctionKind {
 
     TABLE_AGGREGATE,
 
+    PROCESS_TABLE,
+
     OTHER
 }

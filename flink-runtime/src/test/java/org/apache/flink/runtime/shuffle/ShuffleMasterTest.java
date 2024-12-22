@@ -44,6 +44,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.configuration.ConfigurationUtils.getBooleanConfigOption;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ShuffleMaster}. */
@@ -116,8 +117,8 @@ class ShuffleMasterTest {
         sink.setParallelism(2);
         sink.setInvokableClass(NoOpInvokable.class);
 
-        sink.connectNewDataSetAsInput(
-                source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                sink, source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
 
         JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(source, sink);
         RestartStrategyUtils.configureFixedDelayRestartStrategy(jobGraph, 2, Duration.ofSeconds(2));

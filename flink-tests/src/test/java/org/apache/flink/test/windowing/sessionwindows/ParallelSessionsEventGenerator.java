@@ -74,7 +74,9 @@ public class ParallelSessionsEventGenerator<K, E> {
         initParallelSessionGenerators(parallelSessions);
     }
 
-    /** @return the next generated event */
+    /**
+     * @return the next generated event
+     */
     public E nextEvent() {
 
         // the session limit is reached and all generators are exhausted
@@ -137,7 +139,9 @@ public class ParallelSessionsEventGenerator<K, E> {
         return watermark;
     }
 
-    /** @param parallelSessions the number of parallel sessions to initialize */
+    /**
+     * @param parallelSessions the number of parallel sessions to initialize
+     */
     private void initParallelSessionGenerators(int parallelSessions) {
         for (int i = 0;
                 i < parallelSessions

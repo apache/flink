@@ -78,10 +78,14 @@ public abstract class WindowReaderFunction<IN, OUT, KEY, W extends Window>
         /** State accessor for per-key global state. */
         KeyedStateStore globalState();
 
-        /** @return All event time timers registered by a trigger for the current window. */
+        /**
+         * @return All event time timers registered by a trigger for the current window.
+         */
         Set<Long> registeredEventTimeTimers() throws Exception;
 
-        /** @return All processing time timers registered by a trigger for the current window. */
+        /**
+         * @return All processing time timers registered by a trigger for the current window.
+         */
         Set<Long> registeredProcessingTimeTimers() throws Exception;
     }
 }

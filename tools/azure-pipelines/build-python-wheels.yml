@@ -16,7 +16,7 @@
 jobs:
   - job: build_wheels_on_Linux
     pool:
-      vmImage: 'ubuntu-20.04'
+      vmImage: 'ubuntu-22.04'
     steps:
       - script: |
           cd flink-python

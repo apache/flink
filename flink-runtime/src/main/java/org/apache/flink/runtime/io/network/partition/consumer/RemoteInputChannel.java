@@ -641,7 +641,9 @@ public class RemoteInputChannel extends InputChannel {
         }
     }
 
-    /** @return {@code true} if this was first priority buffer added. */
+    /**
+     * @return {@code true} if this was first priority buffer added.
+     */
     private boolean addPriorityBuffer(SequenceBuffer sequenceBuffer) {
         receivedBuffers.addPriorityElement(sequenceBuffer);
         return receivedBuffers.getNumPriorityElements() == 1;

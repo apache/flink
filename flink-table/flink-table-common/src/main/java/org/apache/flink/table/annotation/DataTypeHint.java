@@ -81,8 +81,7 @@ public @interface DataTypeHint {
 
     // Note to implementers:
     // Because "null" is not supported as an annotation value. Every annotation parameter *must*
-    // have
-    // some representation for unknown values in order to merge multi-level annotations.
+    // have some representation for unknown values in order to merge multi-level annotations.
 
     // --------------------------------------------------------------------------------------------
     // Explicit data type specification

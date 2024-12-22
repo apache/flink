@@ -32,7 +32,9 @@ import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 
 import java.util.List;
 
-/** @param <IN> The input and result type. */
+/**
+ * @param <IN> The input and result type.
+ */
 @Internal
 public class PartitionOperatorBase<IN> extends SingleInputOperator<IN, IN, NoOpFunction> {
 

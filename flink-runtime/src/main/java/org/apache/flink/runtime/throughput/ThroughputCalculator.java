@@ -60,7 +60,9 @@ public class ThroughputCalculator {
         }
     }
 
-    /** @return Calculated throughput based on the collected data for the last period. */
+    /**
+     * @return Calculated throughput based on the collected data for the last period.
+     */
     public long calculateThroughput() {
         if (measurementStartTime != NOT_TRACKED) {
             long absoluteTimeMillis = clock.absoluteTimeMillis();

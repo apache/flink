@@ -265,7 +265,10 @@ public class SSLUtils {
 
     private static KeyManagerFactory getKeyManagerFactory(
             Configuration config, boolean internal, SslProvider provider)
-            throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException,
+            throws KeyStoreException,
+                    IOException,
+                    NoSuchAlgorithmException,
+                    CertificateException,
                     UnrecoverableKeyException {
         String keystoreFilePath =
                 getAndCheckOption(

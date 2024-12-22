@@ -108,7 +108,9 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
         if (tieredInternalShuffleMaster != null) {
             tierShuffleDescriptors =
                     tieredInternalShuffleMaster.addPartitionAndGetShuffleDescriptor(
-                            jobID, resultPartitionID);
+                            jobID,
+                            partitionDescriptor.getNumberOfSubpartitions(),
+                            resultPartitionID);
         }
 
         NettyShuffleDescriptor shuffleDeploymentDescriptor =
@@ -199,7 +201,13 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
     @Override
     public void snapshotState(
             CompletableFuture<ShuffleMasterSnapshot> snapshotFuture,
-            ShuffleMasterSnapshotContext context) {
+            ShuffleMasterSnapshotContext context,
+            JobID jobId) {
+        snapshotFuture.complete(EmptyShuffleMasterSnapshot.getInstance());
+    }
+
+    @Override
+    public void snapshotState(CompletableFuture<ShuffleMasterSnapshot> snapshotFuture) {
         snapshotFuture.complete(EmptyShuffleMasterSnapshot.getInstance());
     }
 

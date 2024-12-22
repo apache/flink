@@ -50,6 +50,7 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultSlotStatusSyncer.class);
 
     private final Set<AllocationID> pendingSlotAllocations = new HashSet<>();
+
     /** Timeout for slot requests to the task manager. */
     private final Duration taskManagerRequestTimeout;
 

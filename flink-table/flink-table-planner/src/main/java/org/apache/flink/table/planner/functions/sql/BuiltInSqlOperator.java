@@ -39,13 +39,19 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinition.qualify
 @Internal
 public interface BuiltInSqlOperator {
 
-    /** @see BuiltInFunctionDefinition#getVersion() */
+    /**
+     * @see BuiltInFunctionDefinition#getVersion()
+     */
     Optional<Integer> getVersion();
 
-    /** @see BuiltInFunctionDefinition#isInternal() */
+    /**
+     * @see BuiltInFunctionDefinition#isInternal()
+     */
     boolean isInternal();
 
-    /** @see BuiltInFunctionDefinition#getQualifiedName() */
+    /**
+     * @see BuiltInFunctionDefinition#getQualifiedName()
+     */
     String getQualifiedName();
 
     // --------------------------------------------------------------------------------------------

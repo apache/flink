@@ -147,7 +147,9 @@ public abstract class BytesMap<K, V> {
         return numElements;
     }
 
-    /** @param reservedRecordMemory reserved fixed memory or not. */
+    /**
+     * @param reservedRecordMemory reserved fixed memory or not.
+     */
     public void free(boolean reservedRecordMemory) {
         returnSegments(this.bucketSegments);
         this.bucketSegments.clear();
@@ -226,7 +228,9 @@ public abstract class BytesMap<K, V> {
         return reuseLookupInfo;
     }
 
-    /** @throws EOFException if the map can't allocate much more memory. */
+    /**
+     * @throws EOFException if the map can't allocate much more memory.
+     */
     protected void growAndRehash() throws EOFException {
         // allocate the new data structures
         int required = 2 * bucketSegments.size();

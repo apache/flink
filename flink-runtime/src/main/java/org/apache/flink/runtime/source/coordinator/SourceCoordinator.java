@@ -106,21 +106,27 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
     private final WatermarkAlignmentParams watermarkAlignmentParams;
 
     private final JobID jobID;
+
     /** The name of the operator this SourceCoordinator is associated with. */
     private final String operatorName;
+
     /** The Source that is associated with this SourceCoordinator. */
     private final Source<?, SplitT, EnumChkT> source;
+
     /** The serializer that handles the serde of the SplitEnumerator checkpoints. */
     private final SimpleVersionedSerializer<EnumChkT> enumCheckpointSerializer;
+
     /** The context containing the states of the coordinator. */
     private final SourceCoordinatorContext<SplitT> context;
 
     private final CoordinatorStore coordinatorStore;
+
     /**
      * The split enumerator created from the associated Source. This one is created either during
      * resetting the coordinator to a checkpoint, or when the coordinator is started.
      */
     private SplitEnumerator<SplitT, EnumChkT> enumerator;
+
     /** A flag marking whether the coordinator has started. */
     private boolean started;
 
@@ -178,6 +184,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                     "Skip distributing maxAllowedWatermark of group={} for source {} - no subtasks.",
                     watermarkAlignmentParams.getWatermarkGroup(),
                     operatorName);
+            return;
         }
         checkState(
                 watermarkAlignmentParams != WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);

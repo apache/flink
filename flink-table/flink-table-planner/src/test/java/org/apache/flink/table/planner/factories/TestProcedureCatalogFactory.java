@@ -225,7 +225,7 @@ public class TestProcedureCatalogFactory implements CatalogFactory {
 
         @ProcedureHint(
                 output = @DataTypeHint("STRING"),
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "c", isOptional = true),
                     @ArgumentHint(type = @DataTypeHint("INT"), name = "d", isOptional = true)
                 })

@@ -34,14 +34,20 @@ public class StreamGraphUserHashHasher implements StreamGraphHasher {
     public Map<Integer, byte[]> traverseStreamGraphAndGenerateHashes(StreamGraph streamGraph) {
         HashMap<Integer, byte[]> hashResult = new HashMap<>();
         for (StreamNode streamNode : streamGraph.getStreamNodes()) {
-
-            String userHash = streamNode.getUserHash();
-
-            if (null != userHash) {
-                hashResult.put(streamNode.getId(), StringUtils.hexStringToByte(userHash));
-            }
+            generateHashesByStreamNodeId(streamNode.getId(), streamGraph, hashResult);
         }
 
         return hashResult;
+    }
+
+    @Override
+    public boolean generateHashesByStreamNodeId(
+            int streamNodeId, StreamGraph streamGraph, Map<Integer, byte[]> hashes) {
+        StreamNode streamNode = streamGraph.getStreamNode(streamNodeId);
+        String userHash = streamNode.getUserHash();
+        if (null != userHash) {
+            hashes.put(streamNode.getId(), StringUtils.hexStringToByte(userHash));
+        }
+        return true;
     }
 }

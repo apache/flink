@@ -42,12 +42,16 @@ public class MeterView implements Meter, View {
 
     /** The underlying counter maintaining the count. */
     private final Counter counter;
+
     /** The time-span over which the average is calculated. */
     private final int timeSpanInSeconds;
+
     /** Circular array containing the history of values. */
     private final long[] values;
+
     /** The index in the array for the current time. */
     private int time = 0;
+
     /** The last rate we computed. */
     private double currentRate = 0;
 

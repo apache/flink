@@ -97,8 +97,8 @@ Flink reports a single span trace for the whole checkpoint and job initializatio
   </thead>
   <tbody>
     <tr>
-      <th rowspan="18">org.apache.flink.</br>runtime.checkpoint.</br>CheckpointStatsTracker</th>
-      <th rowspan="6"><strong>Checkpoint</strong></th>
+      <th rowspan="20">org.apache.flink.</br>runtime.checkpoint.</br>CheckpointStatsTracker</th>
+      <th rowspan="8"><strong>Checkpoint</strong></th>
       <td>startTs</td>
       <td>Timestamp when the checkpoint has started.</td>
     </tr>
@@ -121,6 +121,14 @@ Flink reports a single span trace for the whole checkpoint and job initializatio
     <tr>
       <td>checkpointStatus</td>
       <td>What was the state of this checkpoint: FAILED or COMPLETED.</td>
+    </tr>
+    <tr>
+      <td>checkpointType</td>
+      <td>Type of the checkpoint. For example: "Checkpoint", "Full Checkpoint" or "Terminate Savepoint" ...</td>
+    </tr>
+    <tr>
+      <td>isUnaligned</td>
+      <td>Whether checkpoint was aligned or unaligned.</td>
     </tr>
     <tr>
       <th rowspan="12"><strong>JobInitialization</strong></th>

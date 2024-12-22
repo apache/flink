@@ -105,6 +105,52 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
                       |""".stripMargin)
     }
     util.addTable("""
+                    |CREATE TABLE LookupTableWithCustomShuffle1 (
+                    |  `id` INT,
+                    |  `name` STRING,
+                    |  `age` INT,
+                    |  PRIMARY KEY(id) NOT ENFORCED
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'enable-custom-shuffle' = 'true'
+                    |)
+                    |""".stripMargin)
+
+    util.addTable("""
+                    |CREATE TABLE LookupTableWithCustomShuffle2 (
+                    |  `id` INT,
+                    |  `name` STRING,
+                    |  `age` INT,
+                    |  PRIMARY KEY(id) NOT ENFORCED
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'enable-custom-shuffle' = 'true',
+                    |  'custom-shuffle-deterministic' = 'false'
+                    |)
+                    |""".stripMargin)
+    util.addTable("""
+                    |CREATE TABLE LookupTableWithCustomShuffle3 (
+                    |  `id` INT,
+                    |  `name` STRING,
+                    |  `age` INT,
+                    |  PRIMARY KEY(id) NOT ENFORCED
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'enable-custom-shuffle' = 'true',
+                    |  'custom-shuffle-empty-partitioner' = 'true'
+                    |)
+                    |""".stripMargin)
+    util.addTable("""
+                    |CREATE TABLE UpsertSource (
+                    |  `a` int,
+                    |  `b` varchar,
+                    |  `c` bigint,
+                    |  `proctime` AS PROCTIME()
+                    |) with (
+                    |  'connector' = 'values',
+                    |  'changelog-mode' = 'I,UA,UB,D'
+                    |)""".stripMargin)
+    util.addTable("""
                     |CREATE TABLE Sink1 (
                     |  a int,
                     |  name varchar,
@@ -961,6 +1007,51 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
         |ON T1.a=D.id
         |""".stripMargin
     )
+  }
+
+  @TestTemplate
+  def testJoinTemporalTableWithShuffleLookupHint(): Unit = {
+    assumeThat(legacyTableSource).isFalse
+    val sql =
+      "SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ * FROM MyTable AS T JOIN LookupTableWithCustomShuffle1 " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+    util.verifyExplain(sql, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @TestTemplate
+  def testJoinTemporalTableWithNotShuffleLookupHint(): Unit = {
+    assumeThat(legacyTableSource).isFalse
+    val sql =
+      "SELECT /*+ LOOKUP('table'='D', 'shuffle'='false') */ * FROM MyTable AS T JOIN LookupTableWithCustomShuffle1 " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+    util.verifyExplain(sql, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @TestTemplate
+  def testJoinTemporalTableWithShuffleLookupHintEmptyPartitioner(): Unit = {
+    assumeThat(legacyTableSource).isFalse
+    val sql =
+      "SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ * FROM MyTable AS T JOIN LookupTableWithCustomShuffle3 " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+    util.verifyExplain(sql, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @TestTemplate
+  def testJoinTemporalTableWithNonDeterministicInsertOnlyInputCustomShuffle(): Unit = {
+    assumeThat(legacyTableSource).isFalse
+    val sql =
+      "SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ * FROM MyTable AS T JOIN LookupTableWithCustomShuffle2 " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+    util.verifyExplain(sql, ExplainDetail.JSON_EXECUTION_PLAN)
+  }
+
+  @TestTemplate
+  def testJoinTemporalTableWithNonDeterministicUpsertInputCustomShuffle(): Unit = {
+    assumeThat(legacyTableSource).isFalse
+    val sql =
+      "SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ * FROM UpsertSource AS T JOIN LookupTableWithCustomShuffle2 " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+    util.verifyExplain(sql, ExplainDetail.JSON_EXECUTION_PLAN)
   }
 
   // ==========================================================================================

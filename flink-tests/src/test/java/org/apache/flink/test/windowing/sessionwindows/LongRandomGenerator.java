@@ -60,7 +60,9 @@ public class LongRandomGenerator extends Random {
         return nextInt(collection.size());
     }
 
-    /** @return a randomly chosen element from collection */
+    /**
+     * @return a randomly chosen element from collection
+     */
     public <T> T chooseRandomElement(Collection<T> collection) {
         int choice = choseRandomIndex(collection);
         for (T key : collection) {

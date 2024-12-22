@@ -59,7 +59,9 @@ public class RestoreTestCompleteness {
             };
 
     private Class<? extends ExecNode<?>> getExecNode(Class<?> restoreTest)
-            throws NoSuchMethodException, InvocationTargetException, InstantiationException,
+            throws NoSuchMethodException,
+                    InvocationTargetException,
+                    InstantiationException,
                     IllegalAccessException {
         Method getExecNodeMethod = restoreTest.getMethod("getExecNode");
         Class<? extends ExecNode<?>> execNode =
@@ -70,7 +72,9 @@ public class RestoreTestCompleteness {
     }
 
     private List<Class<? extends ExecNode<?>>> getChildExecNodes(Class<?> restoreTest)
-            throws NoSuchMethodException, InvocationTargetException, InstantiationException,
+            throws NoSuchMethodException,
+                    InvocationTargetException,
+                    InstantiationException,
                     IllegalAccessException {
         Method getChildExecNodesMethod = restoreTest.getMethod("getChildExecNodes");
         List<Class<? extends ExecNode<?>>> childExecNodes =
@@ -82,8 +86,11 @@ public class RestoreTestCompleteness {
 
     @Test
     public void testMissingRestoreTest()
-            throws IOException, NoSuchMethodException, InstantiationException,
-                    IllegalAccessException, InvocationTargetException {
+            throws IOException,
+                    NoSuchMethodException,
+                    InstantiationException,
+                    IllegalAccessException,
+                    InvocationTargetException {
         Map<ExecNodeNameVersion, Class<? extends ExecNode<?>>> versionedExecNodes =
                 ExecNodeMetadataUtil.getVersionedExecNodes();
 

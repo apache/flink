@@ -71,12 +71,16 @@ public class TimestampedFileInputSplit extends FileInputSplit implements Timesta
         this.splitState = state;
     }
 
-    /** @return the state of the split. */
+    /**
+     * @return the state of the split.
+     */
     public Serializable getSplitState() {
         return this.splitState;
     }
 
-    /** @return The modification time of the file this split belongs to. */
+    /**
+     * @return The modification time of the file this split belongs to.
+     */
     public long getModificationTime() {
         return this.modificationTime;
     }

@@ -61,43 +61,43 @@ public abstract class SumWithRetractAggFunction extends DeclarativeAggregateFunc
 
     @Override
     public Expression[] initialValuesExpressions() {
-        return new Expression[] {/* sum = */ nullOf(getResultType()), /* count = */ literal(0L)};
+        return new Expression[] {/* sum= */ nullOf(getResultType()), /* count= */ literal(0L)};
     }
 
     @Override
     public Expression[] accumulateExpressions() {
         return new Expression[] {
-            /* sum = */ ifThenElse(
+            /* sum= */ ifThenElse(
                     isNull(operand(0)),
                     sum,
                     ifThenElse(isNull(sum), operand(0), adjustedPlus(sum, operand(0)))),
-            /* count = */ ifThenElse(isNull(operand(0)), count, plus(count, literal(1L)))
+            /* count= */ ifThenElse(isNull(operand(0)), count, plus(count, literal(1L)))
         };
     }
 
     @Override
     public Expression[] retractExpressions() {
         return new Expression[] {
-            /* sum = */ ifThenElse(
+            /* sum= */ ifThenElse(
                     isNull(operand(0)),
                     sum,
                     ifThenElse(
                             isNull(sum),
                             adjustedMinus(zeroLiteral(), operand(0)),
                             adjustedMinus(sum, operand(0)))),
-            /* count = */ ifThenElse(isNull(operand(0)), count, minus(count, literal(1L)))
+            /* count= */ ifThenElse(isNull(operand(0)), count, minus(count, literal(1L)))
         };
     }
 
     @Override
     public Expression[] mergeExpressions() {
         return new Expression[] {
-            /* sum = */ ifThenElse(
+            /* sum= */ ifThenElse(
                     isNull(mergeOperand(sum)),
                     sum,
                     ifThenElse(
                             isNull(sum), mergeOperand(sum), adjustedPlus(sum, mergeOperand(sum)))),
-            /* count = */ plus(count, mergeOperand(count))
+            /* count= */ plus(count, mergeOperand(count))
         };
     }
 

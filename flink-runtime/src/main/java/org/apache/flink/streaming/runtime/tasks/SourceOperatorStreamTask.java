@@ -60,11 +60,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T, ?>> {
 
     private AsyncDataOutputToOutput<T> output;
+
     /**
      * Contains information about all checkpoints where RPC from checkpoint coordinator arrives
      * before the source reader triggers it. (Common case)
      */
     private SortedMap<Long, UntriggeredCheckpoint> untriggeredCheckpoints = new TreeMap<>();
+
     /**
      * Contains the checkpoints that are triggered by the source but the RPC from checkpoint
      * coordinator has yet to arrive. This may happen if the barrier is inserted as an event into
@@ -72,11 +74,13 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
      * before receiving Flink's checkpoint RPC. (Rare case)
      */
     private SortedSet<Long> triggeredCheckpoints = new TreeSet<>();
+
     /**
      * Blocks input until the RPC call has been received that corresponds to the triggered
      * checkpoint. This future must only be accessed and completed in the mailbox thread.
      */
     private CompletableFuture<Void> waitForRPC = FutureUtils.completedVoidFuture();
+
     /** Only set for externally induced sources. See also {@link #isExternallyInducedSource()}. */
     private StreamTaskExternallyInducedSourceInput<T> externallyInducedSourceInput;
 

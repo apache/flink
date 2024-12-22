@@ -47,7 +47,9 @@ public interface InternalTimeServiceManager<K> {
     @FunctionalInterface
     interface ShouldStopAdvancingFn {
 
-        /** @return {@code true} if firing timers should be interrupted. */
+        /**
+         * @return {@code true} if firing timers should be interrupted.
+         */
         boolean test();
     }
 

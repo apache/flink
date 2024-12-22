@@ -242,7 +242,8 @@ class ThreadInfoRequestCoordinatorTest {
 
                             Map<ExecutionAttemptID, Collection<ThreadInfoSample>> threadInfoSample =
                                     JvmUtils.createThreadInfoSample(threads.keySet(), 100)
-                                            .entrySet().stream()
+                                            .entrySet()
+                                            .stream()
                                             .collect(
                                                     Collectors.toMap(
                                                             entry -> threads.get(entry.getKey()),

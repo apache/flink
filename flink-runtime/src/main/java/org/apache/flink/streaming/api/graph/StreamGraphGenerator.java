@@ -279,7 +279,8 @@ public class StreamGraphGenerator {
                 ExecutionPlanUtils.prepareUserArtifactEntries(
                         Optional.ofNullable(configuration.get(PipelineOptions.CACHED_FILES))
                                 .map(DistributedCache::parseCachedFilesFromString)
-                                .orElse(new ArrayList<>()).stream()
+                                .orElse(new ArrayList<>())
+                                .stream()
                                 .collect(Collectors.toMap(e -> e.f0, e -> e.f1)),
                         streamGraph.getJobID());
 

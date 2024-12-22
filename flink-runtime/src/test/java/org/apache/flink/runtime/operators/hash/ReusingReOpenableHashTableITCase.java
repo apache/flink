@@ -94,7 +94,8 @@ class ReusingReOpenableHashTableITCase extends ReOpenableHashTableTestBase {
 
         iterator.open();
         // do first join with both inputs
-        while (iterator.callWithNextKey(firstMatcher, collector)) ;
+        while (iterator.callWithNextKey(firstMatcher, collector))
+            ;
 
         // assert that each expected match was seen for the first input
         for (Entry<Integer, Collection<TupleMatch>> entry : expectedFirstMatchesMap.entrySet()) {
@@ -109,7 +110,8 @@ class ReusingReOpenableHashTableITCase extends ReOpenableHashTableTestBase {
             // prepare ..
             iterator.reopenProbe(probeInput);
             // .. and do second join
-            while (iterator.callWithNextKey(nMatcher[i], collector)) ;
+            while (iterator.callWithNextKey(nMatcher[i], collector))
+                ;
 
             // assert that each expected match was seen for the second input
             for (Entry<Integer, Collection<TupleMatch>> entry :

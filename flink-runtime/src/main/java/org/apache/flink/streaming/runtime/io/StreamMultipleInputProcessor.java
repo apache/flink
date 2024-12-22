@@ -37,6 +37,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
     private final StreamOneInputProcessor<?>[] inputProcessors;
 
     private final MultipleFuturesAvailabilityHelper availabilityHelper;
+
     /** Always try to read from the first input. */
     private int lastReadInputIndex = 1;
 

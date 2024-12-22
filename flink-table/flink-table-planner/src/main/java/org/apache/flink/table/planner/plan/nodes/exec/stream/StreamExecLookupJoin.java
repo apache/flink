@@ -120,7 +120,8 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
             @Nullable int[] inputUpsertKey,
             InputProperty inputProperty,
             RowType outputType,
-            String description) {
+            String description,
+            boolean preferCustomShuffle) {
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecLookupJoin.class),
@@ -144,7 +145,8 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
                         : null,
                 Collections.singletonList(inputProperty),
                 outputType,
-                description);
+                description,
+                preferCustomShuffle);
     }
 
     @JsonCreator
@@ -176,7 +178,8 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
             @JsonProperty(FIELD_NAME_STATE) @Nullable List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
-            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
+            @JsonProperty(FIELD_NAME_PREFER_CUSTOM_SHUFFLE) boolean preferCustomShuffle) {
         super(
                 id,
                 context,
@@ -193,7 +196,8 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin
                 inputChangelogMode,
                 inputProperties,
                 outputType,
-                description);
+                description,
+                preferCustomShuffle);
         this.lookupKeyContainsPrimaryKey = lookupKeyContainsPrimaryKey;
         this.upsertMaterialize = upsertMaterialize;
         this.inputUpsertKey = inputUpsertKey;

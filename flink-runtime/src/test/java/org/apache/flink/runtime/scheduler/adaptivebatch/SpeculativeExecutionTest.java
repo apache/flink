@@ -85,6 +85,7 @@ import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createCan
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFailedTaskExecutionState;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createFinishedTaskExecutionState;
 import static org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchSchedulerTest.createResultPartitionBytesForExecution;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link AdaptiveBatchScheduler} with speculative execution enabled. */
@@ -361,7 +362,7 @@ class SpeculativeExecutionTest {
             ResultPartitionType resultPartitionType) throws Exception {
         final JobVertex source = createNoOpVertex("source", 1);
         final JobVertex sink = createNoOpVertex("sink", -1);
-        sink.connectNewDataSetAsInput(source, DistributionPattern.ALL_TO_ALL, resultPartitionType);
+        connectNewDataSetAsInput(sink, source, DistributionPattern.ALL_TO_ALL, resultPartitionType);
         final JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(source, sink);
 
         final ComponentMainThreadExecutor mainThreadExecutor =

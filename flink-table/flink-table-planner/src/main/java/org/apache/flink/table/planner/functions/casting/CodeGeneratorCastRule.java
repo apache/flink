@@ -51,11 +51,15 @@ public interface CodeGeneratorCastRule<IN, OUT> extends CastRule<IN, OUT> {
          */
         boolean isPrinting();
 
-        /** @return where the legacy behaviour should be followed or not. */
+        /**
+         * @return where the legacy behaviour should be followed or not.
+         */
         @Deprecated
         boolean legacyBehaviour();
 
-        /** @return the session time zone term. */
+        /**
+         * @return the session time zone term.
+         */
         String getSessionTimeZoneTerm();
 
         /**
@@ -66,10 +70,14 @@ public interface CodeGeneratorCastRule<IN, OUT> extends CastRule<IN, OUT> {
          */
         String declareVariable(String type, String variablePrefix);
 
-        /** @return the term for the type serializer. */
+        /**
+         * @return the term for the type serializer.
+         */
         String declareTypeSerializer(LogicalType type);
 
-        /** @return field term. The field is going to be declared as final. */
+        /**
+         * @return field term. The field is going to be declared as final.
+         */
         String declareClassField(String type, String field, String initialization);
 
         CodeGeneratorContext getCodeGeneratorContext();

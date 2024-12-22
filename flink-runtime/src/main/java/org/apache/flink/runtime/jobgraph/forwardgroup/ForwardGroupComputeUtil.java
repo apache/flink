@@ -24,6 +24,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.streaming.api.graph.StreamNode;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -38,16 +39,17 @@ import static org.apache.flink.util.Preconditions.checkState;
 /** Common utils for computing forward groups. */
 public class ForwardGroupComputeUtil {
 
-    public static Map<JobVertexID, ForwardGroup> computeForwardGroupsAndCheckParallelism(
+    public static Map<JobVertexID, JobVertexForwardGroup> computeForwardGroupsAndCheckParallelism(
             final Iterable<JobVertex> topologicallySortedVertices) {
-        final Map<JobVertexID, ForwardGroup> forwardGroupsByJobVertexId =
+        final Map<JobVertexID, JobVertexForwardGroup> forwardGroupsByJobVertexId =
                 computeForwardGroups(
                         topologicallySortedVertices, ForwardGroupComputeUtil::getForwardProducers);
         // the vertex's parallelism in parallelism-decided forward group should have been set at
         // compilation phase
         topologicallySortedVertices.forEach(
                 jobVertex -> {
-                    ForwardGroup forwardGroup = forwardGroupsByJobVertexId.get(jobVertex.getID());
+                    JobVertexForwardGroup forwardGroup =
+                            forwardGroupsByJobVertexId.get(jobVertex.getID());
                     if (forwardGroup != null && forwardGroup.isParallelismDecided()) {
                         checkState(jobVertex.getParallelism() == forwardGroup.getParallelism());
                     }
@@ -55,28 +57,73 @@ public class ForwardGroupComputeUtil {
         return forwardGroupsByJobVertexId;
     }
 
-    public static Map<JobVertexID, ForwardGroup> computeForwardGroups(
+    public static Map<JobVertexID, JobVertexForwardGroup> computeForwardGroups(
             final Iterable<JobVertex> topologicallySortedVertices,
             final Function<JobVertex, Set<JobVertex>> forwardProducersRetriever) {
 
-        final Map<JobVertex, Set<JobVertex>> vertexToGroup = new IdentityHashMap<>();
+        final Map<JobVertex, Set<JobVertex>> vertexToGroup =
+                computeVertexToGroup(topologicallySortedVertices, forwardProducersRetriever);
+
+        final Map<JobVertexID, JobVertexForwardGroup> ret = new HashMap<>();
+        for (Set<JobVertex> vertexGroup :
+                VertexGroupComputeUtil.uniqueVertexGroups(vertexToGroup)) {
+            if (vertexGroup.size() > 1) {
+                JobVertexForwardGroup forwardGroup = new JobVertexForwardGroup(vertexGroup);
+                for (JobVertexID jobVertexId : forwardGroup.getVertexIds()) {
+                    ret.put(jobVertexId, forwardGroup);
+                }
+            }
+        }
+        return ret;
+    }
+
+    /**
+     * We calculate forward group by a set of stream nodes.
+     *
+     * @param topologicallySortedStreamNodes topologically sorted chained stream nodes
+     * @param forwardProducersRetriever records all upstream stream nodes which connected to the
+     *     given stream node with forward edge
+     * @return a map of forward groups, with the stream node id as the key
+     */
+    public static Map<Integer, StreamNodeForwardGroup> computeStreamNodeForwardGroup(
+            final Iterable<StreamNode> topologicallySortedStreamNodes,
+            final Function<StreamNode, Set<StreamNode>> forwardProducersRetriever) {
+        // In the forwardProducersRetriever, only the upstream nodes connected to the given start
+        // node by the forward edge are saved. We need to calculate the chain groups that can be
+        // accessed with consecutive forward edges and put them in the same forward group.
+        final Map<StreamNode, Set<StreamNode>> nodeToGroup =
+                computeVertexToGroup(topologicallySortedStreamNodes, forwardProducersRetriever);
+        final Map<Integer, StreamNodeForwardGroup> ret = new HashMap<>();
+        for (Set<StreamNode> nodeGroup : VertexGroupComputeUtil.uniqueVertexGroups(nodeToGroup)) {
+            StreamNodeForwardGroup forwardGroup = new StreamNodeForwardGroup(nodeGroup);
+            for (Integer vertexId : forwardGroup.getVertexIds()) {
+                ret.put(vertexId, forwardGroup);
+            }
+        }
+        return ret;
+    }
+
+    private static <T> Map<T, Set<T>> computeVertexToGroup(
+            final Iterable<T> topologicallySortedVertices,
+            final Function<T, Set<T>> forwardProducersRetriever) {
+        final Map<T, Set<T>> vertexToGroup = new IdentityHashMap<>();
 
         // iterate all the vertices which are topologically sorted
-        for (JobVertex vertex : topologicallySortedVertices) {
-            Set<JobVertex> currentGroup = new HashSet<>();
+        for (T vertex : topologicallySortedVertices) {
+            Set<T> currentGroup = new HashSet<>();
             currentGroup.add(vertex);
             vertexToGroup.put(vertex, currentGroup);
 
-            for (JobVertex producerVertex : forwardProducersRetriever.apply(vertex)) {
-                final Set<JobVertex> producerGroup = vertexToGroup.get(producerVertex);
+            for (T producerVertex : forwardProducersRetriever.apply(vertex)) {
+                final Set<T> producerGroup = vertexToGroup.get(producerVertex);
 
                 if (producerGroup == null) {
                     throw new IllegalStateException(
                             "Producer task "
-                                    + producerVertex.getID()
+                                    + producerVertex
                                     + " forward group is null"
                                     + " while calculating forward group for the consumer task "
-                                    + vertex.getID()
+                                    + vertex
                                     + ". This should be a forward group building bug.");
                 }
 
@@ -87,18 +134,43 @@ public class ForwardGroupComputeUtil {
                 }
             }
         }
+        return vertexToGroup;
+    }
 
-        final Map<JobVertexID, ForwardGroup> ret = new HashMap<>();
-        for (Set<JobVertex> vertexGroup :
-                VertexGroupComputeUtil.uniqueVertexGroups(vertexToGroup)) {
-            if (vertexGroup.size() > 1) {
-                ForwardGroup forwardGroup = new ForwardGroup(vertexGroup);
-                for (JobVertexID jobVertexId : forwardGroup.getJobVertexIds()) {
-                    ret.put(jobVertexId, forwardGroup);
-                }
-            }
+    /**
+     * Determines whether the target forward group can be merged into the source forward group.
+     *
+     * @param sourceForwardGroup The source forward group.
+     * @param forwardGroupToMerge The forward group needs to be merged.
+     * @return whether the merge is valid.
+     */
+    public static boolean canTargetMergeIntoSourceForwardGroup(
+            ForwardGroup<?> sourceForwardGroup, ForwardGroup<?> forwardGroupToMerge) {
+        if (sourceForwardGroup == null || forwardGroupToMerge == null) {
+            return false;
         }
-        return ret;
+
+        if (sourceForwardGroup == forwardGroupToMerge) {
+            return true;
+        }
+
+        if (sourceForwardGroup.isParallelismDecided()
+                && forwardGroupToMerge.isParallelismDecided()
+                && sourceForwardGroup.getParallelism() != forwardGroupToMerge.getParallelism()) {
+            return false;
+        }
+
+        // When the parallelism of source forward groups is determined, the maximum
+        // parallelism of the forwardGroupToMerge should not be less than the parallelism of the
+        // sourceForwardGroup to ensure the forwardGroupToMerge can also achieve the same
+        // parallelism.
+        if (sourceForwardGroup.isParallelismDecided()
+                && forwardGroupToMerge.isMaxParallelismDecided()
+                && sourceForwardGroup.getParallelism() > forwardGroupToMerge.getMaxParallelism()) {
+            return false;
+        }
+
+        return true;
     }
 
     static Set<JobVertex> getForwardProducers(final JobVertex jobVertex) {

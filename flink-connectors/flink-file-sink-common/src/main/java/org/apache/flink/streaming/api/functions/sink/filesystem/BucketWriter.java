@@ -81,7 +81,9 @@ public interface BucketWriter<IN, BucketID> {
             final long creationTime)
             throws IOException;
 
-    /** @return the property of the {@link BucketWriter} */
+    /**
+     * @return the property of the {@link BucketWriter}
+     */
     WriterProperties getProperties();
 
     /**

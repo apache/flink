@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamNode;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,29 +42,29 @@ public class OperatorChainInfo {
     private final Map<Integer, ResourceSpec> chainedMinResources;
     private final Map<Integer, ResourceSpec> chainedPreferredResources;
     private final Map<Integer, String> chainedNames;
+
+    /** The {@link OperatorInfo}s, key is the id of the stream node. */
+    private final Map<Integer, OperatorInfo> chainedOperatorInfos;
+
     private final List<OperatorCoordinator.Provider> coordinatorProviders;
-    private final StreamGraph streamGraph;
     private final List<StreamNode> chainedNodes;
     private final List<StreamEdge> transitiveOutEdges;
     private final List<StreamEdge> transitiveInEdges;
 
     private InputOutputFormatContainer inputOutputFormatContainer = null;
 
-    public OperatorChainInfo(
-            int startNodeId,
-            Map<Integer, ChainedSourceInfo> chainedSources,
-            StreamGraph streamGraph) {
+    public OperatorChainInfo(int startNodeId) {
         this.startNodeId = startNodeId;
         this.chainedOperatorHashes = new HashMap<>();
         this.coordinatorProviders = new ArrayList<>();
-        this.chainedSources = chainedSources;
+        this.chainedSources = new HashMap<>();
         this.chainedMinResources = new HashMap<>();
         this.chainedPreferredResources = new HashMap<>();
         this.chainedNames = new HashMap<>();
-        this.streamGraph = streamGraph;
         this.chainedNodes = new ArrayList<>();
         this.transitiveOutEdges = new ArrayList<>();
         this.transitiveInEdges = new ArrayList<>();
+        this.chainedOperatorInfos = new HashMap<>();
     }
 
     public Integer getStartNodeId() {
@@ -88,8 +89,10 @@ public class OperatorChainInfo {
 
     public OperatorID addNodeToChain(
             int currentNodeId, String operatorName, JobVertexBuildContext jobVertexBuildContext) {
-        recordChainedNode(currentNodeId);
+        StreamGraph streamGraph = jobVertexBuildContext.getStreamGraph();
         StreamNode streamNode = streamGraph.getStreamNode(currentNodeId);
+
+        recordChainedNode(streamNode);
 
         List<ChainedOperatorHashInfo> operatorHashes =
                 chainedOperatorHashes.computeIfAbsent(startNodeId, k -> new ArrayList<>());
@@ -116,13 +119,12 @@ public class OperatorChainInfo {
         return transitiveOutEdges;
     }
 
-    public void recordChainedNode(int currentNodeId) {
-        StreamNode streamNode = streamGraph.getStreamNode(currentNodeId);
+    public void recordChainedNode(StreamNode streamNode) {
         chainedNodes.add(streamNode);
     }
 
     public OperatorChainInfo newChain(Integer startNodeId) {
-        return new OperatorChainInfo(startNodeId, chainedSources, streamGraph);
+        return new OperatorChainInfo(startNodeId);
     }
 
     public List<StreamNode> getAllChainedNodes() {
@@ -141,8 +143,9 @@ public class OperatorChainInfo {
         return inputOutputFormatContainer;
     }
 
-    public void addChainedSource(Integer sourceNodeId, ChainedSourceInfo chainedSourceInfo) {
-        chainedSources.put(sourceNodeId, chainedSourceInfo);
+    public void addChainedSource(StreamNode sourceNode, ChainedSourceInfo chainedSourceInfo) {
+        recordChainedNode(sourceNode);
+        chainedSources.put(sourceNode.getId(), chainedSourceInfo);
     }
 
     public void addChainedMinResources(Integer sourceNodeId, ResourceSpec resourceSpec) {
@@ -179,5 +182,19 @@ public class OperatorChainInfo {
 
     public List<StreamEdge> getTransitiveInEdges() {
         return transitiveInEdges;
+    }
+
+    public OperatorInfo getOperatorInfo(Integer nodeId) {
+        return chainedOperatorInfos.get(nodeId);
+    }
+
+    public OperatorInfo createAndGetOperatorInfo(Integer nodeId, OperatorID operatorId) {
+        OperatorInfo operatorInfo = new OperatorInfo(operatorId);
+        chainedOperatorInfos.put(nodeId, operatorInfo);
+        return operatorInfo;
+    }
+
+    public Map<Integer, OperatorInfo> getOperatorInfos() {
+        return Collections.unmodifiableMap(chainedOperatorInfos);
     }
 }

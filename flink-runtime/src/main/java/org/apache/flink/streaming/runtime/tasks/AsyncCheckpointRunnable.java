@@ -373,7 +373,9 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
         return finishedFuture;
     }
 
-    /** @return discarded full/incremental size (if available). */
+    /**
+     * @return discarded full/incremental size (if available).
+     */
     private Tuple2<Long, Long> cleanup() throws Exception {
         LOG.debug(
                 "Cleanup AsyncCheckpointRunnable for checkpoint {} of {}.",

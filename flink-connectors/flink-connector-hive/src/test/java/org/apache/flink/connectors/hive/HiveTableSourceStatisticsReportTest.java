@@ -95,11 +95,20 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
     }
 
     @Test
-    public void testMapRedCsvFormatHiveTableSourceStatisticsReport() {
+    public void testMapRedCsvFormatHiveTableSourceStatisticsReport() throws Exception {
+        final String tableName = "testTable";
+        tEnv.executeSql(
+                String.format(
+                        "create table %s.%s.%s ( f_int int )", catalogName, dbName, tableName));
+        tEnv.executeSql(
+                        String.format(
+                                "insert into %s.%s.%s select f_int from %s.%s.%s",
+                                catalogName, dbName, tableName, catalogName, dbName, sourceTable))
+                .await();
         FlinkStatistic statistic =
                 getStatisticsFromOptimizedPlan(
-                        String.format("select * from %s.%s.%s", catalogName, dbName, sourceTable));
-        assertThat(statistic.getTableStats()).isEqualTo(TableStats.UNKNOWN);
+                        String.format("select * from %s.%s.%s", catalogName, dbName, tableName));
+        assertThat(statistic.getTableStats()).isEqualTo(new TableStats(4));
     }
 
     @Test
@@ -183,12 +192,20 @@ public class HiveTableSourceStatisticsReportTest extends StatisticsReportTestBas
     }
 
     @Test
-    public void testHiveTableSourceWithLimitPushDown() {
+    public void testHiveTableSourceWithLimitPushDown() throws Exception {
+        final String tableName = "pushDownTable";
+        tEnv.executeSql(
+                String.format(
+                        "create table %s.%s.%s ( f_int int )", catalogName, dbName, tableName));
+        tEnv.executeSql(
+                        String.format(
+                                "insert into %s.%s.%s select f_int from %s.%s.%s",
+                                catalogName, dbName, tableName, catalogName, dbName, sourceTable))
+                .await();
         FlinkStatistic statistic =
                 getStatisticsFromOptimizedPlan(
                         String.format(
-                                "select * from %s.%s.%s limit 1",
-                                catalogName, dbName, sourceTable));
+                                "select * from %s.%s.%s limit 1", catalogName, dbName, tableName));
         assertThat(statistic.getTableStats()).isEqualTo(new TableStats(1));
     }
 

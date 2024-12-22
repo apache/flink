@@ -47,17 +47,23 @@ public class KvStateInfo<K, N, V> {
         this.stateValueSerializer = Preconditions.checkNotNull(stateValueSerializer);
     }
 
-    /** @return The serializer for the key the state is associated to. */
+    /**
+     * @return The serializer for the key the state is associated to.
+     */
     public TypeSerializer<K> getKeySerializer() {
         return keySerializer;
     }
 
-    /** @return The serializer for the namespace the state is associated to. */
+    /**
+     * @return The serializer for the namespace the state is associated to.
+     */
     public TypeSerializer<N> getNamespaceSerializer() {
         return namespaceSerializer;
     }
 
-    /** @return The serializer for the values kept in the state. */
+    /**
+     * @return The serializer for the values kept in the state.
+     */
     public TypeSerializer<V> getStateValueSerializer() {
         return stateValueSerializer;
     }

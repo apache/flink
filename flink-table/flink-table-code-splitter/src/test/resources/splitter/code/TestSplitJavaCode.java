@@ -4,6 +4,26 @@ public class TestSplitJavaCode {
 
     public TestSplitJavaCode(int[] b) {
         this.b = b;
+        int b0 = this.b[0] + b[0];
+        System.out.println("b0 = " + b0);
+        int b1 = this.b[1] + b[1];
+        System.out.println("b1 = " + b1);
+        int b2 = this.b[2] + b[2];
+        System.out.println("b2 = " + b2);
+        int b3 = this.b[3] + b[3];
+        System.out.println("b3 = " + b3);
+        int b4 = this.b[4] + b[4];
+        System.out.println("b4 = " + b4);
+        int b5 = this.b[5] + b[5];
+        System.out.println("b5 = " + b5);
+        int b6 = this.b[6] + b[6];
+        System.out.println("b6 = " + b6);
+        int b7 = this.b[7] + b[7];
+        System.out.println("b7 = " + b7);
+        int b8 = this.b[8] + b[8];
+        System.out.println("b8 = " + b8);
+        int b9 = this.b[9] + b[9];
+        System.out.println("b9 = " + b9);
     }
 
     public void myFun1(int a) {

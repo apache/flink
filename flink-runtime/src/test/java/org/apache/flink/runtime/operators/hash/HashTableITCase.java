@@ -668,7 +668,8 @@ class HashTableITCase {
                 if (buildSide.next(recordReuse) == null) {
                     fail("No build side values found for a probe key.");
                 }
-                while (buildSide.next(recordReuse) != null) ;
+                while (buildSide.next(recordReuse) != null)
+                    ;
             }
 
             fail("Hash Join must have failed due to too many recursions.");
@@ -1391,7 +1392,8 @@ class HashTableITCase {
                 if (buildSide.next(recordReuse) == null) {
                     fail("No build side values found for a probe key.");
                 }
-                while (buildSide.next(recordReuse) != null) ;
+                while (buildSide.next(recordReuse) != null)
+                    ;
             }
 
             fail("Hash Join must have failed due to too many recursions.");

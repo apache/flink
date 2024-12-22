@@ -192,7 +192,8 @@ class HashVsSortMiniBenchmark {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(matcher, collector)) ;
+            while (iterator.callWithNextKey(matcher, collector))
+                ;
 
             iterator.close();
             sorter1.close();
@@ -253,7 +254,8 @@ class HashVsSortMiniBenchmark {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(matcher, collector)) ;
+            while (iterator.callWithNextKey(matcher, collector))
+                ;
 
             iterator.close();
 
@@ -312,7 +314,8 @@ class HashVsSortMiniBenchmark {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(matcher, collector)) ;
+            while (iterator.callWithNextKey(matcher, collector))
+                ;
 
             iterator.close();
 
@@ -355,7 +358,8 @@ class HashVsSortMiniBenchmark {
         long stop1 = System.nanoTime();
 
         Tuple2<Integer, String> t = new Tuple2<>();
-        while (iter.next() != null) ;
+        while (iter.next() != null)
+            ;
 
         long stop2 = System.nanoTime();
 

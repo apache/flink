@@ -54,6 +54,7 @@ import java.util.Optional;
 public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializable {
 
     private static final long serialVersionUID = 7231383912742578428L;
+
     // --------------------------------------------------------------------------------------------
 
     /** The ID of the job this graph has been built for. */

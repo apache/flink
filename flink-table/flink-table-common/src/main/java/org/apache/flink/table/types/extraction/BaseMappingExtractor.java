@@ -19,14 +19,23 @@
 package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.StateHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.procedures.Procedure;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.extraction.FunctionResultTemplate.FunctionOutputTemplate;
+import org.apache.flink.table.types.extraction.FunctionResultTemplate.FunctionStateTemplate;
+import org.apache.flink.table.types.inference.StaticArgumentTrait;
+import org.apache.flink.types.Row;
+
+import org.apache.commons.lang3.ArrayUtils;
 
 import javax.annotation.Nullable;
 
@@ -35,6 +44,7 @@ import java.lang.reflect.Parameter;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -62,28 +72,122 @@ import static org.apache.flink.table.types.extraction.TemplateUtils.findResultOn
  */
 abstract class BaseMappingExtractor {
 
+    private static final EnumSet<StaticArgumentTrait> SCALAR_TRAITS =
+            EnumSet.of(StaticArgumentTrait.SCALAR);
+
     protected final DataTypeFactory typeFactory;
 
-    private final String methodName;
+    protected final String methodName;
 
     private final SignatureExtraction signatureExtraction;
 
     protected final ResultExtraction outputExtraction;
 
-    protected final MethodVerification verification;
+    protected final MethodVerification outputVerification;
 
     public BaseMappingExtractor(
             DataTypeFactory typeFactory,
             String methodName,
             SignatureExtraction signatureExtraction,
             ResultExtraction outputExtraction,
-            MethodVerification verification) {
+            MethodVerification outputVerification) {
         this.typeFactory = typeFactory;
         this.methodName = methodName;
         this.signatureExtraction = signatureExtraction;
         this.outputExtraction = outputExtraction;
-        this.verification = verification;
+        this.outputVerification = outputVerification;
     }
+
+    Map<FunctionSignatureTemplate, FunctionOutputTemplate> extractOutputMapping() {
+        try {
+            return extractResultMappings(
+                    outputExtraction, FunctionTemplate::getOutputTemplate, outputVerification);
+        } catch (Throwable t) {
+            throw extractionError(t, "Error in extracting a signature to output mapping.");
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Extraction strategies
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Extraction that uses the method parameters for producing a {@link FunctionSignatureTemplate}.
+     *
+     * @param offset excludes the first n method parameters as arguments. This is necessary for
+     *     aggregating functions which don't require a {@link StateHint}. Accumulators are mandatory
+     *     and are kind of an implicit {@link StateHint}.
+     */
+    static SignatureExtraction createArgumentsFromParametersExtraction(
+            int offset, @Nullable Class<?> contextClass) {
+        return (extractor, method) -> {
+            final List<ArgumentParameter> args =
+                    extractArgumentParameters(method, offset, contextClass);
+
+            final EnumSet<StaticArgumentTrait>[] argumentTraits = extractArgumentTraits(args);
+
+            final List<FunctionArgumentTemplate> argumentTemplates =
+                    extractArgumentTemplates(
+                            extractor.typeFactory, extractor.getFunctionClass(), args);
+
+            final String[] argumentNames = extractArgumentNames(method, args);
+
+            final boolean[] argumentOptionals = extractArgumentOptionals(args);
+
+            return FunctionSignatureTemplate.of(
+                    argumentTemplates,
+                    method.isVarArgs(),
+                    argumentTraits,
+                    argumentNames,
+                    argumentOptionals);
+        };
+    }
+
+    /**
+     * Extraction that uses the method parameters for producing a {@link FunctionSignatureTemplate}.
+     *
+     * @param offset excludes the first n method parameters as arguments. This is necessary for
+     *     aggregating functions which don't require a {@link StateHint}. Accumulators are mandatory
+     *     and are kind of an implicit {@link StateHint}.
+     */
+    static SignatureExtraction createArgumentsFromParametersExtraction(int offset) {
+        return createArgumentsFromParametersExtraction(offset, null);
+    }
+
+    /** Extraction that uses the method parameters with {@link StateHint} for state entries. */
+    static ResultExtraction createStateFromParametersExtraction() {
+        return (extractor, method) -> {
+            final List<StateParameter> stateParameters = extractStateParameters(method);
+            return createStateTemplateFromParameters(extractor, method, stateParameters);
+        };
+    }
+
+    /**
+     * Extraction that uses a generic type variable for producing a {@link FunctionStateTemplate}.
+     * Or method parameters with {@link StateHint} for state entries as a fallback.
+     */
+    static ResultExtraction createStateFromGenericInClassOrParametersExtraction(
+            Class<? extends UserDefinedFunction> baseClass, int genericPos) {
+        return (extractor, method) -> {
+            final List<StateParameter> stateParameters = extractStateParameters(method);
+            if (stateParameters.isEmpty()) {
+                final DataType dataType =
+                        DataTypeExtractor.extractFromGeneric(
+                                extractor.typeFactory,
+                                baseClass,
+                                genericPos,
+                                extractor.getFunctionClass());
+                final LinkedHashMap<String, DataType> state = new LinkedHashMap<>();
+                state.put("acc", dataType);
+                return FunctionResultTemplate.ofState(state);
+            }
+            return createStateTemplateFromParameters(extractor, method, stateParameters);
+        };
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Methods for subclasses
+    // --------------------------------------------------------------------------------------------
 
     protected abstract Set<FunctionTemplate> extractGlobalFunctionTemplates();
 
@@ -95,27 +199,42 @@ abstract class BaseMappingExtractor {
 
     protected abstract String getHintType();
 
-    Map<FunctionSignatureTemplate, FunctionResultTemplate> extractOutputMapping() {
-        try {
-            return extractResultMappings(
-                    outputExtraction, FunctionTemplate::getOutputTemplate, verification);
-        } catch (Throwable t) {
-            throw extractionError(t, "Error in extracting a signature to output mapping.");
-        }
+    protected static Class<?>[] assembleParameters(
+            @Nullable FunctionStateTemplate state, FunctionSignatureTemplate arguments) {
+        return Stream.concat(
+                        Optional.ofNullable(state)
+                                .map(FunctionStateTemplate::toClassList)
+                                .orElse(List.of())
+                                .stream(),
+                        arguments.toClassList().stream())
+                .toArray(Class[]::new);
+    }
+
+    protected static ValidationException createMethodNotFoundError(
+            String methodName,
+            Class<?>[] parameters,
+            @Nullable Class<?> returnType,
+            String pattern) {
+        return extractionError(
+                "Considering all hints, the method should comply with the signature:\n%s%s",
+                createMethodSignatureString(methodName, parameters, returnType),
+                pattern.isEmpty() ? "" : "\nPattern: " + pattern);
     }
 
     /**
-     * Extracts mappings from signature to result (either accumulator or output) for the entire
-     * function. Verifies if the extracted inference matches with the implementation.
+     * Extracts mappings from signature to result (either state or output) for the entire function.
+     * Verifies if the extracted inference matches with the implementation.
      *
      * <p>For example, from {@code (INT, BOOLEAN, ANY) -> INT}. It does this by going through all
      * implementation methods and collecting all "per-method" mappings. The function mapping is the
      * union of all "per-method" mappings.
      */
-    protected Map<FunctionSignatureTemplate, FunctionResultTemplate> extractResultMappings(
-            ResultExtraction resultExtraction,
-            Function<FunctionTemplate, FunctionResultTemplate> accessor,
-            MethodVerification verification) {
+    @SuppressWarnings("unchecked")
+    protected <T extends FunctionResultTemplate>
+            Map<FunctionSignatureTemplate, T> extractResultMappings(
+                    ResultExtraction resultExtraction,
+                    Function<FunctionTemplate, FunctionResultTemplate> accessor,
+                    @Nullable MethodVerification verification) {
         final Set<FunctionTemplate> global = extractGlobalFunctionTemplates();
         final Set<FunctionResultTemplate> globalResultOnly =
                 findResultOnlyTemplates(global, accessor);
@@ -124,7 +243,7 @@ abstract class BaseMappingExtractor {
         final Map<FunctionSignatureTemplate, FunctionResultTemplate> collectedMappings =
                 new LinkedHashMap<>();
         final List<Method> methods = collectMethods(methodName);
-        if (methods.size() == 0) {
+        if (methods.isEmpty()) {
             throw extractionError(
                     "Could not find a publicly accessible method named '%s'.", methodName);
         }
@@ -144,9 +263,6 @@ abstract class BaseMappingExtractor {
                 // check if the method can be called
                 verifyMappingForMethod(correctMethod, collectedMappingsPerMethod, verification);
 
-                // check if we declare optional on a primitive type parameter
-                verifyOptionalOnPrimitiveParameter(correctMethod, collectedMappingsPerMethod);
-
                 // check if method strategies conflict with function strategies
                 collectedMappingsPerMethod.forEach(
                         (signature, result) -> putMapping(collectedMappings, signature, result));
@@ -157,48 +273,69 @@ abstract class BaseMappingExtractor {
                         method.toString());
             }
         }
-        return collectedMappings;
+        return (Map<FunctionSignatureTemplate, T>) collectedMappings;
     }
 
-    /**
-     * Special case for Scala which generates two methods when using var-args (a {@code Seq < String
-     * >} and {@code String...}). This method searches for the Java-like variant.
-     */
-    static Method correctVarArgMethod(Method method) {
-        final int paramCount = method.getParameterCount();
-        final Class<?>[] paramClasses = method.getParameterTypes();
-        if (paramCount > 0
-                && paramClasses[paramCount - 1].getName().equals("scala.collection.Seq")) {
-            final Type[] paramTypes = method.getGenericParameterTypes();
-            final ParameterizedType seqType = (ParameterizedType) paramTypes[paramCount - 1];
-            final Type varArgType = seqType.getActualTypeArguments()[0];
-            return ExtractionUtils.collectMethods(method.getDeclaringClass(), method.getName())
-                    .stream()
-                    .filter(Method::isVarArgs)
-                    .filter(candidate -> candidate.getParameterCount() == paramCount)
-                    .filter(
-                            candidate -> {
-                                final Type[] candidateParamTypes =
-                                        candidate.getGenericParameterTypes();
-                                for (int i = 0; i < paramCount - 1; i++) {
-                                    if (candidateParamTypes[i] != paramTypes[i]) {
-                                        return false;
-                                    }
-                                }
-                                final Class<?> candidateVarArgType =
-                                        candidate.getParameterTypes()[paramCount - 1];
-                                return candidateVarArgType.isArray()
-                                        &&
-                                        // check for Object is needed in case of Scala primitives
-                                        // (e.g. Int)
-                                        (varArgType == Object.class
-                                                || candidateVarArgType.getComponentType()
-                                                        == varArgType);
-                            })
-                    .findAny()
-                    .orElse(method);
+    protected static void checkNoState(@Nullable FunctionStateTemplate state) {
+        if (state != null) {
+            throw extractionError("State is not supported for this kind of function.");
         }
-        return method;
+    }
+
+    protected static void checkSingleState(@Nullable FunctionStateTemplate state) {
+        if (state == null || state.toClassList().size() != 1) {
+            throw extractionError(
+                    "Aggregating functions need exactly one state entry for the accumulator.");
+        }
+    }
+
+    protected static void checkScalarArgumentsOnly(FunctionSignatureTemplate arguments) {
+        final EnumSet<StaticArgumentTrait>[] argumentTraits = arguments.argumentTraits;
+        IntStream.range(0, argumentTraits.length)
+                .forEach(
+                        pos -> {
+                            if (!argumentTraits[pos].equals(SCALAR_TRAITS)) {
+                                throw extractionError(
+                                        "Only scalar arguments are supported at this location. "
+                                                + "But argument '%s' declared the following traits: %s",
+                                        arguments.argumentNames[pos], argumentTraits[pos]);
+                            }
+                        });
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Helper methods
+    // --------------------------------------------------------------------------------------------
+
+    private static FunctionStateTemplate createStateTemplateFromParameters(
+            BaseMappingExtractor extractor, Method method, List<StateParameter> stateParameters) {
+        final String[] argumentNames = extractStateNames(method, stateParameters);
+        if (argumentNames == null) {
+            throw extractionError("Unable to extract names for all state entries.");
+        }
+
+        final List<DataType> dataTypes =
+                stateParameters.stream()
+                        .map(
+                                s ->
+                                        DataTypeExtractor.extractFromMethodParameter(
+                                                extractor.typeFactory,
+                                                extractor.getFunctionClass(),
+                                                s.method,
+                                                s.pos))
+                        .collect(Collectors.toList());
+
+        final LinkedHashMap<String, DataType> state =
+                IntStream.range(0, dataTypes.size())
+                        .mapToObj(i -> Map.entry(argumentNames[i], dataTypes.get(i)))
+                        .collect(
+                                Collectors.toMap(
+                                        Map.Entry::getKey,
+                                        Map.Entry::getValue,
+                                        (o, n) -> o,
+                                        LinkedHashMap::new));
+
+        return FunctionResultTemplate.ofState(state);
     }
 
     /**
@@ -246,9 +383,47 @@ abstract class BaseMappingExtractor {
         return collectedMappingsPerMethod;
     }
 
-    // --------------------------------------------------------------------------------------------
-    // Helper methods (ordered by invocation order)
-    // --------------------------------------------------------------------------------------------
+    /**
+     * Special case for Scala which generates two methods when using var-args (a {@code Seq < String
+     * >} and {@code String...}). This method searches for the Java-like variant.
+     */
+    private static Method correctVarArgMethod(Method method) {
+        final int paramCount = method.getParameterCount();
+        final Class<?>[] paramClasses = method.getParameterTypes();
+        if (paramCount > 0
+                && paramClasses[paramCount - 1].getName().equals("scala.collection.Seq")) {
+            final Type[] paramTypes = method.getGenericParameterTypes();
+            final ParameterizedType seqType = (ParameterizedType) paramTypes[paramCount - 1];
+            final Type varArgType = seqType.getActualTypeArguments()[0];
+            return ExtractionUtils.collectMethods(method.getDeclaringClass(), method.getName())
+                    .stream()
+                    .filter(Method::isVarArgs)
+                    .filter(candidate -> candidate.getParameterCount() == paramCount)
+                    .filter(
+                            candidate -> {
+                                final Type[] candidateParamTypes =
+                                        candidate.getGenericParameterTypes();
+                                for (int i = 0; i < paramCount - 1; i++) {
+                                    if (candidateParamTypes[i] != paramTypes[i]) {
+                                        return false;
+                                    }
+                                }
+                                final Class<?> candidateVarArgType =
+                                        candidate.getParameterTypes()[paramCount - 1];
+                                return candidateVarArgType.isArray()
+                                        &&
+                                        // check for Object is needed in case of Scala primitives
+                                        // (e.g. Int)
+                                        (varArgType == Object.class
+                                                || candidateVarArgType.getComponentType()
+                                                        == varArgType);
+                            })
+                    .findAny()
+                    .orElse(method);
+        }
+        return method;
+    }
+
     /** Explicit mappings with complete signature to result declaration. */
     private void putExplicitMappings(
             Map<FunctionSignatureTemplate, FunctionResultTemplate> collectedMappings,
@@ -321,155 +496,254 @@ abstract class BaseMappingExtractor {
     private void verifyMappingForMethod(
             Method method,
             Map<FunctionSignatureTemplate, FunctionResultTemplate> collectedMappingsPerMethod,
-            MethodVerification verification) {
+            @Nullable MethodVerification verification) {
+        if (verification == null) {
+            return;
+        }
         collectedMappingsPerMethod.forEach(
-                (signature, result) ->
-                        verification.verify(method, signature.toClass(), result.toClass()));
-    }
-
-    private void verifyOptionalOnPrimitiveParameter(
-            Method method,
-            Map<FunctionSignatureTemplate, FunctionResultTemplate> collectedMappingsPerMethod) {
-        collectedMappingsPerMethod
-                .keySet()
-                .forEach(
-                        signature -> {
-                            Boolean[] argumentOptional = signature.argumentOptionals;
-                            // Here we restrict that the argument must contain optional parameters
-                            // in order to obtain the FunctionSignatureTemplate of the method for
-                            // verification. Therefore, the extract method will only be called once.
-                            // If no function hint is set, this verify will not be executed.
-                            if (argumentOptional != null
-                                    && Arrays.stream(argumentOptional)
-                                            .anyMatch(Boolean::booleanValue)) {
-                                FunctionSignatureTemplate functionResultTemplate =
-                                        signatureExtraction.extract(this, method);
-                                for (int i = 0; i < argumentOptional.length; i++) {
-                                    DataType dataType =
-                                            functionResultTemplate.argumentTemplates.get(i)
-                                                    .dataType;
-                                    if (dataType != null
-                                            && argumentOptional[i]
-                                            && dataType.getConversionClass() != null
-                                            && dataType.getConversionClass().isPrimitive()) {
-                                        throw extractionError(
-                                                "Argument at position %d is optional but a primitive type doesn't accept null value.",
-                                                i);
-                                    }
-                                }
-                            }
-                        });
+                (signature, result) -> {
+                    if (result instanceof FunctionStateTemplate) {
+                        final FunctionStateTemplate stateTemplate = (FunctionStateTemplate) result;
+                        verification.verify(method, stateTemplate, signature, null);
+                    } else if (result instanceof FunctionOutputTemplate) {
+                        final FunctionOutputTemplate outputTemplate =
+                                (FunctionOutputTemplate) result;
+                        verification.verify(method, null, signature, outputTemplate);
+                    }
+                });
     }
 
     // --------------------------------------------------------------------------------------------
-    // Context sensitive extraction and verification logic
+    // Parameters extraction (i.e. state and arguments)
     // --------------------------------------------------------------------------------------------
 
-    /**
-     * Extraction that uses the method parameters for producing a {@link FunctionSignatureTemplate}.
-     */
-    static SignatureExtraction createParameterSignatureExtraction(int offset) {
-        return (extractor, method) -> {
-            final List<FunctionArgumentTemplate> parameterTypes =
-                    extractArgumentTemplates(
-                            extractor.typeFactory, extractor.getFunctionClass(), method, offset);
+    /** Method parameter that qualifies as a function argument (i.e. not a context or state). */
+    private static class ArgumentParameter {
+        final Parameter parameter;
+        final Method method;
+        // Pos in the method, not necessarily in the extracted function
+        final int pos;
 
-            final String[] argumentNames = extractArgumentNames(method, offset);
-
-            final Boolean[] argumentOptionals = extractArgumentOptionals(method, offset);
-
-            return FunctionSignatureTemplate.of(
-                    parameterTypes, method.isVarArgs(), argumentNames, argumentOptionals);
-        };
+        private ArgumentParameter(Parameter parameter, Method method, int pos) {
+            this.parameter = parameter;
+            this.method = method;
+            this.pos = pos;
+        }
     }
 
-    private static List<FunctionArgumentTemplate> extractArgumentTemplates(
-            DataTypeFactory typeFactory, Class<?> extractedClass, Method method, int offset) {
-        return IntStream.range(offset, method.getParameterCount())
+    /** Method parameter that qualifies as a function state (i.e. not a context or argument). */
+    private static class StateParameter {
+        final Parameter parameter;
+        final Method method;
+        // Pos in the method, not necessarily in the extracted function
+        final int pos;
+
+        private StateParameter(Parameter parameter, Method method, int pos) {
+            this.parameter = parameter;
+            this.method = method;
+            this.pos = pos;
+        }
+    }
+
+    private static List<ArgumentParameter> extractArgumentParameters(
+            Method method, int offset, @Nullable Class<?> contextClass) {
+        final Parameter[] parameters = method.getParameters();
+        return IntStream.range(0, parameters.length)
                 .mapToObj(
-                        i ->
-                                // check for input group before start extracting a data type
-                                tryExtractInputGroupArgument(method, i)
-                                        .orElseGet(
-                                                () ->
-                                                        extractDataTypeArgument(
-                                                                typeFactory,
-                                                                extractedClass,
-                                                                method,
-                                                                i)))
+                        pos -> {
+                            final Parameter parameter = parameters[pos];
+                            return new ArgumentParameter(parameter, method, pos);
+                        })
+                .skip(offset)
+                .filter(arg -> contextClass == null || arg.parameter.getType() != contextClass)
+                .filter(arg -> arg.parameter.getAnnotation(StateHint.class) == null)
                 .collect(Collectors.toList());
     }
 
-    static Optional<FunctionArgumentTemplate> tryExtractInputGroupArgument(
-            Method method, int paramPos) {
-        final Parameter parameter = method.getParameters()[paramPos];
-        final DataTypeHint hint = parameter.getAnnotation(DataTypeHint.class);
-        final ArgumentHint argumentHint = parameter.getAnnotation(ArgumentHint.class);
-        if (hint != null && argumentHint != null) {
+    private static List<StateParameter> extractStateParameters(Method method) {
+        final Parameter[] parameters = method.getParameters();
+        return IntStream.range(0, parameters.length)
+                .mapToObj(
+                        pos -> {
+                            final Parameter parameter = parameters[pos];
+                            return new StateParameter(parameter, method, pos);
+                        })
+                .filter(arg -> arg.parameter.getAnnotation(StateHint.class) != null)
+                .collect(Collectors.toList());
+    }
+
+    private static List<FunctionArgumentTemplate> extractArgumentTemplates(
+            DataTypeFactory typeFactory, Class<?> extractedClass, List<ArgumentParameter> args) {
+        return args.stream()
+                .map(
+                        arg ->
+                                // check for input group before start extracting a data type
+                                tryExtractInputGroupArgument(arg)
+                                        .orElseGet(
+                                                () ->
+                                                        extractArgumentByKind(
+                                                                typeFactory, extractedClass, arg)))
+                .collect(Collectors.toList());
+    }
+
+    private static Optional<FunctionArgumentTemplate> tryExtractInputGroupArgument(
+            ArgumentParameter arg) {
+        final DataTypeHint dataTypehint = arg.parameter.getAnnotation(DataTypeHint.class);
+        final ArgumentHint argumentHint = arg.parameter.getAnnotation(ArgumentHint.class);
+        if (dataTypehint != null && argumentHint != null) {
             throw extractionError(
-                    "Argument and dataType hints cannot be declared in the same parameter at position %d.",
-                    paramPos);
+                    "Argument and data type hints cannot be declared at the same time at position %d.",
+                    arg.pos);
         }
         if (argumentHint != null) {
             final DataTypeTemplate template = DataTypeTemplate.fromAnnotation(argumentHint, null);
             if (template.inputGroup != null) {
-                return Optional.of(FunctionArgumentTemplate.of(template.inputGroup));
+                return Optional.of(FunctionArgumentTemplate.ofInputGroup(template.inputGroup));
             }
-        } else if (hint != null) {
-            final DataTypeTemplate template = DataTypeTemplate.fromAnnotation(hint, null);
+        } else if (dataTypehint != null) {
+            final DataTypeTemplate template = DataTypeTemplate.fromAnnotation(dataTypehint, null);
             if (template.inputGroup != null) {
-                return Optional.of(FunctionArgumentTemplate.of(template.inputGroup));
+                return Optional.of(FunctionArgumentTemplate.ofInputGroup(template.inputGroup));
             }
         }
         return Optional.empty();
     }
 
-    private static FunctionArgumentTemplate extractDataTypeArgument(
-            DataTypeFactory typeFactory, Class<?> extractedClass, Method method, int paramPos) {
+    private static FunctionArgumentTemplate extractArgumentByKind(
+            DataTypeFactory typeFactory, Class<?> extractedClass, ArgumentParameter arg) {
+        final Parameter parameter = arg.parameter;
+        final ArgumentHint argumentHint = parameter.getAnnotation(ArgumentHint.class);
+        final int pos = arg.pos;
+        final Set<ArgumentTrait> rootTrait =
+                Optional.ofNullable(argumentHint)
+                        .map(
+                                hint ->
+                                        Arrays.stream(hint.value())
+                                                .filter(ArgumentTrait::isRoot)
+                                                .collect(Collectors.toSet()))
+                        .orElse(Set.of(ArgumentTrait.SCALAR));
+        if (rootTrait.size() != 1) {
+            throw extractionError(
+                    "Incorrect argument kind at position %d. Argument kind must be one of: %s",
+                    pos,
+                    Arrays.stream(ArgumentTrait.values())
+                            .filter(ArgumentTrait::isRoot)
+                            .collect(Collectors.toList()));
+        }
+
+        if (rootTrait.contains(ArgumentTrait.SCALAR)) {
+            return extractScalarArgument(typeFactory, extractedClass, arg);
+        } else if (rootTrait.contains(ArgumentTrait.TABLE_AS_ROW)
+                || rootTrait.contains(ArgumentTrait.TABLE_AS_SET)) {
+            return extractTableArgument(typeFactory, argumentHint, extractedClass, arg);
+        } else {
+            throw extractionError("Unknown argument kind.");
+        }
+    }
+
+    private static FunctionArgumentTemplate extractTableArgument(
+            DataTypeFactory typeFactory,
+            ArgumentHint argumentHint,
+            Class<?> extractedClass,
+            ArgumentParameter arg) {
+        try {
+            final DataType type =
+                    DataTypeExtractor.extractFromMethodParameter(
+                            typeFactory, extractedClass, arg.method, arg.pos);
+            return FunctionArgumentTemplate.ofDataType(type);
+        } catch (Throwable t) {
+            final Class<?> paramClass = arg.parameter.getType();
+            final Class<?> argClass = argumentHint.type().bridgedTo();
+            if (argClass == Row.class || argClass == RowData.class) {
+                return FunctionArgumentTemplate.ofTable(argClass);
+            }
+            if (paramClass == Row.class || paramClass == RowData.class) {
+                return FunctionArgumentTemplate.ofTable(paramClass);
+            }
+            // Just a regular error for a typed argument
+            throw t;
+        }
+    }
+
+    private static FunctionArgumentTemplate extractScalarArgument(
+            DataTypeFactory typeFactory, Class<?> extractedClass, ArgumentParameter arg) {
         final DataType type =
                 DataTypeExtractor.extractFromMethodParameter(
-                        typeFactory, extractedClass, method, paramPos);
+                        typeFactory, extractedClass, arg.method, arg.pos);
         // unwrap data type in case of varargs
-        if (method.isVarArgs() && paramPos == method.getParameterCount() - 1) {
+        if (arg.parameter.isVarArgs()) {
             // for ARRAY
             if (type instanceof CollectionDataType) {
-                return FunctionArgumentTemplate.of(
+                return FunctionArgumentTemplate.ofDataType(
                         ((CollectionDataType) type).getElementDataType());
             }
             // special case for varargs that have been misinterpreted as BYTES
             else if (type.equals(DataTypes.BYTES())) {
-                return FunctionArgumentTemplate.of(
+                return FunctionArgumentTemplate.ofDataType(
                         DataTypes.TINYINT().notNull().bridgedTo(byte.class));
             }
         }
-        return FunctionArgumentTemplate.of(type);
+        return FunctionArgumentTemplate.ofDataType(type);
     }
 
-    static @Nullable String[] extractArgumentNames(Method method, int offset) {
+    @SuppressWarnings("unchecked")
+    private static EnumSet<StaticArgumentTrait>[] extractArgumentTraits(
+            List<ArgumentParameter> args) {
+        return args.stream()
+                .map(
+                        arg -> {
+                            final ArgumentHint argumentHint =
+                                    arg.parameter.getAnnotation(ArgumentHint.class);
+                            if (argumentHint == null) {
+                                return SCALAR_TRAITS;
+                            }
+                            final List<StaticArgumentTrait> traits =
+                                    Arrays.stream(argumentHint.value())
+                                            .map(ArgumentTrait::toStaticTrait)
+                                            .collect(Collectors.toList());
+                            return EnumSet.copyOf(traits);
+                        })
+                .toArray(EnumSet[]::new);
+    }
+
+    private static @Nullable String[] extractArgumentNames(
+            Method method, List<ArgumentParameter> args) {
         final List<String> methodParameterNames =
                 ExtractionUtils.extractMethodParameterNames(method);
         if (methodParameterNames != null) {
-            return methodParameterNames
-                    .subList(offset, methodParameterNames.size())
-                    .toArray(new String[0]);
+            return args.stream()
+                    .map(arg -> methodParameterNames.get(arg.pos))
+                    .toArray(String[]::new);
         } else {
             return null;
         }
     }
 
-    static Boolean[] extractArgumentOptionals(Method method, int offset) {
-        return Arrays.stream(method.getParameters())
-                .skip(offset)
-                .map(parameter -> parameter.getAnnotation(ArgumentHint.class))
-                .map(argumentHint -> argumentHint != null && argumentHint.isOptional())
-                .toArray(Boolean[]::new);
+    private static @Nullable String[] extractStateNames(Method method, List<StateParameter> state) {
+        final List<String> methodParameterNames =
+                ExtractionUtils.extractMethodParameterNames(method);
+        if (methodParameterNames != null) {
+            return state.stream()
+                    .map(arg -> methodParameterNames.get(arg.pos))
+                    .toArray(String[]::new);
+        } else {
+            return null;
+        }
     }
 
-    protected static ValidationException createMethodNotFoundError(
-            String methodName, Class<?>[] parameters, @Nullable Class<?> returnType) {
-        return extractionError(
-                "Considering all hints, the method should comply with the signature:\n%s",
-                createMethodSignatureString(methodName, parameters, returnType));
+    private static boolean[] extractArgumentOptionals(List<ArgumentParameter> args) {
+        final Boolean[] argumentOptionals =
+                args.stream()
+                        .map(arg -> arg.parameter.getAnnotation(ArgumentHint.class))
+                        .map(
+                                hint -> {
+                                    if (hint == null) {
+                                        return false;
+                                    }
+                                    return hint.isOptional();
+                                })
+                        .toArray(Boolean[]::new);
+        return ArrayUtils.toPrimitive(argumentOptionals);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -477,18 +751,22 @@ abstract class BaseMappingExtractor {
     // --------------------------------------------------------------------------------------------
 
     /** Extracts a {@link FunctionSignatureTemplate} from a method. */
-    protected interface SignatureExtraction {
+    interface SignatureExtraction {
         FunctionSignatureTemplate extract(BaseMappingExtractor extractor, Method method);
     }
 
     /** Extracts a {@link FunctionResultTemplate} from a class or method. */
-    protected interface ResultExtraction {
+    interface ResultExtraction {
         @Nullable
         FunctionResultTemplate extract(BaseMappingExtractor extractor, Method method);
     }
 
     /** Verifies the signature of a method. */
-    protected interface MethodVerification {
-        void verify(Method method, List<Class<?>> arguments, Class<?> result);
+    interface MethodVerification {
+        void verify(
+                Method method,
+                @Nullable FunctionStateTemplate state,
+                FunctionSignatureTemplate arguments,
+                @Nullable FunctionOutputTemplate result);
     }
 }

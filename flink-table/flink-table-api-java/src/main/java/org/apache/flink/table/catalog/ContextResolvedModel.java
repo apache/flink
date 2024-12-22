@@ -72,7 +72,9 @@ public final class ContextResolvedModel {
         this.resolvedModel = Preconditions.checkNotNull(resolvedModel);
     }
 
-    /** @return true if the model is temporary. */
+    /**
+     * @return true if the model is temporary.
+     */
     public boolean isTemporary() {
         return catalog == null;
     }

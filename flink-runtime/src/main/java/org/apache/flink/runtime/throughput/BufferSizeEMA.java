@@ -24,6 +24,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class BufferSizeEMA {
     private final int maxBufferSize;
     private final int minBufferSize;
+
     /** EMA algorithm specific constant which responsible for speed of reaction. */
     private final double alpha;
 

@@ -124,7 +124,7 @@ install them, and restart the IDE if prompted:
 
 You will also need to install the [google-java-format](https://github.com/google/google-java-format)
 plugin. However, a specific version of this plugin is required. Download
-[google-java-format v1.7.0.6](https://plugins.jetbrains.com/plugin/8527-google-java-format/versions/stable/115957)
+[google-java-format v1.24.0.0](https://plugins.jetbrains.com/plugin/8527-google-java-format/versions/stable/614263)
 and install it as follows. Make sure to never update this plugin.
 
 1. Go to "Settings" → "Plugins".

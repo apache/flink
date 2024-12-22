@@ -31,7 +31,9 @@ public class OperatorInformation<OUT> {
     /** Output type of the operator */
     protected final TypeInformation<OUT> outputType;
 
-    /** @param outputType The output type of the operator */
+    /**
+     * @param outputType The output type of the operator
+     */
     public OperatorInformation(TypeInformation<OUT> outputType) {
         this.outputType = outputType;
     }

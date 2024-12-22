@@ -19,6 +19,7 @@
 package org.apache.flink.yarn.entrypoint;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.client.deployment.application.ApplicationClusterEntryPoint;
 import org.apache.flink.client.deployment.application.ApplicationConfiguration;
 import org.apache.flink.client.program.DefaultPackagedProgramRetriever;
@@ -44,6 +45,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -112,7 +114,8 @@ public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEn
         ClusterEntrypoint.runClusterEntrypoint(yarnApplicationClusterEntrypoint);
     }
 
-    private static PackagedProgram getPackagedProgram(final Configuration configuration)
+    @VisibleForTesting
+    static PackagedProgram getPackagedProgram(final Configuration configuration)
             throws FlinkException {
 
         final ApplicationConfiguration applicationConfiguration =
@@ -146,14 +149,17 @@ public final class YarnApplicationClusterEntryPoint extends ApplicationClusterEn
                 userLibDir, jobClassName, programArguments, configuration);
     }
 
-    private static File getUserApplicationJar(
+    private static @Nullable File getUserApplicationJar(
             final File userLibDir, final Configuration configuration) {
         final List<File> pipelineJars =
-                configuration.get(PipelineOptions.JARS).stream()
+                configuration
+                        .getOptional(PipelineOptions.JARS)
+                        .orElse(Collections.emptyList())
+                        .stream()
                         .map(uri -> new File(userLibDir, new Path(uri).getName()))
                         .collect(Collectors.toList());
 
-        Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
-        return pipelineJars.get(0);
+        Preconditions.checkArgument(pipelineJars.size() <= 1, "Should only have at most one jar.");
+        return pipelineJars.isEmpty() ? null : pipelineJars.get(0);
     }
 }

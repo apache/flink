@@ -77,6 +77,7 @@ public class StateAssignmentOperation {
 
     /** The state assignments for each ExecutionJobVertex that will be filled in multiple passes. */
     private final Map<ExecutionJobVertex, TaskStateAssignment> vertexAssignments;
+
     /**
      * Stores the assignment of a consumer. {@link IntermediateResult} only allows to traverse
      * producer.

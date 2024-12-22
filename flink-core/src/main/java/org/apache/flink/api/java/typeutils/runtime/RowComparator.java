@@ -47,14 +47,19 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class RowComparator extends CompositeTypeComparator<Row> {
 
     private static final long serialVersionUID = 2L;
+
     /** The number of fields of the Row */
     private final int arity;
+
     /** key positions describe which fields are keys in what order */
     private final int[] keyPositions;
+
     /** null-aware comparators for the key fields, in the same order as the key fields */
     private final NullAwareComparator<Object>[] comparators;
+
     /** serializers to deserialize the first n fields for comparison */
     private final TypeSerializer<Object>[] serializers;
+
     /** auxiliary fields for normalized key support */
     private final int[] normalizedKeyLengths;
 
@@ -412,7 +417,9 @@ public class RowComparator extends CompositeTypeComparator<Row> {
         return newFields;
     }
 
-    /** @return creates auxiliary fields for normalized key support */
+    /**
+     * @return creates auxiliary fields for normalized key support
+     */
     private static Tuple4<int[], Integer, Integer, Boolean> createAuxiliaryFields(
             int[] keyPositions, NullAwareComparator<Object>[] comparators) {
 

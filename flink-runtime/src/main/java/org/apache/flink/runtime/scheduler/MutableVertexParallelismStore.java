@@ -29,4 +29,11 @@ public interface MutableVertexParallelismStore extends VertexParallelismStore {
      * @param info parallelism information for the given vertex
      */
     void setParallelismInfo(JobVertexID vertexId, VertexParallelismInformation info);
+
+    /**
+     * Merges the given parallelism store into the current store.
+     *
+     * @param parallelismStore The parallelism store to be merged.
+     */
+    void mergeParallelismStore(VertexParallelismStore parallelismStore);
 }

@@ -592,7 +592,8 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
                                     getJobVertexDetailsInfo(
                                                     vertexInfoWithJobId.f0,
                                                     vertexInfoWithJobId.f1.getJobVertexID())
-                                            .getSubtasks().stream()
+                                            .getSubtasks()
+                                            .stream()
                                             .map(
                                                     subtask ->
                                                             new InternalTaskInfo(

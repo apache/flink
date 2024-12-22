@@ -33,16 +33,19 @@ import java.util.Objects;
 @Experimental
 public class CommittableSummary<CommT> implements CommittableMessage<CommT> {
     private final int subtaskId;
+
     /** May change after recovery. */
     private final int numberOfSubtasks;
 
     private final long checkpointId;
+
     /** The number of committables coming from the given subtask in the particular checkpoint. */
     private final int numberOfCommittables;
 
     @Deprecated
     /** The number of committables that have not been successfully committed. */
     private final int numberOfPendingCommittables;
+
     /** The number of committables that are not retried and have been failed. */
     private final int numberOfFailedCommittables;
 

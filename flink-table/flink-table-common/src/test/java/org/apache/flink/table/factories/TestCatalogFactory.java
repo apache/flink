@@ -206,8 +206,10 @@ public class TestCatalogFactory implements CatalogFactory {
         @Override
         public List<CatalogPartitionSpec> listPartitions(
                 ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
-                throws TableNotExistException, TableNotPartitionedException,
-                        PartitionSpecInvalidException, CatalogException {
+                throws TableNotExistException,
+                        TableNotPartitionedException,
+                        PartitionSpecInvalidException,
+                        CatalogException {
             throw new UnsupportedOperationException();
         }
 
@@ -237,8 +239,10 @@ public class TestCatalogFactory implements CatalogFactory {
                 CatalogPartitionSpec partitionSpec,
                 CatalogPartition partition,
                 boolean ignoreIfExists)
-                throws TableNotExistException, TableNotPartitionedException,
-                        PartitionSpecInvalidException, PartitionAlreadyExistsException,
+                throws TableNotExistException,
+                        TableNotPartitionedException,
+                        PartitionSpecInvalidException,
+                        PartitionAlreadyExistsException,
                         CatalogException {
             throw new UnsupportedOperationException();
         }

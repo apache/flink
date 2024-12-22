@@ -37,12 +37,16 @@ public final class ReaderInfo implements Serializable {
         this.location = location;
     }
 
-    /** @return the ID of the subtask that runs the source reader. */
+    /**
+     * @return the ID of the subtask that runs the source reader.
+     */
     public int getSubtaskId() {
         return subtaskId;
     }
 
-    /** @return the location of the subtask that runs this source reader. */
+    /**
+     * @return the location of the subtask that runs this source reader.
+     */
     public String getLocation() {
         return location;
     }

@@ -167,6 +167,10 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN>
         this.accumulatorName = accumulatorName;
     }
 
+    public long getMaxBytesPerBatch() {
+        return maxBytesPerBatch;
+    }
+
     private void initBuffer() {
         if (buffer != null) {
             return;

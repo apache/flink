@@ -42,6 +42,7 @@ public final class ConfigConstants {
      * configs mentioned below.
      */
     public static final String METRICS_REPORTER_PREFIX = "metrics.reporter.";
+
     /**
      * The prefix for per-trace reporter configs. Has to be combined with a reporter name and the
      * configs mentioned below.

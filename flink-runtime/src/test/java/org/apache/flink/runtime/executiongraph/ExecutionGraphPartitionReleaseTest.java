@@ -41,6 +41,7 @@ import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -67,10 +68,16 @@ class ExecutionGraphPartitionReleaseTest {
         final JobVertex operatorVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
         final JobVertex sinkVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
 
-        operatorVertex.connectNewDataSetAsInput(
-                sourceVertex, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        sinkVertex.connectNewDataSetAsInput(
-                operatorVertex, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                operatorVertex,
+                sourceVertex,
+                DistributionPattern.POINTWISE,
+                ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                sinkVertex,
+                operatorVertex,
+                DistributionPattern.POINTWISE,
+                ResultPartitionType.BLOCKING);
 
         // setup partition tracker to intercept partition release calls
         final TestingJobMasterPartitionTracker partitionTracker =
@@ -150,12 +157,21 @@ class ExecutionGraphPartitionReleaseTest {
         final JobVertex operator2Vertex = ExecutionGraphTestUtils.createNoOpVertex("operator2", 1);
         final JobVertex operator3Vertex = ExecutionGraphTestUtils.createNoOpVertex("operator3", 1);
 
-        operator1Vertex.connectNewDataSetAsInput(
-                sourceVertex, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        operator2Vertex.connectNewDataSetAsInput(
-                operator1Vertex, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-        operator3Vertex.connectNewDataSetAsInput(
-                operator1Vertex, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                operator1Vertex,
+                sourceVertex,
+                DistributionPattern.POINTWISE,
+                ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                operator2Vertex,
+                operator1Vertex,
+                DistributionPattern.ALL_TO_ALL,
+                ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                operator3Vertex,
+                operator1Vertex,
+                DistributionPattern.ALL_TO_ALL,
+                ResultPartitionType.PIPELINED);
 
         // setup partition tracker to intercept partition release calls
         final TestingJobMasterPartitionTracker partitionTracker =

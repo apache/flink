@@ -887,7 +887,7 @@ class YarnClusterDescriptorTest {
         try (final YarnClusterDescriptor yarnClusterDescriptor =
                 createYarnClusterDescriptor(flinkConfig)) {
             assertThrows(
-                    "Should only have one jar",
+                    "Should only have at most one jar",
                     IllegalArgumentException.class,
                     () ->
                             yarnClusterDescriptor.deployApplicationCluster(

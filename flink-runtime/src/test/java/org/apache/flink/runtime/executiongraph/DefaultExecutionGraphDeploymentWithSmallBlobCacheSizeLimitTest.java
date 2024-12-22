@@ -57,6 +57,7 @@ import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -169,11 +170,11 @@ class DefaultExecutionGraphDeploymentWithSmallBlobCacheSizeLimitTest
         }
 
         for (int i = 1; i < numberOfVertices; i++) {
-            vertices.get(i)
-                    .connectNewDataSetAsInput(
-                            vertices.get(i - 1),
-                            DistributionPattern.POINTWISE,
-                            ResultPartitionType.BLOCKING);
+            connectNewDataSetAsInput(
+                    vertices.get(i),
+                    vertices.get(i - 1),
+                    DistributionPattern.POINTWISE,
+                    ResultPartitionType.BLOCKING);
         }
 
         final JobGraph jobGraph =

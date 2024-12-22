@@ -38,9 +38,13 @@ public class DefaultRuntimeContext implements RuntimeContext {
             int parallelism,
             int maxParallelism,
             String taskName,
+            int indexOfSubtask,
+            int attemptNumber,
             MetricGroup metricGroup) {
         this.jobInfo = new DefaultJobInfo(jobName, jobType);
-        this.taskInfo = new DefaultTaskInfo(parallelism, maxParallelism, taskName);
+        this.taskInfo =
+                new DefaultTaskInfo(
+                        parallelism, maxParallelism, taskName, indexOfSubtask, attemptNumber);
         this.metricGroup = metricGroup;
     }
 

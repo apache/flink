@@ -140,7 +140,9 @@ public abstract class AbstractPagedOutputView implements DataOutputView, MemoryS
         this.positionInSegment = this.headerLength;
     }
 
-    /** @return header length. */
+    /**
+     * @return header length.
+     */
     public int getHeaderLength() {
         return headerLength;
     }

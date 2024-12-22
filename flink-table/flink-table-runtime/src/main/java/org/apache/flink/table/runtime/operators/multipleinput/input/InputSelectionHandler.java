@@ -40,6 +40,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class InputSelectionHandler {
     private final List<InputSelectionSpec> inputSelectionSpecs;
     private final int numberOfInput;
+
     /** All inputs ids sorted by priority. */
     private final List<List<Integer>> sortedAvailableInputs;
 

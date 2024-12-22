@@ -117,7 +117,8 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         .map(Class::getName)
                         .collect(Collectors.toSet());
         final Set<String> typeSerializerUpgradeSetupNames =
-                reflections.getSubTypesOf(TypeSerializerUpgradeTestBase.PreUpgradeSetup.class)
+                reflections
+                        .getSubTypesOf(TypeSerializerUpgradeTestBase.PreUpgradeSetup.class)
                         .stream()
                         .map(Class::getSimpleName)
                         .collect(Collectors.toSet());

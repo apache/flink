@@ -130,7 +130,7 @@ public class CliChangelogResultView
             case EMPTY:
                 // do nothing
                 break;
-                // stop retrieval if job is done
+            // stop retrieval if job is done
             case EOS:
                 stopRetrieval(false);
                 break;

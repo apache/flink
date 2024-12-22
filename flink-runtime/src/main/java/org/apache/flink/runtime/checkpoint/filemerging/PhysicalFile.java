@@ -254,7 +254,9 @@ public class PhysicalFile {
         }
     }
 
-    /** @return whether this physical file is still open for writing. */
+    /**
+     * @return whether this physical file is still open for writing.
+     */
     public boolean isOpen() {
         return !closed && outputStream != null;
     }

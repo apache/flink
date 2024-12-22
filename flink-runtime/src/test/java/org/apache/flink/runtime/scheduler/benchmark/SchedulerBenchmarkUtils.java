@@ -57,6 +57,7 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder.createCustomParallelismDecider;
 import static org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchSchedulerFactory.loadInputConsumableDeciderFactory;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 
 /** Utilities for scheduler benchmarks. */
 public class SchedulerBenchmarkUtils {
@@ -75,7 +76,8 @@ public class SchedulerBenchmarkUtils {
         sink.setParallelism(jobConfiguration.getParallelism());
         jobVertices.add(sink);
 
-        sink.connectNewDataSetAsInput(
+        connectNewDataSetAsInput(
+                sink,
                 source,
                 jobConfiguration.getDistributionPattern(),
                 jobConfiguration.getResultPartitionType());

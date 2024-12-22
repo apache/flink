@@ -1351,4 +1351,32 @@ Calc(select=[a1, a2])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testReuseWithReadMetadataKeepOrder[isStreaming: true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk1], fields=[origin_ts, partition, offset, id])
++- LogicalProject(origin_ts=[$0], partition=[$1], offset=[$2], id=[$3])
+   +- LogicalProject(origin_ts=[$2], partition=[$3], offset=[$1], id=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src, metadata=[offset, origin_ts, partition]]])
+
+LogicalSink(table=[default_catalog.default_database.snk2], fields=[id])
++- LogicalProject(id=[$3])
+   +- LogicalProject(origin_ts=[$2], partition=[$3], offset=[$1], id=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src, metadata=[offset, origin_ts, partition]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+TableSourceScan(table=[[default_catalog, default_database, src, project=[id, offset, origin_ts, partition], metadata=[offset, origin_ts, partition]]], fields=[id, offset, origin_ts, partition])(reuse_id=[1])
+
+Sink(table=[default_catalog.default_database.snk1], fields=[origin_ts, partition, offset, id])
++- Calc(select=[origin_ts, partition, offset, id])
+   +- Reused(reference_id=[1])
+
+Sink(table=[default_catalog.default_database.snk2], fields=[id])
++- Calc(select=[id])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

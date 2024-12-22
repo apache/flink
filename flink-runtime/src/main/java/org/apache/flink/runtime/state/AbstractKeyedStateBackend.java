@@ -241,7 +241,9 @@ public abstract class AbstractKeyedStateBackend<K>
         keyValueStatesByName.clear();
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     @Override
     public void setCurrentKey(K newKey) {
         notifyKeySelected(newKey);
@@ -274,35 +276,47 @@ public abstract class AbstractKeyedStateBackend<K>
         return keySelectionListeners.remove(listener);
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     @Override
     public TypeSerializer<K> getKeySerializer() {
         return keySerializer;
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     @Override
     public K getCurrentKey() {
         return this.keyContext.getCurrentKey();
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     public int getCurrentKeyGroupIndex() {
         return this.keyContext.getCurrentKeyGroupIndex();
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     public int getNumberOfKeyGroups() {
         return numberOfKeyGroups;
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     @Override
     public KeyGroupRange getKeyGroupRange() {
         return keyGroupRange;
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     @Override
     public <N, S extends State, T> void applyToAllKeys(
             final N namespace,
@@ -346,7 +360,9 @@ public abstract class AbstractKeyedStateBackend<K>
         }
     }
 
-    /** @see KeyedStateBackend */
+    /**
+     * @see KeyedStateBackend
+     */
     @Override
     @SuppressWarnings("unchecked")
     public <N, S extends State, V> S getOrCreateKeyedState(

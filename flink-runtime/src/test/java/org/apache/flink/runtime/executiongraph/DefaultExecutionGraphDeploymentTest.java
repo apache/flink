@@ -85,6 +85,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link DefaultExecutionGraph} deployment. */
@@ -148,12 +149,12 @@ class DefaultExecutionGraphDeploymentTest {
         v3.setInvokableClass(BatchTask.class);
         v4.setInvokableClass(BatchTask.class);
 
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-        v3.connectNewDataSetAsInput(
-                v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-        v4.connectNewDataSetAsInput(
-                v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v2, v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v3, v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v4, v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
         final JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(v1, v2, v3, v4);
         final JobID jobId = jobGraph.getJobID();
@@ -442,8 +443,8 @@ class DefaultExecutionGraphDeploymentTest {
         v1.setInvokableClass(BatchTask.class);
         v2.setInvokableClass(BatchTask.class);
 
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                v2, v1, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 
         final JobGraph graph = JobGraphTestUtils.batchJobGraph(v1, v2);
 
@@ -573,8 +574,11 @@ class DefaultExecutionGraphDeploymentTest {
         sinkVertex.setInvokableClass(NoOpInvokable.class);
         sinkVertex.setParallelism(sinkParallelism);
 
-        sinkVertex.connectNewDataSetAsInput(
-                sourceVertex, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                sinkVertex,
+                sourceVertex,
+                DistributionPattern.POINTWISE,
+                ResultPartitionType.PIPELINED);
 
         final int numberTasks = sourceParallelism + sinkParallelism;
         final ArrayBlockingQueue<ExecutionAttemptID> submittedTasksQueue =

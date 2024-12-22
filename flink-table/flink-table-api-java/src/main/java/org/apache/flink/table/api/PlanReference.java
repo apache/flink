@@ -42,13 +42,17 @@ public abstract class PlanReference {
 
     private PlanReference() {}
 
-    /** @see #fromFile(File) */
+    /**
+     * @see #fromFile(File)
+     */
     public static PlanReference fromFile(String path) {
         Objects.requireNonNull(path, "Path cannot be null");
         return fromFile(Paths.get(path).toFile());
     }
 
-    /** @see #fromFile(File) */
+    /**
+     * @see #fromFile(File)
+     */
     public static PlanReference fromFile(Path path) {
         Objects.requireNonNull(path, "Path cannot be null");
         return fromFile(path.toFile());

@@ -25,10 +25,14 @@ import java.io.Closeable;
 
 /**
  * Interface that combines both, the user facing {@link OperatorStateStore} interface and the system
- * interface {@link Snapshotable}
+ * interface {@link Snapshotable}.
+ *
+ * <p>This also combines the state v1's and v2's {@link OperatorStateStore}, but there is no good
+ * reason behind this. We will split these when there's different implementation for state v2.
  */
 public interface OperatorStateBackend
         extends OperatorStateStore,
+                org.apache.flink.runtime.state.v2.OperatorStateStore,
                 Snapshotable<SnapshotResult<OperatorStateHandle>>,
                 Closeable,
                 Disposable {

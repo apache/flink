@@ -202,7 +202,9 @@ public abstract class AbstractBytesHashMap<K> extends BytesMap<K, BinaryRowData>
         return ((RecordArea) recordArea).entryIterator(requiresCopy);
     }
 
-    /** @return the underlying memory segments of the hash map's record area */
+    /**
+     * @return the underlying memory segments of the hash map's record area
+     */
     @SuppressWarnings("WeakerAccess")
     public ArrayList<MemorySegment> getRecordAreaMemorySegments() {
         return ((RecordArea) recordArea).segments;
@@ -218,7 +220,9 @@ public abstract class AbstractBytesHashMap<K> extends BytesMap<K, BinaryRowData>
         free(false);
     }
 
-    /** @param reservedRecordMemory reserved fixed memory or not. */
+    /**
+     * @param reservedRecordMemory reserved fixed memory or not.
+     */
     public void free(boolean reservedRecordMemory) {
         recordArea.release();
         destructiveIterator = null;
@@ -316,7 +320,9 @@ public abstract class AbstractBytesHashMap<K> extends BytesMap<K, BinaryRowData>
             return lookupKey.equals(reusedKey);
         }
 
-        /** @throws IOException when invalid memory address visited. */
+        /**
+         * @throws IOException when invalid memory address visited.
+         */
         void skipKey() throws IOException {
             keySerializer.skipRecordFromPages(inView);
         }

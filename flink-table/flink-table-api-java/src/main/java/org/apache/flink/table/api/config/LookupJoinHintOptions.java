@@ -100,6 +100,12 @@ public class LookupJoinHintOptions {
                     .noDefaultValue()
                     .withDescription("Max attempt number of the 'fixed-delay' retry strategy.");
 
+    public static final ConfigOption<Boolean> SHUFFLE =
+            key("shuffle")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Enable shuffle before lookup join.");
+
     public static final String LOOKUP_MISS_PREDICATE = "lookup_miss";
 
     private static final Set<ConfigOption<?>> requiredKeys = new HashSet<>();
@@ -117,6 +123,7 @@ public class LookupJoinHintOptions {
         supportedKeys.add(RETRY_STRATEGY);
         supportedKeys.add(FIXED_DELAY);
         supportedKeys.add(MAX_ATTEMPTS);
+        supportedKeys.add(SHUFFLE);
     }
 
     public static ImmutableSet<ConfigOption> getRequiredOptions() {

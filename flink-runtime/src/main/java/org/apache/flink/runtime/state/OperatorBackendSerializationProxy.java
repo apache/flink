@@ -57,6 +57,7 @@ public class OperatorBackendSerializationProxy extends VersionedIOReadableWritab
     private List<StateMetaInfoSnapshot> operatorStateMetaInfoSnapshots;
     private List<StateMetaInfoSnapshot> broadcastStateMetaInfoSnapshots;
     private ClassLoader userCodeClassLoader;
+
     /** This specifies if we use a compressed format write the operator states */
     private boolean usingStateCompression;
 

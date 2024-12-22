@@ -27,12 +27,16 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public class BooleanConditions {
 
-    /** @return An {@link IterativeCondition} that always returns {@code true}. */
+    /**
+     * @return An {@link IterativeCondition} that always returns {@code true}.
+     */
     public static <T> IterativeCondition<T> trueFunction() {
         return SimpleCondition.of(value -> true);
     }
 
-    /** @return An {@link IterativeCondition} that always returns {@code false}. */
+    /**
+     * @return An {@link IterativeCondition} that always returns {@code false}.
+     */
     public static <T> IterativeCondition<T> falseFunction() {
         return SimpleCondition.of(value -> false);
     }

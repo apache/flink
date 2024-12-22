@@ -2155,6 +2155,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("currentDate")
                     .sqlName("CURRENT_DATE")
+                    .callSyntax(SqlCallSyntax.NO_PARENTHESIS)
                     .kind(SCALAR)
                     .outputTypeStrategy(explicit(DATE().notNull()))
                     .build();
@@ -2163,6 +2164,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("currentTime")
                     .sqlName("CURRENT_TIME")
+                    .callSyntax(SqlCallSyntax.NO_PARENTHESIS)
                     .kind(SCALAR)
                     .outputTypeStrategy(explicit(TIME().notNull()))
                     .build();
@@ -2170,6 +2172,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition LOCAL_TIME =
             BuiltInFunctionDefinition.newBuilder()
                     .name("localTime")
+                    .callSyntax(SqlCallSyntax.NO_PARENTHESIS)
                     .kind(SCALAR)
                     .outputTypeStrategy(explicit(TIME().notNull()))
                     .build();
@@ -2178,6 +2181,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("currentTimestamp")
                     .sqlName("CURRENT_TIMESTAMP")
+                    .callSyntax(SqlCallSyntax.NO_PARENTHESIS)
                     .kind(SCALAR)
                     .outputTypeStrategy(explicit(TIMESTAMP_LTZ(3).notNull()))
                     .build();
@@ -2201,6 +2205,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition LOCAL_TIMESTAMP =
             BuiltInFunctionDefinition.newBuilder()
                     .name("localTimestamp")
+                    .callSyntax(SqlCallSyntax.NO_PARENTHESIS)
                     .kind(SCALAR)
                     .outputTypeStrategy(explicit(TIMESTAMP(3).notNull()))
                     .build();

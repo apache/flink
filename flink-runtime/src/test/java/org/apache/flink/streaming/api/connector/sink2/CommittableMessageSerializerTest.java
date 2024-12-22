@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.connector.sink2;
 
+import org.apache.flink.streaming.runtime.operators.sink.IntegerSerializer;
+
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;

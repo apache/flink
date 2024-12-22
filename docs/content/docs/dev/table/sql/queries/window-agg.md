@@ -76,8 +76,7 @@ Flink SQL> SELECT * FROM Bid;
 
 -- tumbling window aggregation
 Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
-  FROM TABLE(
-    TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
+  FROM TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES)
   GROUP BY window_start, window_end;
 +------------------+------------------+-------------+
 |     window_start |       window_end | total_price |
@@ -88,8 +87,7 @@ Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
 
 -- hopping window aggregation
 Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
-  FROM TABLE(
-    HOP(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES, INTERVAL '10' MINUTES))
+  FROM HOP(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES, INTERVAL '10' MINUTES)
   GROUP BY window_start, window_end;
 +------------------+------------------+-------------+
 |     window_start |       window_end | total_price |
@@ -102,8 +100,7 @@ Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
 
 -- cumulative window aggregation
 Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
-  FROM TABLE(
-    CUMULATE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES, INTERVAL '10' MINUTES))
+  FROM CUMULATE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES, INTERVAL '10' MINUTES)
   GROUP BY window_start, window_end;
 +------------------+------------------+-------------+
 |     window_start |       window_end | total_price |
@@ -120,8 +117,7 @@ Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
 
 -- session window aggregation with partition keys
 Flink SQL> SELECT window_start, window_end, supplier_id, SUM(price) AS total_price
-           FROM TABLE(
-               SESSION(TABLE Bid PARTITION BY supplier_id, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES))
+           FROM SESSION(TABLE Bid PARTITION BY supplier_id, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES)
            GROUP BY window_start, window_end, supplier_id;
 +------------------+------------------+-------------+-------------+
 |     window_start |       window_end | supplier_id | total_price |
@@ -134,8 +130,7 @@ Flink SQL> SELECT window_start, window_end, supplier_id, SUM(price) AS total_pri
 
 -- session window aggregation without partition keys
 Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
-           FROM TABLE(
-               SESSION(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES))
+           FROM SESSION(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '2' MINUTES)
            GROUP BY window_start, window_end;
 +------------------+------------------+-------------+
 |     window_start |       window_end | total_price |
@@ -155,8 +150,7 @@ Window aggregations with `GROUPING SETS` require both the `window_start` and `wi
 
 ```sql
 Flink SQL> SELECT window_start, window_end, supplier_id, SUM(price) AS total_price
-  FROM TABLE(
-    TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
+  FROM TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES)
   GROUP BY window_start, window_end, GROUPING SETS ((supplier_id), ());
 +------------------+------------------+-------------+-------------+
 |     window_start |       window_end | supplier_id | total_price |
@@ -184,8 +178,7 @@ For example, the following query is equivalent to the one above.
 
 ```sql
 SELECT window_start, window_end, supplier_id, SUM(price) AS total_price
-FROM TABLE(
-    TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
+FROM TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES)
 GROUP BY window_start, window_end, ROLLUP (supplier_id);
 ```
 
@@ -199,13 +192,11 @@ For example, the following two queries are equivalent.
 
 ```sql
 SELECT window_start, window_end, item, supplier_id, SUM(price) AS total_price
-  FROM TABLE(
-    TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
+  FROM TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES)
   GROUP BY window_start, window_end, CUBE (supplier_id, item);
 
 SELECT window_start, window_end, item, supplier_id, SUM(price) AS total_price
-  FROM TABLE(
-    TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
+  FROM TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES)
   GROUP BY window_start, window_end, GROUPING SETS (
       (supplier_id, item),
       (supplier_id      ),
@@ -231,14 +222,12 @@ The following shows a cascading window aggregation where the first window aggreg
 CREATE VIEW window1 AS
 -- Note: The window start and window end fields of inner Window TVF are optional in the select clause. However, if they appear in the clause, they need to be aliased to prevent name conflicting with the window start and window end of the outer Window TVF.
 SELECT window_start AS window_5mintumble_start, window_end AS window_5mintumble_end, window_time AS rowtime, SUM(price) AS partial_price
-  FROM TABLE(
-    TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES))
+  FROM TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES)
   GROUP BY supplier_id, window_start, window_end, window_time;
 
 -- tumbling 10 minutes on the first window
 SELECT window_start, window_end, SUM(partial_price) AS total_price
-  FROM TABLE(
-      TUMBLE(TABLE window1, DESCRIPTOR(rowtime), INTERVAL '10' MINUTES))
+  FROM TUMBLE(TABLE window1, DESCRIPTOR(rowtime), INTERVAL '10' MINUTES)
   GROUP BY window_start, window_end;
 ```
 

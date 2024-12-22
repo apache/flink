@@ -129,7 +129,9 @@ public class ZooKeeperTestUtils {
         return config;
     }
 
-    /** @return true, if a CI environment is detected. */
+    /**
+     * @return true, if a CI environment is detected.
+     */
     public static boolean runsOnCIInfrastructure() {
         return System.getenv().containsKey("CI") || System.getenv().containsKey("TF_BUILD");
     }

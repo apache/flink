@@ -164,6 +164,7 @@ class RetryingExecutor implements AutoCloseable {
         private final ScheduledExecutorService timer;
         private final int attemptNumber;
         private final RetryPolicy retryPolicy;
+
         /**
          * The flag shared across all attempts to execute the same {#link #runnable action}
          * signifying whether it was completed already or not. Used to prevent scheduling a new

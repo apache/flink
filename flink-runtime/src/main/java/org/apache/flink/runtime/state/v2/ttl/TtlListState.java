@@ -123,6 +123,16 @@ class TtlListState<K, N, T>
         return withTs;
     }
 
+    @Override
+    public StateFuture<Void> asyncMergeNamespaces(N target, Collection<N> sources) {
+        return original.asyncMergeNamespaces(target, sources);
+    }
+
+    @Override
+    public void mergeNamespaces(N target, Collection<N> sources) {
+        original.mergeNamespaces(target, sources);
+    }
+
     private class IteratorWithCleanup implements Iterator<T> {
         private final Iterator<TtlValue<T>> originalIterator;
         private boolean anyUnexpired = false;

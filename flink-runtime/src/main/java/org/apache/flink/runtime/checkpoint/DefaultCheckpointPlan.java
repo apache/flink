@@ -208,8 +208,10 @@ public class DefaultCheckpointPlan implements CheckpointPlan {
                                 .filter(Objects::nonNull)
                                 .flatMap(
                                         operatorStateHandle ->
-                                                operatorStateHandle.getStateNameToPartitionOffsets()
-                                                        .values().stream())
+                                                operatorStateHandle
+                                                        .getStateNameToPartitionOffsets()
+                                                        .values()
+                                                        .stream())
                                 .anyMatch(
                                         stateMetaInfo ->
                                                 stateMetaInfo.getDistributionMode()

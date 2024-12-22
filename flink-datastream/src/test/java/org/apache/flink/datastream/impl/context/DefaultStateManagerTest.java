@@ -50,7 +50,7 @@ class DefaultStateManagerTest {
         DefaultStateManager stateManager =
                 new DefaultStateManager(
                         () -> key,
-                        ignore -> {},
+                        (r, k) -> r.run(),
                         new MockStreamingRuntimeContext(false, 1, 0),
                         new MockOperatorStateStore());
         assertThat((String) stateManager.getCurrentKey()).isEqualTo(key);
@@ -63,7 +63,7 @@ class DefaultStateManagerTest {
                         () -> {
                             throw new RuntimeException("Expected Error");
                         },
-                        ignore -> {},
+                        (r, k) -> r.run(),
                         new MockStreamingRuntimeContext(false, 1, 0),
                         new MockOperatorStateStore());
         assertThatThrownBy(stateManager::getCurrentKey)
@@ -80,7 +80,11 @@ class DefaultStateManagerTest {
         DefaultStateManager stateManager =
                 new DefaultStateManager(
                         () -> oldKey,
-                        k -> setKey.set((Integer) k),
+                        (r, k) -> {
+                            setKey.set((Integer) k);
+                            r.run();
+                            setKey.set(oldKey);
+                        },
                         new MockStreamingRuntimeContext(false, 1, 0),
                         new MockOperatorStateStore());
         stateManager.executeInKeyContext(() -> assertThat(setKey).hasValue(newKey), newKey);

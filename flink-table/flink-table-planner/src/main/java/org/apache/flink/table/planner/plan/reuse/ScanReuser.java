@@ -55,6 +55,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.abilitySpecsWithoutEscaped;
 import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.concatProjectedFields;
 import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.createCalcForScan;
+import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.enforceMetadataKeyOrder;
 import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.getAdjustedWatermarkSpec;
 import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.indexOf;
 import static org.apache.flink.table.planner.plan.reuse.ScanReuserUtils.metadataKeys;
@@ -165,7 +166,8 @@ public class ScanReuser {
             }
 
             int[][] allProjectFields = allProjectFieldSet.toArray(new int[0][]);
-            List<String> allMetaKeys = new ArrayList<>(allMetaKeySet);
+            List<String> allMetaKeys =
+                    enforceMetadataKeyOrder(allMetaKeySet, pickTable.tableSource());
 
             // 2. Create new source.
             List<SourceAbilitySpec> specs = abilitySpecsWithoutEscaped(pickTable);

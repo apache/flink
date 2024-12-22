@@ -149,9 +149,7 @@ class JobIDLoggingITCase {
                 sourceCoordinatorLogging,
                 asList(
                         "Starting split enumerator.*",
-                        "Distributing maxAllowedWatermark.*",
-                        "Source .* registering reader for parallel task.*",
-                        "Closing SourceCoordinator for source .*"));
+                        "Source .* registering reader for parallel task.*"));
 
         assertJobIDPresent(
                 jobID,

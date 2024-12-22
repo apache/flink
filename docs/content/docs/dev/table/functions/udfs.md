@@ -415,19 +415,19 @@ class OverloadedFunction extends ScalarFunction {
 
   // define the precision and scale of a decimal
   @DataTypeHint("DECIMAL(12, 3)")
-  def eval(double a, double b): BigDecimal = {
-    java.lang.BigDecimal.valueOf(a + b)
+  def eval(a: Double, b: Double): BigDecimal = {
+    BigDecimal(a + b)
   }
 
   // define a nested data type
   @DataTypeHint("ROW<s STRING, t TIMESTAMP_LTZ(3)>")
-  def eval(Int i): Row = {
-    Row.of(java.lang.String.valueOf(i), java.time.Instant.ofEpochSecond(i))
+  def eval(i: Int): Row = {
+    Row.of(i.toString, java.time.Instant.ofEpochSecond(i))
   }
 
   // allow wildcard input and customly serialized output
   @DataTypeHint(value = "RAW", bridgedTo = classOf[java.nio.ByteBuffer])
-  def eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object o): java.nio.ByteBuffer = {
+  def eval(@DataTypeHint(inputGroup = InputGroup.ANY) o: Any): java.nio.ByteBuffer = {
     MyUtils.serializeToByteBuffer(o)
   }
 }
@@ -671,8 +671,10 @@ public static class NamedParameterClass extends ScalarFunction {
     
   // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
   @FunctionHint(
-          argument = {@ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
-                  @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))}
+    arguments = {
+      @ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
+      @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))
+    }
   )
   public String eval(String s1, Integer s2) {
     return s1 + ", " + s2;
@@ -689,8 +691,10 @@ class NamedParameterClass extends ScalarFunction {
 
   // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
   @FunctionHint(
-    argument = Array(new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
-                  new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER")))
+    arguments = Array(
+      new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
+      new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER"))
+    )
   )
   def eval(s1: String, s2: Int): String = {
     s1 + ", " + s2
@@ -710,8 +714,10 @@ import org.apache.flink.table.functions.ScalarFunction;
 
 // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
 @FunctionHint(
-        argument = {@ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
-                @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))}
+  arguments = {
+    @ArgumentHint(name = "param1", isOptional = false, type = @DataTypeHint("STRING")),
+    @ArgumentHint(name = "param2", isOptional = true, type = @DataTypeHint("INTEGER"))
+  }
 )
 public static class NamedParameterClass extends ScalarFunction {
     
@@ -728,8 +734,10 @@ import org.apache.flink.table.functions.ScalarFunction;
 
 // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
 @FunctionHint(
-  argument = Array(new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
-    new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER")))
+  arguments = Array(
+    new ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")),
+    new ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER"))
+  )
 )
 class NamedParameterClass extends ScalarFunction {
 

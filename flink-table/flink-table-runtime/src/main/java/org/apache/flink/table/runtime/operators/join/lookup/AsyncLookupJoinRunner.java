@@ -64,6 +64,7 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
      * We use {@link BlockingQueue} to make sure the head {@link ResultFuture}s are available.
      */
     private transient BlockingQueue<JoinedRowResultFuture> resultFutureBuffer;
+
     /**
      * A Collection contains all ResultFutures in the runner which is used to invoke {@code close()}
      * on every ResultFuture. {@link #resultFutureBuffer} may not contain all the ResultFutures

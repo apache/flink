@@ -77,6 +77,7 @@ public class UnionInputGate extends InputGate {
     private final Set<IndexedInputGate> inputGatesWithRemainingUserData;
 
     private boolean shouldDrainOnEndOfData = true;
+
     /**
      * Gates, which notified this input gate about available data. We are using it as a FIFO queue
      * of {@link InputGate}s to avoid starvation and provide some basic fairness.

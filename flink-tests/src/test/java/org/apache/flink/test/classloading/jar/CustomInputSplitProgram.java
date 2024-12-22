@@ -57,6 +57,7 @@ public class CustomInputSplitProgram {
 
         env.execute();
     }
+
     // --------------------------------------------------------------------------------------------
 
     private static final class CustomInputFormat

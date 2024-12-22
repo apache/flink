@@ -48,8 +48,10 @@ public final class CommittableCollectorSerializer<CommT>
     private static final int MAGIC_NUMBER = 0xb91f252c;
 
     private final SimpleVersionedSerializer<CommT> committableSerializer;
+
     /** Default values are used to deserialize from Flink 1 that didn't store the information. */
     private final int owningSubtaskId;
+
     /** Default values are used to deserialize from Flink 1 that didn't store the information. */
     private final int owningNumberOfSubtasks;
 

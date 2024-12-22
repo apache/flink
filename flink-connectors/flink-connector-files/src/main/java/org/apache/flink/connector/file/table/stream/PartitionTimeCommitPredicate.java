@@ -45,6 +45,7 @@ public class PartitionTimeCommitPredicate implements PartitionCommitPredicate {
     private final PartitionTimeExtractor extractor;
     private final long commitDelay;
     private final List<String> partitionKeys;
+
     /** The time zone used to parse the long watermark value to TIMESTAMP. */
     private final ZoneId watermarkTimeZone;
 

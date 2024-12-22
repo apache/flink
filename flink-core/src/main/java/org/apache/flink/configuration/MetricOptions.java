@@ -347,6 +347,7 @@ public class MetricOptions {
                     .withDescription(
                             "Flag indicating whether Flink should report system resource metrics such as machine's CPU,"
                                     + " memory or network usage.");
+
     /**
      * Interval between probing of system resource metrics specified in milliseconds. Has an effect
      * only when {@link #SYSTEM_RESOURCE_METRICS} is enabled.
@@ -389,6 +390,7 @@ public class MetricOptions {
                                     + " by Pekko's thread pool executor. "
                                     + "The range of the priority is from 1 (MIN_PRIORITY) to 10 (MAX_PRIORITY). "
                                     + "Warning, increasing this value may bring the main Flink components down.");
+
     /**
      * The config parameter defining the update interval for the metric fetcher used by the web UI
      * in milliseconds.

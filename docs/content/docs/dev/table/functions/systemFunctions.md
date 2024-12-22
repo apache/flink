@@ -121,27 +121,28 @@ Time Interval and Point Unit Specifiers
 The following table lists specifiers for time interval and time point units. 
 
 For Table API, please use `_` for spaces (e.g., `DAY_TO_HOUR`).
+Plural works for SQL only. 
 
 | Time Interval Unit       | Time Point Unit                |
 |:-------------------------|:-------------------------------|
 | `MILLENNIUM`             |                                |
 | `CENTURY`                |                                |
 | `DECADE`                 |                                |
-| `YEAR`                   | `YEAR`                         |
-| `YEAR TO MONTH`          |                                |
-| `QUARTER`                | `QUARTER`                      |
-| `MONTH`                  | `MONTH`                        |
-| `WEEK`                   | `WEEK`                         |
-| `DAY`                    | `DAY`                          |
-| `DAY TO HOUR`            |                                |
-| `DAY TO MINUTE`          |                                |
-| `DAY TO SECOND`          |                                |
-| `HOUR`                   | `HOUR`                         |
-| `HOUR TO MINUTE`         |                                |
-| `HOUR TO SECOND`         |                                |
-| `MINUTE`                 | `MINUTE`                       |
-| `MINUTE TO SECOND`       |                                |
-| `SECOND`                 | `SECOND`                       |
+| `YEAR(S)`                | `YEAR`                         |
+| `YEAR(S) TO MONTH(S)`    |                                |
+| `QUARTER(S)`             | `QUARTER`                      |
+| `MONTH(S)`               | `MONTH`                        |
+| `WEEK(S)`                | `WEEK`                         |
+| `DAY(S)`                 | `DAY`                          |
+| `DAY(S) TO HOUR(S)`      |                                |
+| `DAY(S) TO MINUTE(S)`    |                                |
+| `DAY(S) TO SECOND(S)`    |                                |
+| `HOUR(S)`                | `HOUR`                         |
+| `HOUR(S) TO MINUTE(S)`   |                                |
+| `HOUR(S) TO SECOND(S)`   |                                |
+| `MINUTE(S)`              | `MINUTE`                       |
+| `MINUTE(S) TO SECOND(S)` |                                |
+| `SECOND(S)`              | `SECOND`                       |
 | `MILLISECOND`            | `MILLISECOND`                  |
 | `MICROSECOND`            | `MICROSECOND`                  |
 | `NANOSECOND`             |                                |

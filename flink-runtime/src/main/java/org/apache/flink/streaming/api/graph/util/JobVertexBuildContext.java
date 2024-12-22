@@ -19,8 +19,10 @@
 package org.apache.flink.streaming.api.graph.util;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
@@ -42,6 +44,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Internal
 public class JobVertexBuildContext {
 
+    private final JobGraph jobGraph;
+
     private final StreamGraph streamGraph;
 
     /**
@@ -50,9 +54,6 @@ public class JobVertexBuildContext {
      * JobVertex.
      */
     private final Map<Integer, OperatorChainInfo> chainInfosInOrder;
-
-    /** The {@link OperatorInfo}s, key is the id of the stream node. */
-    private final Map<Integer, OperatorInfo> operatorInfos;
 
     // This map's key represents the starting node id of each chain. Note that this includes not
     // only the usual head node of the chain but also the ids of chain sources which are used by
@@ -83,11 +84,16 @@ public class JobVertexBuildContext {
 
     private final List<Map<Integer, byte[]>> legacyHashes;
 
+    private final SlotSharingGroup defaultSlotSharingGroup;
+
     public JobVertexBuildContext(
+            JobGraph jobGraph,
             StreamGraph streamGraph,
             AtomicBoolean hasHybridResultPartition,
             Map<Integer, byte[]> hashes,
-            List<Map<Integer, byte[]>> legacyHashes) {
+            List<Map<Integer, byte[]>> legacyHashes,
+            SlotSharingGroup defaultSlotSharingGroup) {
+        this.jobGraph = jobGraph;
         this.streamGraph = streamGraph;
         this.hashes = hashes;
         this.legacyHashes = legacyHashes;
@@ -97,7 +103,7 @@ public class JobVertexBuildContext {
         this.hasHybridResultPartition = hasHybridResultPartition;
         this.coordinatorSerializationFuturesPerJobVertex = new HashMap<>();
         this.chainedConfigs = new HashMap<>();
-        this.operatorInfos = new HashMap<>();
+        this.defaultSlotSharingGroup = defaultSlotSharingGroup;
     }
 
     public void addChainInfo(Integer startNodeId, OperatorChainInfo chainInfo) {
@@ -110,20 +116,6 @@ public class JobVertexBuildContext {
 
     public Map<Integer, OperatorChainInfo> getChainInfosInOrder() {
         return chainInfosInOrder;
-    }
-
-    public OperatorInfo getOperatorInfo(Integer nodeId) {
-        return operatorInfos.get(nodeId);
-    }
-
-    public OperatorInfo createAndGetOperatorInfo(Integer nodeId) {
-        OperatorInfo operatorInfo = new OperatorInfo();
-        operatorInfos.put(nodeId, operatorInfo);
-        return operatorInfo;
-    }
-
-    public Map<Integer, OperatorInfo> getOperatorInfos() {
-        return operatorInfos;
     }
 
     public StreamGraph getStreamGraph() {
@@ -188,5 +180,13 @@ public class JobVertexBuildContext {
             hashes.add(legacyHash.get(streamNodeId));
         }
         return hashes;
+    }
+
+    public JobGraph getJobGraph() {
+        return jobGraph;
+    }
+
+    public SlotSharingGroup getDefaultSlotSharingGroup() {
+        return defaultSlotSharingGroup;
     }
 }

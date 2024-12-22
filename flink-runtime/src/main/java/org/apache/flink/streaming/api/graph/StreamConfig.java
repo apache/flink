@@ -78,6 +78,7 @@ public class StreamConfig implements Serializable {
     // ------------------------------------------------------------------------
 
     public static final String SERIALIZED_UDF = "serializedUDF";
+
     /**
      * Introduce serializedUdfClassName to avoid unnecessarily heavy {@link
      * #getStreamOperatorFactory}.

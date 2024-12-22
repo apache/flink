@@ -24,7 +24,6 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
-import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.apache.flink.shaded.guava32.com.google.common.base.Ticker;
@@ -54,8 +53,6 @@ public class MemoryExecutionGraphInfoStore implements ExecutionGraphInfoStore {
     private final Cache<JobID, ExecutionGraphInfo> serializableExecutionGraphInfos;
 
     @Nullable private final ScheduledFuture<?> cleanupFuture;
-
-    private final Thread shutdownHook;
 
     public MemoryExecutionGraphInfoStore() {
         this(Duration.ofMillis(0), 0, null, null);
@@ -89,7 +86,6 @@ public class MemoryExecutionGraphInfoStore implements ExecutionGraphInfoStore {
         } else {
             this.cleanupFuture = null;
         }
-        this.shutdownHook = ShutdownHookUtil.addShutdownHook(this, getClass().getSimpleName(), LOG);
     }
 
     @Override
@@ -149,8 +145,5 @@ public class MemoryExecutionGraphInfoStore implements ExecutionGraphInfoStore {
         }
 
         serializableExecutionGraphInfos.invalidateAll();
-
-        // Remove shutdown hook to prevent resource leaks
-        ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
     }
 }

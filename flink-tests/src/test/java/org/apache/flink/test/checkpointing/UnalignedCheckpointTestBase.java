@@ -120,6 +120,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
     protected static final String NUM_FAILURES = "failures";
     protected static final String NUM_DUPLICATES = "duplicates";
     protected static final String NUM_LOST = "lost";
+
     /** For multi-gate tests. */
     protected static final int NUM_SOURCES = 3;
 

@@ -31,7 +31,9 @@ import static org.apache.flink.runtime.io.network.api.serialization.RecordDeseri
 import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.LAST_RECORD_FROM_BUFFER;
 import static org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer.DeserializationResult.PARTIAL_RECORD;
 
-/** @param <T> The type of the record to be deserialized. */
+/**
+ * @param <T> The type of the record to be deserialized.
+ */
 public class SpillingAdaptiveSpanningRecordDeserializer<T extends IOReadableWritable>
         implements RecordDeserializer<T> {
     public static final int DEFAULT_THRESHOLD_FOR_SPILLING = 5 * 1024 * 1024; // 5 MiBytes

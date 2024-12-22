@@ -63,6 +63,7 @@ public class StreamingCustomInputSplitProgram {
 
         env.execute();
     }
+
     // --------------------------------------------------------------------------------------------
 
     private static final class CustomInputFormat

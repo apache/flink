@@ -139,9 +139,11 @@ public class SortSpec {
         /** 0-based index of field being sorted. */
         @JsonProperty(FIELD_NAME_INDEX)
         private final int fieldIndex;
+
         /** in ascending order or not. */
         @JsonProperty(FIELD_NAME_IS_ASCENDING)
         private final boolean isAscendingOrder;
+
         /** put null at last or not. */
         @JsonProperty(FIELD_NAME_NULL_IS_LAST)
         private final boolean nullIsLast;

@@ -580,7 +580,7 @@ public final class LogicalRelDataTypeConverter {
                 } else if (relDataType instanceof RawRelDataType) {
                     return ((RawRelDataType) relDataType).getRawType();
                 }
-                // fall through
+            // fall through
             case REAL:
             case TIME_WITH_LOCAL_TIME_ZONE:
             case ANY:

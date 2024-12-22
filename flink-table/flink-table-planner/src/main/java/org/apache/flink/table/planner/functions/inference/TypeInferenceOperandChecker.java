@@ -27,6 +27,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentCount;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
+import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeInferenceUtil;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -47,7 +48,6 @@ import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorNamespace;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType;
@@ -83,8 +83,7 @@ public final class TypeInferenceOperandChecker
         this.dataTypeFactory = dataTypeFactory;
         this.definition = definition;
         this.typeInference = typeInference;
-        this.countRange =
-                new ArgumentCountRange(typeInference.getInputTypeStrategy().getArgumentCount());
+        this.countRange = new ArgumentCountRange(deriveArgumentCount(typeInference));
     }
 
     @Override
@@ -105,20 +104,7 @@ public final class TypeInferenceOperandChecker
 
     @Override
     public SqlOperandCountRange getOperandCountRange() {
-        if (typeInference.getOptionalArguments().isPresent()
-                && typeInference.getOptionalArguments().get().stream()
-                        .anyMatch(Boolean::booleanValue)) {
-            int notOptionalCount =
-                    (int)
-                            typeInference.getOptionalArguments().get().stream()
-                                    .filter(optional -> !optional)
-                                    .count();
-            ArgumentCount argumentCount =
-                    ConstantArgumentCount.between(notOptionalCount, countRange.getMax());
-            return new ArgumentCountRange(argumentCount);
-        } else {
-            return countRange;
-        }
+        return countRange;
     }
 
     @Override
@@ -133,22 +119,21 @@ public final class TypeInferenceOperandChecker
 
     @Override
     public boolean isOptional(int i) {
-        Optional<List<Boolean>> optionalArguments = typeInference.getOptionalArguments();
-        if (optionalArguments.isPresent()) {
-            return optionalArguments.get().get(i);
-        } else {
+        if (typeInference.getStaticArguments().isEmpty()) {
             return false;
         }
+        final List<StaticArgument> staticArgs = typeInference.getStaticArguments().get();
+        return staticArgs.get(i).isOptional();
     }
 
     @Override
     public boolean isFixedParameters() {
-        // This method returns true only if optional arguments are declared and at least one
-        // optional argument is present.
+        // This method returns true only if at least one optional argument is present.
         // Otherwise, it defaults to false, bypassing the parameter check in Calcite.
-        return typeInference.getOptionalArguments().isPresent()
-                && typeInference.getOptionalArguments().get().stream()
-                        .anyMatch(Boolean::booleanValue);
+        return typeInference
+                .getStaticArguments()
+                .map(args -> args.stream().anyMatch(StaticArgument::isOptional))
+                .orElse(false);
     }
 
     @Override
@@ -238,5 +223,18 @@ public final class TypeInferenceOperandChecker
         if (namespace != null) {
             namespace.setType(type);
         }
+    }
+
+    private static ArgumentCount deriveArgumentCount(TypeInference typeInference) {
+        final int staticArgs = typeInference.getStaticArguments().map(List::size).orElse(-1);
+        if (staticArgs == -1) {
+            return typeInference.getInputTypeStrategy().getArgumentCount();
+        }
+        final int optionalArgs =
+                typeInference
+                        .getStaticArguments()
+                        .map(args -> (int) args.stream().filter(StaticArgument::isOptional).count())
+                        .orElse(0);
+        return ConstantArgumentCount.between(staticArgs - optionalArgs, staticArgs);
     }
 }

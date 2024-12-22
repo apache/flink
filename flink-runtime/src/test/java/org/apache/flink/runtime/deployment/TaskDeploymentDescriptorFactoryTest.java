@@ -62,6 +62,7 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.ONLY_FINISHED_PRODUCERS;
 import static org.apache.flink.runtime.deployment.TaskDeploymentDescriptorTestUtils.deserializeShuffleDescriptors;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -197,7 +198,7 @@ class TaskDeploymentDescriptorFactoryTest {
         final JobVertex v1 = createJobVertex("v1", PARALLELISM);
         final JobVertex v2 = createJobVertex("v2", PARALLELISM);
 
-        v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, resultPartitionType);
+        connectNewDataSetAsInput(v2, v1, DistributionPattern.ALL_TO_ALL, resultPartitionType);
 
         final List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2));
 
@@ -213,8 +214,11 @@ class TaskDeploymentDescriptorFactoryTest {
         final JobVertex producer = createJobVertex("v1", PARALLELISM);
         final JobVertex consumer = createJobVertex("v2", PARALLELISM);
 
-        consumer.connectNewDataSetAsInput(
-                producer, DistributionPattern.ALL_TO_ALL, ResultPartitionType.HYBRID_FULL);
+        connectNewDataSetAsInput(
+                consumer,
+                producer,
+                DistributionPattern.ALL_TO_ALL,
+                ResultPartitionType.HYBRID_FULL);
 
         JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(producer, consumer);
         SchedulerBase scheduler =

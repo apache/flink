@@ -256,8 +256,8 @@ public class RowDataToCsvConverters implements Serializable {
                                 SQL_TIMESTAMP_WITH_LOCAL_TIMEZONE_FORMAT);
             case DECIMAL:
                 return createDecimalArrayElementConverter((DecimalType) fieldType);
-                // we don't support ARRAY and ROW in an ARRAY, see
-                // CsvRowSchemaConverter#validateNestedField
+            // we don't support ARRAY and ROW in an ARRAY, see
+            // CsvRowSchemaConverter#validateNestedField
             case ARRAY:
             case ROW:
             case MAP:

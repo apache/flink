@@ -22,8 +22,12 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
-import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.scheduler.ExecutionSlotSharingGroup;
+import org.apache.flink.runtime.scheduler.SharingPhysicalSlotRequestBulk;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.util.clock.ManualClock;
 
 import org.junit.jupiter.api.AfterAll;
@@ -90,20 +94,20 @@ class PhysicalSlotRequestBulkCheckerImplTest {
 
     @Test
     void testPendingBulkIsNotCancelled() throws InterruptedException, ExecutionException {
-        final CompletableFuture<SlotRequestId> cancellationFuture = new CompletableFuture<>();
+        final CompletableFuture<ExecutionVertexID> cancellationFuture = new CompletableFuture<>();
         final PhysicalSlotRequestBulk bulk =
                 createPhysicalSlotRequestBulkWithCancellationFuture(
-                        cancellationFuture, new SlotRequestId());
+                        cancellationFuture, new ExecutionVertexID(new JobVertexID(), 0));
         bulkChecker.schedulePendingRequestBulkTimeoutCheck(bulk, TIMEOUT);
         checkNotCancelledAfter(cancellationFuture, 2 * TIMEOUT.toMillis());
     }
 
     @Test
     void testFulfilledBulkIsNotCancelled() throws InterruptedException, ExecutionException {
-        final CompletableFuture<SlotRequestId> cancellationFuture = new CompletableFuture<>();
+        final CompletableFuture<ExecutionVertexID> cancellationFuture = new CompletableFuture<>();
         final PhysicalSlotRequestBulk bulk =
                 createPhysicalSlotRequestBulkWithCancellationFuture(
-                        cancellationFuture, new SlotRequestId());
+                        cancellationFuture, new ExecutionVertexID(new JobVertexID(), 0));
         bulkChecker.schedulePendingRequestBulkTimeoutCheck(bulk, TIMEOUT);
         checkNotCancelledAfter(cancellationFuture, 2 * TIMEOUT.toMillis());
     }
@@ -123,22 +127,24 @@ class PhysicalSlotRequestBulkCheckerImplTest {
 
     @Test
     void testUnfulfillableBulkIsCancelled() {
-        final CompletableFuture<SlotRequestId> cancellationFuture = new CompletableFuture<>();
-        final SlotRequestId slotRequestId = new SlotRequestId();
+        final CompletableFuture<ExecutionVertexID> cancellationFuture = new CompletableFuture<>();
+        final ExecutionVertexID executionVertexID = new ExecutionVertexID(new JobVertexID(), 0);
         final PhysicalSlotRequestBulk bulk =
                 createPhysicalSlotRequestBulkWithCancellationFuture(
-                        cancellationFuture, slotRequestId);
+                        cancellationFuture, executionVertexID);
         bulkChecker.schedulePendingRequestBulkTimeoutCheck(bulk, TIMEOUT);
         clock.advanceTime(TIMEOUT.toMillis() + 1L, TimeUnit.MILLISECONDS);
-        assertThat(cancellationFuture.join()).isEqualTo(slotRequestId);
+        assertThat(cancellationFuture.join()).isEqualTo(executionVertexID);
     }
 
     @Test
     void testBulkFulfilledOnCheck() {
-        final SlotRequestId slotRequestId = new SlotRequestId();
-        final PhysicalSlotRequestBulkImpl bulk = createPhysicalSlotRequestBulk(slotRequestId);
+        final ExecutionSlotSharingGroup executionSlotSharingGroup =
+                new ExecutionSlotSharingGroup(new SlotSharingGroup());
+        final SharingPhysicalSlotRequestBulk bulk =
+                createPhysicalSlotRequestBulk(executionSlotSharingGroup);
 
-        bulk.markRequestFulfilled(slotRequestId, new AllocationID());
+        bulk.markFulfilled(executionSlotSharingGroup, new AllocationID());
 
         final PhysicalSlotRequestBulkWithTimestamp bulkWithTimestamp =
                 new PhysicalSlotRequestBulkWithTimestamp(bulk);
@@ -149,7 +155,8 @@ class PhysicalSlotRequestBulkCheckerImplTest {
     @Test
     void testBulkTimeoutOnCheck() {
         final PhysicalSlotRequestBulkWithTimestamp bulk =
-                createPhysicalSlotRequestBulkWithTimestamp(new SlotRequestId());
+                createPhysicalSlotRequestBulkWithTimestamp(
+                        new ExecutionSlotSharingGroup(new SlotSharingGroup()));
 
         clock.advanceTime(TIMEOUT.toMillis() + 1L, TimeUnit.MILLISECONDS);
         assertThat(checkBulkTimeout(bulk))
@@ -159,7 +166,8 @@ class PhysicalSlotRequestBulkCheckerImplTest {
     @Test
     void testBulkPendingOnCheckIfFulfillable() {
         final PhysicalSlotRequestBulkWithTimestamp bulk =
-                createPhysicalSlotRequestBulkWithTimestamp(new SlotRequestId());
+                createPhysicalSlotRequestBulkWithTimestamp(
+                        new ExecutionSlotSharingGroup(new SlotSharingGroup()));
 
         final PhysicalSlot slot = addOneSlot();
         occupyPhysicalSlot(slot, false);
@@ -171,7 +179,8 @@ class PhysicalSlotRequestBulkCheckerImplTest {
     @Test
     void testBulkPendingOnCheckIfUnfulfillableButNotTimedOut() {
         final PhysicalSlotRequestBulkWithTimestamp bulk =
-                createPhysicalSlotRequestBulkWithTimestamp(new SlotRequestId());
+                createPhysicalSlotRequestBulkWithTimestamp(
+                        new ExecutionSlotSharingGroup(new SlotSharingGroup()));
 
         assertThat(checkBulkTimeout(bulk))
                 .isEqualTo(PhysicalSlotRequestBulkCheckerImpl.TimeoutCheckResult.PENDING);
@@ -179,7 +188,9 @@ class PhysicalSlotRequestBulkCheckerImplTest {
 
     @Test
     void testBulkFulfillable() {
-        final PhysicalSlotRequestBulk bulk = createPhysicalSlotRequestBulk(new SlotRequestId());
+        final PhysicalSlotRequestBulk bulk =
+                createPhysicalSlotRequestBulk(
+                        new ExecutionSlotSharingGroup(new SlotSharingGroup()));
 
         addOneSlot();
 
@@ -189,7 +200,9 @@ class PhysicalSlotRequestBulkCheckerImplTest {
     @Test
     void testBulkUnfulfillableWithInsufficientSlots() {
         final PhysicalSlotRequestBulk bulk =
-                createPhysicalSlotRequestBulk(new SlotRequestId(), new SlotRequestId());
+                createPhysicalSlotRequestBulk(
+                        new ExecutionSlotSharingGroup(new SlotSharingGroup()),
+                        new ExecutionSlotSharingGroup(new SlotSharingGroup()));
 
         addOneSlot();
 
@@ -198,13 +211,16 @@ class PhysicalSlotRequestBulkCheckerImplTest {
 
     @Test
     void testBulkUnfulfillableWithSlotAlreadyAssignedToBulk() {
-        final SlotRequestId slotRequestId = new SlotRequestId();
-        final PhysicalSlotRequestBulkImpl bulk =
-                createPhysicalSlotRequestBulk(slotRequestId, new SlotRequestId());
+        final ExecutionSlotSharingGroup executionSlotSharingGroup =
+                new ExecutionSlotSharingGroup(new SlotSharingGroup());
+        final SharingPhysicalSlotRequestBulk bulk =
+                createPhysicalSlotRequestBulk(
+                        executionSlotSharingGroup,
+                        new ExecutionSlotSharingGroup(new SlotSharingGroup()));
 
         final PhysicalSlot slot = addOneSlot();
 
-        bulk.markRequestFulfilled(slotRequestId, slot.getAllocationId());
+        bulk.markFulfilled(executionSlotSharingGroup, slot.getAllocationId());
 
         assertThat(isFulfillable(bulk)).isFalse();
     }
@@ -212,7 +228,9 @@ class PhysicalSlotRequestBulkCheckerImplTest {
     @Test
     void testBulkUnfulfillableWithSlotOccupiedIndefinitely() {
         final PhysicalSlotRequestBulk bulk =
-                createPhysicalSlotRequestBulk(new SlotRequestId(), new SlotRequestId());
+                createPhysicalSlotRequestBulk(
+                        new ExecutionSlotSharingGroup(new SlotSharingGroup()),
+                        new ExecutionSlotSharingGroup(new SlotSharingGroup()));
 
         final PhysicalSlot slot1 = addOneSlot();
         addOneSlot();
@@ -225,7 +243,9 @@ class PhysicalSlotRequestBulkCheckerImplTest {
     @Test
     void testBulkFulfillableWithSlotOccupiedTemporarily() {
         final PhysicalSlotRequestBulk bulk =
-                createPhysicalSlotRequestBulk(new SlotRequestId(), new SlotRequestId());
+                createPhysicalSlotRequestBulk(
+                        new ExecutionSlotSharingGroup(new SlotSharingGroup()),
+                        new ExecutionSlotSharingGroup(new SlotSharingGroup()));
 
         final PhysicalSlot slot1 = addOneSlot();
         addOneSlot();
@@ -236,30 +256,34 @@ class PhysicalSlotRequestBulkCheckerImplTest {
     }
 
     private PhysicalSlotRequestBulkWithTimestamp createPhysicalSlotRequestBulkWithTimestamp(
-            SlotRequestId... slotRequestIds) {
+            ExecutionSlotSharingGroup... executionSlotSharingGroups) {
         final PhysicalSlotRequestBulkWithTimestamp bulk =
                 new PhysicalSlotRequestBulkWithTimestamp(
-                        createPhysicalSlotRequestBulk(slotRequestIds));
+                        createPhysicalSlotRequestBulk(executionSlotSharingGroups));
         bulk.markUnfulfillable(clock.relativeTimeMillis());
         return bulk;
     }
 
-    private static PhysicalSlotRequestBulkImpl createPhysicalSlotRequestBulk(
-            SlotRequestId... slotRequestIds) {
+    private static SharingPhysicalSlotRequestBulk createPhysicalSlotRequestBulk(
+            ExecutionSlotSharingGroup... executionSlotSharingGroups) {
         final TestingPhysicalSlotRequestBulkBuilder builder =
                 TestingPhysicalSlotRequestBulkBuilder.newBuilder();
-        for (SlotRequestId slotRequestId : slotRequestIds) {
-            builder.addPendingRequest(slotRequestId, ResourceProfile.UNKNOWN);
+        for (ExecutionSlotSharingGroup executionSlotSharingGroup : executionSlotSharingGroups) {
+            builder.addPendingRequest(executionSlotSharingGroup, ResourceProfile.UNKNOWN);
         }
-        return builder.buildPhysicalSlotRequestBulkImpl();
+        return builder.buildSharingPhysicalSlotRequestBulk();
     }
 
     private PhysicalSlotRequestBulk createPhysicalSlotRequestBulkWithCancellationFuture(
-            CompletableFuture<SlotRequestId> cancellationFuture, SlotRequestId slotRequestId) {
+            CompletableFuture<ExecutionVertexID> cancellationFuture,
+            ExecutionVertexID executionVertexID) {
+        ExecutionSlotSharingGroup executionSlotSharingGroup =
+                new ExecutionSlotSharingGroup(new SlotSharingGroup());
+        executionSlotSharingGroup.addVertex(executionVertexID);
         return TestingPhysicalSlotRequestBulkBuilder.newBuilder()
-                .addPendingRequest(slotRequestId, ResourceProfile.UNKNOWN)
+                .addPendingRequest(executionSlotSharingGroup, ResourceProfile.UNKNOWN)
                 .setCanceller((id, t) -> cancellationFuture.complete(id))
-                .buildPhysicalSlotRequestBulkImpl();
+                .buildSharingPhysicalSlotRequestBulk();
     }
 
     private PhysicalSlot addOneSlot() {

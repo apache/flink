@@ -19,18 +19,18 @@
 package org.apache.flink.datastream.api.context;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDeclaration;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.BroadcastStateDeclaration;
-import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDeclaration;
-import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDeclaration;
-import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDeclaration;
-import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDeclaration;
+import org.apache.flink.api.common.state.v2.AggregatingState;
+import org.apache.flink.api.common.state.v2.ListState;
+import org.apache.flink.api.common.state.v2.MapState;
+import org.apache.flink.api.common.state.v2.ReducingState;
+import org.apache.flink.api.common.state.v2.ValueState;
 
 import java.util.Optional;
 

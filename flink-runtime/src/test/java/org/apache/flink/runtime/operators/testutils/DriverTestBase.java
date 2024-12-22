@@ -190,7 +190,9 @@ public abstract class DriverTestBase<S extends Function> implements TaskContext<
         this.numFileHandles = numFileHandles;
     }
 
-    /** @deprecated Use {@link #testDriver(Driver, Function)} instead. */
+    /**
+     * @deprecated Use {@link #testDriver(Driver, Function)} instead.
+     */
     @Deprecated
     @SuppressWarnings({"rawtypes"})
     protected void testDriver(Driver driver, Class<? extends S> stubClass) throws Exception {

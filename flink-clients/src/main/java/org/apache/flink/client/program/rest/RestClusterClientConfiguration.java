@@ -57,17 +57,23 @@ public final class RestClusterClientConfiguration {
         return restClientConfiguration;
     }
 
-    /** @see RestOptions#AWAIT_LEADER_TIMEOUT */
+    /**
+     * @see RestOptions#AWAIT_LEADER_TIMEOUT
+     */
     public long getAwaitLeaderTimeout() {
         return awaitLeaderTimeout;
     }
 
-    /** @see RestOptions#RETRY_MAX_ATTEMPTS */
+    /**
+     * @see RestOptions#RETRY_MAX_ATTEMPTS
+     */
     public int getRetryMaxAttempts() {
         return retryMaxAttempts;
     }
 
-    /** @see RestOptions#RETRY_DELAY */
+    /**
+     * @see RestOptions#RETRY_DELAY
+     */
     public long getRetryDelay() {
         return retryDelay;
     }

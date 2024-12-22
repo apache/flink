@@ -19,6 +19,7 @@
 package org.apache.flink.kubernetes.entrypoint;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.client.cli.ArtifactFetchOptions;
 import org.apache.flink.client.deployment.application.ApplicationClusterEntryPoint;
 import org.apache.flink.client.deployment.application.ApplicationConfiguration;
@@ -101,7 +102,8 @@ public final class KubernetesApplicationClusterEntrypoint extends ApplicationClu
         ClusterEntrypoint.runClusterEntrypoint(kubernetesApplicationClusterEntrypoint);
     }
 
-    private static PackagedProgram getPackagedProgram(final Configuration configuration)
+    @VisibleForTesting
+    static PackagedProgram getPackagedProgram(final Configuration configuration)
             throws FlinkException {
 
         final ApplicationConfiguration applicationConfiguration =
@@ -146,14 +148,15 @@ public final class KubernetesApplicationClusterEntrypoint extends ApplicationClu
             String targetDir = generateJarDir(configuration);
             ArtifactFetchManager fetchMgr = new ArtifactFetchManager(configuration, targetDir);
 
-            List<String> uris = configuration.get(PipelineOptions.JARS);
-            checkArgument(uris.size() == 1, "Should only have one jar");
+            List<String> uris =
+                    configuration.getOptional(PipelineOptions.JARS).orElse(Collections.emptyList());
+            checkArgument(uris.size() <= 1, "Should only have at most one jar");
             List<String> additionalUris =
                     configuration
                             .getOptional(ArtifactFetchOptions.ARTIFACT_LIST)
                             .orElse(Collections.emptyList());
 
-            return fetchMgr.fetchArtifacts(uris.get(0), additionalUris);
+            return fetchMgr.fetchArtifacts(uris.size() == 1 ? uris.get(0) : null, additionalUris);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

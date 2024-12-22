@@ -25,7 +25,9 @@ import org.apache.flink.types.Row;
 
 import java.nio.charset.StandardCharsets;
 
-/** @see TestCsvFormatFactory */
+/**
+ * @see TestCsvFormatFactory
+ */
 class TestCsvSerializationSchema implements SerializationSchema<RowData> {
 
     private static final String DEFAULT_FIELD_DELIMITER = ",";

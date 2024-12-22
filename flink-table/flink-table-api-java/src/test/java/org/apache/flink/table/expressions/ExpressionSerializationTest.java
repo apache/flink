@@ -172,13 +172,13 @@ public class ExpressionSerializationTest {
                         .expectStr("POSITION(`f0` IN 'ABC')"),
                 TestSpec.forExpr($("f0").trim("ABC"))
                         .withField("f0", DataTypes.STRING())
-                        .expectStr("TRIM BOTH 'ABC' FROM `f0`"),
+                        .expectStr("TRIM(BOTH 'ABC' FROM `f0`)"),
                 TestSpec.forExpr($("f0").trimLeading("ABC"))
                         .withField("f0", DataTypes.STRING())
-                        .expectStr("TRIM LEADING 'ABC' FROM `f0`"),
+                        .expectStr("TRIM(LEADING 'ABC' FROM `f0`)"),
                 TestSpec.forExpr($("f0").trimTrailing("ABC"))
                         .withField("f0", DataTypes.STRING())
-                        .expectStr("TRIM TRAILING 'ABC' FROM `f0`"),
+                        .expectStr("TRIM(TRAILING 'ABC' FROM `f0`)"),
                 TestSpec.forExpr($("f0").overlay("ABC", 2))
                         .withField("f0", DataTypes.STRING())
                         .expectStr("OVERLAY(`f0` PLACING 'ABC' FROM 2)"),
@@ -349,9 +349,11 @@ public class ExpressionSerializationTest {
                         .withField("f0", DataTypes.TIMESTAMP())
                         .withField("f1", DataTypes.TIMESTAMP())
                         .expectStr("TIMESTAMPDIFF(DAY, `f0`, `f1`)"),
-                TestSpec.forExpr(Expressions.currentDate()).expectStr("CURRENT_DATE()"),
-                TestSpec.forExpr(Expressions.currentTime()).expectStr("CURRENT_TIME()"),
-                TestSpec.forExpr(Expressions.currentTimestamp()).expectStr("CURRENT_TIMESTAMP()"),
+                TestSpec.forExpr(Expressions.currentDate()).expectStr("CURRENT_DATE"),
+                TestSpec.forExpr(Expressions.currentTime()).expectStr("CURRENT_TIME"),
+                TestSpec.forExpr(Expressions.currentTimestamp()).expectStr("CURRENT_TIMESTAMP"),
+                TestSpec.forExpr(Expressions.localTimestamp()).expectStr("LOCALTIMESTAMP"),
+                TestSpec.forExpr(Expressions.localTime()).expectStr("LOCALTIME"),
                 TestSpec.forExpr(Expressions.dateFormat($("f0"), lit("yyyy-MM-dd")))
                         .withField("f0", DataTypes.TIMESTAMP(3))
                         .expectStr("DATE_FORMAT(`f0`, 'yyyy-MM-dd')"),
