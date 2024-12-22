@@ -1313,19 +1313,19 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     private boolean dropTableInternal(
             ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists, TableKind kind) {
         final Predicate<CatalogBaseTable> filter;
-        final String tableOrView;
+        final String kindStr;
         switch (kind) {
             case VIEW:
                 filter = table -> table instanceof CatalogView;
-                tableOrView = "View";
+                kindStr = "View";
                 break;
             case TABLE:
                 filter = table -> table instanceof CatalogTable;
-                tableOrView = "Table";
+                kindStr = "Table";
                 break;
             case MATERIALIZED_TABLE:
                 filter = table -> table instanceof CatalogMaterializedTable;
-                tableOrView = "Materialized Table";
+                kindStr = "Materialized Table";
                 break;
             default:
                 throw new ValidationException("Not supported table kind: " + kind);
@@ -1333,12 +1333,12 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
 
         // Same name temporary table or view exists.
         if (filter.test(temporaryTables.get(objectIdentifier))) {
-            final String lowerTableOrView = tableOrView.toLowerCase(Locale.ROOT);
+            final String lowerKindStr = kindStr.toLowerCase(Locale.ROOT);
             throw new ValidationException(
                     String.format(
                             "Temporary %s with identifier '%s' exists. "
                                     + "Drop it first before removing the permanent %s.",
-                            lowerTableOrView, objectIdentifier, lowerTableOrView));
+                            lowerKindStr, objectIdentifier, lowerKindStr));
         }
         final Optional<CatalogBaseTable> resultOpt = getUnresolvedTable(objectIdentifier);
         if (resultOpt.isPresent() && filter.test(resultOpt.get())) {
@@ -1373,7 +1373,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             throw new ValidationException(
                     String.format(
                             "%s with identifier '%s' does not exist.",
-                            tableOrView, objectIdentifier.asSummaryString()));
+                            kindStr, objectIdentifier.asSummaryString()));
         }
         return false;
     }
