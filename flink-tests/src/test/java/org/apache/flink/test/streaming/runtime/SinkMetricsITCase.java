@@ -126,7 +126,7 @@ public class SinkMetricsITCase extends TestLogger {
                 reporter.findOperatorMetricGroups(
                         jobId,
                         MetricUtils.truncateOperatorName(
-                                TEST_LONG_SINK_NAME + ": " + ConfigConstants.WRITER_NAME, 80));
+                                TEST_LONG_SINK_NAME + ": " + ConfigConstants.WRITER_NAME));
         assertThat(groups, hasSize(parallelism));
 
         int subtaskWithMetrics = 0;

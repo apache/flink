@@ -66,6 +66,7 @@ import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.ConfigConstants.METRICS_OPERATOR_NAME_MAX_LENGTH;
 import static org.apache.flink.runtime.metrics.util.SystemResourcesMetricsInitializer.instantiateSystemMetrics;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -369,15 +370,25 @@ public class MetricUtils {
         }
     }
 
-    public static String truncateOperatorName(String operatorName, int maxLength) {
-        if (operatorName.endsWith(WRITER_SUFFIX)) {
-            return operatorName.substring(0, maxLength - WRITER_SUFFIX.length()) + WRITER_SUFFIX;
+    public static String truncateOperatorName(String operatorName) {
+        if (operatorName != null && operatorName.length() > METRICS_OPERATOR_NAME_MAX_LENGTH) {
+            LOG.warn(
+                    "The operator name {} exceeded the {} characters length limit and was truncated.",
+                    operatorName,
+                    METRICS_OPERATOR_NAME_MAX_LENGTH);
+            if (operatorName.endsWith(WRITER_SUFFIX)) {
+                return operatorName.substring(
+                                0, METRICS_OPERATOR_NAME_MAX_LENGTH - WRITER_SUFFIX.length())
+                        + WRITER_SUFFIX;
+            }
+            if (operatorName.endsWith(COMMITTER_SUFFIX)) {
+                return operatorName.substring(
+                                0, METRICS_OPERATOR_NAME_MAX_LENGTH - COMMITTER_SUFFIX.length())
+                        + COMMITTER_SUFFIX;
+            }
+            return operatorName.substring(0, METRICS_OPERATOR_NAME_MAX_LENGTH);
         }
-        if (operatorName.endsWith(COMMITTER_SUFFIX)) {
-            return operatorName.substring(0, maxLength - COMMITTER_SUFFIX.length())
-                    + COMMITTER_SUFFIX;
-        }
-        return operatorName.substring(0, maxLength);
+        return operatorName;
     }
 
     private static final class AttributeGauge<T> implements Gauge<T> {

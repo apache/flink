@@ -114,6 +114,8 @@ public final class ConfigConstants {
 
     public static final String WRITER_NAME = "Writer";
 
+    public static final int METRICS_OPERATOR_NAME_MAX_LENGTH = 80;
+
     /** Not instantiable. */
     private ConfigConstants() {}
 }

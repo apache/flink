@@ -31,7 +31,6 @@ import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.runtime.metrics.groups.TaskMetricGroup.METRICS_OPERATOR_NAME_MAX_LENGTH;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -63,7 +62,7 @@ public class JobManagerJobMetricGroup extends JobMetricGroup<JobManagerMetricGro
 
     public JobManagerOperatorMetricGroup getOrAddOperator(
             AbstractID vertexId, String taskName, OperatorID operatorID, String operatorName) {
-        final String truncatedOperatorName = getTruncatedOperatorName(operatorName);
+        final String truncatedOperatorName = MetricUtils.truncateOperatorName(operatorName);
 
         // unique OperatorIDs only exist in streaming, so we have to rely on the name for batch
         // operators
@@ -83,25 +82,13 @@ public class JobManagerJobMetricGroup extends JobMetricGroup<JobManagerMetricGro
         }
     }
 
-    private String getTruncatedOperatorName(String operatorName) {
-        if (operatorName != null && operatorName.length() > METRICS_OPERATOR_NAME_MAX_LENGTH) {
-            LOG.warn(
-                    "The operator name {} exceeded the {} characters length limit and was truncated.",
-                    operatorName,
-                    METRICS_OPERATOR_NAME_MAX_LENGTH);
-            return MetricUtils.truncateOperatorName(operatorName, METRICS_OPERATOR_NAME_MAX_LENGTH);
-        } else {
-            return operatorName;
-        }
-    }
-
     @VisibleForTesting
     int numRegisteredOperatorMetricGroups() {
         return operators.size();
     }
 
     void removeOperatorMetricGroup(OperatorID operatorID, String operatorName) {
-        final String truncatedOperatorName = getTruncatedOperatorName(operatorName);
+        final String truncatedOperatorName = MetricUtils.truncateOperatorName(operatorName);
 
         // unique OperatorIDs only exist in streaming, so we have to rely on the name for batch
         // operators

@@ -46,8 +46,6 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 
     private final Map<String, InternalOperatorMetricGroup> operators = new HashMap<>();
 
-    static final int METRICS_OPERATOR_NAME_MAX_LENGTH = 80;
-
     private final TaskIOMetricGroup ioMetrics;
 
     /**
@@ -151,18 +149,7 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
 
     public InternalOperatorMetricGroup getOrAddOperator(
             OperatorID operatorID, String operatorName) {
-        final String truncatedOperatorName;
-        if (operatorName != null && operatorName.length() > METRICS_OPERATOR_NAME_MAX_LENGTH) {
-            LOG.warn(
-                    "The operator name {} exceeded the {} characters length limit and was truncated.",
-                    operatorName,
-                    METRICS_OPERATOR_NAME_MAX_LENGTH);
-            truncatedOperatorName =
-                    MetricUtils.truncateOperatorName(
-                            operatorName, METRICS_OPERATOR_NAME_MAX_LENGTH);
-        } else {
-            truncatedOperatorName = operatorName;
-        }
+        final String truncatedOperatorName = MetricUtils.truncateOperatorName(operatorName);
 
         // unique OperatorIDs only exist in streaming, so we have to rely on the name for batch
         // operators
