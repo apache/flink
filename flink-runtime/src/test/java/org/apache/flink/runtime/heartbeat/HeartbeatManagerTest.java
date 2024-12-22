@@ -29,7 +29,6 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
-import org.hamcrest.Matcher;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -53,7 +52,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 
 /** Tests for the {@link HeartbeatManager}. */
 public class HeartbeatManagerTest extends TestLogger {
@@ -192,7 +190,7 @@ public class HeartbeatManagerTest extends TestLogger {
             Thread.sleep(HEARTBEAT_INTERVAL);
         }
 
-        assertThat(timeoutFuture).isDone();
+        FlinkAssertions.assertThatFuture(timeoutFuture).eventuallySucceeds();
 
         ResourceID timeoutResourceID =
                 timeoutFuture.get(2 * HEARTBEAT_TIMEOUT, TimeUnit.MILLISECONDS);
@@ -270,9 +268,8 @@ public class HeartbeatManagerTest extends TestLogger {
 
         int numberHeartbeats = (int) (2 * HEARTBEAT_TIMEOUT / HEARTBEAT_INTERVAL);
 
-        final Matcher<Integer> numberHeartbeatsMatcher = greaterThanOrEqualTo(numberHeartbeats / 2);
-        assertThat(numReportPayloadCallsTarget.get()).isEqualTo(numberHeartbeatsMatcher);
-        assertThat(numReportPayloadCallsSender.get()).isEqualTo(numberHeartbeatsMatcher);
+        assertThat(numReportPayloadCallsTarget.get()).isGreaterThanOrEqualTo(numberHeartbeats / 2);
+        assertThat(numReportPayloadCallsSender.get()).isGreaterThanOrEqualTo(numberHeartbeats / 2);
     }
 
     /** Tests that after unmonitoring a target, there won't be a timeout triggered. */
