@@ -23,7 +23,7 @@ import org.apache.flink.configuration.{Configuration, CoreOptions, ExecutionOpti
 import org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.api.internal.{TableEnvironmentInternal, TableImpl}
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactoryContextImpl}
 import org.apache.flink.table.functions.TestGenericUDF
@@ -50,7 +50,7 @@ import org.junit.jupiter.api.Assertions.{assertEquals, assertFalse, assertTrue, 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.{MethodSource, ValueSource}
+import org.junit.jupiter.params.provider.ValueSource
 
 import java.io.File
 import java.nio.file.Path
@@ -1889,6 +1889,11 @@ class TableEnvironmentTest {
 
     assertFalse(tableEnv.dropTable("default_catalog.default_database.T2"))
     assert(tableEnv.listTables().sameElements(Array[String]("T1")))
+
+    assertThatThrownBy(() => tableEnv.dropTable("default_catalog.default_database.T2", false))
+      .hasMessageContaining(
+        "Table with identifier 'default_catalog.default_database.T2' does not exist.")
+      .isInstanceOf[ValidationException]
 
     assertFalse(tableEnv.dropTable("default_catalog.default_database.T2"))
     assertFalse(tableEnv.dropTable("invalid.default_database.T2"))

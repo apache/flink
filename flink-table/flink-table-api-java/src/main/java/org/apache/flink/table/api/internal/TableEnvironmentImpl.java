@@ -658,7 +658,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     public boolean dropTable(String path, boolean ignoreIfNotExists) {
         UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(path);
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-        return catalogManager.dropTable(identifier, true);
+        return catalogManager.dropTable(identifier, ignoreIfNotExists);
     }
 
     @Override
