@@ -146,7 +146,11 @@ public abstract class AbstractSliceWindowAggProcessor extends AbstractWindowAggP
                 windowBuffer.advanceProgress(currentProgress);
                 nextTriggerProgress =
                         getNextTriggerWatermark(
-                                currentProgress, windowInterval, shiftTimeZone, useDayLightSaving);
+                                currentProgress,
+                                windowInterval,
+                                sliceAssigner.getWindowOffset(),
+                                shiftTimeZone,
+                                useDayLightSaving);
             }
         }
     }
