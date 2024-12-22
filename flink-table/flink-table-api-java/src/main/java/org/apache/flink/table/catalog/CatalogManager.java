@@ -28,6 +28,7 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
@@ -64,6 +65,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -719,7 +721,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                 final CatalogBaseTable table;
                 if (timestamp != null) {
                     table = currentCatalog.getTable(objectPath, timestamp);
-                    if (table.getTableKind() == CatalogBaseTable.TableKind.VIEW) {
+                    if (table.getTableKind() == TableKind.VIEW) {
                         throw new TableException(
                                 String.format(
                                         "%s is a view, but time travel is not supported for view.",
@@ -1274,9 +1276,11 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * @param objectIdentifier The fully qualified path of the table to drop.
      * @param ignoreIfNotExists If false exception will be thrown if the table to drop does not
      *     exist.
+     * @return true if table existed in the given path and was dropped, false if table didn't exist
+     *     in the given path and ignoreIfNotExists was true.
      */
-    public void dropTable(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-        dropTableInternal(objectIdentifier, ignoreIfNotExists, true, false);
+    public boolean dropTable(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+        return dropTableInternal(objectIdentifier, ignoreIfNotExists, TableKind.TABLE);
     }
 
     /**
@@ -1285,10 +1289,12 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * @param objectIdentifier The fully qualified path of the materialized table to drop.
      * @param ignoreIfNotExists If false exception will be thrown if the table to drop does not
      *     exist.
+     * @return true if materialized table existed in the given path and was dropped, false if
+     *     materialized table didn't exist in the given path and ignoreIfNotExists was true.
      */
-    public void dropMaterializedTable(
+    public boolean dropMaterializedTable(
             ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-        dropTableInternal(objectIdentifier, ignoreIfNotExists, true, true);
+        return dropTableInternal(objectIdentifier, ignoreIfNotExists, TableKind.MATERIALIZED_TABLE);
     }
 
     /**
@@ -1297,30 +1303,42 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * @param objectIdentifier The fully qualified path of the view to drop.
      * @param ignoreIfNotExists If false exception will be thrown if the view to drop does not
      *     exist.
+     * @return true if view existed in the given path and was dropped, false if view didn't exist in
+     *     the given path and ignoreIfNotExists was true.
      */
-    public void dropView(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-        dropTableInternal(objectIdentifier, ignoreIfNotExists, false, false);
+    public boolean dropView(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+        return dropTableInternal(objectIdentifier, ignoreIfNotExists, TableKind.VIEW);
     }
 
-    private void dropTableInternal(
-            ObjectIdentifier objectIdentifier,
-            boolean ignoreIfNotExists,
-            boolean isDropTable,
-            boolean isDropMaterializedTable) {
-        Predicate<CatalogBaseTable> filter =
-                isDropTable
-                        ? isDropMaterializedTable
-                                ? table -> table instanceof CatalogMaterializedTable
-                                : table -> table instanceof CatalogTable
-                        : table -> table instanceof CatalogView;
+    private boolean dropTableInternal(
+            ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists, TableKind kind) {
+        final Predicate<CatalogBaseTable> filter;
+        final String kindStr;
+        switch (kind) {
+            case VIEW:
+                filter = table -> table instanceof CatalogView;
+                kindStr = "View";
+                break;
+            case TABLE:
+                filter = table -> table instanceof CatalogTable;
+                kindStr = "Table";
+                break;
+            case MATERIALIZED_TABLE:
+                filter = table -> table instanceof CatalogMaterializedTable;
+                kindStr = "Materialized Table";
+                break;
+            default:
+                throw new ValidationException("Not supported table kind: " + kind);
+        }
+
         // Same name temporary table or view exists.
         if (filter.test(temporaryTables.get(objectIdentifier))) {
-            String tableOrView = isDropTable ? "table" : "view";
+            final String lowerKindStr = kindStr.toLowerCase(Locale.ROOT);
             throw new ValidationException(
                     String.format(
                             "Temporary %s with identifier '%s' exists. "
                                     + "Drop it first before removing the permanent %s.",
-                            tableOrView, objectIdentifier, tableOrView));
+                            lowerKindStr, objectIdentifier, lowerKindStr));
         }
         final Optional<CatalogBaseTable> resultOpt = getUnresolvedTable(objectIdentifier);
         if (resultOpt.isPresent() && filter.test(resultOpt.get())) {
@@ -1332,7 +1350,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                                 catalog, objectIdentifier, resolvedTable, false, ignoreIfNotExists);
 
                         catalog.dropTable(path, ignoreIfNotExists);
-                        if (isDropTable) {
+                        if (kind != TableKind.VIEW) {
                             catalogModificationListeners.forEach(
                                     listener ->
                                             listener.onEvent(
@@ -1350,14 +1368,14 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                     objectIdentifier,
                     ignoreIfNotExists,
                     "DropTable");
+            return true;
         } else if (!ignoreIfNotExists) {
-            String tableOrView =
-                    isDropTable ? isDropMaterializedTable ? "Materialized Table" : "Table" : "View";
             throw new ValidationException(
                     String.format(
                             "%s with identifier '%s' does not exist.",
-                            tableOrView, objectIdentifier.asSummaryString()));
+                            kindStr, objectIdentifier.asSummaryString()));
         }
+        return false;
     }
 
     /**
