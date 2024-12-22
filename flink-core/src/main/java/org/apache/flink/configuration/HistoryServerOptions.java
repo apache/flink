@@ -143,5 +143,20 @@ public class HistoryServerOptions {
                                             code("IllegalConfigurationException"))
                                     .build());
 
+    public static final ConfigOption<String> HISTORY_SERVER_STORAGE_BACKEND =
+            key("historyserver.storage.backend")
+                    .stringType()
+                    .defaultValue("file")
+                    .withDescription(
+                            Description.builder()
+                                    .text("Defines the storage backend for the History Server.")
+                                    .text(
+                                            "The default value is `file`, which stores archives in the file system. ")
+                                    .text(
+                                            "If set to `kvstore`, archives are stored in a key-value store backend. ")
+                                    .text(
+                                            "Note that switching storage backends requires configuration compatibility.")
+                                    .build());
+
     private HistoryServerOptions() {}
 }
