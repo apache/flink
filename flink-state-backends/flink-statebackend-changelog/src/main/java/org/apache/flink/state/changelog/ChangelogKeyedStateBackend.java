@@ -683,8 +683,10 @@ public class ChangelogKeyedStateBackend<K>
                     LatencyTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
                             TtlStateFactory.createStateAndWrapWithTtlIfEnabled(
                                     namespaceSerializer, stateDescriptor, this, ttlTimeProvider),
+                            keyedStateBackend,
                             stateDescriptor,
-                            keyedStateBackend.getLatencyTrackingStateConfig());
+                            keyedStateBackend.getLatencyTrackingStateConfig(),
+                            keyedStateBackend.getSizeTrackingStateConfig());
             keyValueStatesByName.put(stateDescriptor.getName(), kvState);
             keyedStateBackend.publishQueryableStateIfEnabled(stateDescriptor, kvState);
         }
