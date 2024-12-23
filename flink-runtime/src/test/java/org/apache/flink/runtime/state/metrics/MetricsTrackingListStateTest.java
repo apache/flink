@@ -33,8 +33,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for {@link LatencyTrackingListState}. */
-class LatencyTrackingListStateTest extends LatencyTrackingStateTestBase<Integer> {
+/** Tests for {@link MetricsTrackingListState}. */
+class MetricsTrackingListStateTest extends MetricsTrackingStateTestBase<Integer> {
     @Override
     @SuppressWarnings("unchecked")
     ListStateDescriptor<Long> getStateDescriptor() {
@@ -56,11 +56,11 @@ class LatencyTrackingListStateTest extends LatencyTrackingStateTestBase<Integer>
     void testLatencyTrackingListState() throws Exception {
         AbstractKeyedStateBackend<Integer> keyedBackend = createKeyedBackend(getKeySerializer());
         try {
-            LatencyTrackingListState<Integer, VoidNamespace, Long> latencyTrackingState =
-                    (LatencyTrackingListState)
-                            createLatencyTrackingState(keyedBackend, getStateDescriptor());
+            MetricsTrackingListState<Integer, VoidNamespace, Long> latencyTrackingState =
+                    (MetricsTrackingListState)
+                            createMetricsTrackingState(keyedBackend, getStateDescriptor());
             latencyTrackingState.setCurrentNamespace(VoidNamespace.INSTANCE);
-            LatencyTrackingListState.ListStateLatencyMetrics latencyTrackingStateMetric =
+            MetricsTrackingListState.ListStateMetrics latencyTrackingStateMetric =
                     latencyTrackingState.getLatencyTrackingStateMetric();
 
             assertThat(latencyTrackingStateMetric.getAddCount()).isZero();
@@ -90,6 +90,49 @@ class LatencyTrackingListStateTest extends LatencyTrackingStateTestBase<Integer>
                         VoidNamespace.INSTANCE, Collections.emptyList());
                 assertThat(latencyTrackingStateMetric.getMergeNamespaceCount())
                         .isEqualTo(expectedResult);
+            }
+        } finally {
+            if (keyedBackend != null) {
+                keyedBackend.close();
+                keyedBackend.dispose();
+            }
+        }
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void testSizeTrackingListState() throws Exception {
+        AbstractKeyedStateBackend<Integer> keyedBackend = createKeyedBackend(getKeySerializer());
+        try {
+            MetricsTrackingListState<Integer, VoidNamespace, Long> sizeTrackingState =
+                    (MetricsTrackingListState)
+                            createMetricsTrackingState(keyedBackend, getStateDescriptor());
+            sizeTrackingState.setCurrentNamespace(VoidNamespace.INSTANCE);
+            MetricsTrackingListState.ListStateMetrics sizeTrackingStateMetric =
+                    sizeTrackingState.getSizeTrackingStateMetric();
+
+            assertThat(sizeTrackingStateMetric.getAddCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getAddAllCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getGetCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getUpdateCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getMergeNamespaceCount()).isZero();
+
+            setCurrentKey(keyedBackend);
+            for (int index = 1; index <= SAMPLE_INTERVAL; index++) {
+                int expectedResult = index == SAMPLE_INTERVAL ? 0 : index;
+                sizeTrackingState.add(ThreadLocalRandom.current().nextLong());
+                assertThat(sizeTrackingStateMetric.getAddCount()).isEqualTo(expectedResult);
+
+                sizeTrackingState.addAll(
+                        Collections.singletonList(ThreadLocalRandom.current().nextLong()));
+                assertThat(sizeTrackingStateMetric.getAddAllCount()).isEqualTo(expectedResult);
+
+                sizeTrackingState.update(
+                        Collections.singletonList(ThreadLocalRandom.current().nextLong()));
+                assertThat(sizeTrackingStateMetric.getUpdateCount()).isEqualTo(expectedResult);
+
+                sizeTrackingState.get();
+                assertThat(sizeTrackingStateMetric.getGetCount()).isEqualTo(expectedResult);
             }
         } finally {
             if (keyedBackend != null) {
