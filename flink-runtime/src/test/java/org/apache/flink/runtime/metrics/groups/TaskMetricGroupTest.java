@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Metric;
@@ -200,8 +201,8 @@ class TaskMetricGroupTest {
                 taskMetricGroup.getOrAddOperator(originalName);
 
         String storedName = operatorMetricGroup.getScopeComponents()[0];
-        assertThat(storedName.length()).isEqualTo(TaskMetricGroup.METRICS_OPERATOR_NAME_MAX_LENGTH);
-        assertThat(originalName.substring(0, TaskMetricGroup.METRICS_OPERATOR_NAME_MAX_LENGTH))
+        assertThat(storedName.length()).isEqualTo(ConfigConstants.METRICS_OPERATOR_NAME_MAX_LENGTH);
+        assertThat(originalName.substring(0, ConfigConstants.METRICS_OPERATOR_NAME_MAX_LENGTH))
                 .isEqualTo(storedName);
         registry.closeAsync().get();
     }
