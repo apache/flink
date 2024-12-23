@@ -290,6 +290,7 @@ class AbstractAsyncStateStreamOperatorV2Test {
                     operator.asyncProcessWithKey(
                             1L,
                             () -> {
+                                assertThat(operator.getCurrentKey()).isEqualTo(1L);
                                 operator.output(watermark.getTimestamp() + 1000L);
                             });
                     if (counter.incrementAndGet() % 2 == 0) {
@@ -620,6 +621,7 @@ class AbstractAsyncStateStreamOperatorV2Test {
 
         @Override
         public void onEventTime(InternalTimer<Integer, VoidNamespace> timer) throws Exception {
+            assertThat(getCurrentKey()).isEqualTo(timer.getKey());
             output.collect(
                     new StreamRecord<>(
                             "EventTimer-" + timer.getKey() + "-" + timer.getTimestamp()));
@@ -627,6 +629,7 @@ class AbstractAsyncStateStreamOperatorV2Test {
 
         @Override
         public void onProcessingTime(InternalTimer<Integer, VoidNamespace> timer) throws Exception {
+            assertThat(getCurrentKey()).isEqualTo(timer.getKey());
             output.collect(
                     new StreamRecord<>(
                             "ProcessingTimer-" + timer.getKey() + "-" + timer.getTimestamp()));
@@ -842,12 +845,14 @@ class AbstractAsyncStateStreamOperatorV2Test {
 
         @Override
         public void onEventTime(InternalTimer<Integer, VoidNamespace> timer) throws Exception {
+            assertThat(getCurrentKey()).isEqualTo(timer.getKey());
             output.collect(new StreamRecord<>(timer.getTimestamp()));
         }
 
         @Override
-        public void onProcessingTime(InternalTimer<Integer, VoidNamespace> timer)
-                throws Exception {}
+        public void onProcessingTime(InternalTimer<Integer, VoidNamespace> timer) throws Exception {
+            assertThat(getCurrentKey()).isEqualTo(timer.getKey());
+        }
 
         private Input<Long> createInput(int idx) {
             return new AbstractInput<Long, Long>(this, idx) {

@@ -293,6 +293,7 @@ public class AbstractAsyncStateStreamOperatorTest {
                     testOperator.asyncProcessWithKey(
                             1L,
                             () -> {
+                                assertThat(testOperator.getCurrentKey()).isEqualTo(1L);
                                 testOperator.output(watermark.getTimestamp() + 1000L);
                             });
                     if (counter.incrementAndGet() % 2 == 0) {
@@ -484,6 +485,7 @@ public class AbstractAsyncStateStreamOperatorTest {
 
         @Override
         public void onEventTime(InternalTimer<Integer, VoidNamespace> timer) throws Exception {
+            assertThat(getCurrentKey()).isEqualTo(timer.getKey());
             output.collect(
                     new StreamRecord<>(
                             "EventTimer-" + timer.getKey() + "-" + timer.getTimestamp()));
@@ -491,6 +493,7 @@ public class AbstractAsyncStateStreamOperatorTest {
 
         @Override
         public void onProcessingTime(InternalTimer<Integer, VoidNamespace> timer) throws Exception {
+            assertThat(getCurrentKey()).isEqualTo(timer.getKey());
             output.collect(
                     new StreamRecord<>(
                             "ProcessingTimer-" + timer.getKey() + "-" + timer.getTimestamp()));
@@ -601,12 +604,14 @@ public class AbstractAsyncStateStreamOperatorTest {
 
         @Override
         public void onEventTime(InternalTimer<Integer, VoidNamespace> timer) throws Exception {
+            assertThat(getCurrentKey()).isEqualTo(timer.getKey());
             output.collect(new StreamRecord<>(timer.getTimestamp()));
         }
 
         @Override
-        public void onProcessingTime(InternalTimer<Integer, VoidNamespace> timer)
-                throws Exception {}
+        public void onProcessingTime(InternalTimer<Integer, VoidNamespace> timer) throws Exception {
+            assertThat(getCurrentKey()).isEqualTo(timer.getKey());
+        }
 
         @Override
         public void processElement1(StreamRecord<Long> element) throws Exception {

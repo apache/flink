@@ -243,6 +243,10 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         }
     }
 
+    public RecordContext<K> getCurrentContext() {
+        return currentContext;
+    }
+
     /**
      * Dispose a context.
      *
