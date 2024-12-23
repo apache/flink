@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.base.source.reader.fetcher;
 
+import java.util.concurrent.ExecutionException;
+
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -60,6 +62,7 @@ import static org.apache.flink.configuration.PipelineOptions.ALLOW_UNALIGNED_SOU
 @PublicEvolving
 public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
     private static final Logger LOG = LoggerFactory.getLogger(SplitFetcherManager.class);
+    static final String THREAD_NAME_PREFIX = "Source Data Fetcher for ";
 
     private final Consumer<Throwable> errorHandler;
 
@@ -153,7 +156,7 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
         final String taskThreadName = Thread.currentThread().getName();
         this.executors =
                 Executors.newCachedThreadPool(
-                        r -> new Thread(r, "Source Data Fetcher for " + taskThreadName));
+                        r -> new Thread(r, THREAD_NAME_PREFIX + taskThreadName));
         this.closed = false;
     }
 
@@ -269,19 +272,32 @@ public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
         // fetcher threads blocking on putting batches into the element queue.
         executors.submit(
                 () -> {
-                    while (fetchersToShutDown.get() > 0
-                            && System.currentTimeMillis() - startTime < timeoutMs) {
-                        elementsQueue
-                                .getAvailabilityFuture()
-                                .thenRun(() -> elementsQueue.poll().recycle());
+                    long timeElapsed = System.currentTimeMillis() - startTime;
+                    while (fetchersToShutDown.get() > 0 && timeElapsed < timeoutMs) {
+                        try {
+                            elementsQueue
+                                    .getAvailabilityFuture()
+                                    .thenRun(() -> elementsQueue.poll().recycle())
+                                    .get(timeoutMs - timeElapsed, TimeUnit.MILLISECONDS);
+                        } catch (ExecutionException ee) {
+                            // Ignore the exception and continue.
+                        } catch (Exception e) {
+                            LOG.warn(
+                                    "Received exception when waiting for the fetchers to "
+                                            + "shutdown.",
+                                    e);
+                            break;
+                        }
+                        timeElapsed = System.currentTimeMillis() - startTime;
                     }
                 });
         executors.shutdown();
-        if (!executors.awaitTermination(timeoutMs, TimeUnit.MILLISECONDS)) {
+        long timeElapsed = System.currentTimeMillis() - startTime;
+        if (!executors.awaitTermination(timeoutMs - timeElapsed, TimeUnit.NANOSECONDS)) {
             LOG.warn(
                     "Failed to close the split fetchers in {} ms. There are still {} split fetchers running",
                     timeoutMs,
-                    fetchersToShutDown);
+                    fetchersToShutDown.get());
         }
     }
 
