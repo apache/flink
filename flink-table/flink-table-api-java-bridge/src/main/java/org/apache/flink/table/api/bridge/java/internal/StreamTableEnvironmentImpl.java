@@ -22,6 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.JobStatusChangedListener;
+import org.apache.flink.core.execution.JobStatusChangedListenerUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
@@ -62,6 +65,7 @@ import org.apache.flink.util.Preconditions;
 
 import java.net.URL;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -83,7 +87,8 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
             StreamExecutionEnvironment executionEnvironment,
             Planner planner,
             Executor executor,
-            boolean isStreamingMode) {
+            boolean isStreamingMode,
+            List<JobStatusChangedListener> jobStatusChangedListeners) {
         super(
                 catalogManager,
                 moduleManager,
@@ -93,7 +98,8 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
                 functionCatalog,
                 planner,
                 isStreamingMode,
-                executionEnvironment);
+                executionEnvironment,
+                jobStatusChangedListeners);
     }
 
     public static StreamTableEnvironment create(
@@ -157,6 +163,10 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
                         catalogManager,
                         functionCatalog);
 
+        final List<JobStatusChangedListener> jobStatusChangedListeners =
+                JobStatusChangedListenerUtils.createJobStatusChangedListeners(
+                        (Configuration) tableConfig.getRootConfiguration());
+
         return new StreamTableEnvironmentImpl(
                 catalogManager,
                 moduleManager,
@@ -166,7 +176,8 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
                 executionEnvironment,
                 planner,
                 executor,
-                settings.isStreamingMode());
+                settings.isStreamingMode(),
+                jobStatusChangedListeners);
     }
 
     @Override

@@ -20,12 +20,17 @@ package org.apache.flink.core.execution;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
+
+import org.apache.flink.shaded.guava32.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.DeploymentOptions.JOB_STATUS_CHANGED_LISTENERS;
@@ -33,6 +38,28 @@ import static org.apache.flink.configuration.DeploymentOptions.JOB_STATUS_CHANGE
 /** Util class for {@link JobStatusChangedListener}. */
 @Internal
 public final class JobStatusChangedListenerUtils {
+    /**
+     * Create job status changed listeners from configuration for job.
+     *
+     * @param configuration The job configuration.
+     * @return the job status changed listeners.
+     */
+    public static List<JobStatusChangedListener> createJobStatusChangedListeners(
+            Configuration configuration) {
+        // One thread to notify job status changes.
+        final ExecutorService ioExecutor =
+                Executors.newSingleThreadExecutor(
+                        new ThreadFactoryBuilder()
+                                .setNameFormat("TableEnvironmentImpl JobStatusChange Listener")
+                                .setUncaughtExceptionHandler(FatalExitExceptionHandler.INSTANCE)
+                                .build());
+
+        return JobStatusChangedListenerUtils.createJobStatusChangedListeners(
+                Thread.currentThread().getContextClassLoader(),
+                new Configuration(configuration),
+                ioExecutor);
+    }
+
     /**
      * Create job status changed listeners from configuration for job.
      *

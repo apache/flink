@@ -27,6 +27,7 @@ Flink provides a pluggable interface for users to register their custom logic fo
 This enables users to implement their own flink lineage reporter to send lineage info to third party data lineage systems for example Datahub and Openlineage.
 
 The job status changed listeners are triggered every time status change happened for the application. The data lineage info is included in the JobCreatedEvent.
+QueryOperationEvent can be used together with JobCreatedEvent to provide column level lineage for Flink SQL and Table API jobs.
 
 ### Implement a plugin for your custom enricher
 

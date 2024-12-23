@@ -28,6 +28,8 @@ import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.JobStatusChangedListener;
+import org.apache.flink.core.execution.JobStatusChangedListenerUtils;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -464,6 +466,10 @@ public class OperationExecutor {
                         catalogManager,
                         functionCatalog);
 
+        final List<JobStatusChangedListener> jobStatusChangedListeners =
+                JobStatusChangedListenerUtils.createJobStatusChangedListeners(
+                        settings.getConfiguration());
+
         return new StreamTableEnvironmentImpl(
                 catalogManager,
                 moduleManager,
@@ -473,7 +479,8 @@ public class OperationExecutor {
                 env,
                 planner,
                 executor,
-                settings.isStreamingMode());
+                settings.isStreamingMode(),
+                jobStatusChangedListeners);
     }
 
     private ResultFetcher executeOperationInStatementSetState(
