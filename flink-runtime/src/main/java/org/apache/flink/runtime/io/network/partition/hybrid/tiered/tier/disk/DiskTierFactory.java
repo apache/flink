@@ -154,4 +154,9 @@ public class DiskTierFactory implements TierFactory {
             TieredStorageNettyService nettyService) {
         return new DiskTierConsumerAgent(tieredStorageConsumerSpecs, nettyService);
     }
+
+    @Override
+    public String identifier() {
+        return "disk";
+    }
 }

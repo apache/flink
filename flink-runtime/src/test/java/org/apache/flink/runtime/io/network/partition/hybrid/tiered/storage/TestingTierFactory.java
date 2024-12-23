@@ -131,6 +131,11 @@ public class TestingTierFactory implements TierFactory {
         return tierConsumerAgentSupplier.apply(tieredStorageConsumerSpecs, nettyService);
     }
 
+    @Override
+    public String identifier() {
+        return "test";
+    }
+
     /** Builder for {@link TestingTierFactory}. */
     public static class Builder {
 

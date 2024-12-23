@@ -21,10 +21,17 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.remote;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.shuffle.TieredPartitionWithMetrics;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageResourceRegistry;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierMasterAgent;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleHandler;
+
+import java.time.Duration;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageIdMappingUtils.convertId;
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.SegmentPartitionFile.deletePathQuietly;
@@ -65,6 +72,15 @@ public class RemoteTierMasterAgent implements TierMasterAgent {
     }
 
     @Override
+    public CompletableFuture<Map<ResultPartitionID, TieredPartitionWithMetrics>>
+            getPartitionWithMetrics(
+                    JobID jobId, Duration timeout, Set<ResultPartitionID> expectedPartitions) {
+        // TODO we could list the remote path to get all result partitions. Currently, this method
+        // only used for external tier, so it's safe to return empty map.
+        return CompletableFuture.completedFuture(Collections.emptyMap());
+    }
+
+    @Override
     public void releasePartition(TierShuffleDescriptor shuffleDescriptor) {
         checkState(shuffleDescriptor instanceof RemoteTierShuffleDescriptor);
         resourceRegistry.clearResourceFor(
@@ -74,5 +90,10 @@ public class RemoteTierMasterAgent implements TierMasterAgent {
     @Override
     public void close() {
         // noop
+    }
+
+    @Override
+    public boolean partitionInRemote() {
+        return true;
     }
 }

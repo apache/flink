@@ -68,7 +68,10 @@ public class VertexwiseSchedulingStrategy
         this.schedulingTopology = checkNotNull(schedulingTopology);
         this.inputConsumableDecider =
                 inputConsumableDeciderFactory.createInstance(
-                        schedulingTopology, scheduledVertices::contains);
+                        schedulingTopology,
+                        scheduledVertices::contains,
+                        (executionVertexId) ->
+                                schedulingTopology.getVertex(executionVertexId).getState());
         LOG.info(
                 "Using InputConsumableDecider {} for VertexwiseSchedulingStrategy.",
                 inputConsumableDecider.getClass().getName());
