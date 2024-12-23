@@ -1554,7 +1554,8 @@ public class FunctionITCase extends StreamingTestBase {
                                         "create function lowerUdf as '%s' LANGUAGE JAVA",
                                         udfClassName)),
                 "drop function lowerUdf");
-        assertThat(contextClassLoader.equals(Thread.currentThread().getContextClassLoader()));
+        assertThat(contextClassLoader.equals(Thread.currentThread().getContextClassLoader()))
+                .isTrue();
     }
 
     @Test
