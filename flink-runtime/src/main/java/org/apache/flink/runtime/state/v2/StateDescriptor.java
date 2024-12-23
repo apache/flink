@@ -84,9 +84,21 @@ public abstract class StateDescriptor<T> implements Serializable {
             @Nonnull String stateId,
             @Nonnull TypeInformation<T> typeInfo,
             SerializerConfig serializerConfig) {
+        this(
+                stateId,
+                checkNotNull(typeInfo, "type information must not be null")
+                        .createSerializer(serializerConfig));
+    }
+
+    /**
+     * Create a new {@code StateDescriptor} with the given stateId and the given type serializer.
+     *
+     * @param stateId The stateId of the {@code StateDescriptor}.
+     * @param typeSerializer The type serializer for the values in the state.
+     */
+    protected StateDescriptor(@Nonnull String stateId, @Nonnull TypeSerializer<T> typeSerializer) {
         this.stateId = checkNotNull(stateId, "stateId must not be null");
-        checkNotNull(typeInfo, "type information must not be null");
-        this.typeSerializer = typeInfo.createSerializer(serializerConfig);
+        this.typeSerializer = checkNotNull(typeSerializer, "type serializer must not be null");
     }
 
     // ------------------------------------------------------------------------

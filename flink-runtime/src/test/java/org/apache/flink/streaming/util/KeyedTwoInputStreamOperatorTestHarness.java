@@ -22,8 +22,11 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateStreamOperator;
+import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
+import org.apache.flink.runtime.state.v2.adaptor.AsyncKeyedStateBackendAdaptor;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 
@@ -64,8 +67,24 @@ public class KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
     }
 
     public int numKeyedStateEntries() {
-        AbstractStreamOperator<?> abstractStreamOperator = (AbstractStreamOperator<?>) operator;
-        KeyedStateBackend<Object> keyedStateBackend = abstractStreamOperator.getKeyedStateBackend();
+        KeyedStateBackend<?> keyedStateBackend;
+        if (operator instanceof AbstractAsyncStateStreamOperator) {
+            AbstractAsyncStateStreamOperator<OUT> asyncOp =
+                    (AbstractAsyncStateStreamOperator<OUT>) operator;
+            AsyncKeyedStateBackend<Object> asyncKeyedStateBackend =
+                    asyncOp.getAsyncKeyedStateBackend();
+            if (asyncKeyedStateBackend instanceof AsyncKeyedStateBackendAdaptor) {
+                keyedStateBackend =
+                        ((AsyncKeyedStateBackendAdaptor<?>) asyncKeyedStateBackend)
+                                .getKeyedStateBackend();
+            } else {
+                throw new UnsupportedOperationException();
+            }
+        } else {
+            AbstractStreamOperator<?> abstractStreamOperator = (AbstractStreamOperator<?>) operator;
+            keyedStateBackend = abstractStreamOperator.getKeyedStateBackend();
+        }
+
         if (keyedStateBackend instanceof HeapKeyedStateBackend) {
             return ((HeapKeyedStateBackend) keyedStateBackend).numKeyValueStateEntries();
         } else {
