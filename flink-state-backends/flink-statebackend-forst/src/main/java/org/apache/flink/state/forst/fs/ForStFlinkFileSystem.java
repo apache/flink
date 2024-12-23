@@ -373,7 +373,10 @@ public class ForStFlinkFileSystem extends FileSystem {
         if (localPathTuple.f0) {
             success = localFS.delete(localPathTuple.f1, recursive); // delete from local
         }
-        success |= fileMappingManager.deleteFile(path, recursive);
+        if (fileMappingManager.deleteFile(path) == -1) {
+            success |= delegateFS.delete(path, recursive);
+        }
+
         if (fileBasedCache != null) {
             // only new generated file will put into cache, no need to consider file mapping
             fileBasedCache.delete(path);

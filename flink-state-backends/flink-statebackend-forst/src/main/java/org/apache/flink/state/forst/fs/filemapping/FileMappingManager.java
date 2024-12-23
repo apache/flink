@@ -33,8 +33,8 @@ import java.util.HashMap;
 import java.util.List;
 
 /**
- * A manager to manage file mapping of forst file system. Only interact with
- * copy()/link()/exist()/delete()/list(), create() won't use file mapping.
+ * A manager to manage file mapping of forst file system. The file mapping entry will be operated by
+ * copy()/link()/exist()/delete()/list().
  */
 public class FileMappingManager {
 
@@ -88,11 +88,11 @@ public class FileMappingManager {
     public void renameFile(String src, String dst) {
         List<String> toRename = new ArrayList<>();
         for (String key : mappingTable.keySet()) {
-            if (key.startsWith(src)) {
+            if (key.equals(src) || isParentDir(key, src)) {
                 toRename.add(key);
             }
             MappingEntry sourceEntry = mappingTable.get(key);
-            if (sourceEntry.sourcePath.startsWith(src)) {
+            if (sourceEntry.sourcePath.equals(src) || isParentDir(sourceEntry.sourcePath, src)) {
                 sourceEntry.sourcePath = sourceEntry.sourcePath.replace(src, dst);
             }
         }
@@ -106,43 +106,57 @@ public class FileMappingManager {
         }
     }
 
-    public boolean deleteFile(Path file, boolean recursive) throws IOException {
-        MappingEntry entry = mappingTable.getOrDefault(file.toString(), null);
+    /**
+     * @param file to delete
+     * @return status code: 1: deleted from mappingTable, 0: file not exist -1: file exist, but not
+     *     in mappingTable.
+     * @throws IOException
+     */
+    public int deleteFile(Path file) throws IOException {
+        String fileStr = file.toString();
+        MappingEntry entry = mappingTable.getOrDefault(fileStr, null);
         LOG.trace("delete: {}, source:{}", file, entry == null ? "" : entry.sourcePath);
         if (entry != null) {
             entry.release();
-            mappingTable.remove(file.toString());
-            return true;
-        }
-        boolean matchedDir =
-                mappingTable.keySet().stream().anyMatch(key -> key.startsWith(file.toString()));
-        if (!matchedDir && !fileSystem.exists(file)) {
-            return false;
-        }
-        if (!matchedDir) {
-            FileStatus fileStatus = fileSystem.getFileStatus(file);
-            if (!fileStatus.isDir()) {
-                return fileSystem.delete(file, recursive);
-            }
+            mappingTable.remove(fileStr);
+            return 1;
         }
 
-        String parentDir = file.toString();
-        Preconditions.checkState(!mappingTable.containsKey(parentDir));
-        int initRefCount =
-                mappingTable.values().stream()
-                        .mapToInt(src -> (src.sourcePath.startsWith(parentDir) ? 1 : 0))
-                        .sum();
-        MappingEntry parentEntry = new MappingEntry(initRefCount, fileSystem, parentDir, true);
+        if (!fileSystem.exists(file)) {
+            return 0;
+        }
+
+        FileStatus fileStatus = fileSystem.getFileStatus(file);
+        if (!fileStatus.isDir()) {
+            return -1;
+        }
+
+        Preconditions.checkState(!mappingTable.containsKey(fileStr));
+        MappingEntry parentEntry = new MappingEntry(0, fileSystem, fileStr, true);
+
         for (MappingEntry sourceEntry : mappingTable.values()) {
-            if (sourceEntry.sourcePath.startsWith(parentDir)) {
+            if (sourceEntry.sourcePath.startsWith(fileStr)) {
+                parentEntry.retain();
                 sourceEntry.parentDir = parentEntry;
             }
         }
-        return true;
+        return 1;
     }
 
     @VisibleForTesting
     public MappingEntry mappingEntry(String path) {
         return mappingTable.getOrDefault(path, null);
+    }
+
+    private boolean isParentDir(String path, String dir) {
+        if (dir.length() == 0) {
+            return false;
+        }
+        if (dir.charAt(dir.length() - 1) == '/') {
+            return path.startsWith(dir);
+        } else if (path.startsWith(dir + "/")) {
+            return true;
+        }
+        return false;
     }
 }
