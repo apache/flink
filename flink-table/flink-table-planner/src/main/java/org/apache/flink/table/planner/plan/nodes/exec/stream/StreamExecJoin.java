@@ -47,6 +47,7 @@ import org.apache.flink.table.runtime.operators.join.stream.MiniBatchStreamingJo
 import org.apache.flink.table.runtime.operators.join.stream.StreamingJoinOperator;
 import org.apache.flink.table.runtime.operators.join.stream.StreamingSemiAntiJoinOperator;
 import org.apache.flink.table.runtime.operators.join.stream.asyncprocessing.AsyncStateStreamingJoinOperator;
+import org.apache.flink.table.runtime.operators.join.stream.asyncprocessing.AsyncStateStreamingSemiAntiJoinOperator;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -74,6 +75,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
         name = "stream-exec-join",
         version = 1,
         producedTransformations = StreamExecJoin.JOIN_TRANSFORMATION,
+        consumedOptions = {"table.exec.async-state.enabled"},
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecJoin extends ExecNodeBase<RowData>
@@ -201,17 +203,32 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
         FlinkJoinType joinType = joinSpec.getJoinType();
         final boolean isMiniBatchEnabled = MinibatchUtil.isMiniBatchEnabled(config);
         if (joinType == FlinkJoinType.ANTI || joinType == FlinkJoinType.SEMI) {
-            operator =
-                    new StreamingSemiAntiJoinOperator(
-                            joinType == FlinkJoinType.ANTI,
-                            leftTypeInfo,
-                            rightTypeInfo,
-                            generatedCondition,
-                            leftInputSpec,
-                            rightInputSpec,
-                            joinSpec.getFilterNulls(),
-                            leftStateRetentionTime,
-                            rightStateRetentionTime);
+            if (config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED)) {
+                operator =
+                        new AsyncStateStreamingSemiAntiJoinOperator(
+                                joinType == FlinkJoinType.ANTI,
+                                leftTypeInfo,
+                                rightTypeInfo,
+                                generatedCondition,
+                                leftInputSpec,
+                                rightInputSpec,
+                                joinSpec.getFilterNulls(),
+                                leftStateRetentionTime,
+                                rightStateRetentionTime);
+            } else {
+                operator =
+                        new StreamingSemiAntiJoinOperator(
+                                joinType == FlinkJoinType.ANTI,
+                                leftTypeInfo,
+                                rightTypeInfo,
+                                generatedCondition,
+                                leftInputSpec,
+                                rightInputSpec,
+                                joinSpec.getFilterNulls(),
+                                leftStateRetentionTime,
+                                rightStateRetentionTime);
+            }
+
         } else {
             boolean leftIsOuter = joinType == FlinkJoinType.LEFT || joinType == FlinkJoinType.FULL;
             boolean rightIsOuter =
