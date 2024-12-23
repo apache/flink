@@ -48,6 +48,7 @@ import org.apache.flink.runtime.state.StateSnapshotTransformers;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSet;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -108,6 +109,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
             LatencyTrackingStateConfig latencyTrackingStateConfig,
+            SizeTrackingStateConfig sizeTrackingStateConfig,
             Map<String, Map<K, Map<Object, Object>>> stateValues,
             Map<String, StateSnapshotTransformer<Object>> stateSnapshotFilters,
             CloseableRegistry cancelStreamRegistry,
@@ -120,6 +122,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                 executionConfig,
                 ttlTimeProvider,
                 latencyTrackingStateConfig,
+                sizeTrackingStateConfig,
                 cancelStreamRegistry,
                 keyContext);
         this.stateValues = stateValues;

@@ -26,6 +26,7 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateLatencyTrackOptions;
+import org.apache.flink.configuration.StateSizeTrackOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
@@ -48,7 +49,7 @@ import java.util.Collections;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test base for latency tracking state. */
-abstract class LatencyTrackingStateTestBase<K> {
+abstract class MetricsTrackingStateTestBase<K> {
     protected static final int SAMPLE_INTERVAL = 10;
 
     protected AbstractKeyedStateBackend<K> createKeyedBackend(TypeSerializer<K> keySerializer)
@@ -59,10 +60,13 @@ abstract class LatencyTrackingStateTestBase<K> {
         int numberOfKeyGroups = keyGroupRange.getNumberOfKeyGroups();
         Configuration configuration = new Configuration();
         configuration.set(StateLatencyTrackOptions.LATENCY_TRACK_ENABLED, true);
+        configuration.set(StateSizeTrackOptions.SIZE_TRACK_ENABLED, true);
         configuration.set(StateLatencyTrackOptions.LATENCY_TRACK_SAMPLE_INTERVAL, SAMPLE_INTERVAL);
+        configuration.set(StateSizeTrackOptions.SIZE_TRACK_SAMPLE_INTERVAL, SAMPLE_INTERVAL);
         // use a very large value to not let metrics data overridden.
         int historySize = 1000_000;
         configuration.set(StateLatencyTrackOptions.LATENCY_TRACK_HISTORY_SIZE, historySize);
+        configuration.set(StateSizeTrackOptions.SIZE_TRACK_HISTORY_SIZE, historySize);
         HashMapStateBackend stateBackend =
                 new HashMapStateBackend()
                         .configure(configuration, Thread.currentThread().getContextClassLoader());
@@ -90,8 +94,8 @@ abstract class LatencyTrackingStateTestBase<K> {
                     V,
                     S extends InternalKvState<K, N, V>,
                     S2 extends State,
-                    LSM extends StateLatencyMetricBase>
-            AbstractLatencyTrackState<K, N, V, S, LSM> createLatencyTrackingState(
+                    LSM extends StateMetricBase>
+            AbstractMetricsTrackState<K, N, V, S, LSM> createMetricsTrackingState(
                     AbstractKeyedStateBackend<K> keyedBackend,
                     StateDescriptor<S2, V> stateDescriptor)
                     throws Exception {
@@ -99,8 +103,8 @@ abstract class LatencyTrackingStateTestBase<K> {
         S2 keyedState =
                 keyedBackend.getOrCreateKeyedState(
                         VoidNamespaceSerializer.INSTANCE, stateDescriptor);
-        Preconditions.checkState(keyedState instanceof AbstractLatencyTrackState);
-        return (AbstractLatencyTrackState<K, N, V, S, LSM>) keyedState;
+        Preconditions.checkState(keyedState instanceof AbstractMetricsTrackState);
+        return (AbstractMetricsTrackState<K, N, V, S, LSM>) keyedState;
     }
 
     abstract <V, S extends State> StateDescriptor<S, V> getStateDescriptor();
@@ -114,10 +118,10 @@ abstract class LatencyTrackingStateTestBase<K> {
     void testLatencyTrackingStateClear() throws Exception {
         AbstractKeyedStateBackend<K> keyedBackend = createKeyedBackend(getKeySerializer());
         try {
-            AbstractLatencyTrackState latencyTrackingState =
-                    createLatencyTrackingState(keyedBackend, getStateDescriptor());
+            AbstractMetricsTrackState latencyTrackingState =
+                    createMetricsTrackingState(keyedBackend, getStateDescriptor());
             latencyTrackingState.setCurrentNamespace(VoidNamespace.INSTANCE);
-            StateLatencyMetricBase latencyTrackingStateMetric =
+            StateMetricBase latencyTrackingStateMetric =
                     latencyTrackingState.getLatencyTrackingStateMetric();
 
             assertThat(latencyTrackingStateMetric.getClearCount()).isZero();
