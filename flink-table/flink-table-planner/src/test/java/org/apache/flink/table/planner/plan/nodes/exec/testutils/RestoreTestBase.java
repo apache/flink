@@ -28,6 +28,7 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
@@ -233,7 +234,6 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                         results.addAll(sinkTestStep.getExpectedAfterRestoreAsStrings());
                     }
                     List<String> expectedResults = getExpectedResults(sinkTestStep, tableName);
-                    System.out.println(expectedResults);
                     final boolean shouldComplete =
                             CollectionUtils.isEqualCollection(expectedResults, results);
                     if (shouldComplete) {

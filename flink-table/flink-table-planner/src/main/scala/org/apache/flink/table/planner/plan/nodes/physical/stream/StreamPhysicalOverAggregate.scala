@@ -22,13 +22,16 @@ import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecOverAggregate
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.Window
+import org.apache.calcite.util.ImmutableBitSet
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 
 import java.util
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 /** Stream physical RelNode for time-based over [[Window]]. */
 class StreamPhysicalOverAggregate(
@@ -50,6 +53,28 @@ class StreamPhysicalOverAggregate(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
+    val upsertKeys = FlinkRelMetadataQuery
+      .reuseOrCreate(cluster.getMetadataQuery)
+      .getUpsertKeys(inputRel)
+    val overSpec = OverAggregateUtil.createOverSpec(logicWindow)
+    val partitionKeys = overSpec.getPartition.getFieldIndices
+    val partitionKeysSet = ImmutableBitSet.of(partitionKeys: _*)
+    if (upsertKeys.size == partitionKeys.size) {
+      if (this.explain().contains("StreamPhysicalChangelogNormalize")) {
+        // ChangelogNormalize node was added after the source and before the OverAggregate
+        // ChangelogNormalize will take care of the input and send full retract mode to OverAggregate
+        // Note: need a better way to check if a ChangelogNormalize was added to the DAG
+        // Note: could also check this in StreamExecOverAggregate by checking nodes attached to inputEdges
+      } else if (upsertKeys.exists(partitionKeysSet.contains)) {
+        // TODO: Add capability in the operator to produce upsert records when,
+        //  upsert keys == partition keys
+        //  and there is no changelog normalize node added after the source
+        throw new TableException(
+          "OverAggregate is producing retract(+I, -U, +U, -D) records " +
+            "however, the sink can only accept upsert(+I, +U, -D) records")
+      }
+    }
+
     new StreamExecOverAggregate(
       unwrapTableConfig(this),
       OverAggregateUtil.createOverSpec(logicWindow),
