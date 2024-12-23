@@ -46,6 +46,9 @@ import org.apache.flink.streaming.api.functions.query.QueryableValueStateOperato
 import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamFlatMap;
+import org.apache.flink.streaming.api.operators.StreamFlatMapAsync;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.co.IntervalJoinOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -359,6 +362,19 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
         KeyedProcessOperator<KEY, T, R> operator =
                 new KeyedProcessOperator<>(clean(keyedProcessFunction));
         return transform("KeyedProcess", outputType, operator);
+    }
+
+    // ------------------------------------------------------------------------
+    // Flat Map
+    // ------------------------------------------------------------------------
+    @Override
+    public <R> SingleOutputStreamOperator<R> flatMap(
+            FlatMapFunction<T, R> flatMapper, TypeInformation<R> outputType) {
+        OneInputStreamOperator operator =
+                isEnableAsyncState()
+                        ? new StreamFlatMapAsync(clean(flatMapper))
+                        : new StreamFlatMap<>(clean(flatMapper));
+        return transform("Flat Map", outputType, operator);
     }
 
     // ------------------------------------------------------------------------
