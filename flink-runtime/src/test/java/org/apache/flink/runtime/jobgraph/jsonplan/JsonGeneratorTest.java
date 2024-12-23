@@ -25,15 +25,25 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.StreamEdge;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.TextNode;
 
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.junit.Assert.assertEquals;
@@ -150,5 +160,72 @@ public class JsonGeneratorTest {
             }
         }
         fail("could not find vertex with id " + vertexId + " in JobGraph");
+    }
+
+    @Test
+    public void testGenerateStreamGraphJson() throws JsonProcessingException {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.fromSequence(0L, 1L).disableChaining().print();
+        StreamGraph streamGraph = env.getStreamGraph();
+        Map<Integer, JobVertexID> jobVertexIdMap = new HashMap<>();
+        String streamGraphJson =
+                JsonPlanGenerator.generateStreamGraphJson(streamGraph, jobVertexIdMap);
+
+        ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
+        StreamGraphJsonSchema parsedStreamGraph =
+                mapper.readValue(streamGraphJson, StreamGraphJsonSchema.class);
+
+        List<String> expectedJobVertexIds = new ArrayList<>();
+        expectedJobVertexIds.add(null);
+        expectedJobVertexIds.add(null);
+        validateStreamGraph(streamGraph, parsedStreamGraph, expectedJobVertexIds);
+
+        jobVertexIdMap.put(1, new JobVertexID());
+        jobVertexIdMap.put(2, new JobVertexID());
+        streamGraphJson = JsonPlanGenerator.generateStreamGraphJson(streamGraph, jobVertexIdMap);
+
+        parsedStreamGraph = mapper.readValue(streamGraphJson, StreamGraphJsonSchema.class);
+        validateStreamGraph(
+                streamGraph,
+                parsedStreamGraph,
+                jobVertexIdMap.values().stream()
+                        .map(JobVertexID::toString)
+                        .collect(Collectors.toList()));
+    }
+
+    private static void validateStreamGraph(
+            StreamGraph streamGraph,
+            StreamGraphJsonSchema parsedStreamGraph,
+            List<String> expectedJobVertexIds) {
+        List<String> realJobVertexIds = new ArrayList<>();
+        parsedStreamGraph
+                .getNodes()
+                .forEach(
+                        node -> {
+                            StreamNode streamNode =
+                                    streamGraph.getStreamNode(Integer.parseInt(node.getId()));
+                            assertEquals(node.getOperator(), streamNode.getOperatorName());
+                            assertEquals(
+                                    node.getParallelism(), (Integer) streamNode.getParallelism());
+                            assertEquals(
+                                    node.getDescription(), streamNode.getOperatorDescription());
+                            validateStreamEdge(node.getInputs(), streamNode.getInEdges());
+                            realJobVertexIds.add(node.getJobVertexId());
+                        });
+        assertEquals(expectedJobVertexIds, realJobVertexIds);
+    }
+
+    private static void validateStreamEdge(
+            List<StreamGraphJsonSchema.JsonStreamEdgeSchema> jsonStreamEdges,
+            List<StreamEdge> streamEdges) {
+        assertEquals(jsonStreamEdges.size(), streamEdges.size());
+        for (int i = 0; i < jsonStreamEdges.size(); i++) {
+            StreamGraphJsonSchema.JsonStreamEdgeSchema edgeToValidate = jsonStreamEdges.get(i);
+            StreamEdge expectedEdge = streamEdges.get(i);
+            assertEquals(String.valueOf(expectedEdge.getSourceId()), edgeToValidate.getId());
+            assertEquals(
+                    expectedEdge.getPartitioner().toString(), edgeToValidate.getShipStrategy());
+            assertEquals(expectedEdge.getExchangeMode().name(), edgeToValidate.getExchange());
+        }
     }
 }
