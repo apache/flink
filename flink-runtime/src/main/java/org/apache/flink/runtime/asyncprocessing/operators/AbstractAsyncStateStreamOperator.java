@@ -305,7 +305,13 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
 
     @Override
     public Object getCurrentKey() {
-        return currentProcessingContext.getKey();
+        RecordContext currentContext = asyncExecutionController.getCurrentContext();
+        if (currentContext == null) {
+            throw new UnsupportedOperationException(
+                    "Have not set the current key yet, this may because the operator has not "
+                            + "started to run, or you are invoking this under a non-keyed context.");
+        }
+        return currentContext.getKey();
     }
 
     // ------------------------------------------------------------------------
