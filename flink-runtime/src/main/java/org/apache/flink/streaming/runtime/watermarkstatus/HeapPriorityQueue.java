@@ -249,7 +249,7 @@ public class HeapPriorityQueue<T extends HeapPriorityQueue.HeapPriorityQueueElem
      *
      * @param <T> type of the compared objects.
      */
-    interface PriorityComparator<T> {
+    public interface PriorityComparator<T> {
 
         /**
          * Compares two objects for priority. Returns a negative integer, zero, or a positive
@@ -267,7 +267,7 @@ public class HeapPriorityQueue<T extends HeapPriorityQueue.HeapPriorityQueueElem
      * Interface for objects that can be managed by a {@link HeapPriorityQueue}. Such an object can
      * only be contained in at most one {@link HeapPriorityQueue} at a time.
      */
-    interface HeapPriorityQueueElement {
+    public interface HeapPriorityQueueElement {
 
         /**
          * The index that indicates that a {@link HeapPriorityQueueElement} object is not contained

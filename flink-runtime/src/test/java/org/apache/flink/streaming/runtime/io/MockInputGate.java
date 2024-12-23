@@ -150,6 +150,12 @@ public class MockInputGate extends IndexedInputGate {
     public void sendTaskEvent(TaskEvent event) {}
 
     @Override
+    public void resumeGateConsumption() throws IOException {
+        blockedChannels.forEach(
+                channelIdx -> resumeConsumption(new InputChannelInfo(getGateIndex(), channelIdx)));
+    }
+
+    @Override
     public void resumeConsumption(InputChannelInfo channelInfo) {
         lastUnblockedChannels.add(channelInfo.getInputChannelIdx());
         blockedChannels.remove(channelInfo.getInputChannelIdx());
