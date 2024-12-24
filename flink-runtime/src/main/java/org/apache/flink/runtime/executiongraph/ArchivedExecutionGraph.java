@@ -113,6 +113,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 
     @Nullable private final String changelogStorageName;
 
+    @Nullable private final String jsonStreamGraph;
+
     public ArchivedExecutionGraph(
             JobID jobID,
             String jobName,
@@ -132,7 +134,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
             @Nullable String stateBackendName,
             @Nullable String checkpointStorageName,
             @Nullable TernaryBoolean stateChangelogEnabled,
-            @Nullable String changelogStorageName) {
+            @Nullable String changelogStorageName,
+            @Nullable String jsonStreamGraph) {
 
         this.jobID = Preconditions.checkNotNull(jobID);
         this.jobName = Preconditions.checkNotNull(jobName);
@@ -153,6 +156,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         this.checkpointStorageName = checkpointStorageName;
         this.stateChangelogEnabled = stateChangelogEnabled;
         this.changelogStorageName = changelogStorageName;
+        this.jsonStreamGraph = jsonStreamGraph;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -160,6 +164,11 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
     @Override
     public String getJsonPlan() {
         return jsonPlan;
+    }
+
+    @Override
+    public String getJsonStreamGraph() {
+        return jsonStreamGraph;
     }
 
     @Override
@@ -366,7 +375,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 executionGraph.getStateBackendName().orElse(null),
                 executionGraph.getCheckpointStorageName().orElse(null),
                 executionGraph.isChangelogStateBackendEnabled(),
-                executionGraph.getChangelogStorageName().orElse(null));
+                executionGraph.getChangelogStorageName().orElse(null),
+                executionGraph.getJsonStreamGraph());
     }
 
     /**
@@ -487,6 +497,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 checkpointingSettings == null
                         ? TernaryBoolean.UNDEFINED
                         : checkpointingSettings.isChangelogStateBackendEnabled(),
-                checkpointingSettings == null ? null : "Unknown");
+                checkpointingSettings == null ? null : "Unknown",
+                null);
     }
 }

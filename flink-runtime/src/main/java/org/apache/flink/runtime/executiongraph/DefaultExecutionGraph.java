@@ -613,6 +613,11 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     }
 
     @Override
+    public String getJsonStreamGraph() {
+        return executionPlanSchedulingContext.getJsonStreamGraph();
+    }
+
+    @Override
     public String getJsonPlan() {
         return jsonPlan;
     }

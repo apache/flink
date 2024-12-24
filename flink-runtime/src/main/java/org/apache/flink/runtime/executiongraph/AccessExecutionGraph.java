@@ -48,6 +48,13 @@ public interface AccessExecutionGraph extends JobStatusProvider {
     String getJsonPlan();
 
     /**
+     * Returns the stream graph as a JSON string.
+     *
+     * @return stream graph as a JSON string
+     */
+    String getJsonStreamGraph();
+
+    /**
      * Returns the {@link JobID} for this execution graph.
      *
      * @return job ID for this execution graph

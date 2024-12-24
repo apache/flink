@@ -44,6 +44,7 @@ import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivi
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
 
@@ -141,6 +142,11 @@ public class JobDetailsHandler
                     executionState, jobVerticesPerState[executionState.ordinal()]);
         }
 
+        JobPlanInfo.RawJson jsonStreamGraph = null;
+        if (!StringUtils.isNullOrWhitespaceOnly(executionGraph.getJsonStreamGraph())) {
+            jsonStreamGraph = new JobPlanInfo.RawJson(executionGraph.getJsonStreamGraph());
+        }
+
         return new JobDetailsInfo(
                 executionGraph.getJobID(),
                 executionGraph.getJobName(),
@@ -155,7 +161,8 @@ public class JobDetailsHandler
                 timestamps,
                 jobVertexInfos,
                 jobVerticesPerStateMap,
-                new JobPlanInfo.RawJson(executionGraph.getJsonPlan()));
+                new JobPlanInfo.RawJson(executionGraph.getJsonPlan()),
+                jsonStreamGraph);
     }
 
     private static JobDetailsInfo.JobVertexDetailsInfo createJobVertexDetailsInfo(
