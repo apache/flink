@@ -27,12 +27,12 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.util.DynamicCodeLoadingException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.scheduler.SchedulerBase.getDefaultMaxParallelism;
@@ -46,7 +46,7 @@ class AdaptiveExecutionPlanSchedulingContextTest {
             TestingUtils.defaultExecutorExtension();
 
     @Test
-    void testGetParallelismAndMaxParallelism() {
+    void testGetParallelismAndMaxParallelism() throws DynamicCodeLoadingException {
         int sinkParallelism = 4;
         int sinkMaxParallelism = 5;
 
@@ -74,7 +74,8 @@ class AdaptiveExecutionPlanSchedulingContextTest {
     }
 
     @Test
-    void testGetDefaultMaxParallelismWhenParallelismGreaterThanZero() {
+    void testGetDefaultMaxParallelismWhenParallelismGreaterThanZero()
+            throws DynamicCodeLoadingException {
         int sinkParallelism = 4;
         int sinkMaxParallelism = -1;
         int defaultMaxParallelism = 100;
@@ -95,7 +96,8 @@ class AdaptiveExecutionPlanSchedulingContextTest {
     }
 
     @Test
-    void testGetDefaultMaxParallelismWhenParallelismLessThanZero() {
+    void testGetDefaultMaxParallelismWhenParallelismLessThanZero()
+            throws DynamicCodeLoadingException {
         int sinkParallelism = -1;
         int sinkMaxParallelism = -1;
         int defaultMaxParallelism = 100;
@@ -116,7 +118,7 @@ class AdaptiveExecutionPlanSchedulingContextTest {
     }
 
     @Test
-    public void testGetPendingOperatorCount() {
+    public void testGetPendingOperatorCount() throws DynamicCodeLoadingException {
         DefaultAdaptiveExecutionHandler adaptiveExecutionHandler =
                 getDefaultAdaptiveExecutionHandler();
         ExecutionPlanSchedulingContext schedulingContext =
@@ -132,25 +134,25 @@ class AdaptiveExecutionPlanSchedulingContextTest {
         assertThat(schedulingContext.getPendingOperatorCount()).isEqualTo(0);
     }
 
-    private static DefaultAdaptiveExecutionHandler getDefaultAdaptiveExecutionHandler() {
+    private static DefaultAdaptiveExecutionHandler getDefaultAdaptiveExecutionHandler()
+            throws DynamicCodeLoadingException {
         return getDefaultAdaptiveExecutionHandler(2, 2);
     }
 
     private static DefaultAdaptiveExecutionHandler getDefaultAdaptiveExecutionHandler(
-            int sinkParallelism, int sinkMaxParallelism) {
+            int sinkParallelism, int sinkMaxParallelism) throws DynamicCodeLoadingException {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.fromSequence(0L, 1L).disableChaining().print();
         StreamGraph streamGraph = env.getStreamGraph();
 
-        Iterator<StreamNode> iterator = streamGraph.getStreamNodes().iterator();
+        for (StreamNode streamNode : streamGraph.getStreamNodes()) {
+            if (streamNode.getOperatorName().contains("Sink")) {
+                streamNode.setParallelism(sinkParallelism);
 
-        iterator.next();
-        StreamNode sink = iterator.next();
-
-        sink.setParallelism(sinkParallelism);
-
-        if (sinkMaxParallelism > 0) {
-            sink.setMaxParallelism(sinkMaxParallelism);
+                if (sinkMaxParallelism > 0) {
+                    streamNode.setMaxParallelism(sinkMaxParallelism);
+                }
+            }
         }
 
         return new DefaultAdaptiveExecutionHandler(
