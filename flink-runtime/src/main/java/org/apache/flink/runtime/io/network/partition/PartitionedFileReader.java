@@ -173,17 +173,24 @@ class PartitionedFileReader {
     }
 
     /**
-     * Updates the readable offsets and sizes for a specified range of subpartitions. If offsets are
-     * contiguous, they are merged into a single entry. If not contiguous, each subpartition's
-     * offset and size must come from the same buffer, and individual tuples are added for each
-     * entry.
+     * Updates the readable offsets and sizes for a specified range of subpartitions. This method
+     * first eliminates leading and trailing empty buffers within the provided range. For the
+     * remaining non-empty buffer interval, offsets are processed in one of two ways:
      *
-     * @param startSubpartition The starting index of the subpartition range to be processed.
-     * @param endSubpartition The ending index of the subpartition range to be processed.
-     * @param indexEntryBuf A ByteBuffer containing the index entries to read offsets and sizes.
-     * @param offsetAndSizesToRead A queue to store the updated offsets and sizes.
-     * @throws IOException If an I/O error occurs during reading of index entries.
-     * @throws IllegalStateException If offsets are not contiguous and not from a single buffer.
+     * <ul>
+     *   <li>1. If offsets are contiguous, they are merged into a single entry representing the
+     *       entire range.
+     *   <li>2. If not contiguous, all offsets and sizes must originate from the same buffer, and
+     *       each subpartition's offset and size are added individually to the queue.
+     * </ul>
+     *
+     * @param startSubpartition the starting index of the subpartition range to be processed.
+     * @param endSubpartition the ending index of the subpartition range to be processed.
+     * @param indexEntryBuf a {@link ByteBuffer} containing the index entries to read offsets and
+     *     sizes.
+     * @param offsetAndSizesToRead a {@link Queue} to store the updated offsets and sizes.
+     * @throws IOException if an I/O error occurs during the reading of index entries.
+     * @throws IllegalStateException if offsets are not contiguous and not from a single buffer.
      */
     private void updateReadableOffsetAndSize(
             int startSubpartition,
@@ -191,29 +198,71 @@ class PartitionedFileReader {
             ByteBuffer indexEntryBuf,
             Queue<Tuple2<Long, Long>> offsetAndSizesToRead)
             throws IOException {
-        partitionedFile.getIndexEntry(
-                indexFileChannel, indexEntryBuf, nextRegionToRead, startSubpartition);
-        long startPartitionOffset = indexEntryBuf.getLong();
-        long startPartitionSize = indexEntryBuf.getLong();
+        SubPartitionPosition startPosition =
+                findNotEmptySubPartitionPosition(
+                        startSubpartition, endSubpartition, indexEntryBuf, true);
+        if (startPosition.size == 0) {
+            return;
+        }
 
-        partitionedFile.getIndexEntry(
-                indexFileChannel, indexEntryBuf, nextRegionToRead, endSubpartition);
-        long endPartitionOffset = indexEntryBuf.getLong();
-        long endPartitionSize = indexEntryBuf.getLong();
+        SubPartitionPosition endPosition =
+                findNotEmptySubPartitionPosition(
+                        startSubpartition, endSubpartition, indexEntryBuf, false);
 
-        if (startPartitionOffset != endPartitionOffset) {
+        if (startPosition.offset != endPosition.offset) {
             offsetAndSizesToRead.add(
                     Tuple2.of(
-                            startPartitionOffset,
-                            endPartitionOffset + endPartitionSize - startPartitionOffset));
-        } else if (startPartitionSize != 0) {
+                            startPosition.offset,
+                            endPosition.offset + endPosition.size - startPosition.offset));
+        } else {
             checkArgument(
-                    startPartitionSize == endPartitionSize,
+                    startPosition.size == endPosition.size,
                     "Offsets need to be either contiguous or all the same.");
-            for (int i = startSubpartition; i <= endSubpartition; i++) {
-                offsetAndSizesToRead.add(Tuple2.of(startPartitionOffset, startPartitionSize));
+            for (int i = startPosition.subpartition; i <= endPosition.subpartition; i++) {
+                offsetAndSizesToRead.add(Tuple2.of(startPosition.offset, startPosition.size));
             }
         }
+    }
+
+    /**
+     * Finds the first or last non-empty subpartition position within the specified range.
+     *
+     * <p>This method searches for a subpartition with a non-zero size within the specified range of
+     * subpartitions. The direction of the search is determined by the {@code searchForward}
+     * parameter. If {@code searchForward} is {@code true}, the method searches from the start to
+     * the end of the range; otherwise, it searches from the end to the start.
+     *
+     * @param startSubpartition the index of the first subpartition to include in the search.
+     * @param endSubpartition the index of the last subpartition to include in the search.
+     * @param indexEntryBuf a {@link ByteBuffer} used to read index entries.
+     * @param searchForward if {@code true}, searches from {@code startSubpartition} to {@code
+     *     endSubpartition}; if {@code false}, searches from {@code endSubpartition} to {@code
+     *     startSubpartition}.
+     * @return a {@link SubPartitionPosition} representing the position, offset, and size of the
+     *     first or last non-empty subpartition found. If no such subpartition is found, returns a
+     *     {@code SubPartitionPosition} with an index of {@code -1} and size of {@code 0}.
+     * @throws IOException if an I/O error occurs while reading the index entries.
+     */
+    private SubPartitionPosition findNotEmptySubPartitionPosition(
+            int startSubpartition,
+            int endSubpartition,
+            ByteBuffer indexEntryBuf,
+            boolean searchForward)
+            throws IOException {
+        int step = searchForward ? 1 : -1;
+        int index = searchForward ? startSubpartition : endSubpartition;
+
+        while (searchForward ? index <= endSubpartition : index >= startSubpartition) {
+            partitionedFile.getIndexEntry(indexFileChannel, indexEntryBuf, nextRegionToRead, index);
+            long offset = indexEntryBuf.getLong();
+            long size = indexEntryBuf.getLong();
+
+            if (size != 0) {
+                return new SubPartitionPosition(index, offset, size);
+            }
+            index += step;
+        }
+        return new SubPartitionPosition(-1, 0L, 0L);
     }
 
     /**
@@ -366,6 +415,18 @@ class PartitionedFileReader {
         BufferAndHeader(CompositeBuffer buffer, BufferHeader header) {
             this.buffer = buffer;
             this.header = header;
+        }
+    }
+
+    private static class SubPartitionPosition {
+        private final int subpartition;
+        private final long offset;
+        private final long size;
+
+        SubPartitionPosition(int subpartition, long offset, long size) {
+            this.subpartition = subpartition;
+            this.offset = offset;
+            this.size = size;
         }
     }
 }
