@@ -83,8 +83,8 @@ public class NFA<T> {
 
     /**
      * The lengths of a windowed pattern, as specified using the {@link
-     * org.apache.flink.cep.pattern.Pattern#within(Duration, WithinType)} method
-     * with {@code WithinType.PREVIOUS_AND_CURRENT}.
+     * org.apache.flink.cep.pattern.Pattern#within(Duration, WithinType)}
+     * method with {@code WithinType.PREVIOUS_AND_CURRENT}.
      */
     private final Map<String, Long> windowTimes;
 
