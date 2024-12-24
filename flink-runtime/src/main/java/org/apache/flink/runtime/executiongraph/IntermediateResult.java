@@ -63,6 +63,7 @@ public class IntermediateResult {
     private final int numParallelProducers;
 
     private final ExecutionPlanSchedulingContext executionPlanSchedulingContext;
+    private final boolean singleSubpartitionContainsAllData;
 
     private int partitionsAssigned;
 
@@ -102,6 +103,8 @@ public class IntermediateResult {
         this.shuffleDescriptorCache = new HashMap<>();
 
         this.executionPlanSchedulingContext = checkNotNull(executionPlanSchedulingContext);
+
+        this.singleSubpartitionContainsAllData = intermediateDataSet.isBroadcast();
     }
 
     public boolean areAllConsumerVerticesCreated() {
@@ -199,12 +202,34 @@ public class IntermediateResult {
         return intermediateDataSet.getDistributionPattern();
     }
 
+    /**
+     * Determines whether the associated intermediate data set uses a broadcast distribution
+     * pattern.
+     *
+     * <p>A broadcast distribution pattern indicates that all data produced by this intermediate
+     * data set should be broadcast to every downstream consumer.
+     *
+     * @return true if the intermediate data set is using a broadcast distribution pattern; false
+     *     otherwise.
+     */
     public boolean isBroadcast() {
         return intermediateDataSet.isBroadcast();
     }
 
     public boolean isForward() {
         return intermediateDataSet.isForward();
+    }
+
+    /**
+     * Checks if a single subpartition contains all the produced data. This condition indicate that
+     * the data was intended to be broadcast to all consumers. If the decision to broadcast was made
+     * before the data production, this flag would likely be set accordingly. Conversely, if the
+     * broadcasting decision was made post-production, this flag will be false.
+     *
+     * @return true if a single subpartition contains all the data; false otherwise.
+     */
+    public boolean isSingleSubpartitionContainsAllData() {
+        return singleSubpartitionContainsAllData;
     }
 
     public int getConnectionIndex() {

@@ -24,16 +24,27 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.event.ExecutionJobVertexFinishedEvent;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamGraphContext;
+import org.apache.flink.streaming.api.graph.StreamNode;
+import org.apache.flink.streaming.api.graph.util.ImmutableStreamEdge;
+import org.apache.flink.streaming.api.graph.util.StreamEdgeUpdateRequestInfo;
+import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.util.DynamicCodeLoadingException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -47,7 +58,7 @@ class DefaultAdaptiveExecutionHandlerTest {
             TestingUtils.defaultExecutorExtension();
 
     @Test
-    void testGetJobGraph() {
+    void testGetJobGraph() throws DynamicCodeLoadingException {
         JobGraph jobGraph = createAdaptiveExecutionHandler().getJobGraph();
 
         assertThat(jobGraph).isNotNull();
@@ -56,7 +67,7 @@ class DefaultAdaptiveExecutionHandlerTest {
     }
 
     @Test
-    void testHandleJobEvent() {
+    void testHandleJobEvent() throws DynamicCodeLoadingException {
         List<JobVertex> newAddedJobVertices = new ArrayList<>();
         AtomicInteger pendingOperators = new AtomicInteger();
 
@@ -95,7 +106,82 @@ class DefaultAdaptiveExecutionHandlerTest {
     }
 
     @Test
-    void testGetInitialParallelismAndNotifyJobVertexParallelismDecided() {
+    void testOptimizeStreamGraph() throws DynamicCodeLoadingException {
+        StreamGraph streamGraph = createStreamGraph();
+        StreamNode source =
+                streamGraph.getStreamNodes().stream()
+                        .filter(node -> node.getOperatorName().contains("Source"))
+                        .findFirst()
+                        .get();
+        StreamNode map =
+                streamGraph.getStreamNodes().stream()
+                        .filter(node -> node.getOperatorName().contains("Map"))
+                        .findFirst()
+                        .get();
+
+        assertThat(source.getOutEdges().get(0).getPartitioner())
+                .isInstanceOf(ForwardPartitioner.class);
+        assertThat(map.getOutEdges().get(0).getPartitioner())
+                .isInstanceOf(RescalePartitioner.class);
+
+        streamGraph
+                .getJobConfiguration()
+                .set(
+                        StreamGraphOptimizationStrategy.STREAM_GRAPH_OPTIMIZATION_STRATEGY,
+                        Collections.singletonList(
+                                TestingStreamGraphOptimizerStrategy.class.getName()));
+        TestingStreamGraphOptimizerStrategy.convertToReBalanceEdgeIds.add(
+                source.getOutEdges().get(0).getEdgeId());
+        TestingStreamGraphOptimizerStrategy.convertToReBalanceEdgeIds.add(
+                map.getOutEdges().get(0).getEdgeId());
+
+        DefaultAdaptiveExecutionHandler handler =
+                createAdaptiveExecutionHandler(
+                        (newVertices, pendingOperatorsCount) -> {}, streamGraph);
+
+        JobGraph jobGraph = handler.getJobGraph();
+        JobVertex sourceVertex = jobGraph.getVertices().iterator().next();
+
+        // notify Source node is finished
+        ExecutionJobVertexFinishedEvent event1 =
+                new ExecutionJobVertexFinishedEvent(sourceVertex.getID(), Collections.emptyMap());
+        handler.handleJobEvent(event1);
+
+        // verify that the source output edge is not updated because the original edge is forward.
+        assertThat(sourceVertex.getProducedDataSets().get(0).getConsumers()).hasSize(1);
+        assertThat(
+                        sourceVertex
+                                .getProducedDataSets()
+                                .get(0)
+                                .getConsumers()
+                                .get(0)
+                                .getShipStrategyName())
+                .isEqualToIgnoringCase("forward");
+
+        // notify Map node is finished
+        Iterator<JobVertex> jobVertexIterator = jobGraph.getVertices().iterator();
+        jobVertexIterator.next();
+        JobVertex mapVertex = jobVertexIterator.next();
+
+        ExecutionJobVertexFinishedEvent event2 =
+                new ExecutionJobVertexFinishedEvent(mapVertex.getID(), Collections.emptyMap());
+        handler.handleJobEvent(event2);
+
+        // verify that the map output edge is updated to reBalance.
+        assertThat(mapVertex.getProducedDataSets().get(0).getConsumers()).hasSize(1);
+        assertThat(
+                        mapVertex
+                                .getProducedDataSets()
+                                .get(0)
+                                .getConsumers()
+                                .get(0)
+                                .getShipStrategyName())
+                .isEqualToIgnoringCase("rebalance");
+    }
+
+    @Test
+    void testGetInitialParallelismAndNotifyJobVertexParallelismDecided()
+            throws DynamicCodeLoadingException {
         StreamGraph streamGraph = createStreamGraph();
         DefaultAdaptiveExecutionHandler handler =
                 createAdaptiveExecutionHandler(
@@ -123,7 +209,8 @@ class DefaultAdaptiveExecutionHandlerTest {
         assertThat(handler.getInitialParallelism(map.getID())).isEqualTo(parallelism);
     }
 
-    private DefaultAdaptiveExecutionHandler createAdaptiveExecutionHandler() {
+    private DefaultAdaptiveExecutionHandler createAdaptiveExecutionHandler()
+            throws DynamicCodeLoadingException {
         return createAdaptiveExecutionHandler(
                 (newVertices, pendingOperatorsCount) -> {}, createStreamGraph());
     }
@@ -159,12 +246,43 @@ class DefaultAdaptiveExecutionHandlerTest {
      * and a given {@link StreamGraph}.
      */
     private DefaultAdaptiveExecutionHandler createAdaptiveExecutionHandler(
-            JobGraphUpdateListener listener, StreamGraph streamGraph) {
+            JobGraphUpdateListener listener, StreamGraph streamGraph)
+            throws DynamicCodeLoadingException {
         DefaultAdaptiveExecutionHandler handler =
                 new DefaultAdaptiveExecutionHandler(
                         getClass().getClassLoader(), streamGraph, EXECUTOR_RESOURCE.getExecutor());
         handler.registerJobGraphUpdateListener(listener);
 
         return handler;
+    }
+
+    public static final class TestingStreamGraphOptimizerStrategy
+            implements StreamGraphOptimizationStrategy {
+
+        private static final Set<String> convertToReBalanceEdgeIds = new HashSet<>();
+
+        @Override
+        public boolean onOperatorsFinished(
+                OperatorsFinished operatorsFinished, StreamGraphContext context) {
+            List<Integer> finishedStreamNodeIds = operatorsFinished.getFinishedStreamNodeIds();
+            List<StreamEdgeUpdateRequestInfo> requestInfos = new ArrayList<>();
+            for (Integer finishedStreamNodeId : finishedStreamNodeIds) {
+                for (ImmutableStreamEdge outEdge :
+                        context.getStreamGraph()
+                                .getStreamNode(finishedStreamNodeId)
+                                .getOutEdges()) {
+                    if (convertToReBalanceEdgeIds.contains(outEdge.getEdgeId())) {
+                        StreamEdgeUpdateRequestInfo requestInfo =
+                                new StreamEdgeUpdateRequestInfo(
+                                        outEdge.getEdgeId(),
+                                        outEdge.getSourceId(),
+                                        outEdge.getTargetId());
+                        requestInfo.outputPartitioner(new RebalancePartitioner<>());
+                        requestInfos.add(requestInfo);
+                    }
+                }
+            }
+            return context.modifyStreamEdge(requestInfos);
+        }
     }
 }

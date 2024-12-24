@@ -52,7 +52,8 @@ class DefaultStreamGraphContextTest {
                         streamGraph,
                         forwardGroupsByEndpointNodeIdCache,
                         frozenNodeToStartNodeMap,
-                        opIntermediateOutputsCaches);
+                        opIntermediateOutputsCaches,
+                        new HashMap<>());
 
         StreamNode sourceNode =
                 streamGraph.getStreamNode(streamGraph.getSourceIDs().iterator().next());
@@ -136,7 +137,8 @@ class DefaultStreamGraphContextTest {
                         streamGraph,
                         forwardGroupsByEndpointNodeIdCache,
                         frozenNodeToStartNodeMap,
-                        opIntermediateOutputsCaches);
+                        opIntermediateOutputsCaches,
+                        new HashMap<>());
 
         StreamNode sourceNode =
                 streamGraph.getStreamNode(streamGraph.getSourceIDs().iterator().next());

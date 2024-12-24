@@ -151,7 +151,7 @@ public class IntermediateResultPartition {
     }
 
     private int computeNumberOfSubpartitionsForDynamicGraph() {
-        if (totalResult.isBroadcast() || totalResult.isForward()) {
+        if (totalResult.isSingleSubpartitionContainsAllData() || totalResult.isForward()) {
             // for dynamic graph and broadcast result, and forward result, we only produced one
             // subpartition, and all the downstream vertices should consume this subpartition.
             return 1;

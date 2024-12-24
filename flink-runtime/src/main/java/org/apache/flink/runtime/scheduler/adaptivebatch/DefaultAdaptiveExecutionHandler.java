@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -27,13 +28,17 @@ import org.apache.flink.runtime.jobmaster.event.ExecutionJobVertexFinishedEvent;
 import org.apache.flink.runtime.jobmaster.event.JobEvent;
 import org.apache.flink.streaming.api.graph.AdaptiveGraphManager;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.util.DynamicCodeLoadingException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -52,10 +57,16 @@ public class DefaultAdaptiveExecutionHandler implements AdaptiveExecutionHandler
 
     private final AdaptiveGraphManager adaptiveGraphManager;
 
+    private final StreamGraphOptimizer streamGraphOptimizer;
+
     public DefaultAdaptiveExecutionHandler(
-            ClassLoader userClassloader, StreamGraph streamGraph, Executor serializationExecutor) {
+            ClassLoader userClassloader, StreamGraph streamGraph, Executor serializationExecutor)
+            throws DynamicCodeLoadingException {
         this.adaptiveGraphManager =
                 new AdaptiveGraphManager(userClassloader, streamGraph, serializationExecutor);
+
+        this.streamGraphOptimizer =
+                new StreamGraphOptimizer(streamGraph.getJobConfiguration(), userClassloader);
     }
 
     @Override
@@ -66,10 +77,45 @@ public class DefaultAdaptiveExecutionHandler implements AdaptiveExecutionHandler
     @Override
     public void handleJobEvent(JobEvent jobEvent) {
         try {
+            tryOptimizeStreamGraph(jobEvent);
             tryUpdateJobGraph(jobEvent);
         } catch (Exception e) {
             log.error("Failed to handle job event {}.", jobEvent, e);
             throw new RuntimeException(e);
+        }
+    }
+
+    private void tryOptimizeStreamGraph(JobEvent jobEvent) throws Exception {
+        if (jobEvent instanceof ExecutionJobVertexFinishedEvent) {
+            ExecutionJobVertexFinishedEvent event = (ExecutionJobVertexFinishedEvent) jobEvent;
+
+            JobVertexID vertexId = event.getVertexId();
+            Map<IntermediateDataSetID, BlockingResultInfo> resultInfo = event.getResultInfo();
+            Map<Integer, List<BlockingResultInfo>> resultInfoMap =
+                    resultInfo.entrySet().stream()
+                            .collect(
+                                    Collectors.toMap(
+                                            entry ->
+                                                    adaptiveGraphManager.getProducerStreamNodeId(
+                                                            entry.getKey()),
+                                            entry ->
+                                                    new ArrayList<>(
+                                                            Collections.singletonList(
+                                                                    entry.getValue())),
+                                            (existing, replacement) -> {
+                                                existing.addAll(replacement);
+                                                return existing;
+                                            }));
+
+            OperatorsFinished operatorsFinished =
+                    new OperatorsFinished(
+                            adaptiveGraphManager.getStreamNodeIdsByJobVertexId(vertexId),
+                            resultInfoMap);
+
+            streamGraphOptimizer.onOperatorsFinished(
+                    operatorsFinished, adaptiveGraphManager.getStreamGraphContext());
+        } else {
+            throw new IllegalArgumentException("Unsupported job event " + jobEvent);
         }
     }
 
