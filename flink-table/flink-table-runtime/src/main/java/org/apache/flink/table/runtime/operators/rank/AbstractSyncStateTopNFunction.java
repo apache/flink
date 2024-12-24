@@ -27,28 +27,18 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.types.RowKind;
-import org.apache.flink.util.Collector;
-import org.apache.flink.util.Preconditions;
 
-import java.io.IOException;
+import java.util.Objects;
 
-/**
- * A variant of {@link AppendOnlyTopNFunction} to handle first-n case.
- *
- * <p>The input stream should only contain INSERT messages.
- */
-public class AppendOnlyFirstNFunction extends AbstractSyncStateTopNFunction {
+/** Base class for TopN Function with sync state api. */
+public abstract class AbstractSyncStateTopNFunction extends AbstractTopNFunction {
 
-    private static final long serialVersionUID = -889227691088906247L;
+    private ValueState<Long> rankEndState;
 
-    // state stores a counter to record the occurrence of key.
-    private ValueState<Integer> state;
-
-    public AppendOnlyFirstNFunction(
+    public AbstractSyncStateTopNFunction(
             StateTtlConfig ttlConfig,
             InternalTypeInfo<RowData> inputRowType,
-            GeneratedRecordComparator sortKeyGeneratedRecordComparator,
+            GeneratedRecordComparator generatedSortKeyComparator,
             RowDataKeySelector sortKeySelector,
             RankType rankType,
             RankRange rankRange,
@@ -57,7 +47,7 @@ public class AppendOnlyFirstNFunction extends AbstractSyncStateTopNFunction {
         super(
                 ttlConfig,
                 inputRowType,
-                sortKeyGeneratedRecordComparator,
+                generatedSortKeyComparator,
                 sortKeySelector,
                 rankType,
                 rankRange,
@@ -68,38 +58,43 @@ public class AppendOnlyFirstNFunction extends AbstractSyncStateTopNFunction {
     @Override
     public void open(OpenContext openContext) throws Exception {
         super.open(openContext);
-        ValueStateDescriptor<Integer> stateDesc =
-                new ValueStateDescriptor<>("counterState", Types.INT);
-        if (ttlConfig.isEnabled()) {
-            stateDesc.enableTimeToLive(ttlConfig);
+
+        if (!isConstantRankEnd) {
+            ValueStateDescriptor<Long> rankStateDesc =
+                    new ValueStateDescriptor<>("rankEnd", Types.LONG);
+            if (ttlConfig.isEnabled()) {
+                rankStateDesc.enableTimeToLive(ttlConfig);
+            }
+            rankEndState = getRuntimeContext().getState(rankStateDesc);
         }
-        state = getRuntimeContext().getState(stateDesc);
     }
 
-    @Override
-    public void processElement(RowData input, Context context, Collector<RowData> out)
-            throws Exception {
-        initRankEnd(input);
-
-        // Ensure the message is an insert-only operation.
-        Preconditions.checkArgument(input.getRowKind() == RowKind.INSERT);
-        int currentRank = getCurrentRank();
-        // Ignore record if it does not belong to the first-n rows
-        if (currentRank >= rankEnd) {
-            return;
-        }
-        currentRank++;
-        state.update(currentRank);
-
-        if (outputRankNumber || hasOffset()) {
-            collectInsert(out, input, currentRank);
+    /**
+     * Initialize rank end.
+     *
+     * @param row input record
+     * @return rank end
+     */
+    protected long initRankEnd(RowData row) throws Exception {
+        if (isConstantRankEnd) {
+            rankEnd = Objects.requireNonNull(constantRankEnd);
+            return rankEnd;
         } else {
-            collectInsert(out, input);
+            Long rankEndValue = rankEndState.value();
+            long curRankEnd = rankEndFetcher.apply(row);
+            if (rankEndValue == null) {
+                rankEnd = curRankEnd;
+                rankEndState.update(rankEnd);
+                return rankEnd;
+            } else {
+                rankEnd = rankEndValue;
+                if (rankEnd != curRankEnd) {
+                    // increment the invalid counter when the current rank end not equal to previous
+                    // rank end
+                    invalidCounter.inc();
+                }
+                return rankEnd;
+            }
         }
-    }
-
-    private int getCurrentRank() throws IOException {
-        Integer value = state.value();
-        return value == null ? 0 : value;
     }
 }
