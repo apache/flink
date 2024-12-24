@@ -76,7 +76,7 @@ class PojoTestUtilsTest {
     }
 
     public static class PojoRequiringKryo {
-        public List<Integer> x;
+        public List<?> x;
     }
 
     @TypeInfo(FooFactory.class)
