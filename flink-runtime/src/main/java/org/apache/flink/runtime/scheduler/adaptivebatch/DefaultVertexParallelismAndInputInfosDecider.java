@@ -200,7 +200,8 @@ public class DefaultVertexParallelismAndInputInfosDecider
     }
 
     private static boolean areAllInputsBroadcast(List<BlockingResultInfo> consumedResults) {
-        return consumedResults.stream().allMatch(BlockingResultInfo::isBroadcast);
+        return consumedResults.stream()
+                .allMatch(BlockingResultInfo::isSingleSubpartitionContainsAllData);
     }
 
     /**
@@ -468,7 +469,15 @@ public class DefaultVertexParallelismAndInputInfosDecider
                     for (int i = 0; i < subpartitionRanges.size(); ++i) {
                         IndexRange subpartitionRange;
                         if (resultInfo.isBroadcast()) {
-                            subpartitionRange = new IndexRange(0, 0);
+                            if (resultInfo.isSingleSubpartitionContainsAllData()) {
+                                subpartitionRange = new IndexRange(0, 0);
+                            } else {
+                                // The partitions of the all-to-all result have the same number of
+                                // subpartitions. So we can use the first partition's subpartition
+                                // number.
+                                subpartitionRange =
+                                        new IndexRange(0, resultInfo.getNumSubpartitions(0) - 1);
+                            }
                         } else {
                             subpartitionRange = subpartitionRanges.get(i);
                         }
@@ -546,7 +555,7 @@ public class DefaultVertexParallelismAndInputInfosDecider
     private static List<BlockingResultInfo> getNonBroadcastResultInfos(
             List<BlockingResultInfo> consumedResults) {
         return consumedResults.stream()
-                .filter(resultInfo -> !resultInfo.isBroadcast())
+                .filter(resultInfo -> !resultInfo.isSingleSubpartitionContainsAllData())
                 .collect(Collectors.toList());
     }
 
