@@ -21,11 +21,14 @@ package org.apache.flink.table.api.config;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.InlineElement;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * This class holds configuration constants used by Flink's table planner module.
@@ -157,6 +160,22 @@ public class OptimizerConfigOptions {
                     .withDescription(
                             "A flag to enable or disable the runtime filter. "
                                     + "When it is true, the optimizer will try to inject a runtime filter for eligible join.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<AdaptiveBroadcastJoinStrategy>
+            TABLE_OPTIMIZER_ADAPTIVE_BROADCAST_JOIN_STRATEGY =
+                    key("table.optimizer.adaptive-broadcast-join.strategy")
+                            .enumType(AdaptiveBroadcastJoinStrategy.class)
+                            .defaultValue(AdaptiveBroadcastJoinStrategy.NONE)
+                            .withDescription(
+                                    "Flink will perform broadcast hash join optimization when the runtime "
+                                            + "statistics on one side of a join operator is less than the "
+                                            + "threshold `table.optimizer.join.broadcast-threshold`. The "
+                                            + "value of this configuration option decides when Flink should "
+                                            + "perform this optimization. AUTO means Flink will automatically "
+                                            + "choose the timing for optimization, RUNTIME_ONLY means broadcast "
+                                            + "hash join optimization is only performed at runtime, and NONE "
+                                            + "means the optimization is only carried out at compile time.");
 
     /**
      * The data volume of build side needs to be under this value. If the data volume of build side
@@ -303,5 +322,34 @@ public class OptimizerConfigOptions {
          * Do nothing if exists non-deterministic updates, the risk of wrong result still exists.
          */
         IGNORE
+    }
+
+    /** Strategies used for {@link #TABLE_OPTIMIZER_ADAPTIVE_BROADCAST_JOIN_STRATEGY}. */
+    @PublicEvolving
+    public enum AdaptiveBroadcastJoinStrategy implements DescribedEnum {
+        AUTO("auto", text("Flink will automatically choose the timing for optimization")),
+        RUNTIME_ONLY(
+                "runtime_only",
+                text("Broadcast hash join optimization is only performed at runtime.")),
+        NONE("none", text("Broadcast hash join optimization is only carried out at compile time."));
+
+        private final String value;
+
+        private final InlineElement description;
+
+        AdaptiveBroadcastJoinStrategy(String value, InlineElement description) {
+            this.value = value;
+            this.description = description;
+        }
+
+        @Override
+        public String toString() {
+            return value;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
     }
 }
