@@ -26,6 +26,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.AsyncStateException;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.v2.StateDescriptor;
@@ -75,6 +76,8 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
 
     private RecordContext currentProcessingContext;
 
+    protected DeclarationManager declarationManager;
+
     public AbstractAsyncStateStreamOperatorV2(
             StreamOperatorParameters<OUT> parameters, int numberOfInputs) {
         super(parameters, numberOfInputs);
@@ -93,6 +96,7 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
         final long asyncBufferTimeout = getExecutionConfig().getAsyncStateBufferTimeout();
         int maxParallelism = getExecutionConfig().getMaxParallelism();
 
+        this.declarationManager = new DeclarationManager();
         if (isAsyncStateProcessingEnabled()) {
             AsyncKeyedStateBackend asyncKeyedStateBackend =
                     stateHandler.getAsyncKeyedStateBackend();
@@ -190,6 +194,11 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
         // switch to original context
         asyncExecutionController.setCurrentContext(previousContext);
         currentProcessingContext = previousContext;
+    }
+
+    @Override
+    public final DeclarationManager getDeclarationManager() {
+        return declarationManager;
     }
 
     @Override
