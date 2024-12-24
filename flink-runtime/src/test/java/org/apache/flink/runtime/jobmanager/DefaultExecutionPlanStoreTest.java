@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.checkpoint.TestingRetrievableStateStorageHelper;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
@@ -36,7 +35,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.assertj.core.api.Assertions;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -55,13 +53,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for {@link DefaultExecutionPlanStore} with {@link TestingExecutionPlanStoreWatcher}, {@link
@@ -104,8 +97,8 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
 
         final ExecutionPlan recoveredExecutionPlan =
                 executionPlanStore.recoverExecutionPlan(testingExecutionPlan.getJobID());
-        assertThat(recoveredExecutionPlan, is(notNullValue()));
-        assertThat(recoveredExecutionPlan.getJobID(), is(testingExecutionPlan.getJobID()));
+        assertThat(recoveredExecutionPlan).isNotNull();
+        assertThat(recoveredExecutionPlan.getJobID()).isEqualTo(testingExecutionPlan.getJobID());
     }
 
     @Test
@@ -123,7 +116,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
 
         final ExecutionPlan recoveredExecutionPlan =
                 executionPlanStore.recoverExecutionPlan(testingExecutionPlan.getJobID());
-        assertThat(recoveredExecutionPlan, is(nullValue()));
+        assertThat(recoveredExecutionPlan).isNull();
     }
 
     @Test
@@ -141,15 +134,13 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
         final ExecutionPlanStore executionPlanStore =
                 createAndStartExecutionPlanStore(stateHandleStore);
 
-        try {
-            executionPlanStore.recoverExecutionPlan(testingExecutionPlan.getJobID());
-            fail(
-                    "recoverExecutionPlan should fail when there is exception in getting the state handle.");
-        } catch (Exception ex) {
-            assertThat(ex, FlinkMatchers.containsCause(testException));
-            String actual = releaseFuture.get(timeout, TimeUnit.MILLISECONDS);
-            assertThat(actual, is(testingExecutionPlan.getJobID().toString()));
-        }
+        assertThatThrownBy(
+                        () ->
+                                executionPlanStore.recoverExecutionPlan(
+                                        testingExecutionPlan.getJobID()))
+                .hasCause(testException);
+        String actual = releaseFuture.get(timeout, TimeUnit.MILLISECONDS);
+        assertThat(testingExecutionPlan.getJobID()).hasToString(actual);
     }
 
     @Test
@@ -169,7 +160,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
         executionPlanStore.putExecutionPlan(testingExecutionPlan);
 
         final ExecutionPlan actual = addFuture.get(timeout, TimeUnit.MILLISECONDS);
-        assertThat(actual.getJobID(), is(testingExecutionPlan.getJobID()));
+        assertThat(actual.getJobID()).isEqualTo(testingExecutionPlan.getJobID());
     }
 
     @Test
@@ -200,9 +191,9 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
 
         final Tuple3<String, IntegerResourceVersion, ExecutionPlan> actual =
                 replaceFuture.get(timeout, TimeUnit.MILLISECONDS);
-        assertThat(actual.f0, is(testingExecutionPlan.getJobID().toString()));
-        assertThat(actual.f1, is(IntegerResourceVersion.valueOf(resourceVersion)));
-        assertThat(actual.f2.getJobID(), is(testingExecutionPlan.getJobID()));
+        assertThat(actual.f0).isEqualTo(testingExecutionPlan.getJobID().toString());
+        assertThat(actual.f1).isEqualTo(IntegerResourceVersion.valueOf(resourceVersion));
+        assertThat(actual.f2.getJobID()).isEqualTo(testingExecutionPlan.getJobID());
     }
 
     @Test
@@ -221,7 +212,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
                 .globalCleanupAsync(testingExecutionPlan.getJobID(), Executors.directExecutor())
                 .join();
         final JobID actual = removeFuture.get(timeout, TimeUnit.MILLISECONDS);
-        assertThat(actual, is(testingExecutionPlan.getJobID()));
+        assertThat(actual).isEqualTo(testingExecutionPlan.getJobID());
     }
 
     @Test
@@ -237,7 +228,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
                 .globalCleanupAsync(testingExecutionPlan.getJobID(), Executors.directExecutor())
                 .join();
 
-        assertThat(removeFuture.isDone(), is(true));
+        assertThat(removeFuture).isDone();
     }
 
     @Test
@@ -247,13 +238,14 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
 
         final ExecutionPlanStore executionPlanStore =
                 createAndStartExecutionPlanStore(stateHandleStore);
-        assertThrows(
-                ExecutionException.class,
-                () ->
-                        executionPlanStore
-                                .globalCleanupAsync(
-                                        testingExecutionPlan.getJobID(), Executors.directExecutor())
-                                .get());
+        assertThatThrownBy(
+                        () ->
+                                executionPlanStore
+                                        .globalCleanupAsync(
+                                                testingExecutionPlan.getJobID(),
+                                                Executors.directExecutor())
+                                        .get())
+                .isInstanceOf(ExecutionException.class);
     }
 
     @Test
@@ -270,7 +262,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
         final ExecutionPlanStore executionPlanStore =
                 createAndStartExecutionPlanStore(stateHandleStore);
         final Collection<JobID> jobIds = executionPlanStore.getJobIds();
-        assertThat(jobIds, contains(existingJobIds.toArray()));
+        assertThat(jobIds).containsAll(existingJobIds);
     }
 
     @Test
@@ -283,7 +275,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
         executionPlanStore.putExecutionPlan(testingExecutionPlan);
 
         testingExecutionPlanStoreWatcher.addExecutionPlan(testingExecutionPlan.getJobID());
-        assertThat(testingExecutionPlanListener.getAddedExecutionPlans().size(), is(0));
+        assertThat(testingExecutionPlanListener.getAddedExecutionPlans()).isEmpty();
     }
 
     @Test
@@ -303,8 +295,8 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
         // Unknown job
         final JobID unknownJobId = JobID.generate();
         testingExecutionPlanStoreWatcher.addExecutionPlan(unknownJobId);
-        assertThat(testingExecutionPlanListener.getAddedExecutionPlans().size(), is(1));
-        assertThat(testingExecutionPlanListener.getAddedExecutionPlans(), contains(unknownJobId));
+        assertThat(testingExecutionPlanListener.getAddedExecutionPlans()).hasSize(1);
+        assertThat(testingExecutionPlanListener.getAddedExecutionPlans()).contains(unknownJobId);
     }
 
     @Test
@@ -320,10 +312,9 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
         testingExecutionPlanStoreWatcher.removeExecutionPlan(JobID.generate());
         // Known job
         testingExecutionPlanStoreWatcher.removeExecutionPlan(testingExecutionPlan.getJobID());
-        assertThat(testingExecutionPlanListener.getRemovedExecutionPlans().size(), is(1));
-        assertThat(
-                testingExecutionPlanListener.getRemovedExecutionPlans(),
-                contains(testingExecutionPlan.getJobID()));
+        assertThat(testingExecutionPlanListener.getRemovedExecutionPlans()).hasSize(1);
+        assertThat(testingExecutionPlanListener.getRemovedExecutionPlans())
+                .contains(testingExecutionPlan.getJobID());
     }
 
     @Test
@@ -334,7 +325,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
         createAndStartExecutionPlanStore(stateHandleStore);
 
         testingExecutionPlanStoreWatcher.removeExecutionPlan(testingExecutionPlan.getJobID());
-        assertThat(testingExecutionPlanListener.getRemovedExecutionPlans().size(), is(0));
+        assertThat(testingExecutionPlanListener.getRemovedExecutionPlans()).isEmpty();
     }
 
     @Test
@@ -347,7 +338,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
         executionPlanStore.stop();
 
         testingExecutionPlanStoreWatcher.addExecutionPlan(testingExecutionPlan.getJobID());
-        assertThat(testingExecutionPlanListener.getAddedExecutionPlans().size(), is(0));
+        assertThat(testingExecutionPlanListener.getAddedExecutionPlans()).isEmpty();
     }
 
     @Test
@@ -361,7 +352,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
         executionPlanStore.stop();
 
         testingExecutionPlanStoreWatcher.removeExecutionPlan(testingExecutionPlan.getJobID());
-        assertThat(testingExecutionPlanListener.getRemovedExecutionPlans().size(), is(0));
+        assertThat(testingExecutionPlanListener.getRemovedExecutionPlans()).isEmpty();
     }
 
     @Test
@@ -374,7 +365,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
                 createAndStartExecutionPlanStore(stateHandleStore);
         executionPlanStore.stop();
 
-        assertThat(completableFuture.isDone(), is(true));
+        assertThat(completableFuture).isDone();
     }
 
     @Test
@@ -390,7 +381,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
                 .join();
 
         final String actual = releaseFuture.get();
-        assertThat(actual, is(testingExecutionPlan.getJobID().toString()));
+        assertThat(testingExecutionPlan.getJobID()).hasToString(actual);
     }
 
     @Test
@@ -450,7 +441,7 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
                 JobResourceRequirements.readFromExecutionPlan(
                         Objects.requireNonNull(
                                 (JobGraph) executionPlanStore.recoverExecutionPlan(jobId)));
-        Assertions.assertThat(maybeRecovered).get().isEqualTo(expected);
+        assertThat(maybeRecovered).get().isEqualTo(expected);
     }
 
     @Test
@@ -463,11 +454,11 @@ public class DefaultExecutionPlanStoreTest extends TestLogger {
                         .build();
         final ExecutionPlanStore executionPlanStore =
                 createAndStartExecutionPlanStore(stateHandleStore);
-        assertThrows(
-                NoSuchElementException.class,
-                () ->
-                        executionPlanStore.putJobResourceRequirements(
-                                new JobID(), JobResourceRequirements.empty()));
+        assertThatThrownBy(
+                        () ->
+                                executionPlanStore.putJobResourceRequirements(
+                                        new JobID(), JobResourceRequirements.empty()))
+                .isInstanceOf(NoSuchElementException.class);
     }
 
     private ExecutionPlanStore createAndStartExecutionPlanStore(

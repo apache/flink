@@ -24,7 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
-import org.apache.flink.core.testutils.FlinkMatchers;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.async.CompletedOperationCache;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
@@ -41,11 +41,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.futureFailedWith;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.Is.is;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link DispatcherCachedOperationsHandler} component. */
 public class DispatcherCachedOperationsHandlerTest extends TestLogger {
@@ -124,18 +121,17 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
                         TriggerSavepointMode.SAVEPOINT,
                         TIMEOUT);
 
-        assertThat(triggerSavepointFunction.getNumberOfInvocations(), is(1));
-        assertThat(
-                triggerSavepointFunction.getInvocationParameters().get(0),
-                is(
+        assertThat(triggerSavepointFunction.getNumberOfInvocations()).isOne();
+        assertThat(triggerSavepointFunction.getInvocationParameters().get(0))
+                .isEqualTo(
                         new Tuple4<>(
                                 jobID,
                                 targetDirectory,
                                 SavepointFormatType.CANONICAL,
-                                TriggerSavepointMode.SAVEPOINT)));
+                                TriggerSavepointMode.SAVEPOINT));
 
-        assertThat(firstAcknowledge.get(), is(Acknowledge.get()));
-        assertThat(secondAcknowledge.get(), is(Acknowledge.get()));
+        assertThat(firstAcknowledge.get()).isEqualTo(Acknowledge.get());
+        assertThat(secondAcknowledge.get()).isEqualTo(Acknowledge.get());
     }
 
     @Test
@@ -155,18 +151,17 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
                         TriggerSavepointMode.TERMINATE_WITH_SAVEPOINT,
                         TIMEOUT);
 
-        assertThat(stopWithSavepointFunction.getNumberOfInvocations(), is(1));
-        assertThat(
-                stopWithSavepointFunction.getInvocationParameters().get(0),
-                is(
+        assertThat(stopWithSavepointFunction.getNumberOfInvocations()).isOne();
+        assertThat(stopWithSavepointFunction.getInvocationParameters().get(0))
+                .isEqualTo(
                         new Tuple4<>(
                                 jobID,
                                 targetDirectory,
                                 SavepointFormatType.CANONICAL,
-                                TriggerSavepointMode.TERMINATE_WITH_SAVEPOINT)));
+                                TriggerSavepointMode.TERMINATE_WITH_SAVEPOINT));
 
-        assertThat(firstAcknowledge.get(), is(Acknowledge.get()));
-        assertThat(secondAcknowledge.get(), is(Acknowledge.get()));
+        assertThat(firstAcknowledge.get()).isEqualTo(Acknowledge.get());
+        assertThat(secondAcknowledge.get()).isEqualTo(Acknowledge.get());
     }
 
     @Test
@@ -190,23 +185,22 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
                 .get();
 
         // should not complete because we wait for the result to be accessed
-        assertThat(
-                savepointTriggerCache.closeAsync(),
-                FlinkMatchers.willNotComplete(Duration.ofMillis(10)));
+        FlinkAssertions.assertThatFuture(savepointTriggerCache.closeAsync())
+                .willNotCompleteWithin(Duration.ofMillis(10));
     }
 
     @Test
     public void throwsIfCacheIsShuttingDown() {
         savepointTriggerCache.closeAsync();
-        assertThrows(
-                IllegalStateException.class,
-                () ->
-                        handler.triggerSavepoint(
-                                operationKey,
-                                targetDirectory,
-                                SavepointFormatType.CANONICAL,
-                                TriggerSavepointMode.SAVEPOINT,
-                                TIMEOUT));
+        assertThatThrownBy(
+                        () ->
+                                handler.triggerSavepoint(
+                                        operationKey,
+                                        targetDirectory,
+                                        SavepointFormatType.CANONICAL,
+                                        TriggerSavepointMode.SAVEPOINT,
+                                        TIMEOUT))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -224,15 +218,17 @@ public class DispatcherCachedOperationsHandlerTest extends TestLogger {
         CompletableFuture<OperationResult<String>> statusFuture =
                 handler.getSavepointStatus(operationKey);
 
-        assertEquals(statusFuture.get(), OperationResult.success(savepointLocation));
+        assertThat(statusFuture.get()).isEqualTo(OperationResult.success(savepointLocation));
     }
 
     @Test
-    public void getStatusFailsIfKeyUnknown() throws InterruptedException {
+    public void getStatusFailsIfKeyUnknown() {
         CompletableFuture<OperationResult<String>> statusFuture =
                 handler.getSavepointStatus(operationKey);
 
-        assertThat(statusFuture, futureFailedWith(UnknownOperationKeyException.class));
+        FlinkAssertions.assertThatFuture(statusFuture)
+                .eventuallyFails()
+                .withCauseOfType(UnknownOperationKeyException.class);
     }
 
     private abstract static class TriggerCheckpointSpyFunction

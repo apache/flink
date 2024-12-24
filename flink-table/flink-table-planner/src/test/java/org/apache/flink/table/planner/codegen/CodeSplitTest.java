@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.codegen;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
@@ -57,7 +56,6 @@ import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
-import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Tests for code generations with code splitting. */
 class CodeSplitTest {
@@ -256,7 +254,7 @@ class CodeSplitTest {
             consumer.accept(noSplitTableConfig);
             fail("Expecting compiler exception");
         } catch (Exception e) {
-            assertThat(e).satisfies(matching(FlinkMatchers.containsMessage("grows beyond 64 KB")));
+            assertThat(e).hasRootCauseMessage("Code grows beyond 64 KB");
         } finally {
             // set stdout back
             System.setOut(originalStdOut);
