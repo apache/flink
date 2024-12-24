@@ -111,6 +111,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
                                 mailboxExecutor,
                                 this::handleAsyncStateException,
                                 asyncKeyedStateBackend.createStateExecutor(),
+                                declarationManager,
                                 maxParallelism,
                                 asyncBufferSize,
                                 asyncBufferTimeout,

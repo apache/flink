@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
@@ -76,6 +77,7 @@ public class ForStStateTestBase {
                         mailboxExecutor,
                         (a, b) -> {},
                         keyedBackend.createStateExecutor(),
+                        new DeclarationManager(),
                         1,
                         100,
                         0,

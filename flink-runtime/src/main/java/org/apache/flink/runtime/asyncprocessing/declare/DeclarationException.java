@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.asyncprocessing.declare;
 
 /** Exception thrown when something wrong with declaration happens. */
-public class DeclarationException extends Exception {
+public class DeclarationException extends RuntimeException {
 
     public DeclarationException(String message) {
         super(message);

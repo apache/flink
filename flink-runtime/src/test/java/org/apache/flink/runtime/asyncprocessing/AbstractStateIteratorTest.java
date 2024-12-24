@@ -21,6 +21,7 @@ package org.apache.flink.runtime.asyncprocessing;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.core.state.StateFutureUtils;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.util.Preconditions;
 
@@ -49,6 +50,7 @@ public class AbstractStateIteratorTest {
                         new SyncMailboxExecutor(),
                         (a, b) -> {},
                         stateExecutor,
+                        new DeclarationManager(),
                         1,
                         100,
                         1000,
@@ -87,6 +89,7 @@ public class AbstractStateIteratorTest {
                         new SyncMailboxExecutor(),
                         (a, b) -> {},
                         stateExecutor,
+                        new DeclarationManager(),
                         1,
                         100,
                         1000,
