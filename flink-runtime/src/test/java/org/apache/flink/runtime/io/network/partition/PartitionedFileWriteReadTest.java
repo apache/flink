@@ -419,7 +419,10 @@ class PartitionedFileWriteReadTest {
     }
 
     private static Queue<MemorySegment> allocateBuffers(int bufferSize) {
-        int numBuffers = 2;
+        return allocateBuffers(bufferSize, 2);
+    }
+
+    private static Queue<MemorySegment> allocateBuffers(int bufferSize, int numBuffers) {
         Queue<MemorySegment> readBuffers = new LinkedList<>();
         while (numBuffers-- > 0) {
             readBuffers.add(MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
@@ -477,6 +480,62 @@ class PartitionedFileWriteReadTest {
                 assertBufferEquals(checkNotNull(subpartitionBuffers[subpartition].poll()), buffer);
             }
             assertThat(subpartitionBuffers[subpartition]).isEmpty();
+        }
+        IOUtils.closeAllQuietly(dataFileChannel, indexFileChannel);
+    }
+
+    @Test
+    void testWriteAndReadWithEmptySubpartitionForMultipleSubpartitions() throws Exception {
+        int numRegions = 10;
+        int numSubpartitions = 5;
+        int bufferSize = 1024;
+        Random random = new Random(1111);
+
+        Queue<Buffer>[] subpartitionBuffers = new ArrayDeque[numRegions];
+        List<Buffer>[] buffersRead = new List[numRegions];
+        for (int region = 0; region < numRegions; region++) {
+            subpartitionBuffers[region] = new ArrayDeque<>();
+            buffersRead[region] = new ArrayList<>();
+        }
+
+        PartitionedFileWriter fileWriter = createPartitionedFileWriter(numSubpartitions);
+        for (int region = 0; region < numRegions; ++region) {
+            fileWriter.startNewRegion(false);
+            for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
+                if (random.nextBoolean()) {
+                    Buffer buffer = createBuffer(random, bufferSize);
+                    subpartitionBuffers[region].add(buffer);
+                    fileWriter.writeBuffers(getBufferWithSubpartitions(buffer, subpartition));
+                }
+            }
+        }
+        PartitionedFile partitionedFile = fileWriter.finish();
+
+        FileChannel dataFileChannel = openFileChannel(partitionedFile.getDataFilePath());
+        FileChannel indexFileChannel = openFileChannel(partitionedFile.getIndexFilePath());
+        PartitionedFileReader fileReader =
+                new PartitionedFileReader(
+                        partitionedFile,
+                        new ResultSubpartitionIndexSet(0, numSubpartitions - 1),
+                        dataFileChannel,
+                        indexFileChannel,
+                        BufferReaderWriterUtil.allocatedHeaderBuffer(),
+                        createAndConfigIndexEntryBuffer(),
+                        0);
+        int regionIndex = 0;
+        while (fileReader.hasRemaining()) {
+            int finalRegionIndex = regionIndex;
+            fileReader.readCurrentRegion(
+                    allocateBuffers(bufferSize, 10),
+                    FreeingBufferRecycler.INSTANCE,
+                    buffer -> addReadBuffer(buffer, buffersRead[finalRegionIndex]));
+            for (Buffer buffer : buffersRead[finalRegionIndex]) {
+                assertBufferEquals(
+                        checkNotNull(subpartitionBuffers[finalRegionIndex].poll()), buffer);
+            }
+
+            assertThat(subpartitionBuffers[finalRegionIndex]).isEmpty();
+            regionIndex++;
         }
         IOUtils.closeAllQuietly(dataFileChannel, indexFileChannel);
     }
