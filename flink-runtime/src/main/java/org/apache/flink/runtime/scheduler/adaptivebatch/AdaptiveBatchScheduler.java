@@ -274,9 +274,16 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
         // 4. update json plan
         getExecutionGraph().setJsonPlan(JsonPlanGenerator.generatePlan(getJobGraph()));
 
-        // 5. try aggregate subpartition bytes
+        // 5. In broadcast join optimization, results might be written first with a hash
+        // method and then read with a broadcast method. Therefore, we need to update the
+        // result info:
+        // 1. Update the DistributionPattern to reflect the optimized data distribution.
+        // 2. Aggregate subpartition bytes when possible for efficiency.
+        // Update the DistributionPattern of upstream results for new JobVertices and
+        // aggregate subpartition bytes if applicable.
         for (JobVertex newVertex : newVertices) {
             for (JobEdge input : newVertex.getInputs()) {
+                tryUpdateResultInfo(input.getSourceId(), input.getDistributionPattern());
                 Optional.ofNullable(blockingResultInfos.get(input.getSourceId()))
                         .ifPresent(this::maybeAggregateSubpartitionBytes);
             }
@@ -490,7 +497,8 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
                             result.getId(),
                             (ignored, resultInfo) -> {
                                 if (resultInfo == null) {
-                                    resultInfo = createFromIntermediateResult(result);
+                                    resultInfo =
+                                            createFromIntermediateResult(result, new HashMap<>());
                                 }
                                 resultInfo.recordPartitionInfo(
                                         partitionId.getPartitionNumber(), partitionBytes);
@@ -932,7 +940,8 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
         }
     }
 
-    private static BlockingResultInfo createFromIntermediateResult(IntermediateResult result) {
+    private static BlockingResultInfo createFromIntermediateResult(
+            IntermediateResult result, Map<Integer, long[]> subpartitionBytesByPartitionIndex) {
         checkArgument(result != null);
         // Note that for dynamic graph, different partitions in the same result have the same number
         // of subpartitions.
@@ -940,13 +949,15 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
             return new PointwiseBlockingResultInfo(
                     result.getId(),
                     result.getNumberOfAssignedPartitions(),
-                    result.getPartitions()[0].getNumberOfSubpartitions());
+                    result.getPartitions()[0].getNumberOfSubpartitions(),
+                    subpartitionBytesByPartitionIndex);
         } else {
             return new AllToAllBlockingResultInfo(
                     result.getId(),
                     result.getNumberOfAssignedPartitions(),
                     result.getPartitions()[0].getNumberOfSubpartitions(),
-                    result.isBroadcast());
+                    result.isSingleSubpartitionContainsAllData(),
+                    subpartitionBytesByPartitionIndex);
         }
     }
 
@@ -958,6 +969,45 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
     @VisibleForTesting
     SpeculativeExecutionHandler getSpeculativeExecutionHandler() {
         return speculativeExecutionHandler;
+    }
+
+    /**
+     * Tries to update the result information for a given IntermediateDataSetID according to the
+     * specified DistributionPattern. This ensures consistency between the distribution pattern and
+     * the stored result information.
+     *
+     * <p>The result information is updated under the following conditions:
+     *
+     * <ul>
+     *   <li>If the target pattern is ALL_TO_ALL and the current result info is POINTWISE, a new
+     *       BlockingResultInfo is created and stored.
+     *   <li>If the target pattern is POINTWISE and the current result info is ALL_TO_ALL, a
+     *       conversion is similarly triggered.
+     *   <li>Additionally, for ALL_TO_ALL patterns, the status of broadcast of the result info
+     *       should be updated.
+     * </ul>
+     *
+     * @param id The ID of the intermediate dataset to update.
+     * @param targetPattern The target distribution pattern to apply.
+     */
+    private void tryUpdateResultInfo(IntermediateDataSetID id, DistributionPattern targetPattern) {
+        if (blockingResultInfos.containsKey(id)) {
+            BlockingResultInfo resultInfo = blockingResultInfos.get(id);
+            IntermediateResult result = getExecutionGraph().getAllIntermediateResults().get(id);
+
+            if ((targetPattern == DistributionPattern.ALL_TO_ALL && resultInfo.isPointwise())
+                    || (targetPattern == DistributionPattern.POINTWISE
+                            && !resultInfo.isPointwise())) {
+
+                BlockingResultInfo newInfo =
+                        createFromIntermediateResult(
+                                result, resultInfo.getSubpartitionBytesByPartitionIndex());
+
+                blockingResultInfos.put(id, newInfo);
+            } else if (resultInfo instanceof AllToAllBlockingResultInfo) {
+                ((AllToAllBlockingResultInfo) resultInfo).setBroadcast(result.isBroadcast());
+            }
+        }
     }
 
     private class DefaultBatchJobRecoveryContext implements BatchJobRecoveryContext {
