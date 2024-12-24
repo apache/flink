@@ -27,6 +27,7 @@ import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestContainer;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.util.Preconditions;
 
@@ -84,6 +85,7 @@ public class AbstractReducingStateTest extends AbstractKeyedStateTestBase {
                         new SyncMailboxExecutor(),
                         (a, b) -> {},
                         new ReducingStateExecutor(),
+                        new DeclarationManager(),
                         1,
                         100,
                         10000,

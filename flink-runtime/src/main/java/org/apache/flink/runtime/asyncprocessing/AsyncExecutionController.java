@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
 import org.apache.flink.runtime.asyncprocessing.EpochManager.ParallelMode;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.v2.internal.InternalPartitionedState;
 import org.apache.flink.util.Preconditions;
@@ -111,6 +112,9 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
     /** The state executor where the {@link StateRequest} is actually executed. */
     private final StateExecutor stateExecutor;
 
+    /** A manager that allows for declaring processing and variables. */
+    private final DeclarationManager declarationManager;
+
     /** The corresponding context that currently runs in task thread. */
     RecordContext<K> currentContext;
 
@@ -147,6 +151,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
             MailboxExecutor mailboxExecutor,
             AsyncFrameworkExceptionHandler exceptionHandler,
             StateExecutor stateExecutor,
+            DeclarationManager declarationManager,
             int maxParallelism,
             int batchSize,
             long bufferTimeout,
@@ -159,6 +164,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         this.stateFutureFactory = new StateFutureFactory<>(this, callbackRunner, exceptionHandler);
 
         this.stateExecutor = stateExecutor;
+        this.declarationManager = declarationManager;
         this.batchSize = batchSize;
         this.bufferTimeout = bufferTimeout;
         this.maxInFlightRecordNum = maxInFlightRecords;
@@ -205,29 +211,28 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
      *
      * @param record the given record.
      * @param key the given key.
-     * @param inheritEpoch whether to inherit epoch from the current context. Or otherwise create a
-     *     new one.
+     * @param inherit whether to inherit epoch and variables from the current context. Or otherwise
+     *     create new ones.
      * @return the built record context.
      */
-    public RecordContext<K> buildContext(Object record, K key, boolean inheritEpoch) {
-        if (record == null) {
+    public RecordContext<K> buildContext(Object record, K key, boolean inherit) {
+        if (inherit && currentContext != null) {
             return new RecordContext<>(
-                    RecordContext.EMPTY_RECORD,
+                    record == null ? RecordContext.EMPTY_RECORD : record,
                     key,
                     this::disposeContext,
                     KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism),
-                    inheritEpoch && currentContext != null
-                            ? epochManager.onEpoch(currentContext.getEpoch())
-                            : epochManager.onRecord());
+                    epochManager.onEpoch(currentContext.getEpoch()),
+                    currentContext.getVariablesReference());
+        } else {
+            return new RecordContext<>(
+                    record == null ? RecordContext.EMPTY_RECORD : record,
+                    key,
+                    this::disposeContext,
+                    KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism),
+                    epochManager.onRecord(),
+                    declarationManager.variableCount());
         }
-        return new RecordContext<>(
-                record,
-                key,
-                this::disposeContext,
-                KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism),
-                inheritEpoch && currentContext != null
-                        ? epochManager.onEpoch(currentContext.getEpoch())
-                        : epochManager.onRecord());
     }
 
     /**
@@ -238,6 +243,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
      */
     public void setCurrentContext(RecordContext<K> switchingContext) {
         currentContext = switchingContext;
+        declarationManager.setCurrentContext(switchingContext);
         if (switchContextListener != null) {
             switchContextListener.switchContext(switchingContext);
         }

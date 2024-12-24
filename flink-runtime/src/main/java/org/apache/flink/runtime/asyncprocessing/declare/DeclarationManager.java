@@ -18,32 +18,77 @@
 
 package org.apache.flink.runtime.asyncprocessing.declare;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.asyncprocessing.RecordContext;
+
+import javax.annotation.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /** The manager holds all the declaration information and manage the building procedure. */
 public class DeclarationManager {
 
     private final Map<String, NamedCallback> knownCallbacks;
 
+    private final Map<String, DeclaredVariable<?>> knownVariables;
+
+    private RecordContext<?> currentContext;
+
     private int nextValidNameSequence = 0;
 
     public DeclarationManager() {
         this.knownCallbacks = new HashMap<>();
+        this.knownVariables = new HashMap<>();
     }
 
     <T extends NamedCallback> T register(T knownCallback) throws DeclarationException {
         if (knownCallbacks.put(knownCallback.getName(), knownCallback) != null) {
-            throw new DeclarationException("Duplicated key " + knownCallback.getName());
+            throw new DeclarationException("Duplicated function key " + knownCallback.getName());
         }
         return knownCallback;
     }
 
-    String nextAssignedName() {
+    <T> DeclaredVariable<T> register(
+            TypeSerializer<T> serializer, String name, @Nullable Supplier<T> initializer)
+            throws DeclarationException {
+        if (knownVariables.containsKey(name)) {
+            throw new DeclarationException("Duplicated variable key " + name);
+        }
+        DeclaredVariable<T> variable =
+                new DeclaredVariable<>(this, knownVariables.size(), serializer, name, initializer);
+        knownVariables.put(name, variable);
+        return variable;
+    }
+
+    public void setCurrentContext(RecordContext<?> currentContext) {
+        this.currentContext = currentContext;
+    }
+
+    public <T> T getVariableValue(int ordinal) {
+        if (currentContext == null) {
+            throw new UnsupportedOperationException("There is no current keyed context.");
+        }
+        return currentContext.getVariable(ordinal);
+    }
+
+    public <T> void setVariableValue(int ordinal, T value) {
+        if (currentContext == null) {
+            throw new UnsupportedOperationException("There is no current keyed context.");
+        }
+        currentContext.setVariable(ordinal, value);
+    }
+
+    public int variableCount() {
+        return knownVariables.size();
+    }
+
+    String nextAssignedName(String prefix) {
         String name;
         do {
-            name = String.format("___%d___", nextValidNameSequence++);
-        } while (knownCallbacks.containsKey(name));
+            name = String.format("___%s%d___", prefix, nextValidNameSequence++);
+        } while (knownCallbacks.containsKey(name) || knownVariables.containsKey(name));
         return name;
     }
 }

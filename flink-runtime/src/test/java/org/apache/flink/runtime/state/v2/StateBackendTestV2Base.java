@@ -32,6 +32,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.execution.Environment;
@@ -227,6 +228,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                             new SyncMailboxExecutor(),
                             testExceptionHandler,
                             backend.createStateExecutor(),
+                            new DeclarationManager(),
                             jobMaxParallelism,
                             aecBatchSize,
                             aecBufferTimeout,
@@ -316,6 +318,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                             new SyncMailboxExecutor(),
                             testExceptionHandler,
                             backend.createStateExecutor(),
+                            new DeclarationManager(),
                             jobMaxParallelism,
                             aecBatchSize,
                             aecBufferTimeout,
@@ -401,6 +404,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                             new SyncMailboxExecutor(),
                             testExceptionHandler,
                             backend.createStateExecutor(),
+                            new DeclarationManager(),
                             maxParallelism,
                             aecBatchSize,
                             aecBufferTimeout,
@@ -470,6 +474,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                             new SyncMailboxExecutor(),
                             testExceptionHandler,
                             backend.createStateExecutor(),
+                            new DeclarationManager(),
                             maxParallelism,
                             aecBatchSize,
                             aecBufferTimeout,
@@ -574,6 +579,7 @@ public abstract class StateBackendTestV2Base<B extends AbstractStateBackend> {
                         new SyncMailboxExecutor(),
                         testExceptionHandler,
                         backend.createStateExecutor(),
+                        new DeclarationManager(),
                         128,
                         1,
                         -1,

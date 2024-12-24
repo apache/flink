@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Consumer;
 
 /**
@@ -62,6 +63,9 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
     /** The namespaces of states. Lazy initialization for saving memory. */
     private Map<InternalPartitionedState<?>, Object> namespaces = null;
 
+    /** User-defined variables. */
+    private final AtomicReferenceArray<Object> declaredVariables;
+
     /**
      * The extra context info which is used to hold customized data defined by state backend. The
      * state backend can use this field to cache some data that can be used multiple times in
@@ -73,7 +77,22 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
     private final Epoch epoch;
 
     public RecordContext(
-            Object record, K key, Consumer<RecordContext<K>> disposer, int keyGroup, Epoch epoch) {
+            Object record,
+            K key,
+            Consumer<RecordContext<K>> disposer,
+            int keyGroup,
+            Epoch epoch,
+            int variableCount) {
+        this(record, key, disposer, keyGroup, epoch, new AtomicReferenceArray<>(variableCount));
+    }
+
+    public RecordContext(
+            Object record,
+            K key,
+            Consumer<RecordContext<K>> disposer,
+            int keyGroup,
+            Epoch epoch,
+            AtomicReferenceArray<Object> variables) {
         super(0);
         this.record = record;
         this.key = key;
@@ -81,6 +100,7 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
         this.disposer = disposer;
         this.keyGroup = keyGroup;
         this.epoch = epoch;
+        this.declaredVariables = variables;
     }
 
     public Object getRecord() {
@@ -127,6 +147,29 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
             namespaces = new HashMap<>();
         }
         namespaces.put(state, namespace);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> T getVariable(int i) {
+        checkVariableIndex(i);
+        return (T) declaredVariables.get(i);
+    }
+
+    public <T> void setVariable(int i, T value) {
+        checkVariableIndex(i);
+        declaredVariables.set(i, value);
+    }
+
+    private void checkVariableIndex(int i) {
+        if (i >= declaredVariables.length()) {
+            throw new UnsupportedOperationException(
+                    "Variable index out of bounds. Maybe you are accessing "
+                            + "a variable that have not been declared.");
+        }
+    }
+
+    AtomicReferenceArray<Object> getVariablesReference() {
+        return declaredVariables;
     }
 
     public void setExtra(Object extra) {

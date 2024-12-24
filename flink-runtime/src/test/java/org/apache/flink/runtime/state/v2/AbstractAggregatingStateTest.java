@@ -27,6 +27,7 @@ import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestContainer;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 
 import org.junit.jupiter.api.Test;
@@ -108,6 +109,7 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
                         new SyncMailboxExecutor(),
                         (a, b) -> {},
                         new AbstractAggregatingStateTest.AggregatingStateExecutor(),
+                        new DeclarationManager(),
                         1,
                         100,
                         10000,

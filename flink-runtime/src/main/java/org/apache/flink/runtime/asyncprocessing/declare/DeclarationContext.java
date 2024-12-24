@@ -18,12 +18,19 @@
 
 package org.apache.flink.runtime.asyncprocessing.declare;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
+import javax.annotation.Nullable;
+
+import java.util.function.Supplier;
+
 /** A context to declare parts of process in user-defined function/operator. */
 public class DeclarationContext {
+
+    private static final String AUTO_NAME_PREFIX = "F";
 
     private final DeclarationManager manager;
 
@@ -57,19 +64,33 @@ public class DeclarationContext {
     /** Declare a callback with an automatically assigned name. */
     public <T> NamedConsumer<T> declare(ThrowingConsumer<T, ? extends Exception> callback)
             throws DeclarationException {
-        return declare(manager.nextAssignedName(), callback);
+        return declare(manager.nextAssignedName(AUTO_NAME_PREFIX), callback);
     }
 
     /** Declare a callback with an automatically assigned name. */
     public <T, V> NamedFunction<T, V> declare(
             FunctionWithException<T, V, ? extends Exception> callback) throws DeclarationException {
-        return declare(manager.nextAssignedName(), callback);
+        return declare(manager.nextAssignedName(AUTO_NAME_PREFIX), callback);
     }
 
     /** Declare a callback with an automatically assigned name. */
     public <T, U, V> NamedBiFunction<T, U, V> declare(
             BiFunctionWithException<T, U, V, ? extends Exception> callback)
             throws DeclarationException {
-        return declare(manager.nextAssignedName(), callback);
+        return declare(manager.nextAssignedName(AUTO_NAME_PREFIX), callback);
+    }
+
+    /**
+     * Declare a variable that will keep value across callback with same context.
+     *
+     * @param serializer the serializer of variable.
+     * @param name the name.
+     * @param initialValue the initializer of variable. Can be null if no need to initialize.
+     * @param <T> The type of value.
+     */
+    public <T> DeclaredVariable<T> declareVariable(
+            TypeSerializer<T> serializer, String name, @Nullable Supplier<T> initialValue)
+            throws DeclarationException {
+        return manager.register(serializer, name, initialValue);
     }
 }
