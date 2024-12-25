@@ -503,6 +503,6 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
 
     /** A listener listens the key context switch. */
     public interface SwitchContextListener<K> {
-        void switchContext(RecordContext<K> context);
+        void switchContext(@Nullable RecordContext<K> context);
     }
 }

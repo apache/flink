@@ -73,6 +73,7 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     private final Environment environment;
     private AsyncExecutionController asyncExecutionController;
 
+    /** Act as a cache for {@link #setAsyncKeyedContextElement} and {@link #postProcessElement}. */
     private RecordContext currentProcessingContext;
 
     public AbstractAsyncStateStreamOperatorV2(
@@ -182,20 +183,18 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     @Override
     @SuppressWarnings("unchecked")
     public <K> void asyncProcessWithKey(K key, ThrowingRunnable<Exception> processing) {
-        RecordContext<K> previousContext = currentProcessingContext;
-
+        RecordContext<K> oldContext = asyncExecutionController.getCurrentContext();
         // build a context and switch to the new context
-        currentProcessingContext = asyncExecutionController.buildContext(null, key, true);
-        currentProcessingContext.retain();
-        asyncExecutionController.setCurrentContext(currentProcessingContext);
+        RecordContext<K> newContext = asyncExecutionController.buildContext(null, key, true);
+        newContext.retain();
+        asyncExecutionController.setCurrentContext(newContext);
         // Same logic as RECORD_ORDER, since FIRST_STATE_ORDER is problematic when the call's key
         // pass the same key in.
         preserveRecordOrderAndProcess(processing);
-        postProcessElement();
+        newContext.release();
 
         // switch to original context
-        asyncExecutionController.setCurrentContext(previousContext);
-        currentProcessingContext = previousContext;
+        asyncExecutionController.setCurrentContext(oldContext);
     }
 
     @Override
