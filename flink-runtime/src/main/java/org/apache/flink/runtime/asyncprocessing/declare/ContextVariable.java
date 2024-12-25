@@ -18,27 +18,36 @@
 
 package org.apache.flink.runtime.asyncprocessing.declare;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-
 import javax.annotation.Nullable;
 
 import java.util.function.Supplier;
 
-/** A variable declared in async state processing. The value could be persisted in checkpoint. */
-public class DeclaredVariable<T> extends ContextVariable<T> {
+/** A value that will have different values across different contexts. */
+public class ContextVariable<T> {
 
-    final TypeSerializer<T> typeSerializer;
+    final DeclarationManager manager;
 
-    final String name;
+    final int ordinal;
 
-    DeclaredVariable(
-            DeclarationManager manager,
-            int ordinal,
-            TypeSerializer<T> typeSerializer,
-            String name,
-            @Nullable Supplier<T> initializer) {
-        super(manager, ordinal, initializer);
-        this.typeSerializer = typeSerializer;
-        this.name = name;
+    @Nullable final Supplier<T> initializer;
+
+    boolean initialized = false;
+
+    ContextVariable(DeclarationManager manager, int ordinal, Supplier<T> initializer) {
+        this.manager = manager;
+        this.ordinal = ordinal;
+        this.initializer = initializer;
+    }
+
+    public T get() {
+        if (!initialized && initializer != null) {
+            manager.setVariableValue(ordinal, initializer.get());
+            initialized = true;
+        }
+        return manager.getVariableValue(ordinal);
+    }
+
+    public void set(T newValue) {
+        manager.setVariableValue(ordinal, newValue);
     }
 }
