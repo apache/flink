@@ -53,6 +53,7 @@ import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.rocksdb.RocksDBException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,7 +111,8 @@ public class HistoryServer {
     private final long webRefreshIntervalMillis;
     private final File webDir;
 
-    private final HistoryServerArchiveFetcher archiveFetcher;
+    private final ArchiveFetcher archiveFetcher;
+    private final HistoryServerServerHandler serverHandler;
 
     @Nullable private final SSLHandlerFactory serverSSLFactory;
     private WebFrontendBootstrap netty;
@@ -160,7 +162,8 @@ public class HistoryServer {
         }
     }
 
-    public HistoryServer(Configuration config) throws IOException, FlinkException {
+    public HistoryServer(Configuration config)
+            throws IOException, FlinkException, RocksDBException {
         this(config, (event) -> {});
     }
 
@@ -174,9 +177,8 @@ public class HistoryServer {
      * @throws FlinkException When configuration error occurred
      */
     public HistoryServer(
-            Configuration config,
-            Consumer<HistoryServerArchiveFetcher.ArchiveEvent> jobArchiveEventListener)
-            throws IOException, FlinkException {
+            Configuration config, Consumer<ArchiveFetcher.ArchiveEvent> jobArchiveEventListener)
+            throws IOException, FlinkException, RocksDBException {
         Preconditions.checkNotNull(config);
         Preconditions.checkNotNull(jobArchiveEventListener);
 
@@ -244,13 +246,51 @@ public class HistoryServer {
                     "Cannot set %s to 0 or less than -1",
                     HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS.key());
         }
-        archiveFetcher =
-                new HistoryServerArchiveFetcher(
-                        refreshDirs,
-                        webDir,
-                        jobArchiveEventListener,
-                        cleanupExpiredArchives,
-                        maxHistorySize);
+
+        String storageBackendType = config.get(HistoryServerOptions.HISTORY_SERVER_STORAGE_BACKEND);
+
+        switch (storageBackendType) {
+            case "kvstore":
+                LOG.info("Using RocksDB as storage backend for the history server.");
+                // Create the dbPath under webDir with the directory name "kvstore-db"
+                File dbPath = new File(webDir, "kvstore-db");
+
+                // Ensure the directory exists
+                if (!dbPath.exists()) {
+                    if (!dbPath.mkdirs()) {
+                        throw new IOException(
+                                "Failed to create directory for RocksDB at "
+                                        + dbPath.getAbsolutePath());
+                    }
+                }
+
+                HistoryServerKVStoreArchiveFetcher kvStoreArchiveFetcher =
+                        new HistoryServerKVStoreArchiveFetcher(
+                                refreshDirs,
+                                dbPath,
+                                jobArchiveEventListener,
+                                cleanupExpiredArchives,
+                                maxHistorySize);
+
+                archiveFetcher = kvStoreArchiveFetcher;
+                serverHandler =
+                        new HistoryServerKVStoreServerHandler(webDir, kvStoreArchiveFetcher);
+                break;
+
+            case "file":
+            default:
+                LOG.info("Using local file system as storage backend for the history server.");
+                archiveFetcher =
+                        new HistoryServerArchiveFetcher(
+                                refreshDirs,
+                                webDir,
+                                jobArchiveEventListener,
+                                cleanupExpiredArchives,
+                                maxHistorySize);
+
+                serverHandler = new HistoryServerStaticFileServerHandler(webDir);
+                break;
+        }
 
         this.shutdownHook =
                 ShutdownHookUtil.addShutdownHook(
@@ -310,7 +350,7 @@ public class HistoryServer {
                                             new GeneratedLogUrlHandler(
                                                     CompletableFuture.completedFuture(pattern))));
 
-            router.addGet("/:*", new HistoryServerStaticFileServerHandler(webDir));
+            router.addGet("/:*", serverHandler);
 
             createDashboardConfigFile();
 
@@ -397,7 +437,7 @@ public class HistoryServer {
         private final Path path;
         private final FileSystem fs;
 
-        private RefreshLocation(Path path, FileSystem fs) {
+        RefreshLocation(Path path, FileSystem fs) {
             this.path = path;
             this.fs = fs;
         }

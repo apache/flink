@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.core.fs.FileStatus;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.history.FsJobArchivist;
@@ -30,15 +29,10 @@ import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.jackson.JacksonMapperFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -47,10 +41,8 @@ import java.io.StringWriter;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -71,52 +63,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * HistoryServerOptions#HISTORY_SERVER_CLEANUP_EXPIRED_JOBS} or {@link
  * HistoryServerOptions#HISTORY_SERVER_RETAINED_JOBS}.
  */
-class HistoryServerArchiveFetcher {
-
-    /** Possible job archive operations in history-server. */
-    public enum ArchiveEventType {
-        /** Job archive was found in one refresh location and created in history server. */
-        CREATED,
-        /**
-         * Job archive was deleted from one of refresh locations and deleted from history server.
-         */
-        DELETED
-    }
-
-    /** Representation of job archive event. */
-    public static class ArchiveEvent {
-        private final String jobID;
-        private final ArchiveEventType operation;
-
-        ArchiveEvent(String jobID, ArchiveEventType operation) {
-            this.jobID = jobID;
-            this.operation = operation;
-        }
-
-        public String getJobID() {
-            return jobID;
-        }
-
-        public ArchiveEventType getType() {
-            return operation;
-        }
-    }
-
-    private static final Logger LOG = LoggerFactory.getLogger(HistoryServerArchiveFetcher.class);
-
+class HistoryServerArchiveFetcher extends ArchiveFetcher {
     private static final JsonFactory jacksonFactory = new JsonFactory();
-    private static final ObjectMapper mapper = JacksonMapperFactory.createObjectMapper();
 
     private static final String JSON_FILE_ENDING = ".json";
-
-    private final List<HistoryServer.RefreshLocation> refreshDirs;
-    private final Consumer<ArchiveEvent> jobArchiveEventListener;
-    private final boolean processExpiredArchiveDeletion;
-    private final boolean processBeyondLimitArchiveDeletion;
-    private final int maxHistorySize;
-
-    /** Cache of all available jobs identified by their id. */
-    private final Map<Path, Set<String>> cachedArchivesPerRefreshDirectory;
 
     private final File webDir;
     private final File webJobDir;
@@ -129,15 +79,8 @@ class HistoryServerArchiveFetcher {
             boolean cleanupExpiredArchives,
             int maxHistorySize)
             throws IOException {
-        this.refreshDirs = checkNotNull(refreshDirs);
-        this.jobArchiveEventListener = jobArchiveEventListener;
-        this.processExpiredArchiveDeletion = cleanupExpiredArchives;
-        this.maxHistorySize = maxHistorySize;
-        this.processBeyondLimitArchiveDeletion = this.maxHistorySize > 0;
-        this.cachedArchivesPerRefreshDirectory = new HashMap<>();
-        for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
-            cachedArchivesPerRefreshDirectory.put(refreshDir.getPath(), new HashSet<>());
-        }
+        super(refreshDirs, jobArchiveEventListener, cleanupExpiredArchives, maxHistorySize);
+
         this.webDir = checkNotNull(webDir);
         this.webJobDir = new File(webDir, "jobs");
         Files.createDirectories(webJobDir.toPath());
@@ -233,36 +176,7 @@ class HistoryServerArchiveFetcher {
         }
     }
 
-    private static FileStatus[] listArchives(FileSystem refreshFS, Path refreshDir)
-            throws IOException {
-        // contents of /:refreshDir
-        FileStatus[] jobArchives = refreshFS.listStatus(refreshDir);
-        if (jobArchives == null) {
-            // the entire refreshDirectory was removed
-            return new FileStatus[0];
-        }
-
-        Arrays.sort(
-                jobArchives, Comparator.comparingLong(FileStatus::getModificationTime).reversed());
-
-        return jobArchives;
-    }
-
-    private static boolean isValidJobID(String jobId, Path refreshDir) {
-        try {
-            JobID.fromHexString(jobId);
-            return true;
-        } catch (IllegalArgumentException iae) {
-            LOG.debug(
-                    "Archive directory {} contained file with unexpected name {}. Ignoring file.",
-                    refreshDir,
-                    jobId,
-                    iae);
-            return false;
-        }
-    }
-
-    private void processArchive(String jobID, Path jobArchive) throws IOException {
+    void processArchive(String jobID, Path jobArchive) throws IOException {
         for (ArchivedJson archive : FsJobArchivist.getArchivedJsons(jobArchive)) {
             String path = archive.getPath();
             String json = archive.getJson();
@@ -303,48 +217,7 @@ class HistoryServerArchiveFetcher {
         }
     }
 
-    private List<ArchiveEvent> cleanupJobsBeyondSizeLimit(
-            Map<Path, Set<Path>> jobArchivesToRemove) {
-        Map<Path, Set<String>> allJobIdsToRemoveFromOverview = new HashMap<>();
-
-        for (Map.Entry<Path, Set<Path>> pathSetEntry : jobArchivesToRemove.entrySet()) {
-            HashSet<String> jobIdsToRemoveFromOverview = new HashSet<>();
-
-            for (Path archive : pathSetEntry.getValue()) {
-                jobIdsToRemoveFromOverview.add(archive.getName());
-                try {
-                    archive.getFileSystem().delete(archive, false);
-                } catch (IOException ioe) {
-                    LOG.warn("Could not delete old archive " + archive, ioe);
-                }
-            }
-            allJobIdsToRemoveFromOverview.put(pathSetEntry.getKey(), jobIdsToRemoveFromOverview);
-        }
-
-        return cleanupExpiredJobs(allJobIdsToRemoveFromOverview);
-    }
-
-    private List<ArchiveEvent> cleanupExpiredJobs(Map<Path, Set<String>> jobsToRemove) {
-
-        List<ArchiveEvent> deleteLog = new ArrayList<>();
-        LOG.info("Archive directories for jobs {} were deleted.", jobsToRemove);
-
-        jobsToRemove.forEach(
-                (refreshDir, archivesToRemove) -> {
-                    cachedArchivesPerRefreshDirectory.get(refreshDir).removeAll(archivesToRemove);
-                });
-        jobsToRemove.values().stream()
-                .flatMap(Set::stream)
-                .forEach(
-                        removedJobID -> {
-                            deleteJobFiles(removedJobID);
-                            deleteLog.add(new ArchiveEvent(removedJobID, ArchiveEventType.DELETED));
-                        });
-
-        return deleteLog;
-    }
-
-    private void deleteJobFiles(String jobID) {
+    void deleteJobFiles(String jobID) {
         // Make sure we do not include this job in the overview
         try {
             Files.deleteIfExists(new File(webOverviewDir, jobID + JSON_FILE_ENDING).toPath());
@@ -367,8 +240,8 @@ class HistoryServerArchiveFetcher {
         }
     }
 
-    private static String convertLegacyJobOverview(String legacyOverview) throws IOException {
-        JsonNode root = mapper.readTree(legacyOverview);
+    static String convertLegacyJobOverview(String legacyOverview) throws IOException {
+        JsonNode root = MAPPER.readTree(legacyOverview);
         JsonNode finishedJobs = root.get("finished");
         JsonNode job = finishedJobs.get(0);
 
@@ -432,7 +305,7 @@ class HistoryServerArchiveFetcher {
                 new MultipleJobsDetails(Collections.singleton(jobDetails));
 
         StringWriter sw = new StringWriter();
-        mapper.writeValue(sw, multipleJobsDetails);
+        MAPPER.writeValue(sw, multipleJobsDetails);
         return sw.toString();
     }
 
@@ -454,10 +327,10 @@ class HistoryServerArchiveFetcher {
                 Collection<JobDetails> allJobs = new ArrayList<>(overviews.length);
                 for (File overview : overviews) {
                     MultipleJobsDetails subJobs =
-                            mapper.readValue(overview, MultipleJobsDetails.class);
+                            MAPPER.readValue(overview, MultipleJobsDetails.class);
                     allJobs.addAll(subJobs.getJobs());
                 }
-                mapper.writeValue(gen, new MultipleJobsDetails(allJobs));
+                MAPPER.writeValue(gen, new MultipleJobsDetails(allJobs));
             }
         } catch (IOException ioe) {
             LOG.error("Failed to update job overview.", ioe);
