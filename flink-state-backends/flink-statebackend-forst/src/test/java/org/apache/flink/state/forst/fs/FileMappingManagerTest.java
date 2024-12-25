@@ -37,14 +37,15 @@ public class FileMappingManagerTest {
     @Test
     void testFileLink() throws IOException {
         FileSystem localFS = FileSystem.getLocalFileSystem();
-        FileMappingManager fileMappingManager = new FileMappingManager(localFS);
+        FileMappingManager fileMappingManager =
+                new FileMappingManager(localFS, localFS, tempDir.toString(), tempDir.toString());
         String src = tempDir.toString() + "/source";
         FSDataOutputStream os = localFS.create(new Path(src), FileSystem.WriteMode.OVERWRITE);
         os.write(233);
         os.close();
         String dst = tempDir.toString() + "/dst";
         fileMappingManager.put(src, dst);
-        assertThat(fileMappingManager.originalPath(dst)).isEqualTo(src);
+        assertThat(fileMappingManager.realPath(new Path(dst)).path.toString()).isEqualTo(src);
     }
 
     @Test
@@ -53,31 +54,35 @@ public class FileMappingManagerTest {
         // link c->b
         // link d->c
         FileSystem localFS = FileSystem.getLocalFileSystem();
-        FileMappingManager fileMappingManager = new FileMappingManager(localFS);
+        FileMappingManager fileMappingManager =
+                new FileMappingManager(localFS, localFS, tempDir.toString(), tempDir.toString());
         String src = tempDir.toString() + "/a";
         FSDataOutputStream os = localFS.create(new Path(src), FileSystem.WriteMode.OVERWRITE);
         os.write(233);
         os.close();
         String dstB = tempDir.toString() + "/b";
         fileMappingManager.put(src, dstB);
-        assertThat(fileMappingManager.originalPath(dstB)).isEqualTo(src);
+        assertThat(fileMappingManager.realPath(new Path(dstB)).path.toString()).isEqualTo(src);
         assertThat(fileMappingManager.mappingEntry(dstB).getReferenceCount()).isEqualTo(2);
 
         String dstC = tempDir.toString() + "/c";
         fileMappingManager.put(dstB, dstC);
-        assertThat(fileMappingManager.originalPath(dstC)).isEqualTo(src);
+        assertThat(fileMappingManager.realPath(new Path(dstC)).path.toString()).isEqualTo(src);
         assertThat(fileMappingManager.mappingEntry(dstC).getReferenceCount()).isEqualTo(3);
 
         String dstD = tempDir.toString() + "/d";
         fileMappingManager.put(dstC, dstD);
-        assertThat(fileMappingManager.originalPath(dstD)).isEqualTo(src);
+        assertThat(fileMappingManager.realPath(new Path(dstD)).path.toString()).isEqualTo(src);
         assertThat(fileMappingManager.mappingEntry(dstC).getReferenceCount()).isEqualTo(4);
+
+        assertThat(fileMappingManager.put(dstD, dstC)).isEqualTo(-1);
     }
 
     @Test
     void testFileDelete() throws IOException {
         FileSystem localFS = FileSystem.getLocalFileSystem();
-        FileMappingManager fileMappingManager = new FileMappingManager(localFS);
+        FileMappingManager fileMappingManager =
+                new FileMappingManager(localFS, localFS, tempDir.toString(), tempDir.toString());
         String src = tempDir.toString() + "/source";
         FSDataOutputStream os = localFS.create(new Path(src), FileSystem.WriteMode.OVERWRITE);
         os.write(233);
@@ -96,7 +101,8 @@ public class FileMappingManagerTest {
     @Test
     void testDirectoryDelete() throws IOException {
         FileSystem localFS = FileSystem.getLocalFileSystem();
-        FileMappingManager fileMappingManager = new FileMappingManager(localFS);
+        FileMappingManager fileMappingManager =
+                new FileMappingManager(localFS, localFS, tempDir.toString(), tempDir.toString());
         String testDir = tempDir.toString() + "/testDir";
         localFS.mkdirs(new Path(testDir));
         String src = testDir + "/source";
@@ -125,43 +131,44 @@ public class FileMappingManagerTest {
     @Test
     void testDirectoryRename() throws IOException {
         FileSystem localFS = FileSystem.getLocalFileSystem();
-        FileMappingManager fileMappingManager = new FileMappingManager(localFS);
+        FileMappingManager fileMappingManager =
+                new FileMappingManager(localFS, localFS, tempDir.toString(), tempDir.toString());
         String testDir = tempDir.toString() + "/testDir";
         localFS.mkdirs(new Path(testDir));
         String src = testDir + "/source";
         FSDataOutputStream os = localFS.create(new Path(src), FileSystem.WriteMode.OVERWRITE);
         os.write(233);
         os.close();
-        String dst = tempDir.toString() + "/dst";
-        fileMappingManager.put(src, dst);
 
-        String renamedDir = tempDir.toString() + "/renamedDir";
+        String linkedDirTmp = tempDir.toString() + "/linkedDir.tmp";
+        localFS.mkdirs(new Path(linkedDirTmp));
+        String linkedSrc = linkedDirTmp + "/source";
+        fileMappingManager.put(src, linkedSrc);
 
-        // rename testDir to renamedDir
-        fileMappingManager.renameFile(testDir, renamedDir);
-        localFS.rename(new Path(testDir), new Path(renamedDir));
-        String renamedSrc = renamedDir + "/source";
+        String linkedDir = tempDir.toString() + "/linkedDir";
+        // rename linkDir.tmp to linkedDir
+        assertThat(fileMappingManager.renameFile(linkedDirTmp, linkedDir)).isEqualTo(true);
+        localFS.rename(new Path(linkedDirTmp), new Path(linkedDir));
+        linkedSrc = linkedDir + "/source";
 
         // delete src
-        fileMappingManager.deleteFile(new Path(renamedSrc));
-        assertThat(localFS.exists(new Path(renamedSrc))).isTrue();
-        assertThat(localFS.exists(new Path(renamedDir))).isTrue();
+        assertThat(fileMappingManager.deleteFile(new Path(src))).isEqualTo(true);
+        assertThat(localFS.exists(new Path(testDir))).isTrue();
+        assertThat(localFS.exists(new Path(src))).isTrue();
 
-        // rename again
-        String renamedDir2 = tempDir.toString() + "/renamedDir2";
-        fileMappingManager.renameFile(renamedDir, renamedDir2);
-        localFS.rename(new Path(renamedDir), new Path(renamedDir2));
-        String renamedSrc2 = renamedDir2 + "/source";
+        // delete testDir
+        fileMappingManager.deleteFile(new Path(testDir));
+        assertThat(localFS.exists(new Path(testDir))).isTrue();
+        assertThat(localFS.exists(new Path(src))).isTrue();
 
-        // delete renameDir2
-        fileMappingManager.deleteFile(new Path(renamedDir2));
-        assertThat(localFS.exists(new Path(renamedSrc2))).isTrue();
-        assertThat(localFS.exists(new Path(renamedDir2))).isTrue();
-        assertThat(localFS.exists(new Path(renamedDir))).isFalse();
+        // delete linkedDir
+        assertThat(fileMappingManager.deleteFile(new Path(linkedDir))).isEqualTo(false);
+        assertThat(localFS.exists(new Path(testDir))).isTrue();
+        assertThat(localFS.exists(new Path(src))).isTrue();
 
-        // delete dst
-        fileMappingManager.deleteFile(new Path(dst));
-        assertThat(localFS.exists(new Path(renamedSrc2))).isFalse();
-        assertThat(localFS.exists(new Path(renamedDir2))).isFalse();
+        // delete linkedSrc
+        assertThat(fileMappingManager.deleteFile(new Path(linkedSrc))).isEqualTo(true);
+        assertThat(localFS.exists(new Path(src))).isFalse();
+        assertThat(localFS.exists(new Path(testDir))).isFalse();
     }
 }
