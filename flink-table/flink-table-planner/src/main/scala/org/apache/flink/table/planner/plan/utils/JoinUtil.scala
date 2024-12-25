@@ -19,25 +19,31 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.JDouble
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
+import org.apache.flink.table.planner.hint.JoinStrategy
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalSnapshot}
 import org.apache.flink.table.planner.plan.utils.IntervalJoinUtil.satisfyIntervalJoin
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.satisfyTemporalJoin
 import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.satisfyWindowJoin
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 
+import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Join, JoinInfo, JoinRelType}
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexUtil}
 import org.apache.calcite.sql.validate.SqlValidatorUtil
 import org.apache.calcite.util.ImmutableIntList
@@ -274,5 +280,26 @@ object JoinUtil {
     } else {
       rowCount * FlinkRelMdUtil.binaryRowAverageSize(relNode)
     }
+  }
+
+  def getLargeManagedMemory(joinType: FlinkJoinType, config: ExecNodeConfig): Long = {
+    val hashJoinManagedMemory =
+      config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY).getBytes
+    // The memory used by SortMergeJoinIterator that buffer the matched rows, each side needs
+    // this memory if it is full outer join
+    val externalBufferMemory =
+      config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY).getBytes
+    // The memory used by BinaryExternalSorter for sort, the left and right side both need it
+    val sortMemory = config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY).getBytes
+    var externalBufferNum = 1
+    if (joinType eq FlinkJoinType.FULL) externalBufferNum = 2
+    val sortMergeJoinManagedMemory = externalBufferMemory * externalBufferNum + sortMemory * 2
+    // Due to hash join maybe fallback to sort merge join, so here managed memory choose the
+    // large one
+    Math.max(hashJoinManagedMemory, sortMergeJoinManagedMemory)
+  }
+
+  def isJoinStrategyHint(relHints: ImmutableList[RelHint]): Boolean = {
+    relHints.exists(relHint => JoinStrategy.isJoinStrategy(relHint.hintName))
   }
 }

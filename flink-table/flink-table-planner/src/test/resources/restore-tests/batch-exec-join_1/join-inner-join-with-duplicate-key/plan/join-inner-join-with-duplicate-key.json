@@ -165,6 +165,7 @@
     "isBroadcast" : false,
     "leftIsBuild" : false,
     "tryDistinctBuildRow" : false,
+    "withHint": false,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
