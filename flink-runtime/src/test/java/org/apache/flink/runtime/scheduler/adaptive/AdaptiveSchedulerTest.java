@@ -1703,7 +1703,7 @@ public class AdaptiveSchedulerTest {
                                         // set a large checkpoint interval so we can easily deduce
                                         // the savepoints checkpoint id
                                         CheckpointCoordinatorConfiguration.builder()
-                                                .setCheckpointInterval(Long.MAX_VALUE)
+                                                .setCheckpointInterval(Long.MAX_VALUE - 1)
                                                 .build(),
                                         null));
         final CompletedCheckpointStore completedCheckpointStore =
