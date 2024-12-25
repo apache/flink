@@ -93,4 +93,15 @@ public class DeclarationContext {
             throws DeclarationException {
         return manager.register(serializer, name, initialValue);
     }
+
+    /**
+     * Declaring a processing in chain-style. This method start a chain with an input type.
+     *
+     * @return the chain itself.
+     * @param <IN> the in type of the first block.
+     */
+    public <IN> DeclarationChain<IN>.DeclarationStage<IN> declareChain()
+            throws DeclarationException {
+        return new DeclarationChain<IN>(this).firstStage();
+    }
 }
