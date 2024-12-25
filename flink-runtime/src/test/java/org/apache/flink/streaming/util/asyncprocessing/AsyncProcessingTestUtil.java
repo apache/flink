@@ -42,7 +42,7 @@ public class AsyncProcessingTestUtil {
 
     public static CompletableFuture<Void> execute(
             ExecutorService executor, ThrowingConsumer<Void, Exception> processor) {
-        CompletableFuture<Void> future = new CompletableFuture();
+        CompletableFuture<Void> future = new CompletableFuture<>();
         executor.execute(
                 () -> {
                     try {

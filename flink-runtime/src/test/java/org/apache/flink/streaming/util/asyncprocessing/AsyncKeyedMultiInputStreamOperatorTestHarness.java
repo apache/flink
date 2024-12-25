@@ -30,7 +30,7 @@ import org.apache.flink.streaming.runtime.io.RecordProcessorUtils;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
-import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.MultiInputStreamOperatorTestHarness;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.List;
@@ -48,10 +48,10 @@ import static org.apache.flink.streaming.util.asyncprocessing.AsyncProcessingTes
  * async processing, please use methods of test harness instead of operator.
  */
 public class AsyncKeyedMultiInputStreamOperatorTestHarness<K, OUT>
-        extends AbstractStreamOperatorTestHarness<OUT> {
+        extends MultiInputStreamOperatorTestHarness<OUT> {
 
     /** The executor service for async state processing. */
-    private ExecutorService executor;
+    private final ExecutorService executor;
 
     public static <K, OUT> AsyncKeyedMultiInputStreamOperatorTestHarness<K, OUT> create(
             StreamOperatorFactory<OUT> operatorFactory,
@@ -108,6 +108,8 @@ public class AsyncKeyedMultiInputStreamOperatorTestHarness<K, OUT>
         config.serializeAllConfigs();
     }
 
+    @Override
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public void processElement(int idx, StreamRecord<?> element) throws Exception {
         Input input = getCastedOperator().getInputs().get(idx);
         ThrowingConsumer<StreamRecord<?>, Exception> inputProcessor =
@@ -115,16 +117,22 @@ public class AsyncKeyedMultiInputStreamOperatorTestHarness<K, OUT>
         execute(executor, (ignore) -> inputProcessor.accept(element)).get();
     }
 
+    @Override
+    @SuppressWarnings("rawtypes")
     public void processWatermark(int idx, Watermark mark) throws Exception {
         Input input = getCastedOperator().getInputs().get(idx);
         execute(executor, (ignore) -> input.processWatermark(mark)).get();
     }
 
+    @Override
+    @SuppressWarnings("rawtypes")
     public void processWatermarkStatus(int idx, WatermarkStatus watermarkStatus) throws Exception {
         Input input = getCastedOperator().getInputs().get(idx);
         execute(executor, (ignore) -> input.processWatermarkStatus(watermarkStatus)).get();
     }
 
+    @Override
+    @SuppressWarnings("rawtypes")
     public void processRecordAttributes(int idx, RecordAttributes recordAttributes)
             throws Exception {
         Input input = getCastedOperator().getInputs().get(idx);
@@ -137,16 +145,7 @@ public class AsyncKeyedMultiInputStreamOperatorTestHarness<K, OUT>
 
     @Override
     public void close() throws Exception {
-        execute(
-                        executor,
-                        (ignore) -> {
-                            super.close();
-                        })
-                .get();
+        execute(executor, (ignore) -> super.close()).get();
         executor.shutdown();
-    }
-
-    private MultipleInputStreamOperator<OUT> getCastedOperator() {
-        return (MultipleInputStreamOperator<OUT>) operator;
     }
 }
