@@ -38,6 +38,8 @@ public class DeclarationManager {
 
     private int nextValidNameSequence = 0;
 
+    private int contextVariableCount = 0;
+
     public DeclarationManager() {
         this.knownCallbacks = new HashMap<>();
         this.knownVariables = new HashMap<>();
@@ -50,14 +52,19 @@ public class DeclarationManager {
         return knownCallback;
     }
 
-    <T> DeclaredVariable<T> register(
+    <T> ContextVariable<T> registerVariable(@Nullable Supplier<T> initializer)
+            throws DeclarationException {
+        return new ContextVariable<>(this, contextVariableCount++, initializer);
+    }
+
+    <T> DeclaredVariable<T> registerVariable(
             TypeSerializer<T> serializer, String name, @Nullable Supplier<T> initializer)
             throws DeclarationException {
         if (knownVariables.containsKey(name)) {
             throw new DeclarationException("Duplicated variable key " + name);
         }
         DeclaredVariable<T> variable =
-                new DeclaredVariable<>(this, knownVariables.size(), serializer, name, initializer);
+                new DeclaredVariable<>(this, contextVariableCount++, serializer, name, initializer);
         knownVariables.put(name, variable);
         return variable;
     }
@@ -81,7 +88,7 @@ public class DeclarationManager {
     }
 
     public int variableCount() {
-        return knownVariables.size();
+        return contextVariableCount;
     }
 
     String nextAssignedName(String prefix) {

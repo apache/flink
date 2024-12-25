@@ -21,6 +21,7 @@ import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.state.StateFutureUtils;
+import org.apache.flink.runtime.asyncprocessing.declare.ContextVariable;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationContext;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationException;
 import org.apache.flink.runtime.asyncprocessing.declare.NamedCallback;
@@ -61,11 +62,11 @@ public class AsyncKeyedProcessOperatorTest {
                                 testOperator, (e) -> e.f0, TypeInformation.of(Integer.class))) {
             testHarness.open();
             testHarness.processElement(new StreamRecord<>(Tuple2.of(5, "5")));
-            expectedOutput.add(new StreamRecord<>("12"));
-            assertThat(function.getValue()).isEqualTo(12);
+            expectedOutput.add(new StreamRecord<>("11"));
+            assertThat(function.getValue()).isEqualTo(11);
             testHarness.processElement(new StreamRecord<>(Tuple2.of(6, "6")));
-            expectedOutput.add(new StreamRecord<>("38"));
-            assertThat(function.getValue()).isEqualTo(38);
+            expectedOutput.add(new StreamRecord<>("24"));
+            assertThat(function.getValue()).isEqualTo(24);
             assertThat(testHarness.getOutput()).containsExactly(expectedOutput.toArray());
         }
     }
@@ -86,13 +87,13 @@ public class AsyncKeyedProcessOperatorTest {
             testHarness.processElement(new StreamRecord<>(Tuple2.of(6, "5")));
             assertThat(function.getValue()).isEqualTo(0);
             testHarness.processWatermark(5L);
-            expectedOutput.add(new StreamRecord<>("12", 5L));
+            expectedOutput.add(new StreamRecord<>("11", 5L));
             expectedOutput.add(new Watermark(5L));
-            assertThat(function.getValue()).isEqualTo(12);
+            assertThat(function.getValue()).isEqualTo(11);
             testHarness.processWatermark(6L);
-            expectedOutput.add(new StreamRecord<>("38", 6L));
+            expectedOutput.add(new StreamRecord<>("24", 6L));
             expectedOutput.add(new Watermark(6L));
-            assertThat(function.getValue()).isEqualTo(38);
+            assertThat(function.getValue()).isEqualTo(24);
             assertThat(testHarness.getOutput()).containsExactly(expectedOutput.toArray());
         }
     }
@@ -112,6 +113,7 @@ public class AsyncKeyedProcessOperatorTest {
         public ThrowingConsumer<Tuple2<Integer, String>, Exception> declareProcess(
                 DeclarationContext context, Context ctx, Collector<String> out)
                 throws DeclarationException {
+            ContextVariable<Integer> inputValue = context.declareVariable(null);
             NamedFunction<Void, StateFuture<Integer>> adder =
                     context.declare(
                             "adder",
@@ -122,12 +124,15 @@ public class AsyncKeyedProcessOperatorTest {
                     context.declare(
                             "doubler",
                             (v) -> {
-                                value.addAndGet(v);
+                                value.addAndGet(inputValue.get());
                                 out.collect(String.valueOf(value.get()));
                             });
             assertThat(adder).isInstanceOf(NamedCallback.class);
             assertThat(doubler).isInstanceOf(NamedCallback.class);
             return (e) -> {
+                if (inputValue.get() == null) {
+                    inputValue.set(e.f0);
+                }
                 value.addAndGet(e.f0);
                 StateFutureUtils.<Void>completedVoidFuture().thenCompose(adder).thenAccept(doubler);
             };
@@ -140,9 +145,13 @@ public class AsyncKeyedProcessOperatorTest {
         public ThrowingConsumer<Tuple2<Integer, String>, Exception> declareProcess(
                 DeclarationContext context, Context ctx, Collector<String> out)
                 throws DeclarationException {
+            ContextVariable<Integer> inputValue = context.declareVariable(null);
             return context.<Tuple2<Integer, String>>declareChain()
                     .thenCompose(
                             e -> {
+                                if (inputValue.get() == null) {
+                                    inputValue.set(e.f0);
+                                }
                                 value.addAndGet(e.f0);
                                 return StateFutureUtils.completedVoidFuture();
                             })
@@ -150,7 +159,7 @@ public class AsyncKeyedProcessOperatorTest {
                     .withName("adder")
                     .thenAccept(
                             (v) -> {
-                                value.addAndGet(v);
+                                value.addAndGet(inputValue.get());
                                 out.collect(String.valueOf(value.get()));
                             })
                     .withName("doubler")
@@ -176,9 +185,13 @@ public class AsyncKeyedProcessOperatorTest {
         public ThrowingConsumer<Long, Exception> declareOnTimer(
                 DeclarationContext context, OnTimerContext ctx, Collector<String> out)
                 throws DeclarationException {
+            ContextVariable<Integer> inputValue = context.declareVariable(null);
             return context.<Long>declareChain()
                     .thenCompose(
                             e -> {
+                                if (inputValue.get() == null) {
+                                    inputValue.set(e.intValue());
+                                }
                                 value.addAndGet(e.intValue());
                                 return StateFutureUtils.completedVoidFuture();
                             })
@@ -186,7 +199,7 @@ public class AsyncKeyedProcessOperatorTest {
                     .withName("adder")
                     .thenAccept(
                             (v) -> {
-                                value.addAndGet(v);
+                                value.addAndGet(inputValue.get());
                                 out.collect(String.valueOf(value.get()));
                             })
                     .withName("doubler")

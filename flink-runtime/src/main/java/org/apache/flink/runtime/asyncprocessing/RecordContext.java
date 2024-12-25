@@ -64,7 +64,7 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
     private Map<InternalPartitionedState<?>, Object> namespaces = null;
 
     /** User-defined variables. */
-    private final AtomicReferenceArray<Object> declaredVariables;
+    private final AtomicReferenceArray<Object> contextVariables;
 
     /**
      * The extra context info which is used to hold customized data defined by state backend. The
@@ -100,7 +100,7 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
         this.disposer = disposer;
         this.keyGroup = keyGroup;
         this.epoch = epoch;
-        this.declaredVariables = variables;
+        this.contextVariables = variables;
     }
 
     public Object getRecord() {
@@ -152,16 +152,16 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
     @SuppressWarnings("unchecked")
     public <T> T getVariable(int i) {
         checkVariableIndex(i);
-        return (T) declaredVariables.get(i);
+        return (T) contextVariables.get(i);
     }
 
     public <T> void setVariable(int i, T value) {
         checkVariableIndex(i);
-        declaredVariables.set(i, value);
+        contextVariables.set(i, value);
     }
 
     private void checkVariableIndex(int i) {
-        if (i >= declaredVariables.length()) {
+        if (i >= contextVariables.length()) {
             throw new UnsupportedOperationException(
                     "Variable index out of bounds. Maybe you are accessing "
                             + "a variable that have not been declared.");
@@ -169,7 +169,7 @@ public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRun
     }
 
     AtomicReferenceArray<Object> getVariablesReference() {
-        return declaredVariables;
+        return contextVariables;
     }
 
     public void setExtra(Object extra) {

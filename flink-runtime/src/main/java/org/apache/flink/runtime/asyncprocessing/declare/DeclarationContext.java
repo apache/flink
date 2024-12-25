@@ -91,7 +91,19 @@ public class DeclarationContext {
     public <T> DeclaredVariable<T> declareVariable(
             TypeSerializer<T> serializer, String name, @Nullable Supplier<T> initialValue)
             throws DeclarationException {
-        return manager.register(serializer, name, initialValue);
+        return manager.registerVariable(serializer, name, initialValue);
+    }
+
+    /**
+     * Declare a variable that will keep value across callback with same context. This value cannot
+     * be serialized into checkpoint.
+     *
+     * @param initializer the initializer of variable. Can be null if no need to initialize.
+     * @param <T> The type of value.
+     */
+    public <T> ContextVariable<T> declareVariable(@Nullable Supplier<T> initializer)
+            throws DeclarationException {
+        return manager.registerVariable(initializer);
     }
 
     /**
