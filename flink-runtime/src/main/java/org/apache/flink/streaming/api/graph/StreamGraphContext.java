@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.graph.util.ImmutableStreamNode;
 import org.apache.flink.streaming.api.graph.util.StreamEdgeUpdateRequestInfo;
 import org.apache.flink.streaming.api.graph.util.StreamNodeUpdateRequestInfo;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 import javax.annotation.Nullable;
 
@@ -89,4 +90,7 @@ public interface StreamGraphContext {
      * @return the consumed IntermediateDataSetID
      */
     IntermediateDataSetID getConsumedIntermediateDataSetId(String edgeId);
+
+    @Nullable
+    StreamPartitioner<?> getOutputPartitioner(Integer sourceId, Integer targetId, String edgeId);
 }

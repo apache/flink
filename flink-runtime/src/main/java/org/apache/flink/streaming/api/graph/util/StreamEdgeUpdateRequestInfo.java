@@ -30,6 +30,7 @@ public class StreamEdgeUpdateRequestInfo {
 
     private StreamPartitioner<?> outputPartitioner;
     private int typeNumber;
+    private Boolean existIntraInputKeyCorrelation;
 
     public StreamEdgeUpdateRequestInfo(String edgeId, Integer sourceId, Integer targetId) {
         this.edgeId = edgeId;
@@ -44,6 +45,12 @@ public class StreamEdgeUpdateRequestInfo {
 
     public StreamEdgeUpdateRequestInfo typeNumber(int typeNumber) {
         this.typeNumber = typeNumber;
+        return this;
+    }
+
+    public StreamEdgeUpdateRequestInfo existIntraInputKeyCorrelation(
+            boolean existIntraInputKeyCorrelation) {
+        this.existIntraInputKeyCorrelation = existIntraInputKeyCorrelation;
         return this;
     }
 
@@ -65,5 +72,9 @@ public class StreamEdgeUpdateRequestInfo {
 
     public int getTypeNumber() {
         return typeNumber;
+    }
+
+    public Boolean getExistIntraInputKeyCorrelation() {
+        return existIntraInputKeyCorrelation;
     }
 }

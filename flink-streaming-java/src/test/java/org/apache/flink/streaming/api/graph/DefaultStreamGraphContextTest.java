@@ -193,6 +193,45 @@ class DefaultStreamGraphContextTest {
         assertThat(targetEdge.getPartitioner() instanceof RescalePartitioner).isTrue();
     }
 
+    @Test
+    void testModifyIntraInputKeyCorrelation() {
+        StreamGraph streamGraph = createStreamGraphForModifyStreamEdgeTest();
+        StreamGraphContext streamGraphContext =
+                new DefaultStreamGraphContext(
+                        streamGraph,
+                        new HashMap<>(),
+                        new HashMap<>(),
+                        new HashMap<>(),
+                        new HashMap<>(),
+                        new HashSet<>(),
+                        Thread.currentThread().getContextClassLoader());
+        StreamNode sourceNode =
+                streamGraph.getStreamNode(streamGraph.getSourceIDs().iterator().next());
+        StreamEdge targetEdge = sourceNode.getOutEdges().get(0);
+        assertThat(targetEdge.existIntraInputKeyCorrelation()).isFalse();
+        assertThat(
+                        streamGraphContext.modifyStreamEdge(
+                                Collections.singletonList(
+                                        new StreamEdgeUpdateRequestInfo(
+                                                        targetEdge.getEdgeId(),
+                                                        targetEdge.getSourceId(),
+                                                        targetEdge.getTargetId())
+                                                .existIntraInputKeyCorrelation(true))))
+                .isTrue();
+        assertThat(targetEdge.existIntraInputKeyCorrelation()).isTrue();
+
+        assertThat(
+                        streamGraphContext.modifyStreamEdge(
+                                Collections.singletonList(
+                                        new StreamEdgeUpdateRequestInfo(
+                                                        targetEdge.getEdgeId(),
+                                                        targetEdge.getSourceId(),
+                                                        targetEdge.getTargetId())
+                                                .existIntraInputKeyCorrelation(false))))
+                .isTrue();
+        assertThat(targetEdge.existIntraInputKeyCorrelation()).isFalse();
+    }
+
     private StreamGraph createStreamGraphForModifyStreamEdgeTest() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         // fromElements(1) -> Map(2) -> Print

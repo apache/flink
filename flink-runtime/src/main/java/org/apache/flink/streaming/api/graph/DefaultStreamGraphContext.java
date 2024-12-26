@@ -130,6 +130,10 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
             if (targetEdge != null && requestInfo.getTypeNumber() != 0) {
                 targetEdge.setTypeNumber(requestInfo.getTypeNumber());
             }
+            if (requestInfo.getExistIntraInputKeyCorrelation() != null) {
+                modifyIntraInputKeyCorrelation(
+                        targetEdge, requestInfo.getExistIntraInputKeyCorrelation());
+            }
         }
 
         return true;
@@ -166,6 +170,12 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
     @Override
     public IntermediateDataSetID getConsumedIntermediateDataSetId(String edgeId) {
         return consumerEdgeIdToIntermediateDataSetMap.get(edgeId).getId();
+    }
+
+    @Override
+    public StreamPartitioner<?> getOutputPartitioner(
+            Integer sourceId, Integer targetId, String edgeId) {
+        return checkNotNull(getStreamEdge(sourceId, targetId, edgeId)).getPartitioner();
     }
 
     private boolean validateStreamEdgeUpdateRequest(StreamEdgeUpdateRequestInfo requestInfo) {
@@ -275,6 +285,15 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
                 oldPartitioner,
                 newPartitioner,
                 targetEdge.getPartitioner());
+    }
+
+    private void modifyIntraInputKeyCorrelation(
+            StreamEdge targetEdge, boolean existIntraInputKeyCorrelation) {
+        if (targetEdge == null
+                || targetEdge.existIntraInputKeyCorrelation() == existIntraInputKeyCorrelation) {
+            return;
+        }
+        targetEdge.setExistIntraInputKeyCorrelation(existIntraInputKeyCorrelation);
     }
 
     private void tryConvertForwardPartitionerAndMergeForwardGroup(StreamEdge targetEdge) {
