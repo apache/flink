@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.graph.util.ImmutableStreamNode;
 import org.apache.flink.streaming.api.graph.util.StreamEdgeUpdateRequestInfo;
 import org.apache.flink.streaming.api.graph.util.StreamNodeUpdateRequestInfo;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -94,6 +95,12 @@ class StreamGraphOptimizerTest {
 
                     @Override
                     public IntermediateDataSetID getConsumedIntermediateDataSetId(String edgeId) {
+                        return null;
+                    }
+
+                    @Override
+                    public @Nullable StreamPartitioner<?> getOutputPartitioner(
+                            String edgeId, Integer sourceId, Integer targetId) {
                         return null;
                     }
                 };
