@@ -100,24 +100,32 @@ plugins {
     // shadow plugin to produce fat JARs
     id 'com.github.johnrengelman.shadow' version '7.1.2'
 }
+
 // artifact properties
 group = 'org.quickstart'
 version = '0.1-SNAPSHOT'
-mainClassName = 'org.quickstart.DataStreamJob'
 description = """Flink Quickstart Job"""
 ext {
-    javaVersion = '1.8'
     flinkVersion = '{{< version >}}'
     scalaBinaryVersion = '{{< scala_version >}}'
     slf4jVersion = '1.7.36'
     log4jVersion = '2.24.1'
 }
-sourceCompatibility = javaVersion
-targetCompatibility = javaVersion
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(11)
+    }
+}
+
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
 }
-applicationDefaultJvmArgs = ["-Dlog4j.configurationFile=log4j2.properties"]
+
+application {
+    mainClass = 'org.quickstart.DataStreamJob'
+    applicationDefaultJvmArgs = ["-Dlog4j.configurationFile=log4j2.properties"]
+}
 
 // declare where to find the dependencies of your project
 repositories {
@@ -179,6 +187,7 @@ jar {
 
 shadowJar {
     configurations = [project.configurations.flinkShadowJar]
+    mergeServiceFiles()
 }
 ```
 
