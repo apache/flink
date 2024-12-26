@@ -21,7 +21,7 @@ package org.apache.flink.streaming.util.asyncprocessing;
 import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateStreamOperator;
 import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.util.function.ThrowingConsumer;
+import org.apache.flink.util.function.RunnableWithException;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -41,15 +41,16 @@ public class AsyncProcessingTestUtil {
     }
 
     public static CompletableFuture<Void> execute(
-            ExecutorService executor, ThrowingConsumer<Void, Exception> processor) {
+            ExecutorService executor, RunnableWithException processor) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         executor.execute(
                 () -> {
                     try {
-                        processor.accept(null);
+                        processor.run();
                         future.complete(null);
                     } catch (Exception e) {
-                        throw new RuntimeException(e);
+                        // Notify the outside future.
+                        future.completeExceptionally(e);
                     }
                 });
         return future;

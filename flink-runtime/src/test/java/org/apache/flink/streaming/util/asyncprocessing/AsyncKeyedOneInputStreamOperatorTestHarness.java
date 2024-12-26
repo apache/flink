@@ -36,6 +36,7 @@ import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.ArrayList;
@@ -45,8 +46,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.apache.flink.streaming.util.asyncprocessing.AsyncProcessingTestUtil.drain;
-import static org.apache.flink.streaming.util.asyncprocessing.AsyncProcessingTestUtil.execute;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * A test harness for testing a {@link OneInputStreamOperator} which uses async state.
@@ -120,6 +121,8 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
                 keyType.createSerializer(executionConfig.getSerializerConfig()));
         config.serializeAllConfigs();
         this.executor = executor;
+        // Make environment record any failure
+        getEnvironment().setExpectedExternalFailureCause(Throwable.class);
     }
 
     @Override
@@ -146,16 +149,14 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
             throws Exception {
         if (inputs.isEmpty()) {
             return execute(
-                    executor,
-                    (ignore) ->
+                    () ->
                             RecordProcessorUtils.getRecordProcessor(getOneInputOperator())
                                     .accept(element));
         } else {
             checkState(inputs.size() == 1);
             Input input = inputs.get(0);
             return execute(
-                    executor,
-                    (ignore) ->
+                    () ->
                             ((ThrowingConsumer<StreamRecord, Exception>)
                                             RecordProcessorUtils.getRecordProcessor(input))
                                     .accept(element));
@@ -181,12 +182,11 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
     @SuppressWarnings("rawtypes")
     public CompletableFuture<Void> processWatermarkStatusInternal(WatermarkStatus status) {
         if (inputs.isEmpty()) {
-            return execute(
-                    executor, (ignore) -> getOneInputOperator().processWatermarkStatus(status));
+            return execute(() -> getOneInputOperator().processWatermarkStatus(status));
         } else {
             checkState(inputs.size() == 1);
             Input input = inputs.get(0);
-            return execute(executor, (ignore) -> input.processWatermarkStatus(status));
+            return execute(() -> input.processWatermarkStatus(status));
         }
     }
 
@@ -198,7 +198,7 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
     @Override
     public void endInput() throws Exception {
         if (operator instanceof BoundedOneInput) {
-            execute(executor, (ignore) -> ((BoundedOneInput) operator).endInput()).get();
+            executeAndGet(() -> ((BoundedOneInput) operator).endInput());
         }
     }
 
@@ -207,11 +207,11 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
     public CompletableFuture<Void> processWatermarkInternal(Watermark mark) {
         currentWatermark = mark.getTimestamp();
         if (inputs.isEmpty()) {
-            return execute(executor, (ignore) -> getOneInputOperator().processWatermark(mark));
+            return execute(() -> getOneInputOperator().processWatermark(mark));
         } else {
             checkState(inputs.size() == 1);
             Input input = inputs.get(0);
-            return execute(executor, (ignore) -> input.processWatermark(mark));
+            return execute(() -> input.processWatermark(mark));
         }
     }
 
@@ -223,12 +223,11 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
     @SuppressWarnings("rawtypes")
     public CompletableFuture<Void> processLatencyMarkerInternal(LatencyMarker marker) {
         if (inputs.isEmpty()) {
-            return execute(
-                    executor, (ignore) -> getOneInputOperator().processLatencyMarker(marker));
+            return execute(() -> getOneInputOperator().processLatencyMarker(marker));
         } else {
             checkState(inputs.size() == 1);
             Input input = inputs.get(0);
-            return execute(executor, (ignore) -> input.processLatencyMarker(marker));
+            return execute(() -> input.processLatencyMarker(marker));
         }
     }
 
@@ -247,28 +246,48 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
     public CompletableFuture<Void> processRecordAttributesInternal(
             RecordAttributes recordAttributes) {
         if (inputs.isEmpty()) {
-            return execute(
-                    executor,
-                    (ignore) -> getOneInputOperator().processRecordAttributes(recordAttributes));
+            return execute(() -> getOneInputOperator().processRecordAttributes(recordAttributes));
         } else {
             checkState(inputs.size() == 1);
             Input input = inputs.get(0);
-            return execute(executor, (ignore) -> input.processRecordAttributes(recordAttributes));
+            return execute(() -> input.processRecordAttributes(recordAttributes));
         }
     }
 
     public void drainStateRequests() throws Exception {
-        execute(executor, (ignore) -> drain(operator)).get();
+        executeAndGet(() -> drain(operator));
     }
 
     @Override
     public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
-        execute(executor, (ignore) -> operator.prepareSnapshotPreBarrier(checkpointId)).get();
+        executeAndGet(() -> operator.prepareSnapshotPreBarrier(checkpointId));
     }
 
     @Override
     public void close() throws Exception {
-        execute(executor, (ignore) -> super.close()).get();
+        executeAndGet(super::close);
         executor.shutdown();
+    }
+
+    private CompletableFuture<Void> execute(RunnableWithException runnable) {
+        return AsyncProcessingTestUtil.execute(
+                executor,
+                () -> {
+                    checkEnvState();
+                    runnable.run();
+                });
+    }
+
+    private void executeAndGet(RunnableWithException runnable) throws Exception {
+        execute(runnable).get();
+        checkEnvState();
+    }
+
+    private void checkEnvState() {
+        if (getEnvironment().getActualExternalFailureCause().isPresent()) {
+            fail(
+                    "There is an error on other threads",
+                    getEnvironment().getActualExternalFailureCause().get());
+        }
     }
 }

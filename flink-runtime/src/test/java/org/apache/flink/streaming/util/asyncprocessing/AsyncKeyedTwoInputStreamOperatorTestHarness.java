@@ -33,6 +33,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.concurrent.CompletableFuture;
@@ -41,6 +42,7 @@ import java.util.concurrent.Executors;
 
 import static org.apache.flink.streaming.util.asyncprocessing.AsyncProcessingTestUtil.drain;
 import static org.apache.flink.streaming.util.asyncprocessing.AsyncProcessingTestUtil.execute;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * A test harness for testing a {@link OneInputStreamOperator} which uses async state.
@@ -117,6 +119,8 @@ public class AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
                 "Operator is not an AsyncStateProcessingOperator");
         this.twoInputOperator = operator;
         this.executor = executor;
+        // Make environment record any failure
+        getEnvironment().setExpectedExternalFailureCause(Throwable.class);
     }
 
     private ThrowingConsumer<StreamRecord<IN1>, Exception> getRecordProcessor1() {
@@ -135,7 +139,7 @@ public class AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
 
     @Override
     public void processElement1(StreamRecord<IN1> element) throws Exception {
-        execute(executor, (ignore) -> getRecordProcessor1().accept(element)).get();
+        executeAndGet(() -> getRecordProcessor1().accept(element));
     }
 
     @Override
@@ -145,7 +149,7 @@ public class AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
 
     @Override
     public void processElement2(StreamRecord<IN2> element) throws Exception {
-        execute(executor, (ignore) -> getRecordProcessor2().accept(element)).get();
+        executeAndGet(() -> getRecordProcessor2().accept(element));
     }
 
     @Override
@@ -155,63 +159,78 @@ public class AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
 
     @Override
     public void processWatermark1(Watermark mark) throws Exception {
-        execute(executor, (ignore) -> twoInputOperator.processWatermark1(mark)).get();
+        executeAndGet(() -> twoInputOperator.processWatermark1(mark));
     }
 
     @Override
     public void processWatermark2(Watermark mark) throws Exception {
-        execute(executor, (ignore) -> twoInputOperator.processWatermark2(mark)).get();
+        executeAndGet(() -> twoInputOperator.processWatermark2(mark));
     }
 
     @Override
     public void processBothWatermarks(Watermark mark) throws Exception {
-        execute(executor, (ignore) -> twoInputOperator.processWatermark1(mark)).get();
-        execute(executor, (ignore) -> twoInputOperator.processWatermark2(mark)).get();
+        executeAndGet(() -> twoInputOperator.processWatermark1(mark));
+        executeAndGet(() -> twoInputOperator.processWatermark2(mark));
     }
 
     @Override
     public void processWatermarkStatus1(WatermarkStatus watermarkStatus) throws Exception {
-        execute(executor, (ignore) -> twoInputOperator.processWatermarkStatus1(watermarkStatus))
-                .get();
+        executeAndGet(() -> twoInputOperator.processWatermarkStatus1(watermarkStatus));
     }
 
     @Override
     public void processWatermarkStatus2(WatermarkStatus watermarkStatus) throws Exception {
-        execute(executor, (ignore) -> twoInputOperator.processWatermarkStatus2(watermarkStatus))
-                .get();
+        executeAndGet(() -> twoInputOperator.processWatermarkStatus2(watermarkStatus));
     }
 
     @Override
     public void processRecordAttributes1(RecordAttributes recordAttributes) throws Exception {
-        execute(executor, (ignore) -> twoInputOperator.processRecordAttributes1(recordAttributes))
-                .get();
+        executeAndGet(() -> twoInputOperator.processRecordAttributes1(recordAttributes));
     }
 
     @Override
     public void processRecordAttributes2(RecordAttributes recordAttributes) throws Exception {
-        execute(executor, (ignore) -> twoInputOperator.processRecordAttributes2(recordAttributes))
-                .get();
+        executeAndGet(() -> twoInputOperator.processRecordAttributes2(recordAttributes));
     }
 
     public void endInput1() throws Exception {
         if (operator instanceof BoundedMultiInput) {
-            execute(executor, (ignore) -> ((BoundedMultiInput) operator).endInput(1)).get();
+            executeAndGet(() -> ((BoundedMultiInput) operator).endInput(1));
         }
     }
 
     public void endInput2() throws Exception {
         if (operator instanceof BoundedMultiInput) {
-            execute(executor, (ignore) -> ((BoundedMultiInput) operator).endInput(2)).get();
+            executeAndGet(() -> ((BoundedMultiInput) operator).endInput(2));
         }
     }
 
     public void drainStateRequests() throws Exception {
-        execute(executor, (ignore) -> drain(operator)).get();
+        executeAndGet(() -> drain(operator));
     }
 
     @Override
     public void close() throws Exception {
-        execute(executor, (ignore) -> super.close()).get();
+        executeAndGet(super::close);
         executor.shutdown();
+    }
+
+    private void executeAndGet(RunnableWithException runnable) throws Exception {
+        execute(
+                        executor,
+                        () -> {
+                            checkEnvState();
+                            runnable.run();
+                        })
+                .get();
+        checkEnvState();
+    }
+
+    private void checkEnvState() {
+        if (getEnvironment().getActualExternalFailureCause().isPresent()) {
+            fail(
+                    "There is an error on other threads",
+                    getEnvironment().getActualExternalFailureCause().get());
+        }
     }
 }
