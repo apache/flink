@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.graph.util.ImmutableStreamNode;
 import org.apache.flink.streaming.api.graph.util.StreamEdgeUpdateRequestInfo;
 import org.apache.flink.streaming.api.graph.util.StreamNodeUpdateRequestInfo;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 
 import javax.annotation.Nullable;
 
@@ -96,4 +97,15 @@ public interface StreamGraphContext {
         /** This method is called whenever the StreamGraph is updated. */
         void onStreamGraphUpdated();
     }
+
+    /**
+     * Gets the output partitioner of the specified edge.
+     *
+     * @param edgeId id of the edge
+     * @param sourceId source node id of the edge
+     * @param targetId target node id of the edge
+     * @return the output partitioner
+     */
+    @Nullable
+    StreamPartitioner<?> getOutputPartitioner(String edgeId, Integer sourceId, Integer targetId);
 }
