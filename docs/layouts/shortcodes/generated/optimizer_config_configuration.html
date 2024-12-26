@@ -9,6 +9,24 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>table.optimizer.skewed-join-optimization.strategy</h5><br> <span class="label label-primary">Batch</span></td>
+            <td style="word-wrap: break-word;">none</td>
+            <td><p>Enum</p></td>
+            <td>"Flink will handle skew in shuffled joins (sort-merge and hash) at runtime by splitting data corresponding to the skewed join key. The value of this configuration determines how Flink performs this optimization. AUTO means Flink will automatically apply this optimization, FORCED means Flink will enforce this optimization even if it introduces extra hash shuffle, and NONE means this optimization will not be executed."</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.skewed-join-optimization.skewed-factor</h5><br> <span class="label label-primary">Batch</span></td>
+            <td style="word-wrap: break-word;">none</td>
+            <td><p>Double</p></td>
+            <td>"During the join phase, Flink will automatically reduce the ratio of the maximum to median concurrent task processing data volume to below the skewed-factor and will also achieve a more balanced data distribution, unless the maximum value is below the `table.optimizer.skewed-join-optimization.skewed-threshold`. Note that this optimization has additional overhead, and after balancing, there may still be a 2x difference in data volume. Users can adjust this parameter based on the 'Read Bytes' metric. We recommend that this value be set to no less than 3 when the left and right tables have similar data volume, and to no less than 2 in other cases."</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.skewed-join-optimization.skewed-threshold</h5><br> <span class="label label-primary">Batch</span></td>
+            <td style="word-wrap: break-word;">none</td>
+            <td><p>MemorySize</p></td>
+            <td>"During the join phase, when the maximum data volume processed by a concurrent task is greater than the skewed-threshold, Flink can automatically reduce the ratio of the maximum data volume processed by a concurrent task to the median to less than the `table.optimizer.skewed-join-optimization.skewed-factor` and will also achieve a more balanced data distribution. Note that this optimization has additional overhead, and it is not recommended to set this value to less than 256MB. Users can adjust this parameter based on the 'Read Bytes' metric."</td>
+        </tr>
+        <tr>
             <td><h5>table.optimizer.adaptive-broadcast-join.strategy</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">none</td>
             <td><p>Enum</p></td>

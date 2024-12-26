@@ -177,6 +177,53 @@ public class OptimizerConfigOptions {
                                             + "hash join optimization is only performed at runtime, and NONE "
                                             + "means the optimization is only carried out at compile time.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<AdaptiveSkewedJoinOptimizationStrategy>
+            TABLE_OPTIMIZER_ADAPTIVE_SKEWED_JOIN_OPTIMIZATION_STRATEGY =
+                    key("table.optimizer.skewed-join-optimization.strategy")
+                            .enumType(AdaptiveSkewedJoinOptimizationStrategy.class)
+                            .defaultValue(AdaptiveSkewedJoinOptimizationStrategy.AUTO)
+                            .withDescription(
+                                    "Flink will handle skew in shuffled joins (sort-merge and hash) "
+                                            + "at runtime by splitting data corresponding to the skewed join "
+                                            + "key. The value of this configuration determines how Flink performs "
+                                            + "this optimization. AUTO means Flink will automatically apply this "
+                                            + "optimization, FORCED means Flink will enforce this optimization even "
+                                            + "if it introduces extra hash shuffle, and NONE means this optimization "
+                                            + "will not be executed.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<Double>
+            TABLE_OPTIMIZER_ADAPTIVE_SKEWED_JOIN_OPTIMIZATION_SKEWED_FACTOR =
+                    key("table.optimizer.skewed-join-optimization.skewed-factor")
+                            .doubleType()
+                            .defaultValue(4.0)
+                            .withDescription(
+                                    "During the join phase, Flink will automatically reduce the ratio of the "
+                                            + "maximum to median concurrent task processing data volume to below "
+                                            + "the skewed-factor and will also achieve a more balanced data distribution, "
+                                            + "unless the maximum value is below the `table.optimizer.skewed-join-optimization.skewed-threshold`. Note that "
+                                            + "this optimization has additional overhead, and after balancing, there "
+                                            + "may still be a 2x difference in data volume. Users can adjust this "
+                                            + "parameter based on the 'Read Bytes' metric. We recommend that this value "
+                                            + "be set to no less than 3 when the left and right tables have similar data "
+                                            + "volume, and to no less than 2 in other cases.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<MemorySize>
+            TABLE_OPTIMIZER_ADAPTIVE_SKEWED_JOIN_OPTIMIZATION_SKEWED_THRESHOLD =
+                    key("table.optimizer.skewed-join-optimization.skewed-threshold")
+                            .memoryType()
+                            .defaultValue(MemorySize.ofMebiBytes(256))
+                            .withDescription(
+                                    "During the join phase, when the maximum data volume processed by a concurrent task "
+                                            + "is greater than the skewed-threshold, Flink can automatically reduce the "
+                                            + "ratio of the maximum data volume processed by a concurrent task to the median "
+                                            + "to less than the `table.optimizer.skewed-join-optimization.skewed-factor` and "
+                                            + "will also achieve a more balanced data distribution. Note that this optimization "
+                                            + "has additional overhead, and it is not recommended to set this value to less "
+                                            + "than 256MB.  Users can adjust this parameter based on the 'Read Bytes' metric. ");
+
     /**
      * The data volume of build side needs to be under this value. If the data volume of build side
      * is too large, the building overhead will be too large, which may lead to a negative impact on
@@ -338,6 +385,36 @@ public class OptimizerConfigOptions {
         private final InlineElement description;
 
         AdaptiveBroadcastJoinStrategy(String value, InlineElement description) {
+            this.value = value;
+            this.description = description;
+        }
+
+        @Override
+        public String toString() {
+            return value;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
+    /** Strategies used for {@link #TABLE_OPTIMIZER_ADAPTIVE_SKEWED_JOIN_OPTIMIZATION_STRATEGY}. */
+    @PublicEvolving
+    public enum AdaptiveSkewedJoinOptimizationStrategy implements DescribedEnum {
+        AUTO("auto", text(" Flink will automatically perform this optimization.")),
+        FORCED(
+                "forced",
+                text(
+                        "Flink will perform this optimization even if it introduces extra hash shuffling.")),
+        NONE("none", text("Skewed join optimization will not be performed."));
+
+        private final String value;
+
+        private final InlineElement description;
+
+        AdaptiveSkewedJoinOptimizationStrategy(String value, InlineElement description) {
             this.value = value;
             this.description = description;
         }
