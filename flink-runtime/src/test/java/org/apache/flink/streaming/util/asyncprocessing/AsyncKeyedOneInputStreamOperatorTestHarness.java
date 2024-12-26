@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -34,7 +35,7 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
-import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.ArrayList;
@@ -54,13 +55,15 @@ import static org.apache.flink.util.Preconditions.checkState;
  * async processing, please use methods of test harness instead of operator.
  */
 public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
-        extends AbstractStreamOperatorTestHarness<OUT> {
+        extends OneInputStreamOperatorTestHarness<IN, OUT> {
 
     /** Empty if the {@link #operator} is not {@link MultipleInputStreamOperator}. */
-    private final List<Input> inputs = new ArrayList<>();
+    private final List<Input<IN>> inputs = new ArrayList<>();
+
+    private long currentWatermark;
 
     /** The executor service for async state processing. */
-    private ExecutorService executor;
+    private final ExecutorService executor;
 
     public static <K, IN, OUT> AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT> create(
             OneInputStreamOperator<IN, OUT> operator,
@@ -120,6 +123,7 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
     }
 
     @Override
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public void setup(TypeSerializer<OUT> outputSerializer) {
         super.setup(outputSerializer);
         if (operator instanceof MultipleInputStreamOperator) {
@@ -128,10 +132,7 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
         }
     }
 
-    public OneInputStreamOperator<IN, OUT> getOneInputOperator() {
-        return (OneInputStreamOperator<IN, OUT>) this.operator;
-    }
-
+    @Override
     public void processElement(StreamRecord<IN> element) throws Exception {
         processElementInternal(element).get();
     }
@@ -140,6 +141,7 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
      * Submit an element processing in an executor thread. This method is mainly used for internal
      * testing, please use {@link #processElement} for common operator testing.
      */
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public CompletableFuture<Void> processElementInternal(StreamRecord<IN> element)
             throws Exception {
         if (inputs.isEmpty()) {
@@ -160,22 +162,24 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
         }
     }
 
+    @Override
     public void processWatermark(long watermark) throws Exception {
         processWatermarkInternal(watermark).get();
     }
 
     /** For internal testing. */
-    public CompletableFuture<Void> processWatermarkInternal(long watermark) throws Exception {
+    public CompletableFuture<Void> processWatermarkInternal(long watermark) {
         return processWatermarkInternal(new Watermark(watermark));
     }
 
+    @Override
     public void processWatermarkStatus(WatermarkStatus status) throws Exception {
         processWatermarkStatusInternal(status).get();
     }
 
     /** For internal testing. */
-    public CompletableFuture<Void> processWatermarkStatusInternal(WatermarkStatus status)
-            throws Exception {
+    @SuppressWarnings("rawtypes")
+    public CompletableFuture<Void> processWatermarkStatusInternal(WatermarkStatus status) {
         if (inputs.isEmpty()) {
             return execute(
                     executor, (ignore) -> getOneInputOperator().processWatermarkStatus(status));
@@ -186,12 +190,22 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
         }
     }
 
+    @Override
     public void processWatermark(Watermark mark) throws Exception {
         processWatermarkInternal(mark).get();
     }
 
+    @Override
+    public void endInput() throws Exception {
+        if (operator instanceof BoundedOneInput) {
+            execute(executor, (ignore) -> ((BoundedOneInput) operator).endInput()).get();
+        }
+    }
+
     /** For internal testing. */
-    public CompletableFuture<Void> processWatermarkInternal(Watermark mark) throws Exception {
+    @SuppressWarnings("rawtypes")
+    public CompletableFuture<Void> processWatermarkInternal(Watermark mark) {
+        currentWatermark = mark.getTimestamp();
         if (inputs.isEmpty()) {
             return execute(executor, (ignore) -> getOneInputOperator().processWatermark(mark));
         } else {
@@ -206,6 +220,7 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
     }
 
     /** For internal testing. */
+    @SuppressWarnings("rawtypes")
     public CompletableFuture<Void> processLatencyMarkerInternal(LatencyMarker marker) {
         if (inputs.isEmpty()) {
             return execute(
@@ -217,11 +232,18 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
         }
     }
 
+    @Override
     public void processRecordAttributes(RecordAttributes recordAttributes) throws Exception {
         processRecordAttributesInternal(recordAttributes).get();
     }
 
+    @Override
+    public long getCurrentWatermark() {
+        return currentWatermark;
+    }
+
     /** For internal testing. */
+    @SuppressWarnings("rawtypes")
     public CompletableFuture<Void> processRecordAttributesInternal(
             RecordAttributes recordAttributes) {
         if (inputs.isEmpty()) {
@@ -246,12 +268,7 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 
     @Override
     public void close() throws Exception {
-        execute(
-                        executor,
-                        (ignore) -> {
-                            super.close();
-                        })
-                .get();
+        execute(executor, (ignore) -> super.close()).get();
         executor.shutdown();
     }
 }

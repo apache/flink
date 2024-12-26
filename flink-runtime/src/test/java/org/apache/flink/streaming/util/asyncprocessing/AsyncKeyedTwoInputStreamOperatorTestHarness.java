@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -30,7 +31,7 @@ import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStatePr
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
-import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -48,7 +49,7 @@ import static org.apache.flink.streaming.util.asyncprocessing.AsyncProcessingTes
  * async processing, please use methods of test harness instead of operator.
  */
 public class AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
-        extends AbstractStreamOperatorTestHarness<OUT> {
+        extends TwoInputStreamOperatorTestHarness<IN1, IN2, OUT> {
 
     private final TwoInputStreamOperator<IN1, IN2, OUT> twoInputOperator;
 
@@ -56,7 +57,7 @@ public class AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
     private ThrowingConsumer<StreamRecord<IN2>, Exception> processor2;
 
     /** The executor service for async state processing. */
-    private ExecutorService executor;
+    private final ExecutorService executor;
 
     public static <K, IN1, IN2, OUT>
             AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT> create(
@@ -132,48 +133,76 @@ public class AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
         return processor2;
     }
 
+    @Override
     public void processElement1(StreamRecord<IN1> element) throws Exception {
         execute(executor, (ignore) -> getRecordProcessor1().accept(element)).get();
     }
 
+    @Override
     public void processElement1(IN1 value, long timestamp) throws Exception {
         processElement1(new StreamRecord<>(value, timestamp));
     }
 
+    @Override
     public void processElement2(StreamRecord<IN2> element) throws Exception {
         execute(executor, (ignore) -> getRecordProcessor2().accept(element)).get();
     }
 
+    @Override
     public void processElement2(IN2 value, long timestamp) throws Exception {
         processElement2(new StreamRecord<>(value, timestamp));
     }
 
+    @Override
     public void processWatermark1(Watermark mark) throws Exception {
         execute(executor, (ignore) -> twoInputOperator.processWatermark1(mark)).get();
     }
 
+    @Override
     public void processWatermark2(Watermark mark) throws Exception {
         execute(executor, (ignore) -> twoInputOperator.processWatermark2(mark)).get();
     }
 
+    @Override
+    public void processBothWatermarks(Watermark mark) throws Exception {
+        execute(executor, (ignore) -> twoInputOperator.processWatermark1(mark)).get();
+        execute(executor, (ignore) -> twoInputOperator.processWatermark2(mark)).get();
+    }
+
+    @Override
     public void processWatermarkStatus1(WatermarkStatus watermarkStatus) throws Exception {
         execute(executor, (ignore) -> twoInputOperator.processWatermarkStatus1(watermarkStatus))
                 .get();
     }
 
+    @Override
     public void processWatermarkStatus2(WatermarkStatus watermarkStatus) throws Exception {
         execute(executor, (ignore) -> twoInputOperator.processWatermarkStatus2(watermarkStatus))
                 .get();
     }
 
+    @Override
     public void processRecordAttributes1(RecordAttributes recordAttributes) throws Exception {
         execute(executor, (ignore) -> twoInputOperator.processRecordAttributes1(recordAttributes))
                 .get();
     }
 
+    @Override
     public void processRecordAttributes2(RecordAttributes recordAttributes) throws Exception {
         execute(executor, (ignore) -> twoInputOperator.processRecordAttributes2(recordAttributes))
                 .get();
+    }
+
+    public void endInput1() throws Exception {
+        if (operator instanceof BoundedMultiInput) {
+            execute(executor, (ignore) -> ((BoundedMultiInput) operator).endInput(1)).get();
+        }
+    }
+
+    public void endInput2() throws Exception {
+        if (operator instanceof BoundedMultiInput) {
+            execute(executor, (ignore) -> ((BoundedMultiInput) operator).endInput(2)).get();
+        }
     }
 
     public void drainStateRequests() throws Exception {
@@ -182,12 +211,7 @@ public class AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
 
     @Override
     public void close() throws Exception {
-        execute(
-                        executor,
-                        (ignore) -> {
-                            super.close();
-                        })
-                .get();
+        execute(executor, (ignore) -> super.close()).get();
         executor.shutdown();
     }
 }
