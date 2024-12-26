@@ -32,7 +32,7 @@ import java.time.ZoneId;
 import java.util.Optional;
 
 /**
- * An window aggregate processor implementation which works for {@link SliceSharedAssigner}, e.g.
+ * A window aggregate processor implementation which works for {@link SliceSharedAssigner}, e.g.
  * hopping windows and cumulative windows.
  */
 public final class SliceSharedWindowAggProcessor extends AbstractSliceWindowAggProcessor
@@ -66,7 +66,7 @@ public final class SliceSharedWindowAggProcessor extends AbstractSliceWindowAggP
         // we have set accumulator in the merge() method
         RowData aggResult = aggregator.getValue(windowEnd);
         if (!emptySupplier.get()) {
-            // the triggered window is an empty window, we shouldn't emit it
+            // if the triggered window is an empty window, we shouldn't emit it
             collect(aggResult);
         }
 

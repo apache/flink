@@ -17,18 +17,22 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.{DataTypes, TableConfig, TableException, ValidationException}
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.JBigDecimal
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexSetSemanticsTableCall}
 import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlWindowTableFunction}
 import org.apache.flink.table.planner.plan.`trait`.RelWindowProperties
 import org.apache.flink.table.planner.plan.logical._
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
-import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalAggregate, FlinkLogicalMatch, FlinkLogicalOverAggregate, FlinkLogicalRank, FlinkLogicalTableFunctionScan}
+import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.inferAggAccumulatorNames
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.planner.typeutils.RowTypeUtils
 import org.apache.flink.table.runtime.groupwindow._
+import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.TimestampType
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAttributeType
@@ -350,6 +354,21 @@ object WindowUtil {
     } else {
       false
     }
+  }
+
+  def isAsyncStateEnabled(
+      config: ReadableConfig,
+      windowAssigner: WindowAssigner,
+      aggInfoList: AggregateInfoList): Boolean = {
+    if (!config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED)) {
+      return false
+    }
+    // currently, unslice assigner does not support async state
+    if (!windowAssigner.isInstanceOf[SliceAssigner]) {
+      return false
+    }
+
+    AggregateUtil.isAsyncStateEnabled(config, aggInfoList)
   }
 
   // ------------------------------------------------------------------------------------------
