@@ -49,6 +49,7 @@ import org.apache.flink.runtime.state.v2.StateDescriptorUtils;
 import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.concurrent.RunnableFuture;
@@ -119,8 +120,10 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend<
     }
 
     @Override
-    public void switchContext(RecordContext<K> context) {
-        keyedStateBackend.setCurrentKeyAndKeyGroup(context.getKey(), context.getKeyGroup());
+    public void switchContext(@Nullable RecordContext<K> context) {
+        if (context != null) {
+            keyedStateBackend.setCurrentKeyAndKeyGroup(context.getKey(), context.getKeyGroup());
+        }
     }
 
     @Override

@@ -32,6 +32,7 @@ import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
 import org.apache.flink.util.Disposable;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.Closeable;
 
@@ -110,7 +111,7 @@ public interface AsyncKeyedStateBackend<K>
 
     /** By default, a state backend does nothing when a key is switched in async processing. */
     @Override
-    default void switchContext(RecordContext<K> context) {}
+    default void switchContext(@Nullable RecordContext<K> context) {}
 
     // TODO remove this once heap-based timers are working with ForSt incremental snapshots!
     /**
