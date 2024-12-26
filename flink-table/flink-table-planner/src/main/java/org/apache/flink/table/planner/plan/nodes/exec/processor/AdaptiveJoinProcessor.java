@@ -52,7 +52,8 @@ public class AdaptiveJoinProcessor implements ExecNodeGraphProcessor {
         if (execGraph.getRootNodes().get(0) instanceof StreamExecNode) {
             throw new TableException("StreamExecNode is not supported yet");
         }
-        if (!isAdaptiveBroadcastJoinEnabled(context)) {
+        if (!isAdaptiveBroadcastJoinEnabled(context)
+                && !isAdaptiveSkewedJoinOptimizationEnabled(context)) {
             return execGraph;
         }
 
@@ -67,7 +68,7 @@ public class AdaptiveJoinProcessor implements ExecNodeGraphProcessor {
                         for (int i = 0; i < node.getInputEdges().size(); ++i) {
                             ExecEdge edge = node.getInputEdges().get(i);
                             ExecNode<?> newNode =
-                                    replaceAdaptiveBroadcastJoinNode(edge.getSource());
+                                    replaceAdaptiveJoinNode(edge.getSource(), context);
                             node.replaceInputEdge(
                                     i,
                                     ExecEdge.builder()
@@ -91,6 +92,48 @@ public class AdaptiveJoinProcessor implements ExecNodeGraphProcessor {
                         .collect(Collectors.toList());
 
         return new ExecNodeGraph(execGraph.getFlinkVersion(), newRootNodes);
+    }
+
+    private ExecNode<?> replaceAdaptiveJoinNode(ExecNode<?> node, ProcessorContext context) {
+        if (!canPerformAdaptiveBroadcastJoinOptimization(node, context)
+                && !canPerformAdaptiveSkewedJoinOptimization(node, context)) {
+            return node;
+        }
+        ExecNode<?> newNode = node;
+        if (node instanceof AdaptiveJoinExecNode
+                && ((AdaptiveJoinExecNode) node).canBeTransformedToAdaptiveJoin()) {
+            BatchExecAdaptiveJoin adaptiveJoin = ((AdaptiveJoinExecNode) node).toAdaptiveJoinNode();
+            replaceInputEdge(adaptiveJoin, node);
+            newNode = adaptiveJoin;
+        }
+
+        return newNode;
+    }
+
+    private boolean canPerformAdaptiveBroadcastJoinOptimization(
+            ExecNode<?> node, ProcessorContext context) {
+        if (!isAdaptiveBroadcastJoinEnabled(context)) {
+            return false;
+        }
+        if (!(checkAllInputShuffleIsHash(node))
+                || isUpstreamNodeKeepInputAsIs(node.getInputEdges())) {
+            return false;
+        }
+        return node instanceof AdaptiveJoinExecNode
+                && ((AdaptiveJoinExecNode) node).canBeTransformedToAdaptiveJoin();
+    }
+
+    private boolean canPerformAdaptiveSkewedJoinOptimization(
+            ExecNode<?> node, ProcessorContext context) {
+        if (!isAdaptiveSkewedJoinOptimizationEnabled(context)) {
+            return false;
+        }
+        if (!(checkExistInputShuffleIsHash(node))
+                || isUpstreamNodeKeepInputAsIs(node.getInputEdges())) {
+            return false;
+        }
+        return node instanceof AdaptiveJoinExecNode
+                && ((AdaptiveJoinExecNode) node).canBeTransformedToAdaptiveJoin();
     }
 
     private ExecNode<?> replaceAdaptiveBroadcastJoinNode(ExecNode<?> node) {
@@ -133,16 +176,28 @@ public class AdaptiveJoinProcessor implements ExecNodeGraphProcessor {
                                 != OptimizerConfigOptions.AdaptiveBroadcastJoinStrategy.NONE
                         && !TableConfigUtils.isOperatorDisabled(
                                 tableConfig, OperatorType.BroadcastHashJoin);
-        JobManagerOptions.SchedulerType schedulerType =
-                context.getPlanner()
+
+        return isAdaptiveBroadcastJoinEnabled && isAdaptiveBatchSchedulerEnabled(context);
+    }
+
+    private boolean isAdaptiveSkewedJoinOptimizationEnabled(ProcessorContext context) {
+        TableConfig tableConfig = context.getPlanner().getTableConfig();
+        boolean isAdaptiveSkewedJoinOptimizationEnabled =
+                tableConfig.get(
+                                OptimizerConfigOptions
+                                        .TABLE_OPTIMIZER_ADAPTIVE_SKEWED_JOIN_OPTIMIZATION_STRATEGY)
+                        != OptimizerConfigOptions.AdaptiveSkewedJoinOptimizationStrategy.NONE;
+
+        return isAdaptiveSkewedJoinOptimizationEnabled && isAdaptiveBatchSchedulerEnabled(context);
+    }
+
+    private boolean isAdaptiveBatchSchedulerEnabled(ProcessorContext context) {
+        return context.getPlanner()
                         .getExecEnv()
                         .getConfig()
                         .getSchedulerType()
-                        .orElse(JobManagerOptions.SchedulerType.AdaptiveBatch);
-        boolean isAdaptiveBatchSchedulerEnabled =
-                schedulerType == JobManagerOptions.SchedulerType.AdaptiveBatch;
-
-        return isAdaptiveBroadcastJoinEnabled && isAdaptiveBatchSchedulerEnabled;
+                        .orElse(JobManagerOptions.SchedulerType.AdaptiveBatch)
+                == JobManagerOptions.SchedulerType.AdaptiveBatch;
     }
 
     private boolean checkAllInputShuffleIsHash(ExecNode<?> node) {
@@ -152,6 +207,15 @@ public class AdaptiveJoinProcessor implements ExecNodeGraphProcessor {
             }
         }
         return true;
+    }
+
+    private boolean checkExistInputShuffleIsHash(ExecNode<?> node) {
+        for (InputProperty inputProperty : node.getInputProperties()) {
+            if (inputProperty.getRequiredDistribution().getType() == DistributionType.HASH) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void replaceInputEdge(ExecNode<?> newNode, ExecNode<?> originalNode) {
