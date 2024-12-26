@@ -31,6 +31,7 @@ import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.MultiInputStreamOperatorTestHarness;
+import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.List;
@@ -40,6 +41,7 @@ import java.util.concurrent.Executors;
 
 import static org.apache.flink.streaming.util.asyncprocessing.AsyncProcessingTestUtil.drain;
 import static org.apache.flink.streaming.util.asyncprocessing.AsyncProcessingTestUtil.execute;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * A test harness for testing a {@link MultipleInputStreamOperator}.
@@ -100,6 +102,8 @@ public class AsyncKeyedMultiInputStreamOperatorTestHarness<K, OUT>
             setKeySelector(i, keySelectors.get(i));
         }
         this.executor = executor;
+        // Make environment record any failure
+        getEnvironment().setExpectedExternalFailureCause(Throwable.class);
     }
 
     public void setKeySelector(int idx, KeySelector<?, K> keySelector) {
@@ -114,21 +118,21 @@ public class AsyncKeyedMultiInputStreamOperatorTestHarness<K, OUT>
         Input input = getCastedOperator().getInputs().get(idx);
         ThrowingConsumer<StreamRecord<?>, Exception> inputProcessor =
                 RecordProcessorUtils.getRecordProcessor(input);
-        execute(executor, (ignore) -> inputProcessor.accept(element)).get();
+        executeAndGet(() -> inputProcessor.accept(element));
     }
 
     @Override
     @SuppressWarnings("rawtypes")
     public void processWatermark(int idx, Watermark mark) throws Exception {
         Input input = getCastedOperator().getInputs().get(idx);
-        execute(executor, (ignore) -> input.processWatermark(mark)).get();
+        executeAndGet(() -> input.processWatermark(mark));
     }
 
     @Override
     @SuppressWarnings("rawtypes")
     public void processWatermarkStatus(int idx, WatermarkStatus watermarkStatus) throws Exception {
         Input input = getCastedOperator().getInputs().get(idx);
-        execute(executor, (ignore) -> input.processWatermarkStatus(watermarkStatus)).get();
+        executeAndGet(() -> input.processWatermarkStatus(watermarkStatus));
     }
 
     @Override
@@ -136,16 +140,35 @@ public class AsyncKeyedMultiInputStreamOperatorTestHarness<K, OUT>
     public void processRecordAttributes(int idx, RecordAttributes recordAttributes)
             throws Exception {
         Input input = getCastedOperator().getInputs().get(idx);
-        execute(executor, (ignore) -> input.processRecordAttributes(recordAttributes)).get();
+        executeAndGet(() -> input.processRecordAttributes(recordAttributes));
     }
 
     public void drainStateRequests() throws Exception {
-        execute(executor, (ignore) -> drain(operator)).get();
+        executeAndGet(() -> drain(operator));
     }
 
     @Override
     public void close() throws Exception {
-        execute(executor, (ignore) -> super.close()).get();
+        executeAndGet(super::close);
         executor.shutdown();
+    }
+
+    private void executeAndGet(RunnableWithException runnable) throws Exception {
+        execute(
+                        executor,
+                        () -> {
+                            checkEnvState();
+                            runnable.run();
+                        })
+                .get();
+        checkEnvState();
+    }
+
+    private void checkEnvState() {
+        if (getEnvironment().getActualExternalFailureCause().isPresent()) {
+            fail(
+                    "There is an error on other threads",
+                    getEnvironment().getActualExternalFailureCause().get());
+        }
     }
 }
