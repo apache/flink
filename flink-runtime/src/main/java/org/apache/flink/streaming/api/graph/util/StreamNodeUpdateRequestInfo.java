@@ -19,39 +19,29 @@
 package org.apache.flink.streaming.api.graph.util;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.graph.StreamEdge;
-import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-/** Helper class that provides read-only StreamEdge. */
+/** Helper class carries the data required to updates a stream edge. */
 @Internal
-public class ImmutableStreamEdge {
-    private final StreamEdge streamEdge;
+public class StreamNodeUpdateRequestInfo {
+    private final Integer nodeId;
 
-    public ImmutableStreamEdge(StreamEdge streamEdge) {
-        this.streamEdge = streamEdge;
+    private TypeSerializer<?>[] typeSerializersIn;
+
+    public StreamNodeUpdateRequestInfo(Integer nodeId) {
+        this.nodeId = nodeId;
     }
 
-    public int getTypeNumber() {
-        return streamEdge.getTypeNumber();
+    public StreamNodeUpdateRequestInfo typeSerializersIn(TypeSerializer<?>[] typeSerializersIn) {
+        this.typeSerializersIn = typeSerializersIn;
+        return this;
     }
 
-    public int getTargetId() {
-        return streamEdge.getTargetId();
+    public Integer getNodeId() {
+        return nodeId;
     }
 
-    public int getSourceId() {
-        return streamEdge.getSourceId();
-    }
-
-    public String getEdgeId() {
-        return streamEdge.getEdgeId();
-    }
-
-    public boolean isForwardEdge() {
-        return streamEdge.getPartitioner() instanceof ForwardPartitioner;
-    }
-
-    public boolean isExactForwardEdge() {
-        return streamEdge.getPartitioner().getClass().equals(ForwardPartitioner.class);
+    public TypeSerializer<?>[] getTypeSerializersIn() {
+        return typeSerializersIn;
     }
 }

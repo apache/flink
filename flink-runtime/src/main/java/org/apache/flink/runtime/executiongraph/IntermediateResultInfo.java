@@ -36,6 +36,14 @@ public interface IntermediateResultInfo {
     boolean isBroadcast();
 
     /**
+     * Indicates whether every downstream consumer needs to consume all produced sub-partitions.
+     *
+     * @return true if every downstream consumer needs to consume all produced sub-partitions, false
+     *     otherwise.
+     */
+    boolean isEveryConsumerConsumeAllSubPartitions();
+
+    /**
      * Whether it is a pointwise result.
      *
      * @return whether it is a pointwise result

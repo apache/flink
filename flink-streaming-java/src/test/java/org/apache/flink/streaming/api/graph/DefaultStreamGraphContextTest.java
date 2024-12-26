@@ -34,6 +34,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -52,7 +53,10 @@ class DefaultStreamGraphContextTest {
                         streamGraph,
                         forwardGroupsByEndpointNodeIdCache,
                         frozenNodeToStartNodeMap,
-                        opIntermediateOutputsCaches);
+                        opIntermediateOutputsCaches,
+                        new HashMap<>(),
+                        new HashSet<>(),
+                        Thread.currentThread().getContextClassLoader());
 
         StreamNode sourceNode =
                 streamGraph.getStreamNode(streamGraph.getSourceIDs().iterator().next());
@@ -136,7 +140,10 @@ class DefaultStreamGraphContextTest {
                         streamGraph,
                         forwardGroupsByEndpointNodeIdCache,
                         frozenNodeToStartNodeMap,
-                        opIntermediateOutputsCaches);
+                        opIntermediateOutputsCaches,
+                        new HashMap<>(),
+                        new HashSet<>(),
+                        Thread.currentThread().getContextClassLoader());
 
         StreamNode sourceNode =
                 streamGraph.getStreamNode(streamGraph.getSourceIDs().iterator().next());
@@ -184,6 +191,45 @@ class DefaultStreamGraphContextTest {
                                 Collections.singletonList(streamEdgeUpdateRequestInfo)))
                 .isTrue();
         assertThat(targetEdge.getPartitioner() instanceof RescalePartitioner).isTrue();
+    }
+
+    @Test
+    void testModifyIntraInputKeyCorrelation() {
+        StreamGraph streamGraph = createStreamGraphForModifyStreamEdgeTest();
+        StreamGraphContext streamGraphContext =
+                new DefaultStreamGraphContext(
+                        streamGraph,
+                        new HashMap<>(),
+                        new HashMap<>(),
+                        new HashMap<>(),
+                        new HashMap<>(),
+                        new HashSet<>(),
+                        Thread.currentThread().getContextClassLoader());
+        StreamNode sourceNode =
+                streamGraph.getStreamNode(streamGraph.getSourceIDs().iterator().next());
+        StreamEdge targetEdge = sourceNode.getOutEdges().get(0);
+        assertThat(targetEdge.existIntraInputKeyCorrelation()).isFalse();
+        assertThat(
+                        streamGraphContext.modifyStreamEdge(
+                                Collections.singletonList(
+                                        new StreamEdgeUpdateRequestInfo(
+                                                        targetEdge.getEdgeId(),
+                                                        targetEdge.getSourceId(),
+                                                        targetEdge.getTargetId())
+                                                .existIntraInputKeyCorrelation(true))))
+                .isTrue();
+        assertThat(targetEdge.existIntraInputKeyCorrelation()).isTrue();
+
+        assertThat(
+                        streamGraphContext.modifyStreamEdge(
+                                Collections.singletonList(
+                                        new StreamEdgeUpdateRequestInfo(
+                                                        targetEdge.getEdgeId(),
+                                                        targetEdge.getSourceId(),
+                                                        targetEdge.getTargetId())
+                                                .existIntraInputKeyCorrelation(false))))
+                .isTrue();
+        assertThat(targetEdge.existIntraInputKeyCorrelation()).isFalse();
     }
 
     private StreamGraph createStreamGraphForModifyStreamEdgeTest() {

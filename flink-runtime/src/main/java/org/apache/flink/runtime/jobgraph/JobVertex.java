@@ -522,11 +522,42 @@ public class JobVertex implements java.io.Serializable {
             IntermediateDataSetID intermediateDataSetId,
             boolean isBroadcast,
             boolean isForward) {
+        return connectNewDataSetAsInput(
+                input,
+                distPattern,
+                partitionType,
+                intermediateDataSetId,
+                isBroadcast,
+                isForward,
+                -1,
+                distPattern != DistributionPattern.POINTWISE,
+                distPattern != DistributionPattern.POINTWISE && !isBroadcast);
+    }
+
+    public JobEdge connectNewDataSetAsInput(
+            JobVertex input,
+            DistributionPattern distPattern,
+            ResultPartitionType partitionType,
+            IntermediateDataSetID intermediateDataSetId,
+            boolean isBroadcast,
+            boolean isForward,
+            int typeNumber,
+            boolean existInterInputsCorrelation,
+            boolean existIntraInputCorrelation) {
 
         IntermediateDataSet dataSet =
                 input.getOrCreateResultDataSet(intermediateDataSetId, partitionType);
 
-        JobEdge edge = new JobEdge(dataSet, this, distPattern, isBroadcast, isForward);
+        JobEdge edge =
+                new JobEdge(
+                        dataSet,
+                        this,
+                        distPattern,
+                        isBroadcast,
+                        isForward,
+                        typeNumber,
+                        existInterInputsCorrelation,
+                        existIntraInputCorrelation);
         this.inputs.add(edge);
         dataSet.addConsumer(edge);
         return edge;
