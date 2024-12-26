@@ -132,7 +132,7 @@ public class FlinkRewriteSubQueryRule
         // check the RelNode is a Aggregate which has only count aggregate call with empty args
 
         switch (call.getKind()) {
-                // (select count(*) from T) > X (X is between 0 (inclusive) and 1 (exclusive))
+            // (select count(*) from T) > X (X is between 0 (inclusive) and 1 (exclusive))
             case GREATER_THAN:
                 if (isScalarQuery(call.operands.get(0))) {
                     RexSubQuery subQuery = (RexSubQuery) call.operands.get(0);
