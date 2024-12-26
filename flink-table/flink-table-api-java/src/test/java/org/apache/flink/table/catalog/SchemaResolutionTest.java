@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.expressions.CallExpression;
@@ -47,8 +46,7 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRow
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isTimeAttribute;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
-import static org.assertj.core.api.HamcrestCondition.matching;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link Schema}, {@link DefaultSchemaResolver}, and {@link ResolvedSchema}. */
 class SchemaResolutionTest {
@@ -434,12 +432,8 @@ class SchemaResolutionTest {
     }
 
     private static void testError(Schema schema, String errorMessage, boolean isStreaming) {
-        try {
-            resolveSchema(schema, isStreaming);
-            fail("Error message expected: " + errorMessage);
-        } catch (Throwable t) {
-            assertThat(t).satisfies(matching(FlinkMatchers.containsMessage(errorMessage)));
-        }
+        assertThatThrownBy(() -> resolveSchema(schema, isStreaming))
+                .hasMessageContaining(errorMessage);
     }
 
     private static ResolvedSchema resolveSchema(Schema schema) {
