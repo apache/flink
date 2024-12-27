@@ -1296,7 +1296,8 @@ public class StreamingJobGraphGenerator {
     }
 
     private static void setOperatorNonChainedOutputsConfig(
-            Integer vertexId,
+            JobVertexID jobVertexId,
+            Integer streamNodeId,
             StreamConfig config,
             List<StreamEdge> nonChainableOutputs,
             Map<StreamEdge, NonChainedOutput> outputsConsumedByEdge,
@@ -1318,7 +1319,8 @@ public class StreamingJobGraphGenerator {
 
         List<NonChainedOutput> deduplicatedOutputs =
                 mayReuseNonChainedOutputs(
-                        vertexId,
+                        jobVertexId,
+                        streamNodeId,
                         nonChainableOutputs,
                         outputsConsumedByEdge,
                         jobVertexBuildContext);
@@ -1352,22 +1354,41 @@ public class StreamingJobGraphGenerator {
             final Map<Integer, Map<StreamEdge, NonChainedOutput>> opIntermediateOutputs,
             JobVertexBuildContext jobVertexBuildContext) {
         // set non chainable output config
-        for (OperatorChainInfo chainInfo : jobVertexBuildContext.getChainInfosInOrder().values()) {
-            chainInfo
-                    .getOperatorInfos()
-                    .forEach(
-                            (vertexId, operatorInfo) -> {
-                                Map<StreamEdge, NonChainedOutput> outputsConsumedByEdge =
-                                        opIntermediateOutputs.computeIfAbsent(
-                                                vertexId, ignored -> new HashMap<>());
-                                setOperatorNonChainedOutputsConfig(
-                                        vertexId,
-                                        operatorInfo.getVertexConfig(),
-                                        operatorInfo.getNonChainableOutputs(),
-                                        outputsConsumedByEdge,
-                                        jobVertexBuildContext);
-                            });
-        }
+        jobVertexBuildContext
+                .getChainInfosInOrder()
+                .forEach(
+                        (startNodeId, chainInfo) -> {
+                            JobVertexID jobVertexId =
+                                    jobVertexBuildContext.getJobVertex(startNodeId).getID();
+
+                            setOperatorNonChainedOutputsConfigs(
+                                    opIntermediateOutputs,
+                                    jobVertexBuildContext,
+                                    chainInfo,
+                                    jobVertexId);
+                        });
+    }
+
+    private static void setOperatorNonChainedOutputsConfigs(
+            Map<Integer, Map<StreamEdge, NonChainedOutput>> opIntermediateOutputs,
+            JobVertexBuildContext jobVertexBuildContext,
+            OperatorChainInfo chainInfo,
+            JobVertexID jobVertexId) {
+        chainInfo
+                .getOperatorInfos()
+                .forEach(
+                        (streamNodeId, operatorInfo) -> {
+                            Map<StreamEdge, NonChainedOutput> outputsConsumedByEdge =
+                                    opIntermediateOutputs.computeIfAbsent(
+                                            streamNodeId, ignored -> new HashMap<>());
+                            setOperatorNonChainedOutputsConfig(
+                                    jobVertexId,
+                                    streamNodeId,
+                                    operatorInfo.getVertexConfig(),
+                                    operatorInfo.getNonChainableOutputs(),
+                                    outputsConsumedByEdge,
+                                    jobVertexBuildContext);
+                        });
     }
 
     private void setAllVertexNonChainedOutputsConfigs(
@@ -1390,7 +1411,8 @@ public class StreamingJobGraphGenerator {
     }
 
     private static List<NonChainedOutput> mayReuseNonChainedOutputs(
-            int vertexId,
+            JobVertexID jobVertexId,
+            int streamNodeId,
             List<StreamEdge> consumerEdges,
             Map<StreamEdge, NonChainedOutput> outputsConsumedByEdge,
             JobVertexBuildContext jobVertexBuildContext) {
@@ -1399,10 +1421,12 @@ public class StreamingJobGraphGenerator {
         }
         List<NonChainedOutput> outputs = new ArrayList<>(consumerEdges.size());
         for (StreamEdge consumerEdge : consumerEdges) {
-            checkState(vertexId == consumerEdge.getSourceId(), "Vertex id must be the same.");
+            checkState(
+                    streamNodeId == consumerEdge.getSourceId(), "stream node id must be the same.");
             ResultPartitionType partitionType =
                     getResultPartitionType(consumerEdge, jobVertexBuildContext);
-            IntermediateDataSetID dataSetId = new IntermediateDataSetID();
+            IntermediateDataSetID dataSetId =
+                    new IntermediateDataSetID(jobVertexId, consumerEdge.getEdgeId().hashCode());
 
             boolean isPersistentDataSet =
                     isPersistentIntermediateDataset(partitionType, consumerEdge);
