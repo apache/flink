@@ -162,15 +162,15 @@ public class FileMappingManagerTest {
         assertThat(localFS.exists(new Path(linkedDirTmp))).isTrue();
         assertThat(localFS.exists(new Path(src))).isTrue();
 
-        // delete linkedDir
-        assertThat(fileMappingManager.deleteFile(new Path(linkedDir))).isEqualTo(true);
-        assertThat(localFS.exists(new Path(testDir))).isTrue();
-        assertThat(localFS.exists(new Path(linkedDirTmp))).isFalse();
-        assertThat(localFS.exists(new Path(src))).isTrue();
-
         // delete linkedSrc
         assertThat(fileMappingManager.deleteFile(new Path(linkedSrc))).isEqualTo(true);
         assertThat(localFS.exists(new Path(src))).isFalse();
         assertThat(localFS.exists(new Path(testDir))).isFalse();
+
+        // delete linkedDir
+        assertThat(fileMappingManager.deleteFile(new Path(linkedDir))).isEqualTo(true);
+        assertThat(localFS.exists(new Path(testDir))).isFalse();
+        assertThat(localFS.exists(new Path(linkedDirTmp))).isFalse();
+        assertThat(localFS.exists(new Path(src))).isFalse();
     }
 }
