@@ -35,8 +35,14 @@ public class AdaptiveExecutionHandlerFactory {
     /**
      * Creates an instance of {@link AdaptiveExecutionHandler} based on the provided execution plan.
      *
+     * <p>TODO: Currently, adaptive execution cannot work with batch job progress recovery, so we
+     * always use {@link NonAdaptiveExecutionHandler} if batch job recovery is enabled. This
+     * limitation will be removed in the future when we adapt adaptive batch execution to batch job
+     * recovery.
+     *
      * @param executionPlan The execution plan, which can be either a {@link JobGraph} or a {@link
      *     StreamGraph}.
+     * @param enableBatchJobRecovery Whether to enable batch job recovery.
      * @param userClassLoader The class loader for the user code.
      * @param serializationExecutor The executor used for serialization tasks.
      * @return An instance of {@link AdaptiveExecutionHandler}.
@@ -45,14 +51,20 @@ public class AdaptiveExecutionHandlerFactory {
      */
     public static AdaptiveExecutionHandler create(
             ExecutionPlan executionPlan,
+            boolean enableBatchJobRecovery,
             ClassLoader userClassLoader,
             Executor serializationExecutor) {
         if (executionPlan instanceof JobGraph) {
             return new NonAdaptiveExecutionHandler((JobGraph) executionPlan);
         } else {
             checkState(executionPlan instanceof StreamGraph, "Unsupported execution plan.");
-            return new DefaultAdaptiveExecutionHandler(
-                    userClassLoader, (StreamGraph) executionPlan, serializationExecutor);
+            if (enableBatchJobRecovery) {
+                StreamGraph streamGraph = (StreamGraph) executionPlan;
+                return new NonAdaptiveExecutionHandler(streamGraph.getJobGraph(userClassLoader));
+            } else {
+                return new DefaultAdaptiveExecutionHandler(
+                        userClassLoader, (StreamGraph) executionPlan, serializationExecutor);
+            }
         }
     }
 }
