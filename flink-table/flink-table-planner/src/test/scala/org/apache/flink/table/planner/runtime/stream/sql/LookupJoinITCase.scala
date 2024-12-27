@@ -34,6 +34,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedT
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assumptions.assumeThat
 import org.assertj.core.api.IterableAssert.assertThatIterable
 import org.junit.jupiter.api.{AfterEach, BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
@@ -939,6 +940,38 @@ class LookupJoinITCase(cacheType: LookupCacheType) extends StreamingTestBase {
     tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
     val expected = Seq("3,Fabian")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testJoinTemporalTableWithLatestData(): Unit = {
+    assumeThat(cacheType.equals(LookupCacheType.NONE)).isTrue
+    assumeThat(legacyTableSource).isFalse
+    tEnv.executeSql(s"""
+                       |CREATE TABLE dim_with_pk (
+                       |  `num` BIGINT,
+                       |  `len` INT PRIMARY KEY NOT ENFORCED,
+                       |  `content` STRING
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '${TestValuesTableFactory.registerData(data)}'
+                       |)
+                       |""".stripMargin)
+    val sql =
+      """
+        |SELECT dim_with_pk.* FROM src JOIN dim_with_pk
+        |FOR SYSTEM_TIME AS OF src.proctime ON src.len = dim_with_pk.len
+        |""".stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+    val expected = Seq(
+      "3,15,Fabian",
+      "3,15,Fabian",
+      "8,11,Hello world",
+      "9,12,Hello world!",
+      "9,12,Hello world!")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 }
