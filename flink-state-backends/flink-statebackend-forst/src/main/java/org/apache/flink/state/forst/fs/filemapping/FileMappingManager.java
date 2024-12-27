@@ -34,8 +34,8 @@ import java.util.Map;
 
 /**
  * A manager to manage file mapping of forst file system, including misc file mapping (remote file
- * -> local file) and linked mapping (remote file -> remote file). And linked mapping will always be
- * sst file. Directory link is not support now.
+ * -> local file) and linked mapping (remote file -> remote file). Directory link is not support
+ * now.
  */
 public class FileMappingManager {
 
@@ -66,10 +66,7 @@ public class FileMappingManager {
     }
 
     /** Called by link/copy. Directory link is not supported now. */
-    public int put(String src, String dst) {
-        if (src == dst) { // self link is not supported
-            return -1;
-        }
+    public int link(String src, String dst) {
         // if dst already exist, not allow
         if (mappingTable.containsKey(dst)) {
             return -1;
@@ -83,18 +80,8 @@ public class FileMappingManager {
             mappingTable.put(src, sourceEntry);
             mappingTable.put(dst, sourceEntry);
         }
-        LOG.trace("put: {} -> {}", src, dst);
+        LOG.trace("link: {} -> {}", src, dst);
         return 0;
-    }
-
-    public boolean mkdir(Path path) {
-        String dirname = path.toString();
-        MappingEntry entry = mappingTable.getOrDefault(dirname, null);
-        if (entry != null) {
-            return true;
-        }
-        mappingTable.put(dirname, new MappingEntry(1, fileSystem, dirname, true));
-        return true;
     }
 
     public RealPath realPath(Path file, boolean update) {
@@ -138,60 +125,77 @@ public class FileMappingManager {
      * @return true if it has renamed in mappingTable, false otherwise.
      */
     public boolean renameFile(String src, String dst) {
-        List<String> toRename = new ArrayList<>();
-        for (String key : mappingTable.keySet()) {
-            if (key.equals(src)) {
-                toRename.add(key);
-            } else if (isParentDir(key, src)) {
-                toRename.add(key);
+        if (mappingTable.containsKey(dst)) {
+            MappingEntry dstEntry = mappingTable.remove(dst);
+            dstEntry.release();
+        }
+        MappingEntry srcEntry = mappingTable.get(src);
+        if (srcEntry != null) { // local
+            mappingTable.remove(src);
+            mappingTable.put(dst, srcEntry);
+        } else {
+            List<String> toRename = new ArrayList<>();
+            for (String key : mappingTable.keySet()) {
+                if (key.equals(src)) {
+                    toRename.add(key);
+                } else if (isParentDir(key, src)) {
+                    toRename.add(key);
+                }
+            }
+            if (toRename.size() > 0) {
+                for (String key : toRename) {
+                    MappingEntry sourceEntry = mappingTable.remove(key);
+                    String renamedDst = key.replace(src, dst);
+                    LOG.trace("rename: {} -> {}", key, renamedDst);
+                    mappingTable.put(renamedDst, sourceEntry);
+                }
+                mappingTable.put(dst, new MappingEntry(1, fileSystem, src, true));
+            } else {
+                // src not exist, and no file in `src/`, let invoker rename it.
+                return false;
             }
         }
-        if (toRename.size() > 0) {
-            for (String key : toRename) {
-                MappingEntry sourceEntry = mappingTable.remove(key);
-                String renamedDst = key.replace(src, dst);
-                LOG.trace("rename: {} -> {}", key, renamedDst);
-                mappingTable.put(renamedDst, sourceEntry);
-            }
-            return true;
-        }
-        return false;
+        return true;
     }
 
     /**
      * @param file to delete
-     * @return status code: 1: deleted from mappingTable. 0: file not exist. -1: file exist, but not
-     *     in mappingTable.
-     * @throws IOException
+     * @return status code: true: deleted from mappingTable. false: should deleted by invoker.
      */
     public boolean deleteFile(Path file) throws IOException {
         String fileStr = file.toString();
         MappingEntry entry = mappingTable.getOrDefault(fileStr, null);
         LOG.trace("delete: {}, source:{}", file, entry == null ? "" : entry.sourcePath);
-        if (entry != null && !entry.isDirectory) {
-            entry.release();
+        if (entry != null) {
             mappingTable.remove(fileStr);
-            return true;
-        }
+            if (!entry.isDirectory) {
+                entry.release();
+                return true;
+            }
+        } else {
+            if (!fileSystem.exists(file)) {
+                return true;
+            }
 
-        if (!fileSystem.exists(file)) {
-            return true;
-        }
-
-        FileStatus fileStatus = fileSystem.getFileStatus(file);
-        if (!fileStatus.isDir()) {
-            return false;
+            FileStatus fileStatus = fileSystem.getFileStatus(file);
+            if (!fileStatus.isDir()) {
+                return false;
+            }
         }
 
         MappingEntry parentEntry = new MappingEntry(0, fileSystem, fileStr, true);
 
         boolean matched = false;
         for (MappingEntry sourceEntry : mappingTable.values()) {
-            if (sourceEntry.sourcePath.startsWith(fileStr)) {
+            if (isParentDir(sourceEntry.sourcePath, fileStr)) {
                 parentEntry.retain();
                 sourceEntry.parentDir = parentEntry;
                 matched = true;
             }
+        }
+        if (!matched && entry != null) {
+            entry.release();
+            return true;
         }
         return matched;
     }
