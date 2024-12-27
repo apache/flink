@@ -239,13 +239,16 @@ public class ForStFlinkFileSystem extends FileSystem {
     @Override
     public boolean exists(final Path f) throws IOException {
         FileMappingManager.RealPath realPath = fileMappingManager.realPath(f, false);
-        if (realPath.isDir) {
-            return true;
-        }
+        boolean ex = false;
         if (realPath.isLocal) {
-            return localFS.exists(realPath.path);
+            ex |= localFS.exists(realPath.path);
+            if (!ex) {
+                ex |= delegateFS.exists(f);
+            }
+        } else {
+            ex = delegateFS.exists(realPath.path);
         }
-        return delegateFS.exists(realPath.path);
+        return ex;
     }
 
     @Override
@@ -302,7 +305,7 @@ public class ForStFlinkFileSystem extends FileSystem {
 
     @Override
     public boolean mkdirs(Path path) throws IOException {
-        return fileMappingManager.mkdir(path);
+        return delegateFS.mkdirs(path);
     }
 
     @Override
@@ -311,6 +314,6 @@ public class ForStFlinkFileSystem extends FileSystem {
     }
 
     public int link(Path src, Path dst) throws IOException {
-        return fileMappingManager.put(src.toString(), dst.toString());
+        return fileMappingManager.link(src.toString(), dst.toString());
     }
 }
