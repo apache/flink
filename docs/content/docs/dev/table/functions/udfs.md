@@ -645,13 +645,14 @@ public static class NamedParameterClass extends ScalarFunction {
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.functions.ScalarFunction;
 
 class NamedParameterClass extends ScalarFunction {
 
   // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
-  def eval(@ArgumentHint(name = "param1", isOptional = false, `type` = @DataTypeHint("STRING")) s1: String,
-          @ArgumentHint(name = "param2", isOptional = true, `type` = @DataTypeHint("INTEGER")) s2: Integer) = {
+  def eval(@ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")) s1: String,
+           @ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER")) s2: Integer) = {
     s1 + ", " + s2
   }
 }
@@ -685,6 +686,8 @@ public static class NamedParameterClass extends ScalarFunction {
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.functions.ScalarFunction;
 
 class NamedParameterClass extends ScalarFunction {
@@ -710,6 +713,8 @@ class NamedParameterClass extends ScalarFunction {
 {{< tab "Java" >}}
 ```java
 import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.functions.ScalarFunction;
 
 // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.
@@ -730,6 +735,8 @@ public static class NamedParameterClass extends ScalarFunction {
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.functions.ScalarFunction;
 
 // Use the @ArgumentHint annotation to specify the name, type, and whether a parameter is required.

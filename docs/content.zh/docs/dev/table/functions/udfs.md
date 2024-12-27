@@ -635,13 +635,14 @@ public static class NamedParameterClass extends ScalarFunction {
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.functions.ScalarFunction;
 
 class NamedParameterClass extends ScalarFunction {
 
   // 使用 @ArgumentHint 注解指定参数的名称，参数类型，以及是否是必需的参数
-  def eval(@ArgumentHint(name = "param1", isOptional = false, `type` = @DataTypeHint("STRING")) s1: String,
-          @ArgumentHint(name = "param2", isOptional = true, `type` = @DataTypeHint("INTEGER")) s2: Integer) = {
+  def eval(@ArgumentHint(name = "param1", isOptional = false, `type` = new DataTypeHint("STRING")) s1: String,
+          @ArgumentHint(name = "param2", isOptional = true, `type` = new DataTypeHint("INTEGER")) s2: Integer) = {
     s1 + ", " + s2
   }
 }
@@ -655,6 +656,8 @@ class NamedParameterClass extends ScalarFunction {
 {{< tab "Java" >}}
 ```java
 import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.functions.ScalarFunction;
 
 public static class NamedParameterClass extends ScalarFunction {
@@ -675,6 +678,8 @@ public static class NamedParameterClass extends ScalarFunction {
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.functions.ScalarFunction;
 
 class NamedParameterClass extends ScalarFunction {
