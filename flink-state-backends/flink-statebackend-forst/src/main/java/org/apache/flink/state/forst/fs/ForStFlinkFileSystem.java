@@ -149,6 +149,7 @@ public class ForStFlinkFileSystem extends FileSystem {
                     localFS.create(realPath.path, overwriteMode));
         }
 
+        fileMappingManager.createFile(path.toString());
         FSDataOutputStream originalOutputStream = delegateFS.create(path, overwriteMode);
         CachedDataOutputStream cachedDataOutputStream =
                 fileBasedCache == null ? null : fileBasedCache.create(originalOutputStream, path);
@@ -207,18 +208,7 @@ public class ForStFlinkFileSystem extends FileSystem {
         // The rename is not atomic for ForSt. Some FileSystems e.g. HDFS, OSS does not allow a
         // renaming if the target already exists. So, we delete the target before attempting the
         // rename.
-
-        boolean renamedStatus = fileMappingManager.renameFile(src.toString(), dst.toString());
-        if (renamedStatus) {
-            return true;
-        }
-        if (delegateFS.exists(dst)) {
-            boolean deleted = delegateFS.delete(dst, false);
-            if (!deleted) {
-                throw new IOException("Fail to delete dst path: " + dst);
-            }
-        }
-        return delegateFS.rename(src, dst);
+        return fileMappingManager.renameFile(src.toString(), dst.toString());
     }
 
     @Override
@@ -293,9 +283,7 @@ public class ForStFlinkFileSystem extends FileSystem {
     @Override
     public boolean delete(Path path, boolean recursive) throws IOException {
         boolean success = true;
-        if (!fileMappingManager.deleteFile(path)) {
-            success = delegateFS.delete(path, recursive);
-        }
+        fileMappingManager.deleteFile(path);
         if (fileBasedCache != null) {
             // only new generated file will put into cache, no need to consider file mapping
             fileBasedCache.delete(path);

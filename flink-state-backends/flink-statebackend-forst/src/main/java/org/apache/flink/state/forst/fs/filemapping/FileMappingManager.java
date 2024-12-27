@@ -43,11 +43,11 @@ public class FileMappingManager {
 
     public static final String SST_SUFFIX = ".sst";
 
-    private FileSystem fileSystem;
+    private final FileSystem fileSystem;
 
-    private FileSystem localFileSystem;
+    private final FileSystem localFileSystem;
 
-    private HashMap<String, MappingEntry> mappingTable;
+    private final HashMap<String, MappingEntry> mappingTable;
 
     private final String remoteBase;
 
@@ -65,8 +65,16 @@ public class FileMappingManager {
         this.localBase = localBase;
     }
 
+    /** Create a mapping entry for a file, currently invoked by creating remote file. */
+    public void createFile(String file) {
+        mappingTable.put(file, new MappingEntry(1, fileSystem, file, false));
+    }
+
     /** Called by link/copy. Directory link is not supported now. */
     public int link(String src, String dst) {
+        if (src.equals(dst)) {
+            return -1;
+        }
         // if dst already exist, not allow
         if (mappingTable.containsKey(dst)) {
             return -1;
@@ -84,6 +92,7 @@ public class FileMappingManager {
         return 0;
     }
 
+    /** Get the real path of a file, the real path maybe a local file or a remote file/dir. */
     public RealPath realPath(Path file, boolean update) {
         String fileName = file.toString();
         MappingEntry entry = mappingTable.getOrDefault(fileName, null);
@@ -118,7 +127,7 @@ public class FileMappingManager {
     /**
      * 1. If src can match any key, we only `mark rename`, no physical file would be renamed. 2. If
      * src is a directory, all files under src will be renamed, including linked files and local
-     * files. 3. If src can't match any key, we will rename the file/directory.
+     * files.
      *
      * @param src the source path
      * @param dst the destination path
@@ -130,10 +139,10 @@ public class FileMappingManager {
             dstEntry.release();
         }
         MappingEntry srcEntry = mappingTable.get(src);
-        if (srcEntry != null) { // local
+        if (srcEntry != null) { // rename file
             mappingTable.remove(src);
             mappingTable.put(dst, srcEntry);
-        } else {
+        } else { // rename directory
             List<String> toRename = new ArrayList<>();
             for (String key : mappingTable.keySet()) {
                 if (key.equals(src)) {
@@ -142,7 +151,7 @@ public class FileMappingManager {
                     toRename.add(key);
                 }
             }
-            if (toRename.size() > 0) {
+            if (!toRename.isEmpty()) {
                 for (String key : toRename) {
                     MappingEntry sourceEntry = mappingTable.remove(key);
                     String renamedDst = key.replace(src, dst);
@@ -151,7 +160,7 @@ public class FileMappingManager {
                 }
                 mappingTable.put(dst, new MappingEntry(1, fileSystem, src, true));
             } else {
-                // src not exist, and no file in `src/`, let invoker rename it.
+                // src not exist, and no file in `src/`, rename fail.
                 return false;
             }
         }
@@ -159,8 +168,10 @@ public class FileMappingManager {
     }
 
     /**
+     * Delete a file from mappingTable.
+     *
      * @param file to delete
-     * @return status code: true: deleted from mappingTable. false: should deleted by invoker.
+     * @return status code: true: deleted from mappingTable. false: file or directory not exist.
      */
     public boolean deleteFile(Path file) throws IOException {
         String fileStr = file.toString();
@@ -211,19 +222,18 @@ public class FileMappingManager {
     }
 
     private boolean isParentDir(String path, String dir) {
-        if (dir.length() == 0) {
+        if (dir.isEmpty()) {
             return false;
         }
         if (dir.charAt(dir.length() - 1) == '/') {
             return path.startsWith(dir);
-        } else if (path.startsWith(dir + "/")) {
-            return true;
+        } else {
+            return (path.startsWith(dir + "/"));
         }
-        return false;
     }
 
     /** A wrapper of real path. */
-    public class RealPath {
+    public static class RealPath {
         public final Path path;
         public final boolean isLocal;
         public final boolean isDir;
