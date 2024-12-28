@@ -803,8 +803,10 @@ public interface TableEnvironment {
      * @param descriptor Template for creating a {@link CatalogTable} instance.
      * @param ignoreIfExists If a table exists under the given path and this flag is set, no
      *     operation is executed. An exception is thrown otherwise.
+     * @return true if table was created in the given path, false if a permanent object already
+     *     exists in the given path.
      */
-    void createTable(String path, TableDescriptor descriptor, boolean ignoreIfExists);
+    boolean createTable(String path, TableDescriptor descriptor, boolean ignoreIfExists);
 
     /**
      * Registers a {@link Table} under a unique name in the TableEnvironment's catalog. Registered
@@ -833,6 +835,36 @@ public interface TableEnvironment {
      * @param view The view to register.
      */
     void createTemporaryView(String path, Table view);
+
+    /**
+     * Registers a {@link Table} API object as a view similar to SQL views.
+     *
+     * <p>Temporary objects can shadow permanent ones. If a temporary object in a given path exists,
+     * the permanent one will be inaccessible in the current session. To make the permanent object
+     * available again one can drop the corresponding temporary object.
+     *
+     * @param path The path under which the view will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param view The view to register.
+     */
+    void createView(String path, Table view);
+
+    /**
+     * Registers a {@link Table} API object as a view similar to SQL views.
+     *
+     * <p>Temporary objects can shadow permanent ones. If a temporary object in a given path exists,
+     * the permanent one will be inaccessible in the current session. To make the permanent object
+     * available again one can drop the corresponding temporary object.
+     *
+     * @param path The path under which the view will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param view The view to register.
+     * @param ignoreIfExists If a view or a table exists and the given flag is set, no operation is
+     *     executed. An exception is thrown otherwise.
+     * @return true if view was created in the given path, false if a permanent object already
+     *     exists in the given path.
+     */
+    boolean createView(String path, Table view, boolean ignoreIfExists);
 
     /**
      * Scans a registered table and returns the resulting {@link Table}.

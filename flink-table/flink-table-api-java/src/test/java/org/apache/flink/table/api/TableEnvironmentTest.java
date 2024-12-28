@@ -20,15 +20,19 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.utils.TableEnvironmentMock;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Map;
 import java.util.Optional;
@@ -77,6 +81,54 @@ class TableEnvironmentTest {
         final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
 
         assertCreateTableFromDescriptor(tEnv, TEST_SCHEMA, false);
+    }
+
+    @ParameterizedTest(name = "{index}: ignoreIfExists ({0})")
+    @ValueSource(booleans = {true, false})
+    void testCreateViewFromTable(final boolean ignoreIfExists) throws Exception {
+        final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
+
+        final String catalog = tEnv.getCurrentCatalog();
+        final String database = tEnv.getCurrentDatabase();
+
+        tEnv.createTable("T", TEST_DESCRIPTOR);
+
+        assertThat(tEnv.createView("V", tEnv.from("T"), ignoreIfExists)).isTrue();
+
+        final ObjectPath objectPath = new ObjectPath(database, "V");
+
+        final CatalogBaseTable catalogView =
+                tEnv.getCatalog(catalog).orElseThrow(AssertionError::new).getTable(objectPath);
+        assertThat(catalogView).isInstanceOf(CatalogView.class);
+        assertThat(catalogView.getUnresolvedSchema()).isEqualTo(TEST_SCHEMA);
+    }
+
+    @Test
+    void testCreateViewWithSameNameIgnoreIfExists() {
+        final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
+
+        tEnv.createTable("T", TEST_DESCRIPTOR);
+        tEnv.createView("V", tEnv.from("T"));
+
+        assertThat(tEnv.createView("V", tEnv.from("T"), true)).isFalse();
+    }
+
+    @Test
+    void testCreateViewWithSameName() {
+        final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
+
+        tEnv.createTable("T", TEST_DESCRIPTOR);
+        tEnv.createView("V", tEnv.from("T"));
+
+        assertThatThrownBy(() -> tEnv.createView("V", tEnv.from("T"), false))
+                .hasCauseInstanceOf(TableAlreadyExistException.class)
+                .hasMessageContaining(
+                        "Could not execute CreateTable in path `default_catalog`.`default_database`.`V`");
+
+        assertThatThrownBy(() -> tEnv.createView("V", tEnv.from("T")))
+                .hasCauseInstanceOf(TableAlreadyExistException.class)
+                .hasMessageContaining(
+                        "Could not execute CreateTable in path `default_catalog`.`default_database`.`V`");
     }
 
     @Test
@@ -141,7 +193,7 @@ class TableEnvironmentTest {
         final String database = tEnv.getCurrentDatabase();
 
         if (ignoreIfExists) {
-            tEnv.createTable("T", TEST_DESCRIPTOR, true);
+            assertThat(tEnv.createTable("T", TEST_DESCRIPTOR, true)).isTrue();
         } else {
             tEnv.createTable("T", TEST_DESCRIPTOR);
         }
