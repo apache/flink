@@ -26,6 +26,7 @@ import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.PartitionedContext;
+import org.apache.flink.datastream.api.context.TwoOutputPartitionedContext;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoInputBroadcastStreamProcessFunction;
 import org.apache.flink.datastream.api.function.TwoInputNonBroadcastStreamProcessFunction;
@@ -132,7 +133,7 @@ class StreamUtilsTest {
                                     Integer record,
                                     Collector<Long> output1,
                                     Collector<String> output2,
-                                    PartitionedContext ctx)
+                                    TwoOutputPartitionedContext ctx)
                                     throws Exception {
                                 // ignore
                             }
