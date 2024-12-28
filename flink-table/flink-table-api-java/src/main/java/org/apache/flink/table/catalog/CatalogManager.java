@@ -1012,9 +1012,17 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * @param table The table to put in the given path.
      * @param objectIdentifier The fully qualified path where to put the table.
      * @param ignoreIfExists If false exception will be thrown if a table exists in the given path.
+     * @return true if table was created in the given path, false if a table already exists in the
+     *     given path.
      */
-    public void createTable(
+    public boolean createTable(
             CatalogBaseTable table, ObjectIdentifier objectIdentifier, boolean ignoreIfExists) {
+        if (ignoreIfExists) {
+            final Optional<CatalogBaseTable> resultOpt = getUnresolvedTable(objectIdentifier);
+            if (resultOpt.isPresent()) {
+                return false;
+            }
+        }
         execute(
                 (catalog, path) -> {
                     ResolvedCatalogBaseTable<?> resolvedTable = resolveCatalogBaseTable(table);
@@ -1045,6 +1053,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                 objectIdentifier,
                 false,
                 "CreateTable");
+        return true;
     }
 
     /**

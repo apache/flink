@@ -123,6 +123,17 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
     </tr>
     <tr>
       <td>
+        <strong>create_view(view_path, table, ignore_if_exists=False)</strong>
+      </td>
+      <td>
+        Registers a `Table` object as a view similar to SQL views. 
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.create_view" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
         <strong>drop_temporary_view(view_path)</strong>
       </td>
       <td>
