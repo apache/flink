@@ -354,8 +354,10 @@ def date_format(timestamp, format) -> Expression:
     Supported functions:
     1. date_format(TIMESTAMP, STRING) -> STRING
        Converts timestamp to a string, using a format string.
+       The format string is compatible with Java's DateTimeFormatter.
     2. date_format(STRING, STRING) -> STRING
        Converts timestamp string, using a format string.
+       The format string is compatible with Java's SimpleDateFormat.
 
     Example:
     ::
