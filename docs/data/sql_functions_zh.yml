@@ -601,8 +601,10 @@ temporal:
       `(TIME '9:00:00', TIME '10:00:00') OVERLAPS (TIME '10:15:00', INTERVAL '3' HOUR)` 返回 FALSE。
   - sql: DATE_FORMAT(timestamp, string)
     table: dateFormat(TIMESTAMP, STRING)
-    description: |
-      将时间戳 timestamp 转换为日期格式字符串 string 指定格式的字符串值。格式字符串与 Java 的 SimpleDateFormat 兼容。
+    description: Converts timestamp to a string in the format specified by the date format string. The format string is compatible with Java's DateTimeFormatter.
+  - sql: DATE_FORMAT(string, string)
+    table: dateFormat(STRING, STRING)
+    description: Re-format a timestamp string to another string, using a custom format. The format string is compatible with Java's SimpleDateFormat.
   - sql: TIMESTAMPADD(timeintervalunit, interval, timepoint)
   - sql: TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
     table: timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)

@@ -350,14 +350,21 @@ def temporal_overlaps(left_time_point,
 def date_format(timestamp, format) -> Expression:
     """
     Formats a timestamp as a string using a specified format.
-    The format must be compatible with MySQL's date formatting syntax as used by the
-    date_parse function.
 
-    For example `date_format(col("time"), "%Y, %d %M")` results in strings formatted as
-    "2017, 05 May".
+    Supported functions:
+    1. date_format(TIMESTAMP, STRING) -> STRING
+       Converts timestamp to a string, using a format string.
+       The format string is compatible with Java's DateTimeFormatter.
+    2. date_format(STRING, STRING) -> STRING
+       Converts timestamp string, using a format string.
+       The format string is compatible with Java's SimpleDateFormat.
 
-    :param timestamp: The timestamp to format as string.
-    :param format: The format of the string.
+    Example:
+    ::
+
+        >>> table.select(date_format(to_timestamp('2020-04-15'), "yyyy/MM/dd"))
+        >>> table.select(date_format("2020-04-15", "MM/dd/yyyy"))
+
     :return: The formatted timestamp as string.
     """
     return _binary_op("dateFormat", timestamp, format)
