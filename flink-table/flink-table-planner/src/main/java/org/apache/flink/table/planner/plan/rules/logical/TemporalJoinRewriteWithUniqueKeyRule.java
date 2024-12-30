@@ -49,8 +49,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import scala.collection.JavaConverters;
-
 /**
  * Planner rule that rewrites temporal join with extracted primary key, Event-time temporal table
  * join requires primary key and row time attribute of versioned table. The versioned table could be
@@ -104,9 +102,7 @@ public class TemporalJoinRewriteWithUniqueKeyRule
                             @Override
                             public RexNode visitCall(RexCall call) {
                                 if (call.getOperator()
-                                        .equals(
-                                                TemporalJoinUtil
-                                                        .INITIAL_TEMPORAL_JOIN_CONDITION())) {
+                                        .equals(TemporalJoinUtil.INITIAL_TEMPORAL_JOIN_CONDITION)) {
                                     RexNode snapshotTimeInputRef;
                                     List<RexNode> leftJoinKey;
                                     List<RexNode> rightJoinKey;
@@ -138,27 +134,17 @@ public class TemporalJoinRewriteWithUniqueKeyRule
                                                 rexBuilder,
                                                 snapshotTimeInputRef,
                                                 rightTimeInputRef,
-                                                JavaConverters.asScalaBufferConverter(
-                                                                primaryKeyInputRefs.get())
-                                                        .asScala(),
-                                                JavaConverters.asScalaBufferConverter(leftJoinKey)
-                                                        .asScala(),
-                                                JavaConverters.asScalaBufferConverter(rightJoinKey)
-                                                        .asScala());
+                                                primaryKeyInputRefs.get(),
+                                                leftJoinKey,
+                                                rightJoinKey);
                                     } else {
                                         return TemporalJoinUtil
                                                 .makeProcTimeTemporalTableJoinConCall(
                                                         rexBuilder,
                                                         snapshotTimeInputRef,
-                                                        JavaConverters.asScalaBufferConverter(
-                                                                        primaryKeyInputRefs.get())
-                                                                .asScala(),
-                                                        JavaConverters.asScalaBufferConverter(
-                                                                        leftJoinKey)
-                                                                .asScala(),
-                                                        JavaConverters.asScalaBufferConverter(
-                                                                        rightJoinKey)
-                                                                .asScala());
+                                                        primaryKeyInputRefs.get(),
+                                                        leftJoinKey,
+                                                        rightJoinKey);
                                     }
                                 } else {
                                     return super.visitCall(call);
