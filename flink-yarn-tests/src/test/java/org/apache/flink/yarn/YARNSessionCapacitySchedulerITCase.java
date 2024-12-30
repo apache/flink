@@ -51,10 +51,8 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.Capacity
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
@@ -94,6 +92,9 @@ import static org.assertj.core.api.Fail.fail;
 class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
     private static final Logger LOG =
             LoggerFactory.getLogger(YARNSessionCapacitySchedulerITCase.class);
+
+    private static final ApplicationId TEST_YARN_APPLICATION_ID =
+            ApplicationId.newInstance(System.currentTimeMillis(), 42);
 
     /** RestClient to query Flink cluster. */
     private static RestClient restClient;
@@ -171,100 +172,6 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                                 null,
                                 RunTypes.YARN_SESSION,
                                 0));
-    }
-
-    /**
-     * Test per-job yarn cluster
-     *
-     * <p>This also tests the prefixed CliFrontend options for the YARN case We also test if the
-     * requested parallelism of 2 is passed through. The parallelism is requested at the YARN client
-     * (-ys).
-     */
-    @Test
-    @Disabled("per-job mode is deprecated, we will be removed in 2.0 version.")
-    void perJobYarnCluster() throws Exception {
-        runTest(
-                () -> {
-                    LOG.info("Starting perJobYarnCluster()");
-                    File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
-                    runWithArgs(
-                            new String[] {
-                                "run",
-                                "-m",
-                                "yarn-cluster",
-                                "-yj",
-                                flinkUberjar.getAbsolutePath(),
-                                "-yt",
-                                flinkLibFolder.getAbsolutePath(),
-                                "-ys",
-                                "2", // test that the job is executed with a DOP of 2
-                                "-yjm",
-                                "768m",
-                                "-ytm",
-                                "1024m",
-                                exampleJarLocation.getAbsolutePath()
-                            },
-                            /* test succeeded after this string */
-                            "Program execution finished",
-                            /* prohibited strings: (to verify the parallelism) */
-                            // (we should see "DataSink (...) (1/2)" and "DataSink (...) (2/2)"
-                            // instead)
-                            new String[] {"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
-                            RunTypes.CLI_FRONTEND,
-                            0,
-                            cliLoggerAuditingExtension::getMessages);
-                    LOG.info("Finished perJobYarnCluster()");
-                });
-    }
-
-    /**
-     * Test per-job yarn cluster and memory calculations for off-heap use (see FLINK-7400) with the
-     * same job as {@link #perJobYarnCluster()}.
-     *
-     * <p>This ensures that with (any) pre-allocated off-heap memory by us, there is some off-heap
-     * memory remaining for Flink's libraries. Creating task managers will thus fail if no off-heap
-     * memory remains.
-     */
-    @Test
-    @Disabled("per-job mode is deprecated, we will be removed in 2.0 version.")
-    void perJobYarnClusterOffHeap() throws Exception {
-        runTest(
-                () -> {
-                    LOG.info("Starting perJobYarnCluster()");
-                    File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
-
-                    // set memory constraints (otherwise this is the same test as
-                    // perJobYarnCluster() above)
-                    final long taskManagerMemoryMB = 1024;
-
-                    runWithArgs(
-                            new String[] {
-                                "run",
-                                "-m",
-                                "yarn-cluster",
-                                "-yj",
-                                flinkUberjar.getAbsolutePath(),
-                                "-yt",
-                                flinkLibFolder.getAbsolutePath(),
-                                "-ys",
-                                "2", // test that the job is executed with a DOP of 2
-                                "-yjm",
-                                "768m",
-                                "-ytm",
-                                taskManagerMemoryMB + "m",
-                                exampleJarLocation.getAbsolutePath()
-                            },
-                            /* test succeeded after this string */
-                            "Program execution finished",
-                            /* prohibited strings: (to verify the parallelism) */
-                            // (we should see "DataSink (...) (1/2)" and "DataSink (...) (2/2)"
-                            // instead)
-                            new String[] {"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
-                            RunTypes.CLI_FRONTEND,
-                            0,
-                            cliLoggerAuditingExtension::getMessages);
-                    LOG.info("Finished perJobYarnCluster()");
-                });
     }
 
     /**
@@ -477,81 +384,6 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                                                     .contains(
                                                             "The specified queue 'doesntExist' does not exist. Available queues"));
                     LOG.info("Finished testNonexistingQueueWARNmessage()");
-                });
-    }
-
-    /**
-     * Test per-job yarn cluster with the parallelism set at the CliFrontend instead of the YARN
-     * client.
-     */
-    @Test
-    @Disabled("per-job mode is deprecated, we will be removed in 2.0 version.")
-    void perJobYarnClusterWithParallelism() throws Exception {
-        runTest(
-                () -> {
-                    LOG.info("Starting perJobYarnClusterWithParallelism()");
-                    File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
-                    runWithArgs(
-                            new String[] {
-                                "run",
-                                "-p",
-                                "2", // test that the job is executed with a DOP of 2
-                                "-m",
-                                "yarn-cluster",
-                                "-yj",
-                                flinkUberjar.getAbsolutePath(),
-                                "-yt",
-                                flinkLibFolder.getAbsolutePath(),
-                                "-ys",
-                                "2",
-                                "-yjm",
-                                "768m",
-                                "-ytm",
-                                "1024m",
-                                exampleJarLocation.getAbsolutePath()
-                            },
-                            /* test succeeded after this string */
-                            "Program execution finished",
-                            /* prohibited strings: (we want to see "DataSink (...) (2/2) switched to FINISHED") */
-                            new String[] {"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
-                            RunTypes.CLI_FRONTEND,
-                            0,
-                            cliLoggerAuditingExtension::getMessages);
-                    LOG.info("Finished perJobYarnClusterWithParallelism()");
-                });
-    }
-
-    /** Test a fire-and-forget job submission to a YARN cluster. */
-    @Test
-    @Disabled("per-job mode is deprecated, we will be removed in 2.0 version.")
-    void testDetachedPerJobYarnCluster(@TempDir File tempDir) throws Exception {
-        runTest(
-                () -> {
-                    LOG.info("Starting testDetachedPerJobYarnCluster()");
-
-                    File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
-
-                    testDetachedPerJobYarnClusterInternal(
-                            tempDir, exampleJarLocation.getAbsolutePath());
-
-                    LOG.info("Finished testDetachedPerJobYarnCluster()");
-                });
-    }
-
-    /** Test a fire-and-forget job submission to a YARN cluster. */
-    @Test
-    @Disabled("per-job mode is deprecated, we will be removed in 2.0 version.")
-    void testDetachedPerJobYarnClusterWithStreamingJob(@TempDir File tempDir) throws Exception {
-        runTest(
-                () -> {
-                    LOG.info("Starting testDetachedPerJobYarnClusterWithStreamingJob()");
-
-                    File exampleJarLocation = getTestJarPath("StreamingWordCount.jar");
-
-                    testDetachedPerJobYarnClusterInternal(
-                            tempDir, exampleJarLocation.getAbsolutePath());
-
-                    LOG.info("Finished testDetachedPerJobYarnClusterWithStreamingJob()");
                 });
     }
 
