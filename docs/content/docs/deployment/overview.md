@@ -74,7 +74,6 @@ When deploying Flink, there are often multiple options available for each buildi
                 JobManager <a href="#deployment-modes">modes for job submissions</a>:
                 <ul>
                     <li><b>Application Mode</b>: runs the cluster exclusively for one application. The job's main method (or client) gets executed on the JobManager. Calling `execute`/`executeAsync` multiple times in an application is supported.</li>
-                    <li><b>Per-Job Mode</b>: runs the cluster exclusively for one job. The job's main method (or client) runs only prior to the cluster creation.</li>
                     <li><b>Session Mode</b>: one JobManager instance manages multiple jobs sharing the same cluster of TaskManagers</li>
                 </ul>
             </td>
@@ -175,15 +174,13 @@ covered by [FLINK-26606](https://issues.apache.org/jira/browse/FLINK-26606).
 Flink can execute applications in one of three ways:
 - in Application Mode,
 - in Session Mode,
-- in a Per-Job Mode (deprecated).
 
  The above modes differ in:
  - the cluster lifecycle and resource isolation guarantees
  - whether the application's `main()` method is executed on the client or on the cluster.
 
-
 <!-- Image source: https://docs.google.com/drawings/d/1EfloufuOp1A7YDwZmBEsHKRLIrrbtRkoWRPcfZI5RYQ/edit?usp=sharing -->
-{{< img class="img-fluid" width="100%" style="margin: 15px" src="/fig/deployment_modes.svg" alt="Figure for Deployment Modes" >}}
+{{< img class="img-fluid" width="70%" style="margin: 10px" src="/fig/deployment_modes.png" alt="Figure for Deployment Modes" >}}
 
 ### Application Mode
     
@@ -197,8 +194,8 @@ network bandwidth to download dependencies and ship binaries to the cluster, and
 Building on this observation, the *Application Mode* creates a cluster per submitted application, but this time,
 the `main()` method of the application is executed by the *JobManager*. Creating a cluster per application can be 
 seen as creating a session cluster shared only among the jobs of a particular application, and turning down when
-the application finishes. With this architecture, the *Application Mode* provides the same resource isolation
-and load balancing guarantees as the *Per-Job* mode, but at the granularity of a whole application.
+the application finishes. With this architecture, the *Application Mode* provides the application granularity resource isolation
+and load balancing guarantees.
 
 The *Application Mode* builds on an assumption that the user jars are already available on the classpath (`usrlib` folder)
 of all Flink components that needs access to it (*JobManager*, *TaskManager*). In other words, your application comes
@@ -212,7 +209,7 @@ Executing the `main()` method on the cluster may have other implications for you
 in your environment using the `registerCachedFile()` must be accessible by the JobManager of your application.
 {{< /hint >}}
 
-Compared to the *Per-Job (deprecated)* mode, the *Application Mode* allows the submission of applications consisting of
+The *Application Mode* allows the submission of applications consisting of
 multiple jobs. The order of job execution is not affected by the deployment mode but by the call used
 to launch the job. Using `execute()`, which is blocking, establishes an order and it will lead to the 
 execution of the "next"  job being postponed until "this" job finishes. Using `executeAsync()`, which is 
@@ -239,21 +236,6 @@ impact on the job that caused the failure, implies a potential massive recovery 
 restarting jobs accessing the filesystem concurrently and making it unavailable to other services. 
 Additionally, having a single cluster running multiple jobs implies more load for the JobManager, who 
 is responsible for the book-keeping of all the jobs in the cluster.
-
-### Per-Job Mode (deprecated)
-
-{{< hint danger >}}
-Per-job mode is only supported by YARN and has been deprecated in Flink 1.15. 
-It will be dropped in [FLINK-26000](https://issues.apache.org/jira/browse/FLINK-26000).
-Please consider application mode to launch a dedicated cluster per-job on YARN. 
-{{< /hint >}}
-
-Aiming at providing better resource isolation guarantees, the *Per-Job* mode uses the available resource provider
-framework (e.g. YARN) to spin up a cluster for each submitted job. This cluster is available to
-that job only. When the job finishes, the cluster is torn down and any lingering resources (files, etc) are
-cleared up. This provides better resource isolation, as a misbehaving job can only bring down its own
-TaskManagers. In addition, it spreads the load of book-keeping across multiple JobManagers, as there is
-one per job.
 
 ### Summary
 

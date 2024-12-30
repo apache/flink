@@ -61,21 +61,13 @@ created for an job/application and will contain the job/application's jar files.
 
 -->
 
-**Per-Job Mode (deprecated) (Yarn)**
-
-Currently, only Yarn supports Per-Job mode. By default, running a Flink cluster in Per-Job mode will include the user jars 
-(the JAR file specified in startup command and all JAR files in Flink's `usrlib` folder) into the system classpath (the *AppClassLoader*).
-This behavior can be controlled with the [yarn.classpath.include-user-jar]({{< ref "docs/deployment/config" >}}#yarn-classpath-include-user-jar) config option. 
-When setting it to `DISABLED`, Flink will include the user jars in the user classpath and load them dynamically by *FlinkUserCodeClassLoader*.
-See [Flink on Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}}) for more details.
-
 **Application Mode (Standalone/Yarn/Kubernetes)**
 
 When run a Standalone/Kubernetes Flink cluster in Application Mode, the user jars (the JAR file specified in startup command and all JAR files in Flink's `usrlib` folder)
 will be loaded dynamically by *FlinkUserCodeClassLoader*.
 
 When run a Yarn Flink cluster in Application Mode, the user jars (the JAR file specified in startup command and all JAR files in Flink's `usrlib` folder)
-will be included into the system classpath (the *AppClassLoader*) by default. Same as Per-Job mode, when setting the [yarn.classpath.include-user-jar]({{< ref "docs/deployment/config" >}}#yarn-classpath-include-user-jar)
+will be included into the system classpath (the *AppClassLoader*) by default. When setting the [yarn.classpath.include-user-jar]({{< ref "docs/deployment/config" >}}#yarn-classpath-include-user-jar)
 to `DISABLED`, Flink will include the user jars in the user classpath and load them dynamically by *FlinkUserCodeClassLoader*.
 
 ## Inverted Class Loading and ClassLoader Resolution Order

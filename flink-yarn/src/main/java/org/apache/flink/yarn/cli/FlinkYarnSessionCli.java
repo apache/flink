@@ -48,7 +48,6 @@ import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.yarn.YarnClusterDescriptor;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
-import org.apache.flink.yarn.executors.YarnJobClusterExecutor;
 import org.apache.flink.yarn.executors.YarnSessionClusterExecutor;
 
 import org.apache.commons.cli.CommandLine;
@@ -404,10 +403,8 @@ public class FlinkYarnSessionCli extends AbstractYarnCli {
 
             effectiveConfiguration.set(HA_CLUSTER_ID, zooKeeperNamespace);
             effectiveConfiguration.set(YarnConfigOptions.APPLICATION_ID, applicationId.toString());
-            effectiveConfiguration.set(DeploymentOptions.TARGET, YarnSessionClusterExecutor.NAME);
-        } else {
-            effectiveConfiguration.set(DeploymentOptions.TARGET, YarnJobClusterExecutor.NAME);
         }
+        effectiveConfiguration.set(DeploymentOptions.TARGET, YarnSessionClusterExecutor.NAME);
 
         if (commandLine.hasOption(jmMemory.getOpt())) {
             String jmMemoryVal = commandLine.getOptionValue(jmMemory.getOpt());

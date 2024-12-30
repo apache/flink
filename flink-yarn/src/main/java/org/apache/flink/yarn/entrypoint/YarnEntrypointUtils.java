@@ -41,10 +41,7 @@ import java.util.Optional;
 import static org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils.tryFindUserLibDirectory;
 import static org.apache.flink.util.Preconditions.checkState;
 
-/**
- * This class contains utility methods for the {@link YarnSessionClusterEntrypoint} and {@link
- * YarnJobClusterEntrypoint}.
- */
+/** This class contains utility methods for the {@link YarnSessionClusterEntrypoint}. */
 public class YarnEntrypointUtils {
 
     public static Configuration loadConfiguration(
