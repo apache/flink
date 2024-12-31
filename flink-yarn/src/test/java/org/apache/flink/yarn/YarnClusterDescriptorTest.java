@@ -921,11 +921,14 @@ class YarnClusterDescriptorTest {
         final String fakeLocalFlinkJar = "./lib/flink_dist.jar";
         final String fakeClassPath = fakeLocalFlinkJar + ":./usrlib/user.jar";
         final ApplicationId appId = ApplicationId.newInstance(0, 0);
+        final Configuration flinkConfig = new Configuration();
+        flinkConfig.set(CoreOptions.FLINK_JAVA_HOME, "/opt/jdk");
         final Map<String, String> masterEnv =
                 getTestMasterEnv(
-                        new Configuration(), flinkHomeDir, fakeClassPath, fakeLocalFlinkJar, appId);
+                        flinkConfig, flinkHomeDir, fakeClassPath, fakeLocalFlinkJar, appId);
 
         assertThat(masterEnv)
+                .containsEntry(ConfigConstants.ENV_JAVA_HOME, "/opt/jdk")
                 .containsEntry(ConfigConstants.ENV_FLINK_LIB_DIR, "./lib")
                 .containsEntry(YarnConfigKeys.ENV_APP_ID, appId.toString())
                 .containsEntry(
