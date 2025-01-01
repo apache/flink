@@ -64,7 +64,8 @@ class FloorCeilCallGen(
         terms =>
           unit match {
             // for Timestamp with timezone info
-            case MILLENNIUM | CENTURY | DECADE | YEAR | QUARTER | MONTH | WEEK | DAY | HOUR
+            case MILLENNIUM | CENTURY | DECADE | YEAR | QUARTER | MONTH | WEEK | DAY | HOUR |
+                MINUTE | SECOND | MILLISECOND
                 if terms.length + 1 == method.getParameterCount &&
                   method.getParameterTypes()(terms.length) == classOf[TimeZone] =>
               val timeZone = ctx.addReusableSessionTimeZone()
