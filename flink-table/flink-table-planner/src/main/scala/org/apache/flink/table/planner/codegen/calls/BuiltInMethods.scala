@@ -386,6 +386,7 @@ object BuiltInMethods {
     "timestampFloor",
     classOf[TimeUnitRange],
     classOf[Long],
+    classOf[Int],
     classOf[TimeZone])
 
   val TIMESTAMP_CEIL_TIME_ZONE = Types.lookupMethod(
@@ -393,6 +394,7 @@ object BuiltInMethods {
     "timestampCeil",
     classOf[TimeUnitRange],
     classOf[Long],
+    classOf[Int],
     classOf[TimeZone])
 
   val CONVERT_TZ = Types.lookupMethod(

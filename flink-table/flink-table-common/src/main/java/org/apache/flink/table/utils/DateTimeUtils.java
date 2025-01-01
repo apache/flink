@@ -92,6 +92,12 @@ public class DateTimeUtils {
     /** The number of milliseconds in a second. */
     private static final long MILLIS_PER_SECOND = 1000L;
 
+    /** The number of nanoseconds in a millisecond. */
+    private static final long NANOS_PER_MILLISECOND = 1000000L;
+
+    /** The number of nanoseconds in a microsecond. */
+    private static final long NANOS_PER_MICROSECOND = 1000L;
+
     /** The number of milliseconds in a minute. */
     private static final long MILLIS_PER_MINUTE = 60000L;
 
@@ -1213,14 +1219,18 @@ public class DateTimeUtils {
     // Floor/Ceil/Convert tz
     // --------------------------------------------------------------------------------------------
 
-    public static long timestampFloor(TimeUnitRange range, long ts, TimeZone tz) {
+    public static long timestampFloor(TimeUnitRange range, long ts, int ns, TimeZone tz) {
         // assume that we are at UTC timezone, just for algorithm performance
         long offset = tz.getOffset(ts);
         long utcTs = ts + offset;
 
         switch (range) {
+            case NANOSECOND:
+                return ts;
+            case MICROSECOND:
+                return ts;
             case MILLISECOND:
-                return floor(utcTs, 1L) - offset;
+                return floor(utcTs, ns) - offset;
             case SECOND:
                 return floor(utcTs, MILLIS_PER_SECOND) - offset;
             case MINUTE:
@@ -1249,14 +1259,18 @@ public class DateTimeUtils {
      * Keep the algorithm consistent with Calcite DateTimeUtils.julianDateFloor, but here we take
      * time zone into account.
      */
-    public static long timestampCeil(TimeUnitRange range, long ts, TimeZone tz) {
+    public static long timestampCeil(TimeUnitRange range, long ts, int ns, TimeZone tz) {
         // assume that we are at UTC timezone, just for algorithm performance
         long offset = tz.getOffset(ts);
         long utcTs = ts + offset;
 
         switch (range) {
+            case NANOSECOND:
+                return ts;
+            case MICROSECOND:
+                return ceil(utcTs, ns, NANOS_PER_MICROSECOND) - offset;
             case MILLISECOND:
-                return ceil(utcTs, 1L) - offset;
+                return ceil(utcTs, ns, NANOS_PER_MILLISECOND) - offset;
             case SECOND:
                 return ceil(utcTs, MILLIS_PER_SECOND) - offset;
             case MINUTE:
@@ -1290,12 +1304,38 @@ public class DateTimeUtils {
         }
     }
 
+    private static long floor(long a, int b) {
+        long q = b / NANOS_PER_MILLISECOND;
+        if (q < 0) {
+            return a - q;
+        } else {
+            return a;
+        }
+    }
+
     private static long ceil(long a, long b) {
         long r = a % b;
         if (r > 0) {
             return a - r + b;
         } else {
             return a - r;
+        }
+    }
+
+    private static long ceil(long a, int b, long c) {
+        float q = (float) b / c;
+        if (c == NANOS_PER_MILLISECOND) {
+            if (q > 0) {
+                return a + 1L;
+            } else {
+                return a;
+            }
+        } else {
+            if (q * 10 + 1L >= 10000L) {
+                return a + 1L;
+            } else {
+                return a;
+            }
         }
     }
 
