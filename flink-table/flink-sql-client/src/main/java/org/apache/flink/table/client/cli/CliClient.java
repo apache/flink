@@ -149,7 +149,8 @@ public class CliClient implements AutoCloseable {
                 } else {
                     clusterId = executor.deployScript(null, uri);
                 }
-                terminal.writer().println(messageInfo(MESSAGE_DEPLOY_SCRIPT + clusterId).toAnsi());
+                terminal.writer().println(messageInfo(MESSAGE_DEPLOY_SCRIPT).toAnsi());
+                terminal.writer().println(String.format("Cluster ID: %s\n", clusterId));
                 terminal.flush();
             } else {
                 executeFile(
