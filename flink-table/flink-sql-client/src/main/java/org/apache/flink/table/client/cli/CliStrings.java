@@ -213,7 +213,7 @@ public final class CliStrings {
 
     public static final String MESSAGE_EXECUTE_STATEMENT = "Execute statement succeeded.";
 
-    public static final String MESSAGE_DEPLOY_SCRIPT = "Deploy script in cluster: ";
+    public static final String MESSAGE_DEPLOY_SCRIPT = "Deploy script in application mode: ";
 
     // --------------------------------------------------------------------------------------------
 

@@ -255,7 +255,7 @@ public class FlinkStatementTest extends FlinkJdbcDriverTestBase {
         }
 
         @Override
-        public String deployScript(@Nullable String script, @Nullable @Nullable URI path) {
+        public String deployScript(@Nullable String script, @Nullable URI path) {
             throw new UnsupportedOperationException();
         }
 
