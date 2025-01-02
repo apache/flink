@@ -18,7 +18,7 @@
 
 package org.apache.flink.state.forst.fs.cache;
 
-/** Space checker. */
+/** Cache limit policy. */
 public interface CacheLimitPolicy {
     /**
      * Whether the cache usage is safe to add.
@@ -49,4 +49,11 @@ public interface CacheLimitPolicy {
      * @param toReleaseSize
      */
     void release(long toReleaseSize);
+
+    /**
+     * Get current cached bytes.
+     *
+     * @return cache bytes.
+     */
+    long cachedBytes();
 }

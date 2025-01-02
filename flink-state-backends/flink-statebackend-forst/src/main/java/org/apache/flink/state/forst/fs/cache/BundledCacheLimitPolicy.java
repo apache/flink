@@ -55,6 +55,11 @@ public class BundledCacheLimitPolicy implements CacheLimitPolicy {
     }
 
     @Override
+    public long cachedBytes() {
+        return policies.stream().mapToLong(CacheLimitPolicy::cachedBytes).max().getAsLong();
+    }
+
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("BundledCacheLimitPolicy{");
         for (CacheLimitPolicy policy : policies) {
