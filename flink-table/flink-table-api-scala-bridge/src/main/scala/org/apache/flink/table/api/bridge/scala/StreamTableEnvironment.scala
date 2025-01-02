@@ -60,7 +60,6 @@ import org.apache.flink.types.{Row, RowKind}
 @PublicEvolving
 trait StreamTableEnvironment extends TableEnvironment {
 
-
   /**
    * Converts the given [[DataStream]] into a [[Table]].
    *
