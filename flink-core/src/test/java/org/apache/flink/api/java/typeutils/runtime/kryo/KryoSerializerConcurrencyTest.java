@@ -166,7 +166,7 @@ class KryoSerializerConcurrencyTest {
         }
 
         @Override
-        public WrappedString read(Kryo kryo, Input input, Class<WrappedString> type) {
+        public WrappedString read(Kryo kryo, Input input, Class<? extends WrappedString> type) {
             return new WrappedString(input.readString() + " " + System.identityHashCode(this));
         }
     }

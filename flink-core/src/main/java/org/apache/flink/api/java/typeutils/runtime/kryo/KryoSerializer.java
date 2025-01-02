@@ -40,7 +40,9 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.KryoBufferUnderflowException;
 import com.esotericsoftware.kryo.io.Output;
+import com.esotericsoftware.kryo.util.DefaultInstantiatorStrategy;
 import org.apache.commons.lang3.exception.CloneFailedException;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 import org.slf4j.Logger;
@@ -344,9 +346,9 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
                 kryo.writeClassAndObject(output, record);
                 output.flush();
             } catch (KryoException ke) {
-                // make sure that the Kryo output buffer is cleared in case that we can recover from
+                // make sure that the Kryo output buffer is reset in case that we can recover from
                 // the exception (e.g. EOFException which denotes buffer full)
-                output.clear();
+                output.reset();
 
                 Throwable cause = ke.getCause();
                 if (cause instanceof EOFException) {
@@ -380,6 +382,9 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
 
             try {
                 return (T) kryo.readClassAndObject(input);
+            } catch (KryoBufferUnderflowException ke) {
+                // 2023-04-26: Existing Flink code expects a java.io.EOFException in this scenario
+                throw new EOFException(ke.getMessage());
             } catch (KryoException ke) {
                 Throwable cause = ke.getCause();
 
@@ -488,7 +493,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
                 LOG.info("Kryo serializer scala extensions are not available.");
             }
 
-            Kryo.DefaultInstantiatorStrategy initStrategy = new Kryo.DefaultInstantiatorStrategy();
+            DefaultInstantiatorStrategy initStrategy = new DefaultInstantiatorStrategy();
             initStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
 
             Kryo kryo = new Kryo();
