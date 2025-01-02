@@ -68,7 +68,7 @@ class KryoWithCustomSerializersTest extends AbstractGenericTypeSerializerTest {
         }
 
         @Override
-        public LocalDate read(Kryo kryo, Input input, Class<LocalDate> type) {
+        public LocalDate read(Kryo kryo, Input input, Class<? extends LocalDate> type) {
             return new LocalDate(input.readInt(), input.readInt(), input.readInt());
         }
     }
