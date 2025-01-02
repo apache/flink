@@ -190,35 +190,34 @@ public class FileMappingManager {
         }
 
         // case 2: delete directory
+        if (!recursive) {
+            throw new IOException(fileStr + "is a directory, delete failed.");
+        }
         MappingEntry parentEntry = new MappingEntry(0, fileSystem, fileStr, false, recursive);
-
-        boolean matched = false;
 
         // step 2.1: find all matched entries, mark delete dir as parent dir
         for (Map.Entry<String, MappingEntry> currentEntry : mappingTable.entrySet()) {
             if (!isParentDir(currentEntry.getValue().sourcePath, fileStr)) {
                 continue;
             }
-            matched = true;
             MappingEntry oldParentDir = currentEntry.getValue().parentDir;
-            if (oldParentDir == null
-                    || oldParentDir.equals(parentEntry)
-                    || isParentDir(oldParentDir.sourcePath, fileStr)) {
+            if (oldParentDir == null || isParentDir(oldParentDir.sourcePath, fileStr)) {
                 parentEntry.retain();
                 currentEntry.getValue().parentDir = parentEntry;
             }
         }
 
+        boolean status = true;
         // step 2.2: release file under directory
+        if (parentEntry.getReferenceCount() == 0) {
+            // an empty directory
+            status = fileSystem.delete(file, recursive);
+        }
         List<String> toRelease = listByPrefix(fileStr);
         for (String key : toRelease) {
             mappingTable.remove(key).release();
         }
-
-        if (!matched) {
-            return fileSystem.delete(file, recursive);
-        }
-        return true;
+        return status;
     }
 
     @VisibleForTesting
