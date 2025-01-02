@@ -1899,7 +1899,14 @@ public final class TestValuesTableFactory
             // <pk, data>
             LinkedHashMap<Row, Row> pkMap = new LinkedHashMap<>();
             for (Row row : data) {
-                pkMap.put(extractPk(row), row);
+                Row pk = extractPk(row);
+                RowKind originalRowKind = row.getKind();
+                if (originalRowKind == RowKind.INSERT || originalRowKind == RowKind.UPDATE_AFTER) {
+                    row.setKind(RowKind.INSERT);
+                    pkMap.put(pk, row);
+                } else {
+                    pkMap.remove(pk);
+                }
             }
             return new ArrayList<>(pkMap.values());
         }
