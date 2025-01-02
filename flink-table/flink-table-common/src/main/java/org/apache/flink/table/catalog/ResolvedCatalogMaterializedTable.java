@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -81,6 +82,11 @@ public class ResolvedCatalogMaterializedTable
         return new ResolvedCatalogMaterializedTable(
                 origin.copy(refreshStatus, refreshHandlerDescription, serializedRefreshHandler),
                 resolvedSchema);
+    }
+
+    @Override
+    public CatalogMaterializedTable copy(Schema schema, String definitionQuery) {
+        throw new UnsupportedOperationException("");
     }
 
     @Override
