@@ -40,6 +40,7 @@
     "org.apache.flink.sql.parser.ddl.SqlAlterDatabase"
     "org.apache.flink.sql.parser.ddl.SqlAlterFunction"
     "org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTable"
+    "org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableAsQuery"
     "org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableFreshness"
     "org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableOptions"
     "org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableRefreshMode"
