@@ -17,13 +17,12 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.MyPojo
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.types.AbstractDataType
 
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.junit.jupiter.api.{BeforeEach, Test}
@@ -157,7 +156,7 @@ class CalcTest extends TableTestBase {
   def testPojoType(): Unit = {
     util.addTableSource(
       "MyTable4",
-      Array[TypeInformation[_]](TypeExtractor.createTypeInfo(classOf[MyPojo])),
+      Array[AbstractDataType[_]](DataTypes.RAW(classOf[MyPojo])),
       Array("a"))
     util.verifyExecPlan("SELECT a FROM MyTable4")
   }

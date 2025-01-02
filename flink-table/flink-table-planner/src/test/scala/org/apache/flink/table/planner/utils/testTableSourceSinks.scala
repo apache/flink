@@ -240,17 +240,6 @@ class TestStreamTableSource(tableSchema: TableSchema, values: Seq[Row])
   override def getTableSchema: TableSchema = tableSchema
 }
 
-object TestStreamTableSource {
-  def createTemporaryTable(
-      tEnv: TableEnvironment,
-      schema: TableSchema,
-      tableName: String,
-      data: Seq[Row] = null): Unit = {
-    val source = new TestStreamTableSource(schema, data)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, source)
-  }
-}
-
 class TestStreamTableSourceFactory extends StreamTableSourceFactory[Row] {
   override def createStreamTableSource(properties: JMap[String, String]): StreamTableSource[Row] = {
     val descriptorProperties = new DescriptorProperties

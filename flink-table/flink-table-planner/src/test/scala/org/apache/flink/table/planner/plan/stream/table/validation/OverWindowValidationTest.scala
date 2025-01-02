@@ -130,7 +130,7 @@ class OverWindowValidationTest extends TableTestBase {
   @Test
   def testPartitionByWithNotKeyType(): Unit = {
     val table2 =
-      streamUtil.addTableSource[(Int, String, Either[Long, String])]("MyTable2", 'a, 'b, 'c)
+      streamUtil.addTableSource[(Int, String, (Long, String))]("MyTable2", 'a, 'b, 'c)
 
     assertThatExceptionOfType(classOf[ValidationException])
       .isThrownBy(
