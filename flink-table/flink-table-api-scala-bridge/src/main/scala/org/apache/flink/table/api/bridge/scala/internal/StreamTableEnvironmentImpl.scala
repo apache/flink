@@ -224,46 +224,6 @@ class StreamTableEnvironmentImpl(
     toStreamInternal(table, modifyOperation)
   }
 
-  override def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {
-    val typeInfo = UserDefinedFunctionHelper
-      .getReturnTypeOfTableFunction(tf, implicitly[TypeInformation[T]])
-    functionCatalog.registerTempSystemTableFunction(
-      name,
-      tf,
-      typeInfo
-    )
-  }
-
-  override def registerFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      f: AggregateFunction[T, ACC]): Unit = {
-    val typeInfo = UserDefinedFunctionHelper
-      .getReturnTypeOfAggregateFunction(f, implicitly[TypeInformation[T]])
-    val accTypeInfo = UserDefinedFunctionHelper
-      .getAccumulatorTypeOfAggregateFunction(f, implicitly[TypeInformation[ACC]])
-    functionCatalog.registerTempSystemAggregateFunction(
-      name,
-      f,
-      typeInfo,
-      accTypeInfo
-    )
-  }
-
-  override def registerFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      f: TableAggregateFunction[T, ACC]): Unit = {
-    val typeInfo = UserDefinedFunctionHelper
-      .getReturnTypeOfAggregateFunction(f, implicitly[TypeInformation[T]])
-    val accTypeInfo = UserDefinedFunctionHelper
-      .getAccumulatorTypeOfAggregateFunction(f, implicitly[TypeInformation[ACC]])
-    functionCatalog.registerTempSystemAggregateFunction(
-      name,
-      f,
-      typeInfo,
-      accTypeInfo
-    )
-  }
-
   override def createTemporaryView[T](
       path: String,
       dataStream: DataStream[T],
