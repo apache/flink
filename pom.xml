@@ -136,7 +136,6 @@ under the License.
 		<scala.macros.version>2.1.1</scala.macros.version>
 		<scala.version>2.12.20</scala.version>
 		<scala.binary.version>2.12</scala.binary.version>
-		<chill.version>0.7.6</chill.version>
 		<!-- keep FlinkTestcontainersConfigurator.configureZookeeperContainer in sync -->
 		<zookeeper.version>3.7.2</zookeeper.version>
 		<!-- Project `flink-benchmarks` uses zk testing server in `curator-test` for performance
@@ -611,7 +610,7 @@ under the License.
 			<dependency>
 				<groupId>org.objenesis</groupId>
 				<artifactId>objenesis</artifactId>
-				<version>2.1</version>
+				<version>3.4</version>
 			</dependency>
 
 			<!-- For dependency convergence -->
@@ -759,11 +758,10 @@ under the License.
 				<version>1.7</version>
 			</dependency>
 
-			<!-- kryo used in different versions by Flink an chill -->
 			<dependency>
-				<groupId>com.esotericsoftware.kryo</groupId>
+				<groupId>com.esotericsoftware</groupId>
 				<artifactId>kryo</artifactId>
-				<version>2.24.0</version>
+				<version>5.6.2</version>
 			</dependency>
 
 			<dependency>

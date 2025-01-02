@@ -132,7 +132,7 @@ class KryoClearedBufferTest {
         }
 
         @Override
-        public TestRecord read(Kryo kryo, Input input, Class<TestRecord> type) {
+        public TestRecord read(Kryo kryo, Input input, Class<? extends TestRecord> type) {
             int length = input.readInt();
             byte[] buffer = input.readBytes(length);
 
