@@ -40,22 +40,18 @@ public class MappingEntry extends ReferenceCounted {
     /** The original path of file. */
     String sourcePath;
 
-    boolean isDirectory;
+    boolean recursive;
 
     /** When delete a directory, if the directory is the parent of this source file, track it. */
     @Nullable MappingEntry parentDir;
 
-    public MappingEntry(FileSystem fileSystem, String sourcePath) {
-        this(2, fileSystem, sourcePath, false);
-    }
-
     public MappingEntry(
-            int initReference, FileSystem fileSystem, String sourcePath, boolean isDirectory) {
+            int initReference, FileSystem fileSystem, String sourcePath, boolean recursive) {
         super(initReference);
         this.fileSystem = fileSystem;
         this.sourcePath = sourcePath;
         this.parentDir = null;
-        this.isDirectory = isDirectory;
+        this.recursive = recursive;
     }
 
     public int release() {
@@ -69,7 +65,7 @@ public class MappingEntry extends ReferenceCounted {
     @Override
     protected void referenceCountReachedZero(@Nullable Object o) {
         try {
-            fileSystem.delete(new Path(sourcePath), isDirectory);
+            fileSystem.delete(new Path(sourcePath), recursive);
         } catch (Exception e) {
             LOG.warn("Failed to delete file {}.", sourcePath, e);
         }
