@@ -41,7 +41,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -269,13 +268,6 @@ public class ForStFlinkFileSystem extends FileSystem {
         List<String> mappingFiles = fileMappingManager.listByPrefix(path.toString());
         for (String mappingFile : mappingFiles) {
             fileStatuses.add(getFileStatus(new Path(mappingFile)));
-        }
-
-        // remote files
-        FileStatus[] remoteFiles = delegateFS.listStatus(path);
-        int remoteFileNum = remoteFiles == null ? 0 : remoteFiles.length;
-        if (remoteFileNum != 0) {
-            fileStatuses.addAll(Arrays.asList(remoteFiles));
         }
         return fileStatuses.toArray(new FileStatus[0]);
     }
