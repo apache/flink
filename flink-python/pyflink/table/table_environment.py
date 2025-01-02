@@ -1368,10 +1368,10 @@ class TableEnvironment(object):
             data_type = data_type.bridgedTo(
                 load_java_class('org.apache.flink.table.data.RowData'))
 
-            j_arrow_table_source = \
-                jvm.org.apache.flink.table.runtime.arrow.ArrowUtils.createArrowTableSource(
+            j_arrow_table_source_descriptor = \
+                jvm.org.apache.flink.table.runtime.arrow.ArrowUtils.createArrowTableSourceDesc(
                     data_type, temp_file.name)
-            return Table(self._j_tenv.fromTableSource(j_arrow_table_source), self)
+            return Table(getattr(self._j_tenv, "from")(j_arrow_table_source_descriptor), self)
         finally:
             os.unlink(temp_file.name)
 
