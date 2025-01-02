@@ -1347,8 +1347,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return planner.translate(modifyOperations);
     }
 
-    @Override
-    public void registerTableSourceInternal(String name, TableSource<?> tableSource) {
+    /** TODO FLINK-36132 Remove this method later. */
+    private void registerTableSourceInternal(String name, TableSource<?> tableSource) {
         validateTableSource(tableSource);
         ObjectIdentifier objectIdentifier =
                 catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(name));

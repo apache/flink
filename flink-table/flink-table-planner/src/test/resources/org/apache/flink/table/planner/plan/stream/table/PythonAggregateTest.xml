@@ -21,14 +21,14 @@ limitations under the License.
       <![CDATA[
 LogicalProject(b=[$0], EXPR$0=[$1], EXPR$1=[$2])
 +- LogicalAggregate(group=[{1}], EXPR$0=[TestPythonAggregateFunction($0, $2)], EXPR$1=[COUNT($0)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 PythonGroupAggregate(groupBy=[b], select=[b, TestPythonAggregateFunction(a, c) AS EXPR$0, COUNT(a) AS EXPR$1])
 +- Exchange(distribution=[hash[b]])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -37,14 +37,14 @@ PythonGroupAggregate(groupBy=[b], select=[b, TestPythonAggregateFunction(a, c) A
       <![CDATA[
 LogicalProject(b=[$0], EXPR$0=[$1])
 +- LogicalAggregate(group=[{1}], EXPR$0=[TestPythonAggregateFunction($0, $2)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 PythonGroupAggregate(groupBy=[b], select=[b, TestPythonAggregateFunction(a, c) AS EXPR$0])
 +- Exchange(distribution=[hash[b]])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -53,14 +53,14 @@ PythonGroupAggregate(groupBy=[b], select=[b, TestPythonAggregateFunction(a, c) A
       <![CDATA[
 LogicalProject(EXPR$0=[$0])
 +- LogicalAggregate(group=[{}], EXPR$0=[TestPythonAggregateFunction($0, $2)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 PythonGroupAggregate(select=[TestPythonAggregateFunction(a, c) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

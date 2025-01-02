@@ -61,12 +61,6 @@ class TableScanTest extends TableTestBase {
   }
 
   @Test
-  def testLegacyTableSourceScan(): Unit = {
-    util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-    util.verifyExecPlan("SELECT * FROM MyTable")
-  }
-
-  @Test
   def testDDLTableScan(): Unit = {
     util.addTable("""
                     |CREATE TABLE src (

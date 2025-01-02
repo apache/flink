@@ -33,12 +33,6 @@ class TableScanTest extends TableTestBase {
   private val util = streamTestUtil()
 
   @Test
-  def testLegacyTableSourceScan(): Unit = {
-    util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-    util.verifyExecPlan("SELECT * FROM MyTable")
-  }
-
-  @Test
   def testDataStreamScan(): Unit = {
     util.addDataStream[(Int, Long, String)]("DataStreamTable", 'a, 'b, 'c)
     util.verifyExecPlan("SELECT * FROM DataStreamTable")

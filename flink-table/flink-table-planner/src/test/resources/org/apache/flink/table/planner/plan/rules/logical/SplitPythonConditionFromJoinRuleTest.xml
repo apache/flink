@@ -24,8 +24,8 @@ limitations under the License.
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], d=[$3])
 +- LogicalJoin(condition=[AND(=($0, $3), =(pyFunc($0, $3), $1))], joinType=[inner])
-   :- LogicalTableScan(table=[[default_catalog, default_database, leftTable, source: [TestTableSource(a, b, c)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, rightTable, source: [TestTableSource(d, e, f)]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, leftTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, rightTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -34,9 +34,9 @@ FlinkLogicalCalc(select=[a, b, d], where=[=(f0, b)])
 +- FlinkLogicalCalc(select=[a, b, d, pyFunc(a, d) AS f0])
    +- FlinkLogicalJoin(condition=[=($0, $2)], joinType=[inner])
       :- FlinkLogicalCalc(select=[a, b])
-      :  +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, leftTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      :  +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, leftTable]], fields=[a, b, c])
       +- FlinkLogicalCalc(select=[d])
-         +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, rightTable, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, rightTable]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -58,8 +58,8 @@ LogicalProject(a=[$0], EXPR$1=[+($1, 1)])
    +- LogicalFilter(condition=[=(pyFunc($0, $1), *($0, $1))])
       +- LogicalProject(a=[$0], d=[$3])
          +- LogicalJoin(condition=[AND(=($0, $3), =(pyFunc($0, $0), +($0, $3)))], joinType=[inner])
-            :- LogicalTableScan(table=[[default_catalog, default_database, leftTable, source: [TestTableSource(a, b, c)]]])
-            +- LogicalTableScan(table=[[default_catalog, default_database, rightTable, source: [TestTableSource(d, e, f)]]])
+            :- LogicalTableScan(table=[[default_catalog, default_database, leftTable]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, rightTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -68,9 +68,9 @@ FlinkLogicalCalc(select=[a, +(d, 1) AS EXPR$1], where=[AND(=(f0, +(a, d)), =(f1,
 +- FlinkLogicalCalc(select=[a, d, pyFunc(a, a) AS f0, pyFunc(a, d) AS f1])
    +- FlinkLogicalJoin(condition=[=($0, $1)], joinType=[inner])
       :- FlinkLogicalCalc(select=[a])
-      :  +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, leftTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      :  +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, leftTable]], fields=[a, b, c])
       +- FlinkLogicalCalc(select=[d])
-         +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, rightTable, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+         +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, rightTable]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>

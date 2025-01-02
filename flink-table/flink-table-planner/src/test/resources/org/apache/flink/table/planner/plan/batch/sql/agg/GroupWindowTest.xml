@@ -34,7 +34,7 @@ FROM MyTable1
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4], EXPR$4=[TUMBLE_START($0)], EXPR$5=[TUMBLE_END($0)])
 +- LogicalAggregate(group=[{0}], EXPR$0=[VAR_POP($1)], EXPR$1=[VAR_SAMP($1)], EXPR$2=[STDDEV_POP($1)], EXPR$3=[STDDEV_SAMP($1)])
    +- LogicalProject($f0=[$TUMBLE($0, 900000:INTERVAL MINUTE)], b=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -44,7 +44,7 @@ Calc(select=[CAST((($f0 - (($f1 * $f1) / $f2)) / $f2) AS INTEGER) AS EXPR$0, CAS
    +- Exchange(distribution=[single])
       +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 900000)], properties=[w$start, w$end, w$rowtime], select=[Partial_SUM($f2) AS sum$0, Partial_SUM(b) AS sum$1, Partial_COUNT(b) AS count$2])
          +- Calc(select=[ts, b, (b * b) AS $f2])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -66,7 +66,7 @@ FROM MyTable1
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4], EXPR$4=[TUMBLE_START($0)], EXPR$5=[TUMBLE_END($0)])
 +- LogicalAggregate(group=[{0}], EXPR$0=[VAR_POP($1)], EXPR$1=[VAR_SAMP($1)], EXPR$2=[STDDEV_POP($1)], EXPR$3=[STDDEV_SAMP($1)])
    +- LogicalProject($f0=[$TUMBLE($0, 900000:INTERVAL MINUTE)], b=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -75,7 +75,7 @@ Calc(select=[CAST((($f0 - (($f1 * $f1) / $f2)) / $f2) AS INTEGER) AS EXPR$0, CAS
 +- HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 900000)], properties=[w$start, w$end, w$rowtime], select=[SUM($f2) AS $f0, SUM(b) AS $f1, COUNT(b) AS $f2])
    +- Exchange(distribution=[single])
       +- Calc(select=[ts, b, (b * b) AS $f2])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -97,7 +97,7 @@ FROM MyTable1
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4], EXPR$4=[TUMBLE_START($0)], EXPR$5=[TUMBLE_END($0)])
 +- LogicalAggregate(group=[{0}], EXPR$0=[VAR_POP($1)], EXPR$1=[VAR_SAMP($1)], EXPR$2=[STDDEV_POP($1)], EXPR$3=[STDDEV_SAMP($1)])
    +- LogicalProject($f0=[$TUMBLE($0, 900000:INTERVAL MINUTE)], b=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -107,7 +107,7 @@ Calc(select=[CAST((($f0 - (($f1 * $f1) / $f2)) / $f2) AS INTEGER) AS EXPR$0, CAS
    +- Exchange(distribution=[single])
       +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 900000)], properties=[w$start, w$end, w$rowtime], select=[Partial_SUM($f2) AS sum$0, Partial_SUM(b) AS sum$1, Partial_COUNT(b) AS count$2])
          +- Calc(select=[ts, b, (b * b) AS $f2])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -129,7 +129,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[HOP_START($0)])
 +- LogicalFilter(condition=[AND(>($2, 0), =(EXTRACT(FLAG(QUARTER), HOP_START($0)), 1))])
    +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()], agg#1=[SUM($1)])
       +- LogicalProject($f0=[$HOP($4, 900000:INTERVAL MINUTE, 60000:INTERVAL MINUTE)], a=[$0])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -139,7 +139,7 @@ Calc(select=[EXPR$0, w$start AS EXPR$1], where=[(($f1 > 0) AND (EXTRACT(QUARTER,
    +- Exchange(distribution=[single])
       +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 60000, 900000)], properties=[w$start, w$end, w$rowtime], select=[Partial_COUNT(*) AS count1$0, Partial_SUM(a) AS sum$1])
          +- Calc(select=[ts, a])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -161,7 +161,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[HOP_START($0)])
 +- LogicalFilter(condition=[AND(>($2, 0), =(EXTRACT(FLAG(QUARTER), HOP_START($0)), 1))])
    +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()], agg#1=[SUM($1)])
       +- LogicalProject($f0=[$HOP($4, 900000:INTERVAL MINUTE, 60000:INTERVAL MINUTE)], a=[$0])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -170,7 +170,7 @@ Calc(select=[EXPR$0, w$start AS EXPR$1], where=[(($f1 > 0) AND (EXTRACT(QUARTER,
 +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 60000, 900000)], properties=[w$start, w$end, w$rowtime], select=[COUNT(*) AS EXPR$0, SUM(a) AS $f1])
    +- Exchange(distribution=[single])
       +- Calc(select=[ts, a])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -192,7 +192,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[HOP_START($0)])
 +- LogicalFilter(condition=[AND(>($2, 0), =(EXTRACT(FLAG(QUARTER), HOP_START($0)), 1))])
    +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()], agg#1=[SUM($1)])
       +- LogicalProject($f0=[$HOP($4, 900000:INTERVAL MINUTE, 60000:INTERVAL MINUTE)], a=[$0])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -202,7 +202,7 @@ Calc(select=[EXPR$0, w$start AS EXPR$1], where=[(($f1 > 0) AND (EXTRACT(QUARTER,
    +- Exchange(distribution=[single])
       +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 60000, 900000)], properties=[w$start, w$end, w$rowtime], select=[Partial_COUNT(*) AS count1$0, Partial_SUM(a) AS sum$1])
          +- Calc(select=[ts, a])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -215,7 +215,7 @@ Calc(select=[EXPR$0, w$start AS EXPR$1], where=[(($f1 > 0) AND (EXTRACT(QUARTER,
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
    +- LogicalProject(a=[$1], $f1=[$HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -225,7 +225,7 @@ Calc(select=[EXPR$0])
    +- Exchange(distribution=[hash[a]])
       +- LocalHashWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, Partial_COUNT(c) AS count$0])
          +- Calc(select=[a, ts, c])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -244,7 +244,7 @@ FROM MyTable
 LogicalProject(EXPR$0=[$1], EXPR$1=[HOP_START($0)], EXPR$2=[HOP_END($0)])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
    +- LogicalProject($f0=[$HOP($1, 3000:INTERVAL SECOND, 3000:INTERVAL SECOND)], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -254,7 +254,7 @@ Calc(select=[EXPR$0, w$start AS EXPR$1, w$end AS EXPR$2])
    +- Exchange(distribution=[single])
       +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, b, 3000, 3000)], properties=[w$start, w$end, w$rowtime], select=[Partial_SUM(a) AS sum$0])
          +- Calc(select=[b, a])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -273,7 +273,7 @@ FROM MyTable
 LogicalProject(EXPR$0=[$1], EXPR$1=[HOP_START($0)], EXPR$2=[HOP_END($0)])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
    +- LogicalProject($f0=[$HOP($1, 3000:INTERVAL SECOND, 3000:INTERVAL SECOND)], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -282,7 +282,7 @@ Calc(select=[EXPR$0, w$start AS EXPR$1, w$end AS EXPR$2])
 +- HashWindowAggregate(window=[SlidingGroupWindow('w$, b, 3000, 3000)], properties=[w$start, w$end, w$rowtime], select=[SUM(a) AS EXPR$0])
    +- Exchange(distribution=[single])
       +- Calc(select=[b, a])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -301,7 +301,7 @@ FROM MyTable
 LogicalProject(EXPR$0=[$1], EXPR$1=[HOP_START($0)], EXPR$2=[HOP_END($0)])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
    +- LogicalProject($f0=[$HOP($1, 3000:INTERVAL SECOND, 3000:INTERVAL SECOND)], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -311,7 +311,7 @@ Calc(select=[EXPR$0, w$start AS EXPR$1, w$end AS EXPR$2])
    +- Exchange(distribution=[single])
       +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, b, 3000, 3000)], properties=[w$start, w$end, w$rowtime], select=[Partial_SUM(a) AS sum$0])
          +- Calc(select=[b, a])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -324,7 +324,7 @@ Calc(select=[EXPR$0, w$start AS EXPR$1, w$end AS EXPR$2])
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 +- LogicalAggregate(group=[{0}], EXPR$0=[AVG($1)], EXPR$1=[SUM($2)])
    +- LogicalProject($f0=[$TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -333,7 +333,7 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 3000)], select=[Final_AV
 +- Exchange(distribution=[single])
    +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, b, 3000)], select=[Partial_AVG(c) AS (sum$0, count$1), Partial_SUM(a) AS sum$2])
       +- Calc(select=[b, c, a])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -346,7 +346,7 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 3000)], select=[Final_AV
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 +- LogicalAggregate(group=[{0}], EXPR$0=[AVG($1)], EXPR$1=[SUM($2)])
    +- LogicalProject($f0=[$TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -354,7 +354,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 3000)], select=[AVG(c) AS EXPR$0, SUM(a) AS EXPR$1])
 +- Exchange(distribution=[single])
    +- Calc(select=[b, c, a])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -367,7 +367,7 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 3000)], select=[AVG(c) A
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 +- LogicalAggregate(group=[{0}], EXPR$0=[AVG($1)], EXPR$1=[SUM($2)])
    +- LogicalProject($f0=[$TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -376,7 +376,7 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 3000)], select=[Final_AV
 +- Exchange(distribution=[single])
    +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, b, 3000)], select=[Partial_AVG(c) AS (sum$0, count$1), Partial_SUM(a) AS sum$2])
       +- Calc(select=[b, c, a])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -389,7 +389,7 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 3000)], select=[Final_AV
 LogicalProject(sumA=[$1], cntB=[$2])
 +- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
    +- LogicalProject($f0=[$HOP($4, 900000:INTERVAL MINUTE, 5400000:INTERVAL MINUTE)], a=[$0], b=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -398,7 +398,7 @@ SortWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], selec
 +- Sort(orderBy=[ts ASC])
    +- Exchange(distribution=[single])
       +- Calc(select=[ts, a, b])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -411,7 +411,7 @@ SortWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], selec
 LogicalProject(sumA=[$1], cntB=[$2])
 +- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
    +- LogicalProject($f0=[$HOP($4, 900000:INTERVAL MINUTE, 5400000:INTERVAL MINUTE)], a=[$0], b=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -420,7 +420,7 @@ HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], selec
 +- Exchange(distribution=[single])
    +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], select=[Partial_SUM(a) AS sum$0, Partial_COUNT(b) AS count$1])
       +- Calc(select=[ts, a, b])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -433,7 +433,7 @@ HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], selec
 LogicalProject(sumA=[$1], cntB=[$2])
 +- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
    +- LogicalProject($f0=[$TUMBLE($4, 7200000:INTERVAL HOUR)], a=[$0], b=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -442,7 +442,7 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 7200000)], select=[Fina
 +- Exchange(distribution=[single])
    +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 7200000)], select=[Partial_SUM(a) AS sum$0, Partial_COUNT(b) AS count$1])
       +- Calc(select=[ts, a, b])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -455,7 +455,7 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 7200000)], select=[Fina
 LogicalProject(sumA=[$1], cntB=[$2])
 +- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
    +- LogicalProject($f0=[$TUMBLE($4, 7200000:INTERVAL HOUR)], a=[$0], b=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -463,7 +463,7 @@ LogicalProject(sumA=[$1], cntB=[$2])
 HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 7200000)], select=[SUM(a) AS sumA, COUNT(b) AS cntB])
 +- Exchange(distribution=[single])
    +- Calc(select=[ts, a, b])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -476,7 +476,7 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 7200000)], select=[SUM(
 LogicalProject(sumA=[$1], cntB=[$2])
 +- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
    +- LogicalProject($f0=[$TUMBLE($4, 7200000:INTERVAL HOUR)], a=[$0], b=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -485,7 +485,7 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 7200000)], select=[Fina
 +- Exchange(distribution=[single])
    +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 7200000)], select=[Partial_SUM(a) AS sum$0, Partial_COUNT(b) AS count$1])
       +- Calc(select=[ts, a, b])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -498,7 +498,7 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 7200000)], select=[Fina
 LogicalProject(c=[$2], EXPR$1=[HOP_END($0)], EXPR$2=[HOP_START($0)], EXPR$3=[HOP_ROWTIME($0)], sumA=[$3], avgB=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], sumA=[SUM($3)], avgB=[AVG($4)])
    +- LogicalProject($f0=[$HOP($4, 3600000:INTERVAL HOUR, 10800000:INTERVAL HOUR)], d=[$3], c=[$2], a=[$0], b=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -507,7 +507,7 @@ Calc(select=[c, w$end AS EXPR$1, w$start AS EXPR$2, w$rowtime AS EXPR$3, sumA, a
 +- HashWindowAggregate(groupBy=[c, d], window=[SlidingGroupWindow('w$, ts, 10800000, 3600000)], properties=[w$start, w$end, w$rowtime], select=[c, d, Final_SUM(sum$0) AS sumA, Final_AVG(sum$1, count$2) AS avgB])
    +- Exchange(distribution=[hash[c, d]])
       +- LocalHashWindowAggregate(groupBy=[c, d], window=[SlidingGroupWindow('w$, ts, 10800000, 3600000)], properties=[w$start, w$end, w$rowtime], select=[c, d, Partial_SUM(a) AS sum$0, Partial_AVG(b) AS (sum$1, count$2)])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -520,7 +520,7 @@ Calc(select=[c, w$end AS EXPR$1, w$start AS EXPR$2, w$rowtime AS EXPR$3, sumA, a
 LogicalProject(sumA=[$1], cntB=[$2])
 +- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
    +- LogicalProject($f0=[$HOP($4, 900000:INTERVAL MINUTE, 5400000:INTERVAL MINUTE)], a=[$0], b=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -529,7 +529,7 @@ HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], selec
 +- Exchange(distribution=[single])
    +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], select=[Partial_SUM(a) AS sum$0, Partial_COUNT(b) AS count$1])
       +- Calc(select=[ts, a, b])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -542,7 +542,7 @@ HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], selec
 LogicalProject(c=[$2], EXPR$1=[HOP_END($0)], EXPR$2=[HOP_START($0)], EXPR$3=[HOP_ROWTIME($0)], sumA=[$3], avgB=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], sumA=[SUM($3)], avgB=[AVG($4)])
    +- LogicalProject($f0=[$HOP($4, 3600000:INTERVAL HOUR, 10800000:INTERVAL HOUR)], d=[$3], c=[$2], a=[$0], b=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -552,7 +552,7 @@ Calc(select=[c, w$end AS EXPR$1, w$start AS EXPR$2, w$rowtime AS EXPR$3, sumA, a
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[c ASC, d ASC, ts ASC])
          +- Exchange(distribution=[hash[c, d]])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -565,7 +565,7 @@ Calc(select=[c, w$end AS EXPR$1, w$start AS EXPR$2, w$rowtime AS EXPR$3, sumA, a
 LogicalProject(c=[$2], EXPR$1=[HOP_END($0)], EXPR$2=[HOP_START($0)], EXPR$3=[HOP_ROWTIME($0)], sumA=[$3], avgB=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], sumA=[SUM($3)], avgB=[AVG($4)])
    +- LogicalProject($f0=[$HOP($4, 3600000:INTERVAL HOUR, 10800000:INTERVAL HOUR)], d=[$3], c=[$2], a=[$0], b=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -574,7 +574,7 @@ Calc(select=[c, w$end AS EXPR$1, w$start AS EXPR$2, w$rowtime AS EXPR$3, sumA, a
 +- HashWindowAggregate(groupBy=[c, d], window=[SlidingGroupWindow('w$, ts, 10800000, 3600000)], properties=[w$start, w$end, w$rowtime], select=[c, d, Final_SUM(sum$0) AS sumA, Final_AVG(sum$1, count$2) AS avgB])
    +- Exchange(distribution=[hash[c, d]])
       +- LocalHashWindowAggregate(groupBy=[c, d], window=[SlidingGroupWindow('w$, ts, 10800000, 3600000)], properties=[w$start, w$end, w$rowtime], select=[c, d, Partial_SUM(a) AS sum$0, Partial_AVG(b) AS (sum$1, count$2)])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -596,7 +596,7 @@ FROM MyTable2
 LogicalProject(EXPR$0=[TUMBLE_START($0)], EXPR$1=[TUMBLE_END($0)], EXPR$2=[TUMBLE_ROWTIME($0)], c=[$1], sumA=[$2], minB=[$3])
 +- LogicalAggregate(group=[{0, 1}], sumA=[SUM($2)], minB=[MIN($3)])
    +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2], a=[$0], b=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -606,7 +606,7 @@ Calc(select=[w$start AS EXPR$0, w$end AS EXPR$1, w$rowtime AS EXPR$2, c, sumA, m
    +- Exchange(distribution=[hash[c]])
       +- LocalHashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c, Partial_SUM(a) AS sum$0, Partial_MIN(b) AS min$1])
          +- Calc(select=[ts, c, a, b])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -628,7 +628,7 @@ FROM MyTable2
 LogicalProject(EXPR$0=[TUMBLE_START($0)], EXPR$1=[TUMBLE_END($0)], EXPR$2=[TUMBLE_ROWTIME($0)], c=[$1], sumA=[$2], minB=[$3])
 +- LogicalAggregate(group=[{0, 1}], sumA=[SUM($2)], minB=[MIN($3)])
    +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2], a=[$0], b=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -637,7 +637,7 @@ Calc(select=[w$start AS EXPR$0, w$end AS EXPR$1, w$rowtime AS EXPR$2, c, sumA, m
 +- HashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c, SUM(a) AS sumA, MIN(b) AS minB])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[ts, c, a, b])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -659,7 +659,7 @@ FROM MyTable2
 LogicalProject(EXPR$0=[TUMBLE_START($0)], EXPR$1=[TUMBLE_END($0)], EXPR$2=[TUMBLE_ROWTIME($0)], c=[$1], sumA=[$2], minB=[$3])
 +- LogicalAggregate(group=[{0, 1}], sumA=[SUM($2)], minB=[MIN($3)])
    +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2], a=[$0], b=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -669,7 +669,7 @@ Calc(select=[w$start AS EXPR$0, w$end AS EXPR$1, w$rowtime AS EXPR$2, c, sumA, m
    +- Exchange(distribution=[hash[c]])
       +- LocalHashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c, Partial_SUM(a) AS sum$0, Partial_MIN(b) AS min$1])
          +- Calc(select=[ts, c, a, b])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -696,7 +696,7 @@ LogicalProject(s=[$1], a=[$2], wStart=[TUMBLE_START($0)])
 +- LogicalAggregate(group=[{0}], s=[SUM($1)], a=[AVG($1)])
    +- LogicalProject($f0=[$TUMBLE($1, 900000:INTERVAL MINUTE)], correct=[$0])
       +- LogicalProject(correct=[CASE(=($0, 1), 1, 99)], b=[$1])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -706,7 +706,7 @@ Calc(select=[CAST(s AS INTEGER) AS s, CAST(a AS INTEGER) AS a, w$start AS wStart
    +- Exchange(distribution=[single])
       +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, b, 900000)], properties=[w$start, w$end, w$rowtime], select=[Partial_SUM(correct) AS sum$0, Partial_AVG(correct) AS (sum$1, count$2)])
          +- Calc(select=[b, CASE((a = 1), 1, 99) AS correct])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -733,7 +733,7 @@ LogicalProject(s=[$1], a=[$2], wStart=[TUMBLE_START($0)])
 +- LogicalAggregate(group=[{0}], s=[SUM($1)], a=[AVG($1)])
    +- LogicalProject($f0=[$TUMBLE($1, 900000:INTERVAL MINUTE)], correct=[$0])
       +- LogicalProject(correct=[CASE(=($0, 1), 1, 99)], b=[$1])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -742,7 +742,7 @@ Calc(select=[CAST(s AS INTEGER) AS s, CAST(a AS INTEGER) AS a, w$start AS wStart
 +- HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 900000)], properties=[w$start, w$end, w$rowtime], select=[SUM(correct) AS s, AVG(correct) AS a])
    +- Exchange(distribution=[single])
       +- Calc(select=[b, CASE((a = 1), 1, 99) AS correct])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -769,7 +769,7 @@ LogicalProject(s=[$1], a=[$2], wStart=[TUMBLE_START($0)])
 +- LogicalAggregate(group=[{0}], s=[SUM($1)], a=[AVG($1)])
    +- LogicalProject($f0=[$TUMBLE($1, 900000:INTERVAL MINUTE)], correct=[$0])
       +- LogicalProject(correct=[CASE(=($0, 1), 1, 99)], b=[$1])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -779,7 +779,7 @@ Calc(select=[CAST(s AS INTEGER) AS s, CAST(a AS INTEGER) AS a, w$start AS wStart
    +- Exchange(distribution=[single])
       +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, b, 900000)], properties=[w$start, w$end, w$rowtime], select=[Partial_SUM(correct) AS sum$0, Partial_AVG(correct) AS (sum$1, count$2)])
          +- Calc(select=[b, CASE((a = 1), 1, 99) AS correct])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -792,7 +792,7 @@ Calc(select=[CAST(s AS INTEGER) AS s, CAST(a AS INTEGER) AS a, w$start AS wStart
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
    +- LogicalProject(b=[$2], $f1=[$HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -802,7 +802,7 @@ Calc(select=[EXPR$0])
    +- Exchange(distribution=[hash[b]])
       +- LocalHashWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[b, Partial_COUNT(c) AS count$0])
          +- Calc(select=[b, ts, c])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -815,7 +815,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
    +- LogicalProject(b=[$2], $f1=[$HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -826,7 +826,7 @@ Calc(select=[EXPR$0])
       +- Sort(orderBy=[b ASC, ts ASC])
          +- Exchange(distribution=[hash[b]])
             +- Calc(select=[b, ts, c])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -839,7 +839,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
    +- LogicalProject(b=[$2], $f1=[$HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -849,7 +849,7 @@ Calc(select=[EXPR$0])
    +- Exchange(distribution=[hash[b]])
       +- LocalHashWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[b, Partial_COUNT(c) AS count$0])
          +- Calc(select=[b, ts, c])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -862,7 +862,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($2)])
    +- LogicalProject(a=[$1], $f1=[$HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -876,7 +876,7 @@ Calc(select=[EXPR$0])
                +- Exchange(distribution=[forward])
                   +- Sort(orderBy=[a ASC, ts ASC])
                      +- Calc(select=[a, ts, c])
-                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -889,7 +889,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($2)])
    +- LogicalProject(a=[$1], $f1=[$HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -900,7 +900,7 @@ Calc(select=[EXPR$0])
       +- Sort(orderBy=[a ASC, ts ASC])
          +- Exchange(distribution=[hash[a]])
             +- Calc(select=[a, ts, c])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -913,7 +913,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($2)])
    +- LogicalProject(a=[$1], $f1=[$HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -927,7 +927,7 @@ Calc(select=[EXPR$0])
                +- Exchange(distribution=[forward])
                   +- Sort(orderBy=[a ASC, ts ASC])
                      +- Calc(select=[a, ts, c])
-                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -940,7 +940,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($2)])
    +- LogicalProject(b=[$2], $f1=[$HOP($0, 111:INTERVAL SECOND(1, 3), 1000:INTERVAL SECOND)], c=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -951,7 +951,7 @@ Calc(select=[EXPR$0])
       +- Sort(orderBy=[b ASC, ts ASC])
          +- Exchange(distribution=[hash[b]])
             +- Calc(select=[b, ts, c])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -964,7 +964,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($2)])
    +- LogicalProject(b=[$2], $f1=[$HOP($0, 111:INTERVAL SECOND(1, 3), 1000:INTERVAL SECOND)], c=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -975,7 +975,7 @@ Calc(select=[EXPR$0])
       +- Sort(orderBy=[b ASC, ts ASC])
          +- Exchange(distribution=[hash[b]])
             +- Calc(select=[b, ts, c])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -988,7 +988,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($2)])
    +- LogicalProject(b=[$2], $f1=[$HOP($0, 111:INTERVAL SECOND(1, 3), 1000:INTERVAL SECOND)], c=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -999,7 +999,7 @@ Calc(select=[EXPR$0])
       +- Sort(orderBy=[b ASC, ts ASC])
          +- Exchange(distribution=[hash[b]])
             +- Calc(select=[b, ts, c])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1012,7 +1012,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$3])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[countFun($3)])
    +- LogicalProject(a=[$0], d=[$3], $f2=[$HOP($1, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1022,7 +1022,7 @@ Calc(select=[EXPR$0])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[a ASC, d ASC, b ASC])
          +- Exchange(distribution=[hash[a, d]])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1035,7 +1035,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$3])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[countFun($3)])
    +- LogicalProject(a=[$0], d=[$3], $f2=[$HOP($1, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1045,7 +1045,7 @@ Calc(select=[EXPR$0])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[a ASC, d ASC, b ASC])
          +- Exchange(distribution=[hash[a, d]])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1058,7 +1058,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$3])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[countFun($3)])
    +- LogicalProject(a=[$0], d=[$3], $f2=[$HOP($1, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1071,7 +1071,7 @@ Calc(select=[EXPR$0])
             +- LocalSortWindowAggregate(groupBy=[a, d], window=[SlidingGroupWindow('w$, b, 3600000, 3000)], select=[a, d, Partial_countFun(c) AS EXPR$0])
                +- Exchange(distribution=[forward])
                   +- Sort(orderBy=[a ASC, d ASC, b ASC])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1084,7 +1084,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
    +- LogicalProject(a=[$1], $f1=[$HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1095,7 +1095,7 @@ Calc(select=[EXPR$0])
       +- Sort(orderBy=[a ASC, ts ASC])
          +- Exchange(distribution=[hash[a]])
             +- Calc(select=[a, ts, c])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1108,7 +1108,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
    +- LogicalProject(a=[$1], $f1=[$HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1118,7 +1118,7 @@ Calc(select=[EXPR$0])
    +- Exchange(distribution=[hash[a]])
       +- LocalHashWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, Partial_COUNT(c) AS count$0])
          +- Calc(select=[a, ts, c])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1131,7 +1131,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
    +- LogicalProject(a=[$1], $f1=[$TUMBLE($0, 3000:INTERVAL SECOND)], c=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1141,7 +1141,7 @@ Calc(select=[EXPR$0])
    +- Exchange(distribution=[hash[a]])
       +- LocalHashWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 3000)], select=[a, Partial_COUNT(c) AS count$0])
          +- Calc(select=[a, ts, c])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1154,7 +1154,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
    +- LogicalProject(a=[$1], $f1=[$TUMBLE($0, 3000:INTERVAL SECOND)], c=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1163,7 +1163,7 @@ Calc(select=[EXPR$0])
 +- HashWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 3000)], select=[a, COUNT(c) AS EXPR$0])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, ts, c])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1176,7 +1176,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
    +- LogicalProject(a=[$1], $f1=[$TUMBLE($0, 3000:INTERVAL SECOND)], c=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1186,7 +1186,7 @@ Calc(select=[EXPR$0])
    +- Exchange(distribution=[hash[a]])
       +- LocalHashWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 3000)], select=[a, Partial_COUNT(c) AS count$0])
          +- Calc(select=[a, ts, c])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1199,7 +1199,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[AVG($3)], EXPR$1=[COUNT($0)])
    +- LogicalProject(a=[$0], d=[$3], $f2=[$TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1208,7 +1208,7 @@ Calc(select=[EXPR$0, EXPR$1])
 +- HashWindowAggregate(groupBy=[a, d], window=[TumblingGroupWindow('w$, b, 3000)], select=[a, d, Final_AVG(sum$0, count$1) AS EXPR$0, Final_COUNT(count$2) AS EXPR$1])
    +- Exchange(distribution=[hash[a, d]])
       +- LocalHashWindowAggregate(groupBy=[a, d], window=[TumblingGroupWindow('w$, b, 3000)], select=[a, d, Partial_AVG(c) AS (sum$0, count$1), Partial_COUNT(a) AS count$2])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1221,7 +1221,7 @@ Calc(select=[EXPR$0, EXPR$1])
 LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[AVG($3)], EXPR$1=[COUNT($0)])
    +- LogicalProject(a=[$0], d=[$3], $f2=[$TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1229,7 +1229,7 @@ LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
 Calc(select=[EXPR$0, EXPR$1])
 +- HashWindowAggregate(groupBy=[a, d], window=[TumblingGroupWindow('w$, b, 3000)], select=[a, d, AVG(c) AS EXPR$0, COUNT(a) AS EXPR$1])
    +- Exchange(distribution=[hash[a, d]])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1242,7 +1242,7 @@ Calc(select=[EXPR$0, EXPR$1])
 LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[AVG($3)], EXPR$1=[COUNT($0)])
    +- LogicalProject(a=[$0], d=[$3], $f2=[$TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1251,7 +1251,7 @@ Calc(select=[EXPR$0, EXPR$1])
 +- HashWindowAggregate(groupBy=[a, d], window=[TumblingGroupWindow('w$, b, 3000)], select=[a, d, Final_AVG(sum$0, count$1) AS EXPR$0, Final_COUNT(count$2) AS EXPR$1])
    +- Exchange(distribution=[hash[a, d]])
       +- LocalHashWindowAggregate(groupBy=[a, d], window=[TumblingGroupWindow('w$, b, 3000)], select=[a, d, Partial_AVG(c) AS (sum$0, count$1), Partial_COUNT(a) AS count$2])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1264,7 +1264,7 @@ Calc(select=[EXPR$0, EXPR$1])
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($2)])
    +- LogicalProject(a=[$1], $f1=[$TUMBLE($0, 3000:INTERVAL SECOND)], c=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1278,7 +1278,7 @@ Calc(select=[EXPR$0])
                +- Exchange(distribution=[forward])
                   +- Sort(orderBy=[a ASC, ts ASC])
                      +- Calc(select=[a, ts, c])
-                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1291,7 +1291,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($2)])
    +- LogicalProject(a=[$1], $f1=[$TUMBLE($0, 3000:INTERVAL SECOND)], c=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1302,7 +1302,7 @@ Calc(select=[EXPR$0])
       +- Sort(orderBy=[a ASC, ts ASC])
          +- Exchange(distribution=[hash[a]])
             +- Calc(select=[a, ts, c])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1315,7 +1315,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($2)])
    +- LogicalProject(a=[$1], $f1=[$TUMBLE($0, 3000:INTERVAL SECOND)], c=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1329,7 +1329,7 @@ Calc(select=[EXPR$0])
                +- Exchange(distribution=[forward])
                   +- Sort(orderBy=[a ASC, ts ASC])
                      +- Calc(select=[a, ts, c])
-                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1342,7 +1342,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[AVG($3)], EXPR$1=[countFun($0)])
    +- LogicalProject(a=[$0], d=[$3], $f2=[$TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1352,7 +1352,7 @@ Calc(select=[EXPR$0, EXPR$1])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[a ASC, d ASC, b ASC])
          +- Exchange(distribution=[hash[a, d]])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1365,7 +1365,7 @@ Calc(select=[EXPR$0, EXPR$1])
 LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[AVG($3)], EXPR$1=[countFun($0)])
    +- LogicalProject(a=[$0], d=[$3], $f2=[$TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1375,7 +1375,7 @@ Calc(select=[EXPR$0, EXPR$1])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[a ASC, d ASC, b ASC])
          +- Exchange(distribution=[hash[a, d]])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1388,7 +1388,7 @@ Calc(select=[EXPR$0, EXPR$1])
 LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[AVG($3)], EXPR$1=[countFun($0)])
    +- LogicalProject(a=[$0], d=[$3], $f2=[$TUMBLE($1, 3000:INTERVAL SECOND)], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1401,7 +1401,7 @@ Calc(select=[EXPR$0, EXPR$1])
             +- LocalSortWindowAggregate(groupBy=[a, d], window=[TumblingGroupWindow('w$, b, 3000)], select=[a, d, Partial_AVG(c) AS (sum$0, count$1), Partial_countFun(a) AS EXPR$1])
                +- Exchange(distribution=[forward])
                   +- Sort(orderBy=[a ASC, d ASC, b ASC])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1414,7 +1414,7 @@ Calc(select=[EXPR$0, EXPR$1])
 LogicalProject(wAvg=[$1])
 +- LogicalAggregate(group=[{0}], wAvg=[weightedAvg($1, $2)])
    +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], b=[$1], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1426,7 +1426,7 @@ SortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[Final
          +- Exchange(distribution=[forward])
             +- Sort(orderBy=[ts ASC])
                +- Calc(select=[ts, b, a])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -1439,7 +1439,7 @@ SortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[Final
 LogicalProject(wAvg=[$1])
 +- LogicalAggregate(group=[{0}], wAvg=[weightedAvg($1, $2)])
    +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], b=[$1], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1448,7 +1448,7 @@ SortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[weigh
 +- Sort(orderBy=[ts ASC])
    +- Exchange(distribution=[single])
       +- Calc(select=[ts, b, a])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -1461,7 +1461,7 @@ SortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[weigh
 LogicalProject(wAvg=[$1])
 +- LogicalAggregate(group=[{0}], wAvg=[weightedAvg($1, $2)])
    +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], b=[$1], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1473,7 +1473,7 @@ SortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[Final
          +- Exchange(distribution=[forward])
             +- Sort(orderBy=[ts ASC])
                +- Calc(select=[ts, b, a])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -1504,12 +1504,12 @@ LogicalUnion(all=[true])
 :  +- LogicalProject(EXPR$0=[1])
 :     +- LogicalAggregate(group=[{0}])
 :        +- LogicalProject($f0=[$HOP($4, 3600000:INTERVAL HOUR, 3600000:INTERVAL HOUR)])
-:           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+:           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 +- LogicalProject(EXPR$0=[$0])
    +- LogicalProject(EXPR$0=[1])
       +- LogicalAggregate(group=[{0}])
          +- LogicalProject($f0=[$HOP($4, 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1520,7 +1520,7 @@ Union(all=[true], union=[EXPR$0])
 :     +- Exchange(distribution=[single])
 :        +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 3600000, 3600000)], select=[])
 :           +- Calc(select=[ts])(reuse_id=[1])
-:              +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+:              +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 +- Calc(select=[1 AS EXPR$0])
    +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000)], select=[])
       +- Exchange(distribution=[single])
@@ -1538,7 +1538,7 @@ Union(all=[true], union=[EXPR$0])
 LogicalProject(EXPR$0=[TUMBLE_END($0)])
 +- LogicalAggregate(group=[{0, 1}])
    +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1548,7 +1548,7 @@ Calc(select=[w$end AS EXPR$0])
    +- Exchange(distribution=[hash[c]])
       +- LocalHashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c])
          +- Calc(select=[ts, c])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -1579,12 +1579,12 @@ LogicalUnion(all=[true])
 :  +- LogicalProject(EXPR$0=[1])
 :     +- LogicalAggregate(group=[{0}])
 :        +- LogicalProject($f0=[$HOP($4, 3600000:INTERVAL HOUR, 3600000:INTERVAL HOUR)])
-:           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+:           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 +- LogicalProject(EXPR$0=[$0])
    +- LogicalProject(EXPR$0=[1])
       +- LogicalAggregate(group=[{0}])
          +- LogicalProject($f0=[$HOP($4, 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1594,7 +1594,7 @@ Union(all=[true], union=[EXPR$0])
 :  +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 3600000, 3600000)], select=[])
 :     +- Exchange(distribution=[single])(reuse_id=[1])
 :        +- Calc(select=[ts])
-:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+:           +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 +- Calc(select=[1 AS EXPR$0])
    +- SortWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000)], select=[])
       +- Sort(orderBy=[ts ASC])
@@ -1611,7 +1611,7 @@ Union(all=[true], union=[EXPR$0])
 LogicalProject(EXPR$0=[TUMBLE_END($0)])
 +- LogicalAggregate(group=[{0, 1}])
    +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1620,7 +1620,7 @@ Calc(select=[w$end AS EXPR$0])
 +- HashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[ts, c])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -1651,12 +1651,12 @@ LogicalUnion(all=[true])
 :  +- LogicalProject(EXPR$0=[1])
 :     +- LogicalAggregate(group=[{0}])
 :        +- LogicalProject($f0=[$HOP($4, 3600000:INTERVAL HOUR, 3600000:INTERVAL HOUR)])
-:           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+:           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 +- LogicalProject(EXPR$0=[$0])
    +- LogicalProject(EXPR$0=[1])
       +- LogicalAggregate(group=[{0}])
          +- LogicalProject($f0=[$HOP($4, 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1667,7 +1667,7 @@ Union(all=[true], union=[EXPR$0])
 :     +- Exchange(distribution=[single])
 :        +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 3600000, 3600000)], select=[])
 :           +- Calc(select=[ts])(reuse_id=[1])
-:              +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+:              +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 +- Calc(select=[1 AS EXPR$0])
    +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000)], select=[])
       +- Exchange(distribution=[single])
@@ -1685,7 +1685,7 @@ Union(all=[true], union=[EXPR$0])
 LogicalProject(EXPR$0=[TUMBLE_END($0)])
 +- LogicalAggregate(group=[{0, 1}])
    +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1695,7 +1695,7 @@ Calc(select=[w$end AS EXPR$0])
    +- Exchange(distribution=[hash[c]])
       +- LocalHashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c])
          +- Calc(select=[ts, c])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
