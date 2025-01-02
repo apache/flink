@@ -452,6 +452,11 @@ public class CsvTableSource
         }
 
         @Override
+        public TypeInformation<Row> getResultType() {
+            return new RowTypeInfo(config.getSelectedFieldTypes(), config.getSelectedFieldNames());
+        }
+
+        @Override
         public void open(FunctionContext context) throws Exception {
             super.open(context);
             TypeInformation<Row> rowType = getResultType();

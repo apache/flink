@@ -89,5 +89,9 @@ public class UserDefinedFunctions {
             }
         }
 
+        @Override
+        public TypeInformation<Row> getResultType() {
+            return Types.ROW(Types.STRING(), Types.LONG());
+        }
     }
 }

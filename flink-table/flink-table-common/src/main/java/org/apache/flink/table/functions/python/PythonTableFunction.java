@@ -19,11 +19,13 @@
 package org.apache.flink.table.functions.python;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 
 import java.util.Arrays;
@@ -132,6 +134,24 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
     @Override
     public boolean isDeterministic() {
         return deterministic;
+    }
+
+    @Override
+    public TypeInformation[] getParameterTypes(Class[] signature) {
+        if (inputTypes != null) {
+            return TypeConversions.fromDataTypeToLegacyInfo(inputTypes);
+        } else {
+            return super.getParameterTypes(signature);
+        }
+    }
+
+    @Override
+    public TypeInformation<Row> getResultType() {
+        if (resultType == null && resultTypeString != null) {
+            throw new RuntimeException(
+                    "String format result type is not supported in old type system. The `register_function` is deprecated, please Use `create_temporary_system_function` instead.");
+        }
+        return (TypeInformation<Row>) TypeConversions.fromDataTypeToLegacyInfo(resultType);
     }
 
     @Override
