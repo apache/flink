@@ -344,7 +344,7 @@
   }, {
     "url" : "/sessions/:session_handle/scripts",
     "method" : "POST",
-    "status-code" : "202 Accepted",
+    "status-code" : "200 OK",
     "file-upload" : false,
     "path-parameters" : {
       "pathParameters" : [ {

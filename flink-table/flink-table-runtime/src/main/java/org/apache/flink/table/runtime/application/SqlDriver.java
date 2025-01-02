@@ -161,11 +161,11 @@ public class SqlDriver {
             String content = getContent(line.getOptionValue(OPTION_SQL_FILE.getLongOpt()));
             if (content == null) {
                 return Preconditions.checkNotNull(
-                        line.getOptionValue(OPTION_SQL_STATEMENTS.getLongOpt()),
+                        line.getOptionValue(OPTION_SQL_SCRIPT.getLongOpt()),
                         "Please use \"--script\" or \"--scriptPath\" to specify script either.");
             } else {
                 Preconditions.checkArgument(
-                        line.getOptionValue(OPTION_SQL_STATEMENTS.getLongOpt()) == null,
+                        line.getOptionValue(OPTION_SQL_SCRIPT.getLongOpt()) == null,
                         "Don't set \"--script\" or \"--scriptPath\" together.");
                 return content;
             }
