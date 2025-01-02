@@ -27,6 +27,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.util.DefaultInstantiatorStrategy;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Writable;
 import org.objenesis.strategy.StdInstantiatorStrategy;
@@ -126,12 +127,10 @@ public final class WritableSerializer<T extends Writable> extends TypeSerializer
         if (this.kryo == null) {
             this.kryo = new Kryo();
 
-            Kryo.DefaultInstantiatorStrategy instantiatorStrategy =
-                    new Kryo.DefaultInstantiatorStrategy();
+            DefaultInstantiatorStrategy instantiatorStrategy = new DefaultInstantiatorStrategy();
             instantiatorStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
             kryo.setInstantiatorStrategy(instantiatorStrategy);
 
-            this.kryo.setAsmEnabled(true);
             this.kryo.register(typeClass);
         }
     }
