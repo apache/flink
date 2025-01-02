@@ -30,7 +30,7 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 /**
  * Base class for TopN Function with async state api.
  *
- * <p>Currently, only constant rank end is supported in async state rank.
+ * <p>TODO FLINK-36831 support variable rank end in async state rank later.
  */
 public abstract class AbstractAsyncSyncStateTopNFunction extends AbstractTopNFunction {
 
