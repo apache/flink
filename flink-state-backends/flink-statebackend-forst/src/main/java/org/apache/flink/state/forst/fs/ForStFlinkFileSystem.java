@@ -62,10 +62,8 @@ public class ForStFlinkFileSystem extends FileSystem {
 
     private final FileSystem localFS;
     private final FileSystem delegateFS;
-    private final String remoteBase;
-    private final String localBase;
     @Nullable private final FileBasedCache fileBasedCache;
-    private FileMappingManager fileMappingManager;
+    private final FileMappingManager fileMappingManager;
 
     public ForStFlinkFileSystem(
             FileSystem delegateFS,
@@ -74,8 +72,6 @@ public class ForStFlinkFileSystem extends FileSystem {
             @Nullable FileBasedCache fileBasedCache) {
         this.localFS = FileSystem.getLocalFileSystem();
         this.delegateFS = delegateFS;
-        this.remoteBase = remoteBase;
-        this.localBase = localBase;
         this.fileBasedCache = fileBasedCache;
         this.fileMappingManager =
                 new FileMappingManager(delegateFS, localFS, remoteBase, localBase);
@@ -159,6 +155,7 @@ public class ForStFlinkFileSystem extends FileSystem {
     @Override
     public ByteBufferReadableFSDataInputStream open(Path path, int bufferSize) throws IOException {
         FileMappingManager.RealPath realPath = fileMappingManager.realPath(path);
+        Preconditions.checkNotNull(realPath);
         if (realPath.isLocal) {
             return new ByteBufferReadableFSDataInputStream(
                     () -> localFS.open(realPath.path, bufferSize),
@@ -182,6 +179,7 @@ public class ForStFlinkFileSystem extends FileSystem {
     @Override
     public ByteBufferReadableFSDataInputStream open(Path path) throws IOException {
         FileMappingManager.RealPath realPath = fileMappingManager.realPath(path);
+        Preconditions.checkNotNull(realPath);
         if (realPath.isLocal) {
             return new ByteBufferReadableFSDataInputStream(
                     () -> localFS.open(realPath.path),
@@ -225,21 +223,26 @@ public class ForStFlinkFileSystem extends FileSystem {
     @Override
     public boolean exists(final Path f) throws IOException {
         FileMappingManager.RealPath realPath = fileMappingManager.realPath(f);
-        boolean ex = false;
+        if (realPath == null) {
+            return delegateFS.exists(f);
+        }
+
+        boolean status = false;
         if (realPath.isLocal) {
-            ex |= localFS.exists(realPath.path);
-            if (!ex) {
-                ex |= delegateFS.exists(f);
+            status |= localFS.exists(realPath.path);
+            if (!status) {
+                status = delegateFS.exists(f);
             }
         } else {
-            ex = delegateFS.exists(realPath.path);
+            status = delegateFS.exists(realPath.path);
         }
-        return ex;
+        return status;
     }
 
     @Override
     public FileStatus getFileStatus(Path path) throws IOException {
         FileMappingManager.RealPath realPath = fileMappingManager.realPath(path);
+        Preconditions.checkNotNull(realPath);
         if (realPath.isLocal) {
             return localFS.getFileStatus(realPath.path);
         }
@@ -251,6 +254,7 @@ public class ForStFlinkFileSystem extends FileSystem {
             throws IOException {
         Path path = file.getPath();
         FileMappingManager.RealPath realPath = fileMappingManager.realPath(path);
+        Preconditions.checkNotNull(realPath);
         if (realPath.isLocal) {
             FileStatus localFile = localFS.getFileStatus(realPath.path);
             return localFS.getFileBlockLocations(localFile, start, len);

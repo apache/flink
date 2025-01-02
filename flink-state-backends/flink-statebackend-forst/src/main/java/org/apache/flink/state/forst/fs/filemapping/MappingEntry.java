@@ -35,10 +35,13 @@ public class MappingEntry extends ReferenceCounted {
     private static final Logger LOG = LoggerFactory.getLogger(MappingEntry.class);
 
     /** The reference of file mapping manager. */
-    private FileSystem fileSystem;
+    private final FileSystem fileSystem;
 
     /** The original path of file. */
     String sourcePath;
+
+    /** Whether the file is local. */
+    boolean isLocal;
 
     boolean recursive;
 
@@ -46,11 +49,16 @@ public class MappingEntry extends ReferenceCounted {
     @Nullable MappingEntry parentDir;
 
     public MappingEntry(
-            int initReference, FileSystem fileSystem, String sourcePath, boolean recursive) {
+            int initReference,
+            FileSystem fileSystem,
+            String sourcePath,
+            boolean isLocal,
+            boolean recursive) {
         super(initReference);
         this.fileSystem = fileSystem;
         this.sourcePath = sourcePath;
         this.parentDir = null;
+        this.isLocal = isLocal;
         this.recursive = recursive;
     }
 
@@ -69,5 +77,16 @@ public class MappingEntry extends ReferenceCounted {
         } catch (Exception e) {
             LOG.warn("Failed to delete file {}.", sourcePath, e);
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        return sourcePath.equals(((MappingEntry) o).sourcePath);
     }
 }

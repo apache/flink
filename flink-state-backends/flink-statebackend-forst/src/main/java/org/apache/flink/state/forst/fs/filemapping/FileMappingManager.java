@@ -73,10 +73,11 @@ public class FileMappingManager {
         if (!fileName.endsWith(SST_SUFFIX) && fileName.startsWith(remoteBase)) {
             Path localFile = new Path(localBase, file.getName());
             mappingTable.put(
-                    fileName, new MappingEntry(1, localFileSystem, localFile.toString(), false));
+                    fileName,
+                    new MappingEntry(1, localFileSystem, localFile.toString(), true, false));
             return new RealPath(localFile, true);
         } else {
-            mappingTable.put(fileName, new MappingEntry(1, fileSystem, fileName, false));
+            mappingTable.put(fileName, new MappingEntry(1, fileSystem, fileName, false, false));
             return new RealPath(file, false);
         }
     }
@@ -95,7 +96,7 @@ public class FileMappingManager {
             sourceEntry.retain();
             mappingTable.putIfAbsent(dst, sourceEntry);
         } else {
-            sourceEntry = new MappingEntry(0, fileSystem, src, false);
+            sourceEntry = new MappingEntry(0, fileSystem, src, false, false);
             sourceEntry.retain();
             mappingTable.put(src, sourceEntry);
             sourceEntry.retain();
@@ -105,27 +106,23 @@ public class FileMappingManager {
         return 0;
     }
 
-    /** Get the real path of a file, the real path maybe a local file or a remote file/dir. */
-    public RealPath realPath(Path file) {
-        String fileName = file.toString();
+    /**
+     * Get the real path of a file, the real path maybe a local file or a remote file/dir. Due to
+     * the lazy deletion, if the path is a directory, the exists check may have false positives.
+     */
+    public RealPath realPath(Path path) {
+        String fileName = path.toString();
         MappingEntry entry = mappingTable.getOrDefault(fileName, null);
-        if (!fileName.endsWith(SST_SUFFIX) && fileName.startsWith(remoteBase)) {
-            if (entry != null) {
-                return new RealPath(new Path(entry.sourcePath), true);
-            }
-            Path localFile = new Path(localBase, file.getName());
-            return new RealPath(localFile, true);
-        }
         if (entry != null) {
-            return new RealPath(new Path(entry.sourcePath), false);
+            return new RealPath(new Path(entry.sourcePath), entry.isLocal);
         }
-        return new RealPath(file, false);
+        return null;
     }
 
     public List<String> listByPrefix(String path) {
         List<String> linkedPaths = new ArrayList<>();
         for (Map.Entry<String, MappingEntry> entry : mappingTable.entrySet()) {
-            if (entry.getKey().startsWith(path) && !entry.getValue().recursive) {
+            if (isParentDir(entry.getKey(), path)) {
                 linkedPaths.add(entry.getKey());
             }
         }
@@ -150,37 +147,24 @@ public class FileMappingManager {
             }
             mappingTable.remove(src);
             mappingTable.put(dst, srcEntry);
-        } else { // rename directory
-            // 1. rename file in old directory
-            List<String> toRename = new ArrayList<>();
-            for (String key : mappingTable.keySet()) {
-                if (isParentDir(key, src) || key.equals(src)) {
-                    toRename.add(key);
-                }
-            }
-            if (!toRename.isEmpty()) {
-                for (String key : toRename) {
-                    MappingEntry sourceEntry = mappingTable.remove(key);
-                    String renamedDst = key.replace(src, dst);
-                    LOG.trace("rename: {} -> {}", key, renamedDst);
-                    sourceEntry.sourcePath = sourceEntry.sourcePath.replace(src, dst);
-                    mappingTable.put(renamedDst, sourceEntry);
-                }
-            }
-            // 2. rename directory in file system physically
-            Path srcPath = new Path(src);
-            Path dstPath = new Path(dst);
+        } else { // rename directory = link to dst dir + delete src dir
 
-            // The rename is not atomic for ForSt. Some FileSystems e.g. HDFS, OSS does not allow a
-            // renaming if the target already exists. So, we delete the target before attempting the
-            // rename.
-            if (fileSystem.exists(dstPath)) {
-                boolean deleted = fileSystem.delete(dstPath, true);
-                if (!deleted) {
-                    throw new IOException("Fail to rename path, src:" + src + ", dst:" + dst);
-                }
+            // step 1: link all files under src to dst
+            List<String> toRename = listByPrefix(src);
+            for (String key : toRename) {
+                MappingEntry sourceEntry = mappingTable.get(key);
+                sourceEntry.retain();
+                String renamedDst = key.replace(src, dst);
+                LOG.trace("rename: {} -> {}", key, renamedDst);
+                mappingTable.put(renamedDst, sourceEntry);
             }
-            fileSystem.rename(srcPath, dstPath);
+
+            Path dstPath = new Path(dst);
+            if (!fileSystem.exists(dstPath)) {
+                fileSystem.mkdirs(dstPath);
+            }
+            // step 2: delete src dir
+            deleteFile(new Path(src), true);
         }
         return true;
     }
@@ -192,29 +176,45 @@ public class FileMappingManager {
      * @param file to be deleted
      * @param recursive whether to delete recursively
      * @return true if the file or directory is deleted successfully, false otherwise.
-     * @throws IOException
+     * @throws IOException if an error occurs during deletion
      */
     public boolean deleteFile(Path file, boolean recursive) throws IOException {
         String fileStr = file.toString();
         MappingEntry entry = mappingTable.getOrDefault(fileStr, null);
         LOG.trace("delete: {}, source:{}", file, entry == null ? "null" : entry.sourcePath);
-        if (entry != null) { // delete file
+        // case 1: delete file
+        if (entry != null) {
             mappingTable.remove(fileStr);
             entry.release();
             return true;
         }
 
-        // delete directory
-        MappingEntry parentEntry = new MappingEntry(0, fileSystem, fileStr, recursive);
+        // case 2: delete directory
+        MappingEntry parentEntry = new MappingEntry(0, fileSystem, fileStr, false, recursive);
 
         boolean matched = false;
-        for (MappingEntry mappingEntry : mappingTable.values()) {
-            if (isParentDir(mappingEntry.sourcePath, fileStr)) {
+
+        // step 2.1: find all matched entries, mark delete dir as parent dir
+        for (Map.Entry<String, MappingEntry> currentEntry : mappingTable.entrySet()) {
+            if (!isParentDir(currentEntry.getValue().sourcePath, fileStr)) {
+                continue;
+            }
+            matched = true;
+            MappingEntry oldParentDir = currentEntry.getValue().parentDir;
+            if (oldParentDir == null
+                    || oldParentDir.equals(parentEntry)
+                    || isParentDir(oldParentDir.sourcePath, fileStr)) {
                 parentEntry.retain();
-                mappingEntry.parentDir = parentEntry;
-                matched = true;
+                currentEntry.getValue().parentDir = parentEntry;
             }
         }
+
+        // step 2.2: release file under directory
+        List<String> toRelease = listByPrefix(fileStr);
+        for (String key : toRelease) {
+            mappingTable.remove(key).release();
+        }
+
         if (!matched) {
             return fileSystem.delete(file, recursive);
         }
