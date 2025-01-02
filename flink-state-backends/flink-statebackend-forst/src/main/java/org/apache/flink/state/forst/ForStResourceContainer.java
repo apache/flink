@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
 import org.apache.flink.state.forst.fs.StringifiedForStFileSystem;
@@ -120,21 +121,24 @@ public final class ForStResourceContainer implements AutoCloseable {
 
     @Nullable private java.nio.file.Path relocatedDbLogBaseDir;
 
+    /** The metric group for reporting metrics. */
+    @Nullable private final MetricGroup metricGroup;
+
     @VisibleForTesting
     public ForStResourceContainer() {
-        this(new Configuration(), null, null, null, null, false);
+        this(new Configuration(), null, null, null, null, null, false);
     }
 
     @VisibleForTesting
     public ForStResourceContainer(@Nullable ForStOptionsFactory optionsFactory) {
-        this(new Configuration(), optionsFactory, null, null, null, false);
+        this(new Configuration(), optionsFactory, null, null, null, null, false);
     }
 
     @VisibleForTesting
     public ForStResourceContainer(
             @Nullable ForStOptionsFactory optionsFactory,
             @Nullable OpaqueMemoryResource<ForStSharedResources> sharedResources) {
-        this(new Configuration(), optionsFactory, sharedResources, null, null, false);
+        this(new Configuration(), optionsFactory, sharedResources, null, null, null, false);
     }
 
     public ForStResourceContainer(
@@ -143,6 +147,7 @@ public final class ForStResourceContainer implements AutoCloseable {
             @Nullable OpaqueMemoryResource<ForStSharedResources> sharedResources,
             @Nullable Path localBasePath,
             @Nullable Path remoteBasePath,
+            MetricGroup metricGroup,
             boolean enableStatistics) {
 
         this.configuration = configuration;
@@ -160,6 +165,7 @@ public final class ForStResourceContainer implements AutoCloseable {
         this.cacheBasePath = configuration.getOptional(CACHE_DIRECTORY).map(Path::new).orElse(null);
         this.cacheCapacity = configuration.get(CACHE_SIZE_BASE_LIMIT);
         this.cacheReservedSize = configuration.get(CACHE_RESERVED_SIZE);
+        this.metricGroup = metricGroup;
     }
 
     /** Gets the ForSt {@link DBOptions} to be used for ForSt instances. */
@@ -353,7 +359,7 @@ public final class ForStResourceContainer implements AutoCloseable {
                             remoteForStPath.toUri(),
                             localForStPath,
                             ForStFlinkFileSystem.getFileBasedCache(
-                                    cacheBasePath, cacheCapacity, cacheReservedSize));
+                                    cacheBasePath, cacheCapacity, cacheReservedSize, metricGroup));
         } else {
             forStFileSystem = null;
         }

@@ -29,6 +29,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -402,6 +403,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                         sharedResources,
                         localBasePath,
                         remoteBasePath,
+                        parameters.getMetricGroup(),
                         nativeMetricOptions.isStatisticsEnabled());
 
         ForStKeyedStateBackendBuilder<K> builder =
@@ -482,6 +484,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                 createOptionsAndResourceContainer(
                         sharedResources,
                         instanceBasePath,
+                        null,
                         null,
                         nativeMetricOptions.isStatisticsEnabled());
 
@@ -751,7 +754,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
     @VisibleForTesting
     ForStResourceContainer createOptionsAndResourceContainer(@Nullable Path localBasePath) {
-        return createOptionsAndResourceContainer(null, localBasePath, null, false);
+        return createOptionsAndResourceContainer(null, localBasePath, null, null, false);
     }
 
     @VisibleForTesting
@@ -759,6 +762,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
             @Nullable OpaqueMemoryResource<ForStSharedResources> sharedResources,
             @Nullable Path localBasePath,
             @Nullable Path remoteBasePath,
+            @Nullable MetricGroup metricGroup,
             boolean enableStatistics) {
 
         return new ForStResourceContainer(
@@ -767,6 +771,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                 sharedResources,
                 localBasePath,
                 remoteBasePath,
+                metricGroup,
                 enableStatistics);
     }
 

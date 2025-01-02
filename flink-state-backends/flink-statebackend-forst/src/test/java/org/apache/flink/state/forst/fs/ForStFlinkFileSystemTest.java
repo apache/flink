@@ -23,6 +23,9 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.local.LocalDataInputStream;
 import org.apache.flink.core.fs.local.LocalFileSystem;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.state.forst.fs.cache.BundledCacheLimitPolicy;
 import org.apache.flink.state.forst.fs.cache.FileBasedCache;
 import org.apache.flink.state.forst.fs.cache.FileCacheEntry;
@@ -45,7 +48,9 @@ import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
@@ -67,7 +72,8 @@ public class ForStFlinkFileSystemTest {
                                 1024 * 3,
                                 new SizeBasedCacheLimitPolicy(1024 * 3),
                                 FileSystem.getLocalFileSystem(),
-                                new org.apache.flink.core.fs.Path(tempDir.toString() + "/cache"))
+                                new org.apache.flink.core.fs.Path(tempDir.toString() + "/cache"),
+                                null)
                     }
                 });
     }
@@ -218,6 +224,8 @@ public class ForStFlinkFileSystemTest {
 
     @Test
     void testSstFileInCache() throws IOException {
+        final Map<String, Gauge<?>> registeredGauges = new HashMap<>();
+        final Map<String, Counter> registeredCounters = new HashMap<>();
         org.apache.flink.core.fs.Path remotePath =
                 new org.apache.flink.core.fs.Path(tempDir.toString() + "/remote");
         org.apache.flink.core.fs.Path localPath =
@@ -228,9 +236,27 @@ public class ForStFlinkFileSystemTest {
                 new BundledCacheLimitPolicy(
                         new SpaceBasedCacheLimitPolicy(new File(cachePath.toString()), 0, 0),
                         new SizeBasedCacheLimitPolicy(250));
+        UnregisteredMetricsGroup metricsGroup =
+                new UnregisteredMetricsGroup() {
+                    @Override
+                    public <C extends Counter> C counter(String name, C counter) {
+                        registeredCounters.put(name, counter);
+                        return counter;
+                    }
+
+                    @Override
+                    public <T, G extends Gauge<T>> G gauge(String name, G gauge) {
+                        registeredGauges.put(name, gauge);
+                        return gauge;
+                    }
+                };
         FileBasedCache cache =
                 new FileBasedCache(
-                        250, cacheLimitPolicy, FileSystem.getLocalFileSystem(), cachePath);
+                        250,
+                        cacheLimitPolicy,
+                        FileSystem.getLocalFileSystem(),
+                        cachePath,
+                        metricsGroup);
         ForStFlinkFileSystem fileSystem =
                 new ForStFlinkFileSystem(
                         new ByteBufferReadableLocalFileSystem(),
@@ -253,6 +279,9 @@ public class ForStFlinkFileSystemTest {
                                 .getFileSystem()
                                 .exists(new org.apache.flink.core.fs.Path(cachePath, "1.sst")))
                 .isTrue();
+        assertThat(registeredGauges.get("forst.fileCache.usedBytes").getValue()).isEqualTo(234L);
+        assertThat(registeredCounters.get("forst.fileCache.hit").getCount()).isEqualTo(0L);
+        assertThat(registeredCounters.get("forst.fileCache.miss").getCount()).isEqualTo(0L);
         FileCacheEntry cacheEntry = cache.get(cachePath.getPath() + "/1.sst");
         assertThat(cacheEntry).isNotNull();
         assertThat(cacheEntry.getReferenceCount()).isEqualTo(1);
@@ -263,7 +292,7 @@ public class ForStFlinkFileSystemTest {
         assertThat(is.read(tmpBytes)).isEqualTo(233);
         assertThat(cacheEntry.getReferenceCount()).isEqualTo(1);
         assertThat(cacheEntry.getReferenceCount()).isEqualTo(1);
-
+        assertThat(registeredCounters.get("forst.fileCache.hit").getCount()).isEqualTo(2L);
         // evict
         ByteBufferWritableFSDataOutputStream os1 =
                 fileSystem.create(new org.apache.flink.core.fs.Path(remotePath, "2.sst"));
@@ -280,6 +309,7 @@ public class ForStFlinkFileSystemTest {
                                 .exists(new org.apache.flink.core.fs.Path(cachePath, "2.sst")))
                 .isTrue();
         assertThat(cacheEntry.getReferenceCount()).isEqualTo(0);
+        assertThat(registeredGauges.get("forst.fileCache.usedBytes").getValue()).isEqualTo(233L);
         // read after evict
         assertThat(is.read()).isEqualTo(89);
         is.close();

@@ -18,6 +18,8 @@
 
 package org.apache.flink.state.forst.fs.cache;
 
+import org.apache.flink.metrics.MetricGroup;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,6 +61,14 @@ public class SizeBasedCacheLimitPolicy implements CacheLimitPolicy {
     public void release(long toReleaseSize) {
         usageSize -= Math.min(usageSize, toReleaseSize);
     }
+
+    @Override
+    public long usedBytes() {
+        return usageSize;
+    }
+
+    @Override
+    public void registerCustomizedMetrics(String prefix, MetricGroup metricGroup) {}
 
     @Override
     public String toString() {

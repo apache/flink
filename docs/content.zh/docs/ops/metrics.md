@@ -1536,6 +1536,41 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
 ### RocksDB
 Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({{< ref "docs/deployment/config" >}}#rocksdb-native-metrics)
 
+### ForStDB
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 26%">Metrics</th>
+      <th class="text-left" style="width: 48%">Description</th>
+      <th class="text-left" style="width: 8%">Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="4"><strong>Task/Operator</strong></th>
+      <td>forst.fileCache.hit</td>
+      <td>The hit count of ForSt state backend cache.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>forst.fileCache.miss</td>
+      <td>The miss count of ForSt state backend cache.</td>
+      <td>Counter</td>
+    </tr>
+    <tr>
+      <td>forst.fileCache.usedBytes</td>
+      <td>The bytes cached in ForSt state backend cache.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>forst.fileCache.remainingBytes</td>
+      <td>The remaining space in the volume for the configured cache. Only available when 'state.backend.forst.cache.reserve-size' is set above 0. </td>
+      <td>Gauge</td>
+    </tr>
+  </tbody>
+</table>
+
 ### State Changelog
 
 Note that the metrics are only available via reporters.
