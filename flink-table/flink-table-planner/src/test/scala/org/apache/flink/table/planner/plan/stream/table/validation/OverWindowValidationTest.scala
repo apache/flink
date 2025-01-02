@@ -91,7 +91,7 @@ class OverWindowValidationTest extends TableTestBase {
         () => {
           val result = table
             .window(
-              Over.partitionBy($"c").orderBy($"rowtime").preceding(2).following($"xx").as($"w"))
+              Over.partitionBy($"c").orderBy($"rowtime").preceding(2).following($"xx").as('w))
             .select('c, 'b.count.over('w))
           optimize(TableTestUtil.toRelNode(result))
         })
