@@ -48,7 +48,7 @@ class TableSourceITCase extends BatchTestBase {
                        |""".stripMargin)
 
     val filterableTableDataId =
-      TestValuesTableFactory.registerData(TestLegacyFilterableTableSource.defaultRows)
+      TestValuesTableFactory.registerData(TestData.orderedLoopRows)
     tEnv.executeSql(s"""
                        |CREATE TABLE FilterableTable (
                        |  name STRING,

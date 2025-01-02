@@ -1470,17 +1470,6 @@ class TestTableSource(override val isBounded: Boolean, schema: TableSchema)
   override def getTableSchema: TableSchema = schema
 }
 
-object TestTableSource {
-  def createTemporaryTable(
-      tEnv: TableEnvironment,
-      isBounded: Boolean,
-      tableSchema: TableSchema,
-      tableName: String): Unit = {
-    val source = new TestTableSource(isBounded, tableSchema)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, source)
-  }
-}
-
 class TestTableSourceFactory extends StreamTableSourceFactory[Row] {
   override def createStreamTableSource(
       properties: util.Map[String, String]): StreamTableSource[Row] = {

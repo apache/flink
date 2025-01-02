@@ -21,17 +21,15 @@ import org.apache.flink.table.connector.source.lookup.LookupOptions
 import org.apache.flink.table.connector.source.lookup.LookupOptions.{LookupCacheType, ReloadStrategy}
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.data.binary.BinaryStringData
-import org.apache.flink.table.legacy.api.{TableSchema, Types}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.utils.SingleSubTaskBoundTableFunction
-import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, InMemoryLookupableTableSource}
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.functions.table.fullcache.inputformat.FullCacheTestInputFormat
 import org.apache.flink.table.runtime.functions.table.lookup.LookupCacheManager
 import org.apache.flink.testutils.junit.extensions.parameterized.{Parameter, ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assumptions.assumeThat
 import org.assertj.core.api.IterableAssert.assertThatIterable
 import org.junit.jupiter.api.{AfterEach, BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
@@ -44,12 +42,10 @@ import scala.collection.JavaConversions._
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class LookupJoinITCase extends BatchTestBase {
 
-  @Parameter var legacyTableSource: Boolean = _
-
-  @Parameter(value = 1)
+  @Parameter(value = 0)
   var isAsyncMode: Boolean = _
 
-  @Parameter(value = 2)
+  @Parameter(value = 1)
   var cacheType: LookupCacheType = _
 
   val data = List(
@@ -76,12 +72,8 @@ class LookupJoinITCase extends BatchTestBase {
   @BeforeEach
   override def before() {
     super.before()
-    if (legacyTableSource) {
-      InMemoryLookupableTableSource.RESOURCE_COUNTER.set(0)
-    } else {
-      TestValuesTableFactory.RESOURCE_COUNTER.set(0)
-      FullCacheTestInputFormat.OPEN_CLOSED_COUNTER.set(0)
-    }
+    TestValuesTableFactory.RESOURCE_COUNTER.set(0)
+    FullCacheTestInputFormat.OPEN_CLOSED_COUNTER.set(0)
     createScanTable("T", data)
     createScanTable("nullableT", dataWithNull)
 
@@ -112,12 +104,8 @@ class LookupJoinITCase extends BatchTestBase {
 
   @AfterEach
   override def after(): Unit = {
-    if (legacyTableSource) {
-      assertThat(InMemoryLookupableTableSource.RESOURCE_COUNTER.get()).isEqualTo(0)
-    } else {
-      assertThat(TestValuesTableFactory.RESOURCE_COUNTER.get()).isEqualTo(0)
-      assertThat(FullCacheTestInputFormat.OPEN_CLOSED_COUNTER.get()).isEqualTo(0)
-    }
+    assertThat(TestValuesTableFactory.RESOURCE_COUNTER.get()).isEqualTo(0)
+    assertThat(FullCacheTestInputFormat.OPEN_CLOSED_COUNTER.get()).isEqualTo(0)
   }
 
   private def createLookupTable(
@@ -127,37 +115,24 @@ class LookupJoinITCase extends BatchTestBase {
       customShuffleDeterministic: Boolean = true,
       customShuffleEmptyPartitioner: Boolean = false,
       customShuffleWithUDF: Boolean = true): Unit = {
-    if (legacyTableSource) {
-      val userSchema = TableSchema
-        .builder()
-        .field("age", Types.INT)
-        .field("id", Types.LONG)
-        .field("name", Types.STRING)
-        .build()
-      InMemoryLookupableTableSource.createTemporaryTable(
-        tEnv,
-        isAsyncMode,
-        data,
-        userSchema,
-        tableName,
-        isBounded = true)
+    val dataId = TestValuesTableFactory.registerData(data)
+    val cacheOptions = getCacheOptions()
+    if (!enableCustomShuffle) {
+      tEnv.executeSql(s"""
+                         |CREATE TABLE $tableName (
+                         |  `age` INT,
+                         |  `id` BIGINT,
+                         |  `name` STRING
+                         |) WITH (
+                         |  $cacheOptions
+                         |  'connector' = 'values',
+                         |  'data-id' = '$dataId',
+                         |  'async' = '$isAsyncMode',
+                         |  'bounded' = 'true'
+                         |)
+                         |""".stripMargin)
     } else {
-      val dataId = TestValuesTableFactory.registerData(data)
-      val cacheOptions =
-        if (cacheType == LookupCacheType.PARTIAL)
-          s"""
-             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.PARTIAL}',
-             |  '${LookupOptions.PARTIAL_CACHE_MAX_ROWS.key()}' = '${Long.MaxValue}',
-             |""".stripMargin
-        else if (cacheType == LookupCacheType.FULL)
-          s"""
-             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.FULL}',
-             |  '${LookupOptions.FULL_CACHE_RELOAD_STRATEGY.key()}' = '${ReloadStrategy.PERIODIC}',
-             |  '${LookupOptions.FULL_CACHE_PERIODIC_RELOAD_INTERVAL.key()}' = '${Long.MaxValue}',
-             |""".stripMargin
-        else ""
-
-      if (!enableCustomShuffle) {
+      if (customShuffleEmptyPartitioner || !customShuffleWithUDF) {
         tEnv.executeSql(s"""
                            |CREATE TABLE $tableName (
                            |  `age` INT,
@@ -168,80 +143,65 @@ class LookupJoinITCase extends BatchTestBase {
                            |  'connector' = 'values',
                            |  'data-id' = '$dataId',
                            |  'async' = '$isAsyncMode',
-                           |  'bounded' = 'true'
+                           |  'bounded' = 'true',
+                           |  'enable-custom-shuffle' = 'true',
+                           |  'custom-shuffle-empty-partitioner' = '$customShuffleEmptyPartitioner'
                            |)
                            |""".stripMargin)
       } else {
-        if (customShuffleEmptyPartitioner || !customShuffleWithUDF) {
-          tEnv.executeSql(s"""
-                             |CREATE TABLE $tableName (
-                             |  `age` INT,
-                             |  `id` BIGINT,
-                             |  `name` STRING
-                             |) WITH (
-                             |  $cacheOptions
-                             |  'connector' = 'values',
-                             |  'data-id' = '$dataId',
-                             |  'async' = '$isAsyncMode',
-                             |  'bounded' = 'true',
-                             |  'enable-custom-shuffle' = 'true',
-                             |  'custom-shuffle-empty-partitioner' = '$customShuffleEmptyPartitioner'
-                             |)
-                             |""".stripMargin)
-        } else {
-          tEnv.executeSql(
-            s"""
-               |CREATE TABLE $tableName (
-               |  `age` INT,
-               |  `id` BIGINT,
-               |  `name` STRING
-               |) WITH (
-               |  $cacheOptions
-               |  'connector' = 'values',
-               |  'data-id' = '$dataId',
-               |  'async' = '$isAsyncMode',
-               |  'bounded' = 'true',
-               |  'enable-custom-shuffle' = 'true',
-               |  'lookup-function-class' = '${new SingleSubTaskBoundTableFunction().getClass.getName}',
-               |  'custom-shuffle-deterministic' = '$customShuffleDeterministic'
-               |)
-               |""".stripMargin)
-        }
+        tEnv.executeSql(
+          s"""
+             |CREATE TABLE $tableName (
+             |  `age` INT,
+             |  `id` BIGINT,
+             |  `name` STRING
+             |) WITH (
+             |  $cacheOptions
+             |  'connector' = 'values',
+             |  'data-id' = '$dataId',
+             |  'async' = '$isAsyncMode',
+             |  'bounded' = 'true',
+             |  'enable-custom-shuffle' = 'true',
+             |  'lookup-function-class' = '${new SingleSubTaskBoundTableFunction().getClass.getName}',
+             |  'custom-shuffle-deterministic' = '$customShuffleDeterministic'
+             |)
+             |""".stripMargin)
       }
     }
   }
 
   private def createLookupTableWithComputedColumn(tableName: String, data: List[Row]): Unit = {
-    if (!legacyTableSource) {
-      val dataId = TestValuesTableFactory.registerData(data)
-      val cacheOptions =
-        if (cacheType == LookupCacheType.PARTIAL)
-          s"""
-             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.PARTIAL}',
-             |  '${LookupOptions.PARTIAL_CACHE_MAX_ROWS.key()}' = '${Long.MaxValue}',
-             |""".stripMargin
-        else if (cacheType == LookupCacheType.FULL)
-          s"""
-             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.FULL}',
-             |  '${LookupOptions.FULL_CACHE_RELOAD_STRATEGY.key()}' = '${ReloadStrategy.PERIODIC}',
-             |  '${LookupOptions.FULL_CACHE_PERIODIC_RELOAD_INTERVAL.key()}' = '${Long.MaxValue}',
-             |""".stripMargin
-        else ""
-      tEnv.executeSql(s"""
-                         |CREATE TABLE $tableName (
-                         |  `age` INT,
-                         |  `id` BIGINT,
-                         |  `name` STRING,
-                         |  `nominal_age` as age + 1
-                         |) WITH (
-                         |  $cacheOptions
-                         |  'connector' = 'values',
-                         |  'data-id' = '$dataId',
-                         |  'async' = '$isAsyncMode',
-                         |  'bounded' = 'true'
-                         |)
-                         |""".stripMargin)
-    }
+    val dataId = TestValuesTableFactory.registerData(data)
+    val cacheOptions = getCacheOptions()
+    tEnv.executeSql(s"""
+                       |CREATE TABLE $tableName (
+                       |  `age` INT,
+                       |  `id` BIGINT,
+                       |  `name` STRING,
+                       |  `nominal_age` as age + 1
+                       |) WITH (
+                       |  $cacheOptions
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId',
+                       |  'async' = '$isAsyncMode',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+  }
+
+  private def getCacheOptions(): String = {
+    if (cacheType == LookupCacheType.PARTIAL) {
+      s"""
+         |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.PARTIAL}',
+         |  '${LookupOptions.PARTIAL_CACHE_MAX_ROWS.key()}' = '${Long.MaxValue}',
+         |""".stripMargin
+    } else if (cacheType == LookupCacheType.FULL) {
+      s"""
+         |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.FULL}',
+         |  '${LookupOptions.FULL_CACHE_RELOAD_STRATEGY.key()}' = '${ReloadStrategy.PERIODIC}',
+         |  '${LookupOptions.FULL_CACHE_PERIODIC_RELOAD_INTERVAL.key()}' = '${Long.MaxValue}',
+         |""".stripMargin
+    } else { "" }
   }
 
   private def createScanTable(tableName: String, data: List[Row]): Unit = {
@@ -391,9 +351,6 @@ class LookupJoinITCase extends BatchTestBase {
 
   @TestTemplate
   def testJoinTemporalTableWithComputedColumn(): Unit = {
-    // Computed column do not support in legacyTableSource.
-    assumeThat(legacyTableSource).isFalse
-
     val sql = s"SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age " +
       "FROM T JOIN userTableWithComputedColumn " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
@@ -407,9 +364,6 @@ class LookupJoinITCase extends BatchTestBase {
 
   @TestTemplate
   def testJoinTemporalTableWithComputedColumnAndPushDown(): Unit = {
-    // Computed column do not support in legacyTableSource.
-    assumeThat(legacyTableSource).isFalse
-
     val sql = s"SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age " +
       "FROM T JOIN userTableWithComputedColumn " +
       "for system_time as of T.proctime AS D ON T.id = D.id and D.nominal_age > 12"
@@ -480,7 +434,6 @@ class LookupJoinITCase extends BatchTestBase {
 
   @TestTemplate
   def testJoinTemporalTableWithLookupHintEnableShuffle(): Unit = {
-    assumeThat(legacyTableSource).isFalse
     val sql = s"SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ T.id, D.name FROM " +
       s"T JOIN user_table_custom_shuffle " +
       s"for system_time as of T.proctime AS D ON T.id = D.id AND D.name = 'Fabian' AND D.age = 33"
@@ -496,7 +449,6 @@ class LookupJoinITCase extends BatchTestBase {
 
   @TestTemplate
   def testJoinTemporalTableWithLookupHintEnableShuffleOnNormalSource(): Unit = {
-    assumeThat(legacyTableSource).isFalse
     val sql = s"SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ T.id, D.name FROM " +
       s"T JOIN userTable " +
       s"for system_time as of T.proctime AS D ON T.id = D.id"
@@ -510,7 +462,6 @@ class LookupJoinITCase extends BatchTestBase {
 
   @TestTemplate
   def testJoinTemporalTableWithLookupHintEnableNonDeterministicShuffle(): Unit = {
-    assumeThat(legacyTableSource).isFalse
     val sql = s"SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ T.id, D.name FROM " +
       s"T JOIN user_table_custom_shuffle_non_deterministic " +
       s"for system_time as of T.proctime AS D ON T.id = D.id AND D.name = 'Fabian' AND D.age = 33"
@@ -527,7 +478,6 @@ class LookupJoinITCase extends BatchTestBase {
 
   @TestTemplate
   def testJoinTemporalTableWithLookupHintEnableShuffleOnAllConstantLookupKeys(): Unit = {
-    assumeThat(legacyTableSource).isFalse
     val sql = s"SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ T.id, D.name FROM " +
       s"T JOIN user_table_custom_shuffle " +
       s"for system_time as of T.proctime AS D ON D.id = 1 AND D.name = 'Fabian' AND D.age = 33"
@@ -543,7 +493,6 @@ class LookupJoinITCase extends BatchTestBase {
 
   @TestTemplate
   def testJoinTemporalTableWithLookupHintEnableShuffleEmptyPartitioner(): Unit = {
-    assumeThat(legacyTableSource).isFalse
     val sql = s"SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ T.id, D.name FROM " +
       s"T JOIN user_table_custom_shuffle_empty_partitioner " +
       s"for system_time as of T.proctime AS D ON T.id = D.id AND D.name = 'Fabian' AND D.age = 33"
@@ -553,7 +502,6 @@ class LookupJoinITCase extends BatchTestBase {
 
   @TestTemplate
   def testJoinTemporalTableWithLookupHintEnableShuffleWithoutUDF(): Unit = {
-    assumeThat(legacyTableSource).isFalse
     val sql = s"SELECT /*+ LOOKUP('table'='D', 'shuffle'='true') */ T.id, D.name FROM " +
       s"T JOIN user_table_custom_shuffle_without_udf " +
       s"for system_time as of T.proctime AS D ON T.id = D.id AND D.name = 'Fabian' AND D.age = 33"
@@ -572,21 +520,19 @@ class LookupJoinITCase extends BatchTestBase {
 
 object LookupJoinITCase {
 
-  val LEGACY_TABLE_SOURCE: JBoolean = JBoolean.TRUE;
-  val DYNAMIC_TABLE_SOURCE: JBoolean = JBoolean.FALSE;
   val ASYNC_MODE: JBoolean = JBoolean.TRUE;
   val SYNC_MODE: JBoolean = JBoolean.FALSE;
 
-  @Parameters(name = "LegacyTableSource={0}, isAsyncMode = {1}, cacheType = {2}")
+  @Parameters(name = "IsAsyncMode = {0}, cacheType = {1}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
-      Array(LEGACY_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.NONE),
-      Array(LEGACY_TABLE_SOURCE, SYNC_MODE, LookupCacheType.NONE),
-      Array(DYNAMIC_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.NONE),
-      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, LookupCacheType.NONE),
-      Array(DYNAMIC_TABLE_SOURCE, ASYNC_MODE, LookupCacheType.PARTIAL),
-      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, LookupCacheType.PARTIAL),
-      Array(DYNAMIC_TABLE_SOURCE, SYNC_MODE, LookupCacheType.FULL)
+      Array(ASYNC_MODE, LookupCacheType.NONE),
+      Array(SYNC_MODE, LookupCacheType.NONE),
+      Array(ASYNC_MODE, LookupCacheType.NONE),
+      Array(SYNC_MODE, LookupCacheType.NONE),
+      Array(ASYNC_MODE, LookupCacheType.PARTIAL),
+      Array(SYNC_MODE, LookupCacheType.PARTIAL),
+      Array(SYNC_MODE, LookupCacheType.FULL)
     )
   }
 }
