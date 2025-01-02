@@ -144,7 +144,7 @@ public class CliClient implements AutoCloseable {
                 String scheme = StringUtils.lowerCase(uri.getScheme());
                 String clusterId;
                 // local files
-                if (scheme.equals("file")) {
+                if (scheme == null || scheme.equals("file")) {
                     clusterId = executor.deployScript(readFile(uri), null);
                 } else {
                     clusterId = executor.deployScript(null, uri);
