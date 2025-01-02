@@ -19,14 +19,18 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.file.table.PartitionFetcher;
 import org.apache.flink.connector.file.table.PartitionReader;
 import org.apache.flink.connectors.hive.read.HiveInputFormatPartitionReader;
 import org.apache.flink.connectors.hive.read.HivePartitionFetcherContextBase;
+import org.apache.flink.connectors.hive.util.HiveConfUtils;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
 import org.apache.flink.connectors.hive.util.JobConfUtils;
+import org.apache.flink.streaming.api.lineage.DefaultLineageDataset;
+import org.apache.flink.streaming.api.lineage.DefaultSourceLineageVertex;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
@@ -39,6 +43,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.mapred.JobConf;
@@ -47,6 +52,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -159,6 +165,8 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
     private TableFunction<RowData> getLookupFunction(int[] keys) {
 
         final String defaultPartitionName = JobConfUtils.getDefaultPartitionName(jobConf);
+        HiveConf hiveConf = HiveConfUtils.create(jobConf);
+        final String thriftURL = hiveConf.get(HiveConf.ConfVars.METASTOREURIS.varname);
         PartitionFetcher.Context<HiveTablePartition> fetcherContext =
                 new HiveTablePartitionFetcherContext(
                         tablePath,
@@ -266,13 +274,25 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
                         projectedFields,
                         flinkConf.get(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER));
 
-        return new FileSystemLookupFunction<>(
-                partitionFetcher,
-                fetcherContext,
-                partitionReader,
-                (RowType) producedDataType.getLogicalType(),
-                keys,
-                hiveTableReloadInterval);
+        DefaultSourceLineageVertex lineageVertex =
+                new DefaultSourceLineageVertex(
+                        isStreamingSource()
+                                ? Boundedness.CONTINUOUS_UNBOUNDED
+                                : Boundedness.BOUNDED);
+
+        lineageVertex.addDataset(
+                new DefaultLineageDataset(tableFullPath.getFullName(), thriftURL, new HashMap<>()));
+        FileSystemLookupFunction lookupFunction =
+                new FileSystemLookupFunction<>(
+                        partitionFetcher,
+                        fetcherContext,
+                        partitionReader,
+                        (RowType) producedDataType.getLogicalType(),
+                        keys,
+                        hiveTableReloadInterval);
+        lookupFunction.setLineageVertex(lineageVertex);
+
+        return lookupFunction;
     }
 
     /** PartitionFetcher.Context for {@link HiveTablePartition}. */
