@@ -51,7 +51,7 @@ public class DeployScriptHeaders
 
     @Override
     public HttpResponseStatus getResponseStatusCode() {
-        return HttpResponseStatus.ACCEPTED;
+        return HttpResponseStatus.OK;
     }
 
     @Override

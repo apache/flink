@@ -358,6 +358,7 @@ public interface SqlGatewayService {
      *
      * @param sessionHandle handle to identify the session.
      * @param scriptPath path to the script.
+     * @param script the content of the script.
      * @param executionConfig to run the script.
      * @return the cluster description.
      */

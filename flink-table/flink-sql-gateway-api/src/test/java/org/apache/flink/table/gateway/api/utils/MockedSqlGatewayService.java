@@ -205,8 +205,8 @@ public class MockedSqlGatewayService implements SqlGatewayService {
     @Override
     public <ClusterID> ClusterID deployScript(
             SessionHandle sessionHandle,
-            @org.jetbrains.annotations.Nullable Path scriptPath,
-            @org.jetbrains.annotations.Nullable String script,
+            @Nullable Path scriptPath,
+            @Nullable String script,
             Configuration executionConfig)
             throws SqlGatewayException {
         throw new UnsupportedOperationException();

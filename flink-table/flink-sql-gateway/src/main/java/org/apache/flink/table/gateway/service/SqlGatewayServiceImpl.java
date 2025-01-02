@@ -46,6 +46,7 @@ import org.apache.flink.table.gateway.service.operation.OperationManager;
 import org.apache.flink.table.gateway.service.session.Session;
 import org.apache.flink.table.gateway.service.session.SessionManager;
 import org.apache.flink.table.runtime.application.SqlDriver;
+import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -347,6 +348,10 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
         if (scriptPath == null && script == null) {
             throw new IllegalArgumentException("Please specify script path or script.");
         }
+        if (scriptPath != null && !StringUtils.isNullOrWhitespaceOnly(script)) {
+            throw new IllegalArgumentException(
+                    "Please specify either the script path or the script itself, but not both.");
+        }
         Configuration mergedConfig = Configuration.fromMap(session.getSessionConfig());
         mergedConfig.addAll(executionConfig);
 
@@ -366,8 +371,9 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
         try {
             return new ApplicationClusterDeployer(new DefaultClusterClientServiceLoader())
                     .run(mergedConfig, applicationConfiguration);
-        } catch (Exception e) {
-            throw new SqlGatewayException(e);
+        } catch (Throwable t) {
+            LOG.error("Failed to deploy script to cluster.", t);
+            throw new SqlGatewayException("Failed to deploy script to cluster.", t);
         }
     }
 

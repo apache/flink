@@ -118,7 +118,7 @@ public class DeployScriptITCase {
                         + "  a INT\n"
                         + ") WITH (\n"
                         + "  'connector' = 'blackhole'\n"
-                        + ")\n"
+                        + ");\n"
                         + "INSERT INTO sink VALUES (1);";
         assertThat(
                         restClient
