@@ -49,6 +49,7 @@ import org.apache.flink.runtime.state.v2.StateDescriptorUtils;
 import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.concurrent.RunnableFuture;
@@ -68,13 +69,11 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend<
     @Override
     public void setup(@Nonnull StateRequestHandler stateRequestHandler) {}
 
-    @Nonnull
     @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    public <N, S extends State, SV> S createState(
-            @Nonnull N defaultNamespace,
-            @Nonnull TypeSerializer<N> namespaceSerializer,
-            @Nonnull StateDescriptor<SV> stateDesc)
+    public <N, S extends State, SV> S getOrCreateKeyedState(
+            N defaultNamespace,
+            TypeSerializer<N> namespaceSerializer,
+            StateDescriptor<SV> stateDesc)
             throws Exception {
         return createStateInternal(defaultNamespace, namespaceSerializer, stateDesc);
     }
@@ -121,8 +120,10 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend<
     }
 
     @Override
-    public void switchContext(RecordContext<K> context) {
-        keyedStateBackend.setCurrentKeyAndKeyGroup(context.getKey(), context.getKeyGroup());
+    public void switchContext(@Nullable RecordContext<K> context) {
+        if (context != null) {
+            keyedStateBackend.setCurrentKeyAndKeyGroup(context.getKey(), context.getKeyGroup());
+        }
     }
 
     @Override
@@ -190,5 +191,10 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend<
                     .requiresLegacySynchronousTimerSnapshots(checkpointType);
         }
         return false;
+    }
+
+    @Override
+    public boolean isSafeToReuseKVState() {
+        return keyedStateBackend.isSafeToReuseKVState();
     }
 }

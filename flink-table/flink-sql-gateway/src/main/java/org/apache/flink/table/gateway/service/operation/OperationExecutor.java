@@ -121,6 +121,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.api.common.RuntimeExecutionMode.STREAMING;
@@ -146,12 +147,28 @@ public class OperationExecutor {
     private final Configuration executionConfig;
 
     private final ClusterClientServiceLoader clusterClientServiceLoader;
+    private final BiFunction<Configuration, ClassLoader, StreamExecutionEnvironment>
+            environmentBuilder;
 
     @VisibleForTesting
     public OperationExecutor(SessionContext context, Configuration executionConfig) {
         this.sessionContext = context;
         this.executionConfig = executionConfig;
         this.clusterClientServiceLoader = new DefaultClusterClientServiceLoader();
+        // We need not different StreamExecutionEnvironments to build and submit flink job,
+        // instead we just use StreamExecutionEnvironment#executeAsync(StreamGraph) method
+        // to execute existing StreamGraph.
+        // This requires StreamExecutionEnvironment to have a full flink configuration.
+        this.environmentBuilder = StreamExecutionEnvironment::new;
+    }
+
+    public OperationExecutor(
+            SessionContext sessionContext,
+            BiFunction<Configuration, ClassLoader, StreamExecutionEnvironment> environmentBuilder) {
+        this.sessionContext = sessionContext;
+        this.executionConfig = new Configuration();
+        this.clusterClientServiceLoader = new DefaultClusterClientServiceLoader();
+        this.environmentBuilder = environmentBuilder;
     }
 
     public ResultFetcher configureSession(OperationHandle handle, String statement) {
@@ -226,7 +243,8 @@ public class OperationExecutor {
             op = parsedOperations.get(0);
         }
 
-        if (op instanceof CallProcedureOperation) {
+        if (op instanceof CallProcedureOperation
+                && SqlGatewayStreamExecutionEnvironment.areExplicitEnvironmentsAllowed()) {
             // if the operation is CallProcedureOperation, we need to set the stream environment
             // context to it since the procedure will use the stream environment
             try {
@@ -378,13 +396,8 @@ public class OperationExecutor {
         final EnvironmentSettings settings =
                 EnvironmentSettings.newInstance().withConfiguration(operationConfig).build();
 
-        // We need not different StreamExecutionEnvironments to build and submit flink job,
-        // instead we just use StreamExecutionEnvironment#executeAsync(StreamGraph) method
-        // to execute existing StreamGraph.
-        // This requires StreamExecutionEnvironment to have a full flink configuration.
         StreamExecutionEnvironment streamExecEnv =
-                new StreamExecutionEnvironment(
-                        operationConfig, sessionContext.getUserClassloader());
+                environmentBuilder.apply(operationConfig, sessionContext.getUserClassloader());
 
         TableConfig tableConfig = TableConfig.getDefault();
         tableConfig.setRootConfiguration(sessionContext.getDefaultContext().getFlinkConfig());

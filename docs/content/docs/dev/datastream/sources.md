@@ -281,9 +281,9 @@ public class FixedSizeSplitFetcherManager<E, SplitT extends SourceSplit>
 
     public FixedSizeSplitFetcherManager(
             int numFetchers,
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
-            Supplier<SplitReader<E, SplitT>> splitReaderSupplier) {
-        super(elementsQueue, splitReaderSupplier);
+            Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
+            Configuration config) {
+        super(splitReaderSupplier, config);
         this.numFetchers = numFetchers;
         // Create numFetchers split fetchers.
         for (int i = 0; i < numFetchers; i++) {
@@ -325,17 +325,15 @@ public class FixedFetcherSizeSourceReader<E, T, SplitT extends SourceSplit, Spli
         extends SourceReaderBase<E, T, SplitT, SplitStateT> {
 
     public FixedFetcherSizeSourceReader(
-            FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
             Supplier<SplitReader<E, SplitT>> splitFetcherSupplier,
             RecordEmitter<E, T, SplitStateT> recordEmitter,
             Configuration config,
             SourceReaderContext context) {
         super(
-                elementsQueue,
                 new FixedSizeSplitFetcherManager<>(
-                        config.getInteger(SourceConfig.NUM_FETCHERS),
-                        elementsQueue,
-                        splitFetcherSupplier),
+                        config.get(SourceConfig.NUM_FETCHERS),
+                        splitFetcherSupplier,
+                        config),
                 recordEmitter,
                 config,
                 context);

@@ -650,6 +650,18 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
+    public boolean dropTable(String path) {
+        return dropTable(path, true);
+    }
+
+    @Override
+    public boolean dropTable(String path, boolean ignoreIfNotExists) {
+        UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(path);
+        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        return catalogManager.dropTable(identifier, ignoreIfNotExists);
+    }
+
+    @Override
     public boolean dropTemporaryView(String path) {
         UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(path);
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
@@ -659,6 +671,18 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         } catch (ValidationException e) {
             return false;
         }
+    }
+
+    @Override
+    public boolean dropView(String path) {
+        return dropView(path, true);
+    }
+
+    @Override
+    public boolean dropView(String path, boolean ignoreIfNotExists) {
+        UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(path);
+        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        return catalogManager.dropView(identifier, ignoreIfNotExists);
     }
 
     @Override

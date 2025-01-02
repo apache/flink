@@ -21,6 +21,7 @@ package org.apache.flink.runtime.asyncprocessing;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.v2.State;
+import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
 import org.apache.flink.runtime.asyncprocessing.EpochManager.ParallelMode;
@@ -38,6 +39,7 @@ import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -194,20 +196,38 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
      * @return the built record context.
      */
     public RecordContext<K> buildContext(Object record, K key) {
+        return buildContext(record, key, false);
+    }
+
+    /**
+     * Build a new context based on record and key. Also wired with internal {@link
+     * KeyAccountingUnit}.
+     *
+     * @param record the given record.
+     * @param key the given key.
+     * @param inheritEpoch whether to inherit epoch from the current context. Or otherwise create a
+     *     new one.
+     * @return the built record context.
+     */
+    public RecordContext<K> buildContext(Object record, K key, boolean inheritEpoch) {
         if (record == null) {
             return new RecordContext<>(
                     RecordContext.EMPTY_RECORD,
                     key,
                     this::disposeContext,
                     KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism),
-                    epochManager.onRecord());
+                    inheritEpoch && currentContext != null
+                            ? epochManager.onEpoch(currentContext.getEpoch())
+                            : epochManager.onRecord());
         }
         return new RecordContext<>(
                 record,
                 key,
                 this::disposeContext,
                 KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism),
-                epochManager.onRecord());
+                inheritEpoch && currentContext != null
+                        ? epochManager.onEpoch(currentContext.getEpoch())
+                        : epochManager.onRecord());
     }
 
     /**
@@ -221,6 +241,10 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         if (switchContextListener != null) {
             switchContextListener.switchContext(switchingContext);
         }
+    }
+
+    public RecordContext<K> getCurrentContext() {
+        return currentContext;
     }
 
     /**
@@ -291,13 +315,21 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
     public <IN, OUT> OUT handleRequestSync(
             State state, StateRequestType type, @Nullable IN payload) {
         InternalStateFuture<OUT> stateFuture = handleRequest(state, type, payload);
-        while (!stateFuture.isDone()) {
-            try {
-                mailboxExecutor.yield();
-            } catch (InterruptedException e) {
-                LOG.warn("Error while waiting for state future to complete.", e);
-                throw new RuntimeException("Error while waiting for state future to complete.", e);
+        // Trigger since we are waiting the result.
+        triggerIfNeeded(true);
+        try {
+            while (!stateFuture.isDone()) {
+                if (!mailboxExecutor.tryYield()) {
+                    // We force trigger the buffer if the executor is not fully loaded.
+                    if (!stateExecutor.fullyLoaded()) {
+                        triggerIfNeeded(true);
+                    }
+                    waitForNewMails();
+                }
             }
+        } catch (InterruptedException ignored) {
+            // ignore the interrupted exception to avoid throwing fatal error when the task cancel
+            // or exit.
         }
         return stateFuture.get();
     }
@@ -359,8 +391,9 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
      *
      * @param callback the callback to run if it finishes (once the record is not blocked).
      */
-    public void syncPointRequestWithCallback(ThrowingRunnable<Exception> callback) {
-        handleRequest(null, StateRequestType.SYNC_POINT, null).thenAccept(v -> callback.run());
+    public StateFuture<Void> syncPointRequestWithCallback(ThrowingRunnable<Exception> callback) {
+        return handleRequest(null, StateRequestType.SYNC_POINT, null)
+                .thenAccept(v -> callback.run());
     }
 
     /**
@@ -384,6 +417,14 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         } catch (InterruptedException ignored) {
             // ignore the interrupted exception to avoid throwing fatal error when the task cancel
             // or exit.
+        }
+    }
+
+    /** A helper function to drain in-flight requests emitted by timer. */
+    public void drainWithTimerIfNeeded(CompletableFuture<Void> timerFuture) {
+        if (epochParallelMode == ParallelMode.SERIAL_BETWEEN_EPOCH) {
+            drainInflightRecords(0);
+            Preconditions.checkState(timerFuture.isDone());
         }
     }
 
@@ -411,16 +452,38 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         }
     }
 
-    public void processNonRecord(ThrowingRunnable<? extends Exception> action) {
-        Runnable wrappedAction =
-                () -> {
-                    try {
-                        action.run();
-                    } catch (Exception e) {
-                        exceptionHandler.handleException("Failed to process non-record.", e);
-                    }
-                };
-        epochManager.onNonRecord(wrappedAction, epochParallelMode);
+    public void processNonRecord(
+            @Nullable ThrowingRunnable<? extends Exception> triggerAction,
+            @Nullable ThrowingRunnable<? extends Exception> finalAction) {
+        epochManager.onNonRecord(
+                triggerAction == null
+                        ? null
+                        : () -> {
+                            try {
+                                // We clear the current context since this is a non-record context.
+                                RecordContext<K> previousContext = currentContext;
+                                currentContext = null;
+                                triggerAction.run();
+                                currentContext = previousContext;
+                            } catch (Exception e) {
+                                exceptionHandler.handleException(
+                                        "Failed to process non-record.", e);
+                            }
+                        },
+                finalAction == null
+                        ? null
+                        : () -> {
+                            try {
+                                RecordContext<K> previousContext = currentContext;
+                                currentContext = null;
+                                finalAction.run();
+                                currentContext = previousContext;
+                            } catch (Exception e) {
+                                exceptionHandler.handleException(
+                                        "Failed to process non-record.", e);
+                            }
+                        },
+                epochParallelMode);
     }
 
     @VisibleForTesting
@@ -440,6 +503,6 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
 
     /** A listener listens the key context switch. */
     public interface SwitchContextListener<K> {
-        void switchContext(RecordContext<K> context);
+        void switchContext(@Nullable RecordContext<K> context);
     }
 }

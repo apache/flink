@@ -301,7 +301,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.mockito</groupId>
-			<artifactId>mockito-inline</artifactId>
+			<artifactId>mockito-subclass</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

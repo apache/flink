@@ -657,6 +657,22 @@ class TableEnvironment(object):
         """
         return self._j_tenv.dropTemporaryTable(table_path)
 
+    def drop_table(self, table_path: str, ignore_if_not_exists: Optional[bool] = True) -> bool:
+        """
+        Drops a table registered in the given path.
+
+        This method can only drop permanent objects. Temporary objects can shadow permanent ones.
+        If a temporary object exists in a given path,
+        make sure to drop the temporary object first using :func:`drop_temporary_table`.
+
+        :param table_path: The path of the registered table.
+        :param ignore_if_not_exists: Ignore if table does not exist.
+        :return: True if a table existed in the given path and was removed.
+
+        .. versionadded:: 2.0.0
+        """
+        return self._j_tenv.dropTable(table_path, ignore_if_not_exists)
+
     def drop_temporary_view(self, view_path: str) -> bool:
         """
         Drops a temporary view registered in the given path.
@@ -664,11 +680,28 @@ class TableEnvironment(object):
         If a permanent table or view with a given path exists, it will be used
         from now on for any queries that reference this path.
 
+        :param view_path: The path of the registered temporary view.
         :return: True if a view existed in the given path and was removed.
 
         .. versionadded:: 1.10.0
         """
         return self._j_tenv.dropTemporaryView(view_path)
+
+    def drop_view(self, view_path: str, ignore_if_not_exists: Optional[bool] = True) -> bool:
+        """
+        Drops a view registered in the given path.
+
+        This method can only drop permanent objects. Temporary objects can shadow permanent ones.
+        If a temporary object exists in a given path,
+        make sure to drop the temporary object first using :func:`drop_temporary_view`.
+
+        :param view_path: The path of the registered view.
+        :param ignore_if_not_exists: Ignore if view does not exist.
+        :return: True if a view existed in the given path and was removed
+
+        .. versionadded:: 2.0.0
+        """
+        return self._j_tenv.dropView(view_path, ignore_if_not_exists)
 
     def explain_sql(self, stmt: str, *extra_details: ExplainDetail) -> str:
         """

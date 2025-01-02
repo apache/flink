@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 import org.apache.flink.table.planner.plan.schema.{IntermediateRelTable, LegacyTableSourceTable, TableSourceTable}
-import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, ExpressionFormat, InputRefVisitor, JoinTypeUtil, LookupJoinUtil, RelExplainUtil}
+import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, ExpressionFormat, InputRefVisitor, JoinTypeUtil, LookupJoinUtil, RelExplainUtil, TemporalJoinUtil}
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil._
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
@@ -88,13 +88,16 @@ abstract class CommonPhysicalLookupJoin(
     val joinInfo: JoinInfo,
     val joinType: JoinRelType,
     val lookupHint: Option[RelHint] = Option.empty[RelHint],
-    val upsertMaterialize: Boolean = false)
+    val upsertMaterialize: Boolean = false,
+    val enableLookupShuffle: Boolean = false,
+    val preferCustomShuffle: Boolean = false)
   extends SingleRel(cluster, traitSet, inputRel)
   with FlinkRelNode {
 
   val allLookupKeys: Map[Int, LookupKey] = {
     // join key pairs from left input field index to temporal table field index
-    val joinKeyPairs: Array[IntPair] = getTemporalTableJoinKeyPairs(joinInfo, calcOnTemporalTable)
+    val joinKeyPairs: Array[IntPair] =
+      TemporalJoinUtil.getTemporalTableJoinKeyPairs(joinInfo, calcOnTemporalTable)
     // all potential index keys, mapping from field index in table source to LookupKey
     analyzeLookupKeys(cluster.getRexBuilder, joinKeyPairs, calcOnTemporalTable)
   }
@@ -117,7 +120,8 @@ abstract class CommonPhysicalLookupJoin(
     temporalTable,
     allLookupKeys.keys.map(Int.box).toList.asJava,
     lookupHint.orNull,
-    upsertMaterialize)
+    upsertMaterialize,
+    preferCustomShuffle && !upsertMaterialize)
 
   lazy val retryOptions: Option[RetryLookupOptions] =
     Option.apply(LookupJoinUtil.RetryLookupOptions.fromJoinHint(lookupHint.orNull))
@@ -201,6 +205,7 @@ abstract class CommonPhysicalLookupJoin(
       .item("select", selection)
       .itemIf("upsertMaterialize", "true", upsertMaterialize)
       .itemIf("async", asyncOptions.getOrElse(""), asyncOptions.isDefined)
+      .itemIf("shuffle", "true", enableLookupShuffle)
       .itemIf("retry", retryOptions.getOrElse(""), retryOptions.isDefined)
   }
 
@@ -272,33 +277,6 @@ abstract class CommonPhysicalLookupJoin(
       None
     } else {
       Some(condition)
-    }
-  }
-
-  /**
-   * Gets the join key pairs from left input field index to temporal table field index
-   * @param joinInfo
-   *   the join information of temporal table join
-   * @param calcOnTemporalTable
-   *   the calc programs on temporal table
-   */
-  private def getTemporalTableJoinKeyPairs(
-      joinInfo: JoinInfo,
-      calcOnTemporalTable: Option[RexProgram]): Array[IntPair] = {
-    val joinPairs = joinInfo.pairs().asScala.toArray
-    calcOnTemporalTable match {
-      case Some(program) =>
-        // the target key of joinInfo is the calc output fields, we have to remapping to table here
-        val keyPairs = new mutable.ArrayBuffer[IntPair]()
-        joinPairs.map {
-          p =>
-            val calcSrcIdx = getIdenticalSourceField(program, p.target)
-            if (calcSrcIdx != -1) {
-              keyPairs += new IntPair(p.source, calcSrcIdx)
-            }
-        }
-        keyPairs.toArray
-      case None => joinPairs
     }
   }
 
@@ -425,36 +403,6 @@ abstract class CommonPhysicalLookupJoin(
   // ----------------------------------------------------------------------------------------
   //                             Physical Optimization Utilities
   // ----------------------------------------------------------------------------------------
-
-  // this is highly inspired by Calcite's RexProgram#getSourceField(int)
-  private def getIdenticalSourceField(rexProgram: RexProgram, outputOrdinal: Int): Int = {
-    assert((outputOrdinal >= 0) && (outputOrdinal < rexProgram.getProjectList.size()))
-    val project = rexProgram.getProjectList.get(outputOrdinal)
-    var index = project.getIndex
-    while (true) {
-      var expr = rexProgram.getExprList.get(index)
-      expr match {
-        case call: RexCall if call.getOperator == SqlStdOperatorTable.IN_FENNEL =>
-          // drill through identity function
-          expr = call.getOperands.get(0)
-        case call: RexCall if call.getOperator == SqlStdOperatorTable.CAST =>
-          // drill through identity function
-          val outputType = call.getType
-          val inputType = call.getOperands.get(0).getType
-          val isCompatible = PlannerTypeUtils.isInteroperable(
-            FlinkTypeFactory.toLogicalType(outputType),
-            FlinkTypeFactory.toLogicalType(inputType))
-          expr = if (isCompatible) call.getOperands.get(0) else expr
-        case _ =>
-      }
-      expr match {
-        case ref: RexLocalRef => index = ref.getIndex
-        case ref: RexInputRef => return ref.getIndex
-        case _ => return -1
-      }
-    }
-    -1
-  }
 
   private def extractConstantFieldsFromEquiCondition(
       condition: RexNode,

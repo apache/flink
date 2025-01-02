@@ -233,13 +233,13 @@ public interface SqlCallSyntax {
 
                 // leading & trailing is translated to BOTH
                 if (trimLeading && trimTrailing) {
-                    format = "TRIM BOTH %s FROM %s";
+                    format = "TRIM(BOTH %s FROM %s)";
                 } else if (trimLeading) {
-                    format = "TRIM LEADING %s FROM %s";
+                    format = "TRIM(LEADING %s FROM %s)";
                 } else if (trimTrailing) {
-                    format = "TRIM TRAILING %s FROM %s";
+                    format = "TRIM(TRAILING %s FROM %s)";
                 } else {
-                    format = "TRIM %s FROM %s";
+                    format = "TRIM(%s FROM %s)";
                 }
 
                 return String.format(

@@ -493,7 +493,7 @@ class StreamingRuntimeContextTest {
                                     return null;
                                 })
                 .when(asyncKeyedStateBackend)
-                .createState(
+                .getOrCreateKeyedState(
                         any(),
                         any(TypeSerializer.class),
                         any(org.apache.flink.runtime.state.v2.StateDescriptor.class));

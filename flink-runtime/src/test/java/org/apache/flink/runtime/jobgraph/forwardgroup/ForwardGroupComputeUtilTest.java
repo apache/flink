@@ -39,6 +39,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroupComputeUtil.computeStreamNodeForwardGroup;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -106,18 +107,21 @@ class ForwardGroupComputeUtilTest {
         JobVertex v2 = new JobVertex("v2");
         JobVertex v3 = new JobVertex("v3");
 
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
-        if (isForward1) {
-            v1.getProducedDataSets().get(0).getConsumers().get(0).setForward(true);
-        }
+        connectNewDataSetAsInput(
+                v2,
+                v1,
+                DistributionPattern.ALL_TO_ALL,
+                ResultPartitionType.BLOCKING,
+                false,
+                isForward1);
 
-        v3.connectNewDataSetAsInput(
-                v2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-
-        if (isForward2) {
-            v2.getProducedDataSets().get(0).getConsumers().get(0).setForward(true);
-        }
+        connectNewDataSetAsInput(
+                v3,
+                v2,
+                DistributionPattern.POINTWISE,
+                ResultPartitionType.BLOCKING,
+                false,
+                isForward2);
 
         Set<ForwardGroup<?>> groups = computeForwardGroups(v1, v2, v3);
 
@@ -177,14 +181,13 @@ class ForwardGroupComputeUtilTest {
         JobVertex v3 = new JobVertex("v3");
         JobVertex v4 = new JobVertex("v4");
 
-        v3.connectNewDataSetAsInput(
-                v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
-        v1.getProducedDataSets().get(0).getConsumers().get(0).setForward(true);
-        v3.connectNewDataSetAsInput(
-                v2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        v2.getProducedDataSets().get(0).getConsumers().get(0).setForward(true);
-        v4.connectNewDataSetAsInput(
-                v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                v3, v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING, false, true);
+
+        connectNewDataSetAsInput(
+                v3, v2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING, false, true);
+        connectNewDataSetAsInput(
+                v4, v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
 
         Set<ForwardGroup<?>> groups = computeForwardGroups(v1, v2, v3, v4);
 
@@ -232,14 +235,12 @@ class ForwardGroupComputeUtilTest {
         JobVertex v3 = new JobVertex("v3");
         JobVertex v4 = new JobVertex("v4");
 
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
-        v3.connectNewDataSetAsInput(
-                v2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        v4.connectNewDataSetAsInput(
-                v2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        v2.getProducedDataSets().get(0).getConsumers().get(0).setForward(true);
-        v2.getProducedDataSets().get(1).getConsumers().get(0).setForward(true);
+        connectNewDataSetAsInput(
+                v2, v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                v3, v2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING, false, true);
+        connectNewDataSetAsInput(
+                v4, v2, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING, false, true);
 
         Set<ForwardGroup<?>> groups = computeForwardGroups(v1, v2, v3, v4);
 

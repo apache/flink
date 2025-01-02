@@ -151,7 +151,7 @@ under the License.
 		<junit4.version>4.13.2</junit4.version>
 		<junit5.version>5.10.1</junit5.version>
 		<archunit.version>1.2.0</archunit.version>
-		<mockito.version>4.11.0</mockito.version>
+		<mockito.version>5.14.2</mockito.version>
 		<hamcrest.version>1.3</hamcrest.version>
 		<assertj.version>3.23.1</assertj.version>
 		<py4j.version>0.10.9.7</py4j.version>
@@ -586,13 +586,13 @@ under the License.
 			<dependency>
 				<groupId>net.bytebuddy</groupId>
 				<artifactId>byte-buddy</artifactId>
-				<version>1.14.4</version>
+				<version>1.15.11</version>
 			</dependency>
 
 			<dependency>
 				<groupId>net.bytebuddy</groupId>
 				<artifactId>byte-buddy-agent</artifactId>
-				<version>1.14.4</version>
+				<version>1.15.11</version>
 			</dependency>
 
 			<!-- For dependency convergence -->
@@ -919,7 +919,7 @@ under the License.
 
 			<dependency>
 				<groupId>org.mockito</groupId>
-				<artifactId>mockito-inline</artifactId>
+				<artifactId>mockito-subclass</artifactId>
 				<version>${mockito.version}</version>
 				<scope>test</scope>
 			</dependency>
@@ -1621,7 +1621,7 @@ under the License.
 						<exclude>flink-table/flink-table-code-splitter/src/test/resources/**</exclude>
 						<exclude>flink-tests/src/test/resources/avro/*.avsc</exclude>
 						<exclude>flink-connectors/flink-connector-datagen-test/src/test/resources/avro/*.avsc</exclude>
-
+						<exclude>flink-runtime-web/web-dashboard/dev/notice-template</exclude>
 						<!-- ArchUnit violation stores  -->
 						<exclude>**/archunit-violations/**</exclude>
 

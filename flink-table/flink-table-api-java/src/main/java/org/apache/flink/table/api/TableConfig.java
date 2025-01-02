@@ -412,34 +412,6 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
     }
 
     /**
-     * NOTE: Currently the concept of min/max idle state retention has been deprecated and only idle
-     * state retention time is supported. The min idle state retention is regarded as idle state
-     * retention and the max idle state retention is derived from idle state retention as 1.5 x idle
-     * state retention.
-     *
-     * @return The minimum time until state which was not updated will be retained.
-     * @deprecated use{@link getIdleStateRetention} instead.
-     */
-    @Deprecated
-    public long getMinIdleStateRetentionTime() {
-        return configuration.get(ExecutionConfigOptions.IDLE_STATE_RETENTION).toMillis();
-    }
-
-    /**
-     * NOTE: Currently the concept of min/max idle state retention has been deprecated and only idle
-     * state retention time is supported. The min idle state retention is regarded as idle state
-     * retention and the max idle state retention is derived from idle state retention as 1.5 x idle
-     * state retention.
-     *
-     * @return The maximum time until state which was not updated will be retained.
-     * @deprecated use{@link getIdleStateRetention} instead.
-     */
-    @Deprecated
-    public long getMaxIdleStateRetentionTime() {
-        return getMinIdleStateRetentionTime() * 3 / 2;
-    }
-
-    /**
      * @return The duration until state which was not updated will be retained.
      */
     public Duration getIdleStateRetention() {

@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -99,9 +100,7 @@ public class InternalTimerServiceAsyncImpl<K, N> extends InternalTimerServiceImp
     @Override
     public void advanceWatermark(long time) throws Exception {
         currentWatermark = time;
-
         InternalTimer<K, N> timer;
-
         while ((timer = eventTimeTimersQueue.peek()) != null
                 && timer.getTimestamp() <= time
                 && !cancellationContext.isCancelled()) {
@@ -125,13 +124,14 @@ public class InternalTimerServiceAsyncImpl<K, N> extends InternalTimerServiceImp
                 "Batch operation is not supported when using async state.");
     }
 
-    private void maintainContextAndProcess(
+    private StateFuture<Void> maintainContextAndProcess(
             InternalTimer<K, N> timer, ThrowingRunnable<Exception> runnable) {
-        RecordContext<K> recordCtx = asyncExecutionController.buildContext(null, timer.getKey());
+        RecordContext<K> recordCtx = asyncExecutionController.buildContext(timer, timer.getKey());
         recordCtx.retain();
         asyncExecutionController.setCurrentContext(recordCtx);
         keyContext.setCurrentKey(timer.getKey());
-        asyncExecutionController.syncPointRequestWithCallback(runnable);
+        StateFuture<Void> future = asyncExecutionController.syncPointRequestWithCallback(runnable);
         recordCtx.release();
+        return future;
     }
 }

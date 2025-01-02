@@ -203,8 +203,9 @@ public class ForStFlinkFileSystem extends FileSystem {
         // renaming if the target already exists. So, we delete the target before attempting the
         // rename.
 
-        if (localFileFilter.apply(src.getName())) {
-            Path localSrc = tryBuildLocalPath(src).f1;
+        Tuple2<Boolean, Path> localPathTuple = tryBuildLocalPath(src);
+        if (localPathTuple.f0) {
+            Path localSrc = localPathTuple.f1;
             Path localDst = tryBuildLocalPath(dst).f1;
             FileStatus fileStatus = localFS.getFileStatus(localSrc);
             boolean success = localFS.rename(localSrc, localDst);
@@ -348,10 +349,10 @@ public class ForStFlinkFileSystem extends FileSystem {
 
     @Override
     public boolean mkdirs(Path path) throws IOException {
-        boolean success = false;
+        boolean success = true;
         Tuple2<Boolean, Path> localPathTuple = tryBuildLocalPath(path);
         if (localPathTuple.f0) {
-            success = localFS.mkdirs(localPathTuple.f1);
+            success &= localFS.mkdirs(localPathTuple.f1);
         }
         success &= delegateFS.mkdirs(path);
         return success;
@@ -372,5 +373,10 @@ public class ForStFlinkFileSystem extends FileSystem {
                             : new Path(localBase, remotePathStr.substring(remoteBase.length())));
         }
         return Tuple2.of(false, null);
+    }
+
+    public int link(Path src, Path dst) throws IOException {
+        // let forstdb copy the file
+        return -1;
     }
 }

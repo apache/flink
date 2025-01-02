@@ -38,7 +38,7 @@ public class NoOpMasterAgent implements TierMasterAgent {
 
     @Override
     public TierShuffleDescriptor addPartitionAndGetShuffleDescriptor(
-            JobID jobID, ResultPartitionID resultPartitionID) {
+            JobID jobID, int numSubpartitions, ResultPartitionID resultPartitionID) {
         // noop
         return NoOpTierShuffleDescriptor.INSTANCE;
     }

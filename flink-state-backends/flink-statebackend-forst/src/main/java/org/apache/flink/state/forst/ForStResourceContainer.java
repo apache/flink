@@ -26,6 +26,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
+import org.apache.flink.state.forst.fs.StringifiedForStFileSystem;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -75,7 +76,10 @@ public final class ForStResourceContainer implements AutoCloseable {
     private static final String FORST_RELOCATE_LOG_SUFFIX = "_LOG";
 
     // the filename length limit is 255 on most operating systems
-    private static final int INSTANCE_PATH_LENGTH_LIMIT = 255 - FORST_RELOCATE_LOG_SUFFIX.length();
+    // In rocksdb, if db_log_dir is non empty, the log files will be in the specified dir,
+    // and the db data dir's absolute path will be used as the log file name's prefix.
+    private static final int INSTANCE_PATH_LENGTH_LIMIT =
+            255 / 2 - FORST_RELOCATE_LOG_SUFFIX.length();
 
     @Nullable private FlinkEnv flinkEnv = null;
 
@@ -100,7 +104,7 @@ public final class ForStResourceContainer implements AutoCloseable {
     @Nullable private final ForStOptionsFactory optionsFactory;
 
     /** The ForSt file system. Null when remote dir is not set. */
-    @Nullable private ForStFlinkFileSystem forstFileSystem;
+    @Nullable private ForStFlinkFileSystem forStFileSystem;
 
     /**
      * The shared resource among ForSt instances. This resource is not part of the 'handlesToClose',
@@ -190,7 +194,10 @@ public final class ForStResourceContainer implements AutoCloseable {
         // configured,
         //  fallback to local directory currently temporarily.
         if (remoteForStPath != null) {
-            flinkEnv = new FlinkEnv(remoteForStPath.toString(), forstFileSystem);
+            flinkEnv =
+                    new FlinkEnv(
+                            remoteBasePath.toString(),
+                            new StringifiedForStFileSystem(forStFileSystem));
             opt.setEnv(flinkEnv);
         }
 
@@ -341,19 +348,19 @@ public final class ForStResourceContainer implements AutoCloseable {
                         "Cache base path is not configured, set to local base path: {}",
                         cacheBasePath);
             }
-            forstFileSystem =
+            forStFileSystem =
                     ForStFlinkFileSystem.get(
                             remoteForStPath.toUri(),
                             localForStPath,
                             ForStFlinkFileSystem.getFileBasedCache(
                                     cacheBasePath, cacheCapacity, cacheReservedSize));
         } else {
-            forstFileSystem = null;
+            forStFileSystem = null;
         }
     }
 
     public ForStFlinkFileSystem getFileSystem() {
-        return forstFileSystem;
+        return forStFileSystem;
     }
 
     private static void prepareDirectories(Path basePath, Path dbPath) throws IOException {
@@ -480,6 +487,10 @@ public final class ForStResourceContainer implements AutoCloseable {
             if (localForStPath == null
                     || localForStPath.getPath().length() <= INSTANCE_PATH_LENGTH_LIMIT) {
                 relocateDefaultDbLogDir(currentOptions);
+            } else if (remoteForStPath != null) { // log must put in local
+                Path relocatedPath = localForStPath.getParent().getParent();
+                LOG.warn("ForSt remote path is not null, relocate log in  {}.", relocatedPath);
+                currentOptions.setDbLogDir(relocatedPath.toString());
             } else {
                 // disable log relocate when instance path length exceeds limit to prevent ForSt
                 // log file creation failure, details in FLINK-31743

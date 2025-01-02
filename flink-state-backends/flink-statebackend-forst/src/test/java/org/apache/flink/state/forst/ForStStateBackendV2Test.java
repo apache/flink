@@ -38,6 +38,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.flink.state.forst.ForStConfigurableOptions.USE_DELETE_FILES_IN_RANGE_DURING_RESCALING;
+import static org.apache.flink.state.forst.ForStConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
 import static org.apache.flink.state.forst.ForStOptions.LOCAL_DIRECTORIES;
 import static org.apache.flink.state.forst.ForStOptions.REMOTE_DIRECTORY;
 
@@ -60,14 +62,18 @@ class ForStStateBackendV2Test extends StateBackendTestV2Base<ForStStateBackend> 
                         return new FileSystemCheckpointStorage(new Path(checkpointPath), 0, -1);
                     };
 
-    @Parameters(name = "CheckpointStorage: {0}, hasLocalDir: {1}, hasRemoteDir: {2}")
+    @Parameters(
+            name =
+                    "CheckpointStorage: {0}, hasLocalDir: {1}, hasRemoteDir: {2}, useIngestDbRestoreMode: {3}, useDeleteFileInRange: {4}")
     public static List<Object[]> modes() {
         return Arrays.asList(
                 new Object[][] {
-                    {jobManagerCheckpointStorage, true, false},
-                    {filesystemCheckpointStorage, true, false},
-                    {filesystemCheckpointStorage, false, true},
-                    {filesystemCheckpointStorage, true, true}
+                    {jobManagerCheckpointStorage, true, false, false, false},
+                    {filesystemCheckpointStorage, true, false, true, false},
+                    {filesystemCheckpointStorage, false, true, false, true},
+                    {filesystemCheckpointStorage, false, true, true, true},
+                    {filesystemCheckpointStorage, true, true, true, true},
+                    {filesystemCheckpointStorage, true, true, false, false}
                 });
     }
 
@@ -78,6 +84,12 @@ class ForStStateBackendV2Test extends StateBackendTestV2Base<ForStStateBackend> 
 
     @Parameter(2)
     public boolean hasRemoteDir;
+
+    @Parameter(3)
+    public boolean useIngestDbRestoreMode;
+
+    @Parameter(4)
+    public boolean useDeleteFileInRange;
 
     @Override
     protected CheckpointStorage getCheckpointStorage() throws Exception {
@@ -94,6 +106,8 @@ class ForStStateBackendV2Test extends StateBackendTestV2Base<ForStStateBackend> 
         if (hasRemoteDir) {
             config.set(REMOTE_DIRECTORY, tempFolderForForstRemote.toString());
         }
+        config.set(USE_INGEST_DB_RESTORE_MODE, useIngestDbRestoreMode);
+        config.set(USE_DELETE_FILES_IN_RANGE_DURING_RESCALING, useDeleteFileInRange);
         return backend.configure(config, Thread.currentThread().getContextClassLoader());
     }
 }

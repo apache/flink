@@ -20,15 +20,19 @@ package org.apache.flink.table.planner.catalog;
 
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.planner.plan.schema.ExpandingPreparingTable;
+import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 
 import org.apache.calcite.plan.RelOptSchema;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelRecordType;
 
 import javax.annotation.Nullable;
 
+import java.util.AbstractList;
 import java.util.List;
 
 /**
@@ -56,6 +60,62 @@ public class SqlCatalogViewTable extends ExpandingPreparingTable {
     public RelNode convertToRel(ToRelContext context) {
         RelNode original =
                 context.expandView(rowType, view.getExpandedQuery(), viewPath, names).project();
-        return RelOptUtil.createCastRel(original, rowType, true);
+        RelDataType castTargetType =
+                adaptTimeAttributes(
+                        original.getRowType(), rowType, context.getCluster().getTypeFactory());
+        return RelOptUtil.createCastRel(original, castTargetType, true);
+    }
+
+    private static RelDataType adaptTimeAttributes(
+            RelDataType queryType, RelDataType targetType, RelDataTypeFactory typeFactory) {
+        if (queryType instanceof RelRecordType) {
+            if (RelOptUtil.areRowTypesEqual(queryType, targetType, true)) {
+                return targetType;
+            } else if (targetType.getFieldCount() != queryType.getFieldCount()) {
+                throw new IllegalArgumentException(
+                        "Field counts are not equal: queryType ["
+                                + queryType
+                                + "]"
+                                + " castRowType ["
+                                + targetType
+                                + "]");
+            } else {
+                return adaptTimeAttributeInRecord(
+                        (RelRecordType) queryType, (RelRecordType) targetType, typeFactory);
+            }
+        } else {
+            return adaptTimeAttributeInSimpleType(queryType, targetType, typeFactory);
+        }
+    }
+
+    private static RelDataType adaptTimeAttributeInRecord(
+            RelRecordType queryType, RelRecordType targetType, RelDataTypeFactory typeFactory) {
+        RelDataType structType =
+                typeFactory.createStructType(
+                        targetType.getStructKind(),
+                        new AbstractList<>() {
+                            public RelDataType get(int index) {
+                                RelDataType targetFieldType =
+                                        (targetType.getFieldList().get(index)).getType();
+                                RelDataType queryFieldType =
+                                        (queryType.getFieldList().get(index)).getType();
+                                return adaptTimeAttributes(
+                                        queryFieldType, targetFieldType, typeFactory);
+                            }
+
+                            public int size() {
+                                return targetType.getFieldCount();
+                            }
+                        },
+                        targetType.getFieldNames());
+        return typeFactory.createTypeWithNullability(structType, targetType.isNullable());
+    }
+
+    private static RelDataType adaptTimeAttributeInSimpleType(
+            RelDataType queryType, RelDataType targetType, RelDataTypeFactory typeFactory) {
+        if (queryType instanceof TimeIndicatorRelDataType) {
+            return typeFactory.createTypeWithNullability(queryType, targetType.isNullable());
+        }
+        return targetType;
     }
 }

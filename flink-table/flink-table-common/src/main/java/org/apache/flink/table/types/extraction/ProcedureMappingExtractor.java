@@ -22,9 +22,12 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.procedures.Procedure;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.extraction.ExtractionUtils.Autoboxing;
+import org.apache.flink.table.types.extraction.FunctionResultTemplate.FunctionOutputTemplate;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -49,11 +52,72 @@ final class ProcedureMappingExtractor extends BaseMappingExtractor {
             Class<? extends Procedure> procedure,
             String methodName,
             SignatureExtraction signatureExtraction,
-            ResultExtraction outputExtraction,
+            ResultExtraction resultExtraction,
             MethodVerification verification) {
-        super(typeFactory, methodName, signatureExtraction, outputExtraction, verification);
+        super(typeFactory, methodName, signatureExtraction, resultExtraction, verification);
         this.procedure = procedure;
     }
+
+    // --------------------------------------------------------------------------------------------
+    // Extraction strategy
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Extraction that uses the method return type for producing a {@link FunctionOutputTemplate}.
+     */
+    static ResultExtraction createOutputFromArrayReturnTypeInMethod() {
+        return (extractor, method) -> {
+            final DataType dataType =
+                    DataTypeExtractor.extractFromMethodReturnType(
+                            extractor.typeFactory,
+                            extractor.getFunctionClass(),
+                            method,
+                            method.getReturnType().getComponentType());
+            return FunctionResultTemplate.ofOutput(dataType);
+        };
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Verification strategy
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Verification that checks a method by parameters (arguments only) with mandatory context and
+     * array return type.
+     */
+    static MethodVerification createParameterWithOptionalContextAndArrayReturnTypeVerification() {
+        return (method, state, arguments, result) -> {
+            checkNoState(state);
+            checkScalarArgumentsOnly(arguments);
+            final Class<?>[] parameters = assembleParameters(null, arguments);
+            // ignore the ProcedureContext in the first argument
+            final Class<?>[] parametersWithContext =
+                    Stream.concat(Stream.of((Class<?>) null), Arrays.stream(parameters))
+                            .toArray(Class<?>[]::new);
+            assert result != null;
+            final Class<?> resultClass = result.toClass();
+            final Class<?> returnType = method.getReturnType();
+            // Parameters should be validated using strict autoboxing.
+            // For return types, we can be more flexible as the procedure should know what it
+            // declared.
+            final boolean isValid =
+                    isInvokable(Autoboxing.STRICT, method, parametersWithContext)
+                            && returnType.isArray()
+                            && isAssignable(
+                                    resultClass, returnType.getComponentType(), Autoboxing.JVM);
+            if (!isValid) {
+                throw createMethodNotFoundError(
+                        method.getName(),
+                        parametersWithContext,
+                        Array.newInstance(resultClass, 0).getClass(),
+                        "(<context> [, <argument>]*)");
+            }
+        };
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Methods from super class
+    // --------------------------------------------------------------------------------------------
 
     @Override
     protected Set<FunctionTemplate> extractGlobalFunctionTemplates() {
@@ -78,38 +142,5 @@ final class ProcedureMappingExtractor extends BaseMappingExtractor {
     @Override
     protected String getHintType() {
         return "Procedure";
-    }
-
-    /**
-     * Extraction that uses the method return type for producing a {@link FunctionResultTemplate}.
-     */
-    static ResultExtraction createReturnTypeResultExtraction() {
-        return (extractor, method) -> {
-            final DataType dataType =
-                    DataTypeExtractor.extractFromMethodOutput(
-                            extractor.typeFactory,
-                            extractor.getFunctionClass(),
-                            method,
-                            method.getReturnType().getComponentType());
-            return FunctionResultTemplate.of(dataType);
-        };
-    }
-
-    static MethodVerification createParameterAndReturnTypeVerification() {
-        return ((method, signature, result) -> {
-            // ignore the ProcedureContext in the first argument
-            final Class<?>[] parameters =
-                    Stream.concat(Stream.of((Class<?>) null), signature.stream())
-                            .toArray(Class<?>[]::new);
-            final Class<?> returnType = method.getReturnType();
-            final boolean isValid =
-                    isInvokable(method, parameters)
-                            && returnType.isArray()
-                            && isAssignable(result, returnType.getComponentType(), true);
-            if (!isValid) {
-                throw createMethodNotFoundError(
-                        method.getName(), parameters, Array.newInstance(result, 0).getClass());
-            }
-        });
     }
 }

@@ -19,6 +19,9 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.forwardgroup.StreamNodeForwardGroup;
 import org.apache.flink.streaming.api.graph.util.ImmutableStreamGraph;
 import org.apache.flink.streaming.api.graph.util.StreamEdgeUpdateRequestInfo;
@@ -36,6 +39,7 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -69,16 +73,41 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
     // as they reuse some attributes.
     private final Map<Integer, Map<StreamEdge, NonChainedOutput>> opIntermediateOutputsCaches;
 
+    private final Map<String, IntermediateDataSet> consumerEdgeIdToIntermediateDataSetMap;
+
+    @Nullable private final StreamGraphUpdateListener streamGraphUpdateListener;
+
+    @VisibleForTesting
     public DefaultStreamGraphContext(
             StreamGraph streamGraph,
             Map<Integer, StreamNodeForwardGroup> steamNodeIdToForwardGroupMap,
             Map<Integer, Integer> frozenNodeToStartNodeMap,
-            Map<Integer, Map<StreamEdge, NonChainedOutput>> opIntermediateOutputsCaches) {
+            Map<Integer, Map<StreamEdge, NonChainedOutput>> opIntermediateOutputsCaches,
+            Map<String, IntermediateDataSet> consumerEdgeIdToIntermediateDataSetMap) {
+        this(
+                streamGraph,
+                steamNodeIdToForwardGroupMap,
+                frozenNodeToStartNodeMap,
+                opIntermediateOutputsCaches,
+                consumerEdgeIdToIntermediateDataSetMap,
+                null);
+    }
+
+    public DefaultStreamGraphContext(
+            StreamGraph streamGraph,
+            Map<Integer, StreamNodeForwardGroup> steamNodeIdToForwardGroupMap,
+            Map<Integer, Integer> frozenNodeToStartNodeMap,
+            Map<Integer, Map<StreamEdge, NonChainedOutput>> opIntermediateOutputsCaches,
+            Map<String, IntermediateDataSet> consumerEdgeIdToIntermediateDataSetMap,
+            @Nullable StreamGraphUpdateListener streamGraphUpdateListener) {
         this.streamGraph = checkNotNull(streamGraph);
         this.steamNodeIdToForwardGroupMap = checkNotNull(steamNodeIdToForwardGroupMap);
         this.frozenNodeToStartNodeMap = checkNotNull(frozenNodeToStartNodeMap);
         this.opIntermediateOutputsCaches = checkNotNull(opIntermediateOutputsCaches);
         this.immutableStreamGraph = new ImmutableStreamGraph(this.streamGraph);
+        this.consumerEdgeIdToIntermediateDataSetMap =
+                checkNotNull(consumerEdgeIdToIntermediateDataSetMap);
+        this.streamGraphUpdateListener = streamGraphUpdateListener;
     }
 
     @Override
@@ -111,6 +140,11 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
             if (newPartitioner != null) {
                 modifyOutputPartitioner(targetEdge, newPartitioner);
             }
+        }
+
+        // Notify the listener that the StreamGraph has been updated.
+        if (streamGraphUpdateListener != null) {
+            streamGraphUpdateListener.onStreamGraphUpdated();
         }
 
         return true;
@@ -188,9 +222,9 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
             tryConvertForwardPartitionerAndMergeForwardGroup(targetEdge);
         }
 
-        // The partitioner in NonChainedOutput derived from the consumer edge, so we need to ensure
-        // that any modifications to the partitioner of consumer edge are synchronized with
-        // NonChainedOutput.
+        // The partitioner in NonChainedOutput and IntermediateDataSet derived from the consumer
+        // edge, so we need to ensure that any modifications to the partitioner of consumer edge are
+        // synchronized with NonChainedOutput and IntermediateDataSet.
         Map<StreamEdge, NonChainedOutput> opIntermediateOutputs =
                 opIntermediateOutputsCaches.get(targetEdge.getSourceId());
         NonChainedOutput output =
@@ -198,6 +232,23 @@ public class DefaultStreamGraphContext implements StreamGraphContext {
         if (output != null) {
             output.setPartitioner(targetEdge.getPartitioner());
         }
+
+        Optional.ofNullable(consumerEdgeIdToIntermediateDataSetMap.get(targetEdge.getEdgeId()))
+                .ifPresent(
+                        dataSet -> {
+                            DistributionPattern distributionPattern =
+                                    targetEdge.getPartitioner().isPointwise()
+                                            ? DistributionPattern.POINTWISE
+                                            : DistributionPattern.ALL_TO_ALL;
+                            dataSet.updateOutputPattern(
+                                    distributionPattern,
+                                    targetEdge.getPartitioner().isBroadcast(),
+                                    targetEdge
+                                            .getPartitioner()
+                                            .getClass()
+                                            .equals(ForwardPartitioner.class));
+                        });
+
         LOG.info(
                 "The original partitioner of the edge {} is: {} , requested change to: {} , and finally modified to: {}.",
                 targetEdge,

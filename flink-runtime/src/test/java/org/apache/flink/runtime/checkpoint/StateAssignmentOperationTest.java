@@ -85,6 +85,7 @@ import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.
 import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.FULL;
 import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.RANGE;
 import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.ROUND_ROBIN;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -1217,8 +1218,11 @@ class StateAssignmentOperationTest {
             SubtaskStateMapper upstreamRescaler,
             SubtaskStateMapper downstreamRescaler) {
         final JobEdge jobEdge =
-                downstream.connectNewDataSetAsInput(
-                        upstream, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+                connectNewDataSetAsInput(
+                        downstream,
+                        upstream,
+                        DistributionPattern.ALL_TO_ALL,
+                        ResultPartitionType.PIPELINED);
         jobEdge.setDownstreamSubtaskStateMapper(downstreamRescaler);
         jobEdge.setUpstreamSubtaskStateMapper(upstreamRescaler);
     }

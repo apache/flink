@@ -115,7 +115,7 @@ object FlinkBatchRuleSets {
         new CoerceInputsRule(classOf[LogicalMinus], false),
         ConvertToNotInOrInRule.INSTANCE,
         // optimize limit 0
-        FlinkLimit0RemoveRule.INSTANCE,
+        PruneEmptyRules.SORT_FETCH_ZERO_INSTANCE,
         // fix: FLINK-28986 nested filter pattern causes unnest rule mismatch
         CoreRules.FILTER_MERGE,
         // unnest rule
@@ -179,7 +179,7 @@ object FlinkBatchRuleSets {
     PruneEmptyRules.AGGREGATE_INSTANCE,
     PruneEmptyRules.FILTER_INSTANCE,
     PruneEmptyRules.JOIN_LEFT_INSTANCE,
-    FlinkPruneEmptyRules.JOIN_RIGHT_INSTANCE,
+    PruneEmptyRules.JOIN_RIGHT_INSTANCE,
     PruneEmptyRules.PROJECT_INSTANCE,
     PruneEmptyRules.SORT_INSTANCE,
     PruneEmptyRules.UNION_INSTANCE

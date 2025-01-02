@@ -36,6 +36,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
@@ -152,16 +153,16 @@ class DefaultExecutionGraphRescalingTest {
             jobVertex.setMaxParallelism(maxParallelism);
         }
 
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-        v4.connectNewDataSetAsInput(
-                v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-        v4.connectNewDataSetAsInput(
-                v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-        v5.connectNewDataSetAsInput(
-                v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
-        v5.connectNewDataSetAsInput(
-                v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v2, v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v4, v2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v4, v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v5, v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                v5, v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
         return jobVertices;
     }

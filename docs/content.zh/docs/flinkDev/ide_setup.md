@@ -87,7 +87,7 @@ IntelliJ 提供了插件设置来安装 Scala 插件。如果尚未安装，请�
                                                                                                                                                                                                                                               
 你可以通过以下步骤来将 IDE 配置为在保存时自动应用格式设置：
 
-1. 下载 [google-java-format plugin v1.7.0.6](https://plugins.jetbrains.com/plugin/8527-google-java-format/versions/stable/115957)
+1. 下载 [google-java-format v1.24.0.0](https://plugins.jetbrains.com/plugin/8527-google-java-format/versions/stable/614263)
 2. 打开 Settings → Plugins，点击齿轮图标并选择 "Install Plugin from Disk"。导航到下载的 zip 文件并选择它。
 3. 在插件设置中，启用插件并将代码样式更改为 "AOSP"（4 个空格的缩进）。
 4. 请记住不要将此插件更新为更高版本！

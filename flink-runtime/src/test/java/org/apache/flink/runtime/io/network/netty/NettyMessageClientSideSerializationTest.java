@@ -189,6 +189,7 @@ class NettyMessageClientSideSerializationTest {
                         random.nextInt(Integer.MAX_VALUE),
                         inputChannelId,
                         random.nextInt(Integer.MAX_VALUE),
+                        0,
                         random.nextInt(Integer.MAX_VALUE));
         BufferResponse actual = encodeAndDecode(expected, channel);
 

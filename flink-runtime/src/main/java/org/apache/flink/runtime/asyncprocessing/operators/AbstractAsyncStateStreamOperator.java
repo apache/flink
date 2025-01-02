@@ -56,6 +56,9 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -74,6 +77,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
 
     private AsyncExecutionController asyncExecutionController;
 
+    /** Act as a cache for {@link #setAsyncKeyedContextElement} and {@link #postProcessElement}. */
     private RecordContext currentProcessingContext;
 
     private Environment environment;
@@ -172,20 +176,18 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     @Override
     @SuppressWarnings("unchecked")
     public <K> void asyncProcessWithKey(K key, ThrowingRunnable<Exception> processing) {
-        RecordContext<K> previousContext = currentProcessingContext;
-
+        RecordContext<K> oldContext = asyncExecutionController.getCurrentContext();
         // build a context and switch to the new context
-        currentProcessingContext = asyncExecutionController.buildContext(null, key);
-        currentProcessingContext.retain();
-        asyncExecutionController.setCurrentContext(currentProcessingContext);
+        RecordContext<K> newContext = asyncExecutionController.buildContext(null, key, true);
+        newContext.retain();
+        asyncExecutionController.setCurrentContext(newContext);
         // Same logic as RECORD_ORDER, since FIRST_STATE_ORDER is problematic when the call's key
         // pass the same key in.
         preserveRecordOrderAndProcess(processing);
-        postProcessElement();
+        newContext.release();
 
         // switch to original context
-        asyncExecutionController.setCurrentContext(previousContext);
-        currentProcessingContext = previousContext;
+        asyncExecutionController.setCurrentContext(oldContext);
     }
 
     @Override
@@ -302,7 +304,13 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
 
     @Override
     public Object getCurrentKey() {
-        return currentProcessingContext.getKey();
+        RecordContext currentContext = asyncExecutionController.getCurrentContext();
+        if (currentContext == null) {
+            throw new UnsupportedOperationException(
+                    "Have not set the current key yet, this may because the operator has not "
+                            + "started to run, or you are invoking this under a non-keyed context.");
+        }
+        return currentContext.getKey();
     }
 
     // ------------------------------------------------------------------------
@@ -316,21 +324,73 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
             super.reportOrForwardLatencyMarker(marker);
             return;
         }
-        asyncExecutionController.processNonRecord(() -> super.reportOrForwardLatencyMarker(marker));
+        asyncExecutionController.processNonRecord(
+                null, () -> super.reportOrForwardLatencyMarker(marker));
     }
 
     // ------------------------------------------------------------------------
     //  Watermark handling
     // ------------------------------------------------------------------------
 
+    /**
+     * A hook that will be triggered when receiving a watermark. Some async state can safely go
+     * within this method. Return the watermark that should be normally processed.
+     *
+     * @param watermark the receiving watermark.
+     * @return the watermark that should be processed. Null if there is no need for following
+     *     processing.
+     */
+    public Watermark preProcessWatermark(Watermark watermark) throws Exception {
+        return watermark;
+    }
+
+    /**
+     * A hook that will be invoked after finishing advancing the watermark. It is not recommended to
+     * perform async state here. Only some synchronous logic is suggested.
+     *
+     * @param watermark the advanced watermark.
+     */
+    public void postProcessWatermark(Watermark watermark) throws Exception {}
+
+    /**
+     * Process a watermark when receiving it. Do not override this method since the async processing
+     * is difficult to write. Please override the hooks, see {@link #preProcessWatermark(Watermark)}
+     * and {@link #postProcessWatermark(Watermark)}. The basic logic of processWatermark with hooks
+     * in sync form would be:
+     *
+     * <pre>
+     *             Watermark watermark = preProcessWatermark(mark);
+     *             if (watermark != null) {
+     *                 super.processWatermark(watermark);
+     *                 postProcessWatermark(watermark);
+     *             }
+     * </pre>
+     */
     @Override
-    public void processWatermark(Watermark mark) throws Exception {
+    public final void processWatermark(Watermark mark) throws Exception {
         if (!isAsyncStateProcessingEnabled()) {
             // If async state processing is disabled, fallback to the super class.
-            super.processWatermark(mark);
+            Watermark watermark = preProcessWatermark(mark);
+            if (watermark != null) {
+                super.processWatermark(watermark);
+                postProcessWatermark(watermark);
+            }
             return;
         }
-        asyncExecutionController.processNonRecord(() -> super.processWatermark(mark));
+        AtomicReference<Watermark> watermarkRef = new AtomicReference<>(null);
+        asyncExecutionController.processNonRecord(
+                () -> {
+                    watermarkRef.set(preProcessWatermark(mark));
+                    if (timeServiceManager != null && watermarkRef.get() != null) {
+                        timeServiceManager.advanceWatermark(watermarkRef.get());
+                    }
+                },
+                () -> {
+                    if (watermarkRef.get() != null) {
+                        output.emitWatermark(watermarkRef.get());
+                        postProcessWatermark(watermarkRef.get());
+                    }
+                });
     }
 
     @Override
@@ -341,7 +401,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
             return;
         }
         asyncExecutionController.processNonRecord(
-                () -> super.processWatermarkStatus(watermarkStatus));
+                null, () -> super.processWatermarkStatus(watermarkStatus));
     }
 
     @Override
@@ -351,15 +411,27 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
             super.processWatermarkStatus(watermarkStatus, index);
             return;
         }
+        final AtomicBoolean wasIdle = new AtomicBoolean(false);
+        final AtomicReference<Watermark> watermarkRef = new AtomicReference<>(null);
         asyncExecutionController.processNonRecord(
                 () -> {
-                    boolean wasIdle = combinedWatermark.isIdle();
+                    wasIdle.set(combinedWatermark.isIdle());
                     // index is 0-based
                     if (combinedWatermark.updateStatus(index, watermarkStatus.isIdle())) {
-                        super.processWatermark(
-                                new Watermark(combinedWatermark.getCombinedWatermark()));
+                        watermarkRef.set(
+                                preProcessWatermark(
+                                        new Watermark(combinedWatermark.getCombinedWatermark())));
+                        if (timeServiceManager != null && watermarkRef.get() != null) {
+                            timeServiceManager.advanceWatermark(watermarkRef.get());
+                        }
                     }
-                    if (wasIdle != combinedWatermark.isIdle()) {
+                },
+                () -> {
+                    if (watermarkRef.get() != null) {
+                        output.emitWatermark(watermarkRef.get());
+                        postProcessWatermark(watermarkRef.get());
+                    }
+                    if (wasIdle.get() != combinedWatermark.isIdle()) {
                         output.emitWatermarkStatus(watermarkStatus);
                     }
                 });
@@ -373,7 +445,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
             return;
         }
         asyncExecutionController.processNonRecord(
-                () -> super.processRecordAttributes(recordAttributes));
+                null, () -> super.processRecordAttributes(recordAttributes));
     }
 
     @Experimental
@@ -384,7 +456,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
             return;
         }
         asyncExecutionController.processNonRecord(
-                () -> super.processRecordAttributes1(recordAttributes));
+                null, () -> super.processRecordAttributes1(recordAttributes));
     }
 
     @Experimental
@@ -395,7 +467,7 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
             return;
         }
         asyncExecutionController.processNonRecord(
-                () -> super.processRecordAttributes2(recordAttributes));
+                null, () -> super.processRecordAttributes2(recordAttributes));
     }
 
     @VisibleForTesting
@@ -406,6 +478,10 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     @VisibleForTesting
     RecordContext getCurrentProcessingContext() {
         return currentProcessingContext;
+    }
+
+    public <K> AsyncKeyedStateBackend<K> getAsyncKeyedStateBackend() {
+        return stateHandler.getAsyncKeyedStateBackend();
     }
 
     public void drainStateRequests() {
