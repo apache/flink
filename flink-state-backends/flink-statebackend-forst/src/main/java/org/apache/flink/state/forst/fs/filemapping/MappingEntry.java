@@ -62,17 +62,12 @@ public class MappingEntry extends ReferenceCounted {
         this.recursive = recursive;
     }
 
-    public int release() {
-        int res = super.release();
-        if (parentDir != null) {
-            parentDir.release();
-        }
-        return res;
-    }
-
     @Override
     protected void referenceCountReachedZero(@Nullable Object o) {
         try {
+            if (parentDir != null) {
+                parentDir.release();
+            }
             fileSystem.delete(new Path(sourcePath), recursive);
         } catch (Exception e) {
             LOG.warn("Failed to delete file {}.", sourcePath, e);
