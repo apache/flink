@@ -62,9 +62,7 @@ public class AsyncCalcSplitRule {
     public static final RelOptRule NO_ASYNC_JOIN_CONDITIONS =
             new SplitRemoteConditionFromJoinRule(
                     ASYNC_CALL_FINDER,
-                    JavaScalaConversionUtil.toScala(
-                            Optional.of(
-                                    "AsyncScalarFunction not supported for non inner join condition")));
+                    Optional.of("AsyncScalarFunction not supported for non inner join condition"));
 
     /**
      * An Async implementation of {@link RemoteCalcCallFinder} which finds uses of {@link
