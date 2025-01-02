@@ -95,9 +95,6 @@ public class DateTimeUtils {
     /** The number of nanoseconds in a millisecond. */
     private static final long NANOS_PER_MILLISECOND = 1000000L;
 
-    /** The number of nanoseconds in a microsecond. */
-    private static final long NANOS_PER_MICROSECOND = 1000L;
-
     /** The number of milliseconds in a minute. */
     private static final long MILLIS_PER_MINUTE = 60000L;
 
@@ -1268,9 +1265,9 @@ public class DateTimeUtils {
             case NANOSECOND:
                 return ts;
             case MICROSECOND:
-                return ceil(utcTs, ns, NANOS_PER_MICROSECOND) - offset;
+                return ts;
             case MILLISECOND:
-                return ceil(utcTs, ns, NANOS_PER_MILLISECOND) - offset;
+                return ceil(utcTs, ns) - offset;
             case SECOND:
                 return ceil(utcTs, MILLIS_PER_SECOND) - offset;
             case MINUTE:
@@ -1322,20 +1319,12 @@ public class DateTimeUtils {
         }
     }
 
-    private static long ceil(long a, int b, long c) {
-        float q = (float) b / c;
-        if (c == NANOS_PER_MILLISECOND) {
-            if (q > 0) {
-                return a + 1L;
-            } else {
-                return a;
-            }
+    private static long ceil(long a, int b) {
+        float q = (float) b / NANOS_PER_MILLISECOND;
+        if (q > 0) {
+            return a + 1L;
         } else {
-            if (q * 10 + 1L >= 10000L) {
-                return a + 1L;
-            } else {
-                return a;
-            }
+            return a;
         }
     }
 
