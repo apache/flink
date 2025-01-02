@@ -1219,6 +1219,12 @@ public class DateTimeUtils {
         long utcTs = ts + offset;
 
         switch (range) {
+            case MILLISECOND:
+                return floor(utcTs, 1L) - offset;
+            case SECOND:
+                return floor(utcTs, MILLIS_PER_SECOND) - offset;
+            case MINUTE:
+                return floor(utcTs, MILLIS_PER_MINUTE) - offset;
             case HOUR:
                 return floor(utcTs, MILLIS_PER_HOUR) - offset;
             case DAY:
@@ -1249,6 +1255,12 @@ public class DateTimeUtils {
         long utcTs = ts + offset;
 
         switch (range) {
+            case MILLISECOND:
+                return ceil(utcTs, 1L) - offset;
+            case SECOND:
+                return ceil(utcTs, MILLIS_PER_SECOND) - offset;
+            case MINUTE:
+                return ceil(utcTs, MILLIS_PER_MINUTE) - offset;
             case HOUR:
                 return ceil(utcTs, MILLIS_PER_HOUR) - offset;
             case DAY:
