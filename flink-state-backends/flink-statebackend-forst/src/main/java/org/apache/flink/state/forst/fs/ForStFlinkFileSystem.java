@@ -143,13 +143,12 @@ public class ForStFlinkFileSystem extends FileSystem {
     @Override
     public ByteBufferWritableFSDataOutputStream create(Path path, WriteMode overwriteMode)
             throws IOException {
-        FileMappingManager.RealPath realPath = fileMappingManager.realPath(path, true);
+        FileMappingManager.RealPath realPath = fileMappingManager.createFile(path);
         if (realPath.isLocal) {
             return new ByteBufferWritableFSDataOutputStream(
                     localFS.create(realPath.path, overwriteMode));
         }
 
-        fileMappingManager.createFile(path.toString());
         FSDataOutputStream originalOutputStream = delegateFS.create(path, overwriteMode);
         CachedDataOutputStream cachedDataOutputStream =
                 fileBasedCache == null ? null : fileBasedCache.create(originalOutputStream, path);
@@ -159,7 +158,7 @@ public class ForStFlinkFileSystem extends FileSystem {
 
     @Override
     public ByteBufferReadableFSDataInputStream open(Path path, int bufferSize) throws IOException {
-        FileMappingManager.RealPath realPath = fileMappingManager.realPath(path, false);
+        FileMappingManager.RealPath realPath = fileMappingManager.realPath(path);
         if (realPath.isLocal) {
             return new ByteBufferReadableFSDataInputStream(
                     () -> localFS.open(realPath.path, bufferSize),
@@ -182,7 +181,7 @@ public class ForStFlinkFileSystem extends FileSystem {
 
     @Override
     public ByteBufferReadableFSDataInputStream open(Path path) throws IOException {
-        FileMappingManager.RealPath realPath = fileMappingManager.realPath(path, false);
+        FileMappingManager.RealPath realPath = fileMappingManager.realPath(path);
         if (realPath.isLocal) {
             return new ByteBufferReadableFSDataInputStream(
                     () -> localFS.open(realPath.path),
@@ -205,9 +204,6 @@ public class ForStFlinkFileSystem extends FileSystem {
 
     @Override
     public boolean rename(Path src, Path dst) throws IOException {
-        // The rename is not atomic for ForSt. Some FileSystems e.g. HDFS, OSS does not allow a
-        // renaming if the target already exists. So, we delete the target before attempting the
-        // rename.
         return fileMappingManager.renameFile(src.toString(), dst.toString());
     }
 
@@ -228,7 +224,7 @@ public class ForStFlinkFileSystem extends FileSystem {
 
     @Override
     public boolean exists(final Path f) throws IOException {
-        FileMappingManager.RealPath realPath = fileMappingManager.realPath(f, false);
+        FileMappingManager.RealPath realPath = fileMappingManager.realPath(f);
         boolean ex = false;
         if (realPath.isLocal) {
             ex |= localFS.exists(realPath.path);
@@ -243,7 +239,7 @@ public class ForStFlinkFileSystem extends FileSystem {
 
     @Override
     public FileStatus getFileStatus(Path path) throws IOException {
-        FileMappingManager.RealPath realPath = fileMappingManager.realPath(path, false);
+        FileMappingManager.RealPath realPath = fileMappingManager.realPath(path);
         if (realPath.isLocal) {
             return localFS.getFileStatus(realPath.path);
         }
@@ -254,7 +250,7 @@ public class ForStFlinkFileSystem extends FileSystem {
     public BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len)
             throws IOException {
         Path path = file.getPath();
-        FileMappingManager.RealPath realPath = fileMappingManager.realPath(path, false);
+        FileMappingManager.RealPath realPath = fileMappingManager.realPath(path);
         if (realPath.isLocal) {
             FileStatus localFile = localFS.getFileStatus(realPath.path);
             return localFS.getFileBlockLocations(localFile, start, len);
@@ -282,8 +278,7 @@ public class ForStFlinkFileSystem extends FileSystem {
 
     @Override
     public boolean delete(Path path, boolean recursive) throws IOException {
-        boolean success = true;
-        fileMappingManager.deleteFile(path);
+        boolean success = fileMappingManager.deleteFile(path, recursive);
         if (fileBasedCache != null) {
             // only new generated file will put into cache, no need to consider file mapping
             fileBasedCache.delete(path);
