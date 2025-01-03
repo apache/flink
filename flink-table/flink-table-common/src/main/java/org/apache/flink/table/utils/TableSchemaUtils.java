@@ -19,6 +19,7 @@
 package org.apache.flink.table.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.legacy.api.TableColumn;
@@ -50,6 +51,26 @@ public class TableSchemaUtils {
      */
     public static TableSchema getPhysicalSchema(TableSchema tableSchema) {
         return getTableSchema(tableSchema, TableColumn::isPhysical);
+    }
+
+    public static Schema getPhysicalSchema(ResolvedSchema resolvedSchema) {
+        Preconditions.checkNotNull(resolvedSchema);
+        Schema.Builder builder = Schema.newBuilder();
+        resolvedSchema
+                .getColumns()
+                .forEach(
+                        c -> {
+                            if (c.isPhysical()) {
+                                builder.column(c.getName(), c.getDataType());
+                            }
+                        });
+        resolvedSchema
+                .getPrimaryKey()
+                .ifPresent(
+                        uniqueConstraint ->
+                                builder.primaryKeyNamed(
+                                        uniqueConstraint.getName(), uniqueConstraint.getColumns()));
+        return builder.build();
     }
 
     /**
@@ -107,7 +128,7 @@ public class TableSchemaUtils {
      * Returns the field indices of primary key in the physical columns of this schema (not include
      * computed columns or metadata columns).
      */
-    public static int[] getPrimaryKeyIndices(TableSchema schema) {
+    public static int[] getPrimaryKeyIndices(ResolvedSchema schema) {
         if (schema.getPrimaryKey().isPresent()) {
             List<String> fieldNames = DataTypeUtils.flattenToNames(schema.toPhysicalRowDataType());
             return schema.getPrimaryKey().get().getColumns().stream()
