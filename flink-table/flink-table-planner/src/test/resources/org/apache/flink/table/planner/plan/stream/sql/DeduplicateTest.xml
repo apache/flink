@@ -128,7 +128,7 @@ Calc(select=[b, EXPR$1, w$start AS EXPR$2])
 +- GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, ts, 4)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[b, SUM(a) AS EXPR$1, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[b, ts, a])
-         +- Deduplicate(keep=[LastRow], key=[a], order=[ROWTIME])
+         +- Deduplicate(keep=[LastRow], key=[a], order=[ROWTIME], outputInsertOnly=[false])
             +- Exchange(distribution=[hash[a]])
                +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
                   +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [CollectionTableSource(a, b, ts)]]], fields=[a, b, ts])
@@ -166,7 +166,7 @@ GlobalGroupAggregate(select=[COUNT_RETRACT(count$0) AS EXPR$0])
 +- Exchange(distribution=[single])
    +- LocalGroupAggregate(select=[COUNT_RETRACT(b) AS count$0, COUNT_RETRACT(*) AS count1$1])
       +- Calc(select=[b])
-         +- Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME])
+         +- Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME], outputInsertOnly=[false])
             +- Exchange(distribution=[hash[a]])
                +- Calc(select=[a, b, rowtime])
                   +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
@@ -207,7 +207,7 @@ GlobalGroupAggregate(select=[COUNT_RETRACT(count$0) AS EXPR$0])
 +- Exchange(distribution=[single])
    +- LocalGroupAggregate(select=[COUNT_RETRACT(b) AS count$0, COUNT_RETRACT(*) AS count1$1])
       +- Calc(select=[b])
-         +- Deduplicate(keep=[LastRow], key=[a], order=[ROWTIME])
+         +- Deduplicate(keep=[LastRow], key=[a], order=[ROWTIME], outputInsertOnly=[false])
             +- Exchange(distribution=[hash[a]])
                +- Calc(select=[a, b, rowtime])
                   +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
@@ -240,7 +240,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rowNum=[$5])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, 1 AS $5])
-+- Deduplicate(keep=[FirstRow], key=[a], order=[PROCTIME])
++- Deduplicate(keep=[FirstRow], key=[a], order=[PROCTIME], outputInsertOnly=[true])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, proctime, rowtime, PROCTIME() AS $5])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -270,7 +270,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rowNum=[$5])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, 1 AS $5])
-+- Deduplicate(keep=[LastRow], key=[], order=[PROCTIME])
++- Deduplicate(keep=[LastRow], key=[], order=[PROCTIME], outputInsertOnly=[false])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, b, c, proctime, rowtime, PROCTIME() AS $5])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -278,117 +278,143 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, 1 AS 
     </Resource>
   </TestCase>
   <TestCase name="testSimpleFirstRowOnProctime">
-    <Resource name="sql">
-      <![CDATA[
-SELECT a, b, c
-FROM (
-  SELECT *,
-      ROW_NUMBER() OVER (PARTITION BY a ORDER BY proctime ASC) as rank_num
-  FROM MyTable)
-WHERE rank_num = 1
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalFilter(condition=[=($5, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+	  <Resource name="explain">
+		  <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(EXPR$0=[$1], b=[$0], EXPR$2=[$2])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)], EXPR$2=[SUM($2)])
+   +- LogicalProject(b=[$1], a=[$0], c=[$2])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2])
+         +- LogicalFilter(condition=[=($5, 1)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Calc(select=[EXPR$0, b, EXPR$2], changelogMode=[I,UA])
++- GroupAggregate(groupBy=[b], select=[b, SUM(a) AS EXPR$0, SUM(c) AS EXPR$2], changelogMode=[I,UA])
+   +- Exchange(distribution=[hash[b]], changelogMode=[I])
+      +- Calc(select=[b, a, c], changelogMode=[I])
+         +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[proctime ASC], select=[a, b, c, proctime], changelogMode=[I])
+            +- Exchange(distribution=[hash[a]], changelogMode=[I])
+               +- Calc(select=[a, b, c, proctime], changelogMode=[I])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
+
+== Optimized Execution Plan ==
+Calc(select=[EXPR$0, b, EXPR$2])
++- GroupAggregate(groupBy=[b], select=[b, SUM(a) AS EXPR$0, SUM(c) AS EXPR$2])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[b, a, c])
+         +- Deduplicate(keep=[FirstRow], key=[a], order=[PROCTIME], outputInsertOnly=[true])
+            +- Exchange(distribution=[hash[a]])
+               +- Calc(select=[a, b, c, proctime])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, b, c])
-+- Deduplicate(keep=[FirstRow], key=[a], order=[PROCTIME])
-   +- Exchange(distribution=[hash[a]])
-      +- Calc(select=[a, b, c, proctime])
-         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
-]]>
-    </Resource>
+	  </Resource>
   </TestCase>
   <TestCase name="testSimpleLastRowOnRowtime">
     <Resource name="sql">
       <![CDATA[
-SELECT a, b, c
-FROM (
-  SELECT *,
-      ROW_NUMBER() OVER (PARTITION BY a ORDER BY rowtime DESC) as rank_num
-  FROM MyTable)
-WHERE rank_num = 1
+SELECT sum(a), b, sum(c) FROM (
+  SELECT a, b, c
+  FROM (
+    SELECT *,
+        ROW_NUMBER() OVER (PARTITION BY a ORDER BY rowtime DESC) as rank_num
+    FROM MyTable)
+  WHERE rank_num = 1)
+GROUP BY b
       ]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalFilter(condition=[=($5, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $4 DESC NULLS LAST)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+LogicalProject(EXPR$0=[$1], b=[$0], EXPR$2=[$2])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)], EXPR$2=[SUM($2)])
+   +- LogicalProject(b=[$1], a=[$0], c=[$2])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2])
+         +- LogicalFilter(condition=[=($5, 1)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $4 DESC NULLS LAST)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c])
-+- Deduplicate(keep=[LastRow], key=[a], order=[ROWTIME])
-   +- Exchange(distribution=[hash[a]])
-      +- Calc(select=[a, b, c, rowtime])
-         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+Calc(select=[EXPR$0, b, EXPR$2])
++- GroupAggregate(groupBy=[b], select=[b, SUM_RETRACT(a) AS EXPR$0, SUM_RETRACT(c) AS EXPR$2])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[b, a, c])
+         +- Deduplicate(keep=[LastRow], key=[a], order=[ROWTIME], outputInsertOnly=[false])
+            +- Exchange(distribution=[hash[a]])
+               +- Calc(select=[a, b, c, rowtime])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testSimpleFirstRowOnRowtime">
-    <Resource name="sql">
-      <![CDATA[
-SELECT a, b, c
-FROM (
-  SELECT *,
-      ROW_NUMBER() OVER (PARTITION BY a ORDER BY rowtime ASC) as rank_num
-  FROM MyTable)
-WHERE rank_num <= 1
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalFilter(condition=[<=($5, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+	  <Resource name="explain">
+		  <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(EXPR$0=[$1], b=[$0], EXPR$2=[$2])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)], EXPR$2=[SUM($2)])
+   +- LogicalProject(b=[$1], a=[$0], c=[$2])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2])
+         +- LogicalFilter(condition=[<=($5, 1)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Calc(select=[EXPR$0, b, EXPR$2], changelogMode=[I,UA])
++- GroupAggregate(groupBy=[b], select=[b, SUM(a) AS EXPR$0, SUM(c) AS EXPR$2], changelogMode=[I,UA])
+   +- Exchange(distribution=[hash[b]], changelogMode=[I])
+      +- Calc(select=[b, a, c], changelogMode=[I])
+         +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[ROWTIME rowtime ASC], select=[a, b, c, rowtime], changelogMode=[I])
+            +- Exchange(distribution=[hash[a]], changelogMode=[I])
+               +- Calc(select=[a, b, c, rowtime], changelogMode=[I])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
+
+== Optimized Execution Plan ==
+Calc(select=[EXPR$0, b, EXPR$2])
++- GroupAggregate(groupBy=[b], select=[b, SUM(a) AS EXPR$0, SUM(c) AS EXPR$2])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[b, a, c])
+         +- Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME], outputInsertOnly=[true])
+            +- Exchange(distribution=[hash[a]])
+               +- Calc(select=[a, b, c, rowtime])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, b, c])
-+- Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME])
-   +- Exchange(distribution=[hash[a]])
-      +- Calc(select=[a, b, c, rowtime])
-         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
-]]>
-    </Resource>
+	  </Resource>
   </TestCase>
   <TestCase name="testSimpleLastRowOnProctime">
     <Resource name="sql">
       <![CDATA[
-SELECT *
-FROM (
-  SELECT *,
-      ROW_NUMBER() OVER (PARTITION BY a ORDER BY proctime DESC) as rank_num
-  FROM MyTable)
-WHERE rank_num = 1
+SELECT sum(a), b, sum(c) FROM (
+  SELECT a, b, c
+  FROM (
+    SELECT *,
+        ROW_NUMBER() OVER (PARTITION BY a ORDER BY proctime DESC) as rank_num
+    FROM MyTable)
+  WHERE rank_num = 1)
+GROUP BY b
       ]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rank_num=[$5])
-+- LogicalFilter(condition=[=($5, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+LogicalProject(EXPR$0=[$1], b=[$0], EXPR$2=[$2])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)], EXPR$2=[SUM($2)])
+   +- LogicalProject(b=[$1], a=[$0], c=[$2])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2])
+         +- LogicalFilter(condition=[=($5, 1)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, 1 AS rank_num])
-+- Deduplicate(keep=[LastRow], key=[a], order=[PROCTIME])
-   +- Exchange(distribution=[hash[a]])
-      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+Calc(select=[EXPR$0, b, EXPR$2])
++- GroupAggregate(groupBy=[b], select=[b, SUM_RETRACT(a) AS EXPR$0, SUM_RETRACT(c) AS EXPR$2])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[b, a, c])
+         +- Deduplicate(keep=[LastRow], key=[a], order=[PROCTIME], outputInsertOnly=[false])
+            +- Exchange(distribution=[hash[a]])
+               +- Calc(select=[a, b, c, proctime])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
