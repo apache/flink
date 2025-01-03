@@ -27,6 +27,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -34,8 +35,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A serializer for {@link List Lists}. The serializer relies on an element serializer for the
  * serialization of the list's elements.
  *
- * <p>The serialization format for the list is as follows: four bytes for the length of the lost,
- * followed by the serialized representation of each element.
+ * <p>The serialization format for the list is as follows: four bytes for the length of the list, an
+ * optional binary mask for marking null values, followed by the serialized representation of each
+ * element. To allow null values, each value is prefixed by a null marker in the new version, and we
+ * rely on TypeSerializerSnapshot to deal with state-compatibility.
  *
  * @param <T> The type of element in the list.
  */
@@ -47,13 +50,20 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
     /** The serializer for the elements of the list. */
     private final TypeSerializer<T> elementSerializer;
 
+    private final boolean hasNullMarker;
+
     /**
      * Creates a list serializer that uses the given serializer to serialize the list's elements.
      *
      * @param elementSerializer The serializer for the elements of the list
      */
     public ListSerializer(TypeSerializer<T> elementSerializer) {
+        this(elementSerializer, true);
+    }
+
+    public ListSerializer(TypeSerializer<T> elementSerializer, boolean hasNullMarker) {
         this.elementSerializer = checkNotNull(elementSerializer);
+        this.hasNullMarker = hasNullMarker;
     }
 
     // ------------------------------------------------------------------------
@@ -80,10 +90,7 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
 
     @Override
     public TypeSerializer<List<T>> duplicate() {
-        TypeSerializer<T> duplicateElement = elementSerializer.duplicate();
-        return duplicateElement == elementSerializer
-                ? this
-                : new ListSerializer<>(duplicateElement);
+        return new ListSerializer<>(elementSerializer.duplicate(), hasNullMarker);
     }
 
     @Override
@@ -99,7 +106,8 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
         // the given list supports RandomAccess.
         // The Iterator should be stack allocated on new JVMs (due to escape analysis)
         for (T element : from) {
-            newList.add(elementSerializer.copy(element));
+            T newElement = element == null ? null : elementSerializer.copy(element);
+            newList.add(newElement);
         }
         return newList;
     }
@@ -123,7 +131,13 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
         // the given list supports RandomAccess.
         // The Iterator should be stack allocated on new JVMs (due to escape analysis)
         for (T element : list) {
-            elementSerializer.serialize(element, target);
+            boolean isNull = (element == null);
+            if (hasNullMarker) {
+                target.writeBoolean(isNull);
+            }
+            if (!isNull) {
+                elementSerializer.serialize(element, target);
+            }
         }
     }
 
@@ -134,7 +148,15 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
         // element is added
         final List<T> list = new ArrayList<>(size + 1);
         for (int i = 0; i < size; i++) {
-            list.add(elementSerializer.deserialize(source));
+            boolean isNull = false;
+            if (hasNullMarker) {
+                isNull = source.readBoolean();
+            }
+            if (!isNull) {
+                list.add(elementSerializer.deserialize(source));
+            } else {
+                list.add(null);
+            }
         }
         return list;
     }
@@ -150,23 +172,35 @@ public final class ListSerializer<T> extends TypeSerializer<List<T>> {
         final int num = source.readInt();
         target.writeInt(num);
         for (int i = 0; i < num; i++) {
-            elementSerializer.copy(source, target);
+            boolean isNull = false;
+            if (hasNullMarker) {
+                isNull = source.readBoolean();
+                target.writeBoolean(isNull);
+            }
+            if (!isNull) {
+                elementSerializer.copy(source, target);
+            }
         }
     }
 
     // --------------------------------------------------------------------
+
+    public boolean isHasNullMarker() {
+        return hasNullMarker;
+    }
 
     @Override
     public boolean equals(Object obj) {
         return obj == this
                 || (obj != null
                         && obj.getClass() == getClass()
-                        && elementSerializer.equals(((ListSerializer<?>) obj).elementSerializer));
+                        && elementSerializer.equals(((ListSerializer<?>) obj).elementSerializer)
+                        && hasNullMarker == ((ListSerializer<?>) obj).hasNullMarker);
     }
 
     @Override
     public int hashCode() {
-        return elementSerializer.hashCode();
+        return Objects.hash(elementSerializer, hasNullMarker);
     }
 
     // --------------------------------------------------------------------------------------------
