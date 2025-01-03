@@ -291,7 +291,7 @@ Calc(select=[a, b, c])
 
 == Optimized Execution Plan ==
 Calc(select=[a, b, c])
-+- Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME])
++- Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME], outputInsertOnly=[true])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, rowtime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
@@ -341,9 +341,9 @@ Calc(select=[a, b, c])
     } ]
   }, {
     "id" : ,
-    "type" : "Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME])",
+    "type" : "Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME], outputInsertOnly=[true])",
     "pact" : "Operator",
-    "contents" : "Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME])",
+    "contents" : "Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME], outputInsertOnly=[true])",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,
@@ -386,7 +386,7 @@ Calc(select=[a, b, c])
 
 == Optimized Execution Plan ==
 Calc(select=[a, b, c])
-+- Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME])
++- Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME], outputInsertOnly=[true])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c, rowtime])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
@@ -438,7 +438,7 @@ Calc(select=[a, b, c])
     "id" : ,
     "type" : "Deduplicate[]",
     "pact" : "Operator",
-    "contents" : "[]:Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME])",
+    "contents" : "[]:Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME], outputInsertOnly=[true])",
     "parallelism" : 2,
     "predecessors" : [ {
       "id" : ,

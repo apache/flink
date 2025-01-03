@@ -109,11 +109,14 @@ class StreamPhysicalRank(
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
 
-  private def getDeduplicateDescription(isRowtime: Boolean, isLastRow: Boolean): String = {
+  private def getDeduplicateDescription(
+      isRowtime: Boolean,
+      isLastRow: Boolean,
+      insertOnly: Boolean): String = {
     val fieldNames = getRowType.getFieldNames
     val orderString = if (isRowtime) "ROWTIME" else "PROCTIME"
     val keep = if (isLastRow) "LastRow" else "FirstRow"
-    s"Deduplicate(keep=[$keep], key=[${partitionKey.toArray.map(fieldNames.get).mkString(", ")}], order=[$orderString])"
+    s"Deduplicate(keep=[$keep], key=[${partitionKey.toArray.map(fieldNames.get).mkString(", ")}], order=[$orderString], outputInsertOnly=[$insertOnly])"
   }
 
   override def translateToExecNode(): ExecNode[_] = {
@@ -121,16 +124,19 @@ class StreamPhysicalRank(
 
     if (RankUtil.canConvertToDeduplicate(this)) {
       val keepLastRow = RankUtil.keepLastDeduplicateRow(orderKey)
+      val tableConfig = unwrapTableConfig(this)
+      val outputInsertOnly = ChangelogPlanUtils.isInsertOnly(this)
 
       new StreamExecDeduplicate(
-        unwrapTableConfig(this),
+        tableConfig,
         partitionKey.toArray,
         sortOnRowTime,
         keepLastRow,
+        outputInsertOnly,
         generateUpdateBefore,
         InputProperty.DEFAULT,
         FlinkTypeFactory.toLogicalRowType(getRowType),
-        getDeduplicateDescription(sortOnRowTime, keepLastRow))
+        getDeduplicateDescription(sortOnRowTime, keepLastRow, outputInsertOnly))
     } else {
       new StreamExecRank(
         unwrapTableConfig(this),
