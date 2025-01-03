@@ -36,7 +36,9 @@ class ImmutableStreamGraphTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.fromSequence(1L, 3L).map(value -> value).print().setParallelism(env.getParallelism());
         StreamGraph streamGraph = env.getStreamGraph();
-        ImmutableStreamGraph immutableStreamGraph = new ImmutableStreamGraph(streamGraph);
+        ImmutableStreamGraph immutableStreamGraph =
+                new ImmutableStreamGraph(
+                        streamGraph, Thread.currentThread().getContextClassLoader());
 
         for (StreamNode streamNode : streamGraph.getStreamNodes()) {
             isStreamNodeEquals(streamNode, immutableStreamGraph.getStreamNode(streamNode.getId()));

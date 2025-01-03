@@ -358,10 +358,10 @@ class AdaptiveBatchSchedulerITCase {
                                     outEdge.getSourceId(),
                                     outEdge.getTargetId());
                     if (convertToBroadcastEdgeIds.contains(outEdge.getEdgeId())) {
-                        requestInfo.outputPartitioner(new BroadcastPartitioner<>());
+                        requestInfo.withOutputPartitioner(new BroadcastPartitioner<>());
                         requestInfos.add(requestInfo);
                     } else if (convertToRescaleEdgeIds.contains(outEdge.getEdgeId())) {
-                        requestInfo.outputPartitioner(new RescalePartitioner<>());
+                        requestInfo.withOutputPartitioner(new RescalePartitioner<>());
                         requestInfos.add(requestInfo);
                     }
                 }

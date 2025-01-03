@@ -56,6 +56,10 @@ public class StreamGraphOptimizer {
         }
     }
 
+    public void initializeStrategies(StreamGraphContext context) {
+        checkNotNull(optimizationStrategies).forEach(strategy -> strategy.initialize(context));
+    }
+
     /**
      * Applies all loaded optimization strategies to the StreamGraph.
      *

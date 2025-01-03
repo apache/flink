@@ -43,6 +43,14 @@ public interface StreamGraphOptimizationStrategy {
                                     + "implementing the StreamGraphOptimizationStrategy interface.");
 
     /**
+     * Initializes the StreamGraphOptimizationStrategy with the provided {@link StreamGraphContext}.
+     *
+     * @param context the StreamGraphContext with a read-only view of a StreamGraph, providing
+     *     methods to modify StreamEdges and StreamNodes within the StreamGraph.
+     */
+    default void initialize(StreamGraphContext context) {}
+
+    /**
      * Tries to optimize the StreamGraph using the provided {@link OperatorsFinished} and {@link
      * StreamGraphContext}. The method returns a boolean indicating whether the StreamGraph was
      * successfully optimized.
