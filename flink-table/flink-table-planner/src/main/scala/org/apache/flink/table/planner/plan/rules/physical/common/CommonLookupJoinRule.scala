@@ -39,6 +39,7 @@ import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rex.RexProgram
 
 import java.util
+import java.util.Optional
 
 import scala.collection.JavaConversions._
 
@@ -165,7 +166,8 @@ trait CommonLookupJoinRule extends CommonTemporalTableJoinRule {
     val (enableLookupShuffle, preferCustomShuffle) = checkLookupShuffle(lookupHint, temporalTable)
     val enableHashShuffle = enableLookupShuffle && !preferCustomShuffle
     if (enableHashShuffle) {
-      val joinKeyPairs = TemporalJoinUtil.getTemporalTableJoinKeyPairs(joinInfo, calcProgram).toList
+      val joinKeyPairs =
+        TemporalJoinUtil.getTemporalTableJoinKeyPairs(joinInfo, Optional.of(calcProgram.get)).toList
       if (joinKeyPairs.nonEmpty) {
         val leftJoinKeys = joinKeyPairs.map(p => p.source).toArray
         requiredTrait =
