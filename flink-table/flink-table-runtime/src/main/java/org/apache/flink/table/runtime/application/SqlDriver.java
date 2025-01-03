@@ -62,12 +62,12 @@ public class SqlDriver {
 
     public static final Option OPTION_SQL_FILE =
             Option.builder()
-                    .longOpt("scriptPath")
+                    .longOpt("scriptUri")
                     .numberOfArgs(1)
-                    .desc("SQL script file path. It supports to fetch files from the DFS or HTTP.")
+                    .desc("SQL script file URI. It supports to fetch files from the DFS or HTTP.")
                     .build();
 
-    public static final Option OPTION_SQL_STATEMENTS =
+    public static final Option OPTION_SQL_SCRIPT =
             Option.builder().longOpt("script").numberOfArgs(1).desc("Script content.").build();
 
     private static final String RUNNER_CLASS_NAME =
@@ -146,7 +146,7 @@ public class SqlDriver {
     static Options getSqlDriverOptions() {
         Options options = new Options();
         options.addOption(OPTION_SQL_FILE);
-        options.addOption(OPTION_SQL_STATEMENTS);
+        options.addOption(OPTION_SQL_SCRIPT);
         return options;
     }
 
@@ -161,12 +161,12 @@ public class SqlDriver {
             String content = getContent(line.getOptionValue(OPTION_SQL_FILE.getLongOpt()));
             if (content == null) {
                 return Preconditions.checkNotNull(
-                        line.getOptionValue(OPTION_SQL_STATEMENTS.getLongOpt()),
-                        "Please use \"--script\" or \"--scriptPath\" to specify script either.");
+                        line.getOptionValue(OPTION_SQL_SCRIPT.getLongOpt()),
+                        "Please use \"--script\" or \"--scriptUri\" to specify script either.");
             } else {
                 Preconditions.checkArgument(
-                        line.getOptionValue(OPTION_SQL_STATEMENTS.getLongOpt()) == null,
-                        "Don't set \"--script\" or \"--scriptPath\" together.");
+                        line.getOptionValue(OPTION_SQL_SCRIPT.getLongOpt()) == null,
+                        "Don't set \"--script\" or \"--scriptUri\" together.");
                 return content;
             }
         } catch (ParseException | URISyntaxException e) {
