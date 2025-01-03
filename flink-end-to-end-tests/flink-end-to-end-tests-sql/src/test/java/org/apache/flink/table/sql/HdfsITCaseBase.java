@@ -36,6 +36,7 @@ import org.junit.BeforeClass;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
@@ -91,10 +92,12 @@ public abstract class HdfsITCaseBase extends SqlITCaseBase {
     }
 
     @Override
-    protected void executeSqlStatements(ClusterController clusterController, List<String> sqlLines)
+    protected void executeSqlStatements(
+            ClusterController clusterController, List<String> sqlLines, List<URI> dependencies)
             throws Exception {
         clusterController.submitSQLJob(
                 new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)
+                        .addJars(dependencies.toArray(new URI[0]))
                         .setEnvProcessor(
                                 map -> map.put("HADOOP_CLASSPATH", getHadoopClassPathContent()))
                         .build(),

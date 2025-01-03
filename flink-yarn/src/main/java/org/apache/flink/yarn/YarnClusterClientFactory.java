@@ -28,12 +28,14 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -77,6 +79,12 @@ public class YarnClusterClientFactory
         final YarnClient yarnClient = YarnClient.createYarnClient();
         final YarnConfiguration yarnConfiguration =
                 Utils.getYarnAndHadoopConfiguration(configuration);
+
+        if (System.getenv().get("IN_TESTS") != null) {
+            File f = new File(System.getenv("YARN_CONF_DIR"), Utils.YARN_SITE_FILE_NAME);
+            Path yarnSitePath = new Path(f.getAbsolutePath());
+            yarnConfiguration.addResource(yarnSitePath);
+        }
 
         yarnClient.init(yarnConfiguration);
         yarnClient.start();
