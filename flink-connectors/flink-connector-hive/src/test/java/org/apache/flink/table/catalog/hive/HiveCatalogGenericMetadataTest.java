@@ -24,7 +24,6 @@ import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogPartition;
-import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.FunctionLanguage;
@@ -48,7 +47,6 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -109,7 +107,6 @@ class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase {
                             tablePath.getDatabaseName(), tablePath.getObjectName());
             hiveTable.setDbName(tablePath.getDatabaseName());
             hiveTable.setTableName(tablePath.getObjectName());
-            setLegacyGeneric(hiveTable.getParameters());
             hiveTable.getParameters().put("flink.generic.table.schema.0.name", "ti");
             hiveTable.getParameters().put("flink.generic.table.schema.0.data-type", "TINYINT");
             hiveTable.getParameters().put("flink.generic.table.schema.1.name", "si");
@@ -164,7 +161,6 @@ class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase {
                             tablePath.getDatabaseName(), tablePath.getObjectName());
             hiveTable.setDbName(tablePath.getDatabaseName());
             hiveTable.setTableName(tablePath.getObjectName());
-            setLegacyGeneric(hiveTable.getParameters());
             hiveTable.setTableName(tablePath.getObjectName());
             hiveTable.getParameters().put("flink.generic.table.schema.0.name", "c");
             hiveTable.getParameters().put("flink.generic.table.schema.0.data-type", "CHAR(265)");
@@ -220,7 +216,6 @@ class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase {
                             tablePath.getDatabaseName(), tablePath.getObjectName());
             hiveTable.setDbName(tablePath.getDatabaseName());
             hiveTable.setTableName(tablePath.getObjectName());
-            setLegacyGeneric(hiveTable.getParameters());
             hiveTable.setTableName(tablePath.getObjectName());
             hiveTable.getParameters().put("flink.generic.table.schema.0.name", "dt");
             hiveTable.getParameters().put("flink.generic.table.schema.0.data-type", "DATE");
@@ -272,7 +267,6 @@ class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase {
                             tablePath.getDatabaseName(), tablePath.getObjectName());
             hiveTable.setDbName(tablePath.getDatabaseName());
             hiveTable.setTableName(tablePath.getObjectName());
-            setLegacyGeneric(hiveTable.getParameters());
             hiveTable.setTableName(tablePath.getObjectName());
             hiveTable.getParameters().put("flink.generic.table.schema.0.name", "a");
             hiveTable.getParameters().put("flink.generic.table.schema.0.data-type", "ARRAY<INT>");
@@ -517,11 +511,6 @@ class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase {
     // ------ test utils ------
 
     @Override
-    protected boolean isGeneric() {
-        return true;
-    }
-
-    @Override
     public CatalogPartition createPartition() {
         throw new UnsupportedOperationException();
     }
@@ -540,9 +529,5 @@ class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase {
     protected CatalogFunction createAnotherFunction() {
         return new CatalogFunctionImpl(
                 TestSimpleUDF.class.getCanonicalName(), FunctionLanguage.SCALA);
-    }
-
-    private static void setLegacyGeneric(Map<String, String> properties) {
-        properties.put(CatalogPropertiesUtil.IS_GENERIC, "true");
     }
 }
