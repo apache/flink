@@ -32,14 +32,14 @@ import java.util.Map;
 public class DeployScriptRequestBody implements RequestBody {
 
     private static final String FIELD_NAME_SCRIPT = "script";
-    private static final String FIELD_NAME_SCRIPT_PATH = "scriptPath";
+    private static final String FIELD_NAME_SCRIPT_URI = "scriptUri";
     private static final String FIELD_NAME_EXECUTION_CONFIG = "executionConfig";
 
     @JsonProperty(FIELD_NAME_SCRIPT)
     private final @Nullable String script;
 
-    @JsonProperty(FIELD_NAME_SCRIPT_PATH)
-    private final @Nullable String scriptPath;
+    @JsonProperty(FIELD_NAME_SCRIPT_URI)
+    private final @Nullable String scriptUri;
 
     @JsonProperty(FIELD_NAME_EXECUTION_CONFIG)
     private final Map<String, String> executionConfig;
@@ -47,11 +47,11 @@ public class DeployScriptRequestBody implements RequestBody {
     @JsonCreator
     public DeployScriptRequestBody(
             @JsonProperty(FIELD_NAME_SCRIPT) @Nullable String script,
-            @JsonProperty(FIELD_NAME_SCRIPT_PATH) @Nullable String scriptPath,
+            @JsonProperty(FIELD_NAME_SCRIPT_URI) @Nullable String scriptUri,
             @JsonProperty(FIELD_NAME_EXECUTION_CONFIG) @Nullable
                     Map<String, String> executionConfig) {
         this.script = script;
-        this.scriptPath = scriptPath;
+        this.scriptUri = scriptUri;
         this.executionConfig = executionConfig == null ? Collections.emptyMap() : executionConfig;
     }
 
@@ -65,7 +65,7 @@ public class DeployScriptRequestBody implements RequestBody {
     }
 
     @Nullable
-    public String getScriptPath() {
-        return scriptPath;
+    public String getScriptUri() {
+        return scriptUri;
     }
 }

@@ -53,7 +53,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.nio.file.Path;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -340,25 +340,25 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
     @Override
     public <ClusterID> ClusterID deployScript(
             SessionHandle sessionHandle,
-            @Nullable Path scriptPath,
+            @Nullable URI scriptUri,
             @Nullable String script,
             Configuration executionConfig)
             throws SqlGatewayException {
         Session session = sessionManager.getSession(sessionHandle);
-        if (scriptPath == null && script == null) {
-            throw new IllegalArgumentException("Please specify script path or script.");
+        if (scriptUri == null && script == null) {
+            throw new IllegalArgumentException("Please specify script path or uri.");
         }
-        if (scriptPath != null && !StringUtils.isNullOrWhitespaceOnly(script)) {
+        if (scriptUri != null && !StringUtils.isNullOrWhitespaceOnly(script)) {
             throw new IllegalArgumentException(
-                    "Please specify either the script path or the script itself, but not both.");
+                    "Please specify either the script uri or the script itself, but not both.");
         }
         Configuration mergedConfig = Configuration.fromMap(session.getSessionConfig());
         mergedConfig.addAll(executionConfig);
 
         List<String> arguments = new ArrayList<>();
-        if (scriptPath != null) {
+        if (scriptUri != null) {
             arguments.add("--" + SqlDriver.OPTION_SQL_FILE.getLongOpt());
-            arguments.add(scriptPath.toString());
+            arguments.add(scriptUri.toString());
         }
         if (script != null) {
             arguments.add("--" + SqlDriver.OPTION_SQL_SCRIPT.getLongOpt());

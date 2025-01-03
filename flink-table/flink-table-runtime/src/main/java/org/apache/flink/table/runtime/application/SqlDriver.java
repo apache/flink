@@ -62,9 +62,9 @@ public class SqlDriver {
 
     public static final Option OPTION_SQL_FILE =
             Option.builder()
-                    .longOpt("scriptPath")
+                    .longOpt("scriptUri")
                     .numberOfArgs(1)
-                    .desc("SQL script file path. It supports to fetch files from the DFS or HTTP.")
+                    .desc("SQL script file URI. It supports to fetch files from the DFS or HTTP.")
                     .build();
 
     public static final Option OPTION_SQL_SCRIPT =
@@ -162,11 +162,11 @@ public class SqlDriver {
             if (content == null) {
                 return Preconditions.checkNotNull(
                         line.getOptionValue(OPTION_SQL_SCRIPT.getLongOpt()),
-                        "Please use \"--script\" or \"--scriptPath\" to specify script either.");
+                        "Please use \"--script\" or \"--scriptUri\" to specify script either.");
             } else {
                 Preconditions.checkArgument(
                         line.getOptionValue(OPTION_SQL_SCRIPT.getLongOpt()) == null,
-                        "Don't set \"--script\" or \"--scriptPath\" together.");
+                        "Don't set \"--script\" or \"--scriptUri\" together.");
                 return content;
             }
         } catch (ParseException | URISyntaxException e) {

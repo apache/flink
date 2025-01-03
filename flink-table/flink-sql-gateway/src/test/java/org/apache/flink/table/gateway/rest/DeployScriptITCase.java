@@ -46,16 +46,22 @@ import org.apache.flink.table.gateway.rest.message.session.OpenSessionRequestBod
 import org.apache.flink.table.gateway.rest.message.session.SessionMessageParameters;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.rest.util.TestingRestClient;
+import org.apache.flink.table.gateway.service.utils.MockHttpServer;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.table.runtime.application.SqlDriver;
+import org.apache.flink.util.FileUtils;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
+import java.net.URL;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -80,6 +86,13 @@ public class DeployScriptITCase {
 
     private static TestingRestClient restClient;
     private static SessionHandle sessionHandle;
+    private static final String script =
+            "CREATE TEMPORARY TABLE sink(\n"
+                    + "  a INT\n"
+                    + ") WITH (\n"
+                    + "  'connector' = 'blackhole'\n"
+                    + ");\n"
+                    + "INSERT INTO sink VALUES (1);";
 
     @BeforeAll
     static void beforeAll() throws Exception {
@@ -102,24 +115,34 @@ public class DeployScriptITCase {
     }
 
     @Test
-    void testDeployScriptToYarnCluster() throws Exception {
-        verifyDeployScriptToCluster("yarn-application");
+    void testDeployScriptToYarnCluster(@TempDir Path workDir) throws Exception {
+        verifyDeployScriptToCluster("yarn-application", script, null, script);
+        try (MockHttpServer server = MockHttpServer.startHttpServer()) {
+            File file = workDir.resolve("script.sql").toFile();
+            assertThat(file.createNewFile()).isTrue();
+            FileUtils.writeFileUtf8(file, script);
+            URL url = server.prepareResource("/download/script.sql", file);
+            verifyDeployScriptToCluster("yarn-application", null, url.toString(), script);
+        }
     }
 
     @Test
-    void testDeployScriptToKubernetesCluster() throws Exception {
-        verifyDeployScriptToCluster("kubernetes-application");
+    void testDeployScriptToKubernetesCluster(@TempDir Path workDir) throws Exception {
+        verifyDeployScriptToCluster("kubernetes-application", script, null, script);
+        try (MockHttpServer server = MockHttpServer.startHttpServer()) {
+            File file = workDir.resolve("script.sql").toFile();
+            assertThat(file.createNewFile()).isTrue();
+            FileUtils.writeFileUtf8(file, script);
+            URL url = server.prepareResource("/download/script.sql", file);
+            verifyDeployScriptToCluster("kubernetes-application", null, url.toString(), script);
+        }
     }
 
-    private void verifyDeployScriptToCluster(String target) throws Exception {
+    private void verifyDeployScriptToCluster(
+            String target, @Nullable String script, @Nullable String scriptUri, String content)
+            throws Exception {
         TestApplicationClusterClientFactory.id = target;
-        String script =
-                "CREATE TEMPORARY TABLE sink(\n"
-                        + "  a INT\n"
-                        + ") WITH (\n"
-                        + "  'connector' = 'blackhole'\n"
-                        + ");\n"
-                        + "INSERT INTO sink VALUES (1);";
+
         assertThat(
                         restClient
                                 .sendRequest(
@@ -129,7 +152,7 @@ public class DeployScriptITCase {
                                         new SessionMessageParameters(sessionHandle),
                                         new DeployScriptRequestBody(
                                                 script,
-                                                null,
+                                                scriptUri,
                                                 Collections.singletonMap(
                                                         DeploymentOptions.TARGET.key(), target)))
                                 .get()
@@ -139,7 +162,7 @@ public class DeployScriptITCase {
         assertThat(TestApplicationClusterClientFactory.configuration.getString("key", "none"))
                 .isEqualTo("value");
         assertThat(config.getApplicationClassName()).isEqualTo(SqlDriver.class.getName());
-        assertThat(SqlDriver.parseOptions(config.getProgramArguments())).isEqualTo(script);
+        assertThat(SqlDriver.parseOptions(config.getProgramArguments())).isEqualTo(content);
     }
 
     /**

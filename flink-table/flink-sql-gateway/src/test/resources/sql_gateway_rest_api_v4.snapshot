@@ -361,7 +361,7 @@
         "script" : {
           "type" : "string"
         },
-        "scriptPath" : {
+        "scriptUri" : {
           "type" : "string"
         },
         "executionConfig" : {
