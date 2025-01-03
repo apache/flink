@@ -518,9 +518,12 @@ final class TestValuesRuntimeFunctions {
                         .flatMap(List::stream)
                         .forEach(
                                 row -> {
-                                    boolean isDelete = row.getKind() == RowKind.DELETE;
+                                    boolean isDelete =
+                                            row.getKind() == RowKind.DELETE
+                                                    || row.getKind() == RowKind.UPDATE_BEFORE;
                                     Row key = Row.project(row, keyIndices);
                                     key.setKind(RowKind.INSERT);
+                                    row.setKind(RowKind.INSERT);
                                     if (isDelete) {
                                         localUpsertResult.remove(key);
                                     } else {
