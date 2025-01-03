@@ -53,4 +53,12 @@ public interface AdaptiveJoin extends Serializable {
      * @param leftIsBuild whether the left input side is the build side.
      */
     void markAsBroadcastJoin(boolean canBeBroadcast, boolean leftIsBuild);
+
+    /**
+     * Check if the adaptive join node needs to adjust the read order of the input sides. For the
+     * hash join operator, it is necessary to ensure that the build side is read first.
+     *
+     * @return whether the inputs should be reordered.
+     */
+    boolean shouldReorderInputs();
 }
