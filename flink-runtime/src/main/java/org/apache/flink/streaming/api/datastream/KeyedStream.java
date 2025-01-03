@@ -35,6 +35,7 @@ import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.runtime.asyncprocessing.operators.AsyncIntervalJoinOperator;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
@@ -445,19 +446,8 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
             checkNotNull(lowerBound, "A lower bound needs to be provided for a time-bounded join");
             checkNotNull(upperBound, "An upper bound needs to be provided for a time-bounded join");
 
-            IntervalJoined<T1, T2, KEY> intervalJoined =
-                    new IntervalJoined<>(
-                            streamOne,
-                            streamTwo,
-                            lowerBound.toMillis(),
-                            upperBound.toMillis(),
-                            true,
-                            true);
-            if (streamOne.isEnableAsyncState() || streamTwo.isEnableAsyncState()) {
-                // enable async state if any stream enabled the async state.
-                intervalJoined = intervalJoined.enableAsyncState();
-            }
-            return intervalJoined;
+            return new IntervalJoined<>(
+                    streamOne, streamTwo, lowerBound.toMillis(), upperBound.toMillis(), true, true);
         }
     }
 
@@ -508,6 +498,11 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 
             this.keySelector1 = left.getKeySelector();
             this.keySelector2 = right.getKeySelector();
+
+            if (left.isEnableAsyncState() || right.isEnableAsyncState()) {
+                // enable async state if any stream enabled the async state.
+                enableAsyncState();
+            }
         }
 
         /** Set the upper bound to be exclusive. */
@@ -595,25 +590,47 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
             final ProcessJoinFunction<IN1, IN2, OUT> cleanedUdf =
                     left.getExecutionEnvironment().clean(processJoinFunction);
 
-            final IntervalJoinOperator<KEY, IN1, IN2, OUT> operator =
-                    new IntervalJoinOperator<>(
-                            lowerBound,
-                            upperBound,
-                            lowerBoundInclusive,
-                            upperBoundInclusive,
-                            leftLateDataOutputTag,
-                            rightLateDataOutputTag,
-                            left.getType()
-                                    .createSerializer(
-                                            left.getExecutionConfig().getSerializerConfig()),
-                            right.getType()
-                                    .createSerializer(
-                                            right.getExecutionConfig().getSerializerConfig()),
-                            cleanedUdf);
+            if (isEnableAsyncState) {
+                final AsyncIntervalJoinOperator<KEY, IN1, IN2, OUT> operator =
+                        new AsyncIntervalJoinOperator<>(
+                                lowerBound,
+                                upperBound,
+                                lowerBoundInclusive,
+                                upperBoundInclusive,
+                                leftLateDataOutputTag,
+                                rightLateDataOutputTag,
+                                left.getType()
+                                        .createSerializer(
+                                                left.getExecutionConfig().getSerializerConfig()),
+                                right.getType()
+                                        .createSerializer(
+                                                right.getExecutionConfig().getSerializerConfig()),
+                                cleanedUdf);
 
-            return left.connect(right)
-                    .keyBy(keySelector1, keySelector2)
-                    .transform("Interval Join", outputType, operator);
+                return left.connect(right)
+                        .keyBy(keySelector1, keySelector2)
+                        .transform("Interval Join [Async]", outputType, operator);
+            } else {
+                final IntervalJoinOperator<KEY, IN1, IN2, OUT> operator =
+                        new IntervalJoinOperator<>(
+                                lowerBound,
+                                upperBound,
+                                lowerBoundInclusive,
+                                upperBoundInclusive,
+                                leftLateDataOutputTag,
+                                rightLateDataOutputTag,
+                                left.getType()
+                                        .createSerializer(
+                                                left.getExecutionConfig().getSerializerConfig()),
+                                right.getType()
+                                        .createSerializer(
+                                                right.getExecutionConfig().getSerializerConfig()),
+                                cleanedUdf);
+
+                return left.connect(right)
+                        .keyBy(keySelector1, keySelector2)
+                        .transform("Interval Join", outputType, operator);
+            }
         }
 
         /**

@@ -48,6 +48,7 @@ public class ContextVariable<T> {
     }
 
     public void set(T newValue) {
+        initialized = true;
         manager.setVariableValue(ordinal, newValue);
     }
 }
