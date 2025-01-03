@@ -211,14 +211,24 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enable
     tEnv.executeSql(sql).await()
     val rawResult = TestValuesTableFactory.getRawResultsAsStrings("rowtime_sink")
 
-    val expected = List(
-      "+I(1,1,Hi,1970-01-01T00:00:00.001)",
-      "+I(2,3,I am fine.,1970-01-01T00:00:00.003)",
-      "+I(3,5,Comment#2,1970-01-01T00:00:00.005)",
-      "-U(3,5,Comment#2,1970-01-01T00:00:00.005)",
-      "+U(3,4,Comment#2,1970-01-01T00:00:00.004)",
-      "+I(4,4,Comment#3,1970-01-01T00:00:00.004)"
-    )
+    val expected = if (miniBatch.equals(MiniBatchOff)) {
+      List(
+        "+I(1,1,Hi,1970-01-01T00:00:00.001)",
+        "+I(2,3,I am fine.,1970-01-01T00:00:00.003)",
+        "+I(3,4,Comment#2,1970-01-01T00:00:00.004)",
+        "+I(4,4,Comment#3,1970-01-01T00:00:00.004)"
+      )
+    } else {
+      List(
+        "+I(1,1,Hi,1970-01-01T00:00:00.001)",
+        "+I(2,3,I am fine.,1970-01-01T00:00:00.003)",
+        "+I(3,5,Comment#2,1970-01-01T00:00:00.005)",
+        "-U(3,5,Comment#2,1970-01-01T00:00:00.005)",
+        "+U(3,4,Comment#2,1970-01-01T00:00:00.004)",
+        "+I(4,4,Comment#3,1970-01-01T00:00:00.004)"
+      )
+    }
+
     assertThat(rawResult.sorted).isEqualTo(expected.sorted)
   }
 

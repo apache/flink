@@ -17,13 +17,15 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.ExpressionReducer
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalRank, StreamPhysicalWindowDeduplicate}
-import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankRange, RankType, VariableRankRange}
+import org.apache.flink.table.runtime.operators.rank._
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.`type`.RelDataType
@@ -383,7 +385,10 @@ object RankUtil {
     !rank.outputRankNumber && rank.rankType == RankType.ROW_NUMBER && isTop1(rank.rankRange)
   }
 
-  /** Whether the given [[StreamPhysicalRank]] could be converted to [[StreamExecDeduplicate]]. */
+  /**
+   * Whether the given [[StreamPhysicalRank]] could be converted to
+   * [[org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDeduplicate]].
+   */
   def canConvertToDeduplicate(rank: StreamPhysicalRank): Boolean = {
     lazy val inputInsertOnly = ChangelogPlanUtils.inputInsertOnly(rank)
     lazy val sortOnTimeAttributeOnly =
@@ -403,4 +408,14 @@ object RankUtil {
     val fieldCollation = orderKey.getFieldCollations.get(0)
     fieldCollation.direction.isDescending
   }
+
+  /**
+   * Currently, append-only is not supported for mini-batch mode, however this could be supported in
+   * the future. Proctime keep first row mini-batch operators are already append-only.
+   *
+   * <p>keepLastRow can not support append only, as always more recent record will be retracting the
+   * previous one.
+   */
+  def outputInsertOnlyInDeduplicate(config: ReadableConfig, keepLastRow: Boolean): Boolean =
+    !keepLastRow && !config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)
 }
