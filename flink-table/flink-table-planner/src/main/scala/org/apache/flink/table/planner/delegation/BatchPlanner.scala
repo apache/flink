@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.delegation
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
+import org.apache.flink.runtime.scheduler.adaptivebatch.StreamGraphOptimizationStrategy
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
@@ -34,6 +35,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment
+import org.apache.flink.table.runtime.strategy.{AdaptiveBroadcastJoinOptimizationStrategy, PostProcessAdaptiveJoinStrategy}
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelCollationTraitDef
@@ -98,6 +100,22 @@ class BatchPlanner(
     }
     afterTranslation()
     transformations ++ planner.extraTransformations
+  }
+
+  override def afterTranslation(): Unit = {
+    super.afterTranslation()
+    val configuration = getTableConfig
+    val optimizationStrategies = new util.ArrayList[String]()
+    if (
+      configuration.get(OptimizerConfigOptions.TABLE_OPTIMIZER_ADAPTIVE_BROADCAST_JOIN_STRATEGY)
+        != OptimizerConfigOptions.AdaptiveBroadcastJoinStrategy.NONE
+    ) {
+      optimizationStrategies.add(classOf[AdaptiveBroadcastJoinOptimizationStrategy].getName)
+      optimizationStrategies.add(classOf[PostProcessAdaptiveJoinStrategy].getName)
+    }
+    configuration.set(
+      StreamGraphOptimizationStrategy.STREAM_GRAPH_OPTIMIZATION_STRATEGY,
+      optimizationStrategies)
   }
 
   override def explain(
