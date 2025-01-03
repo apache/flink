@@ -346,11 +346,11 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
             throws SqlGatewayException {
         Session session = sessionManager.getSession(sessionHandle);
         if (scriptUri == null && script == null) {
-            throw new IllegalArgumentException("Please specify script path or uri.");
+            throw new IllegalArgumentException("Please specify script content or uri.");
         }
         if (scriptUri != null && !StringUtils.isNullOrWhitespaceOnly(script)) {
             throw new IllegalArgumentException(
-                    "Please specify either the script uri or the script itself, but not both.");
+                    "Please specify either the script uri or the script content, but not both.");
         }
         Configuration mergedConfig = Configuration.fromMap(session.getSessionConfig());
         mergedConfig.addAll(executionConfig);
