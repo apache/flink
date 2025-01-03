@@ -7,3 +7,4 @@ ruby2/.rubydeps/
 public/
 resources/
 .hugo_build.lock
+hugo_extended_*_*-*.tar.gz
