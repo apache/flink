@@ -947,7 +947,6 @@ class LookupJoinITCase(cacheType: LookupCacheType) extends StreamingTestBase {
   @TestTemplate
   def testJoinTemporalTableWithLatestData(): Unit = {
     assumeThat(cacheType.equals(LookupCacheType.NONE)).isTrue
-    assumeThat(legacyTableSource).isFalse
     val dimData = List(
       changelogRow("+I", Int.box(12), "DimJulia"),
       changelogRow("+I", Int.box(15), "DimHello"),
