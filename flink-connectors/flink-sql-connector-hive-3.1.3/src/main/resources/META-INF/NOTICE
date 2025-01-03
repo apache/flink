@@ -45,7 +45,7 @@ the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 - org.apache.orc:orc-tools:1.5.8
 - org.apache.parquet:parquet-hadoop-bundle:1.10.0
 - org.codehaus.jackson:jackson-core-asl:1.9.13
-- org.codehaus.jackson:jackson-mapper-asl:1.9.13
+- org.codehaus.jackson:jackson-mapper-asl:1.9.14.jdk17-redhat-00001
 - org.objenesis:objenesis:2.1
 
 The bundled Apache Hive org.apache.hive:hive-exec dependency bundles the following dependencies under the BSD license.
