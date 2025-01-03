@@ -201,7 +201,9 @@ public class FileMappingManager {
                 continue;
             }
             MappingEntry oldParentDir = currentEntry.getValue().parentDir;
-            if (oldParentDir == null || isParentDir(oldParentDir.sourcePath, fileStr)) {
+            if (oldParentDir == null
+                    || isParentDir(oldParentDir.sourcePath, fileStr)
+                            && !oldParentDir.equals(parentEntry)) {
                 parentEntry.retain();
                 currentEntry.getValue().parentDir = parentEntry;
             }

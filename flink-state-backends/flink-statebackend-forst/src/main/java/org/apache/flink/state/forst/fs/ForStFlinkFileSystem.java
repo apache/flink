@@ -223,7 +223,10 @@ public class ForStFlinkFileSystem extends FileSystem {
     public boolean exists(final Path f) throws IOException {
         FileMappingManager.RealPath realPath = fileMappingManager.realPath(f);
         if (realPath == null) {
-            return delegateFS.exists(f);
+            if (delegateFS.exists(f)) {
+                return delegateFS.getFileStatus(f).isDir();
+            }
+            return false;
         }
 
         boolean status = false;
@@ -265,9 +268,17 @@ public class ForStFlinkFileSystem extends FileSystem {
     public FileStatus[] listStatus(Path path) throws IOException {
         // mapping files
         List<FileStatus> fileStatuses = new ArrayList<>();
-        List<String> mappingFiles = fileMappingManager.listByPrefix(path.toString());
+        String pathStr = path.toString();
+        if (!pathStr.endsWith("/")) {
+            pathStr += "/";
+        }
+        List<String> mappingFiles = fileMappingManager.listByPrefix(pathStr);
         for (String mappingFile : mappingFiles) {
-            fileStatuses.add(getFileStatus(new Path(mappingFile)));
+            String relativePath = mappingFile.substring(pathStr.length());
+            int slashIndex = relativePath.indexOf('/');
+            if (slashIndex == -1) { // direct child
+                fileStatuses.add(getFileStatus(new Path(mappingFile)));
+            }
         }
         return fileStatuses.toArray(new FileStatus[0]);
     }
