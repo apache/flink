@@ -92,6 +92,8 @@ public class NonTimeUnboundedPrecedingFunction<K>
     private transient ValueState<List<RowData>> sortedKeyState;
     // state to hold rows until state ttl expires
     private transient MapState<Long, RowData> valueMapState;
+    // state to hold row ID and its associated accumulator
+    private transient MapState<Long, RowData> accMapState;
 
     protected transient AggsHandleFunction currFunction;
     protected transient AggsHandleFunction prevFunction;
@@ -178,6 +180,10 @@ public class NonTimeUnboundedPrecedingFunction<K>
                 new MapStateDescriptor<Long, RowData>("valueState", Types.LONG, inputType);
         valueMapState = getRuntimeContext().getMapState(valueStateDescriptor);
 
+        MapStateDescriptor<Long, RowData> accStateDescriptor =
+                new MapStateDescriptor<Long, RowData>("accMapState", Types.LONG, accTypeInfo);
+        accMapState = getRuntimeContext().getMapState(accStateDescriptor);
+
         initCleanupTimeState("NonTimeUnboundedPrecedingFunctionCleanupTime");
     }
 
@@ -226,10 +232,12 @@ public class NonTimeUnboundedPrecedingFunction<K>
 
         if (rowKind == RowKind.INSERT || rowKind == RowKind.UPDATE_AFTER) {
             // insertIntoSortedList(input, out);
-            insertIntoSortedListOptimized(input, out);
+            // insertIntoSortedListWithValueMap(input, out);
+            insertIntoSortedListWithValueMapAndAccumulatorMap(input, out);
         } else if (rowKind == RowKind.DELETE || rowKind == RowKind.UPDATE_BEFORE) {
             // removeFromSortedList(input, out);
-            removeFromSortedListOptimized(input, out);
+            // removeFromSortedListWithValueMap(input, out);
+            removeFromSortedListWithValueMapAndAccumulatorMap(input, out);
         }
 
         // Reset acc state since we can have out of order inserts into the ordered list
@@ -293,7 +301,7 @@ public class NonTimeUnboundedPrecedingFunction<K>
         }
     }
 
-    private void insertIntoSortedListOptimized(RowData input, Collector<RowData> out)
+    private void insertIntoSortedListWithValueMap(RowData input, Collector<RowData> out)
             throws Exception {
         List<RowData> sortedKeyList = sortedKeyState.value();
         if (sortedKeyList == null) {
@@ -362,6 +370,91 @@ public class NonTimeUnboundedPrecedingFunction<K>
         }
     }
 
+    private void insertIntoSortedListWithValueMapAndAccumulatorMap(
+            RowData input, Collector<RowData> out) throws Exception {
+        List<RowData> sortedKeyList = sortedKeyState.value();
+        if (sortedKeyList == null) {
+            sortedKeyList = new ArrayList<>();
+        }
+        Long id = idState.value();
+        if (id == null) {
+            id = 0L;
+        }
+        boolean isInserted = false;
+        RowKind origRowKind = input.getRowKind();
+        input.setRowKind(RowKind.INSERT);
+        ListIterator<RowData> iterator = sortedKeyList.listIterator();
+
+        RowData inputKey = GenericRowData.of(-1L, sortKeyFieldGetter.getFieldOrNull(input));
+
+        while (iterator.hasNext()) {
+            RowData curKey = iterator.next(); // (ID, sortKey)
+            if (newSortKeyComparator.compare(curKey, inputKey) > 0) {
+                iterator.previous();
+                RowData prev = sortedKeyList.get(iterator.previousIndex());
+                iterator.add(GenericRowData.of(id, sortKeyFieldGetter.getFieldOrNull(input)));
+                valueMapState.put(id, input);
+                Long prevKey = prev.getLong(keyIdx);
+                RowData prevAcc = accMapState.get(prevKey);
+                currFunction.setAccumulators(prevAcc);
+                currFunction.accumulate(input);
+                accMapState.put(id, currFunction.getValue());
+                isInserted = true;
+                id++;
+                break;
+            }
+        }
+
+        // Add to the end of the list
+        if (!isInserted) {
+            if (iterator.hasPrevious()) {
+                RowData prev = iterator.previous();
+                Long prevKey = prev.getLong(0);
+                RowData prevAcc = accMapState.get(prevKey);
+                currFunction.setAccumulators(prevAcc);
+                iterator.next();
+            }
+            // Only accumulate rowData with currFunction
+            currFunction.accumulate(input);
+            iterator.add(GenericRowData.of(id, sortKeyFieldGetter.getFieldOrNull(input)));
+            valueMapState.put(id, input);
+            accMapState.put(id, currFunction.getAccumulators());
+            id++;
+        }
+
+        // Update sorted key state with the newly inserted row's key
+        sortedKeyState.update(sortedKeyList);
+        idState.update(id);
+
+        // prepare output row
+        output.setRowKind(origRowKind);
+        output.replace(input, currFunction.getValue());
+        out.collect(output);
+
+        // Emit updated agg value for all records after newly inserted row
+        while (iterator.hasNext()) {
+            RowData curKey = iterator.next();
+            RowData curValue = valueMapState.get(curKey.getLong(keyIdx));
+            currFunction.accumulate(curValue);
+            RowData prevAcc = accMapState.get(curKey.getLong(keyIdx));
+            if (prevAcc.equals(currFunction.getValue())) {
+                // If previously accumulated value is same as the newly accumulated value
+                // then no need to send updates downstream since nothing has changed
+                break;
+            }
+            // Generate UPDATE_BEFORE
+            output.setRowKind(RowKind.UPDATE_BEFORE);
+            output.replace(curValue, prevAcc);
+            out.collect(output);
+            // Generate UPDATE_AFTER
+            output.setRowKind(RowKind.UPDATE_AFTER);
+            output.replace(curValue, currFunction.getValue());
+            out.collect(output);
+
+            accMapState.put(curKey.getLong(keyIdx), currFunction.getValue());
+        }
+    }
+
     private void removeFromSortedList(RowData rowData, Collector<RowData> out) throws Exception {
         boolean isRetracted = false;
         rowData.setRowKind(RowKind.INSERT);
@@ -396,7 +489,7 @@ public class NonTimeUnboundedPrecedingFunction<K>
         inputState.update(rowList);
     }
 
-    private void removeFromSortedListOptimized(RowData input, Collector<RowData> out)
+    private void removeFromSortedListWithValueMap(RowData input, Collector<RowData> out)
             throws Exception {
         boolean isRetracted = false;
         input.setRowKind(RowKind.INSERT);
@@ -425,6 +518,59 @@ public class NonTimeUnboundedPrecedingFunction<K>
                 iterator.remove();
                 valueMapState.remove(curKey.getLong(keyIdx));
                 currFunction.retract(curValue);
+                isRetracted = true;
+            }
+        }
+
+        // Update sorted key state without the retracted row
+        sortedKeyState.update(sortedKeyList);
+    }
+
+    private void removeFromSortedListWithValueMapAndAccumulatorMap(
+            RowData input, Collector<RowData> out) throws Exception {
+        boolean isRetracted = false;
+        input.setRowKind(RowKind.INSERT);
+        List<RowData> sortedKeyList = sortedKeyState.value();
+        ListIterator<RowData> iterator = sortedKeyList.listIterator();
+
+        while (iterator.hasNext()) {
+            RowData curKey = iterator.next();
+            RowData curValue = valueMapState.get(curKey.getLong(keyIdx));
+            if (isRetracted) {
+                RowData prevAcc = accMapState.get(curKey.getLong(keyIdx));
+                if (prevAcc.equals(currFunction.getValue())) {
+                    // If previously accumulated value is same as the newly accumulated value
+                    // then no need to send updates downstream since nothing has changed
+                    break;
+                }
+                // Emit updated agg value for all records after retraction
+                output.setRowKind(RowKind.UPDATE_BEFORE);
+                output.replace(curValue, prevAcc);
+                out.collect(output);
+
+                currFunction.accumulate(curValue);
+                accMapState.put(curKey.getLong(keyIdx), currFunction.getValue());
+                output.setRowKind(RowKind.UPDATE_AFTER);
+                output.replace(curValue, currFunction.getValue());
+                out.collect(output);
+            } else if (equaliser.equals(curValue, input)) {
+                // Retract record
+                RowData curAcc = accMapState.get(curKey.getLong(keyIdx));
+                currFunction.setAccumulators(curAcc);
+                output.setRowKind(RowKind.UPDATE_BEFORE);
+                output.replace(input, currFunction.getValue());
+                out.collect(output);
+                iterator.remove();
+
+                valueMapState.remove(curKey.getLong(keyIdx));
+                accMapState.remove(curKey.getLong(keyIdx));
+                if (iterator.hasPrevious()) {
+                    RowData prev = sortedKeyList.get(iterator.previousIndex());
+                    RowData prevAcc = accMapState.get(prev.getLong(keyIdx));
+                    currFunction.setAccumulators(prevAcc);
+                } else {
+                    currFunction.setAccumulators(currFunction.createAccumulators());
+                }
                 isRetracted = true;
             }
         }
