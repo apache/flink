@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
@@ -26,9 +27,17 @@ import org.apache.flink.util.SerializedThrowable;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
+import static org.junit.Assert.assertNotNull;
 
 /** Tests for {@link SerializedThrowable}. */
 class SerializedThrowableTest {
@@ -178,5 +187,55 @@ class SerializedThrowableTest {
         assertThat(actualSuppressed)
                 .isInstanceOf(SerializedThrowable.class)
                 .hasMessage("java.lang.Exception: suppressed");
+    }
+
+    @Test
+    public void testCyclicSuppressedThrowableSerialized() {
+        SerializedThrowable serializedThrowable = new SerializedThrowable(mockThrowable());
+        assertNotNull(serializedThrowable);
+    }
+
+    @Test
+    public void testCyclicSuppressedThrowableConcurrentSerialized() throws InterruptedException {
+        Throwable throwable = mockThrowable();
+        CountDownLatch countDownLatch = new CountDownLatch(2);
+        List<Thread> list = new ArrayList<>();
+        for (int i = 0; i < 2; i++) {
+            String threadName = "t" + i;
+            Thread t =
+                    new Thread(
+                            () -> {
+                                try {
+                                    countDownLatch.await();
+                                    SerializedThrowable serializedThrowable =
+                                            new SerializedThrowable(throwable);
+                                    assertNotNull(serializedThrowable);
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
+                            });
+            t.setName(threadName);
+            t.start();
+            countDownLatch.countDown();
+            list.add(t);
+        }
+        for (Thread thread : list) {
+            thread.join();
+        }
+    }
+
+    private static Throwable mockThrowable() {
+        SocketAddress remoteAddr = new InetSocketAddress(80);
+        RemoteTransportException remoteTransportException =
+                new RemoteTransportException(
+                        "Connection unexpectedly closed by remote task manager '"
+                                + remoteAddr
+                                + "'. "
+                                + "This might indicate that the remote task manager was lost.",
+                        remoteAddr,
+                        new IOException("connection reset by peer."));
+        RuntimeException runtimeException = new RuntimeException(remoteTransportException);
+        remoteTransportException.addSuppressed(runtimeException);
+        return remoteTransportException;
     }
 }

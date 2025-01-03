@@ -94,7 +94,7 @@ public class SerializedThrowable extends Exception implements Serializable {
                 }
             }
             // mimic suppressed exceptions
-            addAllSuppressed(exception.getSuppressed());
+            addAllSuppressed(exception.getSuppressed(), alreadySeen);
         } else {
             // copy from that serialized throwable
             SerializedThrowable other = (SerializedThrowable) exception;
@@ -104,7 +104,7 @@ public class SerializedThrowable extends Exception implements Serializable {
             this.cachedException = other.cachedException;
             this.setStackTrace(other.getStackTrace());
             this.initCause(other.getCause());
-            this.addAllSuppressed(other.getSuppressed());
+            this.addAllSuppressed(other.getSuppressed(), alreadySeen);
         }
     }
 
@@ -141,15 +141,17 @@ public class SerializedThrowable extends Exception implements Serializable {
         return fullStringifiedStackTrace;
     }
 
-    private void addAllSuppressed(Throwable[] suppressed) {
+    private void addAllSuppressed(Throwable[] suppressed, Set<Throwable> alreadySeen) {
         for (Throwable s : suppressed) {
-            SerializedThrowable serializedThrowable;
-            if (s instanceof SerializedThrowable) {
-                serializedThrowable = (SerializedThrowable) s;
-            } else {
-                serializedThrowable = new SerializedThrowable(s);
+            if (alreadySeen.add(s)) {
+                SerializedThrowable serializedThrowable;
+                if (s instanceof SerializedThrowable) {
+                    serializedThrowable = (SerializedThrowable) s;
+                } else {
+                    serializedThrowable = new SerializedThrowable(s);
+                }
+                this.addSuppressed(serializedThrowable);
             }
-            this.addSuppressed(serializedThrowable);
         }
     }
 
