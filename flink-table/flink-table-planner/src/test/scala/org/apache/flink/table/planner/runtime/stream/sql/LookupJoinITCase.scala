@@ -25,6 +25,7 @@ import org.apache.flink.table.connector.source.lookup.LookupOptions.{LookupCache
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.data.binary.BinaryStringData
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
 import org.apache.flink.table.planner.plan.utils.SingleSubTaskBoundTableFunction
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.TestAddWithOpen
@@ -34,6 +35,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedT
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assumptions.assumeThat
 import org.assertj.core.api.IterableAssert.assertThatIterable
 import org.junit.jupiter.api.{AfterEach, BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
@@ -939,6 +941,40 @@ class LookupJoinITCase(cacheType: LookupCacheType) extends StreamingTestBase {
     tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
     val expected = Seq("3,Fabian")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testJoinTemporalTableWithLatestData(): Unit = {
+    assumeThat(cacheType.equals(LookupCacheType.NONE)).isTrue
+    val dimData = List(
+      changelogRow("+I", Int.box(12), "DimJulia"),
+      changelogRow("+I", Int.box(15), "DimHello"),
+      changelogRow("+U", Int.box(15), "DimFabian"),
+      changelogRow("-D", Int.box(15), "DimFabian"),
+      changelogRow("+I", Int.box(11), "DimHelloWorld1"),
+      changelogRow("+U", Int.box(11), "DimHelloWorld2")
+    )
+
+    tEnv.executeSql(s"""
+                       |CREATE TABLE dim_with_pk (
+                       |  `len` INT PRIMARY KEY NOT ENFORCED,
+                       |  `comment` STRING
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '${TestValuesTableFactory.registerData(dimData)}'
+                       |)
+                       |""".stripMargin)
+    val sql =
+      """
+        |SELECT dim_with_pk.* FROM src JOIN dim_with_pk
+        |FOR SYSTEM_TIME AS OF src.proctime ON src.len = dim_with_pk.len
+        |""".stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
+    env.execute()
+    val expected = Seq("12,DimJulia", "11,DimHelloWorld2", "12,DimJulia")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 }
