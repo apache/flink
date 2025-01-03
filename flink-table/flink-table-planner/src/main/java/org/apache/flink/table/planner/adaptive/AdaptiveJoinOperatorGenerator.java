@@ -155,4 +155,15 @@ public class AdaptiveJoinOperatorGenerator implements AdaptiveJoin {
         this.isBroadcastJoin = canBroadcast;
         this.leftIsBuild = leftIsBuild;
     }
+
+    @Override
+    public boolean shouldReorderInputs() {
+        // Sort merge join requires the left side to be read first if the broadcast threshold is not
+        // met.
+        if (!isBroadcastJoin && originalJoin == OperatorType.SortMergeJoin) {
+            return false;
+        }
+
+        return !leftIsBuild;
+    }
 }
