@@ -44,6 +44,7 @@ import org.apache.flink.streaming.runtime.operators.asyncprocessing.ElementOrder
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -72,6 +73,7 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
             LoggerFactory.getLogger(AbstractAsyncStateStreamOperatorV2.class);
 
     private final Environment environment;
+    private final StreamTask<?, ?> streamTask;
     private AsyncExecutionController asyncExecutionController;
 
     /** Act as a cache for {@link #setAsyncKeyedContextElement} and {@link #postProcessElement}. */
@@ -83,6 +85,7 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
             StreamOperatorParameters<OUT> parameters, int numberOfInputs) {
         super(parameters, numberOfInputs);
         this.environment = parameters.getContainingTask().getEnvironment();
+        this.streamTask = parameters.getContainingTask();
     }
 
     /** Initialize necessary state components for {@link AbstractStreamOperatorV2}. */
@@ -392,16 +395,20 @@ public abstract class AbstractAsyncStateStreamOperatorV2<OUT> extends AbstractSt
     @Override
     public void finish() throws Exception {
         super.finish();
-        if (isAsyncStateProcessingEnabled()) {
-            asyncExecutionController.drainInflightRecords(0);
-        }
+        closeIfNeeded();
     }
 
     @Override
     public void close() throws Exception {
         super.close();
-        if (isAsyncStateProcessingEnabled()) {
-            asyncExecutionController.close();
+        closeIfNeeded();
+    }
+
+    private void closeIfNeeded() {
+        if (isAsyncStateProcessingEnabled()
+                && !streamTask.isFailing()
+                && !streamTask.isCanceled()) {
+            asyncExecutionController.drainInflightRecords(0);
         }
     }
 }
