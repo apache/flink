@@ -36,7 +36,8 @@ import org.apache.flink.streaming.api.legacy.io.CollectionInputFormat
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.java.{StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
-import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
+import org.apache.flink.table.api.config.OptimizerConfigOptions.AdaptiveBroadcastJoinStrategy.NONE
 import org.apache.flink.table.api.internal.{StatementSetImpl, TableEnvironmentImpl, TableEnvironmentInternal, TableImpl}
 import org.apache.flink.table.api.typeutils.CaseClassTypeInfo
 import org.apache.flink.table.catalog._
@@ -1329,6 +1330,9 @@ abstract class TableTestUtil(
   tableEnv.getConfig.set(
     BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED,
     Boolean.box(false))
+  tableEnv.getConfig.set(
+    OptimizerConfigOptions.TABLE_OPTIMIZER_ADAPTIVE_BROADCAST_JOIN_STRATEGY,
+    NONE)
 
   private val env: StreamExecutionEnvironment = getPlanner.getExecEnv
 
