@@ -36,6 +36,7 @@ import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -46,6 +47,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.apache.flink.streaming.util.asyncprocessing.AsyncProcessingTestUtil.drain;
+import static org.apache.flink.streaming.util.asyncprocessing.AsyncProcessingTestUtil.unwrapAsyncException;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.Assertions.fail;
 
@@ -65,6 +67,23 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 
     /** The executor service for async state processing. */
     private final ExecutorService executor;
+
+    /** Create an instance of the subclass of this class. */
+    public static <K, IN, OUT, OP extends AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>>
+            OP create(FunctionWithException<ExecutorService, OP, Exception> constructor)
+                    throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CompletableFuture<OP> future = new CompletableFuture<>();
+        executor.execute(
+                () -> {
+                    try {
+                        future.complete(constructor.apply(executor));
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+        return future.get();
+    }
 
     public static <K, IN, OUT> AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT> create(
             OneInputStreamOperator<IN, OUT> operator,
@@ -137,7 +156,7 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 
     @Override
     public void processElement(StreamRecord<IN> element) throws Exception {
-        processElementInternal(element).get();
+        finishFuture(processElementInternal(element));
     }
 
     /**
@@ -165,7 +184,7 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 
     @Override
     public void processWatermark(long watermark) throws Exception {
-        processWatermarkInternal(watermark).get();
+        finishFuture(processWatermarkInternal(watermark));
     }
 
     /** For internal testing. */
@@ -175,7 +194,7 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 
     @Override
     public void processWatermarkStatus(WatermarkStatus status) throws Exception {
-        processWatermarkStatusInternal(status).get();
+        finishFuture(processWatermarkStatusInternal(status));
     }
 
     /** For internal testing. */
@@ -192,7 +211,7 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 
     @Override
     public void processWatermark(Watermark mark) throws Exception {
-        processWatermarkInternal(mark).get();
+        finishFuture(processWatermarkInternal(mark));
     }
 
     @Override
@@ -216,7 +235,7 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
     }
 
     public void processLatencyMarker(LatencyMarker marker) throws Exception {
-        processLatencyMarkerInternal(marker).get();
+        finishFuture(processLatencyMarkerInternal(marker));
     }
 
     /** For internal testing. */
@@ -233,7 +252,7 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
 
     @Override
     public void processRecordAttributes(RecordAttributes recordAttributes) throws Exception {
-        processRecordAttributesInternal(recordAttributes).get();
+        finishFuture(processRecordAttributesInternal(recordAttributes));
     }
 
     @Override
@@ -279,8 +298,17 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
     }
 
     private void executeAndGet(RunnableWithException runnable) throws Exception {
-        execute(runnable).get();
-        checkEnvState();
+        finishFuture(execute(runnable));
+    }
+
+    private void finishFuture(CompletableFuture<Void> future) throws Exception {
+        try {
+            future.get();
+            checkEnvState();
+        } catch (Exception e) {
+            AsyncProcessingTestUtil.execute(executor, () -> mockTask.cleanUp(e)).get();
+            throw unwrapAsyncException(e);
+        }
     }
 
     private void checkEnvState() {
