@@ -104,6 +104,7 @@ under the License.
 		<module>tools/ci/flink-ci-tools</module>
 		<module>flink-datastream</module>
 		<module>flink-datastream-api</module>
+		<module>flink-mdc-tests</module>
 	</modules>
 
 	<properties>
