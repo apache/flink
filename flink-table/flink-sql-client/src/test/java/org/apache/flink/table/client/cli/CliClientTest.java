@@ -347,7 +347,8 @@ class CliClientTest {
                                 null)) {
             client.executeInNonInteractiveMode(script.toURI());
             assertThat(outputStream.toString())
-                    .contains("Deploy script in cluster: test-application-cluster");
+                    .contains("[INFO] Deploy script in application mode: ")
+                    .contains("Cluster ID: test-application-cluster");
         }
     }
 
