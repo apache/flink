@@ -223,10 +223,7 @@ public class ForStFlinkFileSystem extends FileSystem {
     public boolean exists(final Path f) throws IOException {
         FileMappingManager.RealPath realPath = fileMappingManager.realPath(f);
         if (realPath == null) {
-            if (delegateFS.exists(f)) {
-                return delegateFS.getFileStatus(f).isDir();
-            }
-            return false;
+            return delegateFS.exists(f) && delegateFS.getFileStatus(f).isDir();
         }
 
         boolean status = false;
