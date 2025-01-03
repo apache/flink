@@ -21,6 +21,12 @@
             <td>The interval of the automatic watermark emission. Watermarks are used throughout the streaming system to keep track of the progress of time. They are used, for example, for time based windowing.</td>
         </tr>
         <tr>
+            <td><h5>pipeline.built-in-collection-types</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>If enabled, TypeExtractor will use built-in serializers for Maps, Lists, and Sets, which need to be treated by Kyro otherwise.</td>
+        </tr>
+        <tr>
             <td><h5>pipeline.cached-files</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;String&gt;</td>
