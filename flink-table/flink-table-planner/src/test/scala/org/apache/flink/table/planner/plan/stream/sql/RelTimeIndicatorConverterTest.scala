@@ -19,12 +19,12 @@ package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.table.annotation.{DataTypeHint, FunctionHint}
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.data.TimestampData
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.planner.plan.stream.sql.RelTimeIndicatorConverterTest.TableFunc
+import org.apache.flink.table.planner.runtime.utils.TestSinkUtil
 import org.apache.flink.table.planner.utils.TableTestBase
-import org.apache.flink.table.types.logical.BigIntType
 
 import org.junit.jupiter.api.Test
 
@@ -175,18 +175,22 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
 
     val table = util.tableEnv.sqlQuery(sql)
 
-    val appendSink1 =
-      util.createAppendTableSink(Array("long", "sum"), Array(new BigIntType(), new BigIntType()))
-    util.tableEnv
-      .asInstanceOf[TableEnvironmentInternal]
-      .registerTableSinkInternal("appendSink1", appendSink1)
+    TestSinkUtil.addValuesSink(
+      util.tableEnv,
+      "appendSink1",
+      List("long", "sum"),
+      List(DataTypes.BIGINT, DataTypes.BIGINT),
+      ChangelogMode.insertOnly()
+    )
     stmtSet.addInsert("appendSink1", table)
 
-    val appendSink2 =
-      util.createAppendTableSink(Array("long", "sum"), Array(new BigIntType(), new BigIntType()))
-    util.tableEnv
-      .asInstanceOf[TableEnvironmentInternal]
-      .registerTableSinkInternal("appendSink2", appendSink2)
+    TestSinkUtil.addValuesSink(
+      util.tableEnv,
+      "appendSink2",
+      List("long", "sum"),
+      List(DataTypes.BIGINT, DataTypes.BIGINT),
+      ChangelogMode.insertOnly()
+    )
     stmtSet.addInsert("appendSink2", table)
 
     util.verifyExecPlan(stmtSet)

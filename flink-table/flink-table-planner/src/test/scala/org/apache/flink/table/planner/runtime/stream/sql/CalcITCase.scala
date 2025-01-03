@@ -24,9 +24,9 @@ import org.apache.flink.table.api.{TableDescriptor, _}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.LegacyCastBehaviour
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.api.typeutils.Types
 import org.apache.flink.table.catalog.CatalogDatabaseImpl
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.data.{GenericRowData, MapData}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
@@ -280,12 +280,15 @@ class CalcITCase extends StreamingTestBase {
     tEnv.createTemporaryView("MyTable", table)
 
     val result = tEnv.sqlQuery(sqlQuery)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+
+    TestSinkUtil.addValuesSink(tEnv, "MySink", result, ChangelogMode.insertOnly())
     table.executeInsert("MySink").await()
 
     val expected = List("0,0,0", "1,1,1", "2,2,2")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @Test

@@ -19,9 +19,10 @@ package org.apache.flink.table.api.batch
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.connector.ChangelogMode
+import org.apache.flink.table.planner.runtime.utils.TestSinkUtil
 import org.apache.flink.table.planner.utils.TableTestBase
-import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
+import org.apache.flink.table.types.DataType
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
@@ -41,9 +42,9 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
   util.addDataStream[(Int, Long, String)]("MyTable1", 'a, 'b, 'c)
   util.addDataStream[(Int, Long, String)]("MyTable2", 'd, 'e, 'f)
 
-  val STRING = VarCharType.STRING_TYPE
-  val LONG = new BigIntType()
-  val INT = new IntType()
+  val STRING: DataType = DataTypes.STRING
+  val LONG: DataType = DataTypes.BIGINT
+  val INT: DataType = DataTypes.INT
 
   @BeforeEach
   def before(): Unit = {
@@ -92,8 +93,13 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
   @TestTemplate
   def testExplainWithSingleSink(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT * FROM MyTable1 WHERE a > 10")
-    val sink = util.createCollectTableSink(Array("a", "b", "c"), Array(INT, LONG, STRING))
-    util.verifyExplainInsert(table, sink, "sink", extraDetails: _*)
+    TestSinkUtil.addValuesSink(
+      util.tableEnv,
+      "sink",
+      List("a", "b", "c"),
+      List(INT, LONG, STRING),
+      ChangelogMode.insertOnly())
+    util.verifyExplainInsert(table, "sink", extraDetails: _*)
   }
 
   @TestTemplate
@@ -103,13 +109,21 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
     util.tableEnv.createTemporaryView("TempTable", table)
 
     val table1 = util.tableEnv.sqlQuery("SELECT * FROM TempTable WHERE cnt > 10")
-    val sink1 = util.createCollectTableSink(Array("a", "cnt"), Array(INT, LONG))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink1", sink1)
+    TestSinkUtil.addValuesSink(
+      util.tableEnv,
+      "sink1",
+      List("a", "cnt"),
+      List(INT, LONG),
+      ChangelogMode.insertOnly())
     stmtSet.addInsert("sink1", table1)
 
     val table2 = util.tableEnv.sqlQuery("SELECT * FROM TempTable WHERE cnt < 10")
-    val sink2 = util.createCollectTableSink(Array("a", "cnt"), Array(INT, LONG))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sink2", sink2)
+    TestSinkUtil.addValuesSink(
+      util.tableEnv,
+      "sink2",
+      List("a", "cnt"),
+      List(INT, LONG),
+      ChangelogMode.insertOnly())
     stmtSet.addInsert("sink2", table2)
 
     util.verifyExplain(stmtSet, extraDetails: _*)

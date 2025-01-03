@@ -17,13 +17,13 @@
  */
 package org.apache.flink.table.planner.runtime.stream.table
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
@@ -251,15 +251,27 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
       .join(rightTableWithPk, 'b === 'bb)
       .select('a, 'b, 'c)
 
-    val sink = new TestingUpsertTableSink(Array(0, 1)).configure(
-      Array[String]("a", "b", "c"),
-      Array[TypeInformation[_]](Types.INT, Types.LONG, Types.LONG))
-
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("upsertSink", sink)
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "upsertSink",
+      List("a", "b", "c"),
+      List(DataTypes.INT, DataTypes.BIGINT, DataTypes.BIGINT),
+      ChangelogMode.upsert(),
+      List("a", "b"))
     t.executeInsert("upsertSink").await()
 
-    val expected = Seq("0,1,1", "1,2,3", "2,1,1", "3,1,1", "4,1,1", "5,2,3", "6,0,1")
-    assertThat(sink.getUpsertResults.sorted).isEqualTo(expected.sorted)
+    val expected = Seq(
+      "+I[0, 1, 1]",
+      "+I[1, 2, 3]",
+      "+I[2, 1, 1]",
+      "+I[3, 1, 1]",
+      "+I[4, 1, 1]",
+      "+I[5, 2, 3]",
+      "+I[6, 0, 1]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("upsertSink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @TestTemplate
@@ -297,10 +309,6 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
       .fromCollection(env, data2)
       .toTable(tEnv, 'bb, 'c, 'd)
 
-    val sink = new TestingRetractTableSink().configure(
-      Array[String]("a", "b", "c", "d"),
-      Array[TypeInformation[_]](Types.INT, Types.INT, Types.INT, Types.INT))
-
     val leftTableWithPk = leftTable
       .groupBy('a)
       .select('a, 'b.max.as('b))
@@ -308,12 +316,28 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
     val t = leftTableWithPk
       .join(rightTable, 'a === 'bb && ('a < 4 || 'a > 4))
       .select('a, 'b, 'c, 'd)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("retractSink", sink)
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "retractSink",
+      List("a", "b", "c", "d"),
+      List(DataTypes.INT, DataTypes.INT, DataTypes.INT, DataTypes.INT),
+      ChangelogMode.all())
     t.executeInsert("retractSink").await()
 
     val expected =
-      Seq("1,1,1,1", "1,1,1,1", "1,1,1,1", "1,1,1,1", "2,2,2,2", "3,3,3,3", "5,5,5,5", "5,5,5,5")
-    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+      Seq(
+        "+I[1, 1, 1, 1]",
+        "+I[1, 1, 1, 1]",
+        "+I[1, 1, 1, 1]",
+        "+I[1, 1, 1, 1]",
+        "+I[2, 2, 2, 2]",
+        "+I[3, 3, 3, 3]",
+        "+I[5, 5, 5, 5]",
+        "+I[5, 5, 5, 5]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("retractSink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @TestTemplate
@@ -1209,13 +1233,22 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
       .where('leftPk === 'rightPk)
       .select('leftPk, 'leftA, 'rightPk, 'rightA)
     val schema = t.getSchema
-    val sink = new TestingUpsertTableSink(Array(0, 2))
-      .configure(schema.getFieldNames, schema.getFieldTypes)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    val fieldNames = java.util.Arrays.asList(schema.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink",
+      fieldNames,
+      java.util.Arrays.asList(schema.getFieldDataTypes: _*).toList,
+      ChangelogMode.upsert(),
+      List(0, 2).map(fieldNames)
+    )
     t.executeInsert("MySink").await()
 
-    val expected = Seq("1,5,1,2")
-    assertThat(sink.getUpsertResults.sorted).isEqualTo(expected.sorted)
+    val expected = Seq("+I[1, 5, 1, 2]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @TestTemplate
@@ -1288,12 +1321,20 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
       .where('leftPk === 'rightPk)
       .select('leftPk, 'leftA, 'rightPk, 'rightA)
     val schema = t.getSchema
-    val sink = new TestingRetractTableSink().configure(schema.getFieldNames, schema.getFieldTypes)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    val fieldNames = java.util.Arrays.asList(schema.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink",
+      fieldNames,
+      java.util.Arrays.asList(schema.getFieldDataTypes: _*).toList,
+      ChangelogMode.all())
     t.executeInsert("MySink").await()
 
-    val expected = Seq("1,4,1,2", "1,5,1,2")
-    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+    val expected = Seq("+I[1, 4, 1, 2]", "+I[1, 5, 1, 2]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @TestTemplate
@@ -1474,13 +1515,28 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
       .join(rightTableWithPk, 'b === 'bb)
       .select('a, 'b, 'c)
     val schema = t.getSchema
-    val sink = new TestingUpsertTableSink(Array(0, 1))
-      .configure(schema.getFieldNames, schema.getFieldTypes)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    val fieldNames = java.util.Arrays.asList(schema.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink",
+      fieldNames,
+      java.util.Arrays.asList(schema.getFieldDataTypes: _*).toList,
+      ChangelogMode.upsert(),
+      List(0, 1).map(fieldNames))
     t.executeInsert("MySink").await()
 
-    val expected = Seq("0,1,1", "1,2,3", "2,1,1", "3,1,1", "4,1,1", "5,2,3", "6,0,1")
-    assertThat(sink.getUpsertResults.sorted).isEqualTo(expected.sorted)
+    val expected = Seq(
+      "+I[0, 1, 1]",
+      "+I[1, 2, 3]",
+      "+I[2, 1, 1]",
+      "+I[3, 1, 1]",
+      "+I[4, 1, 1]",
+      "+I[5, 2, 3]",
+      "+I[6, 0, 1]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @TestTemplate
@@ -1772,13 +1828,21 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
       .select('leftPk, 'leftA, 'rightPk, 'rightA)
 
     val schema = t.getSchema
-    val sink = new TestingUpsertTableSink(Array(0, 1, 2))
-      .configure(schema.getFieldNames, schema.getFieldTypes)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("sinkTests", sink)
+    val fieldNames = java.util.Arrays.asList(schema.getFieldNames: _*).toList
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "sinkTests",
+      fieldNames,
+      java.util.Arrays.asList(schema.getFieldDataTypes: _*).toList,
+      ChangelogMode.upsert(),
+      List(0, 1, 2).map(fieldNames))
     t.executeInsert("sinkTests").await()
 
-    val expected = Seq("4,1,1,1")
-    assertThat(sink.getUpsertResults).isEqualTo(expected)
+    val expected = Seq("+I[4, 1, 1, 1]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("sinkTests")
+        .toList).isEqualTo(expected)
   }
 
   @TestTemplate

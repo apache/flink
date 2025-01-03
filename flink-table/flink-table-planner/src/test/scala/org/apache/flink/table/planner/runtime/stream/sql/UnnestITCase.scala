@@ -21,8 +21,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.legacy.api.Types
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
@@ -33,6 +34,8 @@ import org.apache.flink.types.Row
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.TestTemplate
 import org.junit.jupiter.api.extension.{ExtendWith, RegisterExtension}
+
+import scala.collection.JavaConversions._
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
@@ -257,13 +260,21 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     val sqlQuery = "SELECT a, b, v FROM T CROSS JOIN UNNEST(c) as f (k, v)"
     val result = tEnv.sqlQuery(sqlQuery)
 
-    val sink = new TestingRetractTableSink()
-      .configure(Array("a", "b", "v"), Array(Types.INT, Types.LONG, Types.STRING))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "MySink",
+      List("a", "b", "v"),
+      List(DataTypes.INT, DataTypes.BIGINT, DataTypes.STRING),
+      ChangelogMode.all()
+    )
     result.executeInsert("MySink").await()
 
-    val expected = List("1,11,10", "1,11,11", "2,22,20", "3,33,30", "3,33,31")
-    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+    val expected =
+      List("1,11,10", "1,11,11", "2,22,20", "3,33,30", "3,33,31")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("MySink")
+        .sorted).isEqualTo(expected.sorted)
   }
 
   @TestTemplate

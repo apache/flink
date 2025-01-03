@@ -17,12 +17,11 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.{changelogRow, registerData}
@@ -51,6 +50,7 @@ import java.math.{BigDecimal => JBigDecimal}
 import java.time.Duration
 
 import scala.collection.{mutable, Seq}
+import scala.collection.JavaConversions._
 import scala.math.BigDecimal.double2bigDecimal
 import scala.util.Random
 
@@ -1689,9 +1689,13 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
     val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTable", t)
 
-    val tableSink = new TestingUpsertTableSink(Array(0))
-      .configure(Array[String]("c", "bMax"), Array[TypeInformation[_]](Types.STRING, Types.LONG))
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("testSink", tableSink)
+    TestSinkUtil.addValuesSink(
+      tEnv,
+      "testSink",
+      List("c", "bMax"),
+      List(DataTypes.STRING, DataTypes.BIGINT),
+      ChangelogMode.upsert,
+      List("c"))
 
     tEnv
       .executeSql("""
@@ -1702,8 +1706,12 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
       """.stripMargin)
       .await()
 
-    val expected = List("A,1", "B,2", "C,3")
-    assertThat(tableSink.getUpsertResults.sorted).isEqualTo(expected.sorted)
+    val expected = List("+I[A, 1]", "+I[B, 2]", "+I[C, 3]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings("testSink")
+        .sorted)
+      .isEqualTo(expected.sorted)
   }
 
   @TestTemplate

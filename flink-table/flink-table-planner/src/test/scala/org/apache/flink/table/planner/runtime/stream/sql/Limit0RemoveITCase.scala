@@ -19,11 +19,14 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.connector.ChangelogMode
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+
+import scala.collection.JavaConversions._
 
 class Limit0RemoveITCase extends StreamingTestBase() {
 
@@ -36,11 +39,12 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     val sql = "SELECT * FROM MyTable LIMIT 0"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
-    result.executeInsert("MySink").await()
 
-    assertThat(sink.getAppendResults.size).isZero
+    val sinkName = "MySink"
+    TestSinkUtil.addValuesSink(tEnv, sinkName, result, ChangelogMode.insertOnly())
+    result.executeInsert(sinkName).await()
+
+    assertThat(TestValuesTableFactory.getResults(sinkName).size()).isZero
   }
 
   @Test
@@ -52,11 +56,12 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     val sql = "SELECT * FROM MyTable ORDER BY a LIMIT 0"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
-    result.executeInsert("MySink").await()
 
-    assertThat(sink.getAppendResults.size).isZero
+    val sinkName = "MySink"
+    TestSinkUtil.addValuesSink(tEnv, sinkName, result, ChangelogMode.insertOnly())
+    result.executeInsert(sinkName).await()
+
+    assertThat(TestValuesTableFactory.getResults(sinkName).size()).isZero
   }
 
   @Test
@@ -68,11 +73,12 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     val sql = "select a2 from (select cast(a as int) a2 from MyTable limit 0)"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
-    result.executeInsert("MySink").await()
 
-    assertThat(sink.getAppendResults.size).isZero
+    val sinkName = "MySink"
+    TestSinkUtil.addValuesSink(tEnv, sinkName, result, ChangelogMode.insertOnly())
+    result.executeInsert(sinkName).await()
+
+    assertThat(TestValuesTableFactory.getResults(sinkName).size()).isZero
   }
 
   @Test
@@ -88,11 +94,12 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     val sql = "SELECT * FROM MyTable1 WHERE a IN (SELECT a FROM MyTable2 LIMIT 0)"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
-    result.executeInsert("MySink").await()
 
-    assertThat(sink.getAppendResults.size).isZero
+    val sinkName = "MySink"
+    TestSinkUtil.addValuesSink(tEnv, sinkName, result, ChangelogMode.insertOnly())
+    result.executeInsert(sinkName).await()
+
+    assertThat(TestValuesTableFactory.getResults(sinkName).size()).isZero
   }
 
   @Test
@@ -108,12 +115,16 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     val sql = "SELECT * FROM MyTable1 WHERE a NOT IN (SELECT a FROM MyTable2 LIMIT 0)"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
-    result.executeInsert("MySink").await()
 
-    val expected = Seq("1", "2", "3", "4", "5", "6")
-    assertThat(sink.getAppendResults.sorted).isEqualTo(expected)
+    val sinkName = "MySink"
+    TestSinkUtil.addValuesSink(tEnv, sinkName, result, ChangelogMode.insertOnly())
+    result.executeInsert(sinkName).await()
+
+    val expected = Seq("+I[1]", "+I[2]", "+I[3]", "+I[4]", "+I[5]", "+I[6]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings(sinkName)
+        .sorted).isEqualTo(expected)
   }
 
   @Test
@@ -129,11 +140,12 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     val sql = "SELECT * FROM MyTable1 WHERE EXISTS (SELECT a FROM MyTable2 LIMIT 0)"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingRetractTableSink())
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
-    result.executeInsert("MySink").await()
 
-    assertThat(sink.getRawResults.size).isZero
+    val sinkName = "MySink"
+    TestSinkUtil.addValuesSink(tEnv, sinkName, result, ChangelogMode.all())
+    result.executeInsert(sinkName).await()
+
+    assertThat(TestValuesTableFactory.getRawResults(sinkName).size()).isZero
   }
 
   @Test
@@ -149,12 +161,16 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     val sql = "SELECT * FROM MyTable1 WHERE NOT EXISTS (SELECT a FROM MyTable2 LIMIT 0)"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingRetractTableSink())
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
-    result.executeInsert("MySink").await()
 
-    val expected = Seq("1", "2", "3", "4", "5", "6")
-    assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
+    val sinkName = "MySink"
+    TestSinkUtil.addValuesSink(tEnv, sinkName, result, ChangelogMode.all())
+    result.executeInsert(sinkName).await()
+
+    val expected = Seq("+I[1]", "+I[2]", "+I[3]", "+I[4]", "+I[5]", "+I[6]")
+    assertThat(
+      TestValuesTableFactory
+        .getResultsAsStrings(sinkName)
+        .sorted).isEqualTo(expected)
   }
 
   @Test
@@ -170,10 +186,11 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     val sql = "SELECT a1 FROM MyTable1 INNER JOIN (SELECT a2 FROM MyTable2 LIMIT 0) ON true"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
-    result.executeInsert("MySink").await()
 
-    assertThat(sink.getAppendResults.size).isZero
+    val sinkName = "MySink"
+    TestSinkUtil.addValuesSink(tEnv, sinkName, result, ChangelogMode.insertOnly())
+    result.executeInsert(sinkName).await()
+
+    assertThat(TestValuesTableFactory.getResults(sinkName).size()).isZero
   }
 }
