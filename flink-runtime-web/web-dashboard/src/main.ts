@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 import { registerLocaleData } from '@angular/common';
-import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
+import { HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import en from '@angular/common/locales/en';
 import { APP_INITIALIZER, enableProdMode, importProvidersFrom, Injector } from '@angular/core';
 import { bootstrapApplication } from '@angular/platform-browser';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { Router, RouterModule } from '@angular/router';
+import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
+import { provideRouter, Router, withHashLocation } from '@angular/router';
 
 import { APP_ICONS } from '@flink-runtime-web/app-icons';
 import { AppComponent } from '@flink-runtime-web/app.component';
@@ -29,9 +29,9 @@ import { AppInterceptor } from '@flink-runtime-web/app.interceptor';
 import { Configuration } from '@flink-runtime-web/interfaces';
 import { APP_ROUTES } from '@flink-runtime-web/routes';
 import { StatusService } from '@flink-runtime-web/services';
-import { NZ_CONFIG, NzConfig } from 'ng-zorro-antd/core/config';
-import { en_US, NZ_I18N } from 'ng-zorro-antd/i18n';
-import { NZ_ICONS } from 'ng-zorro-antd/icon';
+import { NzConfig, provideNzConfig } from 'ng-zorro-antd/core/config';
+import { en_US, provideNzI18n } from 'ng-zorro-antd/i18n';
+import { provideNzIcons } from 'ng-zorro-antd/icon';
 import { NzNotificationModule } from 'ng-zorro-antd/notification';
 
 import { environment } from './environments/environment';
@@ -58,18 +58,6 @@ const ngZorroConfig: NzConfig = {
 bootstrapApplication(AppComponent, {
   providers: [
     {
-      provide: NZ_I18N,
-      useValue: en_US
-    },
-    {
-      provide: NZ_CONFIG,
-      useValue: ngZorroConfig
-    },
-    {
-      provide: NZ_ICONS,
-      useValue: APP_ICONS
-    },
-    {
       provide: HTTP_INTERCEPTORS,
       useClass: AppInterceptor,
       multi: true
@@ -80,13 +68,12 @@ bootstrapApplication(AppComponent, {
       deps: [StatusService, Injector],
       multi: true
     },
-    importProvidersFrom(HttpClientModule),
-    importProvidersFrom(BrowserAnimationsModule),
+    provideNzI18n(en_US),
+    provideNzIcons(APP_ICONS),
+    provideNzConfig(ngZorroConfig),
+    provideHttpClient(withInterceptorsFromDi()),
+    provideAnimationsAsync(),
     importProvidersFrom(NzNotificationModule),
-    importProvidersFrom(
-      RouterModule.forRoot([...APP_ROUTES], {
-        useHash: true
-      })
-    )
+    provideRouter(APP_ROUTES, withHashLocation())
   ]
 }).catch(err => console.error(err));
