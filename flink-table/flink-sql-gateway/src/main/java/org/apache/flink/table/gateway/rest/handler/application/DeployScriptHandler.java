@@ -34,7 +34,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.net.URI;
-import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 

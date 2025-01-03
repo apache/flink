@@ -24,7 +24,6 @@ import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.service.utils.MockHttpServer;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.Order;
