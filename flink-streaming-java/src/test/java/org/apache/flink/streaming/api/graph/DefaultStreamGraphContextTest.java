@@ -34,6 +34,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -53,7 +54,9 @@ class DefaultStreamGraphContextTest {
                         forwardGroupsByEndpointNodeIdCache,
                         frozenNodeToStartNodeMap,
                         opIntermediateOutputsCaches,
-                        new HashMap<>());
+                        new HashMap<>(),
+                        new HashSet<>(),
+                        Thread.currentThread().getContextClassLoader());
 
         StreamNode sourceNode =
                 streamGraph.getStreamNode(streamGraph.getSourceIDs().iterator().next());
@@ -74,7 +77,7 @@ class DefaultStreamGraphContextTest {
                                 targetEdge.getEdgeId(),
                                 targetEdge.getSourceId(),
                                 targetEdge.getTargetId())
-                        .outputPartitioner(new ForwardForUnspecifiedPartitioner<>());
+                        .withOutputPartitioner(new ForwardForUnspecifiedPartitioner<>());
 
         assertThat(
                         streamGraphContext.modifyStreamEdge(
@@ -138,7 +141,9 @@ class DefaultStreamGraphContextTest {
                         forwardGroupsByEndpointNodeIdCache,
                         frozenNodeToStartNodeMap,
                         opIntermediateOutputsCaches,
-                        new HashMap<>());
+                        new HashMap<>(),
+                        new HashSet<>(),
+                        Thread.currentThread().getContextClassLoader());
 
         StreamNode sourceNode =
                 streamGraph.getStreamNode(streamGraph.getSourceIDs().iterator().next());
@@ -158,7 +163,7 @@ class DefaultStreamGraphContextTest {
                                 targetEdge.getEdgeId(),
                                 targetEdge.getSourceId(),
                                 targetEdge.getTargetId())
-                        .outputPartitioner(new ForwardForUnspecifiedPartitioner<>());
+                        .withOutputPartitioner(new ForwardForUnspecifiedPartitioner<>());
 
         // Modify rescale partitioner to forward partitioner.
 
