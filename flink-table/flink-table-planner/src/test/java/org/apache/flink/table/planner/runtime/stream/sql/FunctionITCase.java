@@ -1543,6 +1543,22 @@ public class FunctionITCase extends StreamingTestBase {
     }
 
     @Test
+    void testUsingAddJarWithCheckpointing() throws Exception {
+        env().enableCheckpointing(100);
+        tEnv().executeSql(String.format("ADD JAR '%s'", jarPath));
+        ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+        testUserDefinedFunctionByUsingJar(
+                env ->
+                        env.executeSql(
+                                String.format(
+                                        "create function lowerUdf as '%s' LANGUAGE JAVA",
+                                        udfClassName)),
+                "drop function lowerUdf");
+        assertThat(contextClassLoader.equals(Thread.currentThread().getContextClassLoader()))
+                .isTrue();
+    }
+
+    @Test
     void testUdfWithMultiLocalVariables() {
         List<Row> sourceData = Arrays.asList(Row.of(1L, 2L), Row.of(2L, 3L));
         TestCollectionTableFactory.reset();
