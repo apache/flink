@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import java.util.Collections;
-
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
@@ -58,9 +56,13 @@ public class OverWindowRestoreTest extends RestoreTestBase {
                 OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_UNBOUNDED_APPEND_MODE,
                 OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_UNBOUNDED_APPEND_MODE_MULTIPLE_AGGS,
                 OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_UNBOUNDED_NO_PARTITION_BY,
-                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_UNBOUNDED_RETRACT_MODE_SOURCE_PRIMARY_KEY,
-                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_UNBOUNDED_RETRACT_MODE_SINK_PRIMARY_KEY,
-                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_UNBOUNDED_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY,
-                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_UNBOUNDED_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY_PARTITION_BY_NON_PK);
+                OverWindowTestPrograms
+                        .OVER_AGGREGATE_NON_TIME_UNBOUNDED_RETRACT_MODE_SOURCE_PRIMARY_KEY,
+                OverWindowTestPrograms
+                        .OVER_AGGREGATE_NON_TIME_UNBOUNDED_RETRACT_MODE_SINK_PRIMARY_KEY,
+                OverWindowTestPrograms
+                        .OVER_AGGREGATE_NON_TIME_UNBOUNDED_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY,
+                OverWindowTestPrograms
+                        .OVER_AGGREGATE_NON_TIME_UNBOUNDED_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY_PARTITION_BY_NON_PK);
     }
 }

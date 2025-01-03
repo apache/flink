@@ -1,7 +1,7 @@
 {
   "flinkVersion" : "2.0",
   "nodes" : [ {
-    "id" : 1,
+    "id" : 26,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -28,7 +28,7 @@
     "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t]], fields=[key, val, ts])",
     "inputProperties" : [ ]
   }, {
-    "id" : 2,
+    "id" : 27,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -41,7 +41,7 @@
     "outputType" : "ROW<`key` VARCHAR(2147483647), `val` BIGINT, `ts` BIGINT>",
     "description" : "Exchange(distribution=[hash[key]])"
   }, {
-    "id" : 3,
+    "id" : 28,
     "type" : "stream-exec-over-aggregate_1",
     "overSpec" : {
       "partition" : {
@@ -96,7 +96,7 @@
     "outputType" : "ROW<`key` VARCHAR(2147483647), `val` BIGINT, `ts` BIGINT, `w0$o0` BIGINT NOT NULL, `w0$o1` BIGINT NOT NULL>",
     "description" : "OverAggregate(partitionBy=[key], orderBy=[val ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[key, val, ts, COUNT(val) AS w0$o0, $SUM0(val) AS w0$o1])"
   }, {
-    "id" : 4,
+    "id" : 29,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
@@ -150,7 +150,7 @@
     "outputType" : "ROW<`key` VARCHAR(2147483647), `val` BIGINT, `ts` BIGINT, `sum_val` BIGINT>",
     "description" : "Calc(select=[key, val, ts, CASE((w0$o0 > 0), w0$o1, null:BIGINT) AS sum_val])"
   }, {
-    "id" : 5,
+    "id" : 30,
     "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -206,29 +206,29 @@
     "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[key, val, ts, sum_val], upsertMaterialize=[true])"
   } ],
   "edges" : [ {
-    "source" : 1,
-    "target" : 2,
+    "source" : 26,
+    "target" : 27,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 2,
-    "target" : 3,
+    "source" : 27,
+    "target" : 28,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 3,
-    "target" : 4,
+    "source" : 28,
+    "target" : 29,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 4,
-    "target" : 5,
+    "source" : 29,
+    "target" : 30,
     "shuffle" : {
       "type" : "FORWARD"
     },
