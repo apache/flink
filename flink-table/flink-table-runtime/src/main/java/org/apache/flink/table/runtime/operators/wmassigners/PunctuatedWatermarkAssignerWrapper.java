@@ -33,7 +33,7 @@ import javax.annotation.Nullable;
 
 /** Generates periodic watermarks based on a {@link PunctuatedWatermarkAssigner}. */
 @Internal
-public class PunctuatedWatermarkStrategyWrapper
+public class PunctuatedWatermarkAssignerWrapper
         implements WatermarkStrategyWithPunctuatedWatermarks<RowData> {
     private static final long serialVersionUID = 1L;
     private final PunctuatedWatermarkAssigner assigner;
@@ -46,7 +46,7 @@ public class PunctuatedWatermarkStrategyWrapper
      * @param sourceType the type of source
      */
     @SuppressWarnings("unchecked")
-    public PunctuatedWatermarkStrategyWrapper(
+    public PunctuatedWatermarkAssignerWrapper(
             PunctuatedWatermarkAssigner assigner, int timeFieldIdx, DataType sourceType) {
         this.assigner = assigner;
         this.timeFieldIdx = timeFieldIdx;
