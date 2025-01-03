@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.typeutils
 
-import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -158,20 +157,7 @@ object LegacyDataViewUtils {
           "MapView, SortedMapView and ListView only supported at first level of " +
             "accumulators of Pojo type.")
       case map: MapViewTypeInfo[_, _] =>
-        val mapView = instance match {
-          case b: BinaryRawValueData[_] =>
-            b.getJavaObject.asInstanceOf[MapView[_, _]]
-          case _ =>
-            instance.asInstanceOf[MapView[_, _]]
-        }
-
-        val newTypeInfo =
-          if (mapView != null && mapView.keyType != null && mapView.valueType != null) {
-            // use explicit key value type if user has defined
-            new MapViewTypeInfo(mapView.keyType, mapView.valueType)
-          } else {
-            map
-          }
+        val newTypeInfo = map
 
         if (!isStateBackedDataViews) {
           // add data view field if it is not backed by a state backend.
