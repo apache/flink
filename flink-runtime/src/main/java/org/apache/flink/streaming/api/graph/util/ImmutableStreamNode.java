@@ -19,12 +19,18 @@
 package org.apache.flink.streaming.api.graph.util;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /** Helper class that provides read-only StreamNode. */
 @Internal
@@ -61,11 +67,21 @@ public class ImmutableStreamNode {
         return streamNode.getId();
     }
 
+    public @Nullable StreamOperatorFactory<?> getOperatorFactory() {
+        return streamNode.getOperatorFactory();
+    }
+
     public int getMaxParallelism() {
         return streamNode.getMaxParallelism();
     }
 
     public int getParallelism() {
         return streamNode.getParallelism();
+    }
+
+    public TypeSerializer<?>[] getTypeSerializersIn() {
+        return Arrays.stream(streamNode.getTypeSerializersIn())
+                .filter(Objects::nonNull)
+                .toArray(TypeSerializer<?>[]::new);
     }
 }
