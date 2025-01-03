@@ -18,8 +18,15 @@
 
 package org.apache.flink.table.runtime.operators.aggregate.window;
 
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
+import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
+import org.apache.flink.table.runtime.operators.aggregate.asyncwindow.buffers.AsyncStateRecordsWindowBuffer;
+import org.apache.flink.table.runtime.operators.aggregate.asyncwindow.buffers.AsyncStateWindowBuffer;
+import org.apache.flink.table.runtime.operators.aggregate.asyncwindow.combines.AsyncStateAggCombiner;
+import org.apache.flink.table.runtime.operators.aggregate.asyncwindow.processors.AsyncStateSliceSharedWindowAggProcessor;
+import org.apache.flink.table.runtime.operators.aggregate.asyncwindow.processors.AsyncStateSliceUnsharedWindowAggProcessor;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.RecordsWindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.combines.AggCombiner;
@@ -28,6 +35,9 @@ import org.apache.flink.table.runtime.operators.aggregate.window.processors.Slic
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceUnsharedWindowAggProcessor;
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.UnsliceWindowAggProcessor;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
+import org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.common.AsyncStateWindowAggOperator;
+import org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.common.AsyncStateWindowProcessor;
+import org.apache.flink.table.runtime.operators.window.asyncprocessing.tvf.slicing.AsyncStateSlicingWindowProcessor;
 import org.apache.flink.table.runtime.operators.window.tvf.combines.RecordsCombiner;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAggOperator;
 import org.apache.flink.table.runtime.operators.window.tvf.common.WindowAssigner;
@@ -41,6 +51,7 @@ import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnsliceAssi
 import org.apache.flink.table.runtime.operators.window.tvf.unslicing.UnslicingWindowProcessor;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
+import org.apache.flink.util.Preconditions;
 
 import java.time.ZoneId;
 import java.util.function.Supplier;
@@ -70,6 +81,19 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   .aggregate(genAggsFunction), accTypes)
  *   .build();
  * </pre>
+ *
+ * <p>or
+ *
+ * <pre>
+ * WindowAggOperatorBuilder.builder()
+ *   .inputType(inputType)
+ *   .keyTypes(keyFieldTypes)
+ *   .assigner(UnsliceAssigners.session(rowtimeIndex, Duration.ofSeconds(5)))
+ *   .aggregate(genAggsFunction), accTypes)
+ *   .generatedKeyEqualiser(genKeyEqualiser)
+ *   .enableAsyncState()
+ *   .build();
+ * </pre>
  */
 public class WindowAggOperatorBuilder {
 
@@ -84,8 +108,11 @@ public class WindowAggOperatorBuilder {
     private GeneratedNamespaceAggsHandleFunction<?> generatedAggregateFunction;
     private GeneratedNamespaceAggsHandleFunction<?> localGeneratedAggregateFunction;
     private GeneratedNamespaceAggsHandleFunction<?> globalGeneratedAggregateFunction;
+    private GeneratedRecordEqualiser generatedKeyEqualiser;
     private int indexOfCountStart = -1;
     private ZoneId shiftTimeZone;
+
+    private boolean enableAsyncState;
 
     public WindowAggOperatorBuilder inputSerializer(
             AbstractRowDataSerializer<RowData> inputSerializer) {
@@ -100,6 +127,12 @@ public class WindowAggOperatorBuilder {
 
     public WindowAggOperatorBuilder keySerializer(PagedTypeSerializer<RowData> keySerializer) {
         this.keySerializer = keySerializer;
+        return this;
+    }
+
+    public WindowAggOperatorBuilder generatedKeyEqualiser(
+            GeneratedRecordEqualiser generatedKeyEqualiser) {
+        this.generatedKeyEqualiser = generatedKeyEqualiser;
         return this;
     }
 
@@ -140,13 +173,26 @@ public class WindowAggOperatorBuilder {
         return this;
     }
 
-    public WindowAggOperator<RowData, ?> build() {
+    public WindowAggOperatorBuilder enableAsyncState() {
+        this.enableAsyncState = true;
+        return this;
+    }
+
+    public OneInputStreamOperator<RowData, RowData> build() {
         checkNotNull(assigner);
         checkNotNull(inputSerializer);
         checkNotNull(keySerializer);
         checkNotNull(accSerializer);
         checkNotNull(generatedAggregateFunction);
 
+        if (enableAsyncState) {
+            return buildAsyncStateOperator();
+        } else {
+            return buildSyncStateOperator();
+        }
+    }
+
+    private WindowAggOperator<RowData, ?> buildSyncStateOperator() {
         final WindowProcessor<?> windowProcessor;
         if (assigner instanceof SliceAssigner) {
             windowProcessor = buildSlicingWindowProcessor();
@@ -156,14 +202,24 @@ public class WindowAggOperatorBuilder {
         return new WindowAggOperator<>(windowProcessor, assigner.isEventTime());
     }
 
+    private AsyncStateWindowAggOperator<RowData, ?> buildAsyncStateOperator() {
+        Preconditions.checkState(
+                !isGlobalAgg(), "Currently only one-stage window agg supports async state.");
+        Preconditions.checkState(
+                assigner instanceof SliceAssigner,
+                "Currently only slice window supports async state.");
+
+        checkNotNull(generatedKeyEqualiser);
+
+        final AsyncStateWindowProcessor<?> windowProcessor =
+                buildAsyncStateSlicingWindowProcessor();
+        return new AsyncStateWindowAggOperator<>(windowProcessor, assigner.isEventTime());
+    }
+
     @SuppressWarnings("unchecked")
     private SlicingWindowProcessor<Long> buildSlicingWindowProcessor() {
-
-        boolean isGlobalAgg =
-                localGeneratedAggregateFunction != null && globalGeneratedAggregateFunction != null;
-
-        RecordsCombiner.Factory combinerFactory;
-        if (isGlobalAgg) {
+        final RecordsCombiner.Factory combinerFactory;
+        if (isGlobalAgg()) {
             combinerFactory =
                     new GlobalAggCombiner.Factory(
                             (GeneratedNamespaceAggsHandleFunction<Long>)
@@ -213,5 +269,41 @@ public class WindowAggOperatorBuilder {
                 accSerializer,
                 indexOfCountStart,
                 shiftTimeZone);
+    }
+
+    @SuppressWarnings("unchecked")
+    private AsyncStateSlicingWindowProcessor<Long> buildAsyncStateSlicingWindowProcessor() {
+        final AsyncStateAggCombiner.Factory combinerFactory =
+                new AsyncStateAggCombiner.Factory(
+                        (GeneratedNamespaceAggsHandleFunction<Long>) generatedAggregateFunction);
+
+        final AsyncStateWindowBuffer.Factory bufferFactory =
+                new AsyncStateRecordsWindowBuffer.Factory(
+                        keySerializer, inputSerializer, combinerFactory, generatedKeyEqualiser);
+
+        if (assigner instanceof SliceSharedAssigner) {
+            return new AsyncStateSliceSharedWindowAggProcessor(
+                    (GeneratedNamespaceAggsHandleFunction<Long>) generatedAggregateFunction,
+                    bufferFactory,
+                    (SliceSharedAssigner) assigner,
+                    accSerializer,
+                    indexOfCountStart,
+                    shiftTimeZone);
+        } else if (assigner instanceof SliceUnsharedAssigner) {
+            return new AsyncStateSliceUnsharedWindowAggProcessor(
+                    (GeneratedNamespaceAggsHandleFunction<Long>) generatedAggregateFunction,
+                    bufferFactory,
+                    (SliceUnsharedAssigner) assigner,
+                    accSerializer,
+                    indexOfCountStart,
+                    shiftTimeZone);
+        } else {
+            throw new IllegalArgumentException(
+                    "assigner must be instance of SliceUnsharedAssigner or SliceSharedAssigner.");
+        }
+    }
+
+    private boolean isGlobalAgg() {
+        return localGeneratedAggregateFunction != null && globalGeneratedAggregateFunction != null;
     }
 }
