@@ -1566,30 +1566,6 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], up
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCdcWithMetaLegacySinkWithoutPk[nonDeterministicUpdateStrategy=IGNORE]">
-    <Resource name="sql">
-      <![CDATA[
-insert into legacy_retract_sink
-select a, metadata_3, c
-from cdc_with_meta
-]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalLegacySink(name=[`default_catalog`.`default_database`.`legacy_retract_sink`], fields=[a, b, c])
-+- LogicalProject(a=[$0], metadata_3=[$6], c=[$2])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
-      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-LegacySink(name=[`default_catalog`.`default_database`.`legacy_retract_sink`], fields=[a, b, c])
-+- Calc(select=[a, metadata_3, c])
-   +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_meta, project=[a, c], metadata=[metadata_3]]], fields=[a, c, metadata_3])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testCdcWithMetaLegacySinkWithPk[nonDeterministicUpdateStrategy=IGNORE]">
     <Resource name="sql">
       <![CDATA[
