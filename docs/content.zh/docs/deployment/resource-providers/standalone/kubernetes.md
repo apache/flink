@@ -136,12 +136,6 @@ $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
     $ kubectl delete -f jobmanager-application-non-ha.yaml
 ```
 
-<a name="per-job-cluster-mode"></a>
-
-### Per-Job 集群模式
-
-在 Kubernetes 上部署 Standalone 集群时不支持 Per-Job 集群模式。
-
 <a name="session-mode"></a>
 
 ### Session 集群模式

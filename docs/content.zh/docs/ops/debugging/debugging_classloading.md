@@ -58,19 +58,11 @@ created for an job/application and will contain the job/application's jar files.
 
 -->
 
-**Per-Job模式（已弃用）（Yarn）**
-
-当前只有Yarn支持Per-Job模式。默认情况下，Flink集群运行在Per-Job模式下时会将用户的jar文件包含在系统的classpath中。
-这种模式可以由[yarn.classpath.include-user-jar]({{< ref "docs/deployment/config" >}}#yarn-classpath-include-user-jar) 参数控制。
-当该参数设定为`DISABLED`时，Flink会将用户jar文件含在用户的classpath中，并由*FlinkUserCodeClassLoader*进行动态加载。
-
-详细信息参见[Flink on Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}})。
-
 **Application模式（Standalone/Yarn/Kubernetes）**
 
 当Application模式的Flink集群基于Standalone或Kubernetes方式运行时，用户jar文件（启动命令指定的jar文件和Flink的`usrlib`目录中的jar包）会由*FlinkUserCodeClassLoader*进行动态加载。
 
-当Flink集群以Application模式运行时，用户jar文件（启动命令指定的jar文件和Flink的`usrlib`目录中的jar包）默认情况下会包含在系统classpath（*AppClassLoader*）。与Per-Job模式相同，当[yarn.classpath.include-user-jar]({{< ref "docs/deployment/config" >}}#yarn-classpath-include-user-jar)设置为`DISABLED`时，Flink会将用户jar文件含在用户的classpath中，并由*FlinkUserCodeClassLoader*进行动态加载。
+当Flink集群以Application模式运行时，用户jar文件（启动命令指定的jar文件和Flink的`usrlib`目录中的jar包）默认情况下会包含在系统classpath（*AppClassLoader*）。当[yarn.classpath.include-user-jar]({{< ref "docs/deployment/config" >}}#yarn-classpath-include-user-jar)设置为`DISABLED`时，Flink会将用户jar文件含在用户的classpath中，并由*FlinkUserCodeClassLoader*进行动态加载。
 
 
 ## 倒置类加载（Inverted Class Loading）和ClassLoader解析顺序
