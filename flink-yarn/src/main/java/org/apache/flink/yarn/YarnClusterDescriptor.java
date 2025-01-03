@@ -137,6 +137,7 @@ import static org.apache.flink.client.deployment.application.ApplicationConfigur
 import static org.apache.flink.configuration.ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_LIB_DIR;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_OPT_DIR;
+import static org.apache.flink.configuration.ConfigConstants.ENV_JAVA_HOME;
 import static org.apache.flink.configuration.ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX;
 import static org.apache.flink.configuration.ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX;
 import static org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever.JOB_GRAPH_FILE_PATH;
@@ -1969,6 +1970,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                 ConfigurationUtils.getPrefixedKeyValuePairs(
                         ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX,
                         this.flinkConfiguration));
+        // set JAVA_HOME
+        this.flinkConfiguration
+                .getOptional(CoreOptions.FLINK_JAVA_HOME)
+                .ifPresent(javaHome -> env.put(ENV_JAVA_HOME, javaHome));
         // set Flink app class path
         env.put(ENV_FLINK_CLASSPATH, classPathStr);
         // Set FLINK_LIB_DIR to `lib` folder under working dir in container
