@@ -1402,8 +1402,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         }
     }
 
-    @Override
-    public void registerTableSinkInternal(String name, TableSink<?> tableSink) {
+    /** TODO FLINK-36132 Remove this method later. */
+    private void registerTableSinkInternal(String name, TableSink<?> tableSink) {
         ObjectIdentifier objectIdentifier =
                 catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(name));
         Optional<CatalogBaseTable> table = getTemporaryTable(objectIdentifier);

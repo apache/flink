@@ -18,20 +18,26 @@
 
 package org.apache.flink.table.tpcds;
 
-import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
+import org.apache.flink.connector.file.table.FileSystemTableFactory;
+import org.apache.flink.formats.csv.CsvFormatOptions;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.FormatDescriptor;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
-import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.sinks.CsvTableSink;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.sources.CsvTableSource;
 import org.apache.flink.table.tpcds.schema.TpcdsSchema;
 import org.apache.flink.table.tpcds.schema.TpcdsSchemaProvider;
 import org.apache.flink.table.tpcds.stats.TpcdsStatsProvider;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.util.ParameterTool;
 
@@ -107,21 +113,42 @@ public class TpcdsTestProgram {
 
             // register sink table
             String sinkTableName = QUERY_PREFIX + queryId + "_sinkTable";
-            ((TableEnvironmentInternal) tableEnvironment)
-                    .registerTableSinkInternal(
-                            sinkTableName,
-                            new CsvTableSink(
-                                    sinkTablePath + FILE_SEPARATOR + queryId + RESULT_SUFFIX,
-                                    COL_DELIMITER,
-                                    1,
-                                    FileSystem.WriteMode.OVERWRITE,
-                                    resultTable.getSchema().getFieldNames(),
-                                    resultTable.getSchema().getFieldDataTypes()));
+            tableEnvironment.createTable(
+                    sinkTableName,
+                    getTableDescriptor(
+                            sinkTablePath + FILE_SEPARATOR + queryId + RESULT_SUFFIX,
+                            resultTable.getSchema().getFieldNames(),
+                            resultTable.getSchema().getFieldDataTypes()));
             TableResult tableResult = resultTable.executeInsert(sinkTableName);
             // wait job finish
             tableResult.getJobClient().get().getJobExecutionResult().get();
             System.out.println("[INFO]Run TPC-DS query " + queryId + " success.");
         }
+    }
+
+    private static TableDescriptor getTableDescriptor(
+            String path, String[] fieldNames, DataType[] fieldDataTypes) {
+        final Schema.Builder schemaBuilder = Schema.newBuilder();
+        for (int i = 0; i < fieldNames.length; i++) {
+            schemaBuilder.column(fieldNames[i], fieldDataTypes[i]);
+        }
+        final Schema schema = schemaBuilder.build();
+
+        final FormatDescriptor formatDescriptor =
+                FormatDescriptor.forFormat("csv")
+                        .option(CsvFormatOptions.FIELD_DELIMITER, COL_DELIMITER)
+                        .build();
+
+        return TableDescriptor.forConnector(FileSystemTableFactory.IDENTIFIER)
+                .schema(schema)
+                .option(FileSystemConnectorOptions.PATH, path)
+                // ensure only generating one file
+                .option(
+                        FileSystemConnectorOptions.SINK_ROLLING_POLICY_FILE_SIZE,
+                        MemorySize.MAX_VALUE)
+                .option(FactoryUtil.SINK_PARALLELISM, 1)
+                .format(formatDescriptor)
+                .build();
     }
 
     /**
