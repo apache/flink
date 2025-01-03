@@ -19,14 +19,11 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.legacy.factories.TableFactory;
 
 import java.util.Map;
-import java.util.Set;
 
 /**
  * A factory to create configured catalog instances based on string-based properties. See also
@@ -45,9 +42,7 @@ public interface CatalogFactory extends Factory {
      * <p>An implementation should perform validation and the discovery of further (nested)
      * factories in this method.
      */
-    default Catalog createCatalog(Context context) {
-        throw new CatalogException("Catalog factories must implement createCatalog(Context)");
-    }
+    Catalog createCatalog(Context context);
 
     /** Context provided when a catalog is created. */
     @PublicEvolving
@@ -71,17 +66,5 @@ public interface CatalogFactory extends Factory {
          * <p>The class loader is in particular useful for discovering further (nested) factories.
          */
         ClassLoader getClassLoader();
-    }
-
-    default String factoryIdentifier() {
-        throw new CatalogException("Catalog factories must implement factoryIdentifier()");
-    }
-
-    default Set<ConfigOption<?>> requiredOptions() {
-        throw new CatalogException("Catalog factories must implement requiredOptions()");
-    }
-
-    default Set<ConfigOption<?>> optionalOptions() {
-        throw new CatalogException("Catalog factories must implement optionalOptions()");
     }
 }
