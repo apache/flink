@@ -34,6 +34,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -53,7 +54,9 @@ class DefaultStreamGraphContextTest {
                         forwardGroupsByEndpointNodeIdCache,
                         frozenNodeToStartNodeMap,
                         opIntermediateOutputsCaches,
-                        new HashMap<>());
+                        new HashMap<>(),
+                        new HashSet<>(),
+                        Thread.currentThread().getContextClassLoader());
 
         StreamNode sourceNode =
                 streamGraph.getStreamNode(streamGraph.getSourceIDs().iterator().next());
@@ -138,7 +141,9 @@ class DefaultStreamGraphContextTest {
                         forwardGroupsByEndpointNodeIdCache,
                         frozenNodeToStartNodeMap,
                         opIntermediateOutputsCaches,
-                        new HashMap<>());
+                        new HashMap<>(),
+                        new HashSet<>(),
+                        Thread.currentThread().getContextClassLoader());
 
         StreamNode sourceNode =
                 streamGraph.getStreamNode(streamGraph.getSourceIDs().iterator().next());

@@ -79,6 +79,12 @@ public class AdaptiveJoinOperatorFactory<OUT> extends AbstractStreamOperatorFact
         adaptiveJoin.markAsBroadcastJoin(canBeBroadcast, leftIsBuild);
     }
 
+    @Override
+    public boolean shouldReorderInputs() {
+        checkAndLazyInitialize();
+        return adaptiveJoin.shouldReorderInputs();
+    }
+
     private void checkAndLazyInitialize() {
         if (this.adaptiveJoin == null) {
             lazyInitialize();

@@ -166,7 +166,7 @@ public class OptimizerConfigOptions {
             TABLE_OPTIMIZER_ADAPTIVE_BROADCAST_JOIN_STRATEGY =
                     key("table.optimizer.adaptive-broadcast-join.strategy")
                             .enumType(AdaptiveBroadcastJoinStrategy.class)
-                            .defaultValue(AdaptiveBroadcastJoinStrategy.NONE)
+                            .defaultValue(AdaptiveBroadcastJoinStrategy.AUTO)
                             .withDescription(
                                     "Flink will perform broadcast hash join optimization when the runtime "
                                             + "statistics on one side of a join operator is less than the "
