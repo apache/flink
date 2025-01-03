@@ -124,10 +124,10 @@ $ curl --request GET ${nextResultUri}
 
 ### Deploy Script
 
-SQL Gateway supports to deploy a script in [Application Mode]({{< ref "docs/deployment/overview" >}}). In application mode, Job Master is responsible for the script compiling.
-If you want to use custom resources in the script, e.g. Kafka Source, please use [ADD JAR]({{< ref "docs/dev/table/sql/jar">}}) command to download the required sources. 
+SQL Gateway supports deploying a script in [Application Mode]({{< ref "docs/deployment/overview" >}}). In application mode, [JobManager]({{< ref "docs/concepts/flink-architecture" >}}#jobmanager) is responsible for compiling the script.
+If you want to use custom resources in the script, e.g. Kafka Source, please use [ADD JAR]({{< ref "docs/dev/table/sql/jar">}}) command to download the [required artifacts]({{< ref "docs/dev/configuration/connector" >}}#available-artifacts). 
 
-Here is an example to deploy script to Flink native K8S Cluster with cluster id `CLUSTER_ID`. 
+Here is an example to deploy a script to Flink a native K8S Cluster with cluster id `CLUSTER_ID`.
 
 ```bash
 $ curl --request POST http://localhost:8083/sessions/${SESSION_HANDLE}/scripts \
@@ -147,7 +147,7 @@ $ curl --request POST http://localhost:8083/sessions/${SESSION_HANDLE}/scripts \
 }'
 ```
 
-<span class="label label-info">Note</span> If you want to run script with PyFlink, please use an image with PyFlink installed. You can refer to 
+<span class="label label-info">Note</span> If you want to run the script with PyFlink, please use an image with PyFlink installed. You can refer to 
 [Enabling PyFlink in docker]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#enabling-python) for more details.
 
 Configuration
