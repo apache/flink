@@ -16,28 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators.co;
+package org.apache.flink.runtime.asyncprocessing.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.state.MapState;
-import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
+import org.apache.flink.api.common.state.v2.MapState;
+import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclaredVariable;
+import org.apache.flink.runtime.state.v2.MapStateDescriptor;
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
-import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.api.operators.co.IntervalJoinOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.FlinkException;
@@ -47,14 +43,12 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 
 /**
- * An {@link TwoInputStreamOperator operator} to execute time-bounded stream inner joins.
+ * An {@link TwoInputStreamOperator operator} to execute time-bounded stream inner joins. This is
+ * the async state access version of {@link IntervalJoinOperator}.
  *
  * <p>By using a configurable lower and upper bound this operator will emit exactly those pairs (T1,
  * T2) where t2.ts ∈ [T1.ts + lowerBound, T1.ts + upperBound]. Both the lower and the upper bound
@@ -81,13 +75,13 @@ import java.util.Objects;
  * @param <OUT> The output type created by the user-defined function.
  */
 @Internal
-public class IntervalJoinOperator<K, T1, T2, OUT>
-        extends AbstractUdfStreamOperator<OUT, ProcessJoinFunction<T1, T2, OUT>>
+public class AsyncIntervalJoinOperator<K, T1, T2, OUT>
+        extends AbstractAsyncStateUdfStreamOperator<OUT, ProcessJoinFunction<T1, T2, OUT>>
         implements TwoInputStreamOperator<T1, T2, OUT>, Triggerable<K, String> {
 
-    private static final long serialVersionUID = -5380774605111543454L;
+    private static final long serialVersionUID = -5380774605111543477L;
 
-    private static final Logger logger = LoggerFactory.getLogger(IntervalJoinOperator.class);
+    private static final Logger logger = LoggerFactory.getLogger(AsyncIntervalJoinOperator.class);
 
     private static final String LEFT_BUFFER = "LEFT_BUFFER";
     private static final String RIGHT_BUFFER = "RIGHT_BUFFER";
@@ -102,10 +96,15 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
     private final TypeSerializer<T1> leftTypeSerializer;
     private final TypeSerializer<T2> rightTypeSerializer;
 
-    private transient MapState<Long, List<BufferEntry<T1>>> leftBuffer;
-    private transient MapState<Long, List<BufferEntry<T2>>> rightBuffer;
+    private transient MapState<Long, List<IntervalJoinOperator.BufferEntry<T1>>> leftBuffer;
+    private transient MapState<Long, List<IntervalJoinOperator.BufferEntry<T2>>> rightBuffer;
 
-    private transient TimestampedCollector<OUT> collector;
+    // Shared timestamp variable for collector and context.
+    private transient DeclaredVariable<Long> resultTimestamp;
+    private transient DeclaredVariable<Long> leftTimestamp;
+    private transient DeclaredVariable<Long> rightTimestamp;
+
+    private transient TimestampedCollectorWithDeclaredVariable<OUT> collector;
     private transient ContextImpl context;
 
     private transient InternalTimerService<String> internalTimerService;
@@ -122,7 +121,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
      * @param udf A user-defined {@link ProcessJoinFunction} that gets called whenever two elements
      *     of T1 and T2 are joined
      */
-    public IntervalJoinOperator(
+    public AsyncIntervalJoinOperator(
             long lowerBound,
             long upperBound,
             boolean lowerBoundInclusive,
@@ -152,34 +151,46 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
     @Override
     public void open() throws Exception {
         super.open();
-
-        collector = new TimestampedCollector<>(output);
-        context = new ContextImpl(userFunction);
-        internalTimerService =
-                getInternalTimerService(CLEANUP_TIMER_NAME, StringSerializer.INSTANCE, this);
-    }
-
-    @Override
-    public void initializeState(StateInitializationContext context) throws Exception {
-        super.initializeState(context);
-
         this.leftBuffer =
-                context.getKeyedStateStore()
+                getRuntimeContext()
                         .getMapState(
                                 new MapStateDescriptor<>(
                                         LEFT_BUFFER,
                                         LongSerializer.INSTANCE,
                                         new ListSerializer<>(
-                                                new BufferEntrySerializer<>(leftTypeSerializer))));
+                                                new IntervalJoinOperator.BufferEntrySerializer<>(
+                                                        leftTypeSerializer))));
 
         this.rightBuffer =
-                context.getKeyedStateStore()
+                getRuntimeContext()
                         .getMapState(
                                 new MapStateDescriptor<>(
                                         RIGHT_BUFFER,
                                         LongSerializer.INSTANCE,
                                         new ListSerializer<>(
-                                                new BufferEntrySerializer<>(rightTypeSerializer))));
+                                                new IntervalJoinOperator.BufferEntrySerializer<>(
+                                                        rightTypeSerializer))));
+
+        resultTimestamp =
+                declarationContext.declareVariable(
+                        LongSerializer.INSTANCE,
+                        "_AsyncIntervalJoinOperator$resultTime",
+                        () -> Long.MIN_VALUE);
+        leftTimestamp =
+                declarationContext.declareVariable(
+                        LongSerializer.INSTANCE,
+                        "_AsyncIntervalJoinOperator$leftTime",
+                        () -> Long.MIN_VALUE);
+        rightTimestamp =
+                declarationContext.declareVariable(
+                        LongSerializer.INSTANCE,
+                        "_AsyncIntervalJoinOperator$rightTime",
+                        () -> Long.MIN_VALUE);
+
+        collector = new TimestampedCollectorWithDeclaredVariable<>(output, resultTimestamp);
+        context = new ContextImpl(userFunction, resultTimestamp, leftTimestamp, rightTimestamp);
+        internalTimerService =
+                getInternalTimerService(CLEANUP_TIMER_NAME, StringSerializer.INSTANCE, this);
     }
 
     /**
@@ -234,32 +245,51 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
             return;
         }
 
-        addToBuffer(ourBuffer, ourValue, ourTimestamp);
+        addToBuffer(ourBuffer, ourValue, ourTimestamp)
+                .thenCompose((empty) -> otherBuffer.asyncEntries())
+                .thenCompose(
+                        entries ->
+                                entries.onNext(
+                                        bucket -> {
+                                            final long timestamp = bucket.getKey();
 
-        for (Map.Entry<Long, List<BufferEntry<OTHER>>> bucket : otherBuffer.entries()) {
-            final long timestamp = bucket.getKey();
+                                            if (timestamp < ourTimestamp + relativeLowerBound
+                                                    || timestamp
+                                                            > ourTimestamp + relativeUpperBound) {
+                                                return;
+                                            }
 
-            if (timestamp < ourTimestamp + relativeLowerBound
-                    || timestamp > ourTimestamp + relativeUpperBound) {
-                continue;
-            }
-
-            for (BufferEntry<OTHER> entry : bucket.getValue()) {
-                if (isLeft) {
-                    collect((T1) ourValue, (T2) entry.element, ourTimestamp, timestamp);
-                } else {
-                    collect((T1) entry.element, (T2) ourValue, timestamp, ourTimestamp);
-                }
-            }
-        }
-
-        long cleanupTime =
-                (relativeUpperBound > 0L) ? ourTimestamp + relativeUpperBound : ourTimestamp;
-        if (isLeft) {
-            internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_LEFT, cleanupTime);
-        } else {
-            internalTimerService.registerEventTimeTimer(CLEANUP_NAMESPACE_RIGHT, cleanupTime);
-        }
+                                            for (IntervalJoinOperator.BufferEntry<OTHER> entry :
+                                                    bucket.getValue()) {
+                                                if (isLeft) {
+                                                    collect(
+                                                            (T1) ourValue,
+                                                            (T2) entry.getElement(),
+                                                            ourTimestamp,
+                                                            timestamp);
+                                                } else {
+                                                    collect(
+                                                            (T1) entry.getElement(),
+                                                            (T2) ourValue,
+                                                            timestamp,
+                                                            ourTimestamp);
+                                                }
+                                            }
+                                        }))
+                .thenAccept(
+                        empty -> {
+                            long cleanupTime =
+                                    (relativeUpperBound > 0L)
+                                            ? ourTimestamp + relativeUpperBound
+                                            : ourTimestamp;
+                            if (isLeft) {
+                                internalTimerService.registerEventTimeTimer(
+                                        CLEANUP_NAMESPACE_LEFT, cleanupTime);
+                            } else {
+                                internalTimerService.registerEventTimeTimer(
+                                        CLEANUP_NAMESPACE_RIGHT, cleanupTime);
+                            }
+                        });
     }
 
     private boolean isLate(long timestamp) {
@@ -280,32 +310,31 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
         }
     }
 
-    private void collect(T1 left, T2 right, long leftTimestamp, long rightTimestamp)
-            throws Exception {
-        final long resultTimestamp = Math.max(leftTimestamp, rightTimestamp);
-
-        collector.setAbsoluteTimestamp(resultTimestamp);
-        context.updateTimestamps(leftTimestamp, rightTimestamp, resultTimestamp);
+    private void collect(T1 left, T2 right, long leftTime, long rightTime) throws Exception {
+        resultTimestamp.set(Math.max(leftTime, rightTime));
+        leftTimestamp.set(leftTime);
+        rightTimestamp.set(rightTime);
 
         userFunction.processElement(left, right, context, collector);
     }
 
-    private static <T> void addToBuffer(
+    private static <T> StateFuture<Void> addToBuffer(
             final MapState<Long, List<IntervalJoinOperator.BufferEntry<T>>> buffer,
             final T value,
-            final long timestamp)
-            throws Exception {
-        List<BufferEntry<T>> elemsInBucket = buffer.get(timestamp);
-        if (elemsInBucket == null) {
-            elemsInBucket = new ArrayList<>();
-        }
-        elemsInBucket.add(new BufferEntry<>(value, false));
-        buffer.put(timestamp, elemsInBucket);
+            final long timestamp) {
+        return buffer.asyncGet(timestamp)
+                .thenCompose(
+                        (elemsInBucket) -> {
+                            if (elemsInBucket == null) {
+                                elemsInBucket = new ArrayList<>();
+                            }
+                            elemsInBucket.add(new IntervalJoinOperator.BufferEntry<>(value, false));
+                            return buffer.asyncPut(timestamp, elemsInBucket);
+                        });
     }
 
     @Override
     public void onEventTime(InternalTimer<K, String> timer) throws Exception {
-
         long timerTimestamp = timer.getTimestamp();
         String namespace = timer.getNamespace();
 
@@ -348,35 +377,36 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
      */
     private final class ContextImpl extends ProcessJoinFunction<T1, T2, OUT>.Context {
 
-        private long resultTimestamp = Long.MIN_VALUE;
+        private final DeclaredVariable<Long> resultTimestamp;
 
-        private long leftTimestamp = Long.MIN_VALUE;
+        private final DeclaredVariable<Long> leftTimestamp;
 
-        private long rightTimestamp = Long.MIN_VALUE;
+        private final DeclaredVariable<Long> rightTimestamp;
 
-        private ContextImpl(ProcessJoinFunction<T1, T2, OUT> func) {
+        private ContextImpl(
+                ProcessJoinFunction<T1, T2, OUT> func,
+                DeclaredVariable<Long> resultTimestamp,
+                DeclaredVariable<Long> leftTimestamp,
+                DeclaredVariable<Long> rightTimestamp) {
             func.super();
-        }
-
-        private void updateTimestamps(long left, long right, long result) {
-            this.leftTimestamp = left;
-            this.rightTimestamp = right;
-            this.resultTimestamp = result;
+            this.resultTimestamp = resultTimestamp;
+            this.leftTimestamp = leftTimestamp;
+            this.rightTimestamp = rightTimestamp;
         }
 
         @Override
         public long getLeftTimestamp() {
-            return leftTimestamp;
+            return leftTimestamp.get();
         }
 
         @Override
         public long getRightTimestamp() {
-            return rightTimestamp;
+            return rightTimestamp.get();
         }
 
         @Override
         public long getTimestamp() {
-            return resultTimestamp;
+            return resultTimestamp.get();
         }
 
         @Override
@@ -386,164 +416,13 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
         }
     }
 
-    /**
-     * A container for elements put in the left/write buffer. This will contain the element itself
-     * along with a flag indicating if it has been joined or not.
-     */
-    @Internal
     @VisibleForTesting
-    public static class BufferEntry<T> {
-
-        private final T element;
-        private final boolean hasBeenJoined;
-
-        public BufferEntry(T element, boolean hasBeenJoined) {
-            this.element = element;
-            this.hasBeenJoined = hasBeenJoined;
-        }
-
-        public T getElement() {
-            return element;
-        }
-
-        @VisibleForTesting
-        public boolean hasBeenJoined() {
-            return hasBeenJoined;
-        }
-    }
-
-    /** A {@link TypeSerializer serializer} for the {@link BufferEntry}. */
-    @Internal
-    @VisibleForTesting
-    public static class BufferEntrySerializer<T> extends TypeSerializer<BufferEntry<T>> {
-
-        private static final long serialVersionUID = -20197698803836236L;
-
-        private final TypeSerializer<T> elementSerializer;
-
-        public BufferEntrySerializer(TypeSerializer<T> elementSerializer) {
-            this.elementSerializer = Preconditions.checkNotNull(elementSerializer);
-        }
-
-        @Override
-        public boolean isImmutableType() {
-            return true;
-        }
-
-        @Override
-        public TypeSerializer<BufferEntry<T>> duplicate() {
-            return new BufferEntrySerializer<>(elementSerializer.duplicate());
-        }
-
-        @Override
-        public BufferEntry<T> createInstance() {
-            return null;
-        }
-
-        @Override
-        public BufferEntry<T> copy(BufferEntry<T> from) {
-            return new BufferEntry<>(from.element, from.hasBeenJoined);
-        }
-
-        @Override
-        public BufferEntry<T> copy(BufferEntry<T> from, BufferEntry<T> reuse) {
-            return copy(from);
-        }
-
-        @Override
-        public int getLength() {
-            return -1;
-        }
-
-        @Override
-        public void serialize(BufferEntry<T> record, DataOutputView target) throws IOException {
-            target.writeBoolean(record.hasBeenJoined);
-            elementSerializer.serialize(record.element, target);
-        }
-
-        @Override
-        public BufferEntry<T> deserialize(DataInputView source) throws IOException {
-            boolean hasBeenJoined = source.readBoolean();
-            T element = elementSerializer.deserialize(source);
-            return new BufferEntry<>(element, hasBeenJoined);
-        }
-
-        @Override
-        public BufferEntry<T> deserialize(BufferEntry<T> reuse, DataInputView source)
-                throws IOException {
-            return deserialize(source);
-        }
-
-        @Override
-        public void copy(DataInputView source, DataOutputView target) throws IOException {
-            target.writeBoolean(source.readBoolean());
-            elementSerializer.copy(source, target);
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-
-            BufferEntrySerializer<?> that = (BufferEntrySerializer<?>) o;
-            return Objects.equals(elementSerializer, that.elementSerializer);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(elementSerializer);
-        }
-
-        @Override
-        public TypeSerializerSnapshot<BufferEntry<T>> snapshotConfiguration() {
-            return new BufferEntrySerializerSnapshot<>(this);
-        }
-    }
-
-    /** A {@link TypeSerializerSnapshot} for {@link BufferEntrySerializer}. */
-    public static final class BufferEntrySerializerSnapshot<T>
-            extends CompositeTypeSerializerSnapshot<BufferEntry<T>, BufferEntrySerializer<T>> {
-
-        private static final int VERSION = 2;
-
-        @SuppressWarnings({"unused", "WeakerAccess"})
-        public BufferEntrySerializerSnapshot() {}
-
-        BufferEntrySerializerSnapshot(BufferEntrySerializer<T> serializerInstance) {
-            super(serializerInstance);
-        }
-
-        @Override
-        protected int getCurrentOuterSnapshotVersion() {
-            return VERSION;
-        }
-
-        @Override
-        protected TypeSerializer<?>[] getNestedSerializers(
-                BufferEntrySerializer<T> outerSerializer) {
-            return new TypeSerializer[] {outerSerializer.elementSerializer};
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        protected BufferEntrySerializer<T> createOuterSerializerWithNestedSerializers(
-                TypeSerializer<?>[] nestedSerializers) {
-            return new BufferEntrySerializer<>((TypeSerializer<T>) nestedSerializers[0]);
-        }
-    }
-
-    @VisibleForTesting
-    MapState<Long, List<BufferEntry<T1>>> getLeftBuffer() {
+    MapState<Long, List<IntervalJoinOperator.BufferEntry<T1>>> getLeftBuffer() {
         return leftBuffer;
     }
 
     @VisibleForTesting
-    MapState<Long, List<BufferEntry<T2>>> getRightBuffer() {
+    MapState<Long, List<IntervalJoinOperator.BufferEntry<T2>>> getRightBuffer() {
         return rightBuffer;
     }
 }

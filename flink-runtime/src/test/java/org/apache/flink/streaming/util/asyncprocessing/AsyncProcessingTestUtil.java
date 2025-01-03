@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.util.function.RunnableWithException;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
 /** Utility class for async test harness. */
@@ -54,5 +55,16 @@ public class AsyncProcessingTestUtil {
                     }
                 });
         return future;
+    }
+
+    public static Exception unwrapAsyncException(Exception t) {
+        while (t != null
+                && t.getCause() != null
+                && t.getCause() != t
+                && (t instanceof ExecutionException || t instanceof RuntimeException)
+                && t.getCause() instanceof Exception) {
+            t = (Exception) t.getCause();
+        }
+        return t;
     }
 }

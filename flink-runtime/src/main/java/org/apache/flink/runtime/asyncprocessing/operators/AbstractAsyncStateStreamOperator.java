@@ -552,16 +552,20 @@ public abstract class AbstractAsyncStateStreamOperator<OUT> extends AbstractStre
     @Override
     public void finish() throws Exception {
         super.finish();
-        if (isAsyncStateProcessingEnabled()) {
-            asyncExecutionController.drainInflightRecords(0);
-        }
+        closeIfNeeded();
     }
 
     @Override
     public void close() throws Exception {
         super.close();
-        if (isAsyncStateProcessingEnabled()) {
-            asyncExecutionController.close();
+        closeIfNeeded();
+    }
+
+    private void closeIfNeeded() {
+        if (isAsyncStateProcessingEnabled()
+                && !getContainingTask().isFailing()
+                && !getContainingTask().isCanceled()) {
+            asyncExecutionController.drainInflightRecords(0);
         }
     }
 }

@@ -33,6 +33,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -42,6 +43,7 @@ import java.util.concurrent.Executors;
 
 import static org.apache.flink.streaming.util.asyncprocessing.AsyncProcessingTestUtil.drain;
 import static org.apache.flink.streaming.util.asyncprocessing.AsyncProcessingTestUtil.execute;
+import static org.apache.flink.streaming.util.asyncprocessing.AsyncProcessingTestUtil.unwrapAsyncException;
 import static org.assertj.core.api.Assertions.fail;
 
 /**
@@ -60,6 +62,28 @@ public class AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
 
     /** The executor service for async state processing. */
     private final ExecutorService executor;
+
+    /** Create an instance of the subclass of this class. */
+    public static <
+                    K,
+                    IN1,
+                    IN2,
+                    OUT,
+                    OP extends AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>>
+            OP create(FunctionWithException<ExecutorService, OP, Exception> constructor)
+                    throws Exception {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CompletableFuture<OP> future = new CompletableFuture<>();
+        executor.execute(
+                () -> {
+                    try {
+                        future.complete(constructor.apply(executor));
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+        return future.get();
+    }
 
     public static <K, IN1, IN2, OUT>
             AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT> create(
@@ -216,14 +240,19 @@ public class AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
     }
 
     private void executeAndGet(RunnableWithException runnable) throws Exception {
-        execute(
-                        executor,
-                        () -> {
-                            checkEnvState();
-                            runnable.run();
-                        })
-                .get();
-        checkEnvState();
+        try {
+            execute(
+                            executor,
+                            () -> {
+                                checkEnvState();
+                                runnable.run();
+                            })
+                    .get();
+            checkEnvState();
+        } catch (Exception e) {
+            execute(executor, () -> mockTask.cleanUp(e)).get();
+            throw unwrapAsyncException(e);
+        }
     }
 
     private void checkEnvState() {
