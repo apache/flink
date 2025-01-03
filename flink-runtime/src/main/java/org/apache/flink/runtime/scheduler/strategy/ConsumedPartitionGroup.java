@@ -27,7 +27,9 @@ import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -40,7 +42,10 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartitionID> {
 
-    private final List<IntermediateResultPartitionID> resultPartitions;
+    // The key is the result partition ID, the value is the index of the result partition in the
+    // original construction list.
+    private final Map<IntermediateResultPartitionID, Integer> resultPartitionsInOrder =
+            new LinkedHashMap<>();
 
     private final AtomicInteger unfinishedPartitions;
 
@@ -64,13 +69,15 @@ public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartit
         this.intermediateDataSetID = resultPartitions.get(0).getIntermediateDataSetID();
         this.resultPartitionType = Preconditions.checkNotNull(resultPartitionType);
 
-        // Sanity check: all the partitions in one ConsumedPartitionGroup should have the same
-        // IntermediateDataSetID
-        for (IntermediateResultPartitionID resultPartition : resultPartitions) {
+        for (int i = 0; i < resultPartitions.size(); i++) {
+            // Sanity check: all the partitions in one ConsumedPartitionGroup should have the same
+            // IntermediateDataSetID
+            IntermediateResultPartitionID resultPartition = resultPartitions.get(i);
             checkArgument(
                     resultPartition.getIntermediateDataSetID().equals(this.intermediateDataSetID));
+
+            resultPartitionsInOrder.put(resultPartition, i);
         }
-        this.resultPartitions = resultPartitions;
 
         this.unfinishedPartitions = new AtomicInteger(resultPartitions.size());
     }
@@ -92,15 +99,19 @@ public class ConsumedPartitionGroup implements Iterable<IntermediateResultPartit
 
     @Override
     public Iterator<IntermediateResultPartitionID> iterator() {
-        return resultPartitions.iterator();
+        return resultPartitionsInOrder.keySet().iterator();
+    }
+
+    public Map<IntermediateResultPartitionID, Integer> getResultPartitionsInOrder() {
+        return Collections.unmodifiableMap(resultPartitionsInOrder);
     }
 
     public int size() {
-        return resultPartitions.size();
+        return resultPartitionsInOrder.size();
     }
 
     public boolean isEmpty() {
-        return resultPartitions.isEmpty();
+        return resultPartitionsInOrder.isEmpty();
     }
 
     /**

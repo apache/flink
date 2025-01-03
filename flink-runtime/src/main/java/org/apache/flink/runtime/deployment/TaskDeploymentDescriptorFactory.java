@@ -53,7 +53,6 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -151,6 +150,7 @@ public class TaskDeploymentDescriptorFactory {
 
             IntermediateDataSetID resultId = consumedIntermediateResult.getId();
             ResultPartitionType partitionType = consumedIntermediateResult.getResultType();
+            IntermediateResultPartition[] partitions = consumedIntermediateResult.getPartitions();
 
             inputGates.add(
                     new InputGateDeploymentDescriptor(
@@ -160,10 +160,8 @@ public class TaskDeploymentDescriptorFactory {
                                     executionVertex
                                             .getExecutionVertexInputInfo(resultId)
                                             .getConsumedSubpartitionGroups(),
-                                    consumedPartitionGroup.iterator(),
-                                    Arrays.stream(consumedIntermediateResult.getPartitions())
-                                            .map(IntermediateResultPartition::getPartitionId)
-                                            .toArray(IntermediateResultPartitionID[]::new)),
+                                    consumedPartitionGroup,
+                                    index -> partitions[index].getPartitionId()),
                             consumedPartitionGroup.size(),
                             getConsumedPartitionShuffleDescriptors(
                                     consumedIntermediateResult,
