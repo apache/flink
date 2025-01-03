@@ -21,8 +21,10 @@ package org.apache.flink.table.client;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.gateway.rest.DeployScriptITCase;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
+import org.apache.flink.table.gateway.service.utils.MockHttpServer;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.Order;
@@ -41,6 +43,7 @@ import java.util.List;
 
 import static org.apache.flink.configuration.DeploymentOptions.TARGET;
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
+import static org.apache.flink.table.gateway.service.utils.MockHttpServer.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SqlClient}. */
@@ -272,8 +275,34 @@ class SqlClientTest extends SqlClientTestBase {
         DeployScriptITCase.TestApplicationClusterClientFactory.id = "test-application";
         Path script = home.resolve("script.sql");
         assertThat(script.toFile().createNewFile()).isTrue();
-        String[] args = {"-f", script.toString(), "-Dexecution.target=test-application"};
-        assertThat(runSqlClient(args)).contains("Deploy script in cluster: test");
+        // deploy with local file
+        assertThat(
+                        runSqlClient(
+                                new String[] {
+                                    "-f", script.toString(), "-Dexecution.target=test-application"
+                                }))
+                .contains("[INFO] Deploy script in application mode: ")
+                .contains("Cluster ID: test");
+        assertThat(
+                        DeployScriptITCase.TestApplicationClusterDescriptor.applicationConfiguration
+                                .getProgramArguments())
+                .isEqualTo(new String[] {"--script", ""});
+        // deploy with http url
+        try (MockHttpServer server = MockHttpServer.startHttpServer()) {
+            URL url = server.prepareResource("/download/script.sql", script.toFile());
+            assertThat(
+                            runSqlClient(
+                                    new String[] {
+                                        "-f", url.toString(), "-Dexecution.target=test-application"
+                                    }))
+                    .contains("[INFO] Deploy script in application mode: ")
+                    .contains("Cluster ID: test");
+            assertThat(
+                            DeployScriptITCase.TestApplicationClusterDescriptor
+                                    .applicationConfiguration
+                                    .getProgramArguments())
+                    .isEqualTo(new String[] {"--scriptPath", url.toString()});
+        }
     }
 
     private void runTestCliHelp(String[] args, String expected) throws Exception {

@@ -335,14 +335,14 @@ public class ExecutorImpl implements Executor {
     }
 
     @Override
-    public String deployScript(@Nullable String script, @Nullable URI path) {
+    public String deployScript(@Nullable String script, @Nullable URI uri) {
         return getResponse(
                         sendRequest(
                                 DeployScriptHeaders.getInstance(),
                                 new SessionMessageParameters(sessionHandle),
                                 new DeployScriptRequestBody(
                                         script,
-                                        path == null ? null : path.toString(),
+                                        uri == null ? null : uri.toString(),
                                         Collections.emptyMap())))
                 .getClusterID();
     }

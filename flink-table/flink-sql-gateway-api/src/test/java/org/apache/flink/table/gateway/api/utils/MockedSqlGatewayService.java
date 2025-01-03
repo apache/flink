@@ -39,7 +39,7 @@ import org.apache.flink.table.gateway.api.session.SessionHandle;
 
 import javax.annotation.Nullable;
 
-import java.nio.file.Path;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -205,7 +205,7 @@ public class MockedSqlGatewayService implements SqlGatewayService {
     @Override
     public <ClusterID> ClusterID deployScript(
             SessionHandle sessionHandle,
-            @Nullable Path scriptPath,
+            @Nullable URI scriptUri,
             @Nullable String script,
             Configuration executionConfig)
             throws SqlGatewayException {

@@ -33,6 +33,7 @@ import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.net.URI;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -65,7 +66,7 @@ public class DeployScriptHandler
                                                 SessionHandleIdPathParameter.class),
                                         request.getRequestBody().getScriptPath() == null
                                                 ? null
-                                                : Paths.get(
+                                                : URI.create(
                                                         request.getRequestBody().getScriptPath()),
                                         request.getRequestBody().getScript(),
                                         Configuration.fromMap(

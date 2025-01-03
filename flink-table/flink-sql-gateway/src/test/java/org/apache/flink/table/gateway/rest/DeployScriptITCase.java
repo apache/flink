@@ -152,7 +152,7 @@ public class DeployScriptITCase {
 
         public static String id;
 
-        private static volatile Configuration configuration;
+        public static volatile Configuration configuration;
 
         @Override
         public boolean isCompatibleWith(Configuration configuration) {
@@ -179,13 +179,14 @@ public class DeployScriptITCase {
         }
     }
 
-    private static class TestApplicationClusterDescriptor<T> implements ClusterDescriptor<T> {
+    /** Test ClusterClientFactory to capture {@link ApplicationConfiguration}. */
+    public static class TestApplicationClusterDescriptor<T> implements ClusterDescriptor<T> {
 
         @SuppressWarnings("rawTypes")
         private static final TestApplicationClusterDescriptor INSTANCE =
                 new TestApplicationClusterDescriptor<>();
 
-        static volatile ApplicationConfiguration applicationConfiguration;
+        public static volatile ApplicationConfiguration applicationConfiguration;
 
         private TestApplicationClusterDescriptor() {}
 

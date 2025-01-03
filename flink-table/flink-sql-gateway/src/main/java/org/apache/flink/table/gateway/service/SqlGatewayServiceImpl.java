@@ -53,6 +53,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -340,7 +341,7 @@ public class SqlGatewayServiceImpl implements SqlGatewayService {
     @Override
     public <ClusterID> ClusterID deployScript(
             SessionHandle sessionHandle,
-            @Nullable Path scriptPath,
+            @Nullable URI scriptPath,
             @Nullable String script,
             Configuration executionConfig)
             throws SqlGatewayException {
