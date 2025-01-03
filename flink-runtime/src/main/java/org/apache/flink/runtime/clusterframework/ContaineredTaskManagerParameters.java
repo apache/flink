@@ -94,10 +94,8 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
         }
 
         // set JAVA_HOME
-        String javaHome = config.get(CoreOptions.FLINK_JAVA_HOME);
-        if (!javaHome.isEmpty()) {
-            envVars.put(ENV_JAVA_HOME, javaHome);
-        }
+        config.getOptional(CoreOptions.FLINK_JAVA_HOME)
+                .ifPresent(javaHome -> envVars.put(ENV_JAVA_HOME, javaHome));
 
         // done
         return new ContaineredTaskManagerParameters(taskExecutorProcessSpec, envVars);

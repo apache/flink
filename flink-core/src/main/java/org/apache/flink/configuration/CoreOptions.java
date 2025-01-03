@@ -228,7 +228,7 @@ public class CoreOptions {
     public static final ConfigOption<String> FLINK_JAVA_HOME =
             ConfigOptions.key("env.java.home")
                     .stringType()
-                    .defaultValue("")
+                    .noDefaultValue()
                     .withDescription(
                             Description.builder()
                                     .text(

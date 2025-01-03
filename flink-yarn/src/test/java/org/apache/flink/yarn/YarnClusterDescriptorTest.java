@@ -944,6 +944,20 @@ class YarnClusterDescriptorTest {
     }
 
     @Test
+    public void testContainerEnvJavaHomeNotOverriddenByDefault(@TempDir File flinkHomeDir)
+            throws IOException {
+        final Configuration flinkConfig = new Configuration();
+        final Map<String, String> masterEnv =
+                getTestMasterEnv(
+                        flinkConfig,
+                        flinkHomeDir,
+                        "",
+                        "./lib/flink_dist.jar",
+                        ApplicationId.newInstance(0, 0));
+        assertThat(masterEnv).doesNotContainKey(ConfigConstants.ENV_JAVA_HOME);
+    }
+
+    @Test
     public void testEnvFlinkLibDirVarNotOverriddenByContainerEnv(@TempDir File tmpDir)
             throws IOException {
         final Configuration flinkConfig = new Configuration();

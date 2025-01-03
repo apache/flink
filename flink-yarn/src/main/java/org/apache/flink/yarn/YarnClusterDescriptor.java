@@ -1971,10 +1971,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                         ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX,
                         this.flinkConfiguration));
         // set JAVA_HOME
-        String javaHome = this.flinkConfiguration.get(CoreOptions.FLINK_JAVA_HOME);
-        if (!javaHome.isEmpty()) {
-            env.put(ENV_JAVA_HOME, javaHome);
-        }
+        this.flinkConfiguration
+                .getOptional(CoreOptions.FLINK_JAVA_HOME)
+                .ifPresent(javaHome -> env.put(ENV_JAVA_HOME, javaHome));
         // set Flink app class path
         env.put(ENV_FLINK_CLASSPATH, classPathStr);
         // Set FLINK_LIB_DIR to `lib` folder under working dir in container
