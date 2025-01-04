@@ -99,53 +99,6 @@ class CatalogITCase {
     }
 
     @Test
-    void testCreateLegacyCatalogFromUserClassLoader() throws Exception {
-        final String className = "UserCatalogFactory";
-        URLClassLoader classLoader =
-                ClassLoaderUtils.withRoot(TempDirUtils.newFolder(temporaryFolder))
-                        .addResource(
-                                "META-INF/services/org.apache.flink.table.legacy.factories.TableFactory",
-                                "UserCatalogFactory")
-                        .addClass(
-                                className,
-                                "import org.apache.flink.table.catalog.GenericInMemoryCatalog;\n"
-                                        + "import org.apache.flink.table.factories.CatalogFactory;\n"
-                                        + "import java.util.Collections;\n"
-                                        + "import org.apache.flink.table.catalog.Catalog;\n"
-                                        + "import java.util.HashMap;\n"
-                                        + "import java.util.List;\n"
-                                        + "import java.util.Map;\n"
-                                        + "\tpublic class UserCatalogFactory implements CatalogFactory {\n"
-                                        + "\t\t@Override\n"
-                                        + "\t\tpublic Catalog createCatalog(\n"
-                                        + "\t\t\t\tString name,\n"
-                                        + "\t\t\t\tMap<String, String> properties) {\n"
-                                        + "\t\t\treturn new GenericInMemoryCatalog(name);\n"
-                                        + "\t\t}\n"
-                                        + "\n"
-                                        + "\t\t@Override\n"
-                                        + "\t\tpublic Map<String, String> requiredContext() {\n"
-                                        + "\t\t\tHashMap<String, String> hashMap = new HashMap<>();\n"
-                                        + "\t\t\thashMap.put(\"type\", \"userCatalog\");\n"
-                                        + "\t\t\treturn hashMap;\n"
-                                        + "\t\t}\n"
-                                        + "\n"
-                                        + "\t\t@Override\n"
-                                        + "\t\tpublic List<String> supportedProperties() {\n"
-                                        + "\t\t\treturn Collections.emptyList();\n"
-                                        + "\t\t}\n"
-                                        + "\t}")
-                        .build();
-
-        try (TemporaryClassLoaderContext context = TemporaryClassLoaderContext.of(classLoader)) {
-            TableEnvironment tableEnvironment = getTableEnvironment();
-            tableEnvironment.executeSql("CREATE CATALOG cat WITH ('type'='userCatalog')");
-
-            assertThat(tableEnvironment.getCatalog("cat")).isPresent();
-        }
-    }
-
-    @Test
     void testCreateCatalogFromUserClassLoader() throws Exception {
         final String className = "UserCatalogFactory";
         URLClassLoader classLoader =
