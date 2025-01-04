@@ -77,6 +77,11 @@ public class SpaceBasedCacheLimitPolicy implements CacheLimitPolicy {
     }
 
     @Override
+    public long cachedBytes() {
+        return usageSize;
+    }
+
+    @Override
     public String toString() {
         return "SpaceBasedCacheLimitPolicy{"
                 + "reservedSize="

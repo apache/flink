@@ -61,6 +61,11 @@ public class SizeBasedCacheLimitPolicy implements CacheLimitPolicy {
     }
 
     @Override
+    public long cachedBytes() {
+        return usageSize;
+    }
+
+    @Override
     public String toString() {
         return "SizeBasedCacheLimitPolicy{"
                 + "capacity="

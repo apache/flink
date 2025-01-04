@@ -515,7 +515,8 @@ public class ForStStateBackendConfigTest {
             configuration.setString(ForStConfigurableOptions.USE_BLOOM_FILTER.key(), "TRUE");
 
             try (ForStResourceContainer optionsContainer =
-                    new ForStResourceContainer(configuration, null, null, null, null, false)) {
+                    new ForStResourceContainer(
+                            configuration, null, null, null, null, null, false)) {
 
                 DBOptions dbOptions = optionsContainer.getDbOptions();
                 assertEquals(-1, dbOptions.maxOpenFiles());
@@ -598,7 +599,7 @@ public class ForStStateBackendConfigTest {
         Configuration configuration = new Configuration();
         configuration.set(ForStConfigurableOptions.COMPACTION_STYLE, CompactionStyle.UNIVERSAL);
         try (final ForStResourceContainer optionsContainer =
-                new ForStResourceContainer(configuration, null, null, null, null, false)) {
+                new ForStResourceContainer(configuration, null, null, null, null, null, false)) {
 
             final ColumnFamilyOptions columnFamilyOptions = optionsContainer.getColumnOptions();
             assertNotNull(columnFamilyOptions);
@@ -606,7 +607,8 @@ public class ForStStateBackendConfigTest {
         }
 
         try (final ForStResourceContainer optionsContainer =
-                new ForStResourceContainer(new Configuration(), null, null, null, null, false)) {
+                new ForStResourceContainer(
+                        new Configuration(), null, null, null, null, null, false)) {
 
             final ColumnFamilyOptions columnFamilyOptions = optionsContainer.getColumnOptions();
             assertNotNull(columnFamilyOptions);
