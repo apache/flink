@@ -97,6 +97,8 @@ public interface CatalogMaterializedTable extends CatalogBaseTable {
             String refreshHandlerDescription,
             byte[] serializedRefreshHandler);
 
+    CatalogMaterializedTable copy(Schema schema, String definitionQuery);
+
     /** Return the snapshot specified for the table. Return Optional.empty() if not specified. */
     Optional<Long> getSnapshot();
 

@@ -48,6 +48,7 @@ import org.apache.flink.table.gateway.service.result.ResultFetcher;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.operations.command.DescribeJobOperation;
 import org.apache.flink.table.operations.command.StopJobOperation;
+import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableAsQueryOperation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableChangeOperation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableRefreshOperation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableResumeOperation;
@@ -174,6 +175,9 @@ public class MaterializedTableManager {
         } else if (op instanceof DropMaterializedTableOperation) {
             return callDropMaterializedTableOperation(
                     operationExecutor, handle, (DropMaterializedTableOperation) op);
+        } else if (op instanceof AlterMaterializedTableAsQueryOperation) {
+            return callAlterMaterializedTableAsQueryOperation(
+                    operationExecutor, handle, (AlterMaterializedTableAsQueryOperation) op);
         }
 
         throw new SqlExecutionException(
@@ -802,6 +806,78 @@ public class MaterializedTableManager {
         }
 
         return insertStatement.toString();
+    }
+
+    private ResultFetcher callAlterMaterializedTableAsQueryOperation(
+            OperationExecutor operationExecutor,
+            OperationHandle handle,
+            AlterMaterializedTableAsQueryOperation op) {
+        ObjectIdentifier tableIdentifier = op.getTableIdentifier();
+        CatalogMaterializedTable materializedTable =
+                getCatalogMaterializedTable(operationExecutor, tableIdentifier);
+
+        // 1. suspend the materialized table
+        if (CatalogMaterializedTable.RefreshStatus.SUSPENDED
+                != materializedTable.getRefreshStatus()) {
+            if (CatalogMaterializedTable.RefreshMode.CONTINUOUS
+                    == materializedTable.getRefreshMode()) {
+                suspendContinuousRefreshJob(
+                        operationExecutor, handle, tableIdentifier, materializedTable);
+            } else {
+                suspendRefreshWorkflow(
+                        operationExecutor, handle, tableIdentifier, materializedTable);
+            }
+        }
+
+        // 2. replace query definition and resume the materialized table
+        // alter materialized table schema
+        operationExecutor.callExecutableOperation(handle, op);
+        ResolvedCatalogMaterializedTable updatedMaterializedTable =
+                getCatalogMaterializedTable(operationExecutor, tableIdentifier);
+
+        // 3. resume the materialized table
+        if (CatalogMaterializedTable.RefreshStatus.SUSPENDED
+                != materializedTable.getRefreshStatus()) {
+            if (CatalogMaterializedTable.RefreshMode.CONTINUOUS
+                    == materializedTable.getRefreshMode()) {
+                executeContinuousRefreshJob(
+                        operationExecutor,
+                        handle,
+                        updatedMaterializedTable,
+                        tableIdentifier,
+                        Collections.emptyMap(),
+                        Optional.empty());
+            } else {
+                // resume workflow
+                resumeRefreshWorkflow(
+                        operationExecutor,
+                        handle,
+                        tableIdentifier,
+                        updatedMaterializedTable,
+                        Collections.emptyMap());
+            }
+        } else {
+            if (CatalogMaterializedTable.RefreshMode.CONTINUOUS
+                    == materializedTable.getRefreshMode()) {
+                // we should reset the savepoint path after the alter operation
+                ContinuousRefreshHandler refreshHandler =
+                        deserializeContinuousHandler(
+                                materializedTable.getSerializedRefreshHandler());
+                ContinuousRefreshHandler resetHandler =
+                        new ContinuousRefreshHandler(
+                                refreshHandler.getExecutionTarget(), refreshHandler.getJobId());
+                updateRefreshHandler(
+                        operationExecutor,
+                        handle,
+                        tableIdentifier,
+                        updatedMaterializedTable,
+                        updatedMaterializedTable.getRefreshStatus(),
+                        resetHandler.asSummaryString(),
+                        serializeContinuousHandler(resetHandler));
+            }
+        }
+
+        return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
     }
 
     private ResultFetcher callDropMaterializedTableOperation(
