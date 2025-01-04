@@ -283,6 +283,67 @@ class MetricUtilsTest {
         }
     }
 
+    @Test
+    void testTruncateOperatorName() {
+        // test operator name is null
+        assertThat(MetricUtils.truncateOperatorName(null)).isNull();
+        // test operator name length less than 80
+        final String operatorNameLess = "testOperatorName";
+        assertThat(MetricUtils.truncateOperatorName(operatorNameLess)).isEqualTo(operatorNameLess);
+        // test operator name length less than 80 and end with : Writer
+        final String operatorNameLessEndWithWriter = "testOperatorName: Writer";
+        assertThat(MetricUtils.truncateOperatorName(operatorNameLessEndWithWriter))
+                .isEqualTo(operatorNameLessEndWithWriter);
+        // test operator name length less than 80 and end with : Committer
+        final String operatorNameLessEndWithCommitter = "testOperatorName: Committer";
+        assertThat(MetricUtils.truncateOperatorName(operatorNameLessEndWithCommitter))
+                .isEqualTo(operatorNameLessEndWithCommitter);
+        // test operator name length less than 80 and contains with : Writer
+        final String operatorNameLessAndContainsWriter = "test: WriterOperatorName";
+        assertThat(MetricUtils.truncateOperatorName(operatorNameLessAndContainsWriter))
+                .isEqualTo(operatorNameLessAndContainsWriter);
+        // test operator name length less than 80 and contains with : Committer
+        final String operatorNameLessAndContainsCommitter = "test: CommitterOperatorName";
+        assertThat(MetricUtils.truncateOperatorName(operatorNameLessAndContainsCommitter))
+                .isEqualTo(operatorNameLessAndContainsCommitter);
+
+        // test operator name length more than 80
+        final String operatorNameMore =
+                "testLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongOperatorName";
+        final String expectedOperatorNameMore =
+                "testLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLong";
+        assertThat(MetricUtils.truncateOperatorName(operatorNameMore))
+                .isEqualTo(expectedOperatorNameMore);
+
+        // test operator name length more than 80 and end with : Writer
+        final String operatorNameMoreEndWithWriter =
+                "testLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongOperatorName: Writer";
+        final String expectedOperatorNameMoreEndWithWriter =
+                "testLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLong: Writer";
+        assertThat(MetricUtils.truncateOperatorName(operatorNameMoreEndWithWriter))
+                .isEqualTo(expectedOperatorNameMoreEndWithWriter);
+
+        // test operator name length more than 80 and end with : Committer
+        final String operatorNameMoreEndWithCommitter =
+                "testLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongOperatorName: Committer";
+        final String expectedOperatorNameMoreEndWithCommitter =
+                "testLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongL: Committer";
+        assertThat(MetricUtils.truncateOperatorName(operatorNameMoreEndWithCommitter))
+                .isEqualTo(expectedOperatorNameMoreEndWithCommitter);
+
+        // test operator name length more than 80 and contains with : Writer
+        final String operatorNameMoreAndContainsWriter =
+                "testLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLong: WriterOperatorName";
+        assertThat(MetricUtils.truncateOperatorName(operatorNameMoreAndContainsWriter))
+                .isEqualTo(expectedOperatorNameMore);
+
+        // test operator name length more than 80 and contains with : Committer
+        final String operatorNameMoreAndContainsCommitter =
+                "testLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLong: CommitterOperatorName";
+        assertThat(MetricUtils.truncateOperatorName(operatorNameMoreAndContainsCommitter))
+                .isEqualTo(expectedOperatorNameMore);
+    }
+
     // --------------- utility methods and classes ---------------
 
     /**
