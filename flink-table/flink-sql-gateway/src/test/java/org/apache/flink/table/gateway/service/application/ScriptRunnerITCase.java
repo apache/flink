@@ -141,7 +141,7 @@ class ScriptRunnerITCase {
                         udfJar.getAbsolutePath(), GENERATED_LOWER_UDF_CLASS);
 
         List<String> arguments =
-                Arrays.asList("--scriptPath", createStatementFile(workDir, script).toString());
+                Arrays.asList("--scriptUri", createStatementFile(workDir, script).toString());
         runScriptInCluster(arguments);
 
         assertThat(TestValuesTableFactory.getResultsAsStrings("sink"))
@@ -166,7 +166,7 @@ class ScriptRunnerITCase {
 
         try (MockHttpServer server = MockHttpServer.startHttpServer()) {
             URL url = server.prepareResource("/download/script.sql", file);
-            List<String> arguments = Arrays.asList("--scriptPath", url.toString());
+            List<String> arguments = Arrays.asList("--scriptUri", url.toString());
             runScriptInCluster(arguments);
         }
     }
