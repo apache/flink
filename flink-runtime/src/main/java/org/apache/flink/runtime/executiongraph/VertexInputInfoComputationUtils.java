@@ -104,7 +104,7 @@ public class VertexInputInfoComputationUtils {
      * @param isDynamicGraph whether is dynamic graph
      * @return the computed {@link JobVertexInputInfo}
      */
-    static JobVertexInputInfo computeVertexInputInfoForPointwise(
+    public static JobVertexInputInfo computeVertexInputInfoForPointwise(
             int sourceCount,
             int targetCount,
             Function<Integer, Integer> numOfSubpartitionsRetriever,

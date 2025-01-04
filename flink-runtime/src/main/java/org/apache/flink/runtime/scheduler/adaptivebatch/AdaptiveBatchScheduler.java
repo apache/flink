@@ -90,6 +90,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -606,8 +607,8 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
 
             // We need to wait for the upstream vertex to complete, otherwise, dynamic filtering
             // information will be inaccessible during source parallelism inference.
-            Optional<List<BlockingResultInfo>> consumedResultsInfo =
-                    tryGetConsumedResultsInfo(jobVertex);
+            Optional<List<BlockingInputInfo>> consumedResultsInfo =
+                    tryGetConsumedResultsInfoView(jobVertex);
             if (consumedResultsInfo.isPresent()) {
                 List<CompletableFuture<Integer>> sourceParallelismFutures =
                         sourceCoordinators.stream()
@@ -683,8 +684,8 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
                             createTimestamp);
                     newlyInitializedJobVertices.add(jobVertex);
                 } else {
-                    Optional<List<BlockingResultInfo>> consumedResultsInfo =
-                            tryGetConsumedResultsInfo(jobVertex);
+                    Optional<List<BlockingInputInfo>> consumedResultsInfo =
+                            tryGetConsumedResultsInfoView(jobVertex);
                     if (consumedResultsInfo.isPresent()) {
                         ParallelismAndInputInfos parallelismAndInputInfos =
                                 tryDecideParallelismAndInputInfos(
@@ -710,7 +711,7 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
     }
 
     private ParallelismAndInputInfos tryDecideParallelismAndInputInfos(
-            final ExecutionJobVertex jobVertex, List<BlockingResultInfo> inputs) {
+            final ExecutionJobVertex jobVertex, List<BlockingInputInfo> inputs) {
         int vertexInitialParallelism =
                 adaptiveExecutionHandler.getInitialParallelism(jobVertex.getJobVertexId());
         int vertexMinParallelism = ExecutionConfig.PARALLELISM_DEFAULT;
@@ -835,21 +836,28 @@ public class AdaptiveBatchScheduler extends DefaultScheduler implements JobGraph
     }
 
     /** Get information of consumable results. */
-    private Optional<List<BlockingResultInfo>> tryGetConsumedResultsInfo(
+    private Optional<List<BlockingInputInfo>> tryGetConsumedResultsInfoView(
             final ExecutionJobVertex jobVertex) {
 
-        List<BlockingResultInfo> consumableResultInfo = new ArrayList<>();
+        List<BlockingInputInfo> consumableResultInfo = new ArrayList<>();
 
         DefaultLogicalVertex logicalVertex = logicalTopology.getVertex(jobVertex.getJobVertexId());
-        Iterable<DefaultLogicalResult> consumedResults = logicalVertex.getConsumedResults();
+        Iterator<JobEdge> jobEdges = jobVertex.getJobVertex().getInputs().iterator();
 
-        for (DefaultLogicalResult consumedResult : consumedResults) {
+        for (DefaultLogicalResult consumedResult : logicalVertex.getConsumedResults()) {
+            checkState(jobEdges.hasNext());
+            JobEdge jobEdge = jobEdges.next();
             final ExecutionJobVertex producerVertex =
                     getExecutionJobVertex(consumedResult.getProducer().getId());
             if (producerVertex.isFinished()) {
                 BlockingResultInfo resultInfo =
                         checkNotNull(blockingResultInfos.get(consumedResult.getId()));
-                consumableResultInfo.add(resultInfo);
+                consumableResultInfo.add(
+                        new BlockingInputInfo(
+                                resultInfo,
+                                jobEdge.getTypeNumber(),
+                                jobEdge.existInterInputsKeyCorrelation(),
+                                jobEdge.existIntraInputKeyCorrelation()));
             } else {
                 // not all inputs consumable, return Optional.empty()
                 return Optional.empty();

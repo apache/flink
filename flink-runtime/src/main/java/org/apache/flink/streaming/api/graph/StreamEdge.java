@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.graph;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
+import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.OutputTag;
 
@@ -28,6 +29,7 @@ import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * An edge in the streaming topology. One edge like this does not necessarily gets converted to a
@@ -76,6 +78,20 @@ public class StreamEdge implements Serializable {
     private boolean supportsUnalignedCheckpoints = true;
 
     private final IntermediateDataSetID intermediateDatasetIdToProduce;
+
+    /**
+     * There are relationships between multiple inputs, if the data corresponding to a specific join
+     * key from one input is split, the corresponding join key data from the other inputs must be
+     * duplicated (meaning that it must be sent to the downstream nodes where the split data is
+     * sent).
+     */
+    private boolean interInputsKeyCorrelation;
+
+    /**
+     * For this edge the data corresponding to a specific join key must be sent to the same
+     * downstream subtask.
+     */
+    private boolean intraInputKeyCorrelation;
 
     public StreamEdge(
             StreamNode sourceVertex,
@@ -150,6 +166,9 @@ public class StreamEdge implements Serializable {
                         + outputPartitioner
                         + "_"
                         + uniqueId;
+        if (outputPartitioner != null) {
+            configureKeyCorrelation(outputPartitioner);
+        }
     }
 
     public int getSourceId() {
@@ -177,6 +196,7 @@ public class StreamEdge implements Serializable {
     }
 
     public void setPartitioner(StreamPartitioner<?> partitioner) {
+        configureKeyCorrelation(partitioner);
         this.outputPartitioner = partitioner;
     }
 
@@ -242,5 +262,24 @@ public class StreamEdge implements Serializable {
 
     public String getEdgeId() {
         return edgeId;
+    }
+
+    private void configureKeyCorrelation(StreamPartitioner<?> partitioner) {
+        this.intraInputKeyCorrelation =
+                !partitioner.isPointwise() || partitioner instanceof ForwardPartitioner;
+        this.interInputsKeyCorrelation = !partitioner.isPointwise();
+    }
+
+    public boolean existInterInputsKeyCorrelation() {
+        return interInputsKeyCorrelation;
+    }
+
+    public boolean existIntraInputKeyCorrelation() {
+        return intraInputKeyCorrelation;
+    }
+
+    public void setIntraInputKeyCorrelation(boolean intraInputKeyCorrelation) {
+        checkState(interInputsKeyCorrelation, "InterInputsKeyCorrelation must be true");
+        this.intraInputKeyCorrelation = intraInputKeyCorrelation;
     }
 }
