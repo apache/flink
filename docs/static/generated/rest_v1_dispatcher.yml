@@ -1994,13 +1994,6 @@ components:
         timezone-offset:
           type: integer
           format: int32
-    DistributedCacheFile:
-      type: object
-      properties:
-        entryName:
-          type: string
-        fileName:
-          type: string
     EnvironmentInfo:
       type: object
       properties:
