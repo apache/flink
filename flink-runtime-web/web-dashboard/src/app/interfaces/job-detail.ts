@@ -26,6 +26,7 @@ export interface JobStatusCounts {
   FINISHED: number;
   FAILED: number;
   RECONCILING: number;
+  PENDING: number;
 }
 
 interface TimestampsStatus {
@@ -57,6 +58,8 @@ export interface JobDetail {
   vertices: VerticesItem[];
   'status-counts': JobStatusCounts;
   plan: Plan;
+  'stream-graph': StreamGraph;
+  'pending-operators': number;
 }
 
 interface Plan {
@@ -64,6 +67,10 @@ interface Plan {
   name: string;
   type: string;
   nodes: NodesItem[];
+}
+
+interface StreamGraph {
+  nodes: NodesItemCorrect[];
 }
 
 interface InputsItem {
@@ -107,6 +114,7 @@ export interface TasksStatus {
   RECONCILING: number;
   CANCELING: number;
   INITIALIZING: number;
+  PENDING: number;
 }
 
 interface MetricsStatus {
@@ -138,6 +146,7 @@ export interface NodesItemCorrect extends NodesItem {
   backPressuredPercentage?: number;
   busyPercentage?: number;
   dataSkewPercentage?: number;
+  job_vertex_id?: string;
 }
 
 export interface NodesItemLink {
@@ -147,6 +156,7 @@ export interface NodesItemLink {
   width?: number;
   ship_strategy?: string;
   local_strategy?: string;
+  pending?: boolean;
 }
 
 export interface JobDetailCorrect extends JobDetail {
@@ -156,5 +166,7 @@ export interface JobDetailCorrect extends JobDetail {
     type: string;
     nodes: NodesItemCorrect[];
     links: NodesItemLink[];
+    streamNodes: NodesItemCorrect[];
+    streamLinks: NodesItemLink[];
   };
 }

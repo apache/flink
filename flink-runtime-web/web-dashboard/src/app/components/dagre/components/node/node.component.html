@@ -25,29 +25,39 @@
   >
     <xhtml:div
       class="node-label-wrapper"
+      [class.pending]="pending"
       [style.border-color]="borderColor"
       [style.background-color]="backgroundColor"
     >
       <h4 class="content-wrap">
         <xhtml:div class="detail">{{ operator }}</xhtml:div>
-        <xhtml:div class="detail description">{{ description }}</xhtml:div>
+        <xhtml:div class="detail description" *ngIf="!pending">{{ description }}</xhtml:div>
         <xhtml:div class="node-label">Parallelism: {{ parallelism }}</xhtml:div>
         <xhtml:div
           class="node-label metric"
           title="Maximum back pressured percentage across all subtasks"
+          *ngIf="!pending"
         >
           Backpressured (max): {{ prettyPrint(backPressuredPercentage) }}
         </xhtml:div>
-        <xhtml:div class="node-label metric" title="Maximum busy percentage across all subtasks">
+        <xhtml:div
+          class="node-label metric"
+          title="Maximum busy percentage across all subtasks"
+          *ngIf="!pending"
+        >
           Busy (max): {{ prettyPrint(busyPercentage) }}
         </xhtml:div>
-        <xhtml:div class="node-label metric" title="Data skew percentage across all subtasks">
+        <xhtml:div
+          class="node-label metric"
+          title="Data skew percentage across all subtasks"
+          *ngIf="!pending"
+        >
           Data Skew: {{ prettyPrint(dataSkewPercentage) }}
         </xhtml:div>
-        <xhtml:div class="node-label metric" *ngIf="lowWatermark">
+        <xhtml:div class="node-label metric" *ngIf="lowWatermark && !pending">
           Low Watermark: {{ lowWatermark }}
         </xhtml:div>
-        <xhtml:div class="detail last" *ngIf="operatorStrategy">
+        <xhtml:div class="detail last" *ngIf="operatorStrategy && !pending">
           Operation: {{ operatorStrategy }}
         </xhtml:div>
       </h4>

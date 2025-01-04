@@ -51,6 +51,10 @@ import { JobLocalService } from '../job-local.service';
 export class JobOverviewComponent implements OnInit, OnDestroy {
   public nodes: NodesItemCorrect[] = [];
   public links: NodesItemLink[] = [];
+  public streamNodes: NodesItemCorrect[] = [];
+  public streamLinks: NodesItemLink[] = [];
+  public pendingNodes: NodesItemCorrect[] = [];
+  public pendingLinks: NodesItemLink[] = [];
   public selectedNode: NodesItemCorrect | null;
   public top = 500;
   public jobId: string;
@@ -79,11 +83,14 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe(data => {
-        if (this.jobId !== data.plan.jid || this.nodes.length === 0) {
-          this.nodes = data.plan.nodes;
-          this.links = data.plan.links;
+        if (this.jobId !== data.plan.jid || data.plan.nodes.length !== this.nodes.length) {
           this.jobId = data.plan.jid;
-          this.dagreComponent.flush(this.nodes, this.links, true).then();
+          this.nodes = data.plan.nodes;
+          this.streamNodes = data.plan.streamNodes;
+          this.streamLinks = data.plan.streamLinks;
+          this.links = data.plan.links;
+          this.updatePendingInfo();
+          this.refreshGraph(this.dagreComponent.showPendingOperators);
           this.refreshNodesWithMetrics();
         } else {
           this.nodes = data.plan.nodes;
@@ -183,5 +190,40 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
         );
       })
     ).pipe(catchError(() => of(nodes)));
+  }
+
+  refreshGraph(showPendingOperators: boolean): void {
+    if (showPendingOperators) {
+      this.dagreComponent
+        .flush([...this.nodes, ...this.pendingNodes], [...this.links, ...this.pendingLinks], true)
+        .then();
+    } else {
+      this.dagreComponent.flush(this.nodes, this.links, true).then();
+    }
+  }
+
+  private updatePendingInfo(): void {
+    this.pendingNodes = this.streamNodes.filter(node => !node?.job_vertex_id);
+    this.pendingLinks = this.getPendingLinks(this.pendingNodes);
+  }
+
+  private getPendingLinks(pendingNodes: NodesItemCorrect[]): NodesItemLink[] {
+    const pendingLinks: NodesItemLink[] = [];
+    const pendingNodesSet = new Set(pendingNodes.map(node => node.id));
+    const nodeIdMapper = new Map(this.streamNodes.map(node => [node.id, node?.job_vertex_id]));
+    this.streamLinks
+      .filter(link => pendingNodesSet.has(link.source) || pendingNodesSet.has(link.target))
+      .forEach(link => {
+        const source = nodeIdMapper.get(link.source) ?? link.source;
+        const target = nodeIdMapper.get(link.target) ?? link.target;
+        pendingLinks.push({
+          ...link,
+          id: `${source}-${target}`,
+          source,
+          target,
+          pending: true
+        });
+      });
+    return pendingLinks;
   }
 }
