@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -36,7 +36,7 @@ public class OverWindowRestoreTest extends RestoreTestBase {
     @Override
     protected Stream<String> getSavepointPaths(
             TableTestProgram program, ExecNodeMetadata metadata) {
-        if (metadata.version() == 1) {
+        if (metadata.version() == 1 && program.equals(OverWindowTestPrograms.LAG_OVER_FUNCTION)) {
             return Stream.concat(
                     super.getSavepointPaths(program, metadata),
                     // See src/test/resources/restore-tests/stream-exec-over-aggregate_1/over
@@ -50,6 +50,19 @@ public class OverWindowRestoreTest extends RestoreTestBase {
 
     @Override
     public List<TableTestProgram> programs() {
-        return Collections.singletonList(OverWindowTestPrograms.LAG_OVER_FUNCTION);
+        return Arrays.asList(
+                OverWindowTestPrograms.LAG_OVER_FUNCTION,
+                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_UNBOUNDED_RETRACT_MODE,
+                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_UNBOUNDED_APPEND_MODE,
+                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_UNBOUNDED_APPEND_MODE_MULTIPLE_AGGS,
+                OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_UNBOUNDED_NO_PARTITION_BY,
+                OverWindowTestPrograms
+                        .OVER_AGGREGATE_NON_TIME_UNBOUNDED_RETRACT_MODE_SOURCE_PRIMARY_KEY,
+                OverWindowTestPrograms
+                        .OVER_AGGREGATE_NON_TIME_UNBOUNDED_RETRACT_MODE_SINK_PRIMARY_KEY,
+                OverWindowTestPrograms
+                        .OVER_AGGREGATE_NON_TIME_UNBOUNDED_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY,
+                OverWindowTestPrograms
+                        .OVER_AGGREGATE_NON_TIME_UNBOUNDED_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY_PARTITION_BY_NON_PK);
     }
 }
