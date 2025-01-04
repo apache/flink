@@ -34,8 +34,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for {@link LatencyTrackingAggregatingState}. */
-class LatencyTrackingAggregatingStateTest extends LatencyTrackingStateTestBase<Integer> {
+/** Tests for {@link MetricsTrackingAggregatingState}. */
+class MetricsTrackingAggregatingStateTest extends MetricsTrackingStateTestBase<Integer> {
     @Override
     @SuppressWarnings("unchecked")
     AggregatingStateDescriptor<Long, Long, Long> getStateDescriptor() {
@@ -82,14 +82,13 @@ class LatencyTrackingAggregatingStateTest extends LatencyTrackingStateTestBase<I
     void testLatencyTrackingAggregatingState() throws Exception {
         AbstractKeyedStateBackend<Integer> keyedBackend = createKeyedBackend(getKeySerializer());
         try {
-            LatencyTrackingAggregatingState<Integer, VoidNamespace, Long, Long, Long>
+            MetricsTrackingAggregatingState<Integer, VoidNamespace, Long, Long, Long>
                     latencyTrackingState =
-                            (LatencyTrackingAggregatingState)
-                                    createLatencyTrackingState(keyedBackend, getStateDescriptor());
+                            (MetricsTrackingAggregatingState)
+                                    createMetricsTrackingState(keyedBackend, getStateDescriptor());
             latencyTrackingState.setCurrentNamespace(VoidNamespace.INSTANCE);
-            LatencyTrackingAggregatingState.AggregatingStateLatencyMetrics
-                    latencyTrackingStateMetric =
-                            latencyTrackingState.getLatencyTrackingStateMetric();
+            MetricsTrackingAggregatingState.AggregatingStateMetrics latencyTrackingStateMetric =
+                    latencyTrackingState.getLatencyTrackingStateMetric();
 
             assertThat(latencyTrackingStateMetric.getAddCount()).isZero();
             assertThat(latencyTrackingStateMetric.getGetCount()).isZero();
@@ -109,6 +108,41 @@ class LatencyTrackingAggregatingStateTest extends LatencyTrackingStateTestBase<I
                         VoidNamespace.INSTANCE, Collections.emptyList());
                 assertThat(latencyTrackingStateMetric.getMergeNamespaceCount())
                         .isEqualTo(expectedResult);
+            }
+        } finally {
+            if (keyedBackend != null) {
+                keyedBackend.close();
+                keyedBackend.dispose();
+            }
+        }
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void testSizeTrackingAggregatingState() throws Exception {
+        AbstractKeyedStateBackend<Integer> keyedBackend = createKeyedBackend(getKeySerializer());
+        try {
+            MetricsTrackingAggregatingState<Integer, VoidNamespace, Long, Long, Long>
+                    sizeTrackingState =
+                            (MetricsTrackingAggregatingState)
+                                    createMetricsTrackingState(keyedBackend, getStateDescriptor());
+            sizeTrackingState.setCurrentNamespace(VoidNamespace.INSTANCE);
+            MetricsTrackingAggregatingState.AggregatingStateMetrics sizeTrackingStateMetric =
+                    sizeTrackingState.getSizeTrackingStateMetric();
+
+            assertThat(sizeTrackingStateMetric.getAddCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getGetCount()).isZero();
+            assertThat(sizeTrackingStateMetric.getMergeNamespaceCount()).isZero();
+
+            setCurrentKey(keyedBackend);
+            ThreadLocalRandom random = ThreadLocalRandom.current();
+            for (int index = 1; index <= SAMPLE_INTERVAL; index++) {
+                int expectedResult = index == SAMPLE_INTERVAL ? 0 : index;
+                sizeTrackingState.add(random.nextLong());
+                assertThat(sizeTrackingStateMetric.getAddCount()).isEqualTo(expectedResult);
+
+                sizeTrackingState.get();
+                assertThat(sizeTrackingStateMetric.getGetCount()).isEqualTo(expectedResult);
             }
         } finally {
             if (keyedBackend != null) {

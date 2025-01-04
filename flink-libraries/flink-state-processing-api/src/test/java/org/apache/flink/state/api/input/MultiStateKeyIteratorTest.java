@@ -52,6 +52,7 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.ttl.mock.MockRestoreOperation;
 import org.apache.flink.runtime.state.ttl.mock.MockStateBackend;
@@ -132,6 +133,7 @@ public class MultiStateKeyIteratorTest {
                 env.getExecutionConfig(),
                 ttlTimeProvider,
                 LatencyTrackingStateConfig.disabled(),
+                SizeTrackingStateConfig.disabled(),
                 cancelStreamRegistry,
                 new InternalKeyContextImpl<>(keyGroupRange, numberOfKeyGroups));
     }
@@ -269,6 +271,7 @@ public class MultiStateKeyIteratorTest {
                 ExecutionConfig executionConfig,
                 TtlTimeProvider ttlTimeProvider,
                 LatencyTrackingStateConfig latencyTrackingStateConfig,
+                SizeTrackingStateConfig sizeTrackingStateConfig,
                 CloseableRegistry cancelStreamRegistry,
                 InternalKeyContext<Integer> keyContext) {
             super(
@@ -278,6 +281,7 @@ public class MultiStateKeyIteratorTest {
                     executionConfig,
                     ttlTimeProvider,
                     latencyTrackingStateConfig,
+                    sizeTrackingStateConfig,
                     cancelStreamRegistry,
                     keyContext);
             this.numberOfKeysGenerated = numberOfKeysGenerated;

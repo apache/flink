@@ -50,6 +50,7 @@ import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemoryBackendCheckpointStorageAccess;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.TriConsumerWithException;
@@ -272,6 +273,7 @@ public class ChangelogStateDiscardTest {
                                 executionConfig,
                                 TtlTimeProvider.DEFAULT,
                                 LatencyTrackingStateConfig.disabled(),
+                                SizeTrackingStateConfig.disabled(),
                                 emptyList(),
                                 UncompressedStreamCompressionDecorator.INSTANCE,
                                 LocalRecoveryConfig.BACKUP_AND_RECOVERY_DISABLED,

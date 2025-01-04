@@ -239,6 +239,7 @@ public class StateBackendTestUtils {
                     parameters.getEnv().getExecutionConfig(),
                     parameters.getTtlTimeProvider(),
                     delegatedKeyedStateBackend.getLatencyTrackingStateConfig(),
+                    delegatedKeyedStateBackend.getSizeTrackingStateConfig(),
                     parameters.getCancelStreamRegistry(),
                     delegatedKeyedStateBackend.getKeyContext()) {
                 @Override
