@@ -21,6 +21,8 @@ package org.apache.flink.table.catalog.hive;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
+import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.connectors.hive.HiveDynamicTableFactory;
 import org.apache.flink.connectors.hive.HiveTableFactory;
@@ -124,6 +126,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX;
+import static org.apache.flink.table.catalog.hive.HiveConfOptions.FLINK_HIVE_CONFIG_PREFIXES;
 import static org.apache.flink.table.catalog.hive.util.Constants.ALTER_COL_CASCADE;
 import static org.apache.flink.table.catalog.hive.util.Constants.ALTER_DATABASE_OP;
 import static org.apache.flink.table.catalog.hive.util.Constants.ALTER_TABLE_OP;
@@ -174,7 +177,7 @@ public class HiveCatalog extends AbstractCatalog {
             String catalogName,
             @Nullable String defaultDatabase,
             @Nullable String hiveConfDir,
-            String hiveVersion) {
+            @Nullable String hiveVersion) {
         this(catalogName, defaultDatabase, hiveConfDir, null, hiveVersion);
     }
 
@@ -184,7 +187,21 @@ public class HiveCatalog extends AbstractCatalog {
             @Nullable String hiveConfDir,
             @Nullable String hadoopConfDir,
             @Nullable String hiveVersion) {
-        this(catalogName, defaultDatabase, createHiveConf(hiveConfDir, hadoopConfDir), hiveVersion);
+        this(catalogName, defaultDatabase, hiveConfDir, hadoopConfDir, hiveVersion, null);
+    }
+
+    public HiveCatalog(
+            String catalogName,
+            @Nullable String defaultDatabase,
+            @Nullable String hiveConfDir,
+            @Nullable String hadoopConfDir,
+            @Nullable String hiveVersion,
+            @Nullable ReadableConfig flinkConfiguration) {
+        this(
+                catalogName,
+                defaultDatabase,
+                createHiveConf(hiveConfDir, hadoopConfDir, flinkConfiguration),
+                hiveVersion);
     }
 
     public HiveCatalog(
@@ -208,7 +225,7 @@ public class HiveCatalog extends AbstractCatalog {
             boolean allowEmbedded) {
         super(catalogName, defaultDatabase == null ? DEFAULT_DB : defaultDatabase);
 
-        this.hiveConf = hiveConf == null ? createHiveConf(null, null) : hiveConf;
+        this.hiveConf = hiveConf == null ? createHiveConf(null, null, null) : hiveConf;
         if (!allowEmbedded) {
             checkArgument(
                     !isEmbeddedMetastore(this.hiveConf),
@@ -223,6 +240,34 @@ public class HiveCatalog extends AbstractCatalog {
         this.hiveConf.set(HiveCatalogFactoryOptions.HIVE_VERSION.key(), hiveVersion);
 
         LOG.info("Created HiveCatalog '{}'", catalogName);
+    }
+
+    public static HiveConf createHiveConf(
+            @Nullable String hiveConfDir,
+            @Nullable String hadoopConfDir,
+            @Nullable ReadableConfig flinkConfiguration) {
+        HiveConf hiveconf = createHiveConf(hiveConfDir, hadoopConfDir);
+        // add all configuration key with prefix 'flink.hive.hadoop.' and 'flink.hive.' in flink
+        // conf to hive conf
+        String hivePrefix = FLINK_HIVE_CONFIG_PREFIXES;
+        String hadoopPrefix = "hadoop.";
+        if (flinkConfiguration != null) {
+            for (Map.Entry<String, String> conf : flinkConfiguration.toMap().entrySet()) {
+                if (conf.getKey().startsWith(hivePrefix)) {
+                    String newKey = conf.getKey().substring(hivePrefix.length());
+                    if (newKey.startsWith(hadoopPrefix)) {
+                        newKey = newKey.substring(hadoopPrefix.length());
+                    }
+                    hiveconf.set(newKey, conf.getValue());
+                    LOG.debug(
+                            "Adding Flink config entry for {} as {}={} to Hive config",
+                            conf.getKey(),
+                            newKey,
+                            conf.getValue());
+                }
+            }
+        }
+        return hiveconf;
     }
 
     public static HiveConf createHiveConf(
