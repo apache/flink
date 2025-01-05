@@ -218,6 +218,7 @@ public class MaterializedTableStatementParserTest {
                 .fails(
                         "Encountered \"<EOF>\" at line 1, column 28.\n"
                                 + "Was expecting one of:\n"
+                                + "    \"AS\" ...\n"
                                 + "    \"RESET\" ...\n"
                                 + "    \"SET\" ...\n"
                                 + "    \"SUSPEND\" ...\n"
@@ -381,6 +382,27 @@ public class MaterializedTableStatementParserTest {
                         "Encountered \"<EOF>\" at line 1, column 35.\n"
                                 + "Was expecting:\n"
                                 + "    \"\\(\" ...\n"
+                                + "    ");
+    }
+
+    @Test
+    void testAlterMaterializedTableAsQuery() {
+        final String sql = "ALTER MATERIALIZED TABLE tbl1 AS SELECT * FROM t";
+        final String expected = "ALTER MATERIALIZED TABLE `TBL1` AS SELECT *\nFROM `T`";
+        sql(sql).ok(expected);
+
+        final String sql2 = "ALTER MATERIALIZED TABLE tbl1 AS SELECT * FROM t A^S^";
+        sql(sql2)
+                .fails(
+                        "Encountered \"<EOF>\" at line 1, column 51.\n"
+                                + "Was expecting one of:\n"
+                                + "    <BRACKET_QUOTED_IDENTIFIER> ...\n"
+                                + "    <QUOTED_IDENTIFIER> ...\n"
+                                + "    <BACK_QUOTED_IDENTIFIER> ...\n"
+                                + "    <BIG_QUERY_BACK_QUOTED_IDENTIFIER> ...\n"
+                                + "    <HYPHENATED_IDENTIFIER> ...\n"
+                                + "    <IDENTIFIER> ...\n"
+                                + "    <UNICODE_QUOTED_IDENTIFIER> ...\n"
                                 + "    ");
     }
 
