@@ -1063,6 +1063,22 @@ under the License.
 		</profile>
 
 		<profile>
+			<id>java11-target</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-compiler-plugin</artifactId>
+						<configuration>
+							<source>11</source>
+							<target>11</target>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
 			<id>java17</id>
 			<activation>
 				<jdk>[17,)</jdk>
