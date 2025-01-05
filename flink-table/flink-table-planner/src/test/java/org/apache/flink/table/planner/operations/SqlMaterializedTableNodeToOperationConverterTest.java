@@ -28,9 +28,12 @@ import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableAsQueryOperation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableRefreshOperation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableResumeOperation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableSuspendOperation;
@@ -45,7 +48,9 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -72,6 +77,25 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         final CatalogTable catalogTable =
                 CatalogTable.of(tableSchema, "", Arrays.asList("b", "c"), options);
         catalog.createTable(path3, catalogTable, true);
+
+        // create materialized table
+        final String sql =
+                "CREATE MATERIALIZED TABLE base_mtbl (\n"
+                        + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED"
+                        + ")\n"
+                        + "COMMENT 'materialized table comment'\n"
+                        + "PARTITIONED BY (a, d)\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'filesystem', \n"
+                        + "  'format' = 'json'\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '30' SECOND\n"
+                        + "REFRESH_MODE = FULL\n"
+                        + "AS SELECT * FROM t1";
+        final ObjectPath path4 = new ObjectPath(catalogManager.getCurrentDatabase(), "base_mtbl");
+
+        CreateMaterializedTableOperation operation = (CreateMaterializedTableOperation) parse(sql);
+        catalog.createTable(path4, operation.getCatalogMaterializedTable(), true);
     }
 
     @Test
@@ -389,6 +413,125 @@ public class SqlMaterializedTableNodeToOperationConverterTest
                 .containsEntry("k1", "v1");
         assertThat(operation2.asSummaryString())
                 .isEqualTo("ALTER MATERIALIZED TABLE builtin.default.mtbl1 RESUME WITH (k1: [v1])");
+    }
+
+    @Test
+    void testAlterMaterializedTableAsQuery() throws TableNotExistException {
+        String sql =
+                "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, d, d as e, cast('123' as string) as f FROM t3";
+        Operation operation = parse(sql);
+
+        assertThat(operation).isInstanceOf(AlterMaterializedTableAsQueryOperation.class);
+
+        AlterMaterializedTableAsQueryOperation op =
+                (AlterMaterializedTableAsQueryOperation) operation;
+        assertThat(op.getTableChanges())
+                .isEqualTo(
+                        Arrays.asList(
+                                TableChange.add(
+                                        Column.physical("e", DataTypes.VARCHAR(Integer.MAX_VALUE))),
+                                TableChange.add(
+                                        Column.physical("f", DataTypes.VARCHAR(Integer.MAX_VALUE))),
+                                TableChange.modifyDefinitionQuery(
+                                        "SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
+                                                + "FROM `builtin`.`default`.`t3`")));
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "ALTER MATERIALIZED TABLE builtin.default.base_mtbl AS SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
+                                + "FROM `builtin`.`default`.`t3`");
+
+        // new table only difference schema & definition query with old table.
+        CatalogMaterializedTable oldTable =
+                (CatalogMaterializedTable)
+                        catalog.getTable(
+                                new ObjectPath(catalogManager.getCurrentDatabase(), "base_mtbl"));
+        CatalogMaterializedTable newTable = op.getNewMaterializedTable();
+
+        assertThat(oldTable.getUnresolvedSchema()).isNotEqualTo(newTable.getUnresolvedSchema());
+        assertThat(oldTable.getUnresolvedSchema().getPrimaryKey())
+                .isEqualTo(newTable.getUnresolvedSchema().getPrimaryKey());
+        assertThat(oldTable.getUnresolvedSchema().getWatermarkSpecs())
+                .isEqualTo(newTable.getUnresolvedSchema().getWatermarkSpecs());
+        assertThat(oldTable.getDefinitionQuery()).isNotEqualTo(newTable.getDefinitionQuery());
+        assertThat(oldTable.getDefinitionFreshness()).isEqualTo(newTable.getDefinitionFreshness());
+        assertThat(oldTable.getRefreshMode()).isEqualTo(newTable.getRefreshMode());
+        assertThat(oldTable.getRefreshStatus()).isEqualTo(newTable.getRefreshStatus());
+        assertThat(oldTable.getSerializedRefreshHandler())
+                .isEqualTo(newTable.getSerializedRefreshHandler());
+
+        List<Schema.UnresolvedColumn> addedColumn =
+                newTable.getUnresolvedSchema().getColumns().stream()
+                        .filter(
+                                column ->
+                                        !oldTable.getUnresolvedSchema()
+                                                .getColumns()
+                                                .contains(column))
+                        .collect(Collectors.toList());
+        // added column should be a nullable column.
+        assertThat(addedColumn)
+                .isEqualTo(
+                        Arrays.asList(
+                                new Schema.UnresolvedPhysicalColumn(
+                                        "e", DataTypes.VARCHAR(Integer.MAX_VALUE)),
+                                new Schema.UnresolvedPhysicalColumn(
+                                        "f", DataTypes.VARCHAR(Integer.MAX_VALUE))));
+    }
+
+    @Test
+    void testAlterMaterializedTableAsQueryWithConflictColumnName() {
+        String sql5 = "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, d, c as a FROM t3";
+        AlterMaterializedTableAsQueryOperation sqlAlterMaterializedTableAsQuery =
+                (AlterMaterializedTableAsQueryOperation) parse(sql5);
+
+        assertThat(sqlAlterMaterializedTableAsQuery.getTableChanges())
+                .isEqualTo(
+                        Arrays.asList(
+                                TableChange.add(Column.physical("a0", DataTypes.INT())),
+                                TableChange.modifyDefinitionQuery(
+                                        "SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`c` AS `a`\n"
+                                                + "FROM `builtin`.`default`.`t3`")));
+    }
+
+    @Test
+    void testAlterMaterializedTableAsQueryWithUnsupportedColumnChange() {
+        // 1. delete existing column
+        String sql1 = "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b FROM t3";
+        assertThatThrownBy(() -> parse(sql1))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Failed to modify query because drop column is unsupported. When modifying a query, you can only append new columns at the end of original schema. The original schema has 4 columns, but the newly derived schema from the query has 2 columns.");
+        // 2. swap column position
+        String sql2 = "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, d, c FROM t3";
+        assertThatThrownBy(() -> parse(sql2))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "When modifying the query of a materialized table, currently only support appending columns at the end of original schema, dropping, renaming, and reordering columns are not supported.\n"
+                                + "Column mismatch at position 2: Original column is [`c` INT], but new column is [`d` STRING].");
+        // 3. change existing column type
+        String sql3 =
+                "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, cast(d as int) as d FROM t3";
+        assertThatThrownBy(() -> parse(sql3))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "When modifying the query of a materialized table, currently only support appending columns at the end of original schema, dropping, renaming, and reordering columns are not supported.\n"
+                                + "Column mismatch at position 3: Original column is [`d` STRING], but new column is [`d` INT].");
+        // 4. change existing column nullability
+        String sql4 =
+                "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, cast('d' as string) as d FROM t3";
+        assertThatThrownBy(() -> parse(sql4))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "When modifying the query of a materialized table, currently only support appending columns at the end of original schema, dropping, renaming, and reordering columns are not supported.\n"
+                                + "Column mismatch at position 3: Original column is [`d` STRING], but new column is [`d` STRING NOT NULL].");
+    }
+
+    @Test
+    void testAlterAlterMaterializedTableAsQueryWithCatalogTable() {
+        // t1 is a CatalogTable not a Materialized Table
+        final String sql = "ALTER MATERIALIZED TABLE t1 AS SELECT * FROM t1";
+        assertThatThrownBy(() -> parse(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Only materialized table support modify definition query.");
     }
 
     @Test
