@@ -165,15 +165,15 @@ FRESHNESS = INTERVAL '5' HOUR
 ```sql
 -- 创建的物化表的刷新模式为连续模式，作业的 checkpoint 间隔为 1 小时。
 CREATE MATERIALIZED TABLE my_materialized_table
-    REFRESH_MODE = CONTINUOUS
     FRESHNESS = INTERVAL '1' HOUR
+    REFRESH_MODE = CONTINUOUS
     AS SELECT
        ...    
 
 -- 创建的物化表的刷新模式为全量模式，作业的调度周期为 10 分钟。
 CREATE MATERIALIZED TABLE my_materialized_table
-    REFRESH_MODE = FULL
     FRESHNESS = INTERVAL '10' MINUTE
+    REFRESH_MODE = FULL
     AS SELECT
        ...    
 ```
@@ -200,11 +200,10 @@ CREATE MATERIALIZED TABLE my_materialized_table
 CREATE MATERIALIZED TABLE my_materialized_table_continuous
     PARTITIONED BY (ds)
     WITH (
-        'format' = 'json',
+        'format' = 'debezium-json',
         'partition.fields.ds.date-formatter' = 'yyyy-MM-dd'
     )
     FRESHNESS = INTERVAL '10' SECOND
-    REFRESH_MODE = 'CONTINUOUS'
     AS 
     SELECT 
         k.ds,
@@ -233,8 +232,7 @@ CREATE MATERIALIZED TABLE my_materialized_table_full
         'format' = 'json',
         'partition.fields.ds.date-formatter' = 'yyyy-MM-dd'
     )
-    FRESHNESS = INTERVAL '10' MINUTE
-    REFRESH_MODE = 'FULL'
+    FRESHNESS = INTERVAL '1' HOUR
     AS 
     SELECT 
         p.ds,
