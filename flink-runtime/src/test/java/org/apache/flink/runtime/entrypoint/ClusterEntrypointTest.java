@@ -69,6 +69,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertFalse;
@@ -129,6 +130,13 @@ public class ClusterEntrypointTest extends TestLogger {
                 is(ApplicationStatus.UNKNOWN));
         assertThat(
                 ExceptionThrowingDelegationTokenReceiver.onNewTokensObtainedCallCount.get(), is(1));
+    }
+
+    @Test
+    public void testCloseAsyncDoesNotFailBeforeInitialization() {
+        TestingEntryPoint entryPoint = new TestingEntryPoint.Builder().build();
+
+        assertThatCode(() -> entryPoint.closeAsync().join()).doesNotThrowAnyException();
     }
 
     @Test
