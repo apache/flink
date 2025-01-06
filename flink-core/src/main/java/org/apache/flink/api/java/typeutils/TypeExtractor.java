@@ -42,7 +42,6 @@ import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -1989,15 +1988,16 @@ public class TypeExtractor {
                     Class<?> valueClass = (Class<?>) actualTypeArguments[1];
                     TypeInformation<?> keyTypeInfo = createTypeInfo(keyClass);
                     TypeInformation<?> valueTypeInfo = createTypeInfo(valueClass);
-                    return (TypeInformation<OUT>) Types.MAP(keyTypeInfo, valueTypeInfo);
+                    return (TypeInformation<OUT>)
+                            new NullableMapTypeInfo<>(keyTypeInfo, valueTypeInfo);
                 } else if (clazz.isAssignableFrom(List.class)) {
                     Class<?> elementClass = (Class<?>) actualTypeArguments[0];
                     TypeInformation<?> elementTypeInfo = createTypeInfo(elementClass);
-                    return (TypeInformation<OUT>) Types.LIST(elementTypeInfo);
+                    return (TypeInformation<OUT>) new NullableListTypeInfo<>(elementTypeInfo);
                 } else if (clazz.isAssignableFrom(Set.class)) {
                     Class<?> elementClass = (Class<?>) actualTypeArguments[0];
                     TypeInformation<?> elementTypeInfo = createTypeInfo(elementClass);
-                    return (TypeInformation<OUT>) Types.SET(elementTypeInfo);
+                    return (TypeInformation<OUT>) new NullableSetTypeInfo<>(elementTypeInfo);
                 }
             }
         }
