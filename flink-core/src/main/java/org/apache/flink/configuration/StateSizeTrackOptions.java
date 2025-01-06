@@ -27,7 +27,7 @@ public class StateSizeTrackOptions {
 
     @Documentation.Section(Documentation.Sections.STATE_SIZE_TRACKING)
     public static final ConfigOption<Boolean> SIZE_TRACK_ENABLED =
-            ConfigOptions.key("state.backend.size-track.keyed-state-enabled")
+            ConfigOptions.key("state.size-track.keyed-state-enabled")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
@@ -35,7 +35,7 @@ public class StateSizeTrackOptions {
 
     @Documentation.Section(Documentation.Sections.STATE_SIZE_TRACKING)
     public static final ConfigOption<Integer> SIZE_TRACK_SAMPLE_INTERVAL =
-            ConfigOptions.key("state.backend.size-track.sample-interval")
+            ConfigOptions.key("state.size-track.sample-interval")
                     .intType()
                     .defaultValue(100)
                     .withDescription(
@@ -46,7 +46,7 @@ public class StateSizeTrackOptions {
 
     @Documentation.Section(Documentation.Sections.STATE_SIZE_TRACKING)
     public static final ConfigOption<Integer> SIZE_TRACK_HISTORY_SIZE =
-            ConfigOptions.key("state.backend.size-track.history-size")
+            ConfigOptions.key("state.size-track.history-size")
                     .intType()
                     .defaultValue(128)
                     .withDescription(
@@ -54,7 +54,7 @@ public class StateSizeTrackOptions {
 
     @Documentation.Section(Documentation.Sections.STATE_SIZE_TRACKING)
     public static final ConfigOption<Boolean> SIZE_TRACK_STATE_NAME_AS_VARIABLE =
-            ConfigOptions.key("state.backend.size-track.state-name-as-variable")
+            ConfigOptions.key("state.size-track.state-name-as-variable")
                     .booleanType()
                     .defaultValue(true)
                     .withDescription(

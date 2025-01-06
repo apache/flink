@@ -59,7 +59,7 @@ import java.util.Collection;
 import static java.util.Collections.emptyList;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for {@link LatencyTrackingStateFactory}. */
+/** Tests for {@link MetricsTrackingStateFactory}. */
 @ExtendWith(ParameterizedTestExtension.class)
 public class MetricsTrackingStateFactoryTest {
 
@@ -100,7 +100,7 @@ public class MetricsTrackingStateFactoryTest {
                     backend.createOrUpdateInternalState(
                             VoidNamespaceSerializer.INSTANCE, valueStateDescriptor);
             InternalKvState<K, ?, ?> latencyTrackingState =
-                    LatencyTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
+                    MetricsTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
                             valueState,
                             null,
                             valueStateDescriptor,
@@ -124,7 +124,7 @@ public class MetricsTrackingStateFactoryTest {
                     backend.createOrUpdateInternalState(
                             VoidNamespaceSerializer.INSTANCE, listStateDescriptor);
             InternalKvState<K, N, ?> latencyTrackingState =
-                    LatencyTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
+                    MetricsTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
                             listState,
                             null,
                             listStateDescriptor,
@@ -148,7 +148,7 @@ public class MetricsTrackingStateFactoryTest {
                     backend.createOrUpdateInternalState(
                             VoidNamespaceSerializer.INSTANCE, mapStateDescriptor);
             InternalKvState<K, N, ?> latencyTrackingState =
-                    LatencyTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
+                    MetricsTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
                             mapState,
                             null,
                             mapStateDescriptor,
@@ -172,7 +172,7 @@ public class MetricsTrackingStateFactoryTest {
                     backend.createOrUpdateInternalState(
                             VoidNamespaceSerializer.INSTANCE, reducingStateDescriptor);
             InternalKvState<K, N, ?> latencyTrackingState =
-                    LatencyTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
+                    MetricsTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
                             reducingState,
                             null,
                             reducingStateDescriptor,
@@ -221,7 +221,7 @@ public class MetricsTrackingStateFactoryTest {
                     backend.createOrUpdateInternalState(
                             VoidNamespaceSerializer.INSTANCE, aggregatingStateDescriptor);
             InternalKvState<K, N, ?> latencyTrackingState =
-                    LatencyTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
+                    MetricsTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
                             aggregatingState,
                             null,
                             aggregatingStateDescriptor,

@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /** Factory to create {@link AbstractMetricsTrackState}. */
-public class LatencyTrackingStateFactory<
+public class MetricsTrackingStateFactory<
         K, N, V, S extends State, IS extends InternalKvState<K, N, ?>> {
 
     private final InternalKvState<K, N, ?> kvState;
@@ -46,7 +46,7 @@ public class LatencyTrackingStateFactory<
     private final Map<StateDescriptor.Type, SupplierWithException<IS, Exception>> stateFactories;
     private final KeyedStateBackend keyedStateBackend;
 
-    private LatencyTrackingStateFactory(
+    private MetricsTrackingStateFactory(
             InternalKvState<K, N, ?> kvState,
             KeyedStateBackend<K> keyedStateBackend,
             StateDescriptor<S, V> stateDescriptor,
@@ -70,7 +70,7 @@ public class LatencyTrackingStateFactory<
                     SizeTrackingStateConfig sizeTrackingStateConfig)
                     throws Exception {
         if (latencyTrackingStateConfig.isEnabled() || sizeTrackingStateConfig.isEnabled()) {
-            return new LatencyTrackingStateFactory<>(
+            return new MetricsTrackingStateFactory<>(
                             kvState,
                             keyedStateBackend,
                             stateDescriptor,
@@ -109,7 +109,7 @@ public class LatencyTrackingStateFactory<
             String message =
                     String.format(
                             "State %s is not supported by %s",
-                            stateDescriptor.getClass(), LatencyTrackingStateFactory.class);
+                            stateDescriptor.getClass(), MetricsTrackingStateFactory.class);
             throw new FlinkRuntimeException(message);
         }
         return stateFactory.get();
