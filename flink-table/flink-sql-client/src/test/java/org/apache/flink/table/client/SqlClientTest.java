@@ -273,7 +273,9 @@ class SqlClientTest extends SqlClientTestBase {
         Path script = home.resolve("script.sql");
         assertThat(script.toFile().createNewFile()).isTrue();
         String[] args = {"-f", script.toString(), "-Dexecution.target=test-application"};
-        assertThat(runSqlClient(args)).contains("Deploy script in cluster: test");
+        assertThat(runSqlClient(args))
+                .contains("[INFO] Deploy script in application mode:")
+                .contains("Cluster ID: test");
     }
 
     private void runTestCliHelp(String[] args, String expected) throws Exception {

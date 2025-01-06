@@ -94,10 +94,10 @@ public interface Executor extends Closeable {
      * Deploy script in application mode.
      *
      * @param script content to run in application mode
-     * @param path path to the script
+     * @param uri uri to the script
      * @return the cluster id
      */
-    String deployScript(@Nullable String script, @Nullable URI path);
+    String deployScript(@Nullable String script, @Nullable URI uri);
 
     /** Close the {@link Executor} and process all exceptions. */
     void close();

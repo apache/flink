@@ -507,7 +507,7 @@ class CliClientTest {
         }
 
         @Override
-        public String deployScript(@Nullable String script, @Nullable URI path) {
+        public String deployScript(@Nullable String script, @Nullable URI uri) {
             return "test-application-cluster";
         }
 
