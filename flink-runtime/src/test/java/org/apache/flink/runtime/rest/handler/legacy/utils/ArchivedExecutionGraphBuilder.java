@@ -58,6 +58,7 @@ public class ArchivedExecutionGraphBuilder {
     private Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators;
     private CheckpointStatsSnapshot checkpointStatsSnapshot;
     private String streamGraphJson;
+    private int pendingOperatorCounts = 0;
 
     public ArchivedExecutionGraphBuilder setJobID(JobID jobID) {
         this.jobID = jobID;
@@ -136,6 +137,11 @@ public class ArchivedExecutionGraphBuilder {
         return this;
     }
 
+    public ArchivedExecutionGraphBuilder setPendingOperatorCounts(int pendingOperatorCounts) {
+        this.pendingOperatorCounts = pendingOperatorCounts;
+        return this;
+    }
+
     public ArchivedExecutionGraph build() {
         JobID jobID = this.jobID != null ? this.jobID : new JobID();
         String jobName = this.jobName != null ? this.jobName : "job_" + RANDOM.nextInt();
@@ -179,6 +185,6 @@ public class ArchivedExecutionGraphBuilder {
                 TernaryBoolean.UNDEFINED,
                 "changelogStorageName",
                 streamGraphJson,
-                0);
+                pendingOperatorCounts);
     }
 }
