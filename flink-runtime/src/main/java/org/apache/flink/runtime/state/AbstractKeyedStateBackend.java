@@ -30,7 +30,7 @@ import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
-import org.apache.flink.runtime.state.metrics.LatencyTrackingStateFactory;
+import org.apache.flink.runtime.state.metrics.MetricsTrackingStateFactory;
 import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -390,7 +390,7 @@ public abstract class AbstractKeyedStateBackend<K>
                 stateDescriptor.initializeSerializerUnlessSet(executionConfig);
             }
             kvState =
-                    LatencyTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
+                    MetricsTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
                             TtlStateFactory.createStateAndWrapWithTtlIfEnabled(
                                     namespaceSerializer, stateDescriptor, this, ttlTimeProvider),
                             this,
