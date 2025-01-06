@@ -34,7 +34,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> The type of the elements in the list.
  */
 @PublicEvolving
-public final class ListTypeInfo<T> extends TypeInformation<List<T>> {
+public class ListTypeInfo<T> extends TypeInformation<List<T>> {
 
     private static final long serialVersionUID = 1L;
 

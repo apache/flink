@@ -34,7 +34,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> The type of the elements in the set.
  */
 @PublicEvolving
-public final class SetTypeInfo<T> extends TypeInformation<Set<T>> {
+public class SetTypeInfo<T> extends TypeInformation<Set<T>> {
 
     private static final long serialVersionUID = 1L;
 
