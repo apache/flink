@@ -50,7 +50,11 @@ under the License.
 			kryo MathContext
 			-->--add-opens=java.base/java.math=ALL-UNNAMED <!--
 			kryo ByteBuffer
-			-->--add-opens=java.base/java.nio=ALL-UNNAMED
+			-->--add-opens=java.base/java.nio=ALL-UNNAMED <!--
+			Multiple tests have to override TableTestBase methods and others
+			JUnit changed this behavior since 5.11.x, to restore it back need this flag as mentioned at
+			https://junit.org/junit5/docs/current/user-guide/#extensions-supported-utilities-search-semantics
+			-->-Djunit.platform.reflection.search.useLegacySemantics=true
 		</surefire.module.config>
 	</properties>
 
