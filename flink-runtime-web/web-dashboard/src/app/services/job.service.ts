@@ -72,6 +72,7 @@ export class JobService {
             job.tasks[upperCaseKey] = job.tasks[key as keyof TaskStatus];
             delete job.tasks[key as keyof TaskStatus];
           }
+          job.tasks['PENDING'] = job['pending-operators'] || 0;
           job.completed = ['FINISHED', 'FAILED', 'CANCELED'].indexOf(job.state) > -1;
         });
         return data.jobs || [];
