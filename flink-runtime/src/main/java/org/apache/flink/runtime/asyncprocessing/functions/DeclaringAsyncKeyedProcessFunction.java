@@ -16,20 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.asyncprocessing.streaming.api;
+package org.apache.flink.runtime.asyncprocessing.functions;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationContext;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationException;
-import org.apache.flink.runtime.asyncprocessing.functions.AbstractAsyncStatefulRichFunction;
+import org.apache.flink.runtime.asyncprocessing.operators.AsyncKeyedProcessOperator;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 /**
- * A keyed function that processes elements of a stream. This is the async state version.
+ * A keyed function that processes elements of a stream. This works with {@link
+ * AsyncKeyedProcessOperator} using the async state access and declares the processing logic as
+ * FLIP-455 describes. This function extends from the non-declaring {@link KeyedProcessFunction} for
+ * the convenience of unifying logic in the operator {@link AsyncKeyedProcessOperator}. Maybe later
+ * we could extract the common part {@link KeyedProcessFunction} and this class to a base class, and
+ * deviate from that.
  *
  * <p>For every element in the input stream the process {@link #declareProcess} declared is invoked.
  * This can produce zero or more elements as output. Implementations can also query the time and set
@@ -38,19 +43,36 @@ import org.apache.flink.util.function.ThrowingConsumer;
  * and register further timers.
  *
  * <p><b>NOTE:</b> Access to keyed state and timers (which are also scoped to a key) is only
- * available if the {@code AsyncKeyedProcessFunction} is applied on a {@code KeyedStream}.
+ * available if the {@code DeclaringAsyncKeyedProcessFunction} is applied on a {@code KeyedStream}.
  *
  * @param <K> Type of the key.
  * @param <I> Type of the input elements.
  * @param <O> Type of the output elements.
  */
 @Internal
-public abstract class AsyncKeyedProcessFunction<K, I, O> extends AbstractAsyncStatefulRichFunction {
+public abstract class DeclaringAsyncKeyedProcessFunction<K, I, O>
+        extends KeyedProcessFunction<K, I, O> {
 
     private static final long serialVersionUID = 1L;
 
+    /** Override and finalize this method. Please use {@link #declareProcess} instead. */
+    @Override
+    public final void processElement(I value, Context ctx, Collector<O> out) throws Exception {
+        throw new IllegalAccessException("This method is replaced by declareProcess.");
+    }
+
+    /** Override and finalize this method. Please use {@link #declareOnTimer} instead. */
+    @Override
+    public final void onTimer(long timestamp, OnTimerContext ctx, Collector<O> out)
+            throws Exception {
+        throw new IllegalAccessException("This method is replaced by declareOnTimer.");
+    }
+
+    /** Declaring variables before {@link #declareProcess} and {@link #declareOnTimer}. */
+    public void declareVariables(DeclarationContext context) {}
+
     /**
-     * Process one element from the input stream.
+     * Declare a process for one element from the input stream.
      *
      * <p>This function can output zero or more elements using the {@link Collector} parameter and
      * also update internal state or set timers using the {@link Context} parameter.
@@ -66,7 +88,7 @@ public abstract class AsyncKeyedProcessFunction<K, I, O> extends AbstractAsyncSt
             DeclarationContext context, Context ctx, Collector<O> out) throws DeclarationException;
 
     /**
-     * Called when a timer set using {@link TimerService} fires.
+     * Declare a procedure which is called when a timer set using {@link TimerService} fires.
      *
      * @param context the context that provides useful methods to define named callbacks.
      * @param ctx An {@link OnTimerContext} that allows querying the timestamp, the {@link
@@ -79,44 +101,5 @@ public abstract class AsyncKeyedProcessFunction<K, I, O> extends AbstractAsyncSt
             DeclarationContext context, OnTimerContext ctx, Collector<O> out)
             throws DeclarationException {
         return (t) -> {};
-    }
-
-    /**
-     * Information available in an invocation of {@link #declareProcess} or {@link #declareOnTimer}.
-     */
-    @Internal
-    public abstract class Context {
-
-        /**
-         * Timestamp of the element currently being processed or timestamp of a firing timer.
-         *
-         * <p>This might be {@code null}, depending on the stream's watermark strategy.
-         */
-        public abstract Long timestamp();
-
-        /** A {@link TimerService} for querying time and registering timers. */
-        public abstract TimerService timerService();
-
-        /**
-         * Emits a record to the side output identified by the {@link OutputTag}.
-         *
-         * @param outputTag the {@code OutputTag} that identifies the side output to emit to.
-         * @param value The record to emit.
-         */
-        public abstract <X> void output(OutputTag<X> outputTag, X value);
-
-        /** Get key of the element being processed. */
-        public abstract K getCurrentKey();
-    }
-
-    /** Information available in an invocation of processor defined by {@link #declareOnTimer}. */
-    @Internal
-    public abstract class OnTimerContext extends Context {
-        /** The {@link TimeDomain} of the firing timer. */
-        public abstract TimeDomain timeDomain();
-
-        /** Get key of the firing timer. */
-        @Override
-        public abstract K getCurrentKey();
     }
 }

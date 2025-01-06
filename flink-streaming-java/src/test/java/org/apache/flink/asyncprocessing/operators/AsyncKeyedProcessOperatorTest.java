@@ -27,8 +27,9 @@ import org.apache.flink.runtime.asyncprocessing.declare.DeclarationException;
 import org.apache.flink.runtime.asyncprocessing.declare.NamedCallback;
 import org.apache.flink.runtime.asyncprocessing.declare.NamedConsumer;
 import org.apache.flink.runtime.asyncprocessing.declare.NamedFunction;
+import org.apache.flink.runtime.asyncprocessing.functions.DeclaringAsyncKeyedProcessFunction;
 import org.apache.flink.runtime.asyncprocessing.operators.AsyncKeyedProcessOperator;
-import org.apache.flink.runtime.asyncprocessing.streaming.api.AsyncKeyedProcessFunction;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedOneInputStreamOperatorTestHarness;
@@ -98,8 +99,34 @@ public class AsyncKeyedProcessOperatorTest {
         }
     }
 
+    @Test
+    public void testNoDeclaredFunction() throws Exception {
+        TestNotDeclarationFunction function = new TestNotDeclarationFunction();
+        AsyncKeyedProcessOperator<Integer, Tuple2<Integer, String>, String> testOperator =
+                new AsyncKeyedProcessOperator<>(function);
+        ArrayList<Object> expectedOutput = new ArrayList<>();
+        try (AsyncKeyedOneInputStreamOperatorTestHarness<Integer, Tuple2<Integer, String>, String>
+                testHarness =
+                        AsyncKeyedOneInputStreamOperatorTestHarness.create(
+                                testOperator, (e) -> e.f0, TypeInformation.of(Integer.class))) {
+            testHarness.open();
+            testHarness.processElement(new StreamRecord<>(Tuple2.of(5, "5")));
+            testHarness.processElement(new StreamRecord<>(Tuple2.of(6, "5")));
+            assertThat(function.getValue()).isEqualTo(0);
+            testHarness.processWatermark(5L);
+            expectedOutput.add(new StreamRecord<>("11", 5L));
+            expectedOutput.add(new Watermark(5L));
+            assertThat(function.getValue()).isEqualTo(11);
+            testHarness.processWatermark(6L);
+            expectedOutput.add(new StreamRecord<>("24", 6L));
+            expectedOutput.add(new Watermark(6L));
+            assertThat(function.getValue()).isEqualTo(24);
+            assertThat(testHarness.getOutput()).containsExactly(expectedOutput.toArray());
+        }
+    }
+
     private abstract static class TestDeclarationFunctionBase
-            extends AsyncKeyedProcessFunction<Integer, Tuple2<Integer, String>, String> {
+            extends DeclaringAsyncKeyedProcessFunction<Integer, Tuple2<Integer, String>, String> {
         final AtomicInteger value = new AtomicInteger(0);
 
         public int getValue() {
@@ -204,6 +231,33 @@ public class AsyncKeyedProcessOperatorTest {
                             })
                     .withName("doubler")
                     .finish();
+        }
+    }
+
+    /** Equivalent to {@link TestTimerDeclarationFunction}. */
+    private static class TestNotDeclarationFunction
+            extends KeyedProcessFunction<Integer, Tuple2<Integer, String>, String> {
+        final AtomicInteger value = new AtomicInteger(0);
+
+        public int getValue() {
+            return value.get();
+        }
+
+        @Override
+        public void processElement(
+                Tuple2<Integer, String> e,
+                KeyedProcessFunction<Integer, Tuple2<Integer, String>, String>.Context ctx,
+                Collector<String> out)
+                throws Exception {
+            ctx.timerService().registerEventTimeTimer(e.f0);
+        }
+
+        public void onTimer(long timestamp, OnTimerContext ctx, Collector<String> out)
+                throws DeclarationException {
+            value.addAndGet((int) timestamp);
+            value.incrementAndGet();
+            value.addAndGet((int) timestamp);
+            out.collect(String.valueOf(value.get()));
         }
     }
 }
