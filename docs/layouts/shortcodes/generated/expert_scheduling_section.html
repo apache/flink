@@ -99,6 +99,12 @@
             <td>Defines the duration the JobManager delays the scaling operation after a resource change if only sufficient resources are available. The scaling operation is performed immediately if the resources have changed and the desired resources are available. The timeout begins as soon as either the available resources or the job's resource requirements are changed.<br />The resource requirements of a running job can be changed using the <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/rest_api/#jobs-jobid-resource-requirements-1">REST API endpoint</a>.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.adaptive-scheduler.prefer-minimal-taskmanagers</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>This parameter defines whether the adaptive scheduler prioritizes using the minimum number of <code class="highlighter-rouge">TaskManagers</code> when scheduling tasks.<br />Note, this parameter is suitable if <code class="highlighter-rouge">execution.state-recovery.from-local</code> is not enabled. More details about this configuration are available at <a href="https://issues.apache.org/jira/browse/FLINK-33977">FLINK-33977</a>.</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.adaptive-scheduler.rescale-trigger.max-checkpoint-failures</h5></td>
             <td style="word-wrap: break-word;">2</td>
             <td>Integer</td>
