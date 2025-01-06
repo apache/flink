@@ -2347,7 +2347,7 @@ public final class BuiltInFunctionDefinitions {
                                     sequence(logical(LogicalTypeFamily.NUMERIC)),
                                     sequence(
                                             logical(LogicalTypeFamily.NUMERIC),
-                                            logical(LogicalTypeFamily.INTEGER_NUMERIC, false))))
+                                            logical(LogicalTypeFamily.INTEGER_NUMERIC))))
                     .outputTypeStrategy(SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ToTimestampLtzFunction")
