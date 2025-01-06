@@ -18,6 +18,7 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
@@ -26,6 +27,7 @@ import org.apache.flink.configuration.description.InlineElement;
 
 import java.time.Duration;
 
+import static org.apache.flink.configuration.CheckpointingOptions.LOCAL_RECOVERY;
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.ALL_PRODUCERS_FINISHED;
 import static org.apache.flink.configuration.JobManagerOptions.HybridPartitionDataConsumeConstraint.ONLY_FINISHED_PRODUCERS;
@@ -676,6 +678,31 @@ public class JobManagerOptions {
                                             "The default parallelism of source vertices if %s has been set to %s",
                                             code(SCHEDULER.key()),
                                             code(SchedulerType.AdaptiveBatch.name()))
+                                    .build());
+
+    @Experimental
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Boolean> SCHEDULER_PREFER_MINIMAL_TASKMANAGERS_ENABLED =
+            key("jobmanager.adaptive-scheduler.prefer-minimal-taskmanagers")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "This parameter defines whether the adaptive scheduler prioritizes "
+                                                    + "using the minimum number of %s when scheduling tasks.",
+                                            code("TaskManagers"))
+                                    .linebreak()
+                                    .text(
+                                            "Note, this parameter is suitable if %s is not enabled. "
+                                                    + "More details about this configuration are available at %s.",
+                                            code(LOCAL_RECOVERY.key()),
+                                            link(
+                                                    "https://issues.apache.org/jira/browse/FLINK-33977",
+                                                    "FLINK-33977"))
                                     .build());
 
     /** @deprecated Use {@link BatchExecutionOptions#SPECULATIVE_ENABLED}. */
