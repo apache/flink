@@ -30,13 +30,13 @@ import java.io.IOException;
 import java.util.function.Supplier;
 
 /**
- * Abstract implementation of latency tracking state.
+ * Abstract implementation of metrics tracking state.
  *
  * @param <K> The type of key the state is associated to
  * @param <N> The type of the namespace
  * @param <V> Type of the user entry value of state
  * @param <S> Type of the internal kv state
- * @param <LSM> Type of the latency tracking state metrics
+ * @param <LSM> Type of the metrics tracking state metrics
  */
 class AbstractMetricsTrackState<
                 K, N, V, S extends InternalKvState<K, N, V>, LSM extends StateMetricBase>
