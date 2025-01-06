@@ -156,6 +156,28 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
     </tr>
     <tr>
       <td>
+        <strong>create_temporary_table(path, table_descriptor, ignore_if_exists=False)</strong>
+      </td>
+      <td>
+        Registers a `Table` object as a temporary catalog table similar to SQL temporary tables. 
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.create_temporary_table" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>create_table(path, table_descriptor, ignore_if_exists=False)</strong>
+      </td>
+      <td>
+        Registers a `Table` object as a catalog table similar to SQL tables. 
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.create_table" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
         <strong>drop_temporary_table(table_path)</strong>
       </td>
       <td>
