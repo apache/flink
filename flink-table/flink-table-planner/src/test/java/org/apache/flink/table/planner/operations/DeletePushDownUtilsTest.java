@@ -38,6 +38,7 @@ import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.factories.TestUpdateDeleteTableFactory;
 import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.utils.PlannerMocks;
+import org.apache.flink.table.planner.utils.TestSimpleDynamicTableSourceFactory;
 import org.apache.flink.table.planner.utils.TimestampStringUtils;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
@@ -132,7 +133,7 @@ public class DeletePushDownUtilsTest {
                                 .build(),
                         null,
                         Collections.emptyList(),
-                        Collections.emptyMap());
+                        Map.of("connector", TestSimpleDynamicTableSourceFactory.IDENTIFIER()));
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "t"), false);
 

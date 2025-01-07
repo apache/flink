@@ -326,15 +326,10 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
   @TestTemplate
   def testCreateTableAsSelectWithoutOptions(): Unit = {
-    // TODO: CTAS supports ManagedTable
-    // If the connector option is not specified, Flink will creates a Managed table.
-    // Managed table requires two layers of log storage and file storage
-    // and depends on the flink table store, CTAS will support Managed Table in the future.
     assertThatThrownBy(
       () => tEnv.executeSql("CREATE TABLE MyCtasTable AS SELECT `person`, `votes` FROM src"))
-      .hasMessage("You should enable the checkpointing for sinking to managed table " +
-        "'default_catalog.default_database.MyCtasTable'," +
-        " managed table relies on checkpoint to commit and the data is visible only after commit.")
+      .hasRootCauseMessage(
+        "Table options do not contain an option key 'connector' for discovering a connector.")
   }
 
   @TestTemplate

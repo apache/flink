@@ -921,12 +921,7 @@ class FlinkRelMdHandlerTestBase {
       streamTableScan,
       hash1)
     val table = streamTableScan.getTable.asInstanceOf[TableSourceTable]
-    new StreamPhysicalChangelogNormalize(
-      cluster,
-      streamPhysicalTraits,
-      streamExchange,
-      key,
-      table.contextResolvedTable)
+    new StreamPhysicalChangelogNormalize(cluster, streamPhysicalTraits, streamExchange, key)
   }
 
   protected lazy val streamDropUpdateBefore = {

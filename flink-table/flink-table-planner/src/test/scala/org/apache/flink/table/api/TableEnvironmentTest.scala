@@ -1010,27 +1010,6 @@ class TableEnvironmentTest {
   }
 
   @Test
-  def testAlterTableCompactOnNonManagedTable(): Unit = {
-    val statement =
-      """
-        |CREATE TABLE MyTable (
-        |  a bigint,
-        |  b int,
-        |  c varchar
-        |) WITH (
-        |  'connector' = 'COLLECTION',
-        |  'is-bounded' = 'false'
-        |)
-      """.stripMargin
-    tableEnv.executeSql(statement)
-
-    assertThatThrownBy(() => tableEnv.executeSql("alter table MyTable compact"))
-      .hasMessageContaining("ALTER TABLE COMPACT operation is not supported for " +
-        "non-managed table `default_catalog`.`default_database`.`MyTable`")
-      .isInstanceOf[ValidationException]
-  }
-
-  @Test
   def testQueryViewWithHints(): Unit = {
     val statement =
       """
@@ -1068,23 +1047,6 @@ class TableEnvironmentTest {
         "cannot be enriched with new options. Hints can only be applied to tables.")
       .isInstanceOf(classOf[ValidationException])
 
-  }
-
-  @Test
-  def testAlterTableCompactOnManagedTableUnderStreamingMode(): Unit = {
-    val statement =
-      """
-        |CREATE TABLE MyTable (
-        |  a bigint,
-        |  b int,
-        |  c varchar
-        |)
-      """.stripMargin
-    tableEnv.executeSql(statement)
-
-    assertThatThrownBy(() => tableEnv.executeSql("alter table MyTable compact"))
-      .hasMessageContaining("Compact managed table only works under batch mode.")
-      .isInstanceOf[ValidationException]
   }
 
   @Test

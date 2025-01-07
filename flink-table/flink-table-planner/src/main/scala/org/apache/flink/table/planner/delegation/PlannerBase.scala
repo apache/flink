@@ -27,7 +27,6 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.PlanReference.{ContentPlanReference, FilePlanReference, ResourcePlanReference}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog._
-import org.apache.flink.table.catalog.ManagedTableListener.isManagedTable
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.delegation._
 import org.apache.flink.table.factories.{DynamicTableSinkFactory, FactoryUtil, TableFactoryUtil}
@@ -467,16 +466,6 @@ abstract class PlannerBase(
         val catalog = toScala(contextResolvedTable.getCatalog)
         val objectIdentifier = contextResolvedTable.getIdentifier
         val isTemporary = contextResolvedTable.isTemporary
-
-        if (
-          isStreamingMode && isManagedTable(catalog.orNull, resolvedTable) &&
-          !executor.isCheckpointingEnabled
-        ) {
-          throw new TableException(
-            s"You should enable the checkpointing for sinking to managed table " +
-              s"'$contextResolvedTable', managed table relies on checkpoint to commit and " +
-              s"the data is visible only after commit.")
-        }
 
         if (
           !contextResolvedTable.isAnonymous &&

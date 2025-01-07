@@ -19,12 +19,10 @@
 package org.apache.flink.table.planner.calcite;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.planner.calcite.FlinkRelFactories.ExpandFactory;
 import org.apache.flink.table.planner.calcite.FlinkRelFactories.RankFactory;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
-import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.plan.QueryOperationConverter;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalTableAggregate;
@@ -44,12 +42,9 @@ import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptSchema;
-import org.apache.calcite.plan.RelOptTable.ToRelContext;
-import org.apache.calcite.plan.ViewExpanders;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
 import org.apache.calcite.rel.type.RelDataType;
@@ -64,11 +59,9 @@ import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Util;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
@@ -260,16 +253,6 @@ public final class FlinkRelBuilder extends RelBuilder {
 
     public RelBuilder queryOperation(QueryOperation queryOperation) {
         final RelNode relNode = queryOperation.accept(toRelNodeConverter);
-        return push(relNode);
-    }
-
-    public RelBuilder scan(ObjectIdentifier identifier, Map<String, String> dynamicOptions) {
-        final List<RelHint> hints = new ArrayList<>();
-        hints.add(
-                RelHint.builder(FlinkHints.HINT_NAME_OPTIONS).hintOptions(dynamicOptions).build());
-        final ToRelContext toRelContext = ViewExpanders.simpleContext(cluster, hints);
-        final RelNode relNode =
-                relOptSchema.getTableForMember(identifier.toList()).toRel(toRelContext);
         return push(relNode);
     }
 

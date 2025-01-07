@@ -115,7 +115,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -356,12 +355,6 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                 return CatalogSourceTable.createAnonymous(
                                 relBuilder, contextResolvedTable, isBatchMode)
                         .toRel(ViewExpanders.simpleContext(relBuilder.getCluster()));
-            }
-            Map<String, String> dynamicOptions = queryOperation.getDynamicOptions();
-            if (dynamicOptions != null) {
-                return relBuilder
-                        .scan(contextResolvedTable.getIdentifier(), dynamicOptions)
-                        .build();
             }
             return relBuilder
                     .scan(queryOperation.getContextResolvedTable().getIdentifier().toList())

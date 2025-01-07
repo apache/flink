@@ -41,7 +41,6 @@ import org.apache.flink.table.expressions.ExpressionVisitor;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
-import org.apache.flink.table.factories.ManagedTableFactory;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
@@ -463,9 +462,8 @@ public class HiveTableUtil {
             ObjectPath tablePath,
             ResolvedCatalogBaseTable baseTable,
             Table oldHiveTable,
-            HiveConf hiveConf,
-            boolean managedTable) {
-        Table newHiveTable = instantiateHiveTable(tablePath, baseTable, hiveConf, managedTable);
+            HiveConf hiveConf) {
+        Table newHiveTable = instantiateHiveTable(tablePath, baseTable, hiveConf);
         // client.alter_table() requires a valid location
         // thus, if new table doesn't have that, it reuses location of the old table
         if (!newHiveTable.getSd().isSetLocation()) {
@@ -475,10 +473,7 @@ public class HiveTableUtil {
     }
 
     public static Table instantiateHiveTable(
-            ObjectPath tablePath,
-            ResolvedCatalogBaseTable table,
-            HiveConf hiveConf,
-            boolean managedTable) {
+            ObjectPath tablePath, ResolvedCatalogBaseTable table, HiveConf hiveConf) {
         final boolean isView = table instanceof CatalogView;
         // let Hive set default parameters for us, e.g. serialization.format
         Table hiveTable =
@@ -487,9 +482,6 @@ public class HiveTableUtil {
         hiveTable.setCreateTime((int) (System.currentTimeMillis() / 1000));
 
         Map<String, String> properties = new HashMap<>(table.getOptions());
-        if (managedTable) {
-            properties.put(CONNECTOR.key(), ManagedTableFactory.DEFAULT_IDENTIFIER);
-        }
         // Table comment
         if (table.getComment() != null) {
             properties.put(HiveCatalogConfig.COMMENT, table.getComment());
