@@ -1017,11 +1017,12 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      */
     public boolean createTable(
             CatalogBaseTable table, ObjectIdentifier objectIdentifier, boolean ignoreIfExists) {
+        final boolean result;
         if (ignoreIfExists) {
             final Optional<CatalogBaseTable> resultOpt = getUnresolvedTable(objectIdentifier);
-            if (resultOpt.isPresent()) {
-                return false;
-            }
+            result = resultOpt.isEmpty();
+        } else {
+            result = true;
         }
         execute(
                 (catalog, path) -> {
@@ -1053,7 +1054,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                 objectIdentifier,
                 false,
                 "CreateTable");
-        return true;
+        return result;
     }
 
     /**
