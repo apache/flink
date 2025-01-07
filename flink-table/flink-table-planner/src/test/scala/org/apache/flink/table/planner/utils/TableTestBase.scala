@@ -1664,19 +1664,19 @@ class TestSimpleDynamicTableSourceFactory extends DynamicTableSourceFactory {
   override def factoryIdentifier(): String = IDENTIFIER
 
   override def requiredOptions(): util.Set[ConfigOption[_]] = {
-    new util.HashSet(util.Arrays.asList(BOUNDED))
+    Collections.emptySet()
   }
 
   override def optionalOptions(): util.Set[ConfigOption[_]] = {
-    Collections.emptySet()
+    Collections.singleton(BOUNDED)
   }
 }
 
 object TestSimpleDynamicTableSourceFactory {
-  val IDENTIFIER = "test-dynamic-table-source"
+  val IDENTIFIER = "test-simple-table-source"
 
   val BOUNDED: ConfigOption[java.lang.Boolean] =
-    ConfigOptions.key("bounded").booleanType().noDefaultValue()
+    ConfigOptions.key("bounded").booleanType().defaultValue(true)
 }
 
 class TestingTableEnvironment private (

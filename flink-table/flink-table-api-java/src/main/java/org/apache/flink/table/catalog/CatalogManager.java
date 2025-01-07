@@ -110,8 +110,6 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
 
     private final DataTypeFactory typeFactory;
 
-    private final ManagedTableListener managedTableListener;
-
     private final List<CatalogModificationListener> catalogModificationListeners;
 
     private final CatalogStoreHolder catalogStoreHolder;
@@ -120,7 +118,6 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             String defaultCatalogName,
             Catalog defaultCatalog,
             DataTypeFactory typeFactory,
-            ManagedTableListener managedTableListener,
             List<CatalogModificationListener> catalogModificationListeners,
             CatalogStoreHolder catalogStoreHolder) {
         checkArgument(
@@ -140,7 +137,6 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         builtInCatalogName = defaultCatalogName;
 
         this.typeFactory = typeFactory;
-        this.managedTableListener = managedTableListener;
         this.catalogModificationListeners = catalogModificationListeners;
 
         this.catalogStoreHolder = catalogStoreHolder;
@@ -231,7 +227,6 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                                     executionConfig == null
                                             ? null
                                             : executionConfig.getSerializerConfig()),
-                    new ManagedTableListener(classLoader, config),
                     catalogModificationListeners,
                     catalogStoreHolder);
         }
@@ -1027,17 +1022,10 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         execute(
                 (catalog, path) -> {
                     ResolvedCatalogBaseTable<?> resolvedTable = resolveCatalogBaseTable(table);
-                    ResolvedCatalogBaseTable<?> resolvedListenedTable =
-                            managedTableListener.notifyTableCreation(
-                                    catalog,
-                                    objectIdentifier,
-                                    resolvedTable,
-                                    false,
-                                    ignoreIfExists);
 
-                    catalog.createTable(path, resolvedListenedTable, ignoreIfExists);
-                    if (resolvedListenedTable instanceof CatalogTable
-                            || resolvedListenedTable instanceof CatalogMaterializedTable) {
+                    catalog.createTable(path, resolvedTable, ignoreIfExists);
+                    if (resolvedTable instanceof CatalogTable
+                            || resolvedTable instanceof CatalogMaterializedTable) {
                         catalogModificationListeners.forEach(
                                 listener ->
                                         listener.onEvent(
@@ -1046,7 +1034,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                                                                 objectIdentifier.getCatalogName(),
                                                                 catalog),
                                                         objectIdentifier,
-                                                        resolvedListenedTable,
+                                                        resolvedTable,
                                                         ignoreIfExists,
                                                         false)));
                     }
@@ -1083,20 +1071,13 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                         ResolvedCatalogBaseTable<?> resolvedTable = resolveCatalogBaseTable(table);
                         Catalog catalog =
                                 getCatalog(objectIdentifier.getCatalogName()).orElse(null);
-                        ResolvedCatalogBaseTable<?> resolvedListenedTable =
-                                managedTableListener.notifyTableCreation(
-                                        catalog,
-                                        objectIdentifier,
-                                        resolvedTable,
-                                        true,
-                                        ignoreIfExists);
 
                         if (listener.isPresent()) {
                             return listener.get()
                                     .onCreateTemporaryTable(
-                                            objectIdentifier.toObjectPath(), resolvedListenedTable);
+                                            objectIdentifier.toObjectPath(), resolvedTable);
                         }
-                        if (resolvedListenedTable instanceof CatalogTable) {
+                        if (resolvedTable instanceof CatalogTable) {
                             catalogModificationListeners.forEach(
                                     l ->
                                             l.onEvent(
@@ -1106,33 +1087,13 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                                                                             .getCatalogName(),
                                                                     catalog),
                                                             objectIdentifier,
-                                                            resolvedListenedTable,
+                                                            resolvedTable,
                                                             ignoreIfExists,
                                                             true)));
                         }
-                        return resolvedListenedTable;
+                        return resolvedTable;
                     }
                 });
-    }
-
-    /**
-     * Resolve dynamic options for compact operation on a Flink's managed table.
-     *
-     * @param origin The resolved managed table with enriched options.
-     * @param tableIdentifier The fully qualified path of the managed table.
-     * @param partitionSpec User-specified unresolved partition spec.
-     * @return dynamic options which describe the metadata of compaction
-     */
-    public Map<String, String> resolveCompactManagedTableOptions(
-            ResolvedCatalogTable origin,
-            ObjectIdentifier tableIdentifier,
-            CatalogPartitionSpec partitionSpec) {
-        return managedTableListener.notifyTableCompaction(
-                catalogs.getOrDefault(tableIdentifier.getCatalogName(), null),
-                tableIdentifier,
-                origin,
-                partitionSpec,
-                false);
     }
 
     /**
@@ -1177,8 +1138,6 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
 
             Catalog catalog = getCatalog(objectIdentifier.getCatalogName()).orElse(null);
             ResolvedCatalogBaseTable<?> resolvedTable = resolveCatalogBaseTable(catalogBaseTable);
-            managedTableListener.notifyTableDrop(
-                    catalog, objectIdentifier, resolvedTable, true, ignoreIfNotExists);
 
             temporaryTables.remove(objectIdentifier);
             if (isDropTable) {
@@ -1356,8 +1315,6 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                     (catalog, path) -> {
                         ResolvedCatalogBaseTable<?> resolvedTable =
                                 resolveCatalogBaseTable(resultOpt.get());
-                        managedTableListener.notifyTableDrop(
-                                catalog, objectIdentifier, resolvedTable, false, ignoreIfNotExists);
 
                         catalog.dropTable(path, ignoreIfNotExists);
                         if (kind != TableKind.VIEW) {

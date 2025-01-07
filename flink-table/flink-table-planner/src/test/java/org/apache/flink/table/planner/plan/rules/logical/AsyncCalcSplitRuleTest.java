@@ -62,6 +62,8 @@ public class AsyncCalcSplitRuleTest extends TableTestBase {
                         + "  b bigint,\n"
                         + "  c string,\n"
                         + "  d ARRAY<INT NOT NULL>\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'test-simple-table-source'\n"
                         + ") ;");
 
         tEnv.executeSql(
@@ -70,6 +72,8 @@ public class AsyncCalcSplitRuleTest extends TableTestBase {
                         + "  b2 bigint,\n"
                         + "  c2 string,\n"
                         + "  d2 ARRAY<INT NOT NULL>\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'test-simple-table-source'\n"
                         + ") ;");
 
         util.addTemporarySystemFunction("func1", new Func1());

@@ -28,7 +28,6 @@ import org.apache.flink.table.catalog.CatalogStore;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
-import org.apache.flink.table.connector.source.TestManagedTableSource;
 import org.apache.flink.table.factories.TestDynamicTableFactory.DynamicTableSinkMock;
 import org.apache.flink.table.factories.TestDynamicTableFactory.DynamicTableSourceMock;
 import org.apache.flink.table.factories.TestFormatFactory.DecodingFormatMock;
@@ -65,11 +64,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class FactoryUtilTest {
 
     @Test
-    void testManagedConnector() {
-        final Map<String, String> options = createAllOptions();
-        options.remove("connector");
-        final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
-        assertThat(actualSource).isExactlyInstanceOf(TestManagedTableSource.class);
+    public void testMissingConnector() {
+        assertCreateTableSourceWithOptionModifier(
+                options -> options.remove("connector"),
+                "Table options do not contain an option key 'connector' for discovering a connector.");
     }
 
     @Test
