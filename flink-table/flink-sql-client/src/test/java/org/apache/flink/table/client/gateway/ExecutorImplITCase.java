@@ -166,7 +166,7 @@ class ExecutorImplITCase {
     private static RestClusterClient<?> clusterClient;
 
     // a generated UDF jar used for testing classloading of dependencies
-    private static URL udfDependency;
+    private static URI udfDependency;
 
     private final ThreadFactory threadFactory =
             new ExecutorThreadFactory("Executor Test Pool", IgnoreExceptionHandler.INSTANCE);
@@ -181,7 +181,7 @@ class ExecutorImplITCase {
                         "test-classloader-udf.jar",
                         GENERATED_LOWER_UDF_CLASS,
                         String.format(GENERATED_LOWER_UDF_CODE, GENERATED_LOWER_UDF_CLASS));
-        udfDependency = udfJar.toURI().toURL();
+        udfDependency = udfJar.toURI();
     }
 
     private static Configuration getConfig() {
@@ -662,7 +662,7 @@ class ExecutorImplITCase {
     }
 
     private Executor createRestServiceExecutor(
-            List<URL> dependencies, Configuration configuration) {
+            List<URI> dependencies, Configuration configuration) {
         return createExecutor(
                 dependencies,
                 configuration,
@@ -681,7 +681,7 @@ class ExecutorImplITCase {
     }
 
     private Executor createExecutor(
-            List<URL> dependencies, Configuration configuration, InetSocketAddress address) {
+            List<URI> dependencies, Configuration configuration, InetSocketAddress address) {
         configuration.addAll(clusterClient.getFlinkConfiguration());
         DefaultContext defaultContext = new DefaultContext(configuration, dependencies);
         // frequently trigger heartbeat

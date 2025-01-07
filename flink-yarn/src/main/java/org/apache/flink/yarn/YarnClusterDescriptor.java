@@ -988,14 +988,23 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         }
 
         // only for application mode
-        // Python jar file only needs to be shipped and should not be added to classpath.
-        if (YarnApplicationClusterEntryPoint.class.getName().equals(yarnClusterEntrypoint)
-                && PackagedProgramUtils.isPython(configuration.get(APPLICATION_MAIN_CLASS))) {
-            fileUploader.registerMultipleLocalResources(
-                    Collections.singletonList(
-                            new Path(PackagedProgramUtils.getPythonJar().toURI())),
-                    ConfigConstants.DEFAULT_FLINK_OPT_DIR,
-                    LocalResourceType.FILE);
+        if (YarnApplicationClusterEntryPoint.class.getName().equals(yarnClusterEntrypoint)) {
+            // Python jar/Sql Gateway jar only need to be shipped and should not be added to
+            // classpath.
+            if (PackagedProgramUtils.isPython(configuration.get(APPLICATION_MAIN_CLASS))) {
+                fileUploader.registerMultipleLocalResources(
+                        Collections.singletonList(
+                                new Path(PackagedProgramUtils.getPythonJar().toURI())),
+                        ConfigConstants.DEFAULT_FLINK_OPT_DIR,
+                        LocalResourceType.FILE);
+            } else if (PackagedProgramUtils.isSqlApplication(
+                    configuration.get(APPLICATION_MAIN_CLASS))) {
+                fileUploader.registerMultipleLocalResources(
+                        Collections.singletonList(
+                                new Path(PackagedProgramUtils.getSqlGatewayJar().toURI())),
+                        ConfigConstants.DEFAULT_FLINK_OPT_DIR,
+                        LocalResourceType.FILE);
+            }
         }
 
         // Upload and register user jars

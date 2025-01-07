@@ -26,14 +26,12 @@ import org.apache.flink.table.client.cli.CliOptionsParser;
 import org.apache.flink.table.client.gateway.DefaultContextUtils;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SingleSessionManager;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.gateway.SqlGateway;
 import org.apache.flink.table.gateway.rest.SqlGatewayRestEndpointFactory;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestOptions;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.util.NetUtils;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.jline.terminal.Terminal;
 import org.slf4j.Logger;
@@ -42,16 +40,14 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.function.Supplier;
 
 import static org.apache.flink.table.client.cli.CliClient.DEFAULT_TERMINAL_FACTORY;
+import static org.apache.flink.table.client.cli.CliUtils.isApplicationMode;
 import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils.getSqlGatewayOptionPrefix;
 
 /**
@@ -140,7 +136,11 @@ public class SqlClient {
 
         try (CliClient cli = new CliClient(terminalFactory, executor, historyFilePath)) {
             if (options.getInitFile() != null) {
-                boolean success = cli.executeInitialization(readFromURL(options.getInitFile()));
+                if (isApplicationMode(executor.getSessionConfig())) {
+                    throw new SqlClientException(
+                            "Sql Client doesn't support to run init files when deploying script into cluster.");
+                }
+                boolean success = cli.executeInitialization(options.getInitFile());
                 if (!success) {
                     System.out.println(
                             String.format(
@@ -158,7 +158,7 @@ public class SqlClient {
             if (!hasSqlFile) {
                 cli.executeInInteractiveMode();
             } else {
-                cli.executeInNonInteractiveMode(readExecutionContent());
+                cli.executeInNonInteractiveMode(options.getSqlFile());
             }
         }
     }
@@ -318,19 +318,6 @@ public class SqlClient {
                 gateway.close();
             }
             System.out.println("done.");
-        }
-    }
-
-    private String readExecutionContent() {
-        return readFromURL(options.getSqlFile());
-    }
-
-    private String readFromURL(URL file) {
-        try {
-            return IOUtils.toString(file, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw new SqlExecutionException(
-                    String.format("Fail to read content from the %s.", file.getPath()), e);
         }
     }
 }

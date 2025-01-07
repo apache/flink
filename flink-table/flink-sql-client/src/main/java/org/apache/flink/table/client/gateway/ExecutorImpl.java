@@ -43,6 +43,7 @@ import org.apache.flink.table.gateway.SqlGateway;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
+import org.apache.flink.table.gateway.rest.header.application.DeployScriptHeaders;
 import org.apache.flink.table.gateway.rest.header.operation.CancelOperationHeaders;
 import org.apache.flink.table.gateway.rest.header.operation.CloseOperationHeaders;
 import org.apache.flink.table.gateway.rest.header.session.CloseSessionHeaders;
@@ -54,6 +55,7 @@ import org.apache.flink.table.gateway.rest.header.statement.CompleteStatementHea
 import org.apache.flink.table.gateway.rest.header.statement.ExecuteStatementHeaders;
 import org.apache.flink.table.gateway.rest.header.statement.FetchResultsHeaders;
 import org.apache.flink.table.gateway.rest.header.util.GetApiVersionHeaders;
+import org.apache.flink.table.gateway.rest.message.application.DeployScriptRequestBody;
 import org.apache.flink.table.gateway.rest.message.operation.OperationMessageParameters;
 import org.apache.flink.table.gateway.rest.message.operation.OperationStatusResponseBody;
 import org.apache.flink.table.gateway.rest.message.session.CloseSessionResponseBody;
@@ -84,6 +86,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
@@ -329,6 +332,19 @@ public class ExecutorImpl implements Executor {
                                 new SessionMessageParameters(sessionHandle),
                                 new CompleteStatementRequestBody(statement, position)))
                 .getCandidates();
+    }
+
+    @Override
+    public String deployScript(@Nullable String script, @Nullable URI uri) {
+        return getResponse(
+                        sendRequest(
+                                DeployScriptHeaders.getInstance(),
+                                new SessionMessageParameters(sessionHandle),
+                                new DeployScriptRequestBody(
+                                        script,
+                                        uri == null ? null : uri.toString(),
+                                        Collections.emptyMap())))
+                .getClusterID();
     }
 
     @Override
