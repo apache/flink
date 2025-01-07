@@ -372,48 +372,39 @@ public final class FactoryUtil {
             Map<String, String> options,
             ReadableConfig configuration,
             ClassLoader classLoader) {
-        // Use the legacy mechanism first for compatibility
+        final DefaultCatalogContext discoveryContext =
+                new DefaultCatalogContext(catalogName, options, configuration, classLoader);
         try {
-            final CatalogFactory legacyFactory =
-                    TableFactoryService.find(CatalogFactory.class, options, classLoader);
-            return legacyFactory.createCatalog(catalogName, options);
-        } catch (NoMatchingTableFactoryException e) {
-            // No matching legacy factory found, try using the new stack
+            final CatalogFactory factory = getCatalogFactory(discoveryContext);
 
-            final DefaultCatalogContext discoveryContext =
-                    new DefaultCatalogContext(catalogName, options, configuration, classLoader);
-            try {
-                final CatalogFactory factory = getCatalogFactory(discoveryContext);
-
-                // The type option is only used for discovery, we don't actually want to forward it
-                // to the catalog factory itself.
-                final Map<String, String> factoryOptions =
-                        options.entrySet().stream()
-                                .filter(
-                                        entry ->
-                                                !CommonCatalogOptions.CATALOG_TYPE
-                                                        .key()
-                                                        .equals(entry.getKey()))
-                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-                final DefaultCatalogContext context =
-                        new DefaultCatalogContext(
-                                catalogName, factoryOptions, configuration, classLoader);
-                return factory.createCatalog(context);
-            } catch (Throwable t) {
-                throw new ValidationException(
-                        String.format(
-                                "Unable to create catalog '%s'.%n%nCatalog options are:%n%s",
-                                catalogName,
-                                options.entrySet().stream()
-                                        .map(
-                                                optionEntry ->
-                                                        stringifyOption(
-                                                                optionEntry.getKey(),
-                                                                optionEntry.getValue()))
-                                        .sorted()
-                                        .collect(Collectors.joining("\n"))),
-                        t);
-            }
+            // The type option is only used for discovery, we don't actually want to forward it
+            // to the catalog factory itself.
+            final Map<String, String> factoryOptions =
+                    options.entrySet().stream()
+                            .filter(
+                                    entry ->
+                                            !CommonCatalogOptions.CATALOG_TYPE
+                                                    .key()
+                                                    .equals(entry.getKey()))
+                            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            final DefaultCatalogContext context =
+                    new DefaultCatalogContext(
+                            catalogName, factoryOptions, configuration, classLoader);
+            return factory.createCatalog(context);
+        } catch (Throwable t) {
+            throw new ValidationException(
+                    String.format(
+                            "Unable to create catalog '%s'.%n%nCatalog options are:%n%s",
+                            catalogName,
+                            options.entrySet().stream()
+                                    .map(
+                                            optionEntry ->
+                                                    stringifyOption(
+                                                            optionEntry.getKey(),
+                                                            optionEntry.getValue()))
+                                    .sorted()
+                                    .collect(Collectors.joining("\n"))),
+                    t);
         }
     }
 
