@@ -581,4 +581,58 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       List("+I[1, jason, 3, X, 43]", "+I[2, andy, 2, Y, 32]", "+I[3, clark, 1, Z, 29]")
     assertThat(result2.sorted).isEqualTo(expected2.sorted)
   }
+
+  @TestTemplate
+  def testInsertWithCTE(): Unit = {
+    val srcDataId = TestValuesTableFactory.registerData(
+      Seq(
+        row(1L, "jason", 3L, "X", 43),
+        row(2L, "andy", 2L, "Y", 32),
+        row(3L, "clark", 1L, "Z", 29)
+      ))
+    tEnv.executeSql(s"""
+                       |CREATE TABLE test_source (
+                       |  id bigint,
+                       |  person String,
+                       |  votes bigint,
+                       |  city String,
+                       |  age int)
+                       |WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$srcDataId'
+                       |)
+                       |""".stripMargin)
+    tEnv
+      .executeSql("""
+                    |CREATE TABLE test_sink (
+                    |  id bigint,
+                    |  person String,
+                    |  votes bigint,
+                    |  city String,
+                    |  age int,
+                    |  primary key(id) not enforced
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'sink-insert-only' = 'false'
+                    |)
+                    |""".stripMargin)
+      .await()
+    tEnv
+      .executeSql("""
+                    |INSERT INTO test_sink (id, person, votes)
+                    |  WITH cte AS (SELECT
+                    |    id,
+                    |    person,
+                    |    votes
+                    |  FROM
+                    |    test_source) SELECT * FROM cte
+                    |""".stripMargin)
+      .await()
+    val result = TestValuesTableFactory.getResultsAsStrings("test_sink")
+    val expected = List(
+      "+I[1, jason, 3, null, null]",
+      "+I[2, andy, 2, null, null]",
+      "+I[3, clark, 1, null, null]")
+    assertThat(result.sorted).isEqualTo(expected.sorted)
+  }
 }

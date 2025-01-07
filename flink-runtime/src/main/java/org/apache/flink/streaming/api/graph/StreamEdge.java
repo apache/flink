@@ -56,6 +56,7 @@ public class StreamEdge implements Serializable {
 
     /** The type number of the input for co-tasks. */
     private final int typeNumber;
+
     /** The side-output tag (if any) of this {@link StreamEdge}. */
     private final OutputTag outputTag;
 
@@ -237,5 +238,9 @@ public class StreamEdge implements Serializable {
 
     public IntermediateDataSetID getIntermediateDatasetIdToProduce() {
         return intermediateDatasetIdToProduce;
+    }
+
+    public String getEdgeId() {
+        return edgeId;
     }
 }

@@ -24,8 +24,8 @@ limitations under the License.
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$3])
 +- LogicalJoin(condition=[OR(AND(=($0, 1), =($3, 1)), AND(=($1, 2), =($4, 2)))], joinType=[inner])
-   :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -34,10 +34,10 @@ Calc(select=[a1, b1])
 +- Join(joinType=[InnerJoin], where=[(((a1 = 1) AND (b1 = 1)) OR ((a2 = 2) AND (b2 = 2)))], select=[a1, a2, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[single])
    :  +- Calc(select=[a1, a2], where=[((1 = a1) OR (2 = a2))])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3])
    +- Exchange(distribution=[single])
       +- Calc(select=[b1, b2], where=[((1 = b1) OR (2 = b2))])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3])
+         +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3])
 ]]>
     </Resource>
   </TestCase>
@@ -49,8 +49,8 @@ Calc(select=[a1, b1])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], x=[$3], y=[$4], z=[$5])
 +- LogicalJoin(condition=[OR(AND(=($0, 1), =($3, 1)), AND(=($0, 2), IS NULL($4)))], joinType=[inner])
-   :- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, t]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, s]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -58,10 +58,10 @@ LogicalProject(a=[$0], b=[$1], c=[$2], x=[$3], y=[$4], z=[$5])
 Join(joinType=[InnerJoin], where=[(((a = 1) AND (x = 1)) OR ((a = 2) AND y IS NULL))], select=[a, b, c, x, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[single])
 :  +- Calc(select=[a, b, c], where=[SEARCH(a, Sarg[1, 2])])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
 +- Exchange(distribution=[single])
    +- Calc(select=[x, y, z], where=[(y IS NULL OR (1 = x))])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+      +- TableSourceScan(table=[[default_catalog, default_database, s]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -73,8 +73,8 @@ Join(joinType=[InnerJoin], where=[(((a = 1) AND (x = 1)) OR ((a = 2) AND y IS NU
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$3])
 +- LogicalJoin(condition=[OR(AND(=($0, 1), =($3, 1)), =($1, 2))], joinType=[inner])
-   :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -83,10 +83,10 @@ Calc(select=[a1, b1])
 +- Join(joinType=[InnerJoin], where=[(((a1 = 1) AND (b1 = 1)) OR (a2 = 2))], select=[a1, a2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[single])
    :  +- Calc(select=[a1, a2], where=[((1 = a1) OR (2 = a2))])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3])
    +- Exchange(distribution=[single])
       +- Calc(select=[b1])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3])
+         +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3])
 ]]>
     </Resource>
   </TestCase>
@@ -98,8 +98,8 @@ Calc(select=[a1, b1])
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$3])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[full])
-   :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -107,10 +107,10 @@ LogicalProject(a1=[$0], b1=[$3])
 Join(joinType=[FullOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
 :- Exchange(distribution=[hash[a1]], changelogMode=[I])
 :  +- Calc(select=[a1], changelogMode=[I])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+:     +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
 +- Exchange(distribution=[hash[b1]], changelogMode=[I])
    +- Calc(select=[b1], changelogMode=[I])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+      +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -122,8 +122,8 @@ Join(joinType=[FullOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$3])
 +- LogicalJoin(condition=[AND(=($0, $3), >($1, $4))], joinType=[full])
-   :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -132,10 +132,10 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
 +- Join(joinType=[FullOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a1, a2, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
    :- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :  +- Calc(select=[a1, a2], changelogMode=[I])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b1]], changelogMode=[I])
       +- Calc(select=[b1, b2], changelogMode=[I])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -150,11 +150,11 @@ LogicalProject(a1=[$1], b1=[$3])
    :- LogicalProject(a2=[$1], a1=[$0])
    :  +- LogicalAggregate(group=[{0}], a2=[SUM($1)])
    :     +- LogicalProject(a1=[$0], a2=[$1])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalProject(b2=[$1], b1=[$0])
       +- LogicalAggregate(group=[{0}], b2=[SUM($1)])
          +- LogicalProject(b1=[$0], b2=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -164,12 +164,12 @@ Join(joinType=[FullOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec
 :  +- GroupAggregate(groupBy=[a1], select=[a1], changelogMode=[I,UA])
 :     +- Exchange(distribution=[hash[a1]], changelogMode=[I])
 :        +- Calc(select=[a1, a2], changelogMode=[I])
-:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+:           +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
 +- Exchange(distribution=[hash[b1]], changelogMode=[I,UA])
    +- GroupAggregate(groupBy=[b1], select=[b1], changelogMode=[I,UA])
       +- Exchange(distribution=[hash[b1]], changelogMode=[I])
          +- Calc(select=[b1, b2], changelogMode=[I])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+            +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -184,11 +184,11 @@ LogicalProject(a1=[$1], b1=[$3])
    :- LogicalProject(a2=[$1], a1=[$0])
    :  +- LogicalAggregate(group=[{0}], a2=[SUM($1)])
    :     +- LogicalProject(a1=[$0], a2=[$1])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalProject(b2=[$1], b1=[$0])
       +- LogicalAggregate(group=[{0}], b2=[SUM($1)])
          +- LogicalProject(b1=[$0], b2=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -200,13 +200,13 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b1]], changelogMode=[I,UA])
       +- Calc(select=[b2, b1], changelogMode=[I,UA])
          +- GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], changelogMode=[I,UA])
             +- Exchange(distribution=[hash[b1]], changelogMode=[I])
                +- Calc(select=[b1, b2], changelogMode=[I])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+                  +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -221,8 +221,8 @@ LogicalProject(a1=[$1], b1=[$2])
    :- LogicalProject(a2=[$1], a1=[$0])
    :  +- LogicalAggregate(group=[{0}], a2=[SUM($1)])
    :     +- LogicalProject(a1=[$0], a2=[$1])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, A]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -232,10 +232,10 @@ Join(joinType=[FullOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec
 :  +- GroupAggregate(groupBy=[a1], select=[a1], changelogMode=[I,UA])
 :     +- Exchange(distribution=[hash[a1]], changelogMode=[I])
 :        +- Calc(select=[a1, a2], changelogMode=[I])
-:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+:           +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
 +- Exchange(distribution=[hash[b1]], changelogMode=[I])
    +- Calc(select=[b1], changelogMode=[I])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+      +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -250,8 +250,8 @@ LogicalProject(a1=[$1], b1=[$2])
    :- LogicalProject(a2=[$1], a1=[$0])
    :  +- LogicalAggregate(group=[{0}], a2=[SUM($1)])
    :     +- LogicalProject(a1=[$0], a2=[$1])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, A]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -263,10 +263,10 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b1]], changelogMode=[I])
       +- Calc(select=[b1, b2], changelogMode=[I])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -281,11 +281,11 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
    :- LogicalProject(a2=[$1], a1=[$0])
    :  +- LogicalAggregate(group=[{0}], a2=[SUM($1)])
    :     +- LogicalProject(a1=[$0], a2=[$1])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalProject(b2=[$1], b1=[$0])
       +- LogicalAggregate(group=[{0}], b2=[SUM($1)])
          +- LogicalProject(b1=[$0], b2=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -297,13 +297,13 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b2]], changelogMode=[I,UB,UA])
       +- Calc(select=[b2, b1], changelogMode=[I,UB,UA])
          +- GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], changelogMode=[I,UB,UA])
             +- Exchange(distribution=[hash[b1]], changelogMode=[I])
                +- Calc(select=[b1, b2], changelogMode=[I])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+                  +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -318,11 +318,11 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
    :- LogicalProject(a2=[$1], a1=[$0])
    :  +- LogicalAggregate(group=[{0}], a2=[SUM($1)])
    :     +- LogicalProject(a1=[$0], a2=[$1])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalProject(b2=[$1], b1=[$0])
       +- LogicalAggregate(group=[{0}], b2=[SUM($1)])
          +- LogicalProject(b1=[$0], b2=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -334,13 +334,13 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b2]], changelogMode=[I,UB,UA])
       +- Calc(select=[b2, b1], changelogMode=[I,UB,UA])
          +- GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], changelogMode=[I,UB,UA])
             +- Exchange(distribution=[hash[b1]], changelogMode=[I])
                +- Calc(select=[b1, b2], changelogMode=[I])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+                  +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -352,8 +352,8 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$3])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
-   :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -361,10 +361,10 @@ LogicalProject(a1=[$0], b1=[$3])
 Join(joinType=[InnerJoin], where=[(a1 = b1)], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a1]])
 :  +- Calc(select=[a1])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3])
+:     +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3])
 +- Exchange(distribution=[hash[b1]])
    +- Calc(select=[b1])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3])
+      +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3])
 ]]>
     </Resource>
   </TestCase>
@@ -379,11 +379,11 @@ LogicalProject(a1=[$1], b1=[$3])
    :- LogicalProject(a2=[$1], a1=[$0])
    :  +- LogicalAggregate(group=[{0}], a2=[SUM($1)])
    :     +- LogicalProject(a1=[$0], a2=[$1])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalProject(b2=[$1], b1=[$0])
       +- LogicalAggregate(group=[{0}], b2=[SUM($1)])
          +- LogicalProject(b1=[$0], b2=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -393,12 +393,12 @@ Join(joinType=[InnerJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[Jo
 :  +- GroupAggregate(groupBy=[a1], select=[a1], changelogMode=[I,UA])
 :     +- Exchange(distribution=[hash[a1]], changelogMode=[I])
 :        +- Calc(select=[a1, a2], changelogMode=[I])
-:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+:           +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
 +- Exchange(distribution=[hash[b1]], changelogMode=[I,UA])
    +- GroupAggregate(groupBy=[b1], select=[b1], changelogMode=[I,UA])
       +- Exchange(distribution=[hash[b1]], changelogMode=[I])
          +- Calc(select=[b1, b2], changelogMode=[I])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+            +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -419,10 +419,10 @@ LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalAggregate(group=[{0}], a2=[COUNT($1)])
       :  +- LogicalProject(a1=[$0], a2=[$1])
-      :     +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, A]])
       +- LogicalAggregate(group=[{0}], b2=[COUNT($1)])
          +- LogicalProject(b1=[$0], b2=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -433,12 +433,12 @@ Calc(select=[a1, a2, CAST(2 AS INTEGER) AS b1, b2])
    :  +- GroupAggregate(groupBy=[a1], select=[a1, COUNT(a2) AS a2])
    :     +- Exchange(distribution=[hash[a1]])
    :        +- Calc(select=[CAST(2 AS INTEGER) AS a1, a2], where=[(a1 = 2)])
-   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3])
    +- Exchange(distribution=[hash[b1, b2]])
       +- GroupAggregate(groupBy=[b1], select=[b1, COUNT(b2) AS b2])
          +- Exchange(distribution=[hash[b1]])
             +- Calc(select=[CAST(2 AS INTEGER) AS b1, b2], where=[(b1 = 2)])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3])
+               +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3])
 ]]>
     </Resource>
   </TestCase>
@@ -459,10 +459,10 @@ LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalAggregate(group=[{0}], a2=[COUNT($1)])
       :  +- LogicalProject(a1=[$0], a2=[$1])
-      :     +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, A]])
       +- LogicalAggregate(group=[{0}], b2=[COUNT($1)])
          +- LogicalProject(b1=[$0], b2=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -474,13 +474,13 @@ Calc(select=[a1, 1 AS a2, CAST(2 AS INTEGER) AS b1, 1 AS b2])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, COUNT(a2) AS a2])
    :        +- Exchange(distribution=[hash[a1]])
    :           +- Calc(select=[CAST(2 AS INTEGER) AS a1, a2], where=[(a1 = 2)])
-   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3])
+   :              +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3])
    +- Exchange(distribution=[hash[b1]])
       +- Calc(select=[b1], where=[(b2 = 1)])
          +- GroupAggregate(groupBy=[b1], select=[b1, COUNT(b2) AS b2])
             +- Exchange(distribution=[hash[b1]])
                +- Calc(select=[CAST(2 AS INTEGER) AS b1, b2], where=[(b1 = 2)])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3])
+                  +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3])
 ]]>
     </Resource>
   </TestCase>
@@ -495,11 +495,11 @@ LogicalProject(a1=[$1], b1=[$3])
    :- LogicalProject(a2=[$1], a1=[$0])
    :  +- LogicalAggregate(group=[{0}], a2=[SUM($1)])
    :     +- LogicalProject(a1=[$0], a2=[$1])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalProject(b2=[$1], b1=[$0])
       +- LogicalAggregate(group=[{0}], b2=[SUM($1)])
          +- LogicalProject(b1=[$0], b2=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -509,12 +509,12 @@ Join(joinType=[LeftOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec
 :  +- GroupAggregate(groupBy=[a1], select=[a1], changelogMode=[I,UA])
 :     +- Exchange(distribution=[hash[a1]], changelogMode=[I])
 :        +- Calc(select=[a1, a2], changelogMode=[I])
-:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+:           +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
 +- Exchange(distribution=[hash[b1]], changelogMode=[I,UA])
    +- GroupAggregate(groupBy=[b1], select=[b1], changelogMode=[I,UA])
       +- Exchange(distribution=[hash[b1]], changelogMode=[I])
          +- Calc(select=[b1, b2], changelogMode=[I])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+            +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -529,11 +529,11 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
    :- LogicalProject(a2=[$1], a1=[$0])
    :  +- LogicalAggregate(group=[{0}], a2=[SUM($1)])
    :     +- LogicalProject(a1=[$0], a2=[$1])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalProject(b2=[$1], b1=[$0])
       +- LogicalAggregate(group=[{0}], b2=[SUM($1)])
          +- LogicalProject(b1=[$0], b2=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -545,13 +545,13 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b2]], changelogMode=[I,UB,UA])
       +- Calc(select=[b2, b1], changelogMode=[I,UB,UA])
          +- GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], changelogMode=[I,UB,UA])
             +- Exchange(distribution=[hash[b1]], changelogMode=[I])
                +- Calc(select=[b1, b2], changelogMode=[I])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+                  +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -563,7 +563,7 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA])
       <![CDATA[
 LogicalProject(a1=[$0])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
-   :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalTableScan(table=[[default_catalog, default_database, tableWithCompositePk]])
 ]]>
     </Resource>
@@ -573,7 +573,7 @@ Calc(select=[a1])
 +- Join(joinType=[LeftOuterJoin], where=[(a1 = pk1)], select=[a1, pk1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1]])
    :  +- Calc(select=[a1])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3])
    +- Exchange(distribution=[hash[pk1]])
       +- TableSourceScan(table=[[default_catalog, default_database, tableWithCompositePk, project=[pk1], metadata=[]]], fields=[pk1])
 ]]>
@@ -824,18 +824,18 @@ SELECT * FROM
       <![CDATA[
 LogicalProject(i=[$0], j=[$1], t=[$2], i0=[$3], k=[$4])
 +- LogicalJoin(condition=[AND(=($0, $3), =($0, $4))], joinType=[full])
-   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(i, j, t)]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable3]])
    +- LogicalProject(i=[$0], k=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable4, source: [TestTableSource(i, k)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable4]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Join(joinType=[FullOuterJoin], where=[((i = i0) AND (i = k))], select=[i, j, t, i0, k], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[i, i]])
-:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(i, j, t)]]], fields=[i, j, t])
+:  +- TableSourceScan(table=[[default_catalog, default_database, MyTable3]], fields=[i, j, t])
 +- Exchange(distribution=[hash[i, k]])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable4, source: [TestTableSource(i, k)]]], fields=[i, k])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable4]], fields=[i, k])
 ]]>
     </Resource>
   </TestCase>
@@ -847,8 +847,8 @@ Join(joinType=[FullOuterJoin], where=[((i = i0) AND (i = k))], select=[i, j, t, 
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$3])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
-   :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -856,10 +856,10 @@ LogicalProject(a1=[$0], b1=[$3])
 Join(joinType=[LeftOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
 :- Exchange(distribution=[hash[a1]], changelogMode=[I])
 :  +- Calc(select=[a1], changelogMode=[I])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+:     +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
 +- Exchange(distribution=[hash[b1]], changelogMode=[I])
    +- Calc(select=[b1], changelogMode=[I])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+      +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -871,8 +871,8 @@ Join(joinType=[LeftOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$3])
 +- LogicalJoin(condition=[AND(=($0, $3), >($1, $4))], joinType=[left])
-   :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -881,10 +881,10 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
 +- Join(joinType=[LeftOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a1, a2, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
    :- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :  +- Calc(select=[a1, a2], changelogMode=[I])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b1]], changelogMode=[I])
       +- Calc(select=[b1, b2], changelogMode=[I])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -899,11 +899,11 @@ LogicalProject(a1=[$1], b1=[$3])
    :- LogicalProject(a2=[$1], a1=[$0])
    :  +- LogicalAggregate(group=[{0}], a2=[SUM($1)])
    :     +- LogicalProject(a1=[$0], a2=[$1])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalProject(b2=[$1], b1=[$0])
       +- LogicalAggregate(group=[{0}], b2=[SUM($1)])
          +- LogicalProject(b1=[$0], b2=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -915,13 +915,13 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b1]], changelogMode=[I,UA])
       +- Calc(select=[b2, b1], changelogMode=[I,UA])
          +- GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], changelogMode=[I,UA])
             +- Exchange(distribution=[hash[b1]], changelogMode=[I])
                +- Calc(select=[b1, b2], changelogMode=[I])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+                  +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -942,10 +942,10 @@ LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3])
    +- LogicalJoin(condition=[true], joinType=[left])
       :- LogicalAggregate(group=[{0}], a2=[COUNT($1)])
       :  +- LogicalProject(a1=[$0], a2=[$1])
-      :     +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, A]])
       +- LogicalAggregate(group=[{0}], b2=[COUNT($1)])
          +- LogicalProject(b1=[$0], b2=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -956,12 +956,12 @@ Calc(select=[CAST(2 AS INTEGER) AS a1, a2, b1, CAST(b2 AS BIGINT) AS b2])
    :  +- GroupAggregate(groupBy=[a1], select=[a1, COUNT(a2) AS a2])
    :     +- Exchange(distribution=[hash[a1]])
    :        +- Calc(select=[CAST(2 AS INTEGER) AS a1, a2], where=[(a1 = 2)])
-   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3])
    +- Exchange(distribution=[hash[b1, b2]])
       +- GroupAggregate(groupBy=[b1], select=[b1, COUNT(b2) AS b2])
          +- Exchange(distribution=[hash[b1]])
             +- Calc(select=[CAST(2 AS INTEGER) AS b1, b2], where=[(b1 = 2)])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3])
+               +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3])
 ]]>
     </Resource>
   </TestCase>
@@ -981,10 +981,10 @@ LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3])
 +- LogicalJoin(condition=[AND(=($0, $2), =($1, $3), =($0, 2), =($3, 1))], joinType=[left])
    :- LogicalAggregate(group=[{0}], a2=[COUNT($1)])
    :  +- LogicalProject(a1=[$0], a2=[$1])
-   :     +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalAggregate(group=[{0}], b2=[COUNT($1)])
       +- LogicalProject(b1=[$0], b2=[$1])
-         +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -994,13 +994,13 @@ Join(joinType=[LeftOuterJoin], where=[((a1 = b1) AND (a2 = 1) AND (a1 = 2))], se
 :  +- GroupAggregate(groupBy=[a1], select=[a1, COUNT(a2) AS a2])
 :     +- Exchange(distribution=[hash[a1]])
 :        +- Calc(select=[a1, a2])
-:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3])
+:           +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3])
 +- Exchange(distribution=[hash[b1]])
    +- Calc(select=[b1, b2], where=[(b2 = 1)])
       +- GroupAggregate(groupBy=[b1], select=[b1, COUNT(b2) AS b2])
          +- Exchange(distribution=[hash[b1]])
             +- Calc(select=[b1, b2])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3])
+               +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3])
 ]]>
     </Resource>
   </TestCase>
@@ -1015,11 +1015,11 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
    :- LogicalProject(a2=[$1], a1=[$0])
    :  +- LogicalAggregate(group=[{0}], a2=[SUM($1)])
    :     +- LogicalProject(a1=[$0], a2=[$1])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalProject(b2=[$1], b1=[$0])
       +- LogicalAggregate(group=[{0}], b2=[SUM($1)])
          +- LogicalProject(b1=[$0], b2=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1031,13 +1031,13 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b2]], changelogMode=[I,UB,UA])
       +- Calc(select=[b2, b1], changelogMode=[I,UB,UA])
          +- GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], changelogMode=[I,UB,UA])
             +- Exchange(distribution=[hash[b1]], changelogMode=[I])
                +- Calc(select=[b1, b2], changelogMode=[I])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+                  +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -1052,11 +1052,11 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
    :- LogicalProject(a2=[$1], a1=[$0])
    :  +- LogicalAggregate(group=[{0}], a2=[SUM($1)])
    :     +- LogicalProject(a1=[$0], a2=[$1])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalProject(b2=[$1], b1=[$0])
       +- LogicalAggregate(group=[{0}], b2=[SUM($1)])
          +- LogicalProject(b1=[$0], b2=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1068,13 +1068,13 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b2]], changelogMode=[I,UB,UA])
       +- Calc(select=[b2, b1], changelogMode=[I,UB,UA])
          +- GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], changelogMode=[I,UB,UA])
             +- Exchange(distribution=[hash[b1]], changelogMode=[I])
                +- Calc(select=[b1, b2], changelogMode=[I])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+                  +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -1089,8 +1089,8 @@ LogicalProject(a1=[$1], b1=[$2])
    :- LogicalProject(a2=[$1], a1=[$0])
    :  +- LogicalAggregate(group=[{0}], a2=[SUM($1)])
    :     +- LogicalProject(a1=[$0], a2=[$1])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, A]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1100,10 +1100,10 @@ Join(joinType=[LeftOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec
 :  +- GroupAggregate(groupBy=[a1], select=[a1], changelogMode=[I,UA])
 :     +- Exchange(distribution=[hash[a1]], changelogMode=[I])
 :        +- Calc(select=[a1, a2], changelogMode=[I])
-:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+:           +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
 +- Exchange(distribution=[hash[b1]], changelogMode=[I])
    +- Calc(select=[b1], changelogMode=[I])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+      +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -1118,8 +1118,8 @@ LogicalProject(a1=[$1], b1=[$2])
    :- LogicalProject(a2=[$1], a1=[$0])
    :  +- LogicalAggregate(group=[{0}], a2=[SUM($1)])
    :     +- LogicalProject(a1=[$0], a2=[$1])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, A]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1131,10 +1131,10 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b1]], changelogMode=[I])
       +- Calc(select=[b1, b2], changelogMode=[I])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -1146,8 +1146,8 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
       <![CDATA[
 LogicalProject(b=[$1], y=[$4])
 +- LogicalJoin(condition=[AND(=($0, $5), <($1, 2))], joinType=[left])
-   :- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, t]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, s]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1156,10 +1156,10 @@ Calc(select=[b, y])
 +- Join(joinType=[LeftOuterJoin], where=[((a = z) AND (b < 2))], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[y, z])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+         +- TableSourceScan(table=[[default_catalog, default_database, s]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -1171,8 +1171,8 @@ Calc(select=[b, y])
       <![CDATA[
 LogicalProject(b=[$1], y=[$4])
 +- LogicalJoin(condition=[AND(=($0, $5), <($1, $3))], joinType=[left])
-   :- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, t]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, s]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1181,9 +1181,9 @@ Calc(select=[b, y])
 +- Join(joinType=[LeftOuterJoin], where=[((a = z) AND (b < x))], select=[a, b, x, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+      +- TableSourceScan(table=[[default_catalog, default_database, s]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -1195,8 +1195,8 @@ Calc(select=[b, y])
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$3])
 +- LogicalJoin(condition=[AND(=($0, $3), >($1, $4))], joinType=[right])
-   :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1205,10 +1205,10 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
 +- Join(joinType=[RightOuterJoin], where=[AND(=(a1, b1), >(a2, b2))], select=[a1, a2, b1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
    :- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :  +- Calc(select=[a1, a2], changelogMode=[I])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b1]], changelogMode=[I])
       +- Calc(select=[b1, b2], changelogMode=[I])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -1220,8 +1220,8 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
       <![CDATA[
 LogicalProject(b=[$1], y=[$4])
 +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
-   :- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, t]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, s]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1230,10 +1230,10 @@ Calc(select=[b, y])
 +- Join(joinType=[LeftOuterJoin], where=[(a = z)], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[y, z])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+         +- TableSourceScan(table=[[default_catalog, default_database, s]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -1245,8 +1245,8 @@ Calc(select=[b, y])
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$3])
 +- LogicalJoin(condition=[=($0, $3)], joinType=[right])
-   :- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1254,10 +1254,10 @@ LogicalProject(a1=[$0], b1=[$3])
 Join(joinType=[RightOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
 :- Exchange(distribution=[hash[a1]], changelogMode=[I])
 :  +- Calc(select=[a1], changelogMode=[I])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+:     +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
 +- Exchange(distribution=[hash[b1]], changelogMode=[I])
    +- Calc(select=[b1], changelogMode=[I])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+      +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -1272,11 +1272,11 @@ LogicalProject(a1=[$1], b1=[$3])
    :- LogicalProject(a2=[$1], a1=[$0])
    :  +- LogicalAggregate(group=[{0}], a2=[SUM($1)])
    :     +- LogicalProject(a1=[$0], a2=[$1])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalProject(b2=[$1], b1=[$0])
       +- LogicalAggregate(group=[{0}], b2=[SUM($1)])
          +- LogicalProject(b1=[$0], b2=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1286,12 +1286,12 @@ Join(joinType=[RightOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpe
 :  +- GroupAggregate(groupBy=[a1], select=[a1], changelogMode=[I,UA])
 :     +- Exchange(distribution=[hash[a1]], changelogMode=[I])
 :        +- Calc(select=[a1, a2], changelogMode=[I])
-:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+:           +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
 +- Exchange(distribution=[hash[b1]], changelogMode=[I,UA])
    +- GroupAggregate(groupBy=[b1], select=[b1], changelogMode=[I,UA])
       +- Exchange(distribution=[hash[b1]], changelogMode=[I])
          +- Calc(select=[b1, b2], changelogMode=[I])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+            +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -1306,11 +1306,11 @@ LogicalProject(a1=[$1], b1=[$3])
    :- LogicalProject(a2=[$1], a1=[$0])
    :  +- LogicalAggregate(group=[{0}], a2=[SUM($1)])
    :     +- LogicalProject(a1=[$0], a2=[$1])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalProject(b2=[$1], b1=[$0])
       +- LogicalAggregate(group=[{0}], b2=[SUM($1)])
          +- LogicalProject(b1=[$0], b2=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1322,13 +1322,13 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b1]], changelogMode=[I,UA])
       +- Calc(select=[b2, b1], changelogMode=[I,UA])
          +- GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], changelogMode=[I,UA])
             +- Exchange(distribution=[hash[b1]], changelogMode=[I])
                +- Calc(select=[b1, b2], changelogMode=[I])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+                  +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -1349,10 +1349,10 @@ LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3])
    +- LogicalJoin(condition=[true], joinType=[right])
       :- LogicalAggregate(group=[{0}], a2=[COUNT($1)])
       :  +- LogicalProject(a1=[$0], a2=[$1])
-      :     +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, A]])
       +- LogicalAggregate(group=[{0}], b2=[COUNT($1)])
          +- LogicalProject(b1=[$0], b2=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1363,12 +1363,12 @@ Calc(select=[a1, CAST(a2 AS BIGINT) AS a2, CAST(2 AS INTEGER) AS b1, b2])
    :  +- GroupAggregate(groupBy=[a1], select=[a1, COUNT(a2) AS a2])
    :     +- Exchange(distribution=[hash[a1]])
    :        +- Calc(select=[CAST(2 AS INTEGER) AS a1, a2], where=[(a1 = 2)])
-   :           +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3])
    +- Exchange(distribution=[hash[b1, b2]])
       +- GroupAggregate(groupBy=[b1], select=[b1, COUNT(b2) AS b2])
          +- Exchange(distribution=[hash[b1]])
             +- Calc(select=[CAST(2 AS INTEGER) AS b1, b2], where=[(b1 = 2)])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3])
+               +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3])
 ]]>
     </Resource>
   </TestCase>
@@ -1380,8 +1380,8 @@ Calc(select=[a1, CAST(a2 AS BIGINT) AS a2, CAST(2 AS INTEGER) AS b1, b2])
       <![CDATA[
 LogicalProject(b=[$1], y=[$4])
 +- LogicalJoin(condition=[=($0, $5)], joinType=[right])
-   :- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, t]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, s]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1390,10 +1390,10 @@ Calc(select=[b, y])
 +- Join(joinType=[RightOuterJoin], where=[(a = z)], select=[a, b, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[y, z])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+         +- TableSourceScan(table=[[default_catalog, default_database, s]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -1413,10 +1413,10 @@ LogicalProject(a1=[$0], a2=[$1], b1=[$2], b2=[$3])
 +- LogicalJoin(condition=[AND(=($0, $2), =($1, $3), =($2, 2), =($1, 1))], joinType=[right])
    :- LogicalAggregate(group=[{0}], a2=[COUNT($1)])
    :  +- LogicalProject(a1=[$0], a2=[$1])
-   :     +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalAggregate(group=[{0}], b2=[COUNT($1)])
       +- LogicalProject(b1=[$0], b2=[$1])
-         +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1427,12 +1427,12 @@ Join(joinType=[RightOuterJoin], where=[((a1 = b1) AND (1 = b2) AND (b1 = 2))], s
 :     +- GroupAggregate(groupBy=[a1], select=[a1, COUNT(a2) AS a2])
 :        +- Exchange(distribution=[hash[a1]])
 :           +- Calc(select=[a1, a2])
-:              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3])
+:              +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3])
 +- Exchange(distribution=[hash[b1]])
    +- GroupAggregate(groupBy=[b1], select=[b1, COUNT(b2) AS b2])
       +- Exchange(distribution=[hash[b1]])
          +- Calc(select=[b1, b2])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3])
+            +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3])
 ]]>
     </Resource>
   </TestCase>
@@ -1447,11 +1447,11 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
    :- LogicalProject(a2=[$1], a1=[$0])
    :  +- LogicalAggregate(group=[{0}], a2=[SUM($1)])
    :     +- LogicalProject(a1=[$0], a2=[$1])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalProject(b2=[$1], b1=[$0])
       +- LogicalAggregate(group=[{0}], b2=[SUM($1)])
          +- LogicalProject(b1=[$0], b2=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1463,13 +1463,13 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b2]], changelogMode=[I,UB,UA])
       +- Calc(select=[b2, b1], changelogMode=[I,UB,UA])
          +- GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], changelogMode=[I,UB,UA])
             +- Exchange(distribution=[hash[b1]], changelogMode=[I])
                +- Calc(select=[b1, b2], changelogMode=[I])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+                  +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -1484,11 +1484,11 @@ LogicalProject(a1=[$1], a2=[$0], b1=[$3], b2=[$2])
    :- LogicalProject(a2=[$1], a1=[$0])
    :  +- LogicalAggregate(group=[{0}], a2=[SUM($1)])
    :     +- LogicalProject(a1=[$0], a2=[$1])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, A]])
    +- LogicalProject(b2=[$1], b1=[$0])
       +- LogicalAggregate(group=[{0}], b2=[SUM($1)])
          +- LogicalProject(b1=[$0], b2=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1500,13 +1500,13 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UB,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b2]], changelogMode=[I,UB,UA])
       +- Calc(select=[b2, b1], changelogMode=[I,UB,UA])
          +- GroupAggregate(groupBy=[b1], select=[b1, SUM(b2) AS b2], changelogMode=[I,UB,UA])
             +- Exchange(distribution=[hash[b1]], changelogMode=[I])
                +- Calc(select=[b1, b2], changelogMode=[I])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+                  +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -1521,8 +1521,8 @@ LogicalProject(a1=[$1], b1=[$2])
    :- LogicalProject(a2=[$1], a1=[$0])
    :  +- LogicalAggregate(group=[{0}], a2=[SUM($1)])
    :     +- LogicalProject(a1=[$0], a2=[$1])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, A]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1532,10 +1532,10 @@ Join(joinType=[RightOuterJoin], where=[=(a1, b1)], select=[a1, b1], leftInputSpe
 :  +- GroupAggregate(groupBy=[a1], select=[a1], changelogMode=[I,UA])
 :     +- Exchange(distribution=[hash[a1]], changelogMode=[I])
 :        +- Calc(select=[a1, a2], changelogMode=[I])
-:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+:           +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
 +- Exchange(distribution=[hash[b1]], changelogMode=[I])
    +- Calc(select=[b1], changelogMode=[I])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+      +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -1550,8 +1550,8 @@ LogicalProject(a1=[$1], b1=[$2])
    :- LogicalProject(a2=[$1], a1=[$0])
    :  +- LogicalAggregate(group=[{0}], a2=[SUM($1)])
    :     +- LogicalProject(a1=[$0], a2=[$1])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, A]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, B]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1563,10 +1563,10 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
    :     +- GroupAggregate(groupBy=[a1], select=[a1, SUM(a2) AS a2], changelogMode=[I,UA])
    :        +- Exchange(distribution=[hash[a1]], changelogMode=[I])
    :           +- Calc(select=[a1, a2], changelogMode=[I])
-   :              +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2, a3)]]], fields=[a1, a2, a3], changelogMode=[I])
+   :              +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
    +- Exchange(distribution=[hash[b1]], changelogMode=[I])
       +- Calc(select=[b1, b2], changelogMode=[I])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, B, source: [TestTableSource(b1, b2, b3)]]], fields=[b1, b2, b3], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[b1, b2, b3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -1578,8 +1578,8 @@ Calc(select=[a1, b1], changelogMode=[I,UA,D])
       <![CDATA[
 LogicalProject(b=[$1], x=[$3])
 +- LogicalJoin(condition=[AND(=($0, $5), <($3, 2))], joinType=[right])
-   :- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, t]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, s]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1588,10 +1588,10 @@ Calc(select=[b, x])
 +- Join(joinType=[RightOuterJoin], where=[((a = z) AND (x < 2))], select=[a, b, x, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
       +- Calc(select=[x, z])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+         +- TableSourceScan(table=[[default_catalog, default_database, s]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -1603,8 +1603,8 @@ Calc(select=[b, x])
       <![CDATA[
 LogicalProject(b=[$1], y=[$4])
 +- LogicalJoin(condition=[AND(=($0, $5), <($1, $3))], joinType=[right])
-   :- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, t]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, s]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1613,9 +1613,9 @@ Calc(select=[b, y])
 +- Join(joinType=[RightOuterJoin], where=[((a = z) AND (b < x))], select=[a, b, x, y, z], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, b])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
    +- Exchange(distribution=[hash[z]])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, s, source: [TestTableSource(x, y, z)]]], fields=[x, y, z])
+      +- TableSourceScan(table=[[default_catalog, default_database, s]], fields=[x, y, z])
 ]]>
     </Resource>
   </TestCase>
@@ -1635,20 +1635,16 @@ LogicalProject(key=[$0], v=[$1], key0=[$2], v0=[$3])
 +- LogicalJoin(condition=[AND(=($0, $2), >($2, 10))], joinType=[left])
    :- LogicalProject(key=[$0], v=[$1])
    :  +- LogicalFilter(condition=[=($0, 0)])
-   :     +- LogicalTableScan(table=[[default_catalog, default_database, src, source: [TestTableSource(key, v)]]])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, src]])
    +- LogicalProject(key=[$0], v=[$1])
       +- LogicalFilter(condition=[=($0, 0)])
-         +- LogicalTableScan(table=[[default_catalog, default_database, src, source: [TestTableSource(key, v)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Join(joinType=[LeftOuterJoin], where=[=(key, key0)], select=[key, v, key0, v0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I,UA,D])
-:- Exchange(distribution=[hash[key]], changelogMode=[I])
-:  +- Calc(select=[CAST(0 AS BIGINT) AS key, v], where=[=(key, 0)], changelogMode=[I])
-:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, src, source: [TestTableSource(key, v)]]], fields=[key, v], changelogMode=[I])
-+- Exchange(distribution=[hash[key]], changelogMode=[I])
-   +- Values(tuples=[[]], changelogMode=[I])
+Calc(select=[CAST(0 AS BIGINT) AS key, v, null:BIGINT AS key0, null:VARCHAR(2147483647) AS v0], where=[=(key, 0)], changelogMode=[I])
++- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[key, v], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>

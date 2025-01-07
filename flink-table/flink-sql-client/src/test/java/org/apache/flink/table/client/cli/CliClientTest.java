@@ -20,6 +20,7 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -41,6 +42,7 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.util.CloseableIterator;
 
+import org.apache.commons.io.FileUtils;
 import org.jline.reader.Candidate;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
@@ -49,6 +51,9 @@ import org.jline.reader.Parser;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.impl.DumbTerminal;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import javax.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -56,6 +61,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -79,6 +86,8 @@ class CliClientTest {
     private static final String ORIGIN_SQL = "SELECT pos\t FROM source_table;\n";
     private static final String SQL_WITHOUT_COMPLETER = "SELECT pos FROM source_table;";
     private static final String SQL_WITH_COMPLETER = "SELECT POSITION  FROM source_table;";
+
+    private static @TempDir Path home;
 
     @Test
     void testUpdateSubmission() throws Exception {
@@ -257,14 +266,18 @@ class CliClientTest {
         Path historyFilePath = historyTempFile();
 
         OutputStream outputStream = new ByteArrayOutputStream(256);
-
+        File script =
+                home.resolve(String.format("script_%s.sql", System.currentTimeMillis())).toFile();
+        assertThat(script.createNewFile()).isTrue();
         try (CliClient client =
                 new CliClient(
                         () -> TerminalUtils.createDumbTerminal(outputStream),
                         mockExecutor,
                         historyFilePath,
                         null)) {
-            Thread thread = new Thread(() -> client.executeInNonInteractiveMode(content));
+            FileUtils.writeStringToFile(script, content, StandardCharsets.UTF_8);
+            Thread thread = new Thread(() -> client.executeInNonInteractiveMode(script.toURI()));
+
             thread.start();
 
             while (!mockExecutor.isAwait) {
@@ -313,6 +326,29 @@ class CliClientTest {
                     () -> outputStream.toString().contains(CliStrings.MESSAGE_HELP));
             // Prevent NPE when closing the terminal. See FLINK-33116 for more information.
             thread.sync();
+        }
+    }
+
+    @Test
+    void testDeployScript() throws Exception {
+        final MockExecutor mockExecutor = new MockExecutor(new SqlParserHelper(), true);
+        Path historyFilePath = historyTempFile();
+
+        File script =
+                home.resolve(String.format("script_%s.sql", System.currentTimeMillis())).toFile();
+        mockExecutor.configuration.set(DeploymentOptions.TARGET, "kubernetes-application");
+        assertThat(script.createNewFile()).isTrue();
+        try (OutputStream outputStream = new ByteArrayOutputStream(256);
+                CliClient client =
+                        new CliClient(
+                                () -> TerminalUtils.createDumbTerminal(outputStream),
+                                mockExecutor,
+                                historyFilePath,
+                                null)) {
+            client.executeInNonInteractiveMode(script.toURI());
+            assertThat(outputStream.toString())
+                    .contains("[INFO] Deploy script in application mode: ")
+                    .contains("Cluster ID: test-application-cluster");
         }
     }
 
@@ -368,13 +404,18 @@ class CliClientTest {
 
     private String executeSqlFromContent(MockExecutor executor, String content) throws IOException {
         OutputStream outputStream = new ByteArrayOutputStream(256);
+        File script = home.resolve("script.sql").toFile();
+        assertThat(script.createNewFile()).isTrue();
         try (CliClient client =
                 new CliClient(
                         () -> TerminalUtils.createDumbTerminal(outputStream),
                         executor,
                         historyTempFile(),
                         null)) {
-            client.executeInNonInteractiveMode(content);
+            FileUtils.writeStringToFile(script, content, StandardCharsets.UTF_8);
+            client.executeInNonInteractiveMode(script.toURI());
+        } finally {
+            script.delete();
         }
         return outputStream.toString();
     }
@@ -463,6 +504,11 @@ class CliClientTest {
             receivedStatement = statement;
             receivedPosition = position;
             return Arrays.asList(helper.getSqlParser().getCompletionHints(statement, position));
+        }
+
+        @Override
+        public String deployScript(@Nullable String script, @Nullable URI uri) {
+            return "test-application-cluster";
         }
 
         @Override

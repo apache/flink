@@ -62,12 +62,13 @@ under the License.
 			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
-				"mvn dependency:tree" as of Calcite 1.32.0:
+				"mvn dependency:tree" as of Calcite 1.34.0:
 
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.32.0:compile
-				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.22.0:compile
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.34.0:compile
+				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.23.0:compile
 				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.2:compile
-				[INFO] |  \- org.checkerframework:checker-qual:jar:3.12.0:compile
+				[INFO] |  +- org.checkerframework:checker-qual:jar:3.12.0:compile
+				[INFO] |  \- org.apache.commons:commons-math3:jar:3.6.1:runtime
 
 				Dependencies that are not needed for how we use Calcite right now.
 				-->
@@ -297,34 +298,27 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-			<plugin>
-				<groupId>com.googlecode.fmpp-maven-plugin</groupId>
-				<artifactId>fmpp-maven-plugin</artifactId>
-				<version>1.0</version>
-				<dependencies>
-					<dependency>
-						<groupId>org.freemarker</groupId>
-						<artifactId>freemarker</artifactId>
-						<version>2.3.28</version>
-					</dependency>
-				</dependencies>
+			<plugin> <!-- generate sources from fmpp -->
+				<groupId>org.apache.drill.tools</groupId>
+				<artifactId>drill-fmpp-maven-plugin</artifactId>
+				<version>1.21.2</version>
 				<executions>
 					<execution>
-						<id>generate-fmpp-sources</id>
+						<id>generate-fmpp</id>
 						<phase>generate-sources</phase>
 						<goals>
 							<goal>generate</goal>
 						</goals>
 						<configuration>
-							<cfgFile>${project.build.directory}/codegen/config.fmpp</cfgFile>
-							<outputDirectory>target/generated-sources</outputDirectory>
-							<templateDirectory>${project.build.directory}/codegen/templates</templateDirectory>
+							<config>${project.build.directory}/codegen/config.fmpp</config>
+							<output>${project.build.directory}/generated-sources</output>
+							<templates>${project.build.directory}/codegen/templates</templates>
 						</configuration>
 					</execution>
 				</executions>
 			</plugin>
 			<plugin>
-				<!-- This must be run AFTER the fmpp-maven-plugin -->
+				<!-- This must be run AFTER the drill-fmpp-maven-plugin -->
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>javacc-maven-plugin</artifactId>
 				<version>2.4</version>

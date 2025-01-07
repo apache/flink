@@ -24,7 +24,7 @@ limitations under the License.
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[var_sum($1)])
 +- LogicalProject(b=[$1], a=[$0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -34,7 +34,7 @@ SortAggregate(isMerge=[false], groupBy=[b], select=[b, var_sum(a) AS EXPR$1])
    +- Sort(orderBy=[b ASC])
       +- Exchange(distribution=[hash[b]])
          +- Calc(select=[b, a])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -46,7 +46,7 @@ SortAggregate(isMerge=[false], groupBy=[b], select=[b, var_sum(a) AS EXPR$1])
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[var_sum($1)])
 +- LogicalProject(b=[$1], a=[$0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -56,7 +56,7 @@ SortAggregate(isMerge=[false], groupBy=[b], select=[b, var_sum(a) AS EXPR$1])
    +- Sort(orderBy=[b ASC])
       +- Exchange(distribution=[hash[b]])
          +- Calc(select=[b, a])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -68,7 +68,7 @@ SortAggregate(isMerge=[false], groupBy=[b], select=[b, var_sum(a) AS EXPR$1])
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[var_sum($1)])
 +- LogicalProject(b=[$1], a=[$0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -78,7 +78,7 @@ SortAggregate(isMerge=[false], groupBy=[b], select=[b, var_sum(a) AS EXPR$1])
    +- Sort(orderBy=[b ASC])
       +- Exchange(distribution=[hash[b]])
          +- Calc(select=[b, a])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -90,7 +90,7 @@ SortAggregate(isMerge=[false], groupBy=[b], select=[b, var_sum(a) AS EXPR$1])
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
 +- LogicalFilter(condition=[=($0, 1)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -99,7 +99,7 @@ SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
 +- Exchange(distribution=[single])
    +- LocalSortAggregate(select=[Partial_AVG(a) AS (sum$0, count$1), Partial_SUM(b) AS sum$2, Partial_COUNT(c) AS count$3])
       +- Calc(select=[a, b, c], where=[(a = 1)])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -111,7 +111,7 @@ SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
 +- LogicalFilter(condition=[=($0, 1)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -119,7 +119,7 @@ LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($
 SortAggregate(isMerge=[false], select=[AVG(a) AS EXPR$0, SUM(b) AS EXPR$1, COUNT(c) AS EXPR$2])
 +- Exchange(distribution=[single])
    +- Calc(select=[a, b, c], where=[(a = 1)])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -131,7 +131,7 @@ SortAggregate(isMerge=[false], select=[AVG(a) AS EXPR$0, SUM(b) AS EXPR$1, COUNT
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
 +- LogicalFilter(condition=[=($0, 1)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -140,7 +140,7 @@ SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
 +- Exchange(distribution=[single])
    +- LocalSortAggregate(select=[Partial_AVG(a) AS (sum$0, count$1), Partial_SUM(b) AS sum$2, Partial_COUNT(c) AS count$3])
       +- Calc(select=[a, b, c], where=[(a = 1)])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -153,7 +153,7 @@ SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)], EXPR$3=[SUM($3)])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[$2._1])
    +- LogicalFilter(condition=[=($0, 1)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -162,7 +162,7 @@ SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
 +- Exchange(distribution=[single])
    +- LocalSortAggregate(select=[Partial_AVG(a) AS (sum$0, count$1), Partial_SUM(b) AS sum$2, Partial_COUNT(c) AS count$3, Partial_SUM($f3) AS sum$4])
       +- Calc(select=[CAST(1 AS INTEGER) AS a, b, c, c._1 AS $f3], where=[(a = 1)])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -175,7 +175,7 @@ SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)], EXPR$3=[SUM($3)])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[$2._1])
    +- LogicalFilter(condition=[=($0, 1)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -183,7 +183,7 @@ LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($
 SortAggregate(isMerge=[false], select=[AVG(a) AS EXPR$0, SUM(b) AS EXPR$1, COUNT(c) AS EXPR$2, SUM($f3) AS EXPR$3])
 +- Exchange(distribution=[single])
    +- Calc(select=[CAST(1 AS INTEGER) AS a, b, c, c._1 AS $f3], where=[(a = 1)])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -196,7 +196,7 @@ SortAggregate(isMerge=[false], select=[AVG(a) AS EXPR$0, SUM(b) AS EXPR$1, COUNT
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)], EXPR$3=[SUM($3)])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], $f3=[$2._1])
    +- LogicalFilter(condition=[=($0, 1)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -205,7 +205,7 @@ SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
 +- Exchange(distribution=[single])
    +- LocalSortAggregate(select=[Partial_AVG(a) AS (sum$0, count$1), Partial_SUM(b) AS sum$2, Partial_COUNT(c) AS count$3, Partial_SUM($f3) AS sum$4])
       +- Calc(select=[CAST(1 AS INTEGER) AS a, b, c, c._1 AS $f3], where=[(a = 1)])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -217,7 +217,7 @@ SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
       <![CDATA[
 LogicalAggregate(group=[{0, 1}])
 +- LogicalProject(a=[$0], b=[$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -230,7 +230,7 @@ SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
             +- Exchange(distribution=[forward])
                +- Sort(orderBy=[a ASC, b ASC])
                   +- Calc(select=[a, b])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -242,7 +242,7 @@ SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
       <![CDATA[
 LogicalAggregate(group=[{0, 1}])
 +- LogicalProject(a=[$0], b=[$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -252,7 +252,7 @@ SortAggregate(isMerge=[false], groupBy=[a, b], select=[a, b])
    +- Sort(orderBy=[a ASC, b ASC])
       +- Exchange(distribution=[hash[a, b]])
          +- Calc(select=[a, b])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -264,7 +264,7 @@ SortAggregate(isMerge=[false], groupBy=[a, b], select=[a, b])
       <![CDATA[
 LogicalAggregate(group=[{0, 1}])
 +- LogicalProject(a=[$0], b=[$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -277,7 +277,7 @@ SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
             +- Exchange(distribution=[forward])
                +- Sort(orderBy=[a ASC, b ASC])
                   +- Calc(select=[a, b])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -288,7 +288,7 @@ SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -296,7 +296,7 @@ LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($
 SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final_SUM(sum$2) AS EXPR$1, Final_COUNT(count$3) AS EXPR$2])
 +- Exchange(distribution=[single])
    +- LocalSortAggregate(select=[Partial_AVG(a) AS (sum$0, count$1), Partial_SUM(b) AS sum$2, Partial_COUNT(c) AS count$3])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -307,14 +307,14 @@ SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 SortAggregate(isMerge=[false], select=[AVG(a) AS EXPR$0, SUM(b) AS EXPR$1, COUNT(c) AS EXPR$2])
 +- Exchange(distribution=[single])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -325,7 +325,7 @@ SortAggregate(isMerge=[false], select=[AVG(a) AS EXPR$0, SUM(b) AS EXPR$1, COUNT
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -333,7 +333,7 @@ LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($
 SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final_SUM(sum$2) AS EXPR$1, Final_COUNT(count$3) AS EXPR$2])
 +- Exchange(distribution=[single])
    +- LocalSortAggregate(select=[Partial_AVG(a) AS (sum$0, count$1), Partial_SUM(b) AS sum$2, Partial_COUNT(c) AS count$3])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -360,7 +360,7 @@ SELECT
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(APPROXIMATE DISTINCT $0)], EXPR$1=[COUNT(APPROXIMATE DISTINCT $1)], EXPR$2=[COUNT(APPROXIMATE DISTINCT $2)], EXPR$3=[COUNT(APPROXIMATE DISTINCT $3)], EXPR$4=[COUNT(APPROXIMATE DISTINCT $4)], EXPR$5=[COUNT(APPROXIMATE DISTINCT $5)], EXPR$6=[COUNT(APPROXIMATE DISTINCT $6)], EXPR$7=[COUNT(APPROXIMATE DISTINCT $7)], EXPR$8=[COUNT(APPROXIMATE DISTINCT $8)], EXPR$9=[COUNT(APPROXIMATE DISTINCT $9)], EXPR$10=[COUNT(APPROXIMATE DISTINCT $10)], EXPR$11=[COUNT(APPROXIMATE DISTINCT $11)])
 +- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], string=[$7], date=[$8], time=[$9], timestamp=[$10], decimal3020=[$11], decimal105=[$12])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -369,7 +369,7 @@ SortAggregate(isMerge=[true], select=[Final_COUNT(APPROXIMATE DISTINCT EXPR$0) A
 +- Exchange(distribution=[single])
    +- LocalSortAggregate(select=[Partial_COUNT(APPROXIMATE DISTINCT byte) AS EXPR$0, Partial_COUNT(APPROXIMATE DISTINCT short) AS EXPR$1, Partial_COUNT(APPROXIMATE DISTINCT int) AS EXPR$2, Partial_COUNT(APPROXIMATE DISTINCT long) AS EXPR$3, Partial_COUNT(APPROXIMATE DISTINCT float) AS EXPR$4, Partial_COUNT(APPROXIMATE DISTINCT double) AS EXPR$5, Partial_COUNT(APPROXIMATE DISTINCT string) AS EXPR$6, Partial_COUNT(APPROXIMATE DISTINCT date) AS EXPR$7, Partial_COUNT(APPROXIMATE DISTINCT time) AS EXPR$8, Partial_COUNT(APPROXIMATE DISTINCT timestamp) AS EXPR$9, Partial_COUNT(APPROXIMATE DISTINCT decimal3020) AS EXPR$10, Partial_COUNT(APPROXIMATE DISTINCT decimal105) AS EXPR$11])
       +- Calc(select=[byte, short, int, long, float, double, string, date, time, timestamp, decimal3020, decimal105])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105])
 ]]>
     </Resource>
   </TestCase>
@@ -396,7 +396,7 @@ SELECT
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(APPROXIMATE DISTINCT $0)], EXPR$1=[COUNT(APPROXIMATE DISTINCT $1)], EXPR$2=[COUNT(APPROXIMATE DISTINCT $2)], EXPR$3=[COUNT(APPROXIMATE DISTINCT $3)], EXPR$4=[COUNT(APPROXIMATE DISTINCT $4)], EXPR$5=[COUNT(APPROXIMATE DISTINCT $5)], EXPR$6=[COUNT(APPROXIMATE DISTINCT $6)], EXPR$7=[COUNT(APPROXIMATE DISTINCT $7)], EXPR$8=[COUNT(APPROXIMATE DISTINCT $8)], EXPR$9=[COUNT(APPROXIMATE DISTINCT $9)], EXPR$10=[COUNT(APPROXIMATE DISTINCT $10)], EXPR$11=[COUNT(APPROXIMATE DISTINCT $11)])
 +- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], string=[$7], date=[$8], time=[$9], timestamp=[$10], decimal3020=[$11], decimal105=[$12])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -404,7 +404,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT(APPROXIMATE DISTINCT $0)], EXPR$1=[CO
 SortAggregate(isMerge=[false], select=[COUNT(APPROXIMATE DISTINCT byte) AS EXPR$0, COUNT(APPROXIMATE DISTINCT short) AS EXPR$1, COUNT(APPROXIMATE DISTINCT int) AS EXPR$2, COUNT(APPROXIMATE DISTINCT long) AS EXPR$3, COUNT(APPROXIMATE DISTINCT float) AS EXPR$4, COUNT(APPROXIMATE DISTINCT double) AS EXPR$5, COUNT(APPROXIMATE DISTINCT string) AS EXPR$6, COUNT(APPROXIMATE DISTINCT date) AS EXPR$7, COUNT(APPROXIMATE DISTINCT time) AS EXPR$8, COUNT(APPROXIMATE DISTINCT timestamp) AS EXPR$9, COUNT(APPROXIMATE DISTINCT decimal3020) AS EXPR$10, COUNT(APPROXIMATE DISTINCT decimal105) AS EXPR$11])
 +- Exchange(distribution=[single])
    +- Calc(select=[byte, short, int, long, float, double, string, date, time, timestamp, decimal3020, decimal105])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105])
 ]]>
     </Resource>
   </TestCase>
@@ -431,7 +431,7 @@ SELECT
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT(APPROXIMATE DISTINCT $0)], EXPR$1=[COUNT(APPROXIMATE DISTINCT $1)], EXPR$2=[COUNT(APPROXIMATE DISTINCT $2)], EXPR$3=[COUNT(APPROXIMATE DISTINCT $3)], EXPR$4=[COUNT(APPROXIMATE DISTINCT $4)], EXPR$5=[COUNT(APPROXIMATE DISTINCT $5)], EXPR$6=[COUNT(APPROXIMATE DISTINCT $6)], EXPR$7=[COUNT(APPROXIMATE DISTINCT $7)], EXPR$8=[COUNT(APPROXIMATE DISTINCT $8)], EXPR$9=[COUNT(APPROXIMATE DISTINCT $9)], EXPR$10=[COUNT(APPROXIMATE DISTINCT $10)], EXPR$11=[COUNT(APPROXIMATE DISTINCT $11)])
 +- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], string=[$7], date=[$8], time=[$9], timestamp=[$10], decimal3020=[$11], decimal105=[$12])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -440,7 +440,7 @@ SortAggregate(isMerge=[true], select=[Final_COUNT(APPROXIMATE DISTINCT EXPR$0) A
 +- Exchange(distribution=[single])
    +- LocalSortAggregate(select=[Partial_COUNT(APPROXIMATE DISTINCT byte) AS EXPR$0, Partial_COUNT(APPROXIMATE DISTINCT short) AS EXPR$1, Partial_COUNT(APPROXIMATE DISTINCT int) AS EXPR$2, Partial_COUNT(APPROXIMATE DISTINCT long) AS EXPR$3, Partial_COUNT(APPROXIMATE DISTINCT float) AS EXPR$4, Partial_COUNT(APPROXIMATE DISTINCT double) AS EXPR$5, Partial_COUNT(APPROXIMATE DISTINCT string) AS EXPR$6, Partial_COUNT(APPROXIMATE DISTINCT date) AS EXPR$7, Partial_COUNT(APPROXIMATE DISTINCT time) AS EXPR$8, Partial_COUNT(APPROXIMATE DISTINCT timestamp) AS EXPR$9, Partial_COUNT(APPROXIMATE DISTINCT decimal3020) AS EXPR$10, Partial_COUNT(APPROXIMATE DISTINCT decimal105) AS EXPR$11])
       +- Calc(select=[byte, short, int, long, float, double, string, date, time, timestamp, decimal3020, decimal105])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105])
 ]]>
     </Resource>
   </TestCase>
@@ -462,7 +462,7 @@ FROM MyTable
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[AVG($1)], EXPR$2=[AVG($2)], EXPR$3=[AVG($3)], EXPR$4=[AVG($4)], EXPR$5=[AVG($5)], EXPR$6=[AVG($6)], EXPR$7=[AVG($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 6) EXPR$7)]
 +- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -471,7 +471,7 @@ SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
 +- Exchange(distribution=[single]), rowType=[RecordType(BIGINT sum$0, BIGINT count$1, BIGINT sum$2, BIGINT count$3, BIGINT sum$4, BIGINT count$5, BIGINT sum$6, BIGINT count$7, DOUBLE sum$8, BIGINT count$9, DOUBLE sum$10, BIGINT count$11, DECIMAL(38, 20) sum$12, BIGINT count$13, DECIMAL(38, 5) sum$14, BIGINT count$15)]
    +- LocalSortAggregate(select=[Partial_AVG(byte) AS (sum$0, count$1), Partial_AVG(short) AS (sum$2, count$3), Partial_AVG(int) AS (sum$4, count$5), Partial_AVG(long) AS (sum$6, count$7), Partial_AVG(float) AS (sum$8, count$9), Partial_AVG(double) AS (sum$10, count$11), Partial_AVG(decimal3020) AS (sum$12, count$13), Partial_AVG(decimal105) AS (sum$14, count$15)]), rowType=[RecordType(BIGINT sum$0, BIGINT count$1, BIGINT sum$2, BIGINT count$3, BIGINT sum$4, BIGINT count$5, BIGINT sum$6, BIGINT count$7, DOUBLE sum$8, BIGINT count$9, DOUBLE sum$10, BIGINT count$11, DECIMAL(38, 20) sum$12, BIGINT count$13, DECIMAL(38, 5) sum$14, BIGINT count$15)]
       +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -493,7 +493,7 @@ FROM MyTable
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[AVG($1)], EXPR$2=[AVG($2)], EXPR$3=[AVG($3)], EXPR$4=[AVG($4)], EXPR$5=[AVG($5)], EXPR$6=[AVG($6)], EXPR$7=[AVG($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 6) EXPR$7)]
 +- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -501,7 +501,7 @@ LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[AVG($1)], EXPR$2=[AVG($2)
 SortAggregate(isMerge=[false], select=[AVG(byte) AS EXPR$0, AVG(short) AS EXPR$1, AVG(int) AS EXPR$2, AVG(long) AS EXPR$3, AVG(float) AS EXPR$4, AVG(double) AS EXPR$5, AVG(decimal3020) AS EXPR$6, AVG(decimal105) AS EXPR$7]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 6) EXPR$7)]
 +- Exchange(distribution=[single]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
    +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -523,7 +523,7 @@ FROM MyTable
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[AVG($1)], EXPR$2=[AVG($2)], EXPR$3=[AVG($3)], EXPR$4=[AVG($4)], EXPR$5=[AVG($5)], EXPR$6=[AVG($6)], EXPR$7=[AVG($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 6) EXPR$7)]
 +- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -532,7 +532,7 @@ SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
 +- Exchange(distribution=[single]), rowType=[RecordType(BIGINT sum$0, BIGINT count$1, BIGINT sum$2, BIGINT count$3, BIGINT sum$4, BIGINT count$5, BIGINT sum$6, BIGINT count$7, DOUBLE sum$8, BIGINT count$9, DOUBLE sum$10, BIGINT count$11, DECIMAL(38, 20) sum$12, BIGINT count$13, DECIMAL(38, 5) sum$14, BIGINT count$15)]
    +- LocalSortAggregate(select=[Partial_AVG(byte) AS (sum$0, count$1), Partial_AVG(short) AS (sum$2, count$3), Partial_AVG(int) AS (sum$4, count$5), Partial_AVG(long) AS (sum$6, count$7), Partial_AVG(float) AS (sum$8, count$9), Partial_AVG(double) AS (sum$10, count$11), Partial_AVG(decimal3020) AS (sum$12, count$13), Partial_AVG(decimal105) AS (sum$14, count$15)]), rowType=[RecordType(BIGINT sum$0, BIGINT count$1, BIGINT sum$2, BIGINT count$3, BIGINT sum$4, BIGINT count$5, BIGINT sum$6, BIGINT count$7, DOUBLE sum$8, BIGINT count$9, DOUBLE sum$10, BIGINT count$11, DECIMAL(38, 20) sum$12, BIGINT count$13, DECIMAL(38, 5) sum$14, BIGINT count$15)]
       +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -559,7 +559,7 @@ FROM MyTable
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)], EXPR$1=[COUNT($1)], EXPR$2=[COUNT($2)], EXPR$3=[COUNT($3)], EXPR$4=[COUNT($4)], EXPR$5=[COUNT($5)], EXPR$6=[COUNT($6)], EXPR$7=[COUNT($7)], EXPR$8=[COUNT($8)], EXPR$9=[COUNT($9)], EXPR$10=[COUNT($10)], EXPR$11=[COUNT($11)], EXPR$12=[COUNT($12)]), rowType=[RecordType(BIGINT EXPR$0, BIGINT EXPR$1, BIGINT EXPR$2, BIGINT EXPR$3, BIGINT EXPR$4, BIGINT EXPR$5, BIGINT EXPR$6, BIGINT EXPR$7, BIGINT EXPR$8, BIGINT EXPR$9, BIGINT EXPR$10, BIGINT EXPR$11, BIGINT EXPR$12)]
 +- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10], string=[$7]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, VARCHAR(2147483647) string)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -567,7 +567,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)], EXPR$1=[COUNT($1)], EXPR$2=[COU
 SortAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_COUNT(count$1) AS EXPR$1, Final_COUNT(count$2) AS EXPR$2, Final_COUNT(count$3) AS EXPR$3, Final_COUNT(count$4) AS EXPR$4, Final_COUNT(count$5) AS EXPR$5, Final_COUNT(count$6) AS EXPR$6, Final_COUNT(count$7) AS EXPR$7, Final_COUNT(count$8) AS EXPR$8, Final_COUNT(count$9) AS EXPR$9, Final_COUNT(count$10) AS EXPR$10, Final_COUNT(count$11) AS EXPR$11, Final_COUNT(count$12) AS EXPR$12]), rowType=[RecordType(BIGINT EXPR$0, BIGINT EXPR$1, BIGINT EXPR$2, BIGINT EXPR$3, BIGINT EXPR$4, BIGINT EXPR$5, BIGINT EXPR$6, BIGINT EXPR$7, BIGINT EXPR$8, BIGINT EXPR$9, BIGINT EXPR$10, BIGINT EXPR$11, BIGINT EXPR$12)]
 +- Exchange(distribution=[single]), rowType=[RecordType(BIGINT count$0, BIGINT count$1, BIGINT count$2, BIGINT count$3, BIGINT count$4, BIGINT count$5, BIGINT count$6, BIGINT count$7, BIGINT count$8, BIGINT count$9, BIGINT count$10, BIGINT count$11, BIGINT count$12)]
    +- LocalSortAggregate(select=[Partial_COUNT(byte) AS count$0, Partial_COUNT(short) AS count$1, Partial_COUNT(int) AS count$2, Partial_COUNT(long) AS count$3, Partial_COUNT(float) AS count$4, Partial_COUNT(double) AS count$5, Partial_COUNT(decimal3020) AS count$6, Partial_COUNT(decimal105) AS count$7, Partial_COUNT(boolean) AS count$8, Partial_COUNT(date) AS count$9, Partial_COUNT(time) AS count$10, Partial_COUNT(timestamp) AS count$11, Partial_COUNT(string) AS count$12]), rowType=[RecordType(BIGINT count$0, BIGINT count$1, BIGINT count$2, BIGINT count$3, BIGINT count$4, BIGINT count$5, BIGINT count$6, BIGINT count$7, BIGINT count$8, BIGINT count$9, BIGINT count$10, BIGINT count$11, BIGINT count$12)]
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -594,14 +594,14 @@ FROM MyTable
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)], EXPR$1=[COUNT($1)], EXPR$2=[COUNT($2)], EXPR$3=[COUNT($3)], EXPR$4=[COUNT($4)], EXPR$5=[COUNT($5)], EXPR$6=[COUNT($6)], EXPR$7=[COUNT($7)], EXPR$8=[COUNT($8)], EXPR$9=[COUNT($9)], EXPR$10=[COUNT($10)], EXPR$11=[COUNT($11)], EXPR$12=[COUNT($12)]), rowType=[RecordType(BIGINT EXPR$0, BIGINT EXPR$1, BIGINT EXPR$2, BIGINT EXPR$3, BIGINT EXPR$4, BIGINT EXPR$5, BIGINT EXPR$6, BIGINT EXPR$7, BIGINT EXPR$8, BIGINT EXPR$9, BIGINT EXPR$10, BIGINT EXPR$11, BIGINT EXPR$12)]
 +- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10], string=[$7]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, VARCHAR(2147483647) string)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
 SortAggregate(isMerge=[false], select=[COUNT(byte) AS EXPR$0, COUNT(short) AS EXPR$1, COUNT(int) AS EXPR$2, COUNT(long) AS EXPR$3, COUNT(float) AS EXPR$4, COUNT(double) AS EXPR$5, COUNT(decimal3020) AS EXPR$6, COUNT(decimal105) AS EXPR$7, COUNT(boolean) AS EXPR$8, COUNT(date) AS EXPR$9, COUNT(time) AS EXPR$10, COUNT(timestamp) AS EXPR$11, COUNT(string) AS EXPR$12]), rowType=[RecordType(BIGINT EXPR$0, BIGINT EXPR$1, BIGINT EXPR$2, BIGINT EXPR$3, BIGINT EXPR$4, BIGINT EXPR$5, BIGINT EXPR$6, BIGINT EXPR$7, BIGINT EXPR$8, BIGINT EXPR$9, BIGINT EXPR$10, BIGINT EXPR$11, BIGINT EXPR$12)]
 +- Exchange(distribution=[single]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -628,7 +628,7 @@ FROM MyTable
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)], EXPR$1=[COUNT($1)], EXPR$2=[COUNT($2)], EXPR$3=[COUNT($3)], EXPR$4=[COUNT($4)], EXPR$5=[COUNT($5)], EXPR$6=[COUNT($6)], EXPR$7=[COUNT($7)], EXPR$8=[COUNT($8)], EXPR$9=[COUNT($9)], EXPR$10=[COUNT($10)], EXPR$11=[COUNT($11)], EXPR$12=[COUNT($12)]), rowType=[RecordType(BIGINT EXPR$0, BIGINT EXPR$1, BIGINT EXPR$2, BIGINT EXPR$3, BIGINT EXPR$4, BIGINT EXPR$5, BIGINT EXPR$6, BIGINT EXPR$7, BIGINT EXPR$8, BIGINT EXPR$9, BIGINT EXPR$10, BIGINT EXPR$11, BIGINT EXPR$12)]
 +- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10], string=[$7]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, VARCHAR(2147483647) string)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -636,7 +636,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)], EXPR$1=[COUNT($1)], EXPR$2=[COU
 SortAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_COUNT(count$1) AS EXPR$1, Final_COUNT(count$2) AS EXPR$2, Final_COUNT(count$3) AS EXPR$3, Final_COUNT(count$4) AS EXPR$4, Final_COUNT(count$5) AS EXPR$5, Final_COUNT(count$6) AS EXPR$6, Final_COUNT(count$7) AS EXPR$7, Final_COUNT(count$8) AS EXPR$8, Final_COUNT(count$9) AS EXPR$9, Final_COUNT(count$10) AS EXPR$10, Final_COUNT(count$11) AS EXPR$11, Final_COUNT(count$12) AS EXPR$12]), rowType=[RecordType(BIGINT EXPR$0, BIGINT EXPR$1, BIGINT EXPR$2, BIGINT EXPR$3, BIGINT EXPR$4, BIGINT EXPR$5, BIGINT EXPR$6, BIGINT EXPR$7, BIGINT EXPR$8, BIGINT EXPR$9, BIGINT EXPR$10, BIGINT EXPR$11, BIGINT EXPR$12)]
 +- Exchange(distribution=[single]), rowType=[RecordType(BIGINT count$0, BIGINT count$1, BIGINT count$2, BIGINT count$3, BIGINT count$4, BIGINT count$5, BIGINT count$6, BIGINT count$7, BIGINT count$8, BIGINT count$9, BIGINT count$10, BIGINT count$11, BIGINT count$12)]
    +- LocalSortAggregate(select=[Partial_COUNT(byte) AS count$0, Partial_COUNT(short) AS count$1, Partial_COUNT(int) AS count$2, Partial_COUNT(long) AS count$3, Partial_COUNT(float) AS count$4, Partial_COUNT(double) AS count$5, Partial_COUNT(decimal3020) AS count$6, Partial_COUNT(decimal105) AS count$7, Partial_COUNT(boolean) AS count$8, Partial_COUNT(date) AS count$9, Partial_COUNT(time) AS count$10, Partial_COUNT(timestamp) AS count$11, Partial_COUNT(string) AS count$12]), rowType=[RecordType(BIGINT count$0, BIGINT count$1, BIGINT count$2, BIGINT count$3, BIGINT count$4, BIGINT count$5, BIGINT count$6, BIGINT count$7, BIGINT count$8, BIGINT count$9, BIGINT count$10, BIGINT count$11, BIGINT count$12)]
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -648,7 +648,7 @@ SortAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_COUN
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()]), rowType=[RecordType(BIGINT EXPR$0)]
 +- LogicalProject($f0=[0]), rowType=[RecordType(INTEGER $f0)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -657,7 +657,7 @@ SortAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0]), rowType
 +- Exchange(distribution=[single]), rowType=[RecordType(BIGINT count1$0)]
    +- LocalSortAggregate(select=[Partial_COUNT(*) AS count1$0]), rowType=[RecordType(BIGINT count1$0)]
       +- Calc(select=[0 AS $f0]), rowType=[RecordType(INTEGER $f0)]
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -669,7 +669,7 @@ SortAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0]), rowType
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()]), rowType=[RecordType(BIGINT EXPR$0)]
 +- LogicalProject($f0=[0]), rowType=[RecordType(INTEGER $f0)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -677,7 +677,7 @@ LogicalAggregate(group=[{}], EXPR$0=[COUNT()]), rowType=[RecordType(BIGINT EXPR$
 SortAggregate(isMerge=[false], select=[COUNT(*) AS EXPR$0]), rowType=[RecordType(BIGINT EXPR$0)]
 +- Exchange(distribution=[single]), rowType=[RecordType(INTEGER $f0)]
    +- Calc(select=[0 AS $f0]), rowType=[RecordType(INTEGER $f0)]
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -689,7 +689,7 @@ SortAggregate(isMerge=[false], select=[COUNT(*) AS EXPR$0]), rowType=[RecordType
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT()]), rowType=[RecordType(BIGINT EXPR$0)]
 +- LogicalProject($f0=[0]), rowType=[RecordType(INTEGER $f0)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -698,7 +698,7 @@ SortAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0]), rowType
 +- Exchange(distribution=[single]), rowType=[RecordType(BIGINT count1$0)]
    +- LocalSortAggregate(select=[Partial_COUNT(*) AS count1$0]), rowType=[RecordType(BIGINT count1$0)]
       +- Calc(select=[0 AS $f0]), rowType=[RecordType(INTEGER $f0)]
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -767,7 +767,7 @@ SortAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0]), rowType
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -779,7 +779,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1
          +- LocalSortAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0, Partial_COUNT(c) AS count$1])
             +- Exchange(distribution=[forward])
                +- Sort(orderBy=[a ASC])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -790,7 +790,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -799,7 +799,7 @@ SortAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$1, COUNT(c
 +- Exchange(distribution=[forward])
    +- Sort(orderBy=[a ASC])
       +- Exchange(distribution=[hash[a]])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -810,7 +810,7 @@ SortAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$1, COUNT(c
     <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -822,7 +822,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1
          +- LocalSortAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0, Partial_COUNT(c) AS count$1])
             +- Exchange(distribution=[forward])
                +- Sort(orderBy=[a ASC])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -834,7 +834,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
 +- LogicalFilter(condition=[=($0, 1)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -847,7 +847,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1
             +- Exchange(distribution=[forward])
                +- Sort(orderBy=[a ASC])
                   +- Calc(select=[a, b, c], where=[(a = 1)])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -859,7 +859,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
 +- LogicalFilter(condition=[=($0, 1)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -869,7 +869,7 @@ SortAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$1, COUNT(c
    +- Sort(orderBy=[a ASC])
       +- Exchange(distribution=[hash[a]])
          +- Calc(select=[a, b, c], where=[(a = 1)])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -881,7 +881,7 @@ SortAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$1, COUNT(c
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT($2)])
 +- LogicalFilter(condition=[=($0, 1)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -894,7 +894,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1
             +- Exchange(distribution=[forward])
                +- Sort(orderBy=[a ASC])
                   +- Calc(select=[a, b, c], where=[(a = 1)])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -909,7 +909,7 @@ SELECT a, MAX(b), c FROM (SELECT a, 'test' AS c, b FROM MyTable1) t GROUP BY a, 
 LogicalProject(a=[$0], EXPR$1=[$2], c=[$1])
 +- LogicalAggregate(group=[{0, 1}], EXPR$1=[MAX($2)])
    +- LogicalProject(a=[$0], c=[_UTF-16LE'test'], b=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -923,7 +923,7 @@ Calc(select=[a, EXPR$1, 'test' AS c])
                +- Exchange(distribution=[forward])
                   +- Sort(orderBy=[a ASC])
                      +- Calc(select=[a, b])
-                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -938,7 +938,7 @@ SELECT a, MAX(b), c FROM (SELECT a, 'test' AS c, b FROM MyTable1) t GROUP BY a, 
 LogicalProject(a=[$0], EXPR$1=[$2], c=[$1])
 +- LogicalAggregate(group=[{0, 1}], EXPR$1=[MAX($2)])
    +- LogicalProject(a=[$0], c=[_UTF-16LE'test'], b=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -949,7 +949,7 @@ Calc(select=[a, EXPR$1, 'test' AS c])
       +- Sort(orderBy=[a ASC])
          +- Exchange(distribution=[hash[a]])
             +- Calc(select=[a, b])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -964,7 +964,7 @@ SELECT a, MAX(b), c FROM (SELECT a, 'test' AS c, b FROM MyTable1) t GROUP BY a, 
 LogicalProject(a=[$0], EXPR$1=[$2], c=[$1])
 +- LogicalAggregate(group=[{0, 1}], EXPR$1=[MAX($2)])
    +- LogicalProject(a=[$0], c=[_UTF-16LE'test'], b=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -978,7 +978,7 @@ Calc(select=[a, EXPR$1, 'test' AS c])
                +- Exchange(distribution=[forward])
                   +- Sort(orderBy=[a ASC])
                      +- Calc(select=[a, b])
-                        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1004,7 +1004,7 @@ FROM MyTable
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[MAX($1)], EXPR$2=[MAX($2)], EXPR$3=[MAX($3)], EXPR$4=[MAX($4)], EXPR$5=[MAX($5)], EXPR$6=[MAX($6)], EXPR$7=[MAX($7)], EXPR$8=[MAX($8)], EXPR$9=[MAX($9)], EXPR$10=[MAX($10)], EXPR$11=[MAX($11)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
 +- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1013,7 +1013,7 @@ SortAggregate(isMerge=[true], select=[Final_MAX(max$0) AS EXPR$0, Final_MAX(max$
 +- Exchange(distribution=[single]), rowType=[RecordType(TINYINT max$0, SMALLINT max$1, INTEGER max$2, BIGINT max$3, FLOAT max$4, DOUBLE max$5, DECIMAL(30, 20) max$6, DECIMAL(10, 5) max$7, BOOLEAN max$8, DATE max$9, TIME(0) max$10, TIMESTAMP(3) max$11)]
    +- LocalSortAggregate(select=[Partial_MAX(byte) AS max$0, Partial_MAX(short) AS max$1, Partial_MAX(int) AS max$2, Partial_MAX(long) AS max$3, Partial_MAX(float) AS max$4, Partial_MAX(double) AS max$5, Partial_MAX(decimal3020) AS max$6, Partial_MAX(decimal105) AS max$7, Partial_MAX(boolean) AS max$8, Partial_MAX(date) AS max$9, Partial_MAX(time) AS max$10, Partial_MAX(timestamp) AS max$11]), rowType=[RecordType(TINYINT max$0, SMALLINT max$1, INTEGER max$2, BIGINT max$3, FLOAT max$4, DOUBLE max$5, DECIMAL(30, 20) max$6, DECIMAL(10, 5) max$7, BOOLEAN max$8, DATE max$9, TIME(0) max$10, TIMESTAMP(3) max$11)]
       +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105, boolean, date, time, timestamp]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -1039,7 +1039,7 @@ FROM MyTable
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[MAX($1)], EXPR$2=[MAX($2)], EXPR$3=[MAX($3)], EXPR$4=[MAX($4)], EXPR$5=[MAX($5)], EXPR$6=[MAX($6)], EXPR$7=[MAX($7)], EXPR$8=[MAX($8)], EXPR$9=[MAX($9)], EXPR$10=[MAX($10)], EXPR$11=[MAX($11)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
 +- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1047,7 +1047,7 @@ LogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[MAX($1)], EXPR$2=[MAX($2)
 SortAggregate(isMerge=[false], select=[MAX(byte) AS EXPR$0, MAX(short) AS EXPR$1, MAX(int) AS EXPR$2, MAX(long) AS EXPR$3, MAX(float) AS EXPR$4, MAX(double) AS EXPR$5, MAX(decimal3020) AS EXPR$6, MAX(decimal105) AS EXPR$7, MAX(boolean) AS EXPR$8, MAX(date) AS EXPR$9, MAX(time) AS EXPR$10, MAX(timestamp) AS EXPR$11]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
 +- Exchange(distribution=[single]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
    +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105, boolean, date, time, timestamp]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -1073,7 +1073,7 @@ FROM MyTable
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[MAX($1)], EXPR$2=[MAX($2)], EXPR$3=[MAX($3)], EXPR$4=[MAX($4)], EXPR$5=[MAX($5)], EXPR$6=[MAX($6)], EXPR$7=[MAX($7)], EXPR$8=[MAX($8)], EXPR$9=[MAX($9)], EXPR$10=[MAX($10)], EXPR$11=[MAX($11)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
 +- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1082,7 +1082,7 @@ SortAggregate(isMerge=[true], select=[Final_MAX(max$0) AS EXPR$0, Final_MAX(max$
 +- Exchange(distribution=[single]), rowType=[RecordType(TINYINT max$0, SMALLINT max$1, INTEGER max$2, BIGINT max$3, FLOAT max$4, DOUBLE max$5, DECIMAL(30, 20) max$6, DECIMAL(10, 5) max$7, BOOLEAN max$8, DATE max$9, TIME(0) max$10, TIMESTAMP(3) max$11)]
    +- LocalSortAggregate(select=[Partial_MAX(byte) AS max$0, Partial_MAX(short) AS max$1, Partial_MAX(int) AS max$2, Partial_MAX(long) AS max$3, Partial_MAX(float) AS max$4, Partial_MAX(double) AS max$5, Partial_MAX(decimal3020) AS max$6, Partial_MAX(decimal105) AS max$7, Partial_MAX(boolean) AS max$8, Partial_MAX(date) AS max$9, Partial_MAX(time) AS max$10, Partial_MAX(timestamp) AS max$11]), rowType=[RecordType(TINYINT max$0, SMALLINT max$1, INTEGER max$2, BIGINT max$3, FLOAT max$4, DOUBLE max$5, DECIMAL(30, 20) max$6, DECIMAL(10, 5) max$7, BOOLEAN max$8, DATE max$9, TIME(0) max$10, TIMESTAMP(3) max$11)]
       +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105, boolean, date, time, timestamp]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -1094,7 +1094,7 @@ SortAggregate(isMerge=[true], select=[Final_MAX(max$0) AS EXPR$0, Final_MAX(max$
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)]), rowType=[RecordType(VARCHAR(2147483647) EXPR$0)]
 +- LogicalProject(string=[$7]), rowType=[RecordType(VARCHAR(2147483647) string)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1103,7 +1103,7 @@ SortAggregate(isMerge=[true], select=[Final_MAX(max$0) AS EXPR$0]), rowType=[Rec
 +- Exchange(distribution=[single]), rowType=[RecordType(VARCHAR(2147483647) max$0)]
    +- LocalSortAggregate(select=[Partial_MAX(string) AS max$0]), rowType=[RecordType(VARCHAR(2147483647) max$0)]
       +- Calc(select=[string]), rowType=[RecordType(VARCHAR(2147483647) string)]
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -1115,7 +1115,7 @@ SortAggregate(isMerge=[true], select=[Final_MAX(max$0) AS EXPR$0]), rowType=[Rec
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)]), rowType=[RecordType(VARCHAR(2147483647) EXPR$0)]
 +- LogicalProject(string=[$7]), rowType=[RecordType(VARCHAR(2147483647) string)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1123,7 +1123,7 @@ LogicalAggregate(group=[{}], EXPR$0=[MAX($0)]), rowType=[RecordType(VARCHAR(2147
 SortAggregate(isMerge=[false], select=[MAX(string) AS EXPR$0]), rowType=[RecordType(VARCHAR(2147483647) EXPR$0)]
 +- Exchange(distribution=[single]), rowType=[RecordType(VARCHAR(2147483647) string)]
    +- Calc(select=[string]), rowType=[RecordType(VARCHAR(2147483647) string)]
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -1135,7 +1135,7 @@ SortAggregate(isMerge=[false], select=[MAX(string) AS EXPR$0]), rowType=[RecordT
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)]), rowType=[RecordType(VARCHAR(2147483647) EXPR$0)]
 +- LogicalProject(string=[$7]), rowType=[RecordType(VARCHAR(2147483647) string)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1144,7 +1144,7 @@ SortAggregate(isMerge=[true], select=[Final_MAX(max$0) AS EXPR$0]), rowType=[Rec
 +- Exchange(distribution=[single]), rowType=[RecordType(VARCHAR(2147483647) max$0)]
    +- LocalSortAggregate(select=[Partial_MAX(string) AS max$0]), rowType=[RecordType(VARCHAR(2147483647) max$0)]
       +- Calc(select=[string]), rowType=[RecordType(VARCHAR(2147483647) string)]
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -1170,7 +1170,7 @@ FROM MyTable
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)], EXPR$1=[MIN($1)], EXPR$2=[MIN($2)], EXPR$3=[MIN($3)], EXPR$4=[MIN($4)], EXPR$5=[MIN($5)], EXPR$6=[MIN($6)], EXPR$7=[MIN($7)], EXPR$8=[MIN($8)], EXPR$9=[MIN($9)], EXPR$10=[MIN($10)], EXPR$11=[MIN($11)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
 +- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1179,7 +1179,7 @@ SortAggregate(isMerge=[true], select=[Final_MIN(min$0) AS EXPR$0, Final_MIN(min$
 +- Exchange(distribution=[single]), rowType=[RecordType(TINYINT min$0, SMALLINT min$1, INTEGER min$2, BIGINT min$3, FLOAT min$4, DOUBLE min$5, DECIMAL(30, 20) min$6, DECIMAL(10, 5) min$7, BOOLEAN min$8, DATE min$9, TIME(0) min$10, TIMESTAMP(3) min$11)]
    +- LocalSortAggregate(select=[Partial_MIN(byte) AS min$0, Partial_MIN(short) AS min$1, Partial_MIN(int) AS min$2, Partial_MIN(long) AS min$3, Partial_MIN(float) AS min$4, Partial_MIN(double) AS min$5, Partial_MIN(decimal3020) AS min$6, Partial_MIN(decimal105) AS min$7, Partial_MIN(boolean) AS min$8, Partial_MIN(date) AS min$9, Partial_MIN(time) AS min$10, Partial_MIN(timestamp) AS min$11]), rowType=[RecordType(TINYINT min$0, SMALLINT min$1, INTEGER min$2, BIGINT min$3, FLOAT min$4, DOUBLE min$5, DECIMAL(30, 20) min$6, DECIMAL(10, 5) min$7, BOOLEAN min$8, DATE min$9, TIME(0) min$10, TIMESTAMP(3) min$11)]
       +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105, boolean, date, time, timestamp]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -1205,7 +1205,7 @@ FROM MyTable
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)], EXPR$1=[MIN($1)], EXPR$2=[MIN($2)], EXPR$3=[MIN($3)], EXPR$4=[MIN($4)], EXPR$5=[MIN($5)], EXPR$6=[MIN($6)], EXPR$7=[MIN($7)], EXPR$8=[MIN($8)], EXPR$9=[MIN($9)], EXPR$10=[MIN($10)], EXPR$11=[MIN($11)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
 +- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1213,7 +1213,7 @@ LogicalAggregate(group=[{}], EXPR$0=[MIN($0)], EXPR$1=[MIN($1)], EXPR$2=[MIN($2)
 SortAggregate(isMerge=[false], select=[MIN(byte) AS EXPR$0, MIN(short) AS EXPR$1, MIN(int) AS EXPR$2, MIN(long) AS EXPR$3, MIN(float) AS EXPR$4, MIN(double) AS EXPR$5, MIN(decimal3020) AS EXPR$6, MIN(decimal105) AS EXPR$7, MIN(boolean) AS EXPR$8, MIN(date) AS EXPR$9, MIN(time) AS EXPR$10, MIN(timestamp) AS EXPR$11]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
 +- Exchange(distribution=[single]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
    +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105, boolean, date, time, timestamp]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -1239,7 +1239,7 @@ FROM MyTable
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)], EXPR$1=[MIN($1)], EXPR$2=[MIN($2)], EXPR$3=[MIN($3)], EXPR$4=[MIN($4)], EXPR$5=[MIN($5)], EXPR$6=[MIN($6)], EXPR$7=[MIN($7)], EXPR$8=[MIN($8)], EXPR$9=[MIN($9)], EXPR$10=[MIN($10)], EXPR$11=[MIN($11)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(30, 20) EXPR$6, DECIMAL(10, 5) EXPR$7, BOOLEAN EXPR$8, DATE EXPR$9, TIME(0) EXPR$10, TIMESTAMP(3) EXPR$11)]
 +- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12], boolean=[$6], date=[$8], time=[$9], timestamp=[$10]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1248,7 +1248,7 @@ SortAggregate(isMerge=[true], select=[Final_MIN(min$0) AS EXPR$0, Final_MIN(min$
 +- Exchange(distribution=[single]), rowType=[RecordType(TINYINT min$0, SMALLINT min$1, INTEGER min$2, BIGINT min$3, FLOAT min$4, DOUBLE min$5, DECIMAL(30, 20) min$6, DECIMAL(10, 5) min$7, BOOLEAN min$8, DATE min$9, TIME(0) min$10, TIMESTAMP(3) min$11)]
    +- LocalSortAggregate(select=[Partial_MIN(byte) AS min$0, Partial_MIN(short) AS min$1, Partial_MIN(int) AS min$2, Partial_MIN(long) AS min$3, Partial_MIN(float) AS min$4, Partial_MIN(double) AS min$5, Partial_MIN(decimal3020) AS min$6, Partial_MIN(decimal105) AS min$7, Partial_MIN(boolean) AS min$8, Partial_MIN(date) AS min$9, Partial_MIN(time) AS min$10, Partial_MIN(timestamp) AS min$11]), rowType=[RecordType(TINYINT min$0, SMALLINT min$1, INTEGER min$2, BIGINT min$3, FLOAT min$4, DOUBLE min$5, DECIMAL(30, 20) min$6, DECIMAL(10, 5) min$7, BOOLEAN min$8, DATE min$9, TIME(0) min$10, TIMESTAMP(3) min$11)]
       +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105, boolean, date, time, timestamp]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105, BOOLEAN boolean, DATE date, TIME(0) time, TIMESTAMP(3) timestamp)]
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -1260,7 +1260,7 @@ SortAggregate(isMerge=[true], select=[Final_MIN(min$0) AS EXPR$0, Final_MIN(min$
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)]), rowType=[RecordType(VARCHAR(2147483647) EXPR$0)]
 +- LogicalProject(string=[$7]), rowType=[RecordType(VARCHAR(2147483647) string)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1269,7 +1269,7 @@ SortAggregate(isMerge=[true], select=[Final_MIN(min$0) AS EXPR$0]), rowType=[Rec
 +- Exchange(distribution=[single]), rowType=[RecordType(VARCHAR(2147483647) min$0)]
    +- LocalSortAggregate(select=[Partial_MIN(string) AS min$0]), rowType=[RecordType(VARCHAR(2147483647) min$0)]
       +- Calc(select=[string]), rowType=[RecordType(VARCHAR(2147483647) string)]
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -1281,7 +1281,7 @@ SortAggregate(isMerge=[true], select=[Final_MIN(min$0) AS EXPR$0]), rowType=[Rec
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)]), rowType=[RecordType(VARCHAR(2147483647) EXPR$0)]
 +- LogicalProject(string=[$7]), rowType=[RecordType(VARCHAR(2147483647) string)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1289,7 +1289,7 @@ LogicalAggregate(group=[{}], EXPR$0=[MIN($0)]), rowType=[RecordType(VARCHAR(2147
 SortAggregate(isMerge=[false], select=[MIN(string) AS EXPR$0]), rowType=[RecordType(VARCHAR(2147483647) EXPR$0)]
 +- Exchange(distribution=[single]), rowType=[RecordType(VARCHAR(2147483647) string)]
    +- Calc(select=[string]), rowType=[RecordType(VARCHAR(2147483647) string)]
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -1301,7 +1301,7 @@ SortAggregate(isMerge=[false], select=[MIN(string) AS EXPR$0]), rowType=[RecordT
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)]), rowType=[RecordType(VARCHAR(2147483647) EXPR$0)]
 +- LogicalProject(string=[$7]), rowType=[RecordType(VARCHAR(2147483647) string)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1310,7 +1310,7 @@ SortAggregate(isMerge=[true], select=[Final_MIN(min$0) AS EXPR$0]), rowType=[Rec
 +- Exchange(distribution=[single]), rowType=[RecordType(VARCHAR(2147483647) min$0)]
    +- LocalSortAggregate(select=[Partial_MIN(string) AS min$0]), rowType=[RecordType(VARCHAR(2147483647) min$0)]
       +- Calc(select=[string]), rowType=[RecordType(VARCHAR(2147483647) string)]
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -1322,7 +1322,7 @@ SortAggregate(isMerge=[true], select=[Final_MIN(min$0) AS EXPR$0]), rowType=[Rec
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[var_sum($1)])
 +- LogicalProject(b=[$1], a=[$0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1332,7 +1332,7 @@ SortAggregate(isMerge=[false], groupBy=[b], select=[b, var_sum(a) AS EXPR$1])
    +- Sort(orderBy=[b ASC])
       +- Exchange(distribution=[hash[b]])
          +- Calc(select=[b, a])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1344,7 +1344,7 @@ SortAggregate(isMerge=[false], groupBy=[b], select=[b, var_sum(a) AS EXPR$1])
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[var_sum($1)])
 +- LogicalProject(b=[$1], a=[$0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1354,7 +1354,7 @@ SortAggregate(isMerge=[false], groupBy=[b], select=[b, var_sum(a) AS EXPR$1])
    +- Sort(orderBy=[b ASC])
       +- Exchange(distribution=[hash[b]])
          +- Calc(select=[b, a])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1366,7 +1366,7 @@ SortAggregate(isMerge=[false], groupBy=[b], select=[b, var_sum(a) AS EXPR$1])
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[var_sum($1)])
 +- LogicalProject(b=[$1], a=[$0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1376,7 +1376,7 @@ SortAggregate(isMerge=[false], groupBy=[b], select=[b, var_sum(a) AS EXPR$1])
    +- Sort(orderBy=[b ASC])
       +- Exchange(distribution=[hash[b]])
          +- Calc(select=[b, a])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1398,7 +1398,7 @@ FROM MyTable
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[SUM($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)], EXPR$4=[SUM($4)], EXPR$5=[SUM($5)], EXPR$6=[SUM($6)], EXPR$7=[SUM($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 5) EXPR$7)]
 +- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1407,7 +1407,7 @@ SortAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS EXPR$0, Final_SUM(sum$
 +- Exchange(distribution=[single]), rowType=[RecordType(TINYINT sum$0, SMALLINT sum$1, INTEGER sum$2, BIGINT sum$3, FLOAT sum$4, DOUBLE sum$5, DECIMAL(38, 20) sum$6, DECIMAL(38, 5) sum$7)]
    +- LocalSortAggregate(select=[Partial_SUM(byte) AS sum$0, Partial_SUM(short) AS sum$1, Partial_SUM(int) AS sum$2, Partial_SUM(long) AS sum$3, Partial_SUM(float) AS sum$4, Partial_SUM(double) AS sum$5, Partial_SUM(decimal3020) AS sum$6, Partial_SUM(decimal105) AS sum$7]), rowType=[RecordType(TINYINT sum$0, SMALLINT sum$1, INTEGER sum$2, BIGINT sum$3, FLOAT sum$4, DOUBLE sum$5, DECIMAL(38, 20) sum$6, DECIMAL(38, 5) sum$7)]
       +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -1429,7 +1429,7 @@ FROM MyTable
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[SUM($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)], EXPR$4=[SUM($4)], EXPR$5=[SUM($5)], EXPR$6=[SUM($6)], EXPR$7=[SUM($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 5) EXPR$7)]
 +- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1437,7 +1437,7 @@ LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[SUM($1)], EXPR$2=[SUM($2)
 SortAggregate(isMerge=[false], select=[SUM(byte) AS EXPR$0, SUM(short) AS EXPR$1, SUM(int) AS EXPR$2, SUM(long) AS EXPR$3, SUM(float) AS EXPR$4, SUM(double) AS EXPR$5, SUM(decimal3020) AS EXPR$6, SUM(decimal105) AS EXPR$7]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 5) EXPR$7)]
 +- Exchange(distribution=[single]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
    +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>
@@ -1459,7 +1459,7 @@ FROM MyTable
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[SUM($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)], EXPR$4=[SUM($4)], EXPR$5=[SUM($5)], EXPR$6=[SUM($6)], EXPR$7=[SUM($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 5) EXPR$7)]
 +- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1468,7 +1468,7 @@ SortAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS EXPR$0, Final_SUM(sum$
 +- Exchange(distribution=[single]), rowType=[RecordType(TINYINT sum$0, SMALLINT sum$1, INTEGER sum$2, BIGINT sum$3, FLOAT sum$4, DOUBLE sum$5, DECIMAL(38, 20) sum$6, DECIMAL(38, 5) sum$7)]
    +- LocalSortAggregate(select=[Partial_SUM(byte) AS sum$0, Partial_SUM(short) AS sum$1, Partial_SUM(int) AS sum$2, Partial_SUM(long) AS sum$3, Partial_SUM(float) AS sum$4, Partial_SUM(double) AS sum$5, Partial_SUM(decimal3020) AS sum$6, Partial_SUM(decimal105) AS sum$7]), rowType=[RecordType(TINYINT sum$0, SMALLINT sum$1, INTEGER sum$2, BIGINT sum$3, FLOAT sum$4, DOUBLE sum$5, DECIMAL(38, 20) sum$6, DECIMAL(38, 5) sum$7)]
       +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105)]]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>

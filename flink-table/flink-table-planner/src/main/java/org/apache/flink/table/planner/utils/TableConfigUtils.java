@@ -105,11 +105,6 @@ public class TableConfigUtils {
         return ZoneId.of(zone);
     }
 
-    /**
-     * Similar to {@link TableConfig#getMaxIdleStateRetentionTime()}.
-     *
-     * @see TableConfig#getMaxIdleStateRetentionTime()
-     */
     @Deprecated
     public static long getMaxIdleStateRetentionTime(ReadableConfig tableConfig) {
         return tableConfig.get(ExecutionConfigOptions.IDLE_STATE_RETENTION).toMillis() * 3 / 2;

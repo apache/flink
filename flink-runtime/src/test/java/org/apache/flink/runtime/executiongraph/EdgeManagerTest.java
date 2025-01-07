@@ -42,6 +42,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.POINTWISE;
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -133,8 +134,8 @@ class EdgeManagerTest {
         producer.setInvokableClass(NoOpInvokable.class);
         consumer.setInvokableClass(NoOpInvokable.class);
 
-        consumer.connectNewDataSetAsInput(
-                producer, distributionPattern, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                consumer, producer, distributionPattern, ResultPartitionType.BLOCKING);
 
         JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(producer, consumer);
         SchedulerBase scheduler =

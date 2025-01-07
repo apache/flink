@@ -36,11 +36,11 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.util.TestLogger;
 
+import org.assertj.core.api.Assertions;
 import org.junit.Test;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Integration tests for the {@link JobMaster}. */
 public class JobMasterITCase extends TestLogger {
@@ -58,9 +58,9 @@ public class JobMasterITCase extends TestLogger {
 
         try {
             miniCluster.getMiniCluster().submitJob(jobGraph).get();
-            fail("Expect failure");
+            Assertions.fail("Expect failure");
         } catch (Throwable t) {
-            assertThat(t, containsMessage("The given job is empty"));
+            assertThat(t).hasRootCauseMessage("The given job is empty");
         } finally {
             miniCluster.after();
         }
@@ -85,11 +85,7 @@ public class JobMasterITCase extends TestLogger {
                 see.fromSource(mySource, WatermarkStrategy.noWatermarks(), "MySourceName");
         stream.sinkTo(new DiscardingSink<>());
 
-        try {
-            see.execute();
-        } catch (Exception e) {
-            assertThat(e, containsMessage("Context was not yet initialized"));
-        }
+        assertThatThrownBy(see::execute).hasRootCauseMessage("Context was not yet initialized");
     }
 
     private static class FailOnInitializationSource implements Source<String, MockSplit, Void> {

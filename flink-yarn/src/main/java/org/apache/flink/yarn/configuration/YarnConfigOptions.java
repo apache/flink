@@ -482,7 +482,9 @@ public class YarnConfigOptions {
     /** This class is not meant to be instantiated. */
     private YarnConfigOptions() {}
 
-    /** @see YarnConfigOptions#CLASSPATH_INCLUDE_USER_JAR */
+    /**
+     * @see YarnConfigOptions#CLASSPATH_INCLUDE_USER_JAR
+     */
     public enum UserJarInclusion implements DescribedEnum {
         DISABLED(text("Exclude user jars from the system class path")),
         FIRST(text("Position at the beginning")),

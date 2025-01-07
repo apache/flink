@@ -134,6 +134,17 @@ TableEnvironment API
     </tr>
     <tr>
       <td>
+        <strong>drop_view(view_path, ignore_if_not_exists=True)</strong>
+      </td>
+      <td>
+        Drops a view registered in the given path.
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_view" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
         <strong>drop_temporary_table(table_path)</strong>
       </td>
       <td>
@@ -142,6 +153,17 @@ TableEnvironment API
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_table" name="链接">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>drop_table(table_path, ignore_if_not_exists=True)</strong>
+      </td>
+      <td>
+        Drops a table registered under the given path.
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_table" name="link">}}
       </td>
     </tr>
     <tr>
@@ -184,17 +206,6 @@ TableEnvironment API
     </tr>
   </thead>
   <tbody>
-    <tr>
-      <td>
-        <strong>from_table_source(table_source)</strong>
-      </td>
-      <td>
-        通过 table source 创建一张表。
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.from_table_source" name="链接">}}
-      </td>
-    </tr>
     <tr>
       <td>
         <strong>scan(*table_path)</strong>
@@ -769,7 +780,7 @@ table_env.get_config().set("execution.checkpointing.interval", "3min")
 
 # 设置 statebackend 类型为 "rocksdb"，其他可选项有 "hashmap"
 # 你也可以将这个属性设置为 StateBackendFactory 的完整类名
-# e.g. org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory
+# e.g. org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackendFactory
 table_env.get_config().set("state.backend.type", "rocksdb")
 
 # 设置 RocksDB statebackend 所需要的 checkpoint 目录

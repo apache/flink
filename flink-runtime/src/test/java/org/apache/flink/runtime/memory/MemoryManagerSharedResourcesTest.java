@@ -234,6 +234,7 @@ class MemoryManagerSharedResourcesTest {
                                         0.1));
         assertThat(memoryManager.verifyEmpty()).isTrue();
     }
+
     // ------------------------------------------------------------------------
     //  Utils
     // ------------------------------------------------------------------------

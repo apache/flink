@@ -151,6 +151,7 @@ class ParquetColumnarRowSplitReaderTest {
                                     Collections.singletonList(
                                             new RowType.RowField("a", new IntType())))),
                     RowType.of(
+                            new IntType(),
                             new ArrayType(
                                     true,
                                     new RowType(
@@ -161,8 +162,7 @@ class ParquetColumnarRowSplitReaderTest {
                                                                     true,
                                                                     new ArrayType(
                                                                             true, new IntType()))),
-                                                    new RowType.RowField("c", new IntType())))),
-                            new IntType()));
+                                                    new RowType.RowField("c", new IntType()))))));
 
     @SuppressWarnings("unchecked")
     private static final DataFormatConverters.DataFormatConverter<RowData, Row>
@@ -829,6 +829,7 @@ class ParquetColumnarRowSplitReaderTest {
                             new Map[] {null, mp1, mp2},
                             new Row[] {Row.of(i), Row.of(i + 1), null},
                             Row.of(
+                                    i,
                                     new Row[] {
                                         Row.of(
                                                 new Integer[][] {
@@ -836,8 +837,7 @@ class ParquetColumnarRowSplitReaderTest {
                                                 },
                                                 i),
                                         null
-                                    },
-                                    i)));
+                                    })));
         }
         return rows;
     }
@@ -888,15 +888,15 @@ class ParquetColumnarRowSplitReaderTest {
                 row2.add(0, i + 1);
                 f4.addGroup(0);
 
-                // add ROW<`f0` ARRAY<ROW<`b` ARRAY<ARRAY<INT>>, `c` INT>>, `f1` INT>>
+                // add ROW<`f0` INT , `f1` INTARRAY<ROW<`b` ARRAY<ARRAY<INT>>, `c` INT>>>>
                 Group f5 = row.addGroup("f5");
-                Group arrayRow = f5.addGroup(0);
+                f5.add(0, i);
+                Group arrayRow = f5.addGroup(1);
                 Group insideRow = arrayRow.addGroup(0).addGroup(0);
                 Group insideArray = insideRow.addGroup(0);
                 createParquetDoubleNestedArray(insideArray, i);
                 insideRow.add(1, i);
                 arrayRow.addGroup(0);
-                f5.add(1, i);
                 writer.write(row);
             }
         } catch (Exception e) {

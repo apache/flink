@@ -125,8 +125,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.Assumptions.assumeThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -5723,7 +5723,9 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         return true;
     }
 
-    /** @return true if state backend is safe to reuse state. */
+    /**
+     * @return true if state backend is safe to reuse state.
+     */
     protected boolean isSafeToReuseKVState() {
         return false;
     }

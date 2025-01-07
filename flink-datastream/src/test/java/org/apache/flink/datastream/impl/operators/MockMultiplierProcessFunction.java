@@ -20,8 +20,8 @@ package org.apache.flink.datastream.impl.operators;
 
 import org.apache.flink.api.common.state.StateDeclaration;
 import org.apache.flink.api.common.state.StateDeclarations;
-import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDeclaration;
+import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.api.common.typeinfo.TypeDescriptors;
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.PartitionedContext;

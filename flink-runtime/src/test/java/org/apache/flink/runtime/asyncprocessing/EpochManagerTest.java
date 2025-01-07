@@ -39,7 +39,7 @@ class EpochManagerTest {
         assertThat(epoch1.ongoingRecordCount).isEqualTo(2);
         AtomicInteger output = new AtomicInteger(0);
         epochManager.onNonRecord(
-                () -> output.incrementAndGet(), ParallelMode.PARALLEL_BETWEEN_EPOCH);
+                null, () -> output.incrementAndGet(), ParallelMode.PARALLEL_BETWEEN_EPOCH);
         // record3 is in a new epoch
         Epoch epoch3 = epochManager.onRecord();
         assertThat(epoch3).isNotEqualTo(epoch1);
@@ -57,5 +57,39 @@ class EpochManagerTest {
         assertThat(epochManager.outputQueue.size()).isEqualTo(0);
         assertThat(epochManager.activeEpoch.ongoingRecordCount).isEqualTo(0);
         assertThat(epochManager.activeEpoch.status).isEqualTo(EpochStatus.OPEN);
+
+        // Test if in the action there is a record processing. Should not be any error.
+        epochManager.onNonRecord(
+                null,
+                () -> {
+                    output.incrementAndGet();
+                    Epoch epoch4 = epochManager.onRecord();
+                    epochManager.completeOneRecord(epoch4);
+                },
+                ParallelMode.PARALLEL_BETWEEN_EPOCH);
+        assertThat(output.get()).isEqualTo(2);
+    }
+
+    @Test
+    void testTwoAction() {
+        EpochManager epochManager = new EpochManager(null);
+        Epoch epoch1 = epochManager.onRecord();
+        Epoch epoch2 = epochManager.onRecord();
+        assertThat(epoch1).isEqualTo(epoch2);
+        assertThat(epoch1.ongoingRecordCount).isEqualTo(2);
+        AtomicInteger output = new AtomicInteger(0);
+        epochManager.onNonRecord(
+                () -> epochManager.onEpoch(epoch1),
+                () -> output.incrementAndGet(),
+                ParallelMode.PARALLEL_BETWEEN_EPOCH);
+        assertThat(epoch1.status).isEqualTo(EpochStatus.CLOSED);
+        assertThat(output.get()).isEqualTo(0);
+        epochManager.completeOneRecord(epoch1);
+        epochManager.completeOneRecord(epoch2);
+        assertThat(epoch1.status).isEqualTo(EpochStatus.FINISHING);
+        assertThat(output.get()).isEqualTo(0);
+        epochManager.completeOneRecord(epoch1);
+        assertThat(epoch1.status).isEqualTo(EpochStatus.FINISHED);
+        assertThat(output.get()).isEqualTo(1);
     }
 }

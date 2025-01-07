@@ -50,12 +50,10 @@ public class NestedPositionUtil {
         int nullValuesCount = 0;
         BooleanArrayList nullRowFlags = new BooleanArrayList(0);
         for (int i = 0; i < fieldDefinitionLevels.length; i++) {
+            // If a row's last field is an array, the repetition levels for the array's items will
+            // be larger than the parent row's repetition level, so we need to skip those values.
             if (fieldRepetitionLevels[i] > rowRepetitionLevel) {
-                throw new IllegalStateException(
-                        format(
-                                "In parquet's row type field repetition level should not larger than row's repetition level. "
-                                        + "Row repetition level is %s, row field repetition level is %s.",
-                                rowRepetitionLevel, fieldRepetitionLevels[i]));
+                continue;
             }
 
             if (fieldDefinitionLevels[i] >= rowDefinitionLevel) {

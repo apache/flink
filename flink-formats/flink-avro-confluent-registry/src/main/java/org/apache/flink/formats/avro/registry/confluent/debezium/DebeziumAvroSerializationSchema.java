@@ -54,6 +54,7 @@ public class DebeziumAvroSerializationSchema implements SerializationSchema<RowD
 
     /** insert operation. */
     private static final StringData OP_INSERT = StringData.fromString("c");
+
     /** delete operation. */
     private static final StringData OP_DELETE = StringData.fromString("d");
 

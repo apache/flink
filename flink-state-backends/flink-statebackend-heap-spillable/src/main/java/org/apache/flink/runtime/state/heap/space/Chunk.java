@@ -45,12 +45,16 @@ public interface Chunk {
      */
     void free(int interChunkOffset);
 
-    /** @return Id of this Chunk */
+    /**
+     * @return Id of this Chunk
+     */
     int getChunkId();
 
     int getChunkCapacity();
 
-    /** @return This chunk's backing MemorySegment described by chunkOffset. */
+    /**
+     * @return This chunk's backing MemorySegment described by chunkOffset.
+     */
     MemorySegment getMemorySegment(int chunkOffset);
 
     /**

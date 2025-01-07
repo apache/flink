@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
+import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategy;
 
@@ -292,11 +293,24 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
             return this;
         }
 
+        public Builder staticArguments(StaticArgument... staticArguments) {
+            this.typeInferenceBuilder.staticArguments(staticArguments);
+            return this;
+        }
+
+        /**
+         * @deprecated Use {@link #staticArguments(StaticArgument...)} instead.
+         */
+        @Deprecated
         public Builder namedArguments(String... argumentNames) {
             this.typeInferenceBuilder.namedArguments(Arrays.asList(argumentNames));
             return this;
         }
 
+        /**
+         * @deprecated Use {@link #staticArguments(StaticArgument...)} instead.
+         */
+        @Deprecated
         public Builder typedArguments(DataType... argumentTypes) {
             this.typeInferenceBuilder.typedArguments(Arrays.asList(argumentTypes));
             return this;

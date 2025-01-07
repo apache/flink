@@ -43,7 +43,6 @@ import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
-import org.apache.flink.runtime.state.v2.KeyedStateStoreV2;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -72,7 +71,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
     private final String operatorUniqueID;
     private final ProcessingTimeService processingTimeService;
     private @Nullable KeyedStateStore keyedStateStore;
-    private @Nullable KeyedStateStoreV2 keyedStateStoreV2;
+    private @Nullable org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStoreV2;
     private SupportKeyedStateApiSet supportKeyedStateApiSet;
     private final ExternalResourceInfoProvider externalResourceInfoProvider;
 
@@ -97,7 +96,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
             OperatorMetricGroup operatorMetricGroup,
             OperatorID operatorID,
             ProcessingTimeService processingTimeService,
-            @Nullable KeyedStateStore keyedStateStore,
+            @Nullable org.apache.flink.api.common.state.KeyedStateStore keyedStateStore,
             ExternalResourceInfoProvider externalResourceInfoProvider) {
         super(
                 checkNotNull(env).getJobInfo(),
@@ -121,10 +120,13 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
         this.keyedStateStore = keyedStateStore;
     }
 
-    public void setKeyedStateStoreV2(@Nullable KeyedStateStoreV2 keyedStateStoreV2) {
-        this.keyedStateStoreV2 = keyedStateStoreV2;
-        // Only if the keyedStateStoreV2 is set, this context is switch to support state v2
-        this.supportKeyedStateApiSet = SupportKeyedStateApiSet.STATE_V2;
+    public void setKeyedStateStoreV2(
+            @Nullable org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStore) {
+        if (keyedStateStore != null) {
+            // Only if the keyedStateStore is set, this context is switch to support state v2
+            this.keyedStateStoreV2 = keyedStateStore;
+            this.supportKeyedStateApiSet = SupportKeyedStateApiSet.STATE_V2;
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -268,43 +270,44 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
     // TODO: Reconstruct this after StateManager is ready in FLIP-410.
     public <T> org.apache.flink.api.common.state.v2.ValueState<T> getValueState(
             org.apache.flink.runtime.state.v2.ValueStateDescriptor<T> stateProperties) {
-        KeyedStateStoreV2 keyedStateStoreV2 =
+        org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStore =
                 checkPreconditionsAndGetKeyedStateStoreV2(stateProperties);
-        return keyedStateStoreV2.getValueState(stateProperties);
+        return keyedStateStore.getValueState(stateProperties);
     }
 
     public <T> org.apache.flink.api.common.state.v2.ListState<T> getListState(
             org.apache.flink.runtime.state.v2.ListStateDescriptor<T> stateProperties) {
-        KeyedStateStoreV2 keyedStateStoreV2 =
+        org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStore =
                 checkPreconditionsAndGetKeyedStateStoreV2(stateProperties);
-        return keyedStateStoreV2.getListState(stateProperties);
+        return keyedStateStore.getListState(stateProperties);
     }
 
     public <UK, UV> org.apache.flink.api.common.state.v2.MapState<UK, UV> getMapState(
             org.apache.flink.runtime.state.v2.MapStateDescriptor<UK, UV> stateProperties) {
-        KeyedStateStoreV2 keyedStateStoreV2 =
+        org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStore =
                 checkPreconditionsAndGetKeyedStateStoreV2(stateProperties);
-        return keyedStateStoreV2.getMapState(stateProperties);
+        return keyedStateStore.getMapState(stateProperties);
     }
 
     public <T> org.apache.flink.api.common.state.v2.ReducingState<T> getReducingState(
             org.apache.flink.runtime.state.v2.ReducingStateDescriptor<T> stateProperties) {
-        KeyedStateStoreV2 keyedStateStoreV2 =
+        org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStore =
                 checkPreconditionsAndGetKeyedStateStoreV2(stateProperties);
-        return keyedStateStoreV2.getReducingState(stateProperties);
+        return keyedStateStore.getReducingState(stateProperties);
     }
 
     public <IN, ACC, OUT>
             org.apache.flink.api.common.state.v2.AggregatingState<IN, OUT> getAggregatingState(
                     org.apache.flink.runtime.state.v2.AggregatingStateDescriptor<IN, ACC, OUT>
                             stateProperties) {
-        KeyedStateStoreV2 keyedStateStoreV2 =
+        org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStore =
                 checkPreconditionsAndGetKeyedStateStoreV2(stateProperties);
-        return keyedStateStoreV2.getAggregatingState(stateProperties);
+        return keyedStateStore.getAggregatingState(stateProperties);
     }
 
-    private KeyedStateStoreV2 checkPreconditionsAndGetKeyedStateStoreV2(
-            org.apache.flink.runtime.state.v2.StateDescriptor<?> stateDescriptor) {
+    private org.apache.flink.runtime.state.v2.KeyedStateStore
+            checkPreconditionsAndGetKeyedStateStoreV2(
+                    org.apache.flink.runtime.state.v2.StateDescriptor<?> stateDescriptor) {
         checkNotNull(stateDescriptor, "The state properties must not be null");
         checkState(
                 supportKeyedStateApiSet == SupportKeyedStateApiSet.STATE_V2,

@@ -37,21 +37,29 @@ import static org.apache.flink.table.types.extraction.ExtractionUtils.extraction
 @Internal
 final class FunctionArgumentTemplate {
 
-    final @Nullable DataType dataType;
+    private final @Nullable DataType dataType;
+    private final @Nullable InputGroup inputGroup;
+    private final @Nullable Class<?> conversionClass;
 
-    final @Nullable InputGroup inputGroup;
-
-    private FunctionArgumentTemplate(@Nullable DataType dataType, @Nullable InputGroup inputGroup) {
+    private FunctionArgumentTemplate(
+            @Nullable DataType dataType,
+            @Nullable InputGroup inputGroup,
+            @Nullable Class<?> conversionClass) {
         this.dataType = dataType;
         this.inputGroup = inputGroup;
+        this.conversionClass = conversionClass;
     }
 
-    static FunctionArgumentTemplate of(DataType dataType) {
-        return new FunctionArgumentTemplate(dataType, null);
+    static FunctionArgumentTemplate ofDataType(DataType dataType) {
+        return new FunctionArgumentTemplate(dataType, null, null);
     }
 
-    static FunctionArgumentTemplate of(InputGroup inputGroup) {
-        return new FunctionArgumentTemplate(null, inputGroup);
+    static FunctionArgumentTemplate ofInputGroup(InputGroup inputGroup) {
+        return new FunctionArgumentTemplate(null, inputGroup, null);
+    }
+
+    static FunctionArgumentTemplate ofTable(Class<?> conversionClass) {
+        return new FunctionArgumentTemplate(null, null, conversionClass);
     }
 
     ArgumentTypeStrategy toArgumentTypeStrategy() {
@@ -68,9 +76,16 @@ final class FunctionArgumentTemplate {
         }
     }
 
+    public @Nullable DataType toDataType() {
+        return dataType;
+    }
+
     Class<?> toConversionClass() {
         if (dataType != null) {
             return dataType.getConversionClass();
+        }
+        if (conversionClass != null) {
+            return conversionClass;
         }
         assert inputGroup != null;
         switch (inputGroup) {

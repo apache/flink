@@ -60,7 +60,9 @@ import org.apache.flink.util.function.SerializableFunction;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -77,6 +79,8 @@ import static org.junit.Assert.fail;
 /** Tests for timestamps, watermarks, and event-time sources. */
 @SuppressWarnings("serial")
 public class TimestampITCase extends TestLogger {
+
+    @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
     private static final int NUM_TASK_MANAGERS = 2;
     private static final int NUM_TASK_SLOTS = 3;
@@ -227,14 +231,16 @@ public class TimestampITCase extends TestLogger {
                             JobID id = running.get(0);
 
                             waitUntilAllTasksAreRunning(CLUSTER.getRestClusterClient(), id);
+
                             // send stop until the job is stopped
+                            final String savepointDirName = tmpFolder.newFolder().getAbsolutePath();
                             do {
                                 try {
                                     clusterClient
                                             .stopWithSavepoint(
                                                     id,
                                                     false,
-                                                    "test",
+                                                    savepointDirName,
                                                     SavepointFormatType.CANONICAL)
                                             .get();
                                 } catch (Exception e) {

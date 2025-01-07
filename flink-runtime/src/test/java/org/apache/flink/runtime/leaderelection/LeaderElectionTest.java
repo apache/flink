@@ -45,6 +45,7 @@ import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for leader election. */
@@ -80,7 +81,7 @@ public class LeaderElectionTest {
     }
 
     @TestTemplate
-    void testHasLeadership() throws Exception {
+    void testHasLeadershipAsync() throws Exception {
         final ManualLeaderContender manualLeaderContender = new ManualLeaderContender();
 
         try {
@@ -89,16 +90,25 @@ public class LeaderElectionTest {
 
             final UUID leaderSessionId = manualLeaderContender.waitForLeaderSessionId();
 
-            assertThat(leaderElection.hasLeadership(leaderSessionId)).isTrue();
-            assertThat(leaderElection.hasLeadership(UUID.randomUUID())).isFalse();
+            assertThatFuture(leaderElection.hasLeadershipAsync(leaderSessionId))
+                    .eventuallySucceeds()
+                    .isEqualTo(true);
+            assertThatFuture(leaderElection.hasLeadershipAsync(UUID.randomUUID()))
+                    .eventuallySucceeds()
+                    .isEqualTo(false);
 
-            leaderElection.confirmLeadership(leaderSessionId, "foobar");
+            assertThatFuture(leaderElection.confirmLeadershipAsync(leaderSessionId, "foobar"))
+                    .eventuallySucceeds();
 
-            assertThat(leaderElection.hasLeadership(leaderSessionId)).isTrue();
+            assertThatFuture(leaderElection.hasLeadershipAsync(leaderSessionId))
+                    .eventuallySucceeds()
+                    .isEqualTo(true);
 
             leaderElection.close();
 
-            assertThat(leaderElection.hasLeadership(leaderSessionId)).isFalse();
+            assertThatFuture(leaderElection.hasLeadershipAsync(leaderSessionId))
+                    .eventuallySucceeds()
+                    .isEqualTo(false);
 
             assertThat(manualLeaderContender.waitForLeaderSessionId())
                     .as("The leadership has been revoked from the contender.")

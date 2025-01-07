@@ -88,13 +88,18 @@ public class IntermediateResultPartition {
                 != edgeManager.getNumberOfConsumedPartitionGroupsById(partitionId)) {
             return false;
         }
+
+        // for dynamic graph, if any consumer vertex is still not initialized or not transfer to
+        // job vertex, this result partition can not be released
+        if (!totalResult.areAllConsumerVerticesCreated()) {
+            return false;
+        }
         for (JobVertexID jobVertexId : totalResult.getConsumerVertices()) {
-            // for dynamic graph, if any consumer vertex is still not initialized, this result
-            // partition can not be released
             if (!producer.getExecutionGraphAccessor().getJobVertex(jobVertexId).isInitialized()) {
                 return false;
             }
         }
+
         return true;
     }
 
@@ -146,9 +151,9 @@ public class IntermediateResultPartition {
     }
 
     private int computeNumberOfSubpartitionsForDynamicGraph() {
-        if (totalResult.isBroadcast()) {
-            // for dynamic graph and broadcast result, we only produced one subpartition,
-            // and all the downstream vertices should consume this subpartition.
+        if (totalResult.isSingleSubpartitionContainsAllData() || totalResult.isForward()) {
+            // for dynamic graph and broadcast result, and forward result, we only produced one
+            // subpartition, and all the downstream vertices should consume this subpartition.
             return 1;
         } else {
             return computeNumberOfMaxPossiblePartitionConsumers();

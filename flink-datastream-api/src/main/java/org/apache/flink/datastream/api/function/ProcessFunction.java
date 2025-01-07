@@ -29,18 +29,6 @@ import java.util.Set;
 @Experimental
 public interface ProcessFunction extends Function {
     /**
-     * Initialization method for the function. It is called before the actual working methods (like
-     * processRecord) and thus suitable for one time setup work.
-     *
-     * <p>By default, this method does nothing.
-     *
-     * @throws Exception Implementations may forward exceptions, which are caught by the runtime.
-     *     When the runtime catches an exception, it aborts the task and lets the fail-over logic
-     *     decide whether to retry the task execution.
-     */
-    default void open() throws Exception {}
-
-    /**
      * Explicitly declares states upfront. Each specific state must be declared in this method
      * before it can be used.
      *

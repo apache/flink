@@ -496,6 +496,7 @@ public class BinaryHashPartition extends AbstractPagedInputView implements Seeka
     protected static final class BuildSideBuffer extends AbstractPagedOutputView {
 
         private final ArrayList<MemorySegment> targetList;
+
         /** Segments of in memory partition, include the current segment. Cleared after spilled. */
         private final ArrayList<MemorySegment> buildStageSegments;
 

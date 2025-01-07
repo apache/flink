@@ -35,12 +35,18 @@ public interface PartFileInfo<BucketID> {
      */
     BucketID getBucketId();
 
-    /** @return The creation time (in ms) of the currently open part file. */
+    /**
+     * @return The creation time (in ms) of the currently open part file.
+     */
     long getCreationTime();
 
-    /** @return The size of the currently open part file. */
+    /**
+     * @return The size of the currently open part file.
+     */
     long getSize() throws IOException;
 
-    /** @return The last time (in ms) the currently open part file was written to. */
+    /**
+     * @return The last time (in ms) the currently open part file was written to.
+     */
     long getLastUpdateTime();
 }

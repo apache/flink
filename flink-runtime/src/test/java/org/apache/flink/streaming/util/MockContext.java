@@ -19,9 +19,12 @@ package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedOneInputStreamOperatorTestHarness;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -57,6 +60,7 @@ public class MockContext<IN, OUT> {
         return createAndExecuteForKeyedStream(operator, inputs, null, null);
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public static <IN, OUT, KEY> List<OUT> createAndExecuteForKeyedStream(
             OneInputStreamOperator<IN, OUT> operator,
             List<IN> inputs,
@@ -64,8 +68,25 @@ public class MockContext<IN, OUT> {
             TypeInformation<KEY> keyType)
             throws Exception {
 
-        OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
-                new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, keyType);
+        ThrowingConsumer<StreamRecord<IN>, Exception> consumer;
+        AbstractStreamOperatorTestHarness<OUT> testHarness;
+
+        if (operator instanceof AbstractAsyncStateStreamOperator) {
+            testHarness =
+                    AsyncKeyedOneInputStreamOperatorTestHarness.create(
+                            operator, keySelector, keyType);
+            consumer =
+                    (in) ->
+                            ((AsyncKeyedOneInputStreamOperatorTestHarness) testHarness)
+                                    .processElement(in);
+        } else {
+            testHarness =
+                    new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, keyType);
+            consumer =
+                    (in) ->
+                            ((KeyedOneInputStreamOperatorTestHarness) testHarness)
+                                    .processElement(in);
+        }
 
         testHarness.setup();
         testHarness.open();
@@ -73,7 +94,7 @@ public class MockContext<IN, OUT> {
         operator.open();
 
         for (IN in : inputs) {
-            testHarness.processElement(new StreamRecord<>(in));
+            consumer.accept(new StreamRecord<>(in));
         }
 
         testHarness.close();

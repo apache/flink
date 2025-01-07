@@ -19,6 +19,8 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.cli.parser.SqlClientSyntaxHighlighter;
 import org.apache.flink.table.client.cli.parser.SqlCommandParserImpl;
@@ -26,7 +28,10 @@ import org.apache.flink.table.client.cli.parser.SqlMultiLineParser;
 import org.apache.flink.table.client.config.SqlClientOptions;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.util.FileUtils;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
@@ -47,9 +52,16 @@ import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.function.Supplier;
+
+import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_DEPLOY_SCRIPT;
+import static org.apache.flink.table.client.cli.CliStrings.messageInfo;
+import static org.apache.flink.table.client.cli.CliUtils.isApplicationMode;
 
 /** SQL CLI client. */
 public class CliClient implements AutoCloseable {
@@ -125,21 +137,37 @@ public class CliClient implements AutoCloseable {
     }
 
     /** Opens the non-interactive CLI shell. */
-    public void executeInNonInteractiveMode(String content) {
+    public void executeInNonInteractiveMode(URI uri) {
         try {
             terminal = terminalFactory.get();
-            executeFile(content, terminal.output(), ExecutionMode.NON_INTERACTIVE_EXECUTION);
+            if (isApplicationMode(executor.getSessionConfig())) {
+                String scheme = StringUtils.lowerCase(uri.getScheme());
+                String clusterId;
+                // local files
+                if (scheme == null || scheme.equals("file")) {
+                    clusterId = executor.deployScript(readFile(uri), null);
+                } else {
+                    clusterId = executor.deployScript(null, uri);
+                }
+                terminal.writer().println(messageInfo(MESSAGE_DEPLOY_SCRIPT).toAnsi());
+                terminal.writer().println(String.format("Cluster ID: %s\n", clusterId));
+                terminal.flush();
+            } else {
+                executeFile(
+                        readFile(uri), terminal.output(), ExecutionMode.NON_INTERACTIVE_EXECUTION);
+            }
         } finally {
             closeTerminal();
         }
     }
 
     /** Initialize the Cli Client with the content. */
-    public boolean executeInitialization(String content) {
+    public boolean executeInitialization(URI file) {
         try {
             OutputStream outputStream = new ByteArrayOutputStream(256);
             terminal = TerminalUtils.createDumbTerminal(outputStream);
-            boolean success = executeFile(content, outputStream, ExecutionMode.INITIALIZATION);
+            boolean success =
+                    executeFile(readFile(file), outputStream, ExecutionMode.INITIALIZATION);
             LOG.info(outputStream.toString());
             return success;
         } finally {
@@ -325,5 +353,40 @@ public class CliClient implements AutoCloseable {
             LOG.warn(msg);
         }
         return lineReader;
+    }
+
+    public static String readFile(URI uri) {
+        try {
+            if (uri.getScheme() != null
+                    && (uri.getScheme().equals("http") || uri.getScheme().equals("https"))) {
+                return readFromHttp(uri);
+            } else {
+                return readFileUtf8(uri);
+            }
+        } catch (IOException e) {
+            throw new SqlClientException("Failed to read file " + uri, e);
+        }
+    }
+
+    private static String readFromHttp(URI uri) throws IOException {
+        HttpURLConnection conn = (HttpURLConnection) uri.toURL().openConnection();
+
+        conn.setRequestMethod("GET");
+
+        try (InputStream inputStream = conn.getInputStream();
+                ByteArrayOutputStream targetFile = new ByteArrayOutputStream()) {
+            IOUtils.copy(inputStream, targetFile);
+            return targetFile.toString(StandardCharsets.UTF_8);
+        }
+    }
+
+    private static String readFileUtf8(URI uri) throws IOException {
+        org.apache.flink.core.fs.Path path = new org.apache.flink.core.fs.Path(uri.toString());
+        FileSystem fs = path.getFileSystem();
+        try (FSDataInputStream inputStream = fs.open(path)) {
+            return new String(
+                    FileUtils.read(inputStream, (int) fs.getFileStatus(path).getLen()),
+                    StandardCharsets.UTF_8);
+        }
     }
 }

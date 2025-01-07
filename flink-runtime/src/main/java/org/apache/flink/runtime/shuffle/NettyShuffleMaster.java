@@ -19,11 +19,14 @@
 package org.apache.flink.runtime.shuffle;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.shuffle.AllTieredShuffleMasterSnapshots;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.shuffle.TieredInternalShuffleMaster;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.shuffle.TieredInternalShuffleMasterSnapshot;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.tier.TierShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.LocalExecutionPartitionConnectionInfo;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.NetworkPartitionConnectionInfo;
@@ -40,12 +43,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.api.common.BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL;
 import static org.apache.flink.api.common.BatchShuffleMode.ALL_EXCHANGES_HYBRID_SELECTIVE;
 import static org.apache.flink.configuration.ExecutionOptions.BATCH_SHUFFLE_MODE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** Default {@link ShuffleMaster} for netty and local file based shuffle implementation. */
 public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor> {
@@ -62,9 +67,14 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
 
     private final int networkBufferSize;
 
+    private final boolean enableJobMasterFailover;
+
     @Nullable private final TieredInternalShuffleMaster tieredInternalShuffleMaster;
 
     private final Map<JobID, JobShuffleContext> jobShuffleContexts = new HashMap<>();
+
+    private final Map<JobID, Map<ResultPartitionID, ShuffleDescriptor>> jobShuffleDescriptors =
+            new HashMap<>();
 
     public NettyShuffleMaster(ShuffleMasterContext shuffleMasterContext) {
         Configuration conf = shuffleMasterContext.getConfiguration();
@@ -80,10 +90,15 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
         networkBufferSize = ConfigurationParserUtils.getPageSize(conf);
 
         if (isHybridShuffleEnabled(conf)) {
-            tieredInternalShuffleMaster = new TieredInternalShuffleMaster(shuffleMasterContext);
+            tieredInternalShuffleMaster =
+                    new TieredInternalShuffleMaster(
+                            shuffleMasterContext, this::getShuffleDescriptor);
         } else {
             tieredInternalShuffleMaster = null;
         }
+
+        enableJobMasterFailover =
+                conf.get(BatchExecutionOptions.JOB_RECOVERY_ENABLED) && supportsBatchSnapshot();
 
         checkArgument(
                 !maxRequiredBuffersPerGate.isPresent() || maxRequiredBuffersPerGate.get() >= 1,
@@ -108,7 +123,9 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
         if (tieredInternalShuffleMaster != null) {
             tierShuffleDescriptors =
                     tieredInternalShuffleMaster.addPartitionAndGetShuffleDescriptor(
-                            jobID, resultPartitionID);
+                            jobID,
+                            partitionDescriptor.getNumberOfSubpartitions(),
+                            resultPartitionID);
         }
 
         NettyShuffleDescriptor shuffleDeploymentDescriptor =
@@ -118,6 +135,11 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
                                 producerDescriptor, partitionDescriptor.getConnectionIndex()),
                         resultPartitionID,
                         tierShuffleDescriptors);
+        if (enableJobMasterFailover) {
+            Map<ResultPartitionID, ShuffleDescriptor> shuffleDescriptorMap =
+                    jobShuffleDescriptors.computeIfAbsent(jobID, k -> new HashMap<>());
+            shuffleDescriptorMap.put(resultPartitionID, shuffleDeploymentDescriptor);
+        }
         return CompletableFuture.completedFuture(shuffleDeploymentDescriptor);
     }
 
@@ -126,6 +148,12 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
         if (tieredInternalShuffleMaster != null) {
             tieredInternalShuffleMaster.releasePartition(shuffleDescriptor);
         }
+    }
+
+    public Optional<ShuffleDescriptor> getShuffleDescriptor(
+            JobID jobID, ResultPartitionID resultPartitionID) {
+        return Optional.ofNullable(jobShuffleDescriptors.get(jobID))
+                .map(descriptorMap -> descriptorMap.get(resultPartitionID));
     }
 
     private static PartitionConnectionInfo createConnectionInfo(
@@ -171,6 +199,11 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
     @Override
     public CompletableFuture<Collection<PartitionWithMetrics>> getPartitionWithMetrics(
             JobID jobId, Duration timeout, Set<ResultPartitionID> expectedPartitions) {
+        if (tieredInternalShuffleMaster != null) {
+            return tieredInternalShuffleMaster.getPartitionWithMetrics(
+                    jobShuffleContexts.get(jobId), timeout, expectedPartitions);
+        }
+
         return checkNotNull(jobShuffleContexts.get(jobId))
                 .getPartitionWithMetrics(timeout, expectedPartitions);
     }
@@ -187,20 +220,94 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
     public void unregisterJob(JobID jobId) {
         jobShuffleContexts.remove(jobId);
         if (tieredInternalShuffleMaster != null) {
+            if (enableJobMasterFailover) {
+                jobShuffleDescriptors.remove(jobId);
+            }
             tieredInternalShuffleMaster.unregisterJob(jobId);
         }
     }
 
     @Override
     public boolean supportsBatchSnapshot() {
+        if (tieredInternalShuffleMaster != null) {
+            return tieredInternalShuffleMaster.supportsBatchSnapshot();
+        }
+
         return true;
     }
 
     @Override
     public void snapshotState(
             CompletableFuture<ShuffleMasterSnapshot> snapshotFuture,
-            ShuffleMasterSnapshotContext context) {
+            ShuffleMasterSnapshotContext context,
+            JobID jobId) {
+        if (tieredInternalShuffleMaster != null) {
+            Map<ResultPartitionID, ShuffleDescriptor> shuffleDescriptorMap =
+                    jobShuffleDescriptors.remove(jobId);
+            CompletableFuture<AllTieredShuffleMasterSnapshots> allSnapshotFuture =
+                    new CompletableFuture<>();
+            tieredInternalShuffleMaster.snapshotState(allSnapshotFuture, context, jobId);
+            allSnapshotFuture.thenAccept(
+                    allSnap ->
+                            snapshotFuture.complete(
+                                    new TieredInternalShuffleMasterSnapshot(
+                                            shuffleDescriptorMap, allSnap)));
+            return;
+        }
+
         snapshotFuture.complete(EmptyShuffleMasterSnapshot.getInstance());
+    }
+
+    @Override
+    public void snapshotState(CompletableFuture<ShuffleMasterSnapshot> snapshotFuture) {
+        if (tieredInternalShuffleMaster != null) {
+            CompletableFuture<AllTieredShuffleMasterSnapshots> allSnapshotFuture =
+                    new CompletableFuture<>();
+            tieredInternalShuffleMaster.snapshotState(allSnapshotFuture);
+            allSnapshotFuture.thenAccept(
+                    allSnap ->
+                            snapshotFuture.complete(
+                                    new TieredInternalShuffleMasterSnapshot(null, allSnap)));
+            return;
+        }
+
+        snapshotFuture.complete(EmptyShuffleMasterSnapshot.getInstance());
+    }
+
+    @Override
+    public void restoreState(ShuffleMasterSnapshot snapshot) {
+        if (tieredInternalShuffleMaster != null) {
+            checkState(snapshot instanceof TieredInternalShuffleMasterSnapshot);
+            tieredInternalShuffleMaster.restoreState(
+                    (TieredInternalShuffleMasterSnapshot) snapshot);
+        }
+    }
+
+    @Override
+    public void restoreState(List<ShuffleMasterSnapshot> snapshots, JobID jobId) {
+        if (tieredInternalShuffleMaster != null) {
+            List<TieredInternalShuffleMasterSnapshot> snapshotList =
+                    snapshots.stream()
+                            .map(
+                                    snap -> {
+                                        checkState(
+                                                snap
+                                                        instanceof
+                                                        TieredInternalShuffleMasterSnapshot);
+                                        Map<ResultPartitionID, ShuffleDescriptor>
+                                                shuffleDescriptors =
+                                                        ((TieredInternalShuffleMasterSnapshot) snap)
+                                                                .getShuffleDescriptors();
+                                        if (shuffleDescriptors != null) {
+                                            jobShuffleDescriptors
+                                                    .computeIfAbsent(jobId, k -> new HashMap<>())
+                                                    .putAll(shuffleDescriptors);
+                                        }
+                                        return (TieredInternalShuffleMasterSnapshot) snap;
+                                    })
+                            .collect(Collectors.toList());
+            tieredInternalShuffleMaster.restoreState(snapshotList, jobId);
+        }
     }
 
     @Override

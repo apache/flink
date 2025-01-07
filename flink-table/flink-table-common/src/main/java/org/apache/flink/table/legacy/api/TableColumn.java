@@ -106,13 +106,17 @@ public abstract class TableColumn {
         return new MetadataColumn(name, type, metadataAlias, isVirtual);
     }
 
-    /** @deprecated Use {@link #physical(String, DataType)} instead. */
+    /**
+     * @deprecated Use {@link #physical(String, DataType)} instead.
+     */
     @Deprecated
     public static TableColumn of(String name, DataType type) {
         return physical(name, type);
     }
 
-    /** @deprecated Use {@link #computed(String, DataType, String)} instead. */
+    /**
+     * @deprecated Use {@link #computed(String, DataType, String)} instead.
+     */
     @Deprecated
     public static TableColumn of(String name, DataType type, String expression) {
         return computed(name, type, expression);

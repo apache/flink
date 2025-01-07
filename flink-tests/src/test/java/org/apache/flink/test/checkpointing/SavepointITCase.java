@@ -1763,6 +1763,7 @@ public class SavepointITCase extends TestLogger {
             return URI.create(SCHEME + ":///");
         }
     }
+
     // ------------------------------------------------------------------------
 
     /**

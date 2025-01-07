@@ -27,6 +27,7 @@ import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestContainer;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 
 import org.junit.jupiter.api.Test;
@@ -108,6 +109,7 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
                         new SyncMailboxExecutor(),
                         (a, b) -> {},
                         new AbstractAggregatingStateTest.AggregatingStateExecutor(),
+                        new DeclarationManager(),
                         1,
                         100,
                         10000,
@@ -233,14 +235,16 @@ class AbstractAggregatingStateTest extends AbstractKeyedStateTestBase {
                 String key = (String) stateRequest.getRecordContext().getKey();
                 String namespace = (String) stateRequest.getNamespace();
                 if (stateRequest.getRequestType() == StateRequestType.AGGREGATING_ADD) {
-                    hashMap.put(Tuple2.of(key, namespace), (Integer) stateRequest.getPayload());
-                    stateRequest.getFuture().complete(null);
+                    if (stateRequest.getPayload() == null) {
+                        hashMap.remove(Tuple2.of(key, namespace));
+                        stateRequest.getFuture().complete(null);
+                    } else {
+                        hashMap.put(Tuple2.of(key, namespace), (Integer) stateRequest.getPayload());
+                        stateRequest.getFuture().complete(null);
+                    }
                 } else if (stateRequest.getRequestType() == StateRequestType.AGGREGATING_GET) {
                     Integer val = hashMap.get(Tuple2.of(key, namespace));
                     stateRequest.getFuture().complete(val);
-                } else if (stateRequest.getRequestType() == StateRequestType.AGGREGATING_REMOVE) {
-                    hashMap.remove(Tuple2.of(key, namespace));
-                    stateRequest.getFuture().complete(null);
                 } else {
                     throw new UnsupportedOperationException("Unsupported type");
                 }

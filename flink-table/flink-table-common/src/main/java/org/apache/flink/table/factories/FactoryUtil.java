@@ -247,63 +247,6 @@ public final class FactoryUtil {
     }
 
     /**
-     * @deprecated Use {@link #createDynamicTableSource(DynamicTableSourceFactory, ObjectIdentifier,
-     *     ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)}
-     */
-    @Deprecated
-    public static DynamicTableSource createDynamicTableSource(
-            @Nullable DynamicTableSourceFactory preferredFactory,
-            ObjectIdentifier objectIdentifier,
-            ResolvedCatalogTable catalogTable,
-            ReadableConfig configuration,
-            ClassLoader classLoader,
-            boolean isTemporary) {
-        return createDynamicTableSource(
-                preferredFactory,
-                objectIdentifier,
-                catalogTable,
-                Collections.emptyMap(),
-                configuration,
-                classLoader,
-                isTemporary);
-    }
-
-    /**
-     * Creates a {@link DynamicTableSource} from a {@link CatalogTable}.
-     *
-     * <p>It considers {@link Catalog#getFactory()} if provided.
-     *
-     * @deprecated Use {@link #createDynamicTableSource(DynamicTableSourceFactory, ObjectIdentifier,
-     *     ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)} instead.
-     */
-    @Deprecated
-    public static DynamicTableSource createTableSource(
-            @Nullable Catalog catalog,
-            ObjectIdentifier objectIdentifier,
-            ResolvedCatalogTable catalogTable,
-            ReadableConfig configuration,
-            ClassLoader classLoader,
-            boolean isTemporary) {
-        final DefaultDynamicTableContext context =
-                new DefaultDynamicTableContext(
-                        objectIdentifier,
-                        catalogTable,
-                        Collections.emptyMap(),
-                        configuration,
-                        classLoader,
-                        isTemporary);
-
-        return createDynamicTableSource(
-                getDynamicTableFactory(DynamicTableSourceFactory.class, catalog, context),
-                objectIdentifier,
-                catalogTable,
-                Collections.emptyMap(),
-                configuration,
-                classLoader,
-                isTemporary);
-    }
-
-    /**
      * Creates a {@link DynamicTableSink} from a {@link CatalogTable}.
      *
      * <p>If {@param preferredFactory} is passed, the table sink is created from that factory.
@@ -347,63 +290,6 @@ public final class FactoryUtil {
                                     .collect(Collectors.joining("\n"))),
                     t);
         }
-    }
-
-    /**
-     * @deprecated Use {@link #createDynamicTableSink(DynamicTableSinkFactory, ObjectIdentifier,
-     *     ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)}
-     */
-    @Deprecated
-    public static DynamicTableSink createDynamicTableSink(
-            @Nullable DynamicTableSinkFactory preferredFactory,
-            ObjectIdentifier objectIdentifier,
-            ResolvedCatalogTable catalogTable,
-            ReadableConfig configuration,
-            ClassLoader classLoader,
-            boolean isTemporary) {
-        return createDynamicTableSink(
-                preferredFactory,
-                objectIdentifier,
-                catalogTable,
-                Collections.emptyMap(),
-                configuration,
-                classLoader,
-                isTemporary);
-    }
-
-    /**
-     * Creates a {@link DynamicTableSink} from a {@link CatalogTable}.
-     *
-     * <p>It considers {@link Catalog#getFactory()} if provided.
-     *
-     * @deprecated Use {@link #createDynamicTableSink(DynamicTableSinkFactory, ObjectIdentifier,
-     *     ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)} instead.
-     */
-    @Deprecated
-    public static DynamicTableSink createTableSink(
-            @Nullable Catalog catalog,
-            ObjectIdentifier objectIdentifier,
-            ResolvedCatalogTable catalogTable,
-            ReadableConfig configuration,
-            ClassLoader classLoader,
-            boolean isTemporary) {
-        final DefaultDynamicTableContext context =
-                new DefaultDynamicTableContext(
-                        objectIdentifier,
-                        catalogTable,
-                        Collections.emptyMap(),
-                        configuration,
-                        classLoader,
-                        isTemporary);
-
-        return createDynamicTableSink(
-                getDynamicTableFactory(DynamicTableSinkFactory.class, catalog, context),
-                objectIdentifier,
-                catalogTable,
-                Collections.emptyMap(),
-                configuration,
-                classLoader,
-                isTemporary);
     }
 
     /**
@@ -486,48 +372,39 @@ public final class FactoryUtil {
             Map<String, String> options,
             ReadableConfig configuration,
             ClassLoader classLoader) {
-        // Use the legacy mechanism first for compatibility
+        final DefaultCatalogContext discoveryContext =
+                new DefaultCatalogContext(catalogName, options, configuration, classLoader);
         try {
-            final CatalogFactory legacyFactory =
-                    TableFactoryService.find(CatalogFactory.class, options, classLoader);
-            return legacyFactory.createCatalog(catalogName, options);
-        } catch (NoMatchingTableFactoryException e) {
-            // No matching legacy factory found, try using the new stack
+            final CatalogFactory factory = getCatalogFactory(discoveryContext);
 
-            final DefaultCatalogContext discoveryContext =
-                    new DefaultCatalogContext(catalogName, options, configuration, classLoader);
-            try {
-                final CatalogFactory factory = getCatalogFactory(discoveryContext);
-
-                // The type option is only used for discovery, we don't actually want to forward it
-                // to the catalog factory itself.
-                final Map<String, String> factoryOptions =
-                        options.entrySet().stream()
-                                .filter(
-                                        entry ->
-                                                !CommonCatalogOptions.CATALOG_TYPE
-                                                        .key()
-                                                        .equals(entry.getKey()))
-                                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-                final DefaultCatalogContext context =
-                        new DefaultCatalogContext(
-                                catalogName, factoryOptions, configuration, classLoader);
-                return factory.createCatalog(context);
-            } catch (Throwable t) {
-                throw new ValidationException(
-                        String.format(
-                                "Unable to create catalog '%s'.%n%nCatalog options are:%n%s",
-                                catalogName,
-                                options.entrySet().stream()
-                                        .map(
-                                                optionEntry ->
-                                                        stringifyOption(
-                                                                optionEntry.getKey(),
-                                                                optionEntry.getValue()))
-                                        .sorted()
-                                        .collect(Collectors.joining("\n"))),
-                        t);
-            }
+            // The type option is only used for discovery, we don't actually want to forward it
+            // to the catalog factory itself.
+            final Map<String, String> factoryOptions =
+                    options.entrySet().stream()
+                            .filter(
+                                    entry ->
+                                            !CommonCatalogOptions.CATALOG_TYPE
+                                                    .key()
+                                                    .equals(entry.getKey()))
+                            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            final DefaultCatalogContext context =
+                    new DefaultCatalogContext(
+                            catalogName, factoryOptions, configuration, classLoader);
+            return factory.createCatalog(context);
+        } catch (Throwable t) {
+            throw new ValidationException(
+                    String.format(
+                            "Unable to create catalog '%s'.%n%nCatalog options are:%n%s",
+                            catalogName,
+                            options.entrySet().stream()
+                                    .map(
+                                            optionEntry ->
+                                                    stringifyOption(
+                                                            optionEntry.getKey(),
+                                                            optionEntry.getValue()))
+                                    .sorted()
+                                    .collect(Collectors.joining("\n"))),
+                    t);
         }
     }
 
@@ -593,10 +470,10 @@ public final class FactoryUtil {
      * Discovers a factory using the given factory base class and identifier.
      *
      * <p>This method is meant for cases where {@link #createTableFactoryHelper(DynamicTableFactory,
-     * DynamicTableFactory.Context)} {@link #createTableSource(Catalog, ObjectIdentifier,
-     * ResolvedCatalogTable, ReadableConfig, ClassLoader, boolean)}, and {@link
-     * #createTableSink(Catalog, ObjectIdentifier, ResolvedCatalogTable, ReadableConfig,
-     * ClassLoader, boolean)} are not applicable.
+     * DynamicTableFactory.Context)} {@link #createDynamicTableSource(DynamicTableSourceFactory,
+     * ObjectIdentifier, ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)}, and
+     * {@link #createDynamicTableSink(DynamicTableSinkFactory, ObjectIdentifier,
+     * ResolvedCatalogTable, Map, ReadableConfig, ClassLoader, boolean)} are not applicable.
      */
     @SuppressWarnings("unchecked")
     public static <T extends Factory> T discoverFactory(

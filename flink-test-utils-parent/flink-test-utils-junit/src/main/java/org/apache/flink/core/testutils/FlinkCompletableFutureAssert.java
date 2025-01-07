@@ -77,6 +77,23 @@ public class FlinkCompletableFutureAssert<T>
                     (ThrowableAssertAlternative<T>) throwableAssert;
             return cast;
         }
+
+        /**
+         * Checks that the underlying throwable has cause of the given type and returns a {@link
+         * ThrowableAssertAlternative} to chain further assertions on the underlying throwable.
+         *
+         * @param cause the expected {@link Throwable} cause
+         * @param <T> the expected {@link Throwable} cause
+         * @return a {@link ThrowableAssertAlternative} built with underlying throwable.
+         */
+        public <T extends Throwable> ThrowableAssertAlternative<T> withCauseOfType(Class<T> cause) {
+            final ThrowableAssertAlternative<Throwable> throwableAssert =
+                    new ThrowableAssertAlternative<>(throwable).withCauseInstanceOf(cause);
+            @SuppressWarnings("unchecked")
+            final ThrowableAssertAlternative<T> cast =
+                    (ThrowableAssertAlternative<T>) throwableAssert;
+            return cast;
+        }
     }
 
     FlinkCompletableFutureAssert(CompletableFuture<T> actual) {
@@ -120,8 +137,6 @@ public class FlinkCompletableFutureAssert<T>
 
     /**
      * Assert that {@link CompletableFuture} will not complete within a fixed duration.
-     *
-     * <p>This is a replacement for {@link FlinkMatchers#willNotComplete(Duration)} in assertj.
      *
      * @return {@code this} assertion object.
      */

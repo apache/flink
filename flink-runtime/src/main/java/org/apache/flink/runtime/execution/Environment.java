@@ -161,7 +161,9 @@ public interface Environment {
      */
     MemoryManager getMemoryManager();
 
-    /** @return the resources shared among all tasks of this task manager. */
+    /**
+     * @return the resources shared among all tasks of this task manager.
+     */
     SharedResources getSharedResources();
 
     /** Returns the user code class loader. */

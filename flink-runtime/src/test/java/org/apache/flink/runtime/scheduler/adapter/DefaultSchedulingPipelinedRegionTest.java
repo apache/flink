@@ -44,6 +44,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -115,11 +116,14 @@ class DefaultSchedulingPipelinedRegionTest {
         final JobVertex d = ExecutionGraphTestUtils.createNoOpVertex(1);
         final JobVertex e = ExecutionGraphTestUtils.createNoOpVertex(1);
 
-        b.connectNewDataSetAsInput(a, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        c.connectNewDataSetAsInput(b, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        d.connectNewDataSetAsInput(b, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        e.connectNewDataSetAsInput(c, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
-        e.connectNewDataSetAsInput(d, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(b, a, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                c, b, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(
+                d, b, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        connectNewDataSetAsInput(e, c, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                e, d, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
         final DefaultExecutionGraph simpleTestGraph =
                 ExecutionGraphTestUtils.createExecutionGraph(

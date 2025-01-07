@@ -22,14 +22,14 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$SCALAR_QUERY({
+LogicalProject(variablesSet=[[$cor0]], EXPR$0=[$SCALAR_QUERY({
 LogicalProject(EXPR$0=[-($0, 1)])
   LogicalAggregate(group=[{}], agg#0=[COUNT($0)])
     LogicalProject(x=[$0])
       LogicalFilter(condition=[=($1, $cor0.i)])
-        LogicalTableScan(table=[[default_catalog, default_database, foo, source: [TestTableSource(x, y)]]])
+        LogicalTableScan(table=[[default_catalog, default_database, foo]])
 })])
-+- LogicalTableScan(table=[[default_catalog, default_database, bar, source: [TestTableSource(i, s)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, bar]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -38,12 +38,12 @@ Calc(select=[-(CASE(IS NULL($f1), 0, $f1), 1) AS EXPR$0])
 +- HashJoin(joinType=[LeftOuterJoin], where=[=(i, y)], select=[i, y, $f1], build=[right])
    :- Exchange(distribution=[hash[i]])
    :  +- Calc(select=[i])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, bar, source: [TestTableSource(i, s)]]], fields=[i, s])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, bar]], fields=[i, s])
    +- HashAggregate(isMerge=[true], groupBy=[y], select=[y, Final_COUNT(count$0) AS $f1])
       +- Exchange(distribution=[hash[y]])
          +- LocalHashAggregate(groupBy=[y], select=[y, Partial_COUNT(x) AS count$0])
             +- Calc(select=[x, y], where=[IS NOT NULL(y)])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, foo, source: [TestTableSource(x, y)]]], fields=[x, y])
+               +- TableSourceScan(table=[[default_catalog, default_database, foo]], fields=[x, y])
 ]]>
     </Resource>
   </TestCase>

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -109,13 +110,13 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
 
     @Override
     public void onChange() {
-        LOG.debug("OnChange event received in phase {}.", getPhase());
+        LOG.debug("OnChange event received in phase {} for job {}.", getPhase(), getJobId());
         phase.onChange();
     }
 
     @Override
     public void onTrigger() {
-        LOG.debug("OnTrigger event received in phase {}.", getPhase());
+        LOG.debug("OnTrigger event received in phase {} for job {}.", getPhase(), getJobId());
         phase.onTrigger();
     }
 
@@ -157,7 +158,7 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
         Preconditions.checkState(
                 !(phase instanceof Transitioning),
                 "The state transition operation has already been triggered.");
-        LOG.debug("Transitioning from {} to {}.", phase, newPhase);
+        LOG.info("Transitioning from {} to {}, job {}.", phase, newPhase, getJobId());
         phase = newPhase;
     }
 
@@ -172,10 +173,15 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
             callback.run();
         } else {
             LOG.debug(
-                    "Ignoring scheduled action because expected phase {} is not the actual phase {}.",
+                    "Ignoring scheduled action because expected phase {} is not the actual phase {}, job {}.",
                     expectedPhase,
-                    getPhase());
+                    getPhase(),
+                    getJobId());
         }
+    }
+
+    private JobID getJobId() {
+        return transitionContext.getJobId();
     }
 
     /**
@@ -228,6 +234,15 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
         void onChange() {}
 
         void onTrigger() {}
+
+        @Override
+        public String toString() {
+            return getClass().getSimpleName();
+        }
+
+        JobID getJobId() {
+            return context.getJobId();
+        }
     }
 
     /**
@@ -345,10 +360,14 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
 
         private void transitionToSubSequentStateForDesiredResources() {
             if (hasDesiredResources()) {
+                LOG.info(
+                        "Desired resources are met, transitioning to the subsequent state, job {}.",
+                        getJobId());
                 context().triggerTransitionToSubsequentState();
             } else {
                 LOG.debug(
-                        "Desired resources are not met, skipping the transition to the subsequent state.");
+                        "Desired resources are not met, skipping the transition to the subsequent state, job {}.",
+                        getJobId());
             }
         }
     }
@@ -367,15 +386,28 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
                 Temporal firstChangeEventTimestamp,
                 Duration maxTriggerDelay) {
             super(clock, context);
-            this.scheduleRelativelyTo(this::onTrigger, firstChangeEventTimestamp, maxTriggerDelay);
+            this.scheduleRelativelyTo(
+                    () -> {
+                        LOG.info(
+                                "Scheduled onTrigger event fired in Stabilized phase, job {}.",
+                                getJobId());
+                        onTrigger();
+                    },
+                    firstChangeEventTimestamp,
+                    maxTriggerDelay);
         }
 
         @Override
         void onTrigger() {
             if (hasSufficientResources()) {
+                LOG.info(
+                        "Sufficient resources are met, progressing to subsequent state, job {}.",
+                        getJobId());
                 context().triggerTransitionToSubsequentState();
             } else {
-                LOG.debug("Sufficient resources are not met, progressing to idling.");
+                LOG.debug(
+                        "Sufficient resources are not met, progressing to idling, job {}.",
+                        getJobId());
                 context().progressToIdling();
             }
         }

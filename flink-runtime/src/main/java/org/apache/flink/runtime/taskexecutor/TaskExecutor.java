@@ -754,7 +754,13 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                     new RpcTaskOperatorEventGateway(
                             jobManagerConnection.getJobManagerGateway(),
                             executionAttemptID,
-                            (t) -> runAsync(() -> failTask(executionAttemptID, t)));
+                            (t) ->
+                                    runAsync(
+                                            () ->
+                                                    failTask(
+                                                            jobInformation.getJobId(),
+                                                            executionAttemptID,
+                                                            t)));
 
             TaskManagerActions taskManagerActions = jobManagerConnection.getTaskManagerActions();
             CheckpointResponder checkpointResponder = jobManagerConnection.getCheckpointResponder();
@@ -1971,7 +1977,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         checkNotNull(resourceID);
         checkNotNull(jobMasterGateway);
 
-        TaskManagerActions taskManagerActions = new TaskManagerActionsImpl(jobMasterGateway);
+        TaskManagerActions taskManagerActions =
+                new TaskManagerActionsImpl(job.getJobId(), jobMasterGateway);
 
         CheckpointResponder checkpointResponder = new RpcCheckpointResponder(jobMasterGateway);
         GlobalAggregateManager aggregateManager = new RpcGlobalAggregateManager(jobMasterGateway);
@@ -2095,25 +2102,31 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     //  Internal task methods
     // ------------------------------------------------------------------------
 
-    private void failTask(final ExecutionAttemptID executionAttemptID, final Throwable cause) {
-        final Task task = taskSlotTable.getTask(executionAttemptID);
+    private void failTask(
+            final JobID jobID, final ExecutionAttemptID executionAttemptID, final Throwable cause) {
+        try (MdcUtils.MdcCloseable mdcCloseable =
+                MdcUtils.withContext(MdcUtils.asContextData(jobID))) {
+            final Task task = taskSlotTable.getTask(executionAttemptID);
 
-        if (task != null) {
-            try {
-                task.failExternally(cause);
-            } catch (Throwable t) {
-                log.error("Could not fail task {}.", executionAttemptID, t);
+            if (task != null) {
+                try {
+                    task.failExternally(cause);
+                } catch (Throwable t) {
+                    log.error("Could not fail task {}.", executionAttemptID, t);
+                }
+            } else {
+                log.info(
+                        "Cannot find task to fail for execution {} with exception:",
+                        executionAttemptID,
+                        cause);
             }
-        } else {
-            log.info(
-                    "Cannot find task to fail for execution {} with exception:",
-                    executionAttemptID,
-                    cause);
         }
     }
 
     private void updateTaskExecutionState(
-            final JobMasterGateway jobMasterGateway, final TaskExecutionState taskExecutionState) {
+            final JobID jobID,
+            final JobMasterGateway jobMasterGateway,
+            final TaskExecutionState taskExecutionState) {
         final ExecutionAttemptID executionAttemptID = taskExecutionState.getID();
 
         CompletableFuture<Acknowledge> futureAcknowledge =
@@ -2122,7 +2135,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         futureAcknowledge.whenCompleteAsync(
                 (ack, throwable) -> {
                     if (throwable != null) {
-                        failTask(executionAttemptID, throwable);
+                        failTask(jobID, executionAttemptID, throwable);
                     }
                 },
                 getMainThreadExecutor());
@@ -2151,6 +2164,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             AccumulatorSnapshot accumulatorSnapshot = task.getAccumulatorRegistry().getSnapshot();
 
             updateTaskExecutionState(
+                    task.getJobID(),
                     jobMasterGateway,
                     new TaskExecutionState(
                             task.getExecutionId(),
@@ -2626,9 +2640,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     }
 
     private final class TaskManagerActionsImpl implements TaskManagerActions {
+        private final JobID jobId;
         private final JobMasterGateway jobMasterGateway;
 
-        private TaskManagerActionsImpl(JobMasterGateway jobMasterGateway) {
+        private TaskManagerActionsImpl(JobID jobId, JobMasterGateway jobMasterGateway) {
+            this.jobId = jobId;
             this.jobMasterGateway = checkNotNull(jobMasterGateway);
         }
 
@@ -2646,7 +2662,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
         @Override
         public void failTask(final ExecutionAttemptID executionAttemptID, final Throwable cause) {
-            runAsync(() -> TaskExecutor.this.failTask(executionAttemptID, cause));
+            runAsync(() -> TaskExecutor.this.failTask(jobId, executionAttemptID, cause));
         }
 
         @Override
@@ -2657,7 +2673,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                                 unregisterTaskAndNotifyFinalState(
                                         jobMasterGateway, taskExecutionState.getID()));
             } else {
-                TaskExecutor.this.updateTaskExecutionState(jobMasterGateway, taskExecutionState);
+                TaskExecutor.this.updateTaskExecutionState(
+                        jobId, jobMasterGateway, taskExecutionState);
             }
         }
 

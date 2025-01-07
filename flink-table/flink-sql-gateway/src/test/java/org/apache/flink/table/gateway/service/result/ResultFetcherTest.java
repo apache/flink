@@ -22,6 +22,8 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
+import org.apache.flink.table.api.internal.StaticResultProvider;
+import org.apache.flink.table.api.internal.TableResultUtils;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.GenericRowData;
@@ -422,11 +424,13 @@ class ResultFetcherTest {
                 operationHandle,
                 schema,
                 CloseableIterator.adapterForIterator(new IteratorChain(rows)),
-                null,
+                StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER,
                 false,
                 null,
                 ResultKind.SUCCESS_WITH_CONTENT,
-                bufferSize);
+                bufferSize,
+                TableResultUtils.buildPrintStyle(
+                        schema, StaticResultProvider.SIMPLE_ROW_DATA_TO_STRING_CONVERTER));
     }
 
     private void runFetchMultipleTimes(

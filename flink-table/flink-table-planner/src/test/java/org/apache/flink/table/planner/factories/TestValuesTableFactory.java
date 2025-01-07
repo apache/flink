@@ -65,6 +65,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsAggregatePushDo
 import org.apache.flink.table.connector.source.abilities.SupportsDynamicFiltering;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
+import org.apache.flink.table.connector.source.abilities.SupportsLookupCustomShuffle;
 import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
@@ -410,6 +411,15 @@ public final class TestValuesTableFactory
     private static final ConfigOption<Boolean> ENABLE_WATERMARK_PUSH_DOWN =
             ConfigOptions.key("enable-watermark-push-down").booleanType().defaultValue(false);
 
+    private static final ConfigOption<Boolean> ENABLE_CUSTOM_SHUFFLE =
+            ConfigOptions.key("enable-custom-shuffle").booleanType().defaultValue(false);
+
+    private static final ConfigOption<Boolean> CUSTOM_SHUFFLE_DETERMINISTIC =
+            ConfigOptions.key("custom-shuffle-deterministic").booleanType().defaultValue(true);
+
+    private static final ConfigOption<Boolean> CUSTOM_SHUFFLE_EMPTY_PARTITIONER =
+            ConfigOptions.key("custom-shuffle-empty-partitioner").booleanType().defaultValue(false);
+
     private static final ConfigOption<Boolean> INTERNAL_DATA =
             ConfigOptions.key("register-internal-data")
                     .booleanType()
@@ -513,6 +523,11 @@ public final class TestValuesTableFactory
         int lookupThreshold = helper.getOptions().get(LOOKUP_THRESHOLD);
         int sleepAfterElements = helper.getOptions().get(SOURCE_SLEEP_AFTER_ELEMENTS);
         long sleepTimeMillis = helper.getOptions().get(SOURCE_SLEEP_TIME).toMillis();
+        boolean enableCustomShuffle = helper.getOptions().get(ENABLE_CUSTOM_SHUFFLE);
+        boolean customShuffleIsDeterministic =
+                helper.getOptions().get(CUSTOM_SHUFFLE_DETERMINISTIC);
+        boolean customShuffleEmptyPartitioner =
+                helper.getOptions().get(CUSTOM_SHUFFLE_EMPTY_PARTITIONER);
         Integer parallelism = helper.getOptions().get(SOURCE_PARALLELISM);
         DefaultLookupCache cache = null;
         if (helper.getOptions().get(CACHE_TYPE).equals(LookupOptions.LookupCacheType.PARTIAL)) {
@@ -636,31 +651,61 @@ public final class TestValuesTableFactory
                             enableAggregatePushDown);
                 }
             } else {
-                return new TestValuesScanLookupTableSource(
-                        context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType(),
-                        producedDataType,
-                        changelogMode,
-                        boundedness,
-                        terminating,
-                        runtimeSource,
-                        failingSource,
-                        partition2Rows,
-                        isAsync,
-                        lookupFunctionClass,
-                        nestedProjectionSupported,
-                        null,
-                        Collections.emptyList(),
-                        filterableFieldsSet,
-                        dynamicFilteringFieldsSet,
-                        numElementToSkip,
-                        Long.MAX_VALUE,
-                        partitions,
-                        readableMetadata,
-                        null,
-                        cache,
-                        reloadTrigger,
-                        lookupThreshold,
-                        enableAggregatePushDown);
+                if (enableCustomShuffle) {
+                    return new TestValuesScanLookupTableSourceWithCustomShuffle(
+                            context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType(),
+                            producedDataType,
+                            changelogMode,
+                            boundedness,
+                            terminating,
+                            runtimeSource,
+                            failingSource,
+                            partition2Rows,
+                            isAsync,
+                            lookupFunctionClass,
+                            nestedProjectionSupported,
+                            null,
+                            Collections.emptyList(),
+                            filterableFieldsSet,
+                            dynamicFilteringFieldsSet,
+                            numElementToSkip,
+                            Long.MAX_VALUE,
+                            partitions,
+                            readableMetadata,
+                            null,
+                            cache,
+                            reloadTrigger,
+                            lookupThreshold,
+                            enableAggregatePushDown,
+                            customShuffleIsDeterministic,
+                            customShuffleEmptyPartitioner);
+                } else {
+                    return new TestValuesScanLookupTableSource(
+                            context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType(),
+                            producedDataType,
+                            changelogMode,
+                            boundedness,
+                            terminating,
+                            runtimeSource,
+                            failingSource,
+                            partition2Rows,
+                            isAsync,
+                            lookupFunctionClass,
+                            nestedProjectionSupported,
+                            null,
+                            Collections.emptyList(),
+                            filterableFieldsSet,
+                            dynamicFilteringFieldsSet,
+                            numElementToSkip,
+                            Long.MAX_VALUE,
+                            partitions,
+                            readableMetadata,
+                            null,
+                            cache,
+                            reloadTrigger,
+                            lookupThreshold,
+                            enableAggregatePushDown);
+                }
             }
         } else {
             try {
@@ -773,6 +818,9 @@ public final class TestValuesTableFactory
                         SOURCE_SLEEP_AFTER_ELEMENTS,
                         SOURCE_SLEEP_TIME,
                         SOURCE_PARALLELISM,
+                        ENABLE_CUSTOM_SHUFFLE,
+                        CUSTOM_SHUFFLE_DETERMINISTIC,
+                        CUSTOM_SHUFFLE_EMPTY_PARTITIONER,
                         INTERNAL_DATA,
                         CACHE_TYPE,
                         PARTIAL_CACHE_EXPIRE_AFTER_ACCESS,
@@ -1680,13 +1728,13 @@ public final class TestValuesTableFactory
     private static class TestValuesScanLookupTableSource extends TestValuesScanTableSource
             implements LookupTableSource, SupportsDynamicFiltering {
 
-        private final @Nullable String lookupFunctionClass;
-        private final @Nullable LookupCache cache;
-        private final @Nullable CacheReloadTrigger reloadTrigger;
-        private final boolean isAsync;
-        private final int lookupThreshold;
+        protected final @Nullable String lookupFunctionClass;
+        protected final @Nullable LookupCache cache;
+        protected final @Nullable CacheReloadTrigger reloadTrigger;
+        protected final boolean isAsync;
+        protected final int lookupThreshold;
 
-        private final DataType originType;
+        protected final DataType originType;
 
         private TestValuesScanLookupTableSource(
                 DataType originType,
@@ -1923,6 +1971,114 @@ public final class TestValuesTableFactory
                     reloadTrigger,
                     lookupThreshold,
                     enableAggregatePushDown);
+        }
+    }
+
+    /**
+     * Values {@link LookupTableSource} and {@link ScanTableSource} supporting custom shuffle for
+     * testing.
+     */
+    private static class TestValuesScanLookupTableSourceWithCustomShuffle
+            extends TestValuesScanLookupTableSource implements SupportsLookupCustomShuffle {
+
+        private final boolean customShuffleIsDeterministic;
+
+        private final boolean customShuffleEmptyPartitioner;
+
+        private TestValuesScanLookupTableSourceWithCustomShuffle(
+                DataType originType,
+                DataType producedDataType,
+                ChangelogMode changelogMode,
+                Boundedness boundedness,
+                TerminatingLogic terminating,
+                String runtimeSource,
+                boolean failingSource,
+                Map<Map<String, String>, Collection<Row>> data,
+                boolean isAsync,
+                @Nullable String lookupFunctionClass,
+                boolean nestedProjectionSupported,
+                int[][] projectedFields,
+                List<ResolvedExpression> filterPredicates,
+                Set<String> filterableFields,
+                Set<String> dynamicFilteringFields,
+                int numElementToSkip,
+                long limit,
+                List<Map<String, String>> allPartitions,
+                Map<String, DataType> readableMetadata,
+                @Nullable int[] projectedMetadataFields,
+                @Nullable LookupCache cache,
+                @Nullable CacheReloadTrigger reloadTrigger,
+                int lookupThreshold,
+                boolean enableAggregatePushDown,
+                boolean customShuffleIsDeterministic,
+                boolean customShuffleEmptyPartitioner) {
+            super(
+                    originType,
+                    producedDataType,
+                    changelogMode,
+                    boundedness,
+                    terminating,
+                    runtimeSource,
+                    failingSource,
+                    data,
+                    isAsync,
+                    lookupFunctionClass,
+                    nestedProjectionSupported,
+                    projectedFields,
+                    filterPredicates,
+                    filterableFields,
+                    dynamicFilteringFields,
+                    numElementToSkip,
+                    limit,
+                    allPartitions,
+                    readableMetadata,
+                    projectedMetadataFields,
+                    cache,
+                    reloadTrigger,
+                    lookupThreshold,
+                    enableAggregatePushDown);
+            this.customShuffleIsDeterministic = customShuffleIsDeterministic;
+            this.customShuffleEmptyPartitioner = customShuffleEmptyPartitioner;
+        }
+
+        @Override
+        public DynamicTableSource copy() {
+            return new TestValuesScanLookupTableSourceWithCustomShuffle(
+                    originType,
+                    producedDataType,
+                    changelogMode,
+                    boundedness,
+                    terminating,
+                    runtimeSource,
+                    failingSource,
+                    data,
+                    isAsync,
+                    lookupFunctionClass,
+                    nestedProjectionSupported,
+                    projectedPhysicalFields,
+                    filterPredicates,
+                    filterableFields,
+                    dynamicFilteringFields,
+                    numElementToSkip,
+                    limit,
+                    allPartitions,
+                    readableMetadata,
+                    projectedMetadataFields,
+                    cache,
+                    reloadTrigger,
+                    lookupThreshold,
+                    enableAggregatePushDown,
+                    customShuffleIsDeterministic,
+                    customShuffleEmptyPartitioner);
+        }
+
+        @Override
+        public Optional<InputDataPartitioner> getPartitioner() {
+            if (customShuffleEmptyPartitioner) {
+                return Optional.empty();
+            } else {
+                return Optional.of(new TestCustomPartitioner(customShuffleIsDeterministic));
+            }
         }
     }
 

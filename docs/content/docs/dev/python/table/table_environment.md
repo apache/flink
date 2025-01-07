@@ -134,6 +134,17 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
     </tr>
     <tr>
       <td>
+        <strong>drop_view(view_path, ignore_if_not_exists=True)</strong>
+      </td>
+      <td>
+        Drops a view registered in the given path.
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_view" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
         <strong>drop_temporary_table(table_path)</strong>
       </td>
       <td>
@@ -142,6 +153,17 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_table" name="link">}}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>drop_table(table_path, ignore_if_not_exists=True)</strong>
+      </td>
+      <td>
+        Drops a table registered under the given path.
+      </td>
+      <td class="text-center">
+        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.drop_table" name="link">}}
       </td>
     </tr>
     <tr>
@@ -184,17 +206,6 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
     </tr>
   </thead>
   <tbody>
-    <tr>
-      <td>
-        <strong>from_table_source(table_source)</strong>
-      </td>
-      <td>
-        Creates a table from a table source. 
-      </td>
-      <td class="text-center">
-        {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.from_table_source" name="link">}}
-      </td>
-    </tr>
     <tr>
       <td>
         <strong>scan(*table_path)</strong>
@@ -773,7 +784,7 @@ table_env.get_config().set("execution.checkpointing.interval", "3min")
 
 # set the statebackend type to "rocksdb", other available options are "hashmap"
 # you can also set the full qualified Java class name of the StateBackendFactory to this option
-# e.g. org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory
+# e.g. org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackendFactory
 table_env.get_config().set("state.backend.type", "rocksdb")
 
 # set the checkpoint directory, which is required by the RocksDB statebackend

@@ -120,7 +120,7 @@ public class ForStDBOperationTestBase {
     protected ContextKey<Integer, VoidNamespace> buildContextKey(int i) {
         int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(i, 128);
         RecordContext<Integer> recordContext =
-                new RecordContext<>(i, i, t -> {}, keyGroup, new Epoch(0));
+                new RecordContext<>(i, i, t -> {}, keyGroup, new Epoch(0), 0);
         return new ContextKey<>(recordContext, VoidNamespace.INSTANCE, null);
     }
 

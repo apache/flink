@@ -273,7 +273,7 @@ public class DefaultDispatcherRunnerTest extends TestLogger {
             // complete the confirmation future after losing the leadership
             contenderConfirmationFuture.complete("leader address");
 
-            assertThat(leaderElection.hasLeadership(leaderSessionId), is(false));
+            assertThat(leaderElection.hasLeadershipAsync(leaderSessionId).get(), is(false));
         }
     }
 

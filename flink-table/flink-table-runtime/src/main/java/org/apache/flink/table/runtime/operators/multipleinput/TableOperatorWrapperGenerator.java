@@ -75,6 +75,7 @@ public class TableOperatorWrapperGenerator {
 
     /** Map the visited transformation to its generated TableOperatorWrapper. */
     private final Map<Transformation<?>, TableOperatorWrapper<?>> visitedTransforms;
+
     /** The identifier for each sub operator in {@link MultipleInputStreamOperatorBase}. */
     private int identifierOfSubOp = 0;
 

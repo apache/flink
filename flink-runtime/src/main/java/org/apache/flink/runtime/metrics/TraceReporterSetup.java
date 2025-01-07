@@ -234,7 +234,9 @@ public final class TraceReporterSetup {
 
                 // massage user variables keys into scope format for parity to variable exclusion
                 Map<String, String> additionalVariables =
-                        reporterConfig.get(TraceOptions.REPORTER_ADDITIONAL_VARIABLES).entrySet()
+                        reporterConfig
+                                .get(TraceOptions.REPORTER_ADDITIONAL_VARIABLES)
+                                .entrySet()
                                 .stream()
                                 .collect(
                                         Collectors.toMap(

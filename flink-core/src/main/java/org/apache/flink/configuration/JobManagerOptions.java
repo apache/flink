@@ -487,7 +487,9 @@ public class JobManagerOptions {
                                             code(SchedulerExecutionMode.REACTIVE.name()))
                                     .build());
 
-    /** @deprecated Use {@link JobManagerOptions#SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING} */
+    /**
+     * @deprecated Use {@link JobManagerOptions#SCHEDULER_EXECUTING_COOLDOWN_AFTER_RESCALING}
+     */
     @Deprecated
     @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<Duration> SCHEDULER_SCALING_INTERVAL_MIN =
@@ -575,7 +577,9 @@ public class JobManagerOptions {
                                             code(MIN_PARALLELISM_INCREASE.key()))
                                     .build());
 
-    /** @deprecated Use {@link JobManagerOptions#SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT}. */
+    /**
+     * @deprecated Use {@link JobManagerOptions#SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT}.
+     */
     @Deprecated
     @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
     public static final ConfigOption<Duration> RESOURCE_WAIT_TIMEOUT =

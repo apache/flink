@@ -1277,7 +1277,9 @@ class RestClusterClientTest {
                         Collections.singletonMap(JobStatus.RUNNING, 1L),
                         jobVertexDetailsInfos,
                         Collections.singletonMap(ExecutionState.RUNNING, 1),
-                        new JobPlanInfo.RawJson("{\"id\":\"1234\"}"));
+                        new JobPlanInfo.RawJson("{\"id\":\"1234\"}"),
+                        new JobPlanInfo.RawJson("{\"id\":\"1234\"}"),
+                        0);
         final TestJobDetailsInfoHandler jobDetailsInfoHandler =
                 new TestJobDetailsInfoHandler(jobDetailsInfo);
 

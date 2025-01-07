@@ -63,7 +63,7 @@ public class AsyncKeyedStateBackendAdaptorTest {
                 new ValueStateDescriptor<>("testState", BasicTypeInfo.INT_TYPE_INFO);
 
         org.apache.flink.api.common.state.v2.ValueState<Integer> valueState =
-                adaptor.createState(
+                adaptor.getOrCreateKeyedState(
                         VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descriptor);
 
         // test synchronous interfaces.
@@ -102,7 +102,7 @@ public class AsyncKeyedStateBackendAdaptorTest {
                 new ListStateDescriptor<>("testState", BasicTypeInfo.INT_TYPE_INFO);
 
         org.apache.flink.api.common.state.v2.ListState<Integer> listState =
-                adaptor.createState(
+                adaptor.getOrCreateKeyedState(
                         VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descriptor);
 
         // test synchronous interfaces.
@@ -154,7 +154,7 @@ public class AsyncKeyedStateBackendAdaptorTest {
                         "testState", BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO);
 
         org.apache.flink.api.common.state.v2.MapState<Integer, Integer> mapState =
-                adaptor.createState(
+                adaptor.getOrCreateKeyedState(
                         VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descriptor);
 
         final HashMap<Integer, Integer> groundTruth =
@@ -247,7 +247,7 @@ public class AsyncKeyedStateBackendAdaptorTest {
                         "testState", Integer::sum, BasicTypeInfo.INT_TYPE_INFO);
 
         InternalReducingState<String, Long, Integer> reducingState =
-                adaptor.createState(0L, LongSerializer.INSTANCE, descriptor);
+                adaptor.getOrCreateKeyedState(0L, LongSerializer.INSTANCE, descriptor);
 
         // test synchronous interfaces.
         reducingState.clear();
@@ -353,7 +353,7 @@ public class AsyncKeyedStateBackendAdaptorTest {
                         BasicTypeInfo.INT_TYPE_INFO);
 
         InternalAggregatingState<String, Long, Integer, Integer, String> aggState =
-                adaptor.createState(0L, LongSerializer.INSTANCE, descriptor);
+                adaptor.getOrCreateKeyedState(0L, LongSerializer.INSTANCE, descriptor);
 
         // test synchronous interfaces.
         aggState.clear();

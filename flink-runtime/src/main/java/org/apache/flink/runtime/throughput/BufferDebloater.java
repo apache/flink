@@ -53,6 +53,26 @@ public class BufferDebloater {
             int minBufferSize,
             int bufferDebloatThresholdPercentages,
             long numberOfSamples) {
+        this(
+                owningTaskName,
+                gateIndex,
+                targetTotalTime,
+                maxBufferSize,
+                maxBufferSize,
+                minBufferSize,
+                bufferDebloatThresholdPercentages,
+                numberOfSamples);
+    }
+
+    public BufferDebloater(
+            String owningTaskName,
+            int gateIndex,
+            long targetTotalTime,
+            int startingBufferSize,
+            int maxBufferSize,
+            int minBufferSize,
+            int bufferDebloatThresholdPercentages,
+            long numberOfSamples) {
         this.owningTaskName = owningTaskName;
         this.gateIndex = gateIndex;
         this.targetTotalTime = targetTotalTime;
@@ -60,8 +80,10 @@ public class BufferDebloater {
         this.minBufferSize = minBufferSize;
         this.bufferDebloatThresholdFactor = bufferDebloatThresholdPercentages / 100.0;
 
-        this.lastBufferSize = maxBufferSize;
-        bufferSizeEMA = new BufferSizeEMA(maxBufferSize, minBufferSize, numberOfSamples);
+        this.lastBufferSize = startingBufferSize;
+        bufferSizeEMA =
+                new BufferSizeEMA(
+                        startingBufferSize, maxBufferSize, minBufferSize, numberOfSamples);
 
         LOG.debug(
                 "{}: Buffer debloater init settings: gateIndex={}, targetTotalTime={}, maxBufferSize={}, minBufferSize={}, bufferDebloatThresholdPercentages={}, numberOfSamples={}",

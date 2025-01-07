@@ -33,13 +33,16 @@ import java.util.concurrent.Future;
 @Internal
 public class Mail {
     private final MailOptionsImpl mailOptions;
+
     /** The action to execute. */
     private final ThrowingRunnable<? extends Exception> runnable;
+
     /**
      * The priority of the mail. The priority does not determine the order, but helps to hide
      * upstream mails from downstream processors to avoid live/deadlocks.
      */
     private final int priority;
+
     /** The description of the mail that is used for debugging and error-reporting. */
     private final String descriptionFormat;
 

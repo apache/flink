@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -237,11 +238,20 @@ public class ForStStateExecutor implements StateExecutor {
     @Override
     public void shutdown() {
         // Coordinator should be shutdown before others, since it submit jobs to others.
-        coordinatorThread.shutdown();
-        readThreads.shutdown();
+        shutdownAndWait(coordinatorThread);
+        shutdownAndWait(readThreads);
         if (!sharedWriteThread) {
-            writeThreads.shutdown();
+            shutdownAndWait(writeThreads);
         }
         LOG.info("Shutting down the ForStStateExecutor.");
+    }
+
+    private void shutdownAndWait(ExecutorService executorService) {
+        try {
+            executorService.shutdown();
+            while (!executorService.awaitTermination(60, TimeUnit.SECONDS)) {}
+        } catch (InterruptedException e) {
+            executorService.shutdownNow();
+        }
     }
 }

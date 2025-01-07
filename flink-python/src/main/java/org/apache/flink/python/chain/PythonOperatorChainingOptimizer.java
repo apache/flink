@@ -45,7 +45,6 @@ import org.apache.flink.streaming.api.operators.python.process.ExternalPythonKey
 import org.apache.flink.streaming.api.operators.python.process.ExternalPythonProcessOperator;
 import org.apache.flink.streaming.api.transformations.AbstractBroadcastStateTransformation;
 import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTransformation;
-import org.apache.flink.streaming.api.transformations.FeedbackTransformation;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
@@ -502,7 +501,6 @@ public class PythonOperatorChainingOptimizer {
             Transformation<?> newInput) {
         try {
             if (transformation instanceof OneInputTransformation
-                    || transformation instanceof FeedbackTransformation
                     || transformation instanceof SideOutputTransformation
                     || transformation instanceof ReduceTransformation
                     || transformation instanceof LegacySinkTransformation

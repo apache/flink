@@ -57,6 +57,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
+import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.exceptionhistory.TestingAccessExecution;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
@@ -187,6 +188,11 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     }
 
     @Override
+    public String getStreamGraphJson() {
+        return null;
+    }
+
+    @Override
     public void setJsonPlan(String jsonPlan) {}
 
     @Override
@@ -246,6 +252,11 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     @Override
     public Optional<String> getChangelogStorageName() {
         return Optional.empty();
+    }
+
+    @Override
+    public int getPendingOperatorCount() {
+        return 0;
     }
 
     @Override
@@ -401,6 +412,15 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
 
     @Override
     public void notifyNewlyInitializedJobVertices(List<ExecutionJobVertex> vertices) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void addNewJobVertices(
+            List<JobVertex> sortedJobVertices,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup,
+            VertexParallelismStore newVerticesParallelismStore)
+            throws JobException {
         throw new UnsupportedOperationException();
     }
 

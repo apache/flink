@@ -195,7 +195,8 @@ class ReusingSortMergeInnerJoinIteratorITCase {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(joinFunction, collector)) ;
+            while (iterator.callWithNextKey(joinFunction, collector))
+                ;
 
             iterator.close();
 
@@ -314,7 +315,8 @@ class ReusingSortMergeInnerJoinIteratorITCase {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(matcher, collector)) ;
+            while (iterator.callWithNextKey(matcher, collector))
+                ;
 
             iterator.close();
 

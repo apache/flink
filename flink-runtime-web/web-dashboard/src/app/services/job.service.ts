@@ -42,7 +42,8 @@ import {
   TaskStatus,
   UserAccumulators,
   VerticesLink,
-  JobVertexSubTaskDetail
+  JobVertexSubTaskDetail,
+  NodesItemLink
 } from '@flink-runtime-web/interfaces';
 import { JobResourceRequirements } from '@flink-runtime-web/interfaces/job-resource-requirements';
 
@@ -71,6 +72,7 @@ export class JobService {
             job.tasks[upperCaseKey] = job.tasks[key as keyof TaskStatus];
             delete job.tasks[key as keyof TaskStatus];
           }
+          job.tasks['PENDING'] = job['pending-operators'] || 0;
           job.completed = ['FINISHED', 'FAILED', 'CANCELED'].indexOf(job.state) > -1;
         });
         return data.jobs || [];
@@ -217,7 +219,8 @@ export class JobService {
         }
         return {
           ...node,
-          detail
+          detail,
+          job_vertex_id: node.id
         };
       });
       nodes.forEach(node => {
@@ -230,12 +233,34 @@ export class JobService {
       const listOfVerticesId = job.vertices.map(item => item.id);
       nodes.sort((pre, next) => listOfVerticesId.indexOf(pre.id) - listOfVerticesId.indexOf(next.id));
     }
+    // initializing stream graph
+    const streamLinks: NodesItemLink[] = [];
+    let streamNodes: NodesItemCorrect[] = [];
+    if (job['stream-graph']) {
+      // update pending status counts
+      job['status-counts']['PENDING'] = job['pending-operators'];
+      streamNodes = job['stream-graph'].nodes;
+      streamNodes.forEach(node => {
+        if (node.inputs && node.inputs.length) {
+          node.inputs.forEach(input => {
+            streamLinks.push({
+              ...input,
+              source: input.id,
+              target: node.id,
+              id: `${input.id}-${node.id}`
+            });
+          });
+        }
+      });
+    }
     return {
       ...job,
       plan: {
         ...job.plan,
         nodes,
-        links
+        links,
+        streamNodes,
+        streamLinks
       }
     };
   }

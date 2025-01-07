@@ -168,7 +168,8 @@ public class AccumulatorLiveITCase extends TestLogger {
     }
 
     private static void verifyResults(JobGraph jobGraph, Deadline deadline, ClusterClient<?> client)
-            throws InterruptedException, java.util.concurrent.ExecutionException,
+            throws InterruptedException,
+                    java.util.concurrent.ExecutionException,
                     java.util.concurrent.TimeoutException {
         FutureUtils.retrySuccessfulWithDelay(
                         () -> {

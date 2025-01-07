@@ -148,16 +148,13 @@ public class ForStAggregatingState<K, N, IN, ACC, OUT>
     public ForStDBPutRequest<?, ?, ?> buildDBPutRequest(StateRequest<?, ?, ?, ?> stateRequest) {
         Preconditions.checkArgument(
                 stateRequest.getRequestType() == StateRequestType.AGGREGATING_ADD
-                        || stateRequest.getRequestType() == StateRequestType.AGGREGATING_REMOVE
                         || stateRequest.getRequestType() == StateRequestType.CLEAR);
         ContextKey<K, N> contextKey =
                 new ContextKey<>(
                         (RecordContext<K>) stateRequest.getRecordContext(),
                         (N) stateRequest.getNamespace());
         ACC aggregate =
-                (stateRequest.getRequestType() == StateRequestType.CLEAR
-                                || stateRequest.getRequestType()
-                                        == StateRequestType.AGGREGATING_REMOVE)
+                stateRequest.getRequestType() == StateRequestType.CLEAR
                         ? null
                         : (ACC) stateRequest.getPayload();
         return ForStDBPutRequest.of(

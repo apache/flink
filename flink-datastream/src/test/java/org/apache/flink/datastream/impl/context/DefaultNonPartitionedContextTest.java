@@ -55,6 +55,8 @@ class DefaultNonPartitionedContextTest {
                         1,
                         2,
                         "mock-task",
+                        0,
+                        0,
                         operatorRuntimeContext.getMetricGroup());
 
         DefaultNonPartitionedContext<Integer> nonPartitionedContext =
@@ -63,7 +65,11 @@ class DefaultNonPartitionedContextTest {
                         new DefaultPartitionedContext(
                                 runtimeContext,
                                 Optional::empty,
-                                (key) -> cf.complete(null),
+                                (r, k) -> {
+                                    cf.complete(null);
+                                    r.run();
+                                    cf.complete(null);
+                                },
                                 UnsupportedProcessingTimeManager.INSTANCE,
                                 ContextTestUtils.createStreamingRuntimeContext(),
                                 new MockOperatorStateStore()),
@@ -105,6 +111,8 @@ class DefaultNonPartitionedContextTest {
                         1,
                         2,
                         "mock-task",
+                        0,
+                        0,
                         operatorRuntimeContext.getMetricGroup());
         DefaultNonPartitionedContext<Integer> nonPartitionedContext =
                 new DefaultNonPartitionedContext<>(
@@ -112,7 +120,12 @@ class DefaultNonPartitionedContextTest {
                         new DefaultPartitionedContext(
                                 runtimeContext,
                                 currentKey::get,
-                                (key) -> currentKey.set((Integer) key),
+                                (r, k) -> {
+                                    Integer oldKey = currentKey.get();
+                                    currentKey.set((Integer) k);
+                                    r.run();
+                                    currentKey.set(oldKey);
+                                },
                                 UnsupportedProcessingTimeManager.INSTANCE,
                                 ContextTestUtils.createStreamingRuntimeContext(),
                                 new MockOperatorStateStore()),

@@ -71,6 +71,12 @@ public interface SqlCallSyntax {
             };
 
     /**
+     * Function syntax for functions without parenthesis (e.g., CURRENT_DATE, LOCALTIMESTAMP,
+     * LOCALTIME, CURRENT_TIMESTAMP, CURRENT_TIME).
+     */
+    SqlCallSyntax NO_PARENTHESIS = (sqlName, operands) -> sqlName;
+
+    /**
      * Function syntax for handling DISTINCT aggregates. Special case. It does not have a syntax
      * itself, but modifies the syntax of the nested call.
      */
@@ -227,13 +233,13 @@ public interface SqlCallSyntax {
 
                 // leading & trailing is translated to BOTH
                 if (trimLeading && trimTrailing) {
-                    format = "TRIM BOTH %s FROM %s";
+                    format = "TRIM(BOTH %s FROM %s)";
                 } else if (trimLeading) {
-                    format = "TRIM LEADING %s FROM %s";
+                    format = "TRIM(LEADING %s FROM %s)";
                 } else if (trimTrailing) {
-                    format = "TRIM TRAILING %s FROM %s";
+                    format = "TRIM(TRAILING %s FROM %s)";
                 } else {
-                    format = "TRIM %s FROM %s";
+                    format = "TRIM(%s FROM %s)";
                 }
 
                 return String.format(
@@ -325,10 +331,10 @@ public interface SqlCallSyntax {
                         CallSyntaxUtils.overRangeToSerializableString(
                                 operands.get(2), operands.get(3));
                 if (operands.size() == 4) {
-                    return String.format("%s OVER(ORDER BY %s %s)", projection, order, rangeBounds);
+                    return String.format("%s OVER(ORDER BY %s%s)", projection, order, rangeBounds);
                 } else {
                     return String.format(
-                            "%s OVER(PARTITION BY %s ORDER BY %s %s)",
+                            "%s OVER(PARTITION BY %s ORDER BY %s%s)",
                             projection,
                             CallSyntaxUtils.asSerializableOperand(operands.get(4)),
                             order,

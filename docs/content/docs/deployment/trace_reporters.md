@@ -45,9 +45,9 @@ Example reporter configuration that specifies multiple reporters:
 ```yaml
 traces.reporters: otel,my_other_otel
 
-traces.reporter.otel.factory.class: org.apache.flink.common.metrics.OpenTelemetryTraceReporterFactory
+traces.reporter.otel.factory.class: org.apache.flink.traces.otel.OpenTelemetryTraceReporterFactory
 traces.reporter.otel.exporter.endpoint: http://127.0.0.1:1337
-traces.reporter.otel.scope.variables.additional: region:eu-west-1,environment:local-pnowojski-test,flink_runtime:1.17.1
+traces.reporter.otel.scope.variables.additional: region:eu-west-1,environment:local,flink_runtime:1.17.1
 
 traces.reporter.my_other_otel.factory.class: org.apache.flink.common.metrics.OpenTelemetryTraceReporterFactory
 traces.reporter.my_other_otel.exporter.endpoint: http://196.168.0.1:31337
@@ -63,6 +63,22 @@ Be careful that all the method must not block for a significant amount of time, 
 ## Reporters
 
 The following sections list the supported reporters.
+
+### OpenTelemetry
+#### (org.apache.flink.traces.otel.OpenTelemetryTraceReporterFactory)
+
+`OpenTelemetryTraceReporterFactory` currently supports only gRPC.
+
+Parameters:
+
+{{< include_reporter_config "layouts/shortcodes/generated/open_telemetry_reporter_configuration.html" >}}
+
+Example configuration:
+
+```yaml
+traces.reporter.otel.factory.class: org.apache.flink.metrics.otel.OpenTelemetryTraceReporterFactory
+traces.reporter.otel.exporter.endpoint: http://127.0.0.1:1337
+```
 
 ### Slf4j
 #### (org.apache.flink.traces.slf4j.Slf4jTraceReporter)

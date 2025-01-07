@@ -95,16 +95,8 @@ public class KeyedTwoInputBroadcastProcessOperator<KEY, IN1, IN2, OUT>
 
     @Override
     public void onProcessingTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
-        // align the key context with the registered timer.
-        partitionedContext
-                .getStateManager()
-                .executeInKeyContext(
-                        () ->
-                                userFunction.onProcessingTimer(
-                                        timer.getTimestamp(),
-                                        getOutputCollector(),
-                                        partitionedContext),
-                        timer.getKey());
+        userFunction.onProcessingTimer(
+                timer.getTimestamp(), getOutputCollector(), partitionedContext);
     }
 
     @Override
@@ -114,19 +106,15 @@ public class KeyedTwoInputBroadcastProcessOperator<KEY, IN1, IN2, OUT>
     }
 
     @Override
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({"rawtypes"})
     // Only element from input1 should be considered as the other side is broadcast input.
     public void setKeyContextElement1(StreamRecord record) throws Exception {
-        setKeyContextElement(record, getStateKeySelector1());
+        super.setKeyContextElement1(record);
+        keySet.add(getCurrentKey());
     }
 
-    private <T> void setKeyContextElement(StreamRecord<T> record, KeySelector<T, ?> selector)
-            throws Exception {
-        if (selector == null) {
-            return;
-        }
-        Object key = selector.getKey(record.getValue());
-        setCurrentKey(key);
-        keySet.add(key);
+    @Override
+    public boolean isAsyncStateProcessingEnabled() {
+        return true;
     }
 }

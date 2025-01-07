@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.state.v2.internal.InternalListState;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -112,6 +113,25 @@ public class ListStateAdaptor<K, N, V>
             delegatedState.add(value);
         } catch (Exception e) {
             throw new RuntimeException("Error while adding value to raw ListState", e);
+        }
+    }
+
+    @Override
+    public StateFuture<Void> asyncMergeNamespaces(N target, Collection<N> sources) {
+        try {
+            delegatedState.mergeNamespaces(target, sources);
+        } catch (Exception e) {
+            throw new RuntimeException("Error while merging namespaces in raw ListState", e);
+        }
+        return StateFutureUtils.completedVoidFuture();
+    }
+
+    @Override
+    public void mergeNamespaces(N target, Collection<N> sources) {
+        try {
+            delegatedState.mergeNamespaces(target, sources);
+        } catch (Exception e) {
+            throw new RuntimeException("Error while merging namespaces in raw ListState", e);
         }
     }
 }

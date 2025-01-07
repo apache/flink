@@ -19,6 +19,9 @@
 package org.apache.flink.table.annotation;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.ProcessTableFunction;
+import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.types.inference.TypeInference;
 
@@ -29,8 +32,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * A hint that influences the reflection-based extraction of input types, accumulator types, and
- * output types for constructing the {@link TypeInference} logic of a {@link UserDefinedFunction}.
+ * A hint that influences the reflection-based extraction of arguments, accumulator, and output for
+ * constructing the {@link TypeInference} logic of a {@link UserDefinedFunction}.
  *
  * <p>One or more annotations can be declared on top of a {@link UserDefinedFunction} class or
  * individually for each {@code eval()/accumulate()} method for overloading function signatures. All
@@ -42,18 +45,24 @@ import java.lang.annotation.Target;
  * part and let the default extraction do the rest:
  *
  * <pre>{@code
- * // accepts (INT, STRING) and returns BOOLEAN
+ * // accepts (INT, STRING) and returns BOOLEAN,
+ * // the arguments have names and are optional
  * @FunctionHint(
- *   argument = [(name = "f1", @DataTypeHint("INT"), isOptional = true),
- *      (name = "f2", @DataTypeHint("STRING"), isOptional = true)],
+ *   arguments = {
+ *     @ArgumentHint(type = @DataTypeHint("INT"), name = "in1", isOptional = true),
+ *     @ArgumentHint(type = @DataTypeHint("STRING"), name = "in2", isOptional = true)
+ *   },
  *   output = @DataTypeHint("BOOLEAN")
  * )
  * class X extends ScalarFunction { ... }
  *
- * // accepts (INT, STRING...) and returns BOOLEAN
+ * // accepts (INT, STRING...) and returns BOOLEAN,
+ * // the arguments have names
  * @FunctionHint(
- *   argument = [(name = "f1", @DataTypeHint("INT"), isOptional = false),
- *      (name = "f2", @DataTypeHint("STRING"), isOptional = false)],
+ *   arguments = {
+ *     @ArgumentHint(type = @DataTypeHint("INT"), name = "in1"),
+ *     @ArgumentHint(type = @DataTypeHint("STRING"), name = "in2")
+ *   },
  *   isVarArgs = true,
  *   output = @DataTypeHint("BOOLEAN")
  * )
@@ -122,6 +131,7 @@ import java.lang.annotation.Target;
  * }</pre>
  *
  * @see DataTypeHint
+ * @see ArgumentHint
  */
 @PublicEvolving
 @Retention(RetentionPolicy.RUNTIME)
@@ -131,8 +141,7 @@ public @interface FunctionHint {
 
     // Note to implementers:
     // Because "null" is not supported as an annotation value. Every annotation parameter *must*
-    // have
-    // some representation for unknown values in order to merge multi-level annotations.
+    // have some representation for unknown values in order to merge multi-level annotations.
 
     /**
      * Explicitly lists the argument types that a function takes as input.
@@ -141,8 +150,10 @@ public @interface FunctionHint {
      * used.
      *
      * <p>Note: Specifying the input arguments manually disables the entire reflection-based
-     * extraction around arguments. This means that also {@link #isVarArgs()} and {@link
-     * #argumentNames()} need to be specified manually if required.
+     * extraction around arguments. This means that also {@link #isVarArgs()} needs to be specified
+     * manually if required.
+     *
+     * <p>Use {@link #arguments()} for more control about argument names and argument kinds.
      */
     DataTypeHint[] input() default @DataTypeHint();
 
@@ -157,33 +168,49 @@ public @interface FunctionHint {
     boolean isVarArgs() default false;
 
     /**
-     * Explicitly lists the argument names that a function takes as input.
+     * Explicitly lists the arguments that a function takes as input. Including their names, data
+     * types, kinds, and whether they are optional.
      *
-     * <p>By default, if {@link #input()} is defined, explicit argument names are undefined and this
-     * parameter can be used to provide argument names. If {@link #input()} is not defined, the
-     * reflection-based extraction is used, thus, this parameter is ignored.
+     * <p>It is recommended to use this parameter instead of {@link #input()}. Using both {@link
+     * #input()} and this parameter is not allowed. Specifying the list of arguments manually
+     * disables the entire reflection-based extraction around arguments.
      */
-    String[] argumentNames() default {""};
+    ArgumentHint[] arguments() default {};
 
     /**
-     * Explicitly lists the argument that a function takes as input, including their names, types,
-     * and whether they are optional.
-     *
-     * <p>By default, it is recommended to use this parameter instead of {@link #input()}. If the
-     * type of argumentHint is not defined, it will be considered an invalid argument and an
-     * exception will be thrown. Additionally, both this parameter and {@link #input()} cannot be
-     * defined at the same time. If neither argument nor {@link #input()} are defined,
-     * reflection-based extraction will be used.
-     */
-    ArgumentHint[] argument() default {};
-
-    /**
-     * Explicitly defines the intermediate result type that a function uses as accumulator.
+     * Explicitly defines the intermediate result type (i.e. state entry) that an aggregating
+     * function uses as its accumulator. The entry is managed by the framework (usually via Flink's
+     * managed state).
      *
      * <p>By default, an explicit accumulator type is undefined and the reflection-based extraction
      * is used.
+     *
+     * <p>This parameter is primarily intended for aggregating functions (i.e. {@link
+     * AggregateFunction} and {@link TableAggregateFunction}). It is recommended to use {@link
+     * #state()} for {@link ProcessTableFunction}.
      */
     DataTypeHint accumulator() default @DataTypeHint();
+
+    /**
+     * Explicitly lists the intermediate results (i.e. state entries) of a function that is managed
+     * by the framework (i.e. Flink managed state). Including their names and data types.
+     *
+     * <p>State hints are primarily intended for {@link ProcessTableFunction}. A PTF supports
+     * multiple state entries at the beginning of an eval()/onTimer() method (after an optional
+     * context parameter).
+     *
+     * <p>Aggregating functions (i.e. {@link AggregateFunction} and {@link TableAggregateFunction})
+     * support a single state entry at the beginning of an accumulate()/retract() method (i.e. the
+     * accumulator).
+     *
+     * <p>By default, explicit state is undefined and the reflection-based extraction is used where
+     * {@link StateHint} is present.
+     *
+     * <p>Using both {@link #accumulator()} and this parameter is not allowed. Specifying the list
+     * of state entries manually disables the entire reflection-based extraction around {@link
+     * StateHint} and accumulators for aggregating functions.
+     */
+    StateHint[] state() default {};
 
     /**
      * Explicitly defines the result type that a function uses as output.
@@ -192,4 +219,32 @@ public @interface FunctionHint {
      * used.
      */
     DataTypeHint output() default @DataTypeHint();
+
+    // --------------------------------------------------------------------------------------------
+    // Legacy
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Explicitly lists the argument names that a function takes as input.
+     *
+     * <p>By default, if {@link #input()} is defined, explicit argument names are undefined and this
+     * parameter can be used to provide argument names. If {@link #input()} is not defined, the
+     * reflection-based extraction is used, thus, this parameter is ignored.
+     *
+     * @deprecated Use {@link #arguments()} instead.
+     */
+    @Deprecated
+    String[] argumentNames() default {""};
+
+    /**
+     * Explicitly lists the arguments that a function takes as input. Including their names, data
+     * types, kinds, and whether they are optional.
+     *
+     * <p>It is recommended to use this parameter instead of {@link #input()}. Specifying the list
+     * of arguments manually disables the entire reflection-based extraction around arguments.
+     *
+     * @deprecated Use {@link #arguments()} instead.
+     */
+    @Deprecated
+    ArgumentHint[] argument() default {};
 }

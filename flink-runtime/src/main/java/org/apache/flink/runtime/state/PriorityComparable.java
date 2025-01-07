@@ -27,6 +27,8 @@ import javax.annotation.Nonnull;
  */
 public interface PriorityComparable<T> {
 
-    /** @see PriorityComparator#comparePriority(Object, Object). */
+    /**
+     * @see PriorityComparator#comparePriority(Object, Object).
+     */
     int comparePriorityTo(@Nonnull T other);
 }

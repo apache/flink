@@ -28,15 +28,17 @@ import org.apache.flink.datastream.impl.context.DefaultNonPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
 import org.apache.flink.datastream.impl.context.UnsupportedProcessingTimeManager;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+import java.util.function.BiConsumer;
+
 /** Operator for {@link OneInputStreamProcessFunction}. */
 public class ProcessOperator<IN, OUT>
-        extends AbstractUdfStreamOperator<OUT, OneInputStreamProcessFunction<IN, OUT>>
+        extends AbstractAsyncStateUdfStreamOperator<OUT, OneInputStreamProcessFunction<IN, OUT>>
         implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
 
     protected transient DefaultRuntimeContext context;
@@ -63,17 +65,20 @@ public class ProcessOperator<IN, OUT>
                         taskInfo.getNumberOfParallelSubtasks(),
                         taskInfo.getMaxNumberOfParallelSubtasks(),
                         taskInfo.getTaskName(),
+                        taskInfo.getIndexOfThisSubtask(),
+                        taskInfo.getAttemptNumber(),
                         operatorContext.getMetricGroup());
         partitionedContext =
                 new DefaultPartitionedContext(
                         context,
                         this::currentKey,
-                        this::setCurrentKey,
+                        getProcessorWithKey(),
                         getProcessingTimeManager(),
                         operatorContext,
                         getOperatorStateBackend());
         outputCollector = getOutputCollector();
         nonPartitionedContext = getNonPartitionedContext();
+        userFunction.open(nonPartitionedContext);
     }
 
     @Override
@@ -95,6 +100,21 @@ public class ProcessOperator<IN, OUT>
         throw new UnsupportedOperationException("The key is only defined for keyed operator");
     }
 
+    protected BiConsumer<Runnable, Object> getProcessorWithKey() {
+        if (isAsyncStateProcessingEnabled()) {
+            return (r, k) -> asyncProcessWithKey(k, r::run);
+        } else {
+            return (r, k) -> {
+                Object oldKey = currentKey();
+                try {
+                    r.run();
+                } finally {
+                    setCurrentKey(oldKey);
+                }
+            };
+        }
+    }
+
     protected ProcessingTimeManager getProcessingTimeManager() {
         return UnsupportedProcessingTimeManager.INSTANCE;
     }
@@ -102,5 +122,17 @@ public class ProcessOperator<IN, OUT>
     protected NonPartitionedContext<OUT> getNonPartitionedContext() {
         return new DefaultNonPartitionedContext<>(
                 context, partitionedContext, outputCollector, false, null);
+    }
+
+    @Override
+    public void close() throws Exception {
+        super.close();
+        userFunction.close();
+    }
+
+    @Override
+    public boolean isAsyncStateProcessingEnabled() {
+        // For non-keyed operators, we disable async state processing.
+        return false;
     }
 }

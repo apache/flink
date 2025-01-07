@@ -61,7 +61,6 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
-import org.apache.flink.runtime.state.v2.DefaultKeyedStateStoreV2;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -70,7 +69,7 @@ import org.apache.flink.streaming.util.CollectorOutput;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 
 import org.junit.jupiter.api.Test;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -483,7 +482,9 @@ class StreamingRuntimeContextTest {
                                 })
                 .when(keyedStateBackend)
                 .getPartitionedState(
-                        Matchers.any(), any(TypeSerializer.class), any(StateDescriptor.class));
+                        ArgumentMatchers.any(),
+                        any(TypeSerializer.class),
+                        any(StateDescriptor.class));
 
         doAnswer(
                         (Answer<Object>)
@@ -492,7 +493,7 @@ class StreamingRuntimeContextTest {
                                     return null;
                                 })
                 .when(asyncKeyedStateBackend)
-                .createState(
+                .getOrCreateKeyedState(
                         any(),
                         any(TypeSerializer.class),
                         any(org.apache.flink.runtime.state.v2.StateDescriptor.class));
@@ -502,7 +503,9 @@ class StreamingRuntimeContextTest {
             operator.getRuntimeContext().setKeyedStateStore(keyedStateStore);
         } else {
             operator.getRuntimeContext()
-                    .setKeyedStateStoreV2(new DefaultKeyedStateStoreV2(asyncKeyedStateBackend));
+                    .setKeyedStateStoreV2(
+                            new org.apache.flink.runtime.state.v2.DefaultKeyedStateStore(
+                                    asyncKeyedStateBackend));
         }
 
         return operator;
@@ -572,7 +575,9 @@ class StreamingRuntimeContextTest {
                         })
                 .when(keyedStateBackend)
                 .getPartitionedState(
-                        Matchers.any(), any(TypeSerializer.class), any(ListStateDescriptor.class));
+                        ArgumentMatchers.any(),
+                        any(TypeSerializer.class),
+                        any(ListStateDescriptor.class));
 
         when(operatorMock.getKeyedStateStore()).thenReturn(keyedStateStore);
         when(operatorMock.getOperatorID()).thenReturn(new OperatorID());
@@ -643,7 +648,9 @@ class StreamingRuntimeContextTest {
                         })
                 .when(keyedStateBackend)
                 .getPartitionedState(
-                        Matchers.any(), any(TypeSerializer.class), any(MapStateDescriptor.class));
+                        ArgumentMatchers.any(),
+                        any(TypeSerializer.class),
+                        any(MapStateDescriptor.class));
 
         when(operatorMock.getKeyedStateStore()).thenReturn(keyedStateStore);
         when(operatorMock.getOperatorID()).thenReturn(new OperatorID());

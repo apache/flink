@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.CompositeBuffer;
+import org.apache.flink.runtime.io.network.buffer.FullyFilledBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
@@ -173,19 +174,25 @@ class SortMergeResultPartitionTest {
                     numBytesRead[subpartition] += numBytes;
 
                     MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(numBytes);
-                    Buffer fullBuffer =
-                            ((CompositeBuffer) buffer)
-                                    .getFullBufferData(
-                                            MemorySegmentFactory.allocateUnpooledSegment(numBytes));
-                    segment.put(0, fullBuffer.getNioBufferReadable(), fullBuffer.readableBytes());
-                    buffersRead[subpartition].add(
-                            new NetworkBuffer(
-                                    segment,
-                                    ignore -> {},
-                                    fullBuffer.getDataType(),
-                                    fullBuffer.isCompressed(),
-                                    fullBuffer.readableBytes()));
-                    fullBuffer.recycleBuffer();
+                    FullyFilledBuffer fullyFilledBuffer = (FullyFilledBuffer) buffer;
+
+                    for (int i = 0; i < fullyFilledBuffer.getPartialBuffers().size(); i++) {
+                        Buffer fullBuffer =
+                                ((CompositeBuffer) fullyFilledBuffer.getPartialBuffers().get(i))
+                                        .getFullBufferData(
+                                                MemorySegmentFactory.allocateUnpooledSegment(
+                                                        numBytes));
+                        segment.put(
+                                0, fullBuffer.getNioBufferReadable(), fullBuffer.readableBytes());
+                        buffersRead[subpartition].add(
+                                new NetworkBuffer(
+                                        segment,
+                                        ignore -> {},
+                                        fullBuffer.getDataType(),
+                                        fullBuffer.isCompressed(),
+                                        fullBuffer.readableBytes()));
+                        fullBuffer.recycleBuffer();
+                    }
                 });
         DataBufferTest.checkWriteReadResult(
                 numSubpartitions, numBytesWritten, numBytesRead, dataWritten, buffersRead);
@@ -271,14 +278,21 @@ class SortMergeResultPartitionTest {
                     int numBytes = buffer.readableBytes();
 
                     MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(numBytes);
-                    Buffer fullBuffer = ((CompositeBuffer) buffer).getFullBufferData(segment);
-                    if (fullBuffer.isBuffer()) {
-                        ByteBuffer byteBuffer =
-                                ByteBuffer.allocate(fullBuffer.readableBytes())
-                                        .put(fullBuffer.getNioBufferReadable());
-                        recordRead.put((ByteBuffer) byteBuffer.flip());
+
+                    FullyFilledBuffer fullyFilledBuffer = (FullyFilledBuffer) buffer;
+
+                    for (int i = 0; i < fullyFilledBuffer.getPartialBuffers().size(); i++) {
+                        Buffer fullBuffer =
+                                ((CompositeBuffer) fullyFilledBuffer.getPartialBuffers().get(i))
+                                        .getFullBufferData(segment);
+                        if (fullBuffer.isBuffer()) {
+                            ByteBuffer byteBuffer =
+                                    ByteBuffer.allocate(fullBuffer.readableBytes())
+                                            .put(fullBuffer.getNioBufferReadable());
+                            recordRead.put(byteBuffer.flip());
+                        }
+                        fullBuffer.recycleBuffer();
                     }
-                    fullBuffer.recycleBuffer();
                 });
         recordWritten.rewind();
         recordRead.flip();
@@ -521,10 +535,13 @@ class SortMergeResultPartitionTest {
         do {
             buffer = view.getNextBuffer();
             if (buffer != null) {
-                Buffer data = ((CompositeBuffer) buffer.buffer()).getFullBufferData(segment);
-                partition.emitRecord(data.getNioBufferReadable(), 0);
-                if (!data.isRecycled()) {
-                    data.recycleBuffer();
+                for (Buffer partialBuffer :
+                        ((FullyFilledBuffer) buffer.buffer()).getPartialBuffers()) {
+                    Buffer data = ((CompositeBuffer) partialBuffer).getFullBufferData(segment);
+                    partition.emitRecord(data.getNioBufferReadable(), 0);
+                    if (!data.isRecycled()) {
+                        data.recycleBuffer();
+                    }
                 }
                 return buffer.buffer().isBuffer();
             }

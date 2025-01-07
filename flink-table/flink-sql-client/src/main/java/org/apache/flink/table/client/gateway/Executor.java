@@ -22,8 +22,11 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.gateway.rest.util.RowFormat;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 
+import javax.annotation.Nullable;
+
 import java.io.Closeable;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.net.URL;
 import java.util.List;
 import java.util.Map;
@@ -86,6 +89,15 @@ public interface Executor extends Closeable {
      * @return completion hints that fit at the current cursor position
      */
     List<String> completeStatement(String statement, int position);
+
+    /**
+     * Deploy script in application mode.
+     *
+     * @param script content to run in application mode
+     * @param uri uri to the script
+     * @return the cluster id
+     */
+    String deployScript(@Nullable String script, @Nullable URI uri);
 
     /** Close the {@link Executor} and process all exceptions. */
     void close();

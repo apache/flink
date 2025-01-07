@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.source.coordinator;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.connector.source.Source;
@@ -166,6 +167,7 @@ class SourceCoordinatorAlignmentTest extends SourceCoordinatorTestBase {
         AtomicInteger counter1 = new AtomicInteger(0);
         sourceCoordinator =
                 new SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>>(
+                        new JobID(),
                         OPERATOR_NAME,
                         mockSource,
                         getNewSourceCoordinatorContext(),
@@ -184,6 +186,7 @@ class SourceCoordinatorAlignmentTest extends SourceCoordinatorTestBase {
         CountDownLatch latch = new CountDownLatch(2);
         sourceCoordinator =
                 new SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>>(
+                        new JobID(),
                         OPERATOR_NAME,
                         mockSource,
                         getNewSourceCoordinatorContext(),
@@ -218,6 +221,7 @@ class SourceCoordinatorAlignmentTest extends SourceCoordinatorTestBase {
         CountDownLatch latch = new CountDownLatch(1);
         sourceCoordinator =
                 new SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>>(
+                        new JobID(),
                         OPERATOR_NAME,
                         mockSource,
                         getNewSourceCoordinatorContext(),

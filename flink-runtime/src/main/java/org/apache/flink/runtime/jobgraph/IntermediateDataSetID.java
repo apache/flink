@@ -35,6 +35,10 @@ public class IntermediateDataSetID extends AbstractID implements ResultID {
         super();
     }
 
+    public IntermediateDataSetID(JobVertexID sourceId, int edgeId) {
+        super(sourceId.getUpperPart() + edgeId, sourceId.getLowerPart() + edgeId);
+    }
+
     /**
      * Creates a new intermediate data set ID with the bytes of the given ID.
      *

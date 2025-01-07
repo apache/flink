@@ -111,6 +111,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     private final Semaphore availableCachesSemaphore;
     private final LinkedBlockingDeque<EnvironmentCacheAndLock> availableCaches;
     private final boolean loadBalanceBundles;
+
     /**
      * Clients which were evicted due to environment expiration but still had pending references.
      */

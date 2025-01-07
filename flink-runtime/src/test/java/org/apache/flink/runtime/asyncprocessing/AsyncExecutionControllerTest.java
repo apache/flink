@@ -28,6 +28,7 @@ import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandle
 import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.asyncprocessing.EpochManager.Epoch;
 import org.apache.flink.runtime.asyncprocessing.EpochManager.ParallelMode;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
@@ -101,6 +102,7 @@ class AsyncExecutionControllerTest {
                         mailboxExecutor,
                         exceptionHandler,
                         stateExecutor,
+                        new DeclarationManager(),
                         128,
                         batchSize,
                         timeout,
@@ -110,7 +112,7 @@ class AsyncExecutionControllerTest {
 
         try {
             valueState =
-                    asyncKeyedStateBackend.createState(
+                    asyncKeyedStateBackend.getOrCreateKeyedState(
                             VoidNamespace.INSTANCE,
                             VoidNamespaceSerializer.INSTANCE,
                             stateDescriptor);
@@ -691,7 +693,7 @@ class AsyncExecutionControllerTest {
 
         assertThat(epoch1).isEqualTo(epoch2);
         assertThat(epoch1.ongoingRecordCount).isEqualTo(2);
-        aec.processNonRecord(() -> output.incrementAndGet());
+        aec.processNonRecord(null, () -> output.incrementAndGet());
 
         assertThat(output.get()).isEqualTo(3);
         // SERIAL_BETWEEN_EPOCH mode would drain in-flight records on non-record arriving.
@@ -724,7 +726,7 @@ class AsyncExecutionControllerTest {
         userCode.run();
 
         aec.epochManager.onNonRecord(
-                () -> output.incrementAndGet(), ParallelMode.PARALLEL_BETWEEN_EPOCH);
+                null, () -> output.incrementAndGet(), ParallelMode.PARALLEL_BETWEEN_EPOCH);
         assertThat(epoch1.ongoingRecordCount).isEqualTo(1);
 
         String record2 = "key2-r2";
@@ -736,7 +738,7 @@ class AsyncExecutionControllerTest {
         assertThat(epoch1.ongoingRecordCount).isEqualTo(1);
         assertThat(epoch2.ongoingRecordCount).isEqualTo(1);
         aec.epochManager.onNonRecord(
-                () -> output.incrementAndGet(), ParallelMode.PARALLEL_BETWEEN_EPOCH);
+                null, () -> output.incrementAndGet(), ParallelMode.PARALLEL_BETWEEN_EPOCH);
         assertThat(epoch1.ongoingRecordCount).isEqualTo(1);
         assertThat(epoch2.ongoingRecordCount).isEqualTo(1);
         assertThat(output.get()).isEqualTo(0);
@@ -751,7 +753,7 @@ class AsyncExecutionControllerTest {
         assertThat(epoch2.ongoingRecordCount).isEqualTo(1);
         assertThat(epoch3.ongoingRecordCount).isEqualTo(1);
         aec.epochManager.onNonRecord(
-                () -> output.incrementAndGet(), ParallelMode.SERIAL_BETWEEN_EPOCH);
+                null, () -> output.incrementAndGet(), ParallelMode.SERIAL_BETWEEN_EPOCH);
         assertThat(epoch1.ongoingRecordCount).isEqualTo(0);
         assertThat(epoch2.ongoingRecordCount).isEqualTo(0);
         assertThat(epoch3.ongoingRecordCount).isEqualTo(0);
