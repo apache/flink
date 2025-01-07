@@ -57,7 +57,7 @@ public class ToTimestampLtzTypeStrategy implements TypeStrategy {
             if (!isCharacterType(firstTypeRoot) && !firstType.is(LogicalTypeFamily.NUMERIC)) {
                 throw new ValidationException(
                         "Unsupported argument type. "
-                                + "When taking 1 argument, TO_TIMESTAMP_LTZ accepts <CHARACTER> or <NUMERIC>.");
+                                + "When taking 1 argument, TO_TIMESTAMP_LTZ accepts an argument of type <VARCHAR>, <CHAR>, or <NUMERIC>.");
             }
         } else if (argCount == 2) {
             LogicalType secondType = argumentTypes.get(1).getLogicalType();
@@ -72,12 +72,12 @@ public class ToTimestampLtzTypeStrategy implements TypeStrategy {
                 if (!isCharacterType(secondTypeRoot)) {
                     throw new ValidationException(
                             "Unsupported argument type. "
-                                    + "TO_TIMESTAMP_LTZ(<CHARACTER>, <CHARACTER>) requires the second argument to be <CHARACTER>.");
+                                    + "If the first argument is of type <VARCHAR> or <CHAR>, TO_TIMESTAMP_LTZ requires the second argument to be of type <VARCHAR> or <CHAR>.");
                 }
             } else {
                 throw new ValidationException(
                         "Unsupported argument type. "
-                                + "When taking 2 arguments, TO_TIMESTAMP_LTZ requires the first argument to be <NUMERIC> or <CHARACTER>.");
+                                + "When taking 2 arguments, TO_TIMESTAMP_LTZ requires the first argument to be of type <VARCHAR>, <CHAR>, or <NUMERIC>.");
             }
         } else if (argCount == 3) {
             if (!isCharacterType(firstTypeRoot)
@@ -85,7 +85,7 @@ public class ToTimestampLtzTypeStrategy implements TypeStrategy {
                     || !isCharacterType(argumentTypes.get(2).getLogicalType().getTypeRoot())) {
                 throw new ValidationException(
                         "Unsupported argument type. "
-                                + "When taking 3 arguments, TO_TIMESTAMP_LTZ requires all three arguments to be of type <CHARACTER>.");
+                                + "When taking 3 arguments, TO_TIMESTAMP_LTZ requires all three arguments to be of type <VARCHAR> or <CHAR>.");
             }
         }
 

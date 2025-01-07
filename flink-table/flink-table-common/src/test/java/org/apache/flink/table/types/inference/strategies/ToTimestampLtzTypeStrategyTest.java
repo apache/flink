@@ -30,7 +30,7 @@ class ToTimestampLtzTypeStrategyTest extends TypeStrategiesTestBase {
     protected Stream<TestSpec> testData() {
         return Stream.of(
                 TestSpec.forStrategy(
-                                "TO_TIMESTAMP_LTZ(<CHARACTER>)",
+                                "Valid single argument of type <VARCHAR> or <CHAR>",
                                 SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
                         .inputTypes(DataTypes.STRING())
                         .expectDataType(DataTypes.TIMESTAMP_LTZ(3).nullable()),
@@ -44,14 +44,14 @@ class ToTimestampLtzTypeStrategyTest extends TypeStrategiesTestBase {
                                 SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
                         .inputTypes(DataTypes.BOOLEAN())
                         .expectErrorMessage(
-                                "Unsupported argument type. When taking 1 argument, TO_TIMESTAMP_LTZ accepts <CHARACTER> or <NUMERIC>."),
+                                "Unsupported argument type. When taking 1 argument, TO_TIMESTAMP_LTZ accepts an argument of type <VARCHAR>, <CHAR>, or <NUMERIC>."),
                 TestSpec.forStrategy(
                                 "TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>)",
                                 SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
                         .inputTypes(DataTypes.DOUBLE(), DataTypes.INT())
                         .expectDataType(DataTypes.TIMESTAMP_LTZ(3).nullable()),
                 TestSpec.forStrategy(
-                                "TO_TIMESTAMP_LTZ(<CHARACTER>, <CHARACTER>)",
+                                "Valid two arguments of <VARCHAR> or <CHAR>",
                                 SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
                         .inputTypes(DataTypes.STRING(), DataTypes.STRING())
                         .expectDataType(DataTypes.TIMESTAMP_LTZ(3).nullable()),
@@ -62,27 +62,26 @@ class ToTimestampLtzTypeStrategyTest extends TypeStrategiesTestBase {
                         .expectErrorMessage(
                                 "Unsupported argument type. TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>) requires the second argument to be <INTEGER>."),
                 TestSpec.forStrategy(
-                                "Invalid second argument when the first argument is <CHARACTER>",
+                                "Invalid second argument when the first argument is <VARCHAR> or <CHAR>",
                                 SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
                         .inputTypes(DataTypes.STRING(), DataTypes.FLOAT())
                         .expectErrorMessage(
-                                "Unsupported argument type. TO_TIMESTAMP_LTZ(<CHARACTER>, <CHARACTER>) requires the second argument to be <CHARACTER>."),
+                                "Unsupported argument type. If the first argument is of type <VARCHAR> or <CHAR>, TO_TIMESTAMP_LTZ requires the second argument to be of type <VARCHAR> or <CHAR>."),
                 TestSpec.forStrategy(
                                 "Invalid first argument when taking 2 arguments",
                                 SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
                         .inputTypes(DataTypes.BOOLEAN(), DataTypes.FLOAT())
                         .expectErrorMessage(
-                                "Unsupported argument type. When taking 2 arguments, TO_TIMESTAMP_LTZ requires the first argument to be <NUMERIC> or <CHARACTER>."),
+                                "Unsupported argument type. When taking 2 arguments, TO_TIMESTAMP_LTZ requires the first argument to be of type <VARCHAR>, <CHAR>, or <NUMERIC>."),
                 TestSpec.forStrategy(
-                                "TO_TIMESTAMP_LTZ(<CHARACTER>, <CHARACTER>, <CHARACTER>)",
-                                SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
+                                "Valid three arguments", SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
                         .inputTypes(DataTypes.STRING(), DataTypes.STRING(), DataTypes.STRING())
                         .expectDataType(DataTypes.TIMESTAMP_LTZ(3).nullable()),
                 TestSpec.forStrategy(
                                 "Invalid three arguments", SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
                         .inputTypes(DataTypes.STRING(), DataTypes.INT(), DataTypes.STRING())
                         .expectErrorMessage(
-                                "Unsupported argument type. When taking 3 arguments, TO_TIMESTAMP_LTZ requires all three arguments to be of type <CHARACTER>."),
+                                "Unsupported argument type. When taking 3 arguments, TO_TIMESTAMP_LTZ requires all three arguments to be of type <VARCHAR> or <CHAR>."),
                 TestSpec.forStrategy("No arguments", SpecificTypeStrategies.TO_TIMESTAMP_LTZ)
                         .inputTypes()
                         .expectErrorMessage(

@@ -381,7 +381,7 @@ public final class Expressions {
     /**
      * Converts a timestamp to {@link DataTypes#TIMESTAMP_LTZ(int)}.
      *
-     * <p>This method takes an object representing a timestamp and converts it to a TIMESTAMP_LTZ
+     * <p>This method takes a string representing a timestamp and converts it to a TIMESTAMP_LTZ
      * using the built-in TO_TIMESTAMP_LTZ function definition.
      *
      * @param timeStamp The timestamp string to be converted.
