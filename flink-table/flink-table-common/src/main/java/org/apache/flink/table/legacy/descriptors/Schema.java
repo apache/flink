@@ -147,7 +147,9 @@ public class Schema implements Descriptor {
 
     private static boolean isLegacyTypeString(String fieldType) {
         try {
-            LogicalType type = LogicalTypeParser.parse(fieldType);
+            LogicalType type =
+                    LogicalTypeParser.parse(
+                            fieldType, Thread.currentThread().getContextClassLoader());
             return type instanceof UnresolvedUserDefinedType;
         } catch (Exception e) {
             // if the parsing failed, fallback to the legacy parser
