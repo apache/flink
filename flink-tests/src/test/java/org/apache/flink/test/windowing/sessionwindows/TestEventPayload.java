@@ -24,16 +24,18 @@ import org.apache.flink.util.Preconditions;
 public final class TestEventPayload {
 
     // id of the session w.r.t the key
-    private int sessionId;
+    public int sessionId;
 
     // id of the event w.r.t. tje session id
-    private int eventId;
+    public int eventId;
 
     // the watermark under which the event was emitted
-    private long watermark;
+    public long watermark;
 
     // the timing characteristic of the event w.r.t. the watermark
-    private SessionEventGeneratorImpl.Timing timing;
+    public SessionEventGeneratorImpl.Timing timing;
+
+    public TestEventPayload() {}
 
     public TestEventPayload(
             long watermark,

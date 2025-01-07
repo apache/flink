@@ -71,7 +71,7 @@ class TypeInformationSerializationSchemaTest {
     //  Test data types
     // ------------------------------------------------------------------------
 
-    private static class MyPOJO {
+    public static class MyPOJO {
 
         public int aField;
         public List<Date> aList;

@@ -151,6 +151,7 @@ class PyFlinkUTTestCase(PyFlinkTestCase):
         self.env.set_parallelism(2)
         self.t_env = StreamTableEnvironment.create(self.env)
         self.t_env.get_config().set("python.fn-execution.bundle.size", "1")
+        self.t_env.get_config().set("pipeline.generic-types", "true")
 
 
 class PyFlinkStreamTableTestCase(PyFlinkITTestCase):

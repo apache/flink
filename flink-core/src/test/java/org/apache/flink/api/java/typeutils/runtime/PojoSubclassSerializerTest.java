@@ -157,6 +157,8 @@ class PojoSubclassSerializerTest
     public static class TestUserClass3 extends TestUserClassBase {
         public float dumm4;
 
+        public TestUserClass3() {}
+
         public TestUserClass3(int dumm1, String dumm2, float dumm4) {
             super(dumm1, dumm2);
             this.dumm4 = dumm4;

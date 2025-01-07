@@ -91,7 +91,10 @@ class StreamingRuntimeContextTest {
     void testValueStateInstantiation() throws Exception {
 
         final ExecutionConfig config = new ExecutionConfig();
-        ((SerializerConfigImpl) config.getSerializerConfig()).registerKryoType(Path.class);
+        final SerializerConfigImpl serializerConfig =
+                (SerializerConfigImpl) config.getSerializerConfig();
+        serializerConfig.setGenericTypes(true);
+        serializerConfig.registerKryoType(Path.class);
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
@@ -112,7 +115,10 @@ class StreamingRuntimeContextTest {
     void testReducingStateInstantiation() throws Exception {
 
         final ExecutionConfig config = new ExecutionConfig();
-        ((SerializerConfigImpl) config.getSerializerConfig()).registerKryoType(Path.class);
+        final SerializerConfigImpl serializerConfig =
+                (SerializerConfigImpl) config.getSerializerConfig();
+        serializerConfig.setGenericTypes(true);
+        serializerConfig.registerKryoType(Path.class);
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
@@ -138,7 +144,10 @@ class StreamingRuntimeContextTest {
     @Test
     void testAggregatingStateInstantiation() throws Exception {
         final ExecutionConfig config = new ExecutionConfig();
-        ((SerializerConfigImpl) config.getSerializerConfig()).registerKryoType(Path.class);
+        final SerializerConfigImpl serializerConfig =
+                (SerializerConfigImpl) config.getSerializerConfig();
+        serializerConfig.setGenericTypes(true);
+        serializerConfig.registerKryoType(Path.class);
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
@@ -167,7 +176,10 @@ class StreamingRuntimeContextTest {
     void testListStateInstantiation() throws Exception {
 
         final ExecutionConfig config = new ExecutionConfig();
-        ((SerializerConfigImpl) config.getSerializerConfig()).registerKryoType(Path.class);
+        final SerializerConfigImpl serializerConfig =
+                (SerializerConfigImpl) config.getSerializerConfig();
+        serializerConfig.setGenericTypes(true);
+        serializerConfig.registerKryoType(Path.class);
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
@@ -208,7 +220,10 @@ class StreamingRuntimeContextTest {
     void testMapStateInstantiation() throws Exception {
 
         final ExecutionConfig config = new ExecutionConfig();
-        ((SerializerConfigImpl) config.getSerializerConfig()).registerKryoType(Path.class);
+        final SerializerConfigImpl serializerConfig =
+                (SerializerConfigImpl) config.getSerializerConfig();
+        serializerConfig.setGenericTypes(true);
+        serializerConfig.registerKryoType(Path.class);
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
 
@@ -251,7 +266,9 @@ class StreamingRuntimeContextTest {
     void testV2ValueStateInstantiation() throws Exception {
 
         final ExecutionConfig config = new ExecutionConfig();
-        SerializerConfigImpl serializerConfig = (SerializerConfigImpl) config.getSerializerConfig();
+        final SerializerConfigImpl serializerConfig =
+                (SerializerConfigImpl) config.getSerializerConfig();
+        serializerConfig.setGenericTypes(true);
         serializerConfig.registerKryoType(Path.class);
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
@@ -276,7 +293,9 @@ class StreamingRuntimeContextTest {
     @Test
     void testV2ListStateInstantiation() throws Exception {
         final ExecutionConfig config = new ExecutionConfig();
-        SerializerConfigImpl serializerConfig = (SerializerConfigImpl) config.getSerializerConfig();
+        final SerializerConfigImpl serializerConfig =
+                (SerializerConfigImpl) config.getSerializerConfig();
+        serializerConfig.setGenericTypes(true);
         serializerConfig.registerKryoType(Path.class);
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
@@ -301,7 +320,9 @@ class StreamingRuntimeContextTest {
     @Test
     void testV2MapStateInstantiation() throws Exception {
         final ExecutionConfig config = new ExecutionConfig();
-        SerializerConfigImpl serializerConfig = (SerializerConfigImpl) config.getSerializerConfig();
+        final SerializerConfigImpl serializerConfig =
+                (SerializerConfigImpl) config.getSerializerConfig();
+        serializerConfig.setGenericTypes(true);
         serializerConfig.registerKryoType(Path.class);
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
@@ -328,7 +349,9 @@ class StreamingRuntimeContextTest {
     @Test
     void testV2ReducingStateInstantiation() throws Exception {
         final ExecutionConfig config = new ExecutionConfig();
-        SerializerConfigImpl serializerConfig = (SerializerConfigImpl) config.getSerializerConfig();
+        final SerializerConfigImpl serializerConfig =
+                (SerializerConfigImpl) config.getSerializerConfig();
+        serializerConfig.setGenericTypes(true);
         serializerConfig.registerKryoType(Path.class);
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();
@@ -358,7 +381,9 @@ class StreamingRuntimeContextTest {
     @Test
     void testV2AggregatingStateInstantiation() throws Exception {
         final ExecutionConfig config = new ExecutionConfig();
-        SerializerConfigImpl serializerConfig = (SerializerConfigImpl) config.getSerializerConfig();
+        final SerializerConfigImpl serializerConfig =
+                (SerializerConfigImpl) config.getSerializerConfig();
+        serializerConfig.setGenericTypes(true);
         serializerConfig.registerKryoType(Path.class);
 
         final AtomicReference<Object> descriptorCapture = new AtomicReference<>();

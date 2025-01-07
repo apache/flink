@@ -64,6 +64,7 @@ class StateDescriptorPassingTest {
         Configuration configuration = new Configuration();
         String serializerConfigStr =
                 "{java.io.File: {type: kryo, kryo-type: registered, class: com.esotericsoftware.kryo.serializers.JavaSerializer}}";
+        configuration.set(PipelineOptions.GENERIC_TYPES, true);
         configuration.setString(PipelineOptions.SERIALIZATION_CONFIG.key(), serializerConfigStr);
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
@@ -101,6 +102,7 @@ class StateDescriptorPassingTest {
         Configuration configuration = new Configuration();
         String serializerConfigStr =
                 "{java.io.File: {type: kryo, kryo-type: registered, class: com.esotericsoftware.kryo.serializers.JavaSerializer}}";
+        configuration.set(PipelineOptions.GENERIC_TYPES, true);
         configuration.setString(PipelineOptions.SERIALIZATION_CONFIG.key(), serializerConfigStr);
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
@@ -139,6 +141,7 @@ class StateDescriptorPassingTest {
         Configuration configuration = new Configuration();
         String serializerConfigStr =
                 "{java.io.File: {type: kryo, kryo-type: registered, class: com.esotericsoftware.kryo.serializers.JavaSerializer}}";
+        configuration.set(PipelineOptions.GENERIC_TYPES, true);
         configuration.setString(PipelineOptions.SERIALIZATION_CONFIG.key(), serializerConfigStr);
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
@@ -177,6 +180,7 @@ class StateDescriptorPassingTest {
         Configuration configuration = new Configuration();
         String serializerConfigStr =
                 "{java.io.File: {type: kryo, kryo-type: registered, class: com.esotericsoftware.kryo.serializers.JavaSerializer}}";
+        configuration.set(PipelineOptions.GENERIC_TYPES, true);
         configuration.setString(PipelineOptions.SERIALIZATION_CONFIG.key(), serializerConfigStr);
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
@@ -208,6 +212,7 @@ class StateDescriptorPassingTest {
         Configuration configuration = new Configuration();
         String serializerConfigStr =
                 "{java.io.File: {type: kryo, kryo-type: registered, class: com.esotericsoftware.kryo.serializers.JavaSerializer}}";
+        configuration.set(PipelineOptions.GENERIC_TYPES, true);
         configuration.setString(PipelineOptions.SERIALIZATION_CONFIG.key(), serializerConfigStr);
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
@@ -239,6 +244,7 @@ class StateDescriptorPassingTest {
         Configuration configuration = new Configuration();
         String serializerConfigStr =
                 "{java.io.File: {type: kryo, kryo-type: registered, class: com.esotericsoftware.kryo.serializers.JavaSerializer}}";
+        configuration.set(PipelineOptions.GENERIC_TYPES, true);
         configuration.setString(PipelineOptions.SERIALIZATION_CONFIG.key(), serializerConfigStr);
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);

@@ -43,6 +43,7 @@ class SubclassFromInterfaceSerializerTest
     protected TypeSerializer<TestUserInterface> createSerializer() {
         // only register one of the two child classes
         SerializerConfigImpl conf = new SerializerConfigImpl();
+        conf.setGenericTypes(true);
         conf.registerPojoType(TestUserClass2.class);
         TypeSerializer<TestUserInterface> serializer = type.createSerializer(conf);
         assert (serializer instanceof KryoSerializer);

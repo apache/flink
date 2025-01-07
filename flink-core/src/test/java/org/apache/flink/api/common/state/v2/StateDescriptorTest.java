@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.state.v2;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -43,9 +44,11 @@ class StateDescriptorTest {
     void testSerializerDuplication() {
         // we need a serializer that actually duplicates for testing (a stateful one)
         // we use Kryo here, because it meets these conditions
+        ExecutionConfig config = new ExecutionConfig();
+        ((SerializerConfigImpl) config.getSerializerConfig()).setGenericTypes(true);
         TestStateDescriptor<String> descr =
                 new TestStateDescriptor<>("foobar", new GenericTypeInfo<>(String.class));
-        descr.initializeSerializerUnlessSet(new ExecutionConfig());
+        descr.initializeSerializerUnlessSet(config);
 
         TypeSerializer<String> serializerA = descr.getSerializer();
         TypeSerializer<String> serializerB = descr.getSerializer();

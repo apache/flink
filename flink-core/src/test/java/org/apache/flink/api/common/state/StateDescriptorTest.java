@@ -127,7 +127,9 @@ class StateDescriptorTest {
                 .isEqualTo(-1);
 
         final ExecutionConfig config = new ExecutionConfig();
-        ((SerializerConfigImpl) config.getSerializerConfig()).registerKryoType(File.class);
+        SerializerConfigImpl serializerConfig = (SerializerConfigImpl) config.getSerializerConfig();
+        serializerConfig.setGenericTypes(true);
+        serializerConfig.registerKryoType(File.class);
 
         final TestStateDescriptor<Path> original = new TestStateDescriptor<>("test", Path.class);
         TestStateDescriptor<Path> clone = CommonTestUtils.createCopySerializable(original);

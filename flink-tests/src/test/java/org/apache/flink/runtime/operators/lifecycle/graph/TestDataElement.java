@@ -30,9 +30,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class TestDataElement {
-    public final String operatorId;
-    public final int subtaskIndex;
-    public final long seq;
+    public String operatorId;
+    public int subtaskIndex;
+    public long seq;
+
+    public TestDataElement() {}
 
     public TestDataElement(String operatorId, int subtaskIndex, long seq) {
         this.operatorId = checkNotNull(operatorId);

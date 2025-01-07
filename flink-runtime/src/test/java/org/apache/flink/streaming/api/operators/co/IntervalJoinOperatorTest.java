@@ -863,10 +863,12 @@ class IntervalJoinOperatorTest {
         return new StreamRecord<>(Tuple2.of(lhs, rhs), ts);
     }
 
-    private static class TestElem {
-        String key;
-        long ts;
-        String source;
+    public static class TestElem {
+        public String key;
+        public long ts;
+        public String source;
+
+        public TestElem() {}
 
         public TestElem(long ts, String source) {
             this.key = "key";

@@ -50,6 +50,7 @@ class KryoWithCustomSerializersTest extends AbstractGenericTypeSerializerTest {
     @Override
     protected <T> TypeSerializer<T> createSerializer(Class<T> type) {
         SerializerConfigImpl conf = new SerializerConfigImpl();
+        conf.setGenericTypes(true);
         conf.registerTypeWithKryoSerializer(LocalDate.class, LocalDateSerializer.class);
         TypeInformation<T> typeInfo = new GenericTypeInfo<T>(type);
         return typeInfo.createSerializer(conf);

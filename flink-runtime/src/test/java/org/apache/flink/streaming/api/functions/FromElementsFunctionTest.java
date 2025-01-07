@@ -149,8 +149,9 @@ class FromElementsFunctionTest {
 
         TypeSerializer<DeserializeTooMuchType> existingSerializer = source.getSerializer();
 
-        source.setOutputType(
-                new GenericTypeInfo<>(DeserializeTooMuchType.class), new ExecutionConfig());
+        ExecutionConfig config = new ExecutionConfig();
+        ((SerializerConfigImpl) config.getSerializerConfig()).setGenericTypes(true);
+        source.setOutputType(new GenericTypeInfo<>(DeserializeTooMuchType.class), config);
 
         TypeSerializer<DeserializeTooMuchType> newSerializer = source.getSerializer();
 
@@ -309,7 +310,7 @@ class FromElementsFunctionTest {
     //  Test Types
     // ------------------------------------------------------------------------
 
-    private static class MyPojo {
+    public static class MyPojo {
 
         public long val1;
         public int val2;

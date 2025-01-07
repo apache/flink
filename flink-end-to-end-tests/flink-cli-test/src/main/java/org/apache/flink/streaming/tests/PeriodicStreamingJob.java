@@ -24,7 +24,6 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.connector.file.sink.FileSink;
@@ -66,9 +65,9 @@ public class PeriodicStreamingJob {
         // execute a simple pass through program.
         PeriodicSourceGenerator generator =
                 new PeriodicSourceGenerator(recordsPerSecond, duration, offset);
-        DataStream<Tuple> rows = sEnv.addSource(generator);
+        DataStream<Tuple2<Long, String>> rows = sEnv.addSource(generator);
 
-        DataStream<Tuple> result =
+        DataStream<Tuple2<Long, String>> result =
                 rows.keyBy(tuple -> tuple.getField(1))
                         .window(TumblingProcessingTimeWindows.of(Duration.ofSeconds(5)))
                         .sum(0);
@@ -76,7 +75,7 @@ public class PeriodicStreamingJob {
         result.sinkTo(
                         FileSink.forRowFormat(
                                         new Path(outputPath + "/result.txt"),
-                                        new SimpleStringEncoder<Tuple>())
+                                        new SimpleStringEncoder<Tuple2<Long, String>>())
                                 .build())
                 .setParallelism(1);
 
@@ -85,7 +84,9 @@ public class PeriodicStreamingJob {
 
     /** Data-generating source function. */
     static class PeriodicSourceGenerator
-            implements SourceFunction<Tuple>, ResultTypeQueryable<Tuple>, CheckpointedFunction {
+            implements SourceFunction<Tuple2<Long, String>>,
+                    ResultTypeQueryable<Tuple2<Long, String>>,
+                    CheckpointedFunction {
         private final int sleepMs;
         private final int durationMs;
         private final int offsetSeconds;
@@ -101,7 +102,7 @@ public class PeriodicStreamingJob {
         }
 
         @Override
-        public void run(SourceContext<Tuple> ctx) throws Exception {
+        public void run(SourceContext<Tuple2<Long, String>> ctx) throws Exception {
             long offsetMs = offsetSeconds * 1000L;
 
             while (ms < durationMs) {
@@ -119,7 +120,7 @@ public class PeriodicStreamingJob {
         }
 
         @Override
-        public TypeInformation<Tuple> getProducedType() {
+        public TypeInformation<Tuple2<Long, String>> getProducedType() {
             return Types.TUPLE(Types.LONG, Types.STRING);
         }
 

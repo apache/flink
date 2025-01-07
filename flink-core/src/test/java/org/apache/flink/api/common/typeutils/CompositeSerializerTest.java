@@ -130,9 +130,11 @@ class CompositeSerializerTest {
         }
     }
 
-    private static class Pojo {
-        public final int f1;
-        public final String[] f2;
+    public static class Pojo {
+        public int f1;
+        public String[] f2;
+
+        public Pojo() {}
 
         private Pojo(int f1, String[] f2) {
             this.f1 = f1;

@@ -310,13 +310,20 @@ class TupleSerializerTest {
                                     ComplexNestedObject2>(g, b6, o4, ba1, co2)
                         };
 
-        runTests(-1, testTuples);
+        runTests(true, -1, testTuples);
     }
 
     private <T extends Tuple> void runTests(int length, T... instances) {
+        runTests(false, length, instances);
+    }
+
+    private <T extends Tuple> void runTests(
+            boolean enableGenericTypes, int length, T... instances) {
         TupleTypeInfo<T> tupleTypeInfo =
                 (TupleTypeInfo<T>) TypeExtractor.getForObject(instances[0]);
-        TypeSerializer<T> serializer = tupleTypeInfo.createSerializer(new SerializerConfigImpl());
+        SerializerConfigImpl serializerConfig = new SerializerConfigImpl();
+        serializerConfig.setGenericTypes(enableGenericTypes);
+        TypeSerializer<T> serializer = tupleTypeInfo.createSerializer(serializerConfig);
 
         Class<T> tupleClass = tupleTypeInfo.getTypeClass();
 

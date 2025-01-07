@@ -23,10 +23,12 @@ import java.util.Objects;
 /** The event type of records used in the {@link DataStreamAllroundTestProgram}. */
 public class Event {
 
-    private final int key;
-    private final long eventTime;
-    private final long sequenceNumber;
-    private final String payload;
+    private int key;
+    private long eventTime;
+    private long sequenceNumber;
+    private String payload;
+
+    public Event() {}
 
     public Event(int key, long eventTime, long sequenceNumber, String payload) {
         this.key = key;
@@ -49,6 +51,22 @@ public class Event {
 
     public String getPayload() {
         return payload;
+    }
+
+    public void setKey(int key) {
+        this.key = key;
+    }
+
+    public void setEventTime(long eventTime) {
+        this.eventTime = eventTime;
+    }
+
+    public void setSequenceNumber(long sequenceNumber) {
+        this.sequenceNumber = sequenceNumber;
+    }
+
+    public void setPayload(String payload) {
+        this.payload = payload;
     }
 
     @Override

@@ -5700,6 +5700,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         MockEnvironment mockEnvironment =
                 MockEnvironment.builder().setTaskStateManager(getTestTaskStateManager()).build();
         mockEnvironment.setCheckpointStorageAccess(getCheckpointStorageAccess());
+        ((SerializerConfigImpl) mockEnvironment.getExecutionConfig().getSerializerConfig())
+                .setGenericTypes(true);
         return mockEnvironment;
     }
 

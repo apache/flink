@@ -20,6 +20,7 @@ package org.apache.flink.connector.base.source.hybrid;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.connector.base.source.reader.mocks.MockBaseSource;
@@ -126,6 +127,7 @@ class HybridSourceITCase {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
+        ((SerializerConfigImpl) env.getConfig().getSerializerConfig()).setGenericTypes(true);
         if (FailoverType.NONE == failoverType) {
             RestartStrategyUtils.configureNoRestartStrategy(env);
         } else {

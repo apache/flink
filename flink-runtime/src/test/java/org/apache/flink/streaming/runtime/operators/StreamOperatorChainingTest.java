@@ -191,14 +191,14 @@ class StreamOperatorChainingTest {
 
         OutputTag<Integer> oneOutput = new OutputTag<Integer>("one") {};
         OutputTag<Integer> otherOutput = new OutputTag<Integer>("other") {};
-        SingleOutputStreamOperator<Object> split =
+        SingleOutputStreamOperator<Integer> split =
                 input.process(
-                        new ProcessFunction<Integer, Object>() {
+                        new ProcessFunction<Integer, Integer>() {
                             private static final long serialVersionUID = 1L;
 
                             @Override
                             public void processElement(
-                                    Integer value, Context ctx, Collector<Object> out)
+                                    Integer value, Context ctx, Collector<Integer> out)
                                     throws Exception {
                                 if (value.equals(1)) {
                                     ctx.output(oneOutput, value);

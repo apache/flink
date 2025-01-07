@@ -40,7 +40,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SuppressWarnings("unchecked")
 class KryoGenericTypeSerializerTest extends AbstractGenericTypeSerializerTest {
 
-    SerializerConfigImpl serializerConfigImpl = new SerializerConfigImpl();
+    private final SerializerConfigImpl serializerConfigImpl;
+
+    public KryoGenericTypeSerializerTest() {
+        serializerConfigImpl = new SerializerConfigImpl();
+        serializerConfigImpl.setGenericTypes(true);
+    }
 
     @Test
     void testJavaList() {

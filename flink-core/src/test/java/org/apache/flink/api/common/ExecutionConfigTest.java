@@ -88,16 +88,16 @@ public class ExecutionConfigTest {
         SerializerConfigImpl conf = new SerializerConfigImpl();
         TypeInformation<Object> typeInfo = new GenericTypeInfo<>(Object.class);
 
-        // by default, generic types are supported
-        TypeSerializer<Object> serializer = typeInfo.createSerializer(conf);
-        assertThat(serializer).isInstanceOf(KryoSerializer.class);
-
-        // expect an exception when generic types are disabled
-        conf.setGenericTypes(false);
+        // by default, generic types are disabled, expect an exception
         assertThatThrownBy(
                         () -> typeInfo.createSerializer(conf),
                         "should have failed with an exception")
                 .isInstanceOf(UnsupportedOperationException.class);
+
+        // enable the support
+        conf.setGenericTypes(true);
+        TypeSerializer<Object> serializer = typeInfo.createSerializer(conf);
+        assertThat(serializer).isInstanceOf(KryoSerializer.class);
     }
 
     @Test

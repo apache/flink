@@ -1429,7 +1429,7 @@ class BatchExecutionStateBackendTest {
         }
     }
 
-    private static final class MutableLong {
-        long value;
+    public static final class MutableLong {
+        public long value;
     }
 }

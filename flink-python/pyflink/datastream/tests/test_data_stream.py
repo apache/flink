@@ -52,6 +52,7 @@ class DataStreamTests(object):
         super(DataStreamTests, self).setUp()
         config = get_j_env_configuration(self.env._j_stream_execution_environment)
         config.setString("pekko.ask.timeout", "20 s")
+        config.setString("pipeline.generic-types", "true")
         self.test_sink = DataStreamTestSinkFunction()
 
     def tearDown(self) -> None:

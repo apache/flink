@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-/** A test for the {@link AvroSerializer}. */
+/** A test for generic type serializers. */
 public abstract class AbstractGenericTypeSerializerTest {
 
     private final Random rnd = new Random(349712539451944123L);

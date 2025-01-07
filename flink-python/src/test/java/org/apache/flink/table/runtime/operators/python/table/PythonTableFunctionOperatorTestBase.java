@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.python.table;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -52,8 +53,10 @@ abstract class PythonTableFunctionOperatorTestBase<IN, OUT> {
 
     @Test
     void testRetractionFieldKept() throws Exception {
+        Configuration conf = new Configuration();
+        conf.set(PipelineOptions.GENERIC_TYPES, true);
         OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
-                getTestHarness(new Configuration(), FlinkJoinType.INNER);
+                getTestHarness(conf, FlinkJoinType.INNER);
         long initialTime = 0L;
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
@@ -78,6 +81,7 @@ abstract class PythonTableFunctionOperatorTestBase<IN, OUT> {
     void testFinishBundleTriggeredOnCheckpoint() throws Exception {
         Configuration conf = new Configuration();
         conf.set(PythonOptions.MAX_BUNDLE_SIZE, 10);
+        conf.set(PipelineOptions.GENERIC_TYPES, true);
         OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
                 getTestHarness(conf, FlinkJoinType.INNER);
 
@@ -103,6 +107,7 @@ abstract class PythonTableFunctionOperatorTestBase<IN, OUT> {
     void testFinishBundleTriggeredByCount() throws Exception {
         Configuration conf = new Configuration();
         conf.set(PythonOptions.MAX_BUNDLE_SIZE, 2);
+        conf.set(PipelineOptions.GENERIC_TYPES, true);
         OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
                 getTestHarness(conf, FlinkJoinType.INNER);
 
@@ -131,6 +136,7 @@ abstract class PythonTableFunctionOperatorTestBase<IN, OUT> {
         Configuration conf = new Configuration();
         conf.set(PythonOptions.MAX_BUNDLE_SIZE, 10);
         conf.set(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
+        conf.set(PipelineOptions.GENERIC_TYPES, true);
         OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
                 getTestHarness(conf, FlinkJoinType.INNER);
 
@@ -153,8 +159,10 @@ abstract class PythonTableFunctionOperatorTestBase<IN, OUT> {
 
     @Test
     void testLeftJoin() throws Exception {
+        Configuration conf = new Configuration();
+        conf.set(PipelineOptions.GENERIC_TYPES, true);
         OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
-                getTestHarness(new Configuration(), FlinkJoinType.LEFT);
+                getTestHarness(conf, FlinkJoinType.LEFT);
         long initialTime = 0L;
         ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 

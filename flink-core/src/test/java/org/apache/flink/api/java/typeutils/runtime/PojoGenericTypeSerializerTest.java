@@ -28,6 +28,8 @@ public class PojoGenericTypeSerializerTest extends AbstractGenericTypeSerializer
     @Override
     protected <T> TypeSerializer<T> createSerializer(Class<T> type) {
         TypeInformation<T> typeInfo = TypeExtractor.getForClass(type);
-        return typeInfo.createSerializer(new SerializerConfigImpl());
+        SerializerConfigImpl config = new SerializerConfigImpl();
+        config.setGenericTypes(true);
+        return typeInfo.createSerializer(config);
     }
 }

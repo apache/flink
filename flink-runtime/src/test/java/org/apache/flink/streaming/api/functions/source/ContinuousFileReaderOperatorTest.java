@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.FileInputFormat;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
@@ -111,6 +112,7 @@ class ContinuousFileReaderOperatorTest {
     private <T> OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, T> createHarness(
             FileInputFormat<T> format) throws Exception {
         ExecutionConfig config = new ExecutionConfig();
+        ((SerializerConfigImpl) config.getSerializerConfig()).setGenericTypes(true);
         return new OneInputStreamOperatorTestHarness<>(
                 new ContinuousFileReaderOperatorFactory<>(
                         format, TypeExtractor.getInputFormatTypes(format), config),
