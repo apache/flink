@@ -157,27 +157,25 @@ object LegacyDataViewUtils {
           "MapView, SortedMapView and ListView only supported at first level of " +
             "accumulators of Pojo type.")
       case map: MapViewTypeInfo[_, _] =>
-        val newTypeInfo = map
-
         if (!isStateBackedDataViews) {
           // add data view field if it is not backed by a state backend.
           // data view fields which are backed by state backend are not serialized.
-          newTypeInfo.setNullSerializer(false)
+          map.setNullSerializer(false)
         } else {
-          newTypeInfo.setNullSerializer(true)
+          map.setNullSerializer(true)
 
           // create map view specs with unique id (used as state name)
           val mapViewSpec = new MapViewSpec(
             "agg" + aggIndex + "$" + fieldName,
             fieldIndex, // dataview field index in pojo
-            fromLegacyInfoToDataType(newTypeInfo),
+            fromLegacyInfoToDataType(map),
             false,
-            newTypeInfo.getKeyType.createSerializer(new SerializerConfigImpl),
-            newTypeInfo.getValueType.createSerializer(new SerializerConfigImpl)
+            map.getKeyType.createSerializer(new SerializerConfigImpl),
+            map.getValueType.createSerializer(new SerializerConfigImpl)
           )
           spec = Some(mapViewSpec)
         }
-        newTypeInfo
+        map
 
       case list: ListViewTypeInfo[_] =>
         val listView = instance match {
