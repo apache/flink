@@ -53,7 +53,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Experimental
 public class ForStFlinkFileSystem extends FileSystem {
-
     // TODO: make it configurable
     private static final int DEFAULT_INPUT_STREAM_CAPACITY = 32;
 
@@ -243,9 +242,9 @@ public class ForStFlinkFileSystem extends FileSystem {
         FileMappingManager.RealPath realPath = fileMappingManager.realPath(path);
         Preconditions.checkNotNull(realPath);
         if (realPath.isLocal) {
-            return localFS.getFileStatus(realPath.path);
+            return new FileStatusWrapper(localFS.getFileStatus(realPath.path), path);
         }
-        return delegateFS.getFileStatus(realPath.path);
+        return new FileStatusWrapper(delegateFS.getFileStatus(realPath.path), path);
     }
 
     @Override
@@ -302,5 +301,61 @@ public class ForStFlinkFileSystem extends FileSystem {
 
     public int link(Path src, Path dst) throws IOException {
         return fileMappingManager.link(src.toString(), dst.toString());
+    }
+
+    /**
+     * Used by snapshot strategy, get real path of the file to prevent file deletion by JM.
+     *
+     * @param path the path of forst db files.
+     * @return the real path in DFS of the file.
+     */
+    public Path realPath(Path path) {
+        FileMappingManager.RealPath realPath = fileMappingManager.realPath(path);
+        return realPath == null ? null : realPath.path;
+    }
+
+    public static class FileStatusWrapper implements FileStatus {
+        private FileStatus delegate;
+        private Path path;
+
+        public FileStatusWrapper(FileStatus delegate, Path path) {
+            this.delegate = delegate;
+            this.path = path;
+        }
+
+        @Override
+        public long getLen() {
+            return delegate.getLen();
+        }
+
+        @Override
+        public long getBlockSize() {
+            return delegate.getBlockSize();
+        }
+
+        @Override
+        public short getReplication() {
+            return delegate.getReplication();
+        }
+
+        @Override
+        public long getModificationTime() {
+            return delegate.getModificationTime();
+        }
+
+        @Override
+        public long getAccessTime() {
+            return delegate.getAccessTime();
+        }
+
+        @Override
+        public boolean isDir() {
+            return delegate.isDir();
+        }
+
+        @Override
+        public Path getPath() {
+            return path;
+        }
     }
 }

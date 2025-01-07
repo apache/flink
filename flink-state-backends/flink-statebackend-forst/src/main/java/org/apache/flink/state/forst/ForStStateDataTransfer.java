@@ -17,8 +17,10 @@
 
 package org.apache.flink.state.forst;
 
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
@@ -27,6 +29,8 @@ import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.FileStateHandle;
+import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
@@ -37,6 +41,8 @@ import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -53,6 +59,7 @@ import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.state.forst.fs.filemapping.FileMappingManager.SST_SUFFIX;
 import static org.apache.flink.util.concurrent.Executors.newDirectExecutorService;
 
 /** Data transfer util class for {@link ForStKeyedStateBackend}. */
@@ -66,14 +73,18 @@ public class ForStStateDataTransfer implements Closeable {
 
     protected final ExecutorService executorService;
 
-    private final FileSystem forStFs;
+    @Nullable private final ForStFlinkFileSystem forStFs;
+
+    private final RecoveryClaimMode claimMode;
 
     public ForStStateDataTransfer(int threadNum) {
-        this(threadNum, null);
+        this(threadNum, null, RecoveryClaimMode.DEFAULT);
     }
 
-    public ForStStateDataTransfer(int threadNum, FileSystem forStFs) {
+    public ForStStateDataTransfer(
+            int threadNum, ForStFlinkFileSystem forStFs, RecoveryClaimMode claimMode) {
         this.forStFs = forStFs;
+        this.claimMode = claimMode;
         if (threadNum > 1) {
             executorService =
                     Executors.newFixedThreadPool(
@@ -220,6 +231,19 @@ public class ForStStateDataTransfer implements Closeable {
             maxTransferBytes = Long.MAX_VALUE;
 
             // TODO: Optimizing transfer with fast duplicate
+
+            // If the file is a SST file, try to find the real path to prevent file deletion by JM
+            if (forStFs != null
+                    && claimMode == RecoveryClaimMode.CLAIM
+                    && filePath.getName().endsWith(SST_SUFFIX)) {
+                Path realSourcePath = forStFs.realPath(filePath);
+                if (!realSourcePath.toString().equals(filePath.toString())) {
+                    FileStatus realSourceStatus = forStFs.getFileStatus(filePath);
+                    StreamStateHandle realSourceHandle =
+                            new FileStateHandle(realSourcePath, realSourceStatus.getLen());
+                    return HandleAndLocalPath.of(realSourceHandle, filePath.getName());
+                }
+            }
         }
 
         InputStream inputStream = null;
@@ -362,8 +386,14 @@ public class ForStStateDataTransfer implements Closeable {
         }
 
         FileSystem targetFs = forStFs != null ? forStFs : targetPath.getFileSystem();
-
-        // TODO: Use fast duplicate if possible.
+        if (forStFs != null
+                && sourceHandle.maybeGetPath().isPresent()
+                && targetPath.getName().endsWith(SST_SUFFIX)
+                && claimMode == RecoveryClaimMode.CLAIM) {
+            LOG.trace("Transfer by link {} -> {}", sourceHandle.maybeGetPath().get(), targetPath);
+            forStFs.link(sourceHandle.maybeGetPath().get(), targetPath);
+            return;
+        }
 
         try {
             FSDataInputStream input = sourceHandle.openInputStream();

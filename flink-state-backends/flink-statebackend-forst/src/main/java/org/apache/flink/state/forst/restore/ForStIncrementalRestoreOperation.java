@@ -20,6 +20,7 @@ package org.apache.flink.state.forst.restore;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
@@ -126,6 +127,8 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
 
     private boolean isKeySerializerCompatibilityChecked;
 
+    private final RecoveryClaimMode recoveryClaimMode;
+
     public ForStIncrementalRestoreOperation(
             String operatorIdentifier,
             KeyGroupRange keyGroupRange,
@@ -148,7 +151,8 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
             @Nonnull Collection<IncrementalRemoteKeyedStateHandle> restoreStateHandles,
             double overlapFractionThreshold,
             boolean useIngestDbRestoreMode,
-            boolean useDeleteFilesInRange) {
+            boolean useDeleteFilesInRange,
+            RecoveryClaimMode recoveryClaimMode) {
 
         this.forstHandle =
                 new ForStHandle(
@@ -177,6 +181,7 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
         this.overlapFractionThreshold = overlapFractionThreshold;
         this.useIngestDbRestoreMode = useIngestDbRestoreMode;
         this.useDeleteFilesInRange = useDeleteFilesInRange;
+        this.recoveryClaimMode = recoveryClaimMode;
     }
 
     /**
@@ -253,9 +258,11 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
     }
 
     private void transferAllStateHandles(List<StateHandleTransferSpec> specs) throws Exception {
-        FileSystem forStFs = getFileSystem(optionsContainer.getBasePath());
         try (ForStStateDataTransfer transfer =
-                new ForStStateDataTransfer(ForStStateDataTransfer.DEFAULT_THREAD_NUM, forStFs)) {
+                new ForStStateDataTransfer(
+                        ForStStateDataTransfer.DEFAULT_THREAD_NUM,
+                        optionsContainer.getFileSystem(),
+                        recoveryClaimMode)) {
             transfer.transferAllStateDataToDirectory(specs, cancelStreamRegistry);
         }
     }

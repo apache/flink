@@ -28,6 +28,7 @@ import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.description.InlineElement;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
@@ -72,6 +73,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
+import static org.apache.flink.configuration.StateRecoveryOptions.RESTORE_MODE;
 import static org.apache.flink.configuration.description.TextElement.text;
 import static org.apache.flink.state.forst.ForStConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD;
 import static org.apache.flink.state.forst.ForStConfigurableOptions.USE_DELETE_FILES_IN_RANGE_DURING_RESCALING;
@@ -172,6 +174,9 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
      */
     private final TernaryBoolean rescalingUseDeleteFilesInRange;
 
+    /** The recovery claim mode. */
+    private RecoveryClaimMode recoveryClaimMode = RecoveryClaimMode.DEFAULT;
+
     // ------------------------------------------------------------------------
 
     /** Creates a new {@code ForStStateBackend} for storing state. */
@@ -183,6 +188,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         this.overlapFractionThreshold = UNDEFINED_OVERLAP_FRACTION_THRESHOLD;
         this.useIngestDbRestoreMode = TernaryBoolean.UNDEFINED;
         this.rescalingUseDeleteFilesInRange = TernaryBoolean.UNDEFINED;
+        this.recoveryClaimMode = RecoveryClaimMode.DEFAULT;
     }
 
     /**
@@ -272,6 +278,10 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                         original.rescalingUseDeleteFilesInRange,
                         USE_DELETE_FILES_IN_RANGE_DURING_RESCALING,
                         config);
+
+        if (config.getOptional(RESTORE_MODE).isPresent()) {
+            recoveryClaimMode = config.get(RESTORE_MODE);
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -432,7 +442,8 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                                         USE_INGEST_DB_RESTORE_MODE.defaultValue()))
                         .setRescalingUseDeleteFilesInRange(
                                 rescalingUseDeleteFilesInRange.getOrDefault(
-                                        USE_DELETE_FILES_IN_RANGE_DURING_RESCALING.defaultValue()));
+                                        USE_DELETE_FILES_IN_RANGE_DURING_RESCALING.defaultValue()))
+                        .setRecoveryClaimMode(recoveryClaimMode);
 
         return builder.build();
     }
@@ -523,7 +534,8 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                                         USE_INGEST_DB_RESTORE_MODE.defaultValue()))
                         .setRescalingUseDeleteFilesInRange(
                                 rescalingUseDeleteFilesInRange.getOrDefault(
-                                        USE_DELETE_FILES_IN_RANGE_DURING_RESCALING.defaultValue()));
+                                        USE_DELETE_FILES_IN_RANGE_DURING_RESCALING.defaultValue()))
+                        .setRecoveryClaimMode(recoveryClaimMode);
         return builder.build();
     }
 

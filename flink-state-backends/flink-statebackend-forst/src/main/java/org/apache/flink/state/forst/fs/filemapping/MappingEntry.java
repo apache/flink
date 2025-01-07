@@ -69,6 +69,7 @@ public class MappingEntry extends ReferenceCounted {
                 parentDir.release();
             }
             fileSystem.delete(new Path(sourcePath), recursive);
+            LOG.trace("Delete file {}, recursive {}.", sourcePath, recursive);
         } catch (Exception e) {
             LOG.warn("Failed to delete file {}.", sourcePath, e);
         }

@@ -19,6 +19,7 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataInputDeserializer;
@@ -131,6 +132,8 @@ public class ForStKeyedStateBackendBuilder<K>
     private double overlapFractionThreshold = 0.5;
     private boolean useIngestDbRestoreMode = false;
 
+    private RecoveryClaimMode recoveryClaimMode = RecoveryClaimMode.DEFAULT;
+
     public ForStKeyedStateBackendBuilder(
             String operatorIdentifier,
             ClassLoader userCodeClassLoader,
@@ -187,6 +190,11 @@ public class ForStKeyedStateBackendBuilder<K>
     ForStKeyedStateBackendBuilder<K> setRescalingUseDeleteFilesInRange(
             boolean rescalingUseDeleteFilesInRange) {
         this.rescalingUseDeleteFilesInRange = rescalingUseDeleteFilesInRange;
+        return this;
+    }
+
+    ForStKeyedStateBackendBuilder<K> setRecoveryClaimMode(RecoveryClaimMode recoveryClaimMode) {
+        this.recoveryClaimMode = recoveryClaimMode;
         return this;
     }
 
@@ -376,7 +384,8 @@ public class ForStKeyedStateBackendBuilder<K>
                             restoreStateHandles, IncrementalRemoteKeyedStateHandle.class),
                     overlapFractionThreshold,
                     useIngestDbRestoreMode,
-                    rescalingUseDeleteFilesInRange);
+                    rescalingUseDeleteFilesInRange,
+                    recoveryClaimMode);
         } else if (priorityQueueConfig.getPriorityQueueStateType()
                 == ForStStateBackend.PriorityQueueStateType.HEAP) {
             // Note: This branch can be touched after ForSt Support canonical savepoint,
@@ -421,7 +430,8 @@ public class ForStKeyedStateBackendBuilder<K>
 
         ForStFlinkFileSystem forStFs = optionsContainer.getFileSystem();
         ForStStateDataTransfer stateTransfer =
-                new ForStStateDataTransfer(ForStStateDataTransfer.DEFAULT_THREAD_NUM, forStFs);
+                new ForStStateDataTransfer(
+                        ForStStateDataTransfer.DEFAULT_THREAD_NUM, forStFs, recoveryClaimMode);
 
         if (enableIncrementalCheckpointing) {
             return new ForStIncrementalSnapshotStrategy<>(
