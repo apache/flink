@@ -118,7 +118,6 @@ object TestTableSourceSinks {
     tempDir.deleteOnExit()
     val tempDirPath = tempDir.getAbsolutePath
 
-    Files.createTempDirectory("csv-test")
     val schema = tableSchema.toSchema
     val tableDescriptor = TableDescriptor
       .forConnector("filesystem")
