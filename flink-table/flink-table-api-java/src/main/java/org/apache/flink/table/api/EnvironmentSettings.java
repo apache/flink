@@ -24,8 +24,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.CatalogStore;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.operations.SerializationContext;
 
 import javax.annotation.Nullable;
+
+import java.util.Optional;
 
 import static org.apache.flink.api.common.RuntimeExecutionMode.BATCH;
 import static org.apache.flink.api.common.RuntimeExecutionMode.STREAMING;
@@ -62,16 +65,17 @@ public class EnvironmentSettings {
     private final ClassLoader classLoader;
 
     private final @Nullable CatalogStore catalogStore;
-
-    private EnvironmentSettings(Configuration configuration, ClassLoader classLoader) {
-        this(configuration, classLoader, null);
-    }
+    private final @Nullable SerializationContext serializationContext;
 
     private EnvironmentSettings(
-            Configuration configuration, ClassLoader classLoader, CatalogStore catalogStore) {
+            Configuration configuration,
+            ClassLoader classLoader,
+            CatalogStore catalogStore,
+            SerializationContext serializationContext) {
         this.configuration = configuration;
         this.classLoader = classLoader;
         this.catalogStore = catalogStore;
+        this.serializationContext = serializationContext;
     }
 
     /**
@@ -145,6 +149,11 @@ public class EnvironmentSettings {
         return catalogStore;
     }
 
+    @Internal
+    public Optional<SerializationContext> getSerializationContext() {
+        return Optional.ofNullable(serializationContext);
+    }
+
     /** A builder for {@link EnvironmentSettings}. */
     @PublicEvolving
     public static class Builder {
@@ -153,6 +162,7 @@ public class EnvironmentSettings {
         private ClassLoader classLoader;
 
         private @Nullable CatalogStore catalogStore;
+        private @Nullable SerializationContext serializationContext;
 
         public Builder() {}
 
@@ -232,12 +242,22 @@ public class EnvironmentSettings {
             return this;
         }
 
+        /**
+         * Provides a way to customize the process of serializing operations to an SQL string. This
+         * is useful, for example, for customizing the serialization of inline functions.
+         */
+        public Builder withSerializationContext(SerializationContext serializationContext) {
+            this.serializationContext = serializationContext;
+            return this;
+        }
+
         /** Returns an immutable instance of {@link EnvironmentSettings}. */
         public EnvironmentSettings build() {
             if (classLoader == null) {
                 classLoader = Thread.currentThread().getContextClassLoader();
             }
-            return new EnvironmentSettings(configuration, classLoader, catalogStore);
+            return new EnvironmentSettings(
+                    configuration, classLoader, catalogStore, serializationContext);
         }
     }
 }

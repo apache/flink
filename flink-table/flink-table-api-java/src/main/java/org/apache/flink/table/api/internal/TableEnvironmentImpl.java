@@ -91,6 +91,7 @@ import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CollectModifyOperation;
 import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
 import org.apache.flink.table.operations.CreateTableASOperation;
+import org.apache.flink.table.operations.DefaultSerializationContext;
 import org.apache.flink.table.operations.DeleteFromFilterOperation;
 import org.apache.flink.table.operations.ExecutableOperation;
 import org.apache.flink.table.operations.ExplainOperation;
@@ -283,6 +284,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                         .config(tableConfig)
                                         .classloader(userClassLoader)
                                         .build())
+                        .serializationContext(
+                                settings.getSerializationContext()
+                                        .orElseGet(() -> new DefaultSerializationContext()))
                         .build();
 
         final FunctionCatalog functionCatalog =
@@ -1257,7 +1261,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         String defaultJobName = "collect";
 
         try {
-            defaultJobName = operation.asSerializableString();
+            defaultJobName =
+                    operation.asSerializableString(catalogManager.getSerializationContext());
         } catch (Throwable e) {
             // ignore error for unsupported operations and use 'collect' as default job name
         }

@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.operations.OperationUtils;
 import org.apache.flink.table.operations.PartitionQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.SerializationContextAdapters;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Preconditions;
@@ -85,12 +86,17 @@ public final class TableReferenceExpression implements ResolvedExpression {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SerializationContext context) {
+        final org.apache.flink.table.operations.SerializationContext
+                operationsSerializationContext = SerializationContextAdapters.adapt(context);
         if (queryOperation instanceof PartitionQueryOperation) {
-            return OperationUtils.indent(queryOperation.asSerializableString());
+            return OperationUtils.indent(
+                    queryOperation.asSerializableString(operationsSerializationContext));
         }
         return String.format(
-                "(%s\n)", OperationUtils.indent(queryOperation.asSerializableString()));
+                "(%s\n)",
+                OperationUtils.indent(
+                        queryOperation.asSerializableString(operationsSerializationContext)));
     }
 
     @Override

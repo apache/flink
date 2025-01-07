@@ -64,7 +64,7 @@ public class LocalReferenceExpression implements ResolvedExpression {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SerializationContext context) {
         return EncodingUtils.escapeIdentifier(name);
     }
 

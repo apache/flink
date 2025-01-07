@@ -78,14 +78,14 @@ public class FunctionQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SerializationContext context) {
         return String.format(
                 "SELECT %s FROM TABLE(%s\n) %s",
                 OperationUtils.formatSelectColumns(getResolvedSchema(), INPUT_ALIAS),
                 OperationUtils.indent(
                         resolvedFunction
                                 .toCallExpression(arguments, resolvedSchema.toPhysicalRowDataType())
-                                .asSerializableString()),
+                                .asSerializableString(SerializationContextAdapters.adapt(context))),
                 INPUT_ALIAS);
     }
 

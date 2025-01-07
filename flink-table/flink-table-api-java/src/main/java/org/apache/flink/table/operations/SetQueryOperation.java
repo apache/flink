@@ -85,13 +85,13 @@ public class SetQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(SerializationContext context) {
         return String.format(
                 "SELECT %s FROM (%s\n) %s (%s\n)",
                 OperationUtils.formatSelectColumns(resolvedSchema, null),
-                OperationUtils.indent(leftOperation.asSerializableString()),
+                OperationUtils.indent(leftOperation.asSerializableString(context)),
                 asSerializableType(),
-                OperationUtils.indent(rightOperation.asSerializableString()));
+                OperationUtils.indent(rightOperation.asSerializableString(context)));
     }
 
     private String asSerializableType() {

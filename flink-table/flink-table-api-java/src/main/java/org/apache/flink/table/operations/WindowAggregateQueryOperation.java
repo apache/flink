@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.SerializationContext;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 import org.apache.flink.util.StringUtils;
@@ -92,7 +93,10 @@ public class WindowAggregateQueryOperation implements QueryOperation {
     }
 
     @Override
-    public String asSerializableString() {
+    public String asSerializableString(
+            org.apache.flink.table.operations.SerializationContext context) {
+        final SerializationContext expressionSerializationContext =
+                SerializationContextAdapters.adapt(context);
         return String.format(
                 "SELECT %s FROM TABLE(%s\n) %s GROUP BY %s",
                 Stream.of(
@@ -104,10 +108,15 @@ public class WindowAggregateQueryOperation implements QueryOperation {
                                 expr ->
                                         OperationExpressionsUtils.scopeReferencesWithAlias(
                                                 INPUT_ALIAS, expr))
-                        .map(ResolvedExpression::asSerializableString)
+                        .map(
+                                resolvedExpression ->
+                                        resolvedExpression.asSerializableString(
+                                                expressionSerializationContext))
                         .collect(Collectors.joining(", ")),
                 OperationUtils.indent(
-                        groupWindow.asSerializableString(child.asSerializableString())),
+                        groupWindow.asSerializableString(
+                                child.asSerializableString(context),
+                                expressionSerializationContext)),
                 INPUT_ALIAS,
                 Stream.concat(
                                 Stream.of("window_start", "window_end"),
@@ -117,7 +126,10 @@ public class WindowAggregateQueryOperation implements QueryOperation {
                                                         OperationExpressionsUtils
                                                                 .scopeReferencesWithAlias(
                                                                         INPUT_ALIAS, expr))
-                                        .map(ResolvedExpression::asSerializableString))
+                                        .map(
+                                                resolvedExpression1 ->
+                                                        resolvedExpression1.asSerializableString(
+                                                                expressionSerializationContext)))
                         .collect(Collectors.joining(", ")));
     }
 
@@ -262,23 +274,23 @@ public class WindowAggregateQueryOperation implements QueryOperation {
             }
         }
 
-        public String asSerializableString(String table) {
+        public String asSerializableString(String table, SerializationContext context) {
             switch (type) {
                 case SLIDE:
                     return String.format(
                             "HOP((%s\n), DESCRIPTOR(%s), %s, %s)",
                             OperationUtils.indent(table),
-                            timeAttribute.asSerializableString(),
-                            slide.asSerializableString(),
-                            size.asSerializableString());
+                            timeAttribute.asSerializableString(context),
+                            slide.asSerializableString(context),
+                            size.asSerializableString(context));
                 case SESSION:
                     throw new TableException("Session windows are not SQL serializable yet.");
                 case TUMBLE:
                     return String.format(
                             "TUMBLE((%s\n), DESCRIPTOR(%s), %s)",
                             OperationUtils.indent(table),
-                            timeAttribute.asSerializableString(),
-                            size.asSerializableString());
+                            timeAttribute.asSerializableString(context),
+                            size.asSerializableString(context));
                 default:
                     throw new IllegalStateException("Unknown window type: " + type);
             }

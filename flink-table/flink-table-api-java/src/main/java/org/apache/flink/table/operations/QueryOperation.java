@@ -19,6 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.catalog.ResolvedSchema;
 
@@ -40,10 +41,12 @@ public interface QueryOperation extends Operation {
      * Returns a string that fully serializes this instance. The serialized string can be used for
      * storing the query in e.g. a {@link org.apache.flink.table.catalog.Catalog} as a view.
      *
+     * @param context can be used to customize the serialization to a SQL string
      * @return detailed string for persisting in a catalog
      * @see Operation#asSummaryString()
+     * @see EnvironmentSettings.Builder#withSerializationContext(SerializationContext)
      */
-    default String asSerializableString() {
+    default String asSerializableString(SerializationContext context) {
         throw new UnsupportedOperationException(
                 "QueryOperations are not string serializable for now.");
     }

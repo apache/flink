@@ -26,6 +26,8 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.expressions.DefaultSerializationContext;
+import org.apache.flink.table.expressions.SerializationContext;
 import org.apache.flink.table.legacy.api.TableColumn.ComputedColumn;
 import org.apache.flink.table.legacy.api.TableColumn.MetadataColumn;
 import org.apache.flink.table.legacy.api.TableColumn.PhysicalColumn;
@@ -435,6 +437,11 @@ public class TableSchema {
 
     /** Helps to migrate to the new {@link ResolvedSchema} to old API methods. */
     public static TableSchema fromResolvedSchema(ResolvedSchema resolvedSchema) {
+        return fromResolvedSchema(resolvedSchema, new DefaultSerializationContext());
+    }
+
+    public static TableSchema fromResolvedSchema(
+            ResolvedSchema resolvedSchema, SerializationContext context) {
         final TableSchema.Builder builder = TableSchema.builder();
 
         resolvedSchema.getColumns().stream()
@@ -455,7 +462,7 @@ public class TableSchema {
                                 return TableColumn.computed(
                                         c.getName(),
                                         c.getDataType(),
-                                        c.getExpression().asSerializableString());
+                                        c.getExpression().asSerializableString(context));
                             }
                             throw new IllegalArgumentException(
                                     "Unsupported column type: " + column);
@@ -468,7 +475,7 @@ public class TableSchema {
                         spec ->
                                 builder.watermark(
                                         spec.getRowtimeAttribute(),
-                                        spec.getWatermarkExpression().asSerializableString(),
+                                        spec.getWatermarkExpression().asSerializableString(context),
                                         spec.getWatermarkExpression().getOutputDataType()));
 
         resolvedSchema

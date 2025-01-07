@@ -24,6 +24,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.typeutils.CaseClassTypeInfo
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
 import org.apache.flink.table.data.RowData
+import org.apache.flink.table.expressions.DefaultSerializationContext
 import org.apache.flink.table.legacy.api.{TableSchema, Types}
 import org.apache.flink.table.legacy.sinks.{OverwritableTableSink, PartitionableTableSink, TableSink}
 import org.apache.flink.table.operations.SinkModifyOperation
@@ -143,7 +144,8 @@ object TableSinkUtils {
         case pj: PojoTypeInfo[_] => expandPojoTypeToSchema(pj, queryLogicalType)
         case _ =>
           TableSchema.fromResolvedSchema(
-            DataTypeUtils.expandCompositeTypeToSchema(requestedOutputType))
+            DataTypeUtils.expandCompositeTypeToSchema(requestedOutputType),
+            new DefaultSerializationContext)
       }
     } else {
       // atomic type
@@ -179,7 +181,8 @@ object TableSinkUtils {
         DataTypes.FIELD(name, fieldDataType)
       })
     TableSchema.fromResolvedSchema(
-      DataTypeUtils.expandCompositeTypeToSchema(DataTypes.ROW(reorderedFields: _*)))
+      DataTypeUtils.expandCompositeTypeToSchema(DataTypes.ROW(reorderedFields: _*)),
+      new DefaultSerializationContext)
   }
 
   /**

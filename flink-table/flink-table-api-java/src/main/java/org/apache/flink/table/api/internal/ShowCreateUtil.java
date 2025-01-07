@@ -30,6 +30,8 @@ import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UniqueConstraint;
+import org.apache.flink.table.operations.SerializationContext;
+import org.apache.flink.table.operations.SerializationContextAdapters;
 import org.apache.flink.table.utils.EncodingUtils;
 
 import org.apache.commons.lang3.StringUtils;
@@ -50,7 +52,8 @@ public class ShowCreateUtil {
     public static String buildShowCreateTableRow(
             ResolvedCatalogBaseTable<?> table,
             ObjectIdentifier tableIdentifier,
-            boolean isTemporary) {
+            boolean isTemporary,
+            SerializationContext context) {
         if (table.getTableKind() == CatalogBaseTable.TableKind.VIEW) {
             throw new TableException(
                     String.format(
@@ -61,7 +64,7 @@ public class ShowCreateUtil {
                 new StringBuilder()
                         .append(buildCreateFormattedPrefix("TABLE", isTemporary, tableIdentifier));
         sb.append(extractFormattedColumns(table, PRINT_INDENT));
-        extractFormattedWatermarkSpecs(table, PRINT_INDENT)
+        extractFormattedWatermarkSpecs(table, PRINT_INDENT, context)
                 .ifPresent(watermarkSpecs -> sb.append(",\n").append(watermarkSpecs));
         extractFormattedPrimaryKey(table, PRINT_INDENT)
                 .ifPresent(pk -> sb.append(",\n").append(pk));
@@ -176,7 +179,7 @@ public class ShowCreateUtil {
     }
 
     static Optional<String> extractFormattedWatermarkSpecs(
-            ResolvedCatalogBaseTable<?> table, String printIndent) {
+            ResolvedCatalogBaseTable<?> table, String printIndent, SerializationContext context) {
         if (table.getResolvedSchema().getWatermarkSpecs().isEmpty()) {
             return Optional.empty();
         }
@@ -191,7 +194,9 @@ public class ShowCreateUtil {
                                                         watermarkSpec.getRowtimeAttribute()),
                                                 watermarkSpec
                                                         .getWatermarkExpression()
-                                                        .asSerializableString()))
+                                                        .asSerializableString(
+                                                                SerializationContextAdapters.adapt(
+                                                                        context))))
                         .collect(Collectors.joining("\n")));
     }
 
