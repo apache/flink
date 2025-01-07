@@ -46,8 +46,8 @@ public final class CheckpointType implements SnapshotType {
         return false;
     }
 
-    public boolean isFullCheckpoint() {
-        return this == FULL_CHECKPOINT;
+    public boolean isIncrementalCheckpoint() {
+        return this != FULL_CHECKPOINT;
     }
 
     public String getName() {

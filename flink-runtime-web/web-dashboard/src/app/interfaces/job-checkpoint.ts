@@ -39,6 +39,7 @@ export interface Checkpoint {
       id: number;
       status: string;
       is_savepoint: boolean;
+      is_incremental_checkpoint: boolean;
       trigger_timestamp: number;
       latest_ack_timestamp: number;
       state_size: number;
@@ -55,6 +56,7 @@ export interface Checkpoint {
       id: number;
       restore_timestamp: number;
       is_savepoint: boolean;
+      is_incremental_checkpoint: boolean;
       external_path: string;
     };
     history: CheckpointHistory;
@@ -65,6 +67,7 @@ export interface CheckpointHistory {
   id: number;
   status: string;
   is_savepoint: boolean;
+  is_incremental_checkpoint: boolean;
   trigger_timestamp: number;
   latest_ack_timestamp: number;
   state_size: number;
@@ -91,6 +94,7 @@ export interface CheckpointCompletedStatistics {
   id: number;
   status: string;
   is_savepoint: boolean;
+  is_incremental_checkpoint: boolean;
   trigger_timestamp: number;
   latest_ack_timestamp: number;
   state_size: number;
@@ -142,7 +146,7 @@ export interface CheckpointDetail {
   id: number;
   status: string;
   is_savepoint: boolean;
-  is_full_checkpoint: boolean;
+  is_incremental_checkpoint: boolean;
   savepointFormat: string;
   trigger_timestamp: number;
   latest_ack_timestamp: number;

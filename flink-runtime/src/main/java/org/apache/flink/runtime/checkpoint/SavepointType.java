@@ -54,7 +54,7 @@ public class SavepointType implements SnapshotType {
         return true;
     }
 
-    public boolean isFullCheckpoint() {
+    public boolean isIncrementalCheckpoint() {
         return false;
     }
 

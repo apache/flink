@@ -24,10 +24,7 @@
     {{ checkPointDetail?.discarded || '-' }}
     <nz-divider nzType="vertical"></nz-divider>
     <strong>Checkpoint Type:</strong>
-    {{ checkPointType }}
-    <nz-divider nzType="vertical"></nz-divider>
-    <strong>Full Checkpoint:</strong>
-    {{ checkPointDetail?.is_full_checkpoint }}
+    {{ checkPointType }} ({{ checkPointDetail?.is_incremental_checkpoint ? 'incremental' : 'full' }})
     <ng-container *ngIf="checkPointDetail?.savepointFormat">
       <nz-divider nzType="vertical"></nz-divider>
       <strong>Savepoint Format:</strong>
