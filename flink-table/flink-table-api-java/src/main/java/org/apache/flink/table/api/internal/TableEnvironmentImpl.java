@@ -1016,7 +1016,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             ResolvedCatalogTable catalogTable) {
         if (tableConfig.get(TableConfigOptions.TABLE_RTAS_CTAS_ATOMICITY_ENABLED)) {
             if (!TableFactoryUtil.isLegacyConnectorOptions(
-                    catalog,
                     tableConfig,
                     isStreamingMode,
                     createTableOperation.getTableIdentifier(),

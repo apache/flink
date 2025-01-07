@@ -1223,8 +1223,7 @@ public class SqlNodeToOperationConversion {
                         catalogManager.qualifyIdentifier(unresolvedTableIdentifier));
         // try push down delete
         Optional<DynamicTableSink> optionalDynamicTableSink =
-                DeletePushDownUtils.getDynamicTableSink(
-                        contextResolvedTable, tableModify, catalogManager);
+                DeletePushDownUtils.getDynamicTableSink(contextResolvedTable, tableModify);
         if (optionalDynamicTableSink.isPresent()) {
             DynamicTableSink dynamicTableSink = optionalDynamicTableSink.get();
             // if the table sink supports delete push down
