@@ -329,7 +329,7 @@ public class CliOptionsParser {
                                     return URI.create(uri);
                                 } catch (Exception e) {
                                     throw new SqlClientException(
-                                            "Invalid path for option '"
+                                            "Invalid uri for option '"
                                                     + option.getLongOpt()
                                                     + "': "
                                                     + uri,
