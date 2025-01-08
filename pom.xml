@@ -124,6 +124,7 @@ under the License.
 		<flink.shaded.jackson.version>2.15.3</flink.shaded.jackson.version>
 		<flink.shaded.jsonpath.version>2.7.0</flink.shaded.jsonpath.version>
 		<flink.markBundledAsOptional>true</flink.markBundledAsOptional>
+		<source.java.version>11</source.java.version>
 		<target.java.version>17</target.java.version>
 		<slf4j.version>1.7.36</slf4j.version>
 		<log4j.version>2.24.1</log4j.version>
@@ -2082,7 +2083,8 @@ under the License.
 					<artifactId>maven-compiler-plugin</artifactId>
 					<version>3.8.0</version>
 					<configuration>
-						<source>${target.java.version}</source>
+						<!-- Make sure that we only use Java 11 compatible APIs -->
+						<source>${source.java.version}</source>
 						<target>${target.java.version}</target>
 						<!-- The semantics of this option are reversed, see MCOMPILER-209. -->
 						<useIncrementalCompilation>false</useIncrementalCompilation>
