@@ -363,7 +363,7 @@ def date_format(timestamp, format) -> Expression:
     ::
 
         >>> table.select(date_format(to_timestamp('2020-04-15'), "yyyy/MM/dd"))
-        >>> table.select(date_format("2020-04-15", "MM/dd/yyyy"))
+        >>> table.select(date_format("2020-04-15 12:33:21", "MM/dd/yyyy"))
 
     :return: The formatted timestamp as string.
     """
