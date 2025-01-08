@@ -193,17 +193,6 @@ class StreamTableEnvironmentImpl(
     createTable(queryOperation)
   }
 
-  override def registerDataStream[T](name: String, dataStream: DataStream[T]): Unit = {
-    registerTable(name, fromDataStream(dataStream))
-  }
-
-  override def registerDataStream[T](
-      name: String,
-      dataStream: DataStream[T],
-      fields: Expression*): Unit = {
-    registerTable(name, fromDataStream(dataStream, fields: _*))
-  }
-
   override def toAppendStream[T: TypeInformation](table: Table): DataStream[T] = {
     val returnType = createTypeInformation[T]
 
