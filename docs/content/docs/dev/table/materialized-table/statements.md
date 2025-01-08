@@ -165,15 +165,15 @@ FRESHNESS = INTERVAL '5' HOUR
 ```sql
 -- The refresh mode of the created materialized table is CONTINUOUS, and the job's checkpoint interval is 1 hour.
 CREATE MATERIALIZED TABLE my_materialized_table
-    REFRESH_MODE = CONTINUOUS
     FRESHNESS = INTERVAL '1' HOUR
+    REFRESH_MODE = CONTINUOUS
     AS SELECT
        ...    
 
 -- The refresh mode of the created materialized table is FULL, and the job's schedule cycle is 10 minutes.
 CREATE MATERIALIZED TABLE my_materialized_table
-    REFRESH_MODE = FULL
     FRESHNESS = INTERVAL '10' MINUTE
+    REFRESH_MODE = FULL
     AS SELECT
        ...    
 ```
