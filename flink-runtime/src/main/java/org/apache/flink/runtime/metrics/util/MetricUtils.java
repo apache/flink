@@ -378,12 +378,19 @@ public class MetricUtils {
                     METRICS_OPERATOR_NAME_MAX_LENGTH);
             if (operatorName.endsWith(WRITER_SUFFIX)) {
                 return operatorName.substring(
-                                0, METRICS_OPERATOR_NAME_MAX_LENGTH - WRITER_SUFFIX.length())
+                                0,
+                                Math.max(
+                                        0,
+                                        METRICS_OPERATOR_NAME_MAX_LENGTH - WRITER_SUFFIX.length()))
                         + WRITER_SUFFIX;
             }
             if (operatorName.endsWith(COMMITTER_SUFFIX)) {
                 return operatorName.substring(
-                                0, METRICS_OPERATOR_NAME_MAX_LENGTH - COMMITTER_SUFFIX.length())
+                                0,
+                                Math.max(
+                                        0,
+                                        METRICS_OPERATOR_NAME_MAX_LENGTH
+                                                - COMMITTER_SUFFIX.length()))
                         + COMMITTER_SUFFIX;
             }
             return operatorName.substring(0, METRICS_OPERATOR_NAME_MAX_LENGTH);
