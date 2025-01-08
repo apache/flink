@@ -110,11 +110,11 @@ public class HiveCatalogUdfITCase extends AbstractTestBaseJUnit4 {
         sourceOptions.put("format.type", "csv");
 
         CatalogTable unresolved =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(schema).build(),
-                        "Comment.",
-                        new ArrayList<>(),
-                        sourceOptions);
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().fromResolvedSchema(schema).build())
+                        .comment("Comment.")
+                        .options(sourceOptions)
+                        .build();
         ResolvedCatalogTable source = new ResolvedCatalogTable(unresolved, schema);
 
         hiveCatalog.createTable(
@@ -188,11 +188,11 @@ public class HiveCatalogUdfITCase extends AbstractTestBaseJUnit4 {
             sinkOptions.put("format.type", "csv");
 
             CatalogTable unresolved =
-                    CatalogTable.of(
-                            Schema.newBuilder().fromResolvedSchema(sinkSchema).build(),
-                            "Comment.",
-                            new ArrayList<>(),
-                            sinkOptions);
+                    CatalogTable.newBuilder()
+                            .schema(Schema.newBuilder().fromResolvedSchema(sinkSchema).build())
+                            .comment("Comment.")
+                            .options(sinkOptions)
+                            .build();
             final ResolvedCatalogTable sink = new ResolvedCatalogTable(unresolved, sinkSchema);
 
             hiveCatalog.createTable(

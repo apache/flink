@@ -436,11 +436,11 @@ public class HiveParserDMLHelper {
             ResolvedSchema resolvedSchema, Map<String, String> props) {
         Schema schema = Schema.newBuilder().fromResolvedSchema(resolvedSchema).build();
         CatalogTable catalogTable =
-                CatalogTable.of(
-                        schema,
-                        "a dummy table for the case of insert overwrite directory ",
-                        Collections.emptyList(),
-                        props);
+                CatalogTable.newBuilder()
+                        .schema(schema)
+                        .comment("a dummy table for the case of insert overwrite directory")
+                        .options(props)
+                        .build();
         ResolvedCatalogTable resolvedCatalogTable =
                 new ResolvedCatalogTable(catalogTable, resolvedSchema);
         String currentCatalog = catalogRegistry.getCurrentCatalog();

@@ -29,9 +29,6 @@ import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.calcite.schema.Table;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_CATALOG;
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_DATABASE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -86,6 +83,6 @@ class DatabaseCalciteSchemaTest {
                         .primaryKey("a", "b")
                         .build();
 
-        return CatalogTable.of(schema, null, new ArrayList<>(), new HashMap<>());
+        return CatalogTable.newBuilder().schema(schema).build();
     }
 }

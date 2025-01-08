@@ -185,11 +185,14 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         ResolvedSchema resolvedSchema = new ResolvedSchema(columns, new ArrayList<>(), null);
         CatalogTable catalogTable =
                 new ResolvedCatalogTable(
-                        CatalogTable.of(
-                                Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
-                                TEST_COMMENT,
-                                new ArrayList<>(),
-                                getBatchTableProperties()),
+                        CatalogTable.newBuilder()
+                                .schema(
+                                        Schema.newBuilder()
+                                                .fromResolvedSchema(resolvedSchema)
+                                                .build())
+                                .comment(TEST_COMMENT)
+                                .options(getBatchTableProperties())
+                                .build(),
                         resolvedSchema);
         catalog.createTable(path1, catalogTable, false);
         Map<String, CatalogColumnStatisticsDataBase> columnStatisticsDataBaseMap = new HashMap<>();
@@ -274,11 +277,13 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         hiveCatalog.createTable(
                 path1,
                 new ResolvedCatalogTable(
-                        CatalogTable.of(
-                                Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
-                                null,
-                                new ArrayList<>(),
-                                getBatchTableProperties()),
+                        CatalogTable.newBuilder()
+                                .schema(
+                                        Schema.newBuilder()
+                                                .fromResolvedSchema(resolvedSchema)
+                                                .build())
+                                .options(getBatchTableProperties())
+                                .build(),
                         resolvedSchema),
                 false);
         CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(path1);
@@ -339,11 +344,14 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
                         null);
         CatalogTable resolveCatalogTable =
                 new ResolvedCatalogTable(
-                        CatalogTable.of(
-                                Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
-                                "",
-                                new ArrayList<>(),
-                                properties),
+                        CatalogTable.newBuilder()
+                                .schema(
+                                        Schema.newBuilder()
+                                                .fromResolvedSchema(resolvedSchema)
+                                                .build())
+                                .comment("")
+                                .options(properties)
+                                .build(),
                         resolvedSchema);
         catalog.createTable(path1, resolveCatalogTable, false);
 
@@ -614,11 +622,12 @@ class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
                         null);
         catalog.createDatabase(db1, createDb(), false);
         final CatalogTable origin =
-                CatalogTable.of(
-                        Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
-                        TEST_COMMENT,
-                        createPartitionKeys(),
-                        getBatchTableProperties());
+                CatalogTable.newBuilder()
+                        .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema).build())
+                        .comment(TEST_COMMENT)
+                        .partitionKeys(createPartitionKeys())
+                        .options(getBatchTableProperties())
+                        .build();
         CatalogTable catalogTable = new ResolvedCatalogTable(origin, resolvedSchema);
 
         catalog.createTable(path1, catalogTable, false);

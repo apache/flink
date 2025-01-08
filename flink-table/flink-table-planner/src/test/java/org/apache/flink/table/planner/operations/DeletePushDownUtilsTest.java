@@ -124,16 +124,22 @@ public class DeletePushDownUtilsTest {
     @Test
     public void testGetResolveFilterExpressions() {
         CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder()
-                                .column("f0", DataTypes.INT().notNull())
-                                .column("f1", DataTypes.STRING().nullable())
-                                .column("f2", DataTypes.BIGINT().nullable())
-                                .column("f3", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE().nullable())
-                                .build(),
-                        null,
-                        Collections.emptyList(),
-                        Map.of("connector", TestSimpleDynamicTableSourceFactory.IDENTIFIER()));
+                CatalogTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.STRING().nullable())
+                                        .column("f2", DataTypes.BIGINT().nullable())
+                                        .column(
+                                                "f3",
+                                                DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE()
+                                                        .nullable())
+                                        .build())
+                        .options(
+                                Map.of(
+                                        "connector",
+                                        TestSimpleDynamicTableSourceFactory.IDENTIFIER()))
+                        .build();
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "t"), false);
 
@@ -175,15 +181,15 @@ public class DeletePushDownUtilsTest {
     }
 
     private CatalogTable createTestCatalogTable(Map<String, String> options) {
-        return CatalogTable.of(
-                Schema.newBuilder()
-                        .column("f0", DataTypes.INT().notNull())
-                        .column("f1", DataTypes.STRING().nullable())
-                        .column("f2", DataTypes.BIGINT().nullable())
-                        .build(),
-                null,
-                Collections.emptyList(),
-                options);
+        return CatalogTable.newBuilder()
+                .schema(
+                        Schema.newBuilder()
+                                .column("f0", DataTypes.INT().notNull())
+                                .column("f1", DataTypes.STRING().nullable())
+                                .column("f2", DataTypes.BIGINT().nullable())
+                                .build())
+                .options(options)
+                .build();
     }
 
     private LogicalTableModify getTableModifyFromSql(String sql) {

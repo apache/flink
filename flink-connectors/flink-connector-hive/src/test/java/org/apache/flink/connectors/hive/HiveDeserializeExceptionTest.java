@@ -41,7 +41,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Properties;
 
@@ -74,11 +73,9 @@ public class HiveDeserializeExceptionTest {
                         new Properties(),
                         new JobConf(),
                         new ResolvedCatalogTable(
-                                CatalogTable.of(
-                                        Schema.newBuilder().build(),
-                                        null,
-                                        new ArrayList<>(),
-                                        Collections.emptyMap()),
+                                CatalogTable.newBuilder()
+                                        .schema(Schema.newBuilder().build())
+                                        .build(),
                                 ResolvedSchema.of()),
                         HiveShimLoader.getHiveVersion(),
                         RowType.of(DataTypes.INT().getLogicalType()),
@@ -87,11 +84,12 @@ public class HiveDeserializeExceptionTest {
         ResolvedSchema resolvedSchema = ResolvedSchema.of(Column.physical("i", DataTypes.INT()));
         ResolvedCatalogTable resolvedCatalogTable =
                 new ResolvedCatalogTable(
-                        CatalogTable.of(
-                                Schema.newBuilder().fromResolvedSchema(resolvedSchema).build(),
-                                null,
-                                Collections.emptyList(),
-                                Collections.emptyMap()),
+                        CatalogTable.newBuilder()
+                                .schema(
+                                        Schema.newBuilder()
+                                                .fromResolvedSchema(resolvedSchema)
+                                                .build())
+                                .build(),
                         resolvedSchema);
         HiveSourceBuilder builder =
                 new HiveSourceBuilder(

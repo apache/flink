@@ -224,13 +224,14 @@ class HiveSourceTest {
         hiveCatalog.createTable(
                 tablePath,
                 new ResolvedCatalogTable(
-                        CatalogTable.of(
-                                Schema.newBuilder()
-                                        .fromResolvedSchema(partitionTableRSchema)
-                                        .build(),
-                                null,
-                                isPartitioned ? keys : Collections.emptyList(),
-                                tableOptions),
+                        CatalogTable.newBuilder()
+                                .schema(
+                                        Schema.newBuilder()
+                                                .fromResolvedSchema(partitionTableRSchema)
+                                                .build())
+                                .partitionKeys(isPartitioned ? keys : Collections.emptyList())
+                                .options(tableOptions)
+                                .build(),
                         partitionTableRSchema),
                 false);
 

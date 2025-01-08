@@ -783,7 +783,12 @@ public class HiveCatalog extends AbstractCatalog {
                     hiveTable.getViewExpandedText(),
                     properties);
         } else {
-            return CatalogTable.of(schema, comment, partitionKeys, properties);
+            return CatalogTable.newBuilder()
+                    .schema(schema)
+                    .comment(comment)
+                    .partitionKeys(partitionKeys)
+                    .options(properties)
+                    .build();
         }
     }
 

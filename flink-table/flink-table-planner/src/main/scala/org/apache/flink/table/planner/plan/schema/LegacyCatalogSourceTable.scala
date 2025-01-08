@@ -183,14 +183,16 @@ class LegacyCatalogSourceTable[T](
       schemaTable.getContextResolvedTable.getCatalog.orElse(null),
       identifier,
       new ResolvedCatalogTable(
-        CatalogTable.of(
-          Schema.newBuilder
-            .fromResolvedSchema(resolvedSchemaWithRemovedTimeAttribute)
-            .build(),
-          tableToFind.getComment,
-          tableToFind.getPartitionKeys,
-          tableToFind.getOptions
-        ),
+        CatalogTable
+          .newBuilder()
+          .schema(
+            Schema.newBuilder
+              .fromResolvedSchema(resolvedSchemaWithRemovedTimeAttribute)
+              .build())
+          .comment(tableToFind.getComment)
+          .partitionKeys(tableToFind.getPartitionKeys)
+          .options(tableToFind.getOptions)
+          .build(),
         resolvedSchemaWithRemovedTimeAttribute),
       conf,
       schemaTable.isTemporary

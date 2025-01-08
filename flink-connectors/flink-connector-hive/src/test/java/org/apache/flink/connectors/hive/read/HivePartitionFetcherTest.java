@@ -66,7 +66,12 @@ public class HivePartitionFetcherTest {
         List<String> partitionKeys = Collections.singletonList("date");
         Map<String, String> options = new HashMap<>();
         options.put("connector", "hive");
-        CatalogTable catalogTable = CatalogTable.of(schema, null, partitionKeys, options);
+        CatalogTable catalogTable =
+                CatalogTable.newBuilder()
+                        .schema(schema)
+                        .partitionKeys(partitionKeys)
+                        .options(options)
+                        .build();
         ResolvedCatalogTable resolvedCatalogTable =
                 new ResolvedCatalogTable(
                         catalogTable, ResolvedSchema.physical(fieldNames, fieldTypes));

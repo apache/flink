@@ -49,7 +49,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -88,7 +87,11 @@ class HiveTableFactoryTest {
                 Collections.singletonMap(FactoryUtil.CONNECTOR.key(), "COLLECTION");
         final CatalogTable table =
                 new ResolvedCatalogTable(
-                        CatalogTable.of(schema, "csv table", new ArrayList<>(), options),
+                        CatalogTable.newBuilder()
+                                .schema(schema)
+                                .comment("csv table")
+                                .options(options)
+                                .build(),
                         resolvedSchema);
         catalog.createTable(new ObjectPath("mydb", "mytable"), table, true);
 
@@ -129,11 +132,11 @@ class HiveTableFactoryTest {
                 Collections.singletonMap(FactoryUtil.CONNECTOR.key(), IDENTIFIER);
         final CatalogTable table =
                 new ResolvedCatalogTable(
-                        CatalogTable.of(
-                                Schema.newBuilder().fromResolvedSchema(schema).build(),
-                                "hive table",
-                                new ArrayList<>(),
-                                options),
+                        CatalogTable.newBuilder()
+                                .schema(Schema.newBuilder().fromResolvedSchema(schema).build())
+                                .comment("hive table")
+                                .options(options)
+                                .build(),
                         schema);
         catalog.createTable(new ObjectPath("mydb", "mytable"), table, true);
 
