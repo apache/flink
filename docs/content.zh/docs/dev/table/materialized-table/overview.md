@@ -41,24 +41,24 @@ under the License.
 数据新鲜度定义了物化表数据相对于基础表更新的最大滞后时间。它并非绝对保证，而是 Flink 尝试达到的目标。框架会尽力确保物化表中的数据在指定的新鲜度内刷新。
 
 数据新鲜度是物化表的一个关键属性，具有两个主要作用：
-- **确定刷新模式**：目前有连续模式和全量模式。关于如何确定刷新模式的详细信息，请参阅 [materialized-table.refresh-mode.freshness-threshold]({{< ref "docs/dev/table/config" >}}#materialized-table-refresh-mode-freshness-threshold) 配置项。
-    - 连续模式：启动 Flink 流作业，持续刷新物化表数据。
+- **确定刷新模式**：目前有持续模式和全量模式。关于如何确定刷新模式的详细信息，请参阅 [materialized-table.refresh-mode.freshness-threshold]({{< ref "docs/dev/table/config" >}}#materialized-table-refresh-mode-freshness-threshold) 配置项。
+    - 持续模式：启动 Flink 流作业，持续刷新物化表数据。
     - 全量模式：工作流调度器定期触发 Flink 批处理作业，全量刷新物化表数据。
 - **确定刷新频率**：
-    - 连续模式下，数据新鲜度转换为 Flink 流作业的 `checkpoint` 间隔。
+    - 持续模式下，数据新鲜度转换为 Flink 流作业的 `checkpoint` 间隔。
     - 全量模式下，数据新鲜度转换为工作流的调度周期，例如 `cron` 表达式。
 
 ## 刷新模式
 
-刷新模式有连续模式和全量模式两种。默认情况下，根据数据新鲜度推断刷新模式。用户可以为特定业务场景显式指定刷新模式，它的优先级高于根据数据新鲜度推导的刷新模式。
+刷新模式有持续模式和全量模式两种。默认情况下，根据数据新鲜度推断刷新模式。用户可以为特定业务场景显式指定刷新模式，它的优先级高于根据数据新鲜度推导的刷新模式。
 
-- **连续模式**：Flink 流作业会增量更新物化表数据，下游数据会立即可见，或者等 checkpoint 完成时才可见，由对应的 Connector 行为决定。
+- **持续模式**：Flink 流作业会增量更新物化表数据，下游数据会立即可见，或者等 checkpoint 完成时才可见，由对应的 Connector 行为决定。
 - **全量模式**：调度器会定期触发对物化表数据的全量覆盖，其数据刷新周期与工作流的调度周期相匹配。
     - 默认的覆盖行为是表级别的。如果分区字段存在，并且通过 [partition.fields.#.date-formatter]({{< ref "docs/dev/table/config" >}}#partition-fields-date-formatter) 指定了时间分区字段格式，则按照分区粒度覆盖，即每次只刷新最新的分区。
 
 ## 查询定义
 
-物化表的查询定义支持所有 Flink SQL [查询]({{< ref "docs/dev/table/sql/queries/overview" >}})。查询结果用于填充物化表。在连续模式下，查询结果会持续更新到物化表中，而在全量模式下，每次查询结果都会覆盖更新到物化表。
+物化表的查询定义支持所有 Flink SQL [查询]({{< ref "docs/dev/table/sql/queries/overview" >}})。查询结果用于填充物化表。在持续模式下，查询结果会持续更新到物化表中，而在全量模式下，每次查询结果都会覆盖更新到物化表。
 
 ## Schema
 
