@@ -17,8 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.harness
 
-import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
-import org.apache.flink.streaming.api.operators.asyncprocessing.AsyncStateKeyedProcessOperator
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, OneInputStreamOperatorTestHarness}
 import org.apache.flink.table.api.{EnvironmentSettings, _}
@@ -453,13 +451,6 @@ class GroupAggregateHarnessTest(
     testHarness.close()
   }
 
-  private def isAsyncStateOperator(
-      testHarness: KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData]): Boolean = {
-    testHarness.getOperatorFactory
-      .asInstanceOf[SimpleOperatorFactory[_]]
-      .getOperator
-      .isInstanceOf[AsyncStateKeyedProcessOperator[_, _, _]]
-  }
 }
 
 object GroupAggregateHarnessTest {

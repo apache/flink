@@ -19,51 +19,20 @@
 package org.apache.flink.table.runtime.operators.aggregate;
 
 import org.apache.flink.api.common.functions.OpenContext;
-import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
-import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
-import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.aggregate.utils.GroupAggHelper;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 
-import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfig;
-
 /** Aggregate Function used for the groupby (without window) aggregate. */
-public class GroupAggFunction extends KeyedProcessFunction<RowData, RowData, RowData> {
+public class GroupAggFunction extends GroupAggFunctionBase {
 
     private static final long serialVersionUID = -4767158666069797704L;
-
-    /** The code generated function used to handle aggregates. */
-    private final GeneratedAggsHandleFunction genAggsHandler;
-
-    /** The code generated equaliser used to equal RowData. */
-    private final GeneratedRecordEqualiser genRecordEqualiser;
-
-    /** The accumulator types. */
-    private final LogicalType[] accTypes;
-
-    /** Used to count the number of added and retracted input records. */
-    private final RecordCounter recordCounter;
-
-    /** Whether this operator will generate UPDATE_BEFORE messages. */
-    private final boolean generateUpdateBefore;
-
-    /** State idle retention time which unit is MILLISECONDS. */
-    private final long stateRetentionTime;
-
-    // function used to handle all aggregates
-    private transient AggsHandleFunction function = null;
-
-    // function used to equal RowData
-    private transient RecordEqualiser equaliser = null;
 
     // stores the accumulators
     private transient ValueState<RowData> accState = null;
@@ -89,23 +58,18 @@ public class GroupAggFunction extends KeyedProcessFunction<RowData, RowData, Row
             int indexOfCountStar,
             boolean generateUpdateBefore,
             long stateRetentionTime) {
-        this.genAggsHandler = genAggsHandler;
-        this.genRecordEqualiser = genRecordEqualiser;
-        this.accTypes = accTypes;
-        this.recordCounter = RecordCounter.of(indexOfCountStar);
-        this.generateUpdateBefore = generateUpdateBefore;
-        this.stateRetentionTime = stateRetentionTime;
+        super(
+                genAggsHandler,
+                genRecordEqualiser,
+                accTypes,
+                indexOfCountStar,
+                generateUpdateBefore,
+                stateRetentionTime);
     }
 
     @Override
     public void open(OpenContext openContext) throws Exception {
         super.open(openContext);
-        // instantiate function
-        StateTtlConfig ttlConfig = createTtlConfig(stateRetentionTime);
-        function = genAggsHandler.newInstance(getRuntimeContext().getUserCodeClassLoader());
-        function.open(new PerKeyStateDataViewStore(getRuntimeContext(), ttlConfig));
-        // instantiate equaliser
-        equaliser = genRecordEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
 
         InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
         ValueStateDescriptor<RowData> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);
@@ -124,16 +88,9 @@ public class GroupAggFunction extends KeyedProcessFunction<RowData, RowData, Row
         aggHelper.processElement(input, currentKey, accState.value(), out);
     }
 
-    @Override
-    public void close() throws Exception {
-        if (function != null) {
-            function.close();
-        }
-    }
-
     private class SyncStateGroupAggHelper extends GroupAggHelper {
         public SyncStateGroupAggHelper() {
-            super(recordCounter, generateUpdateBefore, stateRetentionTime, function, equaliser);
+            super(recordCounter, generateUpdateBefore, ttlConfig, function, equaliser);
         }
 
         @Override

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.aggregate.utils;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
@@ -38,8 +39,8 @@ public abstract class GroupAggHelper {
     /** Whether this operator will generate UPDATE_BEFORE messages. */
     private final boolean generateUpdateBefore;
 
-    /** State idle retention time which unit is MILLISECONDS. */
-    private final long stateRetentionTime;
+    /** State idle retention config. */
+    private final StateTtlConfig ttlConfig;
 
     /** function used to handle all aggregates. */
     private final AggsHandleFunction function;
@@ -53,12 +54,12 @@ public abstract class GroupAggHelper {
     public GroupAggHelper(
             RecordCounter recordCounter,
             boolean generateUpdateBefore,
-            long stateRetentionTime,
+            StateTtlConfig ttlConfig,
             AggsHandleFunction function,
             RecordEqualiser equaliser) {
         this.recordCounter = recordCounter;
         this.generateUpdateBefore = generateUpdateBefore;
-        this.stateRetentionTime = stateRetentionTime;
+        this.ttlConfig = ttlConfig;
         this.function = function;
         this.equaliser = equaliser;
         this.resultRow = new JoinedRowData();
@@ -108,7 +109,7 @@ public abstract class GroupAggHelper {
 
             // if this was not the first row and we have to emit retractions
             if (!firstRow) {
-                if (stateRetentionTime <= 0 && equaliser.equals(prevAggValue, newAggValue)) {
+                if (!ttlConfig.isEnabled() && equaliser.equals(prevAggValue, newAggValue)) {
                     // newRow is the same as before and state cleaning is not enabled.
                     // We do not emit retraction and acc message.
                     // If state cleaning is enabled, we have to emit messages to prevent too early
