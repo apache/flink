@@ -18,12 +18,8 @@
 
 package org.apache.flink.table.tpcds;
 
-import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
-import org.apache.flink.connector.file.table.FileSystemTableFactory;
-import org.apache.flink.formats.csv.CsvFormatOptions;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.FormatDescriptor;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;
@@ -32,7 +28,7 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.sinks.LegacyCsvDynamicTableSinkOptions;
 import org.apache.flink.table.sources.CsvTableSource;
 import org.apache.flink.table.tpcds.schema.TpcdsSchema;
 import org.apache.flink.table.tpcds.schema.TpcdsSchemaProvider;
@@ -134,20 +130,12 @@ public class TpcdsTestProgram {
         }
         final Schema schema = schemaBuilder.build();
 
-        final FormatDescriptor formatDescriptor =
-                FormatDescriptor.forFormat("csv")
-                        .option(CsvFormatOptions.FIELD_DELIMITER, COL_DELIMITER)
-                        .build();
-
-        return TableDescriptor.forConnector(FileSystemTableFactory.IDENTIFIER)
+        return TableDescriptor.forConnector(LegacyCsvDynamicTableSinkOptions.IDENTIFIER)
                 .schema(schema)
-                .option(FileSystemConnectorOptions.PATH, path)
-                // ensure only generating one file
-                .option(
-                        FileSystemConnectorOptions.SINK_ROLLING_POLICY_FILE_SIZE,
-                        MemorySize.MAX_VALUE)
-                .option(FactoryUtil.SINK_PARALLELISM, 1)
-                .format(formatDescriptor)
+                .option(LegacyCsvDynamicTableSinkOptions.PATH.key(), path)
+                .option(LegacyCsvDynamicTableSinkOptions.FIELD_DELIM.key(), COL_DELIMITER)
+                .option(LegacyCsvDynamicTableSinkOptions.NUM_FILES, 1)
+                .option(LegacyCsvDynamicTableSinkOptions.WRITE_MODE, FileSystem.WriteMode.OVERWRITE)
                 .build();
     }
 
