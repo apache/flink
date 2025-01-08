@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.BroadcastStateDeclaration;
 import org.apache.flink.api.common.state.ListStateDeclaration;
 import org.apache.flink.api.common.state.MapStateDeclaration;
+import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.state.ReducingStateDeclaration;
 import org.apache.flink.api.common.state.StateDeclaration;
 import org.apache.flink.api.common.state.ValueStateDeclaration;
@@ -38,7 +39,6 @@ import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.api.common.state.v2.ValueStateDescriptor;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.datastream.api.context.StateManager;
-import org.apache.flink.runtime.state.v2.OperatorStateStore;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.util.Preconditions;
 

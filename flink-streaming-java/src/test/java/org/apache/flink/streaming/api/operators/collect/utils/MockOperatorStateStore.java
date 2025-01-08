@@ -33,8 +33,7 @@ import java.util.Set;
 
 /** An {@link OperatorStateStore} for testing purpose. */
 @SuppressWarnings("rawtypes")
-public class MockOperatorStateStore
-        implements OperatorStateStore, org.apache.flink.runtime.state.v2.OperatorStateStore {
+public class MockOperatorStateStore implements OperatorStateStore {
 
     private final Map<Long, Map<String, TestUtils.MockListState>> historyStateMap;
 
