@@ -21,15 +21,16 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin;
 
-import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexProgramBuilder;
 import org.apache.calcite.rex.RexUtil;
+import org.immutables.value.Value;
 
 import java.util.List;
 import java.util.Optional;
@@ -43,15 +44,13 @@ import java.util.stream.Collectors;
  * <p>After this rule is applied, there will be no Remote Functions in the condition of the {@link
  * FlinkLogicalJoin}.
  */
-public final class SplitRemoteConditionFromJoinRule extends RelOptRule {
-    protected final RemoteCalcCallFinder callFinder;
-    protected final Optional<String> errorOnUnsplittableRemoteCall;
+@Value.Enclosing
+public class SplitRemoteConditionFromJoinRule
+        extends RelRule<SplitRemoteConditionFromJoinRule.SplitRemoteConditionFromJoinRuleConfig> {
 
-    public SplitRemoteConditionFromJoinRule(
-            RemoteCalcCallFinder callFinder, Optional<String> errorOnUnsplittableRemoteCall) {
-        super(operand(FlinkLogicalJoin.class, none()), "SplitRemoteConditionFromJoinRule");
-        this.callFinder = callFinder;
-        this.errorOnUnsplittableRemoteCall = errorOnUnsplittableRemoteCall;
+    protected SplitRemoteConditionFromJoinRule(
+            SplitRemoteConditionFromJoinRule.SplitRemoteConditionFromJoinRuleConfig config) {
+        super(config);
     }
 
     @Override
@@ -59,11 +58,12 @@ public final class SplitRemoteConditionFromJoinRule extends RelOptRule {
         FlinkLogicalJoin join = call.rel(0);
         JoinRelType joinType = join.getJoinType();
         // matches if it is inner join and it contains Remote functions in condition
-        if (join.getCondition() != null && callFinder.containsRemoteCall(join.getCondition())) {
+        if (join.getCondition() != null
+                && config.remoteCalcCallFinder().containsRemoteCall(join.getCondition())) {
             if (joinType == JoinRelType.INNER) {
                 return true;
-            } else if (errorOnUnsplittableRemoteCall.isPresent()) {
-                throw new TableException(errorOnUnsplittableRemoteCall.get());
+            } else if (config.errorOnUnsplittableRemoteCall().isPresent()) {
+                throw new TableException(config.errorOnUnsplittableRemoteCall().get());
             }
         }
         return false;
@@ -76,11 +76,11 @@ public final class SplitRemoteConditionFromJoinRule extends RelOptRule {
         List<RexNode> joinFilters = RelOptUtil.conjunctions(join.getCondition());
         List<RexNode> remoteFilters =
                 joinFilters.stream()
-                        .filter(callFinder::containsRemoteCall)
+                        .filter(config.remoteCalcCallFinder()::containsRemoteCall)
                         .collect(Collectors.toList());
         List<RexNode> remainingFilters =
                 joinFilters.stream()
-                        .filter(f -> !callFinder.containsRemoteCall(f))
+                        .filter(f -> !config.remoteCalcCallFinder().containsRemoteCall(f))
                         .collect(Collectors.toList());
 
         RexNode newJoinCondition = RexUtil.composeConjunction(rexBuilder, remainingFilters);
@@ -127,7 +127,44 @@ public final class SplitRemoteConditionFromJoinRule extends RelOptRule {
 
         SplitRemoteConditionFromJoinRule rule = (SplitRemoteConditionFromJoinRule) obj;
         return super.equals(rule)
-                && callFinder.getClass().equals(rule.callFinder.getClass())
-                && errorOnUnsplittableRemoteCall.equals(rule.errorOnUnsplittableRemoteCall);
+                && config.remoteCalcCallFinder()
+                        .getClass()
+                        .equals(rule.config.remoteCalcCallFinder().getClass())
+                && config.errorOnUnsplittableRemoteCall()
+                        .equals(rule.config.errorOnUnsplittableRemoteCall());
+    }
+
+    /** Rule configuration. */
+    @Value.Immutable(singleton = false)
+    public interface SplitRemoteConditionFromJoinRuleConfig extends RelRule.Config {
+        SplitRemoteConditionFromJoinRule.SplitRemoteConditionFromJoinRuleConfig DEFAULT =
+                ImmutableSplitRemoteConditionFromJoinRule.SplitRemoteConditionFromJoinRuleConfig
+                        .builder()
+                        .operandSupplier(b0 -> b0.operand(FlinkLogicalJoin.class).anyInputs())
+                        .description("SplitRemoteConditionFromJoinRule")
+                        .build();
+
+        @Value.Default
+        default RemoteCalcCallFinder remoteCalcCallFinder() {
+            return new PythonRemoteCalcCallFinder();
+        }
+
+        /** Sets {@link #remoteCalcCallFinder()}. */
+        SplitRemoteConditionFromJoinRuleConfig withRemoteCalcCallFinder(
+                RemoteCalcCallFinder callFinder);
+
+        @Value.Default
+        default Optional<String> errorOnUnsplittableRemoteCall() {
+            return Optional.empty();
+        }
+
+        /** Sets {@link #errorOnUnsplittableRemoteCall()}. */
+        SplitRemoteConditionFromJoinRuleConfig withErrorOnUnsplittableRemoteCall(
+                Optional<String> errorOnUnsplittableRemoteCall);
+
+        @Override
+        default SplitRemoteConditionFromJoinRule toRule() {
+            return new SplitRemoteConditionFromJoinRule(this);
+        }
     }
 }

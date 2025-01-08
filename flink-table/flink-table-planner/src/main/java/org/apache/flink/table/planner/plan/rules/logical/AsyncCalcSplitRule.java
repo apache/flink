@@ -60,9 +60,12 @@ public class AsyncCalcSplitRule {
     public static final RelOptRule ONE_PER_CALC_SPLIT =
             new AsyncCalcSplitOnePerCalcRule(ASYNC_CALL_FINDER);
     public static final RelOptRule NO_ASYNC_JOIN_CONDITIONS =
-            new SplitRemoteConditionFromJoinRule(
-                    ASYNC_CALL_FINDER,
-                    Optional.of("AsyncScalarFunction not supported for non inner join condition"));
+            SplitRemoteConditionFromJoinRule.SplitRemoteConditionFromJoinRuleConfig.DEFAULT
+                    .withRemoteCalcCallFinder(ASYNC_CALL_FINDER)
+                    .withErrorOnUnsplittableRemoteCall(
+                            Optional.of(
+                                    "AsyncScalarFunction not supported for non inner join condition"))
+                    .toRule();
 
     /**
      * An Async implementation of {@link RemoteCalcCallFinder} which finds uses of {@link

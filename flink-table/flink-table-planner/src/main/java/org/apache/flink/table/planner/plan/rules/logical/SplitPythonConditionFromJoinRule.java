@@ -19,11 +19,9 @@ package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.calcite.plan.RelOptRule;
 
-import java.util.Optional;
-
 public class SplitPythonConditionFromJoinRule {
-    private static final PythonRemoteCalcCallFinder callFinder = new PythonRemoteCalcCallFinder();
 
     public static final RelOptRule INSTANCE =
-            new SplitRemoteConditionFromJoinRule(callFinder, Optional.empty());
+            SplitRemoteConditionFromJoinRule.SplitRemoteConditionFromJoinRuleConfig.DEFAULT
+                    .toRule();
 }
