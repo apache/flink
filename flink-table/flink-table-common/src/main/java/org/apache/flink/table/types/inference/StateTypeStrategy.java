@@ -23,5 +23,10 @@ import org.apache.flink.annotation.PublicEvolving;
 /** Strategy for inferring a function call's intermediate result data type (i.e. state entry). */
 @PublicEvolving
 public interface StateTypeStrategy extends TypeStrategy {
+
+    static StateTypeStrategy of(TypeStrategy typeStrategy) {
+        return new DefaultStateTypeStrategy(typeStrategy);
+    }
+
     // marker interface which will be filled with additional contracts in the future
 }

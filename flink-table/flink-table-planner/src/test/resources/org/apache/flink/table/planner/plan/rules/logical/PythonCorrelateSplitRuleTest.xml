@@ -47,7 +47,7 @@ FlinkLogicalCalc(select=[a, b, c, EXPR$0])
 LogicalProject(a=[$0], b=[$1], c=[$2], x=[$3], y=[$4])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 2}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalTableFunctionScan(invocation=[func(*($cor0.a, $cor0.a), pyFunc($cor0.b, $cor0.c))], rowType=[RecordType:peek_no_expand(INTEGER x, INTEGER y)])
+   +- LogicalTableFunctionScan(invocation=[func(*($cor0.a, $cor0.a), pyFunc($cor0.b, $cor0.c))], rowType=[RecordType(INTEGER x, INTEGER y)])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -56,7 +56,7 @@ FlinkLogicalCalc(select=[a, b, c, x, y])
 +- FlinkLogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 2}])
    :- FlinkLogicalCalc(select=[a, b, c, *(a, a) AS f0])
    :  +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-   +- FlinkLogicalTableFunctionScan(invocation=[func($3, pyFunc($1, $2))], rowType=[RecordType:peek_no_expand(INTEGER x, INTEGER y)])
+   +- FlinkLogicalTableFunctionScan(invocation=[func($3, pyFunc($1, $2))], rowType=[RecordType(INTEGER x, INTEGER y)])
 ]]>
     </Resource>
   </TestCase>
@@ -92,7 +92,7 @@ FlinkLogicalCalc(select=[a, b, c, EXPR$0 AS x])
 LogicalProject(a=[$0], b=[$1], c=[$2], x=[$4], y=[$5])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 2, 3}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalTableFunctionScan(invocation=[func(*($cor0.d._1, $cor0.a), pyFunc($cor0.d._2, $cor0.c))], rowType=[RecordType:peek_no_expand(INTEGER x, INTEGER y)])
+   +- LogicalTableFunctionScan(invocation=[func(*($cor0.d._1, $cor0.a), pyFunc($cor0.d._2, $cor0.c))], rowType=[RecordType(INTEGER x, INTEGER y)])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -101,7 +101,7 @@ FlinkLogicalCalc(select=[a, b, c, x, y])
 +- FlinkLogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 2, 3}])
    :- FlinkLogicalCalc(select=[a, b, c, d, *(d._1, a) AS f0, d._2 AS f1])
    :  +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
-   +- FlinkLogicalTableFunctionScan(invocation=[func($4, pyFunc($5, $2))], rowType=[RecordType:peek_no_expand(INTEGER x, INTEGER y)])
+   +- FlinkLogicalTableFunctionScan(invocation=[func($4, pyFunc($5, $2))], rowType=[RecordType(INTEGER x, INTEGER y)])
 ]]>
     </Resource>
   </TestCase>

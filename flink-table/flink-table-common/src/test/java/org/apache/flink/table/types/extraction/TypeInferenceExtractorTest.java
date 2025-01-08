@@ -41,7 +41,6 @@ import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.StateTypeStrategy;
-import org.apache.flink.table.types.inference.StateTypeStrategyWrapper;
 import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -1252,7 +1251,7 @@ class TypeInferenceExtractorTest {
         }
 
         TestSpec expectAccumulator(TypeStrategy typeStrategy) {
-            this.expectedStateStrategies.put("acc", StateTypeStrategyWrapper.of(typeStrategy));
+            this.expectedStateStrategies.put("acc", StateTypeStrategy.of(typeStrategy));
             return this;
         }
 
@@ -1262,7 +1261,7 @@ class TypeInferenceExtractorTest {
         }
 
         TestSpec expectState(String name, TypeStrategy typeStrategy) {
-            this.expectedStateStrategies.put(name, StateTypeStrategyWrapper.of(typeStrategy));
+            this.expectedStateStrategies.put(name, StateTypeStrategy.of(typeStrategy));
             return this;
         }
 
