@@ -269,7 +269,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 
     // TODO: Reconstruct this after StateManager is ready in FLIP-410.
     public <T> org.apache.flink.api.common.state.v2.ValueState<T> getValueState(
-            org.apache.flink.runtime.state.v2.ValueStateDescriptor<T> stateProperties) {
+            org.apache.flink.api.common.state.v2.ValueStateDescriptor<T> stateProperties) {
         org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStore =
                 checkPreconditionsAndGetKeyedStateStoreV2(stateProperties);
         stateProperties.initializeSerializerUnlessSet(this::createSerializer);
@@ -277,7 +277,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
     }
 
     public <T> org.apache.flink.api.common.state.v2.ListState<T> getListState(
-            org.apache.flink.runtime.state.v2.ListStateDescriptor<T> stateProperties) {
+            org.apache.flink.api.common.state.v2.ListStateDescriptor<T> stateProperties) {
         org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStore =
                 checkPreconditionsAndGetKeyedStateStoreV2(stateProperties);
         stateProperties.initializeSerializerUnlessSet(this::createSerializer);
@@ -285,7 +285,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
     }
 
     public <UK, UV> org.apache.flink.api.common.state.v2.MapState<UK, UV> getMapState(
-            org.apache.flink.runtime.state.v2.MapStateDescriptor<UK, UV> stateProperties) {
+            org.apache.flink.api.common.state.v2.MapStateDescriptor<UK, UV> stateProperties) {
         org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStore =
                 checkPreconditionsAndGetKeyedStateStoreV2(stateProperties);
         stateProperties.initializeSerializerUnlessSet(this::createSerializer);
@@ -293,7 +293,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
     }
 
     public <T> org.apache.flink.api.common.state.v2.ReducingState<T> getReducingState(
-            org.apache.flink.runtime.state.v2.ReducingStateDescriptor<T> stateProperties) {
+            org.apache.flink.api.common.state.v2.ReducingStateDescriptor<T> stateProperties) {
         org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStore =
                 checkPreconditionsAndGetKeyedStateStoreV2(stateProperties);
         stateProperties.initializeSerializerUnlessSet(this::createSerializer);
@@ -302,7 +302,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 
     public <IN, ACC, OUT>
             org.apache.flink.api.common.state.v2.AggregatingState<IN, OUT> getAggregatingState(
-                    org.apache.flink.runtime.state.v2.AggregatingStateDescriptor<IN, ACC, OUT>
+                    org.apache.flink.api.common.state.v2.AggregatingStateDescriptor<IN, ACC, OUT>
                             stateProperties) {
         org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStore =
                 checkPreconditionsAndGetKeyedStateStoreV2(stateProperties);
@@ -312,7 +312,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
 
     private org.apache.flink.runtime.state.v2.KeyedStateStore
             checkPreconditionsAndGetKeyedStateStoreV2(
-                    org.apache.flink.runtime.state.v2.StateDescriptor<?> stateDescriptor) {
+                    org.apache.flink.api.common.state.v2.StateDescriptor<?> stateDescriptor) {
         checkNotNull(stateDescriptor, "The state properties must not be null");
         checkState(
                 supportKeyedStateApiSet == SupportKeyedStateApiSet.STATE_V2,

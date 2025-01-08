@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.v2;
+package org.apache.flink.api.common.state.v2;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.SerializerFactory;
@@ -38,12 +39,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <T> The type of the value of the state object described by this state descriptor.
  */
-@Internal
+@Experimental
 public abstract class StateDescriptor<T> implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     /** An enumeration of the types of supported states. */
+    @Internal
     public enum Type {
         VALUE,
         LIST,
@@ -184,5 +186,6 @@ public abstract class StateDescriptor<T> implements Serializable {
     }
 
     /** Return the specific {@code Type} of described state. */
+    @Internal
     public abstract Type getType();
 }
