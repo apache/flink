@@ -42,9 +42,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Process Function for RANGE clause event-time bounded OVER window.
@@ -82,6 +80,7 @@ public class RowTimeRangeBoundedPrecedingFunction<K>
     // the second element of tuple is a list that contains the entire data of all the rows belonging
     // to this time stamp.
     private transient MapState<Long, List<RowData>> inputState;
+    private transient MapState<Long, List<RowData>> pendingRetractState;
 
     private transient AggsHandleFunction function;
 
@@ -133,6 +132,11 @@ public class RowTimeRangeBoundedPrecedingFunction<K>
                 new MapStateDescriptor<Long, List<RowData>>(
                         "inputState", Types.LONG, rowListTypeInfo);
         inputState = getRuntimeContext().getMapState(inputStateDesc);
+
+        MapStateDescriptor<Long, List<RowData>> pendingRetractStateDesc =
+                new MapStateDescriptor<Long, List<RowData>>(
+                        "pendingRetractState2", Types.LONG, rowListTypeInfo);
+        pendingRetractState = getRuntimeContext().getMapState(pendingRetractStateDesc);
 
         ValueStateDescriptor<Long> cleanupTsStateDescriptor =
                 new ValueStateDescriptor<>("cleanupTsState", Types.LONG);
@@ -209,79 +213,92 @@ public class RowTimeRangeBoundedPrecedingFunction<K>
             return;
         }
 
+        int dataListIndex = 0;
+        RowData accumulators = accState.value();
+
+        // initialize when first run or failover recovery per key
+        if (null == accumulators) {
+            accumulators = function.createAccumulators();
+        }
+        // set accumulators in context first
+        function.setAccumulators(accumulators);
+
+        // retract
+        List<RowData> retractInputs = pendingRetractState.get(timestamp);
+
+        if (null != retractInputs) {
+
+            // do retraction
+            dataListIndex = 0;
+            while (dataListIndex < retractInputs.size()) {
+                RowData curRow = retractInputs.get(dataListIndex);
+                // retract current row
+                function.retract(curRow);
+                dataListIndex += 1;
+            }
+        }
+
         // gets all window data from state for the calculation
         List<RowData> inputs = inputState.get(timestamp);
 
         if (null != inputs) {
-
-            int dataListIndex = 0;
-            RowData accumulators = accState.value();
-
-            // initialize when first run or failover recovery per key
-            if (null == accumulators) {
-                accumulators = function.createAccumulators();
-            }
-            // set accumulators in context first
-            function.setAccumulators(accumulators);
-
-            // keep up timestamps of retract data
-            List<Long> retractTsList = new ArrayList<Long>();
-
-            // do retraction
-            Iterator<Map.Entry<Long, List<RowData>>> iter = inputState.entries().iterator();
-            while (iter.hasNext()) {
-                Map.Entry<Long, List<RowData>> data = iter.next();
-                Long dataTs = data.getKey();
-                Long offset = timestamp - dataTs;
-                if (offset > precedingOffset) {
-                    List<RowData> retractDataList = data.getValue();
-                    if (retractDataList != null) {
-                        dataListIndex = 0;
-                        while (dataListIndex < retractDataList.size()) {
-                            RowData retractRow = retractDataList.get(dataListIndex);
-                            function.retract(retractRow);
-                            dataListIndex += 1;
-                        }
-                        retractTsList.add(dataTs);
-                    } else {
-                        // Does not retract values which are outside of window if the state is
-                        // cleared already.
-                        LOG.warn(
-                                "The state is cleared because of state ttl. "
-                                        + "This will result in incorrect result. "
-                                        + "You can increase the state ttl to avoid this.");
-                    }
-                }
-            }
-
             // do accumulation
             dataListIndex = 0;
+            List<RowData> toScheduleRetract = new ArrayList<>();
             while (dataListIndex < inputs.size()) {
                 RowData curRow = inputs.get(dataListIndex);
                 // accumulate current row
                 function.accumulate(curRow);
                 dataListIndex += 1;
+                toScheduleRetract.add(curRow);
             }
+
+            // schedule retraction
+            long retractingTs = timestamp + precedingOffset;
+            List<RowData> data = pendingRetractState.get(retractingTs);
+            if (null != data) {
+                data.addAll(toScheduleRetract);
+                pendingRetractState.put(retractingTs, data);
+            } else {
+                data = new ArrayList<RowData>();
+                data.addAll(toScheduleRetract);
+                pendingRetractState.put(retractingTs, data);
+                // register event time timer
+                ctx.timerService().registerEventTimeTimer(retractingTs);
+            }
+        }
+
+        if (null != retractInputs || null != inputs) {
 
             // get aggregate result
             RowData aggValue = function.getValue();
 
-            // copy forwarded fields to output row and emit output row
-            dataListIndex = 0;
-            while (dataListIndex < inputs.size()) {
-                RowData curRow = inputs.get(dataListIndex);
-                output.replace(curRow, aggValue);
-                out.collect(output);
-                dataListIndex += 1;
+            if (null != inputs) {
+                // copy forwarded fields to output row and emit output row
+                dataListIndex = 0;
+                while (dataListIndex < inputs.size()) {
+                    RowData curRow = inputs.get(dataListIndex);
+                    output.replace(curRow, aggValue);
+                    out.collect(output);
+                    dataListIndex += 1;
+                }
             }
 
-            // remove the data that has been retracted
-            dataListIndex = 0;
-            while (dataListIndex < retractTsList.size()) {
-                inputState.remove(retractTsList.get(dataListIndex));
-                dataListIndex += 1;
+            if (null != retractInputs) {
+                // copy forwarded fields to output row and emit output row
+                dataListIndex = 0;
+                while (dataListIndex < retractInputs.size()) {
+                    RowData curRow = retractInputs.get(dataListIndex);
+                    output.replace(curRow, aggValue);
+                    out.collect(output);
+                    dataListIndex += 1;
+                }
             }
 
+            if (null != retractInputs) {
+                Long dataTs = timestamp - precedingOffset;
+                inputState.remove(dataTs);
+            }
             // update the value of accumulators for future incremental computation
             accumulators = function.getAccumulators();
             accState.update(accumulators);
