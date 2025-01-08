@@ -70,7 +70,7 @@ public class FileMappingManager {
     public RealPath createFile(Path file) {
         String fileName = file.toString();
         Preconditions.checkState(!mappingTable.containsKey(fileName));
-        if (!fileName.endsWith(SST_SUFFIX) && fileName.startsWith(remoteBase)) {
+        if (!fileName.endsWith(SST_SUFFIX) && isParentDir(fileName, remoteBase)) {
             Path localFile = new Path(localBase, file.getName());
             mappingTable.put(
                     fileName,
@@ -92,16 +92,9 @@ public class FileMappingManager {
             return -1;
         }
         MappingEntry sourceEntry = mappingTable.get(src);
-        if (sourceEntry != null) {
-            sourceEntry.retain();
-            mappingTable.putIfAbsent(dst, sourceEntry);
-        } else {
-            sourceEntry = new MappingEntry(0, fileSystem, src, false, false);
-            sourceEntry.retain();
-            mappingTable.put(src, sourceEntry);
-            sourceEntry.retain();
-            mappingTable.put(dst, sourceEntry);
-        }
+        Preconditions.checkNotNull(sourceEntry);
+        sourceEntry.retain();
+        mappingTable.putIfAbsent(dst, sourceEntry);
         LOG.trace("link: {} -> {}", dst, src);
         return 0;
     }

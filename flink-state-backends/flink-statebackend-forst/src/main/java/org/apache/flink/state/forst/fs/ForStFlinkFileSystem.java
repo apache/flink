@@ -136,8 +136,8 @@ public class ForStFlinkFileSystem extends FileSystem {
     }
 
     @Override
-    public ByteBufferWritableFSDataOutputStream create(Path path, WriteMode overwriteMode)
-            throws IOException {
+    public synchronized ByteBufferWritableFSDataOutputStream create(
+            Path path, WriteMode overwriteMode) throws IOException {
         FileMappingManager.RealPath realPath = fileMappingManager.createFile(path);
         if (realPath.isLocal) {
             return new ByteBufferWritableFSDataOutputStream(
@@ -152,7 +152,8 @@ public class ForStFlinkFileSystem extends FileSystem {
     }
 
     @Override
-    public ByteBufferReadableFSDataInputStream open(Path path, int bufferSize) throws IOException {
+    public synchronized ByteBufferReadableFSDataInputStream open(Path path, int bufferSize)
+            throws IOException {
         FileMappingManager.RealPath realPath = fileMappingManager.realPath(path);
         Preconditions.checkNotNull(realPath);
         if (realPath.isLocal) {
@@ -176,7 +177,7 @@ public class ForStFlinkFileSystem extends FileSystem {
     }
 
     @Override
-    public ByteBufferReadableFSDataInputStream open(Path path) throws IOException {
+    public synchronized ByteBufferReadableFSDataInputStream open(Path path) throws IOException {
         FileMappingManager.RealPath realPath = fileMappingManager.realPath(path);
         Preconditions.checkNotNull(realPath);
         if (realPath.isLocal) {
@@ -200,27 +201,27 @@ public class ForStFlinkFileSystem extends FileSystem {
     }
 
     @Override
-    public boolean rename(Path src, Path dst) throws IOException {
+    public synchronized boolean rename(Path src, Path dst) throws IOException {
         return fileMappingManager.renameFile(src.toString(), dst.toString());
     }
 
     @Override
-    public Path getWorkingDirectory() {
+    public synchronized Path getWorkingDirectory() {
         return delegateFS.getWorkingDirectory();
     }
 
     @Override
-    public Path getHomeDirectory() {
+    public synchronized Path getHomeDirectory() {
         return delegateFS.getHomeDirectory();
     }
 
     @Override
-    public URI getUri() {
+    public synchronized URI getUri() {
         return delegateFS.getUri();
     }
 
     @Override
-    public boolean exists(final Path f) throws IOException {
+    public synchronized boolean exists(final Path f) throws IOException {
         FileMappingManager.RealPath realPath = fileMappingManager.realPath(f);
         if (realPath == null) {
             return delegateFS.exists(f) && delegateFS.getFileStatus(f).isDir();
@@ -239,7 +240,7 @@ public class ForStFlinkFileSystem extends FileSystem {
     }
 
     @Override
-    public FileStatus getFileStatus(Path path) throws IOException {
+    public synchronized FileStatus getFileStatus(Path path) throws IOException {
         FileMappingManager.RealPath realPath = fileMappingManager.realPath(path);
         Preconditions.checkNotNull(realPath);
         if (realPath.isLocal) {
@@ -249,7 +250,7 @@ public class ForStFlinkFileSystem extends FileSystem {
     }
 
     @Override
-    public BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len)
+    public synchronized BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len)
             throws IOException {
         Path path = file.getPath();
         FileMappingManager.RealPath realPath = fileMappingManager.realPath(path);
@@ -262,7 +263,7 @@ public class ForStFlinkFileSystem extends FileSystem {
     }
 
     @Override
-    public FileStatus[] listStatus(Path path) throws IOException {
+    public synchronized FileStatus[] listStatus(Path path) throws IOException {
         // mapping files
         List<FileStatus> fileStatuses = new ArrayList<>();
         String pathStr = path.toString();
@@ -281,7 +282,7 @@ public class ForStFlinkFileSystem extends FileSystem {
     }
 
     @Override
-    public boolean delete(Path path, boolean recursive) throws IOException {
+    public synchronized boolean delete(Path path, boolean recursive) throws IOException {
         boolean success = fileMappingManager.deleteFile(path, recursive);
         if (fileBasedCache != null) {
             // only new generated file will put into cache, no need to consider file mapping
@@ -291,16 +292,16 @@ public class ForStFlinkFileSystem extends FileSystem {
     }
 
     @Override
-    public boolean mkdirs(Path path) throws IOException {
+    public synchronized boolean mkdirs(Path path) throws IOException {
         return delegateFS.mkdirs(path);
     }
 
     @Override
-    public boolean isDistributedFS() {
+    public synchronized boolean isDistributedFS() {
         return delegateFS.isDistributedFS();
     }
 
-    public int link(Path src, Path dst) throws IOException {
+    public synchronized int link(Path src, Path dst) throws IOException {
         return fileMappingManager.link(src.toString(), dst.toString());
     }
 }
