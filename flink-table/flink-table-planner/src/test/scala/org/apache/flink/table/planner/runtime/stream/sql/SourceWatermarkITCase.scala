@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
+import org.apache.flink.configuration.CoreOptions
 import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.data.TimestampData
@@ -298,6 +299,58 @@ class SourceWatermarkITCase extends StreamingTestBase {
 
     val actualWatermark = TestValuesTableFactory
       .getWatermarkOutput("MetadataTable")
+      .asScala
+      .map(x => TimestampData.fromEpochMillis(x.getTimestamp).toLocalDateTime.toString)
+      .toList
+
+    assertThat(actualWatermark).isEqualTo(expectedWatermarkOutput)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expectedData.sorted)
+  }
+
+  @Test
+  def testWatermarkNotMovingBack(): Unit = {
+    val data = Seq(
+      row(1, LocalDateTime.parse("2024-01-01T00:00:00")),
+      row(3, LocalDateTime.parse("2024-01-03T00:00:00")),
+      row(2, LocalDateTime.parse("2024-01-02T00:00:00"))
+    )
+
+    val dataId = TestValuesTableFactory.registerData(data)
+
+    val ddl =
+      s"""
+         | CREATE Table VirtualTable (
+         |   a INT,
+         |   c TIMESTAMP(3),
+         |   WATERMARK FOR c as c
+         | ) with (
+         |   'connector' = 'values',
+         |   'bounded' = 'false',
+         |   'scan.watermark.emit.strategy' = 'on-periodic',
+         |   'enable-watermark-push-down' = 'true',
+         |   'disable-lookup' = 'true',
+         |   'data-id' = '$dataId'
+         | )
+         |""".stripMargin
+
+    tEnv.executeSql(ddl)
+    tEnv.getConfig.set(CoreOptions.DEFAULT_PARALLELISM.key(), "1")
+
+    val expectedWatermarkOutput = Seq("2024-01-01T00:00", "2024-01-03T00:00", "2024-01-03T00:00")
+    val expectedData = Seq(
+      "1,2024-01-01T00:00,2024-01-01T00:00",
+      "2,2024-01-02T00:00,2024-01-03T00:00",
+      "3,2024-01-03T00:00,2024-01-03T00:00"
+    )
+
+    val query = "SELECT a, c, current_watermark(c) FROM VirtualTable order by c"
+    val result = tEnv.sqlQuery(query).toDataStream
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val actualWatermark = TestValuesTableFactory
+      .getWatermarkOutput("VirtualTable")
       .asScala
       .map(x => TimestampData.fromEpochMillis(x.getTimestamp).toLocalDateTime.toString)
       .toList
