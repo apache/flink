@@ -53,11 +53,9 @@ class QueryOperationTest {
                                 ContextResolvedTable.temporary(
                                         ObjectIdentifier.of("cat1", "db1", "tab1"),
                                         new ResolvedCatalogTable(
-                                                CatalogTable.of(
-                                                        Schema.newBuilder().build(),
-                                                        null,
-                                                        Collections.emptyList(),
-                                                        Collections.emptyMap()),
+                                                CatalogTable.newBuilder()
+                                                        .schema(Schema.newBuilder().build())
+                                                        .build(),
                                                 schema))),
                         schema);
 
@@ -99,11 +97,9 @@ class QueryOperationTest {
                                 ContextResolvedTable.temporary(
                                         ObjectIdentifier.of("cat1", "db1", "tab1"),
                                         new ResolvedCatalogTable(
-                                                CatalogTable.of(
-                                                        Schema.newBuilder().build(),
-                                                        null,
-                                                        Collections.emptyList(),
-                                                        Collections.emptyMap()),
+                                                CatalogTable.newBuilder()
+                                                        .schema(Schema.newBuilder().build())
+                                                        .build(),
                                                 schema))),
                         schema);
 

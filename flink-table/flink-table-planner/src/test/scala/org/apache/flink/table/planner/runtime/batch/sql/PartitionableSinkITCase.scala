@@ -317,20 +317,23 @@ object PartitionableSinkITCase {
         properties.putString("partition-column." + i, part)
     }
 
-    val table = CatalogTable.of(
-      Schema
+    val table =
+      CatalogTable
         .newBuilder()
-        .fromResolvedSchema(
-          ResolvedSchema.physical(
-            Array("a", "b", "c"),
-            TypeConversions.fromLegacyInfoToDataType(rowType.getFieldTypes)
-          )
-        )
-        .build(),
-      "",
-      util.Arrays.asList[String](partitionColumns: _*),
-      properties.asMap()
-    )
+        .schema(
+          Schema
+            .newBuilder()
+            .fromResolvedSchema(
+              ResolvedSchema.physical(
+                Array("a", "b", "c"),
+                TypeConversions.fromLegacyInfoToDataType(rowType.getFieldTypes)
+              )
+            )
+            .build())
+        .comment("")
+        .partitionKeys(util.Arrays.asList[String](partitionColumns: _*))
+        .options(properties.asMap())
+        .build()
     tEnv
       .getCatalog(tEnv.getCurrentCatalog)
       .get()

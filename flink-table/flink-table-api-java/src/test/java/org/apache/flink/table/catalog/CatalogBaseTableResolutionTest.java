@@ -341,7 +341,12 @@ class CatalogBaseTableResolutionTest {
         options.put("connector", "custom");
         options.put("version", "12");
 
-        return CatalogTable.of(TABLE_SCHEMA, comment, partitionKeys, options);
+        return CatalogTable.newBuilder()
+                .schema(TABLE_SCHEMA)
+                .comment(comment)
+                .partitionKeys(partitionKeys)
+                .options(options)
+                .build();
     }
 
     private static Map<String, String> catalogTableAsProperties() {

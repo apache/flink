@@ -44,7 +44,6 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.net.URLClassLoader;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.HashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -157,8 +156,7 @@ class CatalogITCase {
         catalogManager.registerCatalog("c1", c1);
 
         final CatalogTable catalogTable =
-                CatalogTable.of(
-                        Schema.newBuilder().build(), null, new ArrayList<>(), new HashMap<>());
+                CatalogTable.newBuilder().schema(Schema.newBuilder().build()).build();
 
         c1.createDatabase("d1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
         c1.createTable(new ObjectPath("d1", "t1"), catalogTable, true);

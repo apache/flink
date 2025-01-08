@@ -37,12 +37,12 @@ import java.util.Optional;
  * The framework will resolve instances of this interface to a {@link ResolvedCatalogTable} before
  * passing it to a {@link DynamicTableFactory} for creating a connector to an external system.
  *
- * <p>A catalog implementer can either use {@link #of(Schema, String, List, Map)} for a basic
- * implementation of this interface or create a custom class that allows passing catalog-specific
- * objects all the way down to the connector creation (if necessary).
+ * <p>A catalog implementer can either use {@link #newBuilder()} for a basic implementation of this
+ * interface or create a custom class that allows passing catalog-specific objects all the way down
+ * to the connector creation (if necessary).
  *
- * <p>Note: The default implementation that is available via {@link #of(Schema, String, List, Map)}
- * is always serializable. For example, it can be used for implementing a catalog that uses {@link
+ * <p>Note: The default implementation that is available via {@link #newBuilder()} is always
+ * serializable. For example, it can be used for implementing a catalog that uses {@link
  * ResolvedCatalogTable#toProperties()} or for persisting compiled plans. An implementation of this
  * interface determines whether a catalog table can be serialized by providing a proper {@link
  * #getOptions()} method.
@@ -54,46 +54,6 @@ public interface CatalogTable extends CatalogBaseTable {
     @PublicEvolving
     static CatalogTable.Builder newBuilder() {
         return new CatalogTable.Builder();
-    }
-
-    /**
-     * Creates a basic implementation of this interface.
-     *
-     * <p>The signature is similar to a SQL {@code CREATE TABLE} statement.
-     *
-     * @param schema unresolved schema
-     * @param comment optional comment
-     * @param partitionKeys list of partition keys or an empty list if not partitioned
-     * @param options options to configure the connector
-     * @deprecated Use the builder {@link CatalogTable#newBuilder()} instead.
-     */
-    @Deprecated
-    static CatalogTable of(
-            Schema schema,
-            @Nullable String comment,
-            List<String> partitionKeys,
-            Map<String, String> options) {
-        return new DefaultCatalogTable(schema, comment, partitionKeys, options);
-    }
-
-    /**
-     * Creates an instance of {@link CatalogTable} with a specific snapshot.
-     *
-     * @param schema unresolved schema
-     * @param comment optional comment
-     * @param partitionKeys list of partition keys or an empty list if not partitioned
-     * @param options options to configure the connector
-     * @param snapshot table snapshot of the table
-     * @deprecated Use the builder {@link CatalogTable#newBuilder()} instead.
-     */
-    @Deprecated
-    static CatalogTable of(
-            Schema schema,
-            @Nullable String comment,
-            List<String> partitionKeys,
-            Map<String, String> options,
-            @Nullable Long snapshot) {
-        return new DefaultCatalogTable(schema, comment, partitionKeys, options, snapshot, null);
     }
 
     /**

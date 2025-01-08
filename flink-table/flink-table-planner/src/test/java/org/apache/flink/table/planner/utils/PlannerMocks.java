@@ -135,11 +135,13 @@ public class PlannerMocks {
 
     public PlannerMocks registerTemporaryTable(String tableName, Schema tableSchema) {
         final CatalogTable table =
-                CatalogTable.of(
-                        tableSchema,
-                        null,
-                        Collections.emptyList(),
-                        Map.of("connector", TestSimpleDynamicTableSourceFactory.IDENTIFIER()));
+                CatalogTable.newBuilder()
+                        .schema(tableSchema)
+                        .options(
+                                Map.of(
+                                        "connector",
+                                        TestSimpleDynamicTableSourceFactory.IDENTIFIER()))
+                        .build();
 
         this.getCatalogManager()
                 .createTemporaryTable(
