@@ -1211,6 +1211,8 @@ public class Task
                 }
             } else if (current == ExecutionState.DEPLOYING) {
                 if (transitionState(current, targetState, cause)) {
+                    // task may hang on the invokable constructor or static code
+                    // we need watchdog to ensure the task does not remain hanging
                     startTaskCancellationWatchDog();
                     return;
                 }
