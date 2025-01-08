@@ -20,11 +20,16 @@ package org.apache.flink.runtime.state.v2;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.v2.AggregatingState;
+import org.apache.flink.api.common.state.v2.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.v2.ListState;
+import org.apache.flink.api.common.state.v2.ListStateDescriptor;
 import org.apache.flink.api.common.state.v2.MapState;
+import org.apache.flink.api.common.state.v2.MapStateDescriptor;
 import org.apache.flink.api.common.state.v2.ReducingState;
+import org.apache.flink.api.common.state.v2.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.ValueState;
+import org.apache.flink.api.common.state.v2.ValueStateDescriptor;
 
 import javax.annotation.Nonnull;
 

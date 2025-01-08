@@ -421,7 +421,7 @@ public class StreamOperatorStateHandler {
     public <N, S extends org.apache.flink.api.common.state.v2.State, T> S getOrCreateKeyedState(
             N defaultNamespace,
             TypeSerializer<N> namespaceSerializer,
-            org.apache.flink.runtime.state.v2.StateDescriptor<T> stateDescriptor)
+            org.apache.flink.api.common.state.v2.StateDescriptor<T> stateDescriptor)
             throws Exception {
 
         if (asyncKeyedStateBackend != null) {

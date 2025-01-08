@@ -16,26 +16,46 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.v2;
+package org.apache.flink.api.common.state.v2;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import javax.annotation.Nonnull;
 
 /**
- * This class is deprecated and only a placeholder for compatibility for EXISTING PRs. This is never
- * released before, and will be safely removed before 2.0 release.
+ * {@link StateDescriptor} for {@link ListState}. This can be used to create partitioned list state
+ * internally.
+ *
+ * @param <T> The type of each value that the list state can hold.
  */
-@Deprecated
-public class ListStateDescriptor<T>
-        extends org.apache.flink.api.common.state.v2.ListStateDescriptor<T> {
+@Experimental
+public class ListStateDescriptor<T> extends StateDescriptor<T> {
 
+    /**
+     * Creates a new {@code ListStateDescriptor} with the given stateId and type.
+     *
+     * @param stateId The (unique) stateId for the state.
+     * @param typeInfo The type of the values in the state.
+     */
     public ListStateDescriptor(@Nonnull String stateId, @Nonnull TypeInformation<T> typeInfo) {
         super(stateId, typeInfo);
     }
 
+    /**
+     * Create a new {@code ListStateDescriptor} with the given stateId and the given type
+     * serializer.
+     *
+     * @param stateId The (unique) stateId for the state.
+     * @param serializer The type serializer for the values in the state.
+     */
     public ListStateDescriptor(@Nonnull String stateId, @Nonnull TypeSerializer<T> serializer) {
         super(stateId, serializer);
+    }
+
+    @Override
+    public Type getType() {
+        return Type.LIST;
     }
 }

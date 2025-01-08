@@ -18,7 +18,9 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.api.common.state.v2.MapState;
+import org.apache.flink.api.common.state.v2.MapStateDescriptor;
 import org.apache.flink.api.common.state.v2.State;
+import org.apache.flink.api.common.state.v2.StateDescriptor;
 import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -31,8 +33,6 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.v2.AbstractMapState;
-import org.apache.flink.runtime.state.v2.MapStateDescriptor;
-import org.apache.flink.runtime.state.v2.StateDescriptor;
 import org.apache.flink.util.Preconditions;
 
 import org.forstdb.ColumnFamilyHandle;

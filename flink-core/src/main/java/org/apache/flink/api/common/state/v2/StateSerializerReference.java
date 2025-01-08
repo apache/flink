@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.v2;
+package org.apache.flink.api.common.state.v2;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -36,10 +36,12 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A reference to a serializer. This also provides functions for lazy initialization.
+ * Package-private for internal use only.
  *
  * @param <T> the type for serialization.
  */
-public class StateSerializerReference<T> extends AtomicReference<TypeSerializer<T>> {
+@Internal
+class StateSerializerReference<T> extends AtomicReference<TypeSerializer<T>> {
     private static final Logger LOG = LoggerFactory.getLogger(StateSerializerReference.class);
 
     /**

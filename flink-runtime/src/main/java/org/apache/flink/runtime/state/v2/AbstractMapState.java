@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.state.v2;
 
 import org.apache.flink.api.common.state.v2.MapState;
+import org.apache.flink.api.common.state.v2.MapStateDescriptor;
 import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.api.java.tuple.Tuple2;

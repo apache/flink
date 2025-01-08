@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.v2;
 
+import org.apache.flink.api.common.state.v2.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;

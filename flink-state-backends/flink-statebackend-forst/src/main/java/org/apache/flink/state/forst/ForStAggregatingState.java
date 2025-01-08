@@ -19,6 +19,7 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.api.common.state.v2.AggregatingState;
+import org.apache.flink.api.common.state.v2.AggregatingStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
@@ -31,7 +32,6 @@ import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.v2.AbstractAggregatingState;
-import org.apache.flink.runtime.state.v2.AggregatingStateDescriptor;
 import org.apache.flink.util.Preconditions;
 
 import org.forstdb.ColumnFamilyHandle;

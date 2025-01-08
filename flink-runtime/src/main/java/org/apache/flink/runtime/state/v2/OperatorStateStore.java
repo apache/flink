@@ -21,6 +21,8 @@ package org.apache.flink.runtime.state.v2;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.v2.ListState;
+import org.apache.flink.api.common.state.v2.ListStateDescriptor;
+import org.apache.flink.api.common.state.v2.MapStateDescriptor;
 
 import java.util.Set;
 
