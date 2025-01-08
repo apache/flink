@@ -463,6 +463,7 @@ class StreamingRuntimeContextTest {
         DefaultKeyedStateStore keyedStateStore =
                 new DefaultKeyedStateStore(
                         keyedStateBackend,
+                        asyncKeyedStateBackend,
                         new SerializerFactory() {
                             @Override
                             public <T> TypeSerializer<T> createSerializer(
@@ -497,22 +498,10 @@ class StreamingRuntimeContextTest {
                         any(org.apache.flink.api.common.state.v2.StateDescriptor.class));
 
         operator.initializeState(streamTaskStateManager);
-        if (!stateV2) {
-            operator.getRuntimeContext().setKeyedStateStore(keyedStateStore);
-        } else {
-            operator.getRuntimeContext()
-                    .setKeyedStateStoreV2(
-                            new org.apache.flink.runtime.state.v2.DefaultKeyedStateStore(
-                                    asyncKeyedStateBackend,
-                                    new SerializerFactory() {
-                                        @Override
-                                        public <T> TypeSerializer<T> createSerializer(
-                                                TypeInformation<T> typeInformation) {
-                                            return typeInformation.createSerializer(
-                                                    config.getSerializerConfig());
-                                        }
-                                    }));
+        if (stateV2) {
+            keyedStateStore.setSupportKeyedStateApiSetV2();
         }
+        operator.getRuntimeContext().setKeyedStateStore(keyedStateStore);
 
         return operator;
     }
