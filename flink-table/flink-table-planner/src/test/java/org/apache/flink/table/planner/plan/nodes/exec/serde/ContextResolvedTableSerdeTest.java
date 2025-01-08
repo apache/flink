@@ -295,11 +295,10 @@ public class ContextResolvedTableSerdeTest {
                                 objectIdentifier,
                                 CATALOG,
                                 new ResolvedCatalogTable(
-                                        CatalogTable.of(
-                                                CATALOG_TABLE_SCHEMA,
-                                                null,
-                                                Collections.emptyList(),
-                                                PLAN_OPTIONS),
+                                        CatalogTable.newBuilder()
+                                                .schema(CATALOG_TABLE_SCHEMA)
+                                                .options(PLAN_OPTIONS)
+                                                .build(),
                                         CATALOG_TABLE_RESOLVED_SCHEMA));
 
                 final byte[] actualSerialized =
@@ -417,13 +416,15 @@ public class ContextResolvedTableSerdeTest {
                                 PERMANENT_TABLE_IDENTIFIER,
                                 CATALOG,
                                 new ResolvedCatalogTable(
-                                        CatalogTable.of(
-                                                Schema.newBuilder()
-                                                        .fromResolvedSchema(resolvedSchema)
-                                                        .build(),
-                                                "my comment",
-                                                PARTITION_KEYS,
-                                                PLAN_OPTIONS),
+                                        CatalogTable.newBuilder()
+                                                .schema(
+                                                        Schema.newBuilder()
+                                                                .fromResolvedSchema(resolvedSchema)
+                                                                .build())
+                                                .comment("my comment")
+                                                .partitionKeys(PARTITION_KEYS)
+                                                .options(PLAN_OPTIONS)
+                                                .build(),
                                         resolvedSchema));
 
                 final byte[] actualSerialized = createObjectWriter(ctx).writeValueAsBytes(spec);

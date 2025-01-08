@@ -237,14 +237,16 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
                 TableFactoryUtil.findAndCreateTableSource(
                         schemaTable.getContextResolvedTable().getIdentifier(),
                         new ResolvedCatalogTable(
-                                CatalogTable.of(
-                                        Schema.newBuilder()
-                                                .fromResolvedSchema(
-                                                        resolvedSchemaWithRemovedTimeAttribute)
-                                                .build(),
-                                        originTable.getComment(),
-                                        originTable.getPartitionKeys(),
-                                        originTable.getOptions()),
+                                CatalogTable.newBuilder()
+                                        .schema(
+                                                Schema.newBuilder()
+                                                        .fromResolvedSchema(
+                                                                resolvedSchemaWithRemovedTimeAttribute)
+                                                        .build())
+                                        .comment(originTable.getComment())
+                                        .partitionKeys(originTable.getPartitionKeys())
+                                        .options(originTable.getOptions())
+                                        .build(),
                                 resolvedSchemaWithRemovedTimeAttribute),
                         new Configuration(),
                         schemaTable.isTemporary());

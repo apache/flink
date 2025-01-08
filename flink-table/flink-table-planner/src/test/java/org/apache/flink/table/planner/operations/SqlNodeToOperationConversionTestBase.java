@@ -115,7 +115,7 @@ public class SqlNodeToOperationConversionTestBase {
         Map<String, String> options = new HashMap<>();
         options.put("connector", "COLLECTION");
         final CatalogTable catalogTable =
-                CatalogTable.of(tableSchema, "", Collections.emptyList(), options);
+                CatalogTable.newBuilder().schema(tableSchema).comment("").options(options).build();
         catalog.createTable(path1, catalogTable, true);
         catalog.createTable(path2, catalogTable, true);
     }

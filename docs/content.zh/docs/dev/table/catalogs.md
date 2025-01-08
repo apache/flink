@@ -81,7 +81,13 @@ public class MyCatalogSupportTimeTravel implements Catalog {
         Map<String, String> options = buildOptions(timestamp);
         // Build CatalogTable
         CatalogTable catalogTable =
-                CatalogTable.of(schema, "", Collections.emptyList(), options, timestamp);
+                CatalogTable.newBuilder()
+                        .schema(schema)
+                        .comment("")
+                        .partitionKeys(Collections.emptyList())
+                        .options(options)
+                        .snapshot(timestamp)
+                        .build();
         return catalogTable;
     }
 }
