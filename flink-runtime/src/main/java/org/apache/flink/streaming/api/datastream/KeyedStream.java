@@ -36,6 +36,7 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.runtime.asyncprocessing.operators.AsyncIntervalJoinOperator;
+import org.apache.flink.runtime.asyncprocessing.operators.AsyncStreamFlatMap;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
@@ -48,7 +49,6 @@ import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamFlatMap;
-import org.apache.flink.streaming.api.operators.StreamFlatMapAsync;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.co.IntervalJoinOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -372,7 +372,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
             FlatMapFunction<T, R> flatMapper, TypeInformation<R> outputType) {
         OneInputStreamOperator operator =
                 isEnableAsyncState()
-                        ? new StreamFlatMapAsync(clean(flatMapper))
+                        ? new AsyncStreamFlatMap(clean(flatMapper))
                         : new StreamFlatMap<>(clean(flatMapper));
         return transform("Flat Map", outputType, operator);
     }

@@ -15,12 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators;
+package org.apache.flink.runtime.asyncprocessing.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateStreamOperator;
-import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateUdfStreamOperator;
+import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationContext;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclaredVariable;
+import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
@@ -28,22 +30,32 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  * FlatMapFunctions}.
  */
 @Internal
-public class StreamFlatMapAsync<IN, OUT>
+public class AsyncStreamFlatMap<IN, OUT>
         extends AbstractAsyncStateUdfStreamOperator<OUT, FlatMapFunction<IN, OUT>>
         implements OneInputStreamOperator<IN, OUT> {
 
     private static final long serialVersionUID = 1L;
 
-    private transient TimestampedCollector<OUT> collector;
+    private transient DeclarationContext declarationContext;
 
-    public StreamFlatMapAsync(FlatMapFunction<IN, OUT> flatMapper) {
+    private transient DeclaredVariable<Long> timestamp;
+
+    private transient TimestampedCollectorWithDeclaredVariable<OUT> collector;
+
+    public AsyncStreamFlatMap(FlatMapFunction<IN, OUT> flatMapper) {
         super(flatMapper);
     }
 
     @Override
     public void open() throws Exception {
         super.open();
-        collector = new TimestampedCollector<>(output);
+        declarationContext = new DeclarationContext(getDeclarationManager());
+        timestamp =
+                declarationContext.declareVariable(
+                        LongSerializer.INSTANCE,
+                        "_AsyncStreamFlatMap$timeStamp",
+                        () -> Long.MIN_VALUE);
+        collector = new TimestampedCollectorWithDeclaredVariable<>(output, timestamp);
     }
 
     @Override
