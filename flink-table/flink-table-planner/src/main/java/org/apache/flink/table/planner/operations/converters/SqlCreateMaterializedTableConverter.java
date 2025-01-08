@@ -116,14 +116,20 @@ public class SqlCreateMaterializedTableConverter
         }
 
         // get query schema and definition query
-        SqlNode validateQuery =
-                context.getSqlValidator().validate(sqlCreateMaterializedTable.getAsQuery());
+        SqlNode selectQuery = sqlCreateMaterializedTable.getAsQuery();
+        String originalQuery = context.toQuotedSqlString(selectQuery);
+        SqlNode validateQuery = context.getSqlValidator().validate(selectQuery);
+
+        // The LATERAL operator was eliminated during sql validation, thus the unparsed SQL
+        // does not contain LATERAL which is problematic,
+        // the issue was resolved in CALCITE-4077
+        // (always treat the table function as implicitly LATERAL).
+        String definitionQuery = context.expandSqlIdentifiers(originalQuery);
+
         PlannerQueryOperation queryOperation =
                 new PlannerQueryOperation(
                         context.toRelRoot(validateQuery).project(),
                         () -> context.toQuotedSqlString(validateQuery));
-        String definitionQuery =
-                context.expandSqlIdentifiers(queryOperation.asSerializableString());
 
         // get schema
         ResolvedSchema resolvedSchema = queryOperation.getResolvedSchema();

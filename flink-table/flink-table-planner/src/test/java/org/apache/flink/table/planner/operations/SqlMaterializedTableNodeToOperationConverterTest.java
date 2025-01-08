@@ -25,10 +25,12 @@ import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.IntervalFreshness;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
@@ -39,6 +41,7 @@ import org.apache.flink.table.operations.materializedtable.AlterMaterializedTabl
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableSuspendOperation;
 import org.apache.flink.table.operations.materializedtable.CreateMaterializedTableOperation;
 import org.apache.flink.table.operations.materializedtable.DropMaterializedTableOperation;
+import org.apache.flink.table.planner.utils.TableFunc0;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.ImmutableMap;
 
@@ -140,13 +143,46 @@ public class SqlMaterializedTableNodeToOperationConverterTest
                         .logicalRefreshMode(CatalogMaterializedTable.LogicalRefreshMode.FULL)
                         .refreshMode(CatalogMaterializedTable.RefreshMode.FULL)
                         .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
-                        .definitionQuery(
-                                "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`\n"
-                                        + "FROM `builtin`.`default`.`t1` AS `t1`")
+                        .definitionQuery("SELECT *\n" + "FROM `builtin`.`default`.`t1`")
                         .build();
 
         assertThat(((ResolvedCatalogMaterializedTable) materializedTable).getOrigin())
                 .isEqualTo(expected);
+    }
+
+    @Test
+    void testCreateMaterializedTableWithUDTFQuery() {
+        functionCatalog.registerCatalogFunction(
+                UnresolvedIdentifier.of(
+                        ObjectIdentifier.of(
+                                catalogManager.getCurrentCatalog(), "default", "myFunc")),
+                TableFunc0.class,
+                true);
+
+        final String sql =
+                "CREATE MATERIALIZED TABLE mtbl1 (\n"
+                        + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED"
+                        + ")\n"
+                        + "COMMENT 'materialized table comment'\n"
+                        + "PARTITIONED BY (a)\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'filesystem', \n"
+                        + "  'format' = 'json'\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '30' SECOND\n"
+                        + "REFRESH_MODE = FULL\n"
+                        + "AS SELECT a, f1, f2 FROM t1,LATERAL TABLE(myFunc(b)) as T(f1, f2)";
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
+
+        CreateMaterializedTableOperation createOperation =
+                (CreateMaterializedTableOperation) operation;
+
+        assertThat(createOperation.getCatalogMaterializedTable().getDefinitionQuery())
+                .isEqualTo(
+                        "SELECT `t1`.`a`, `T`.`f1`, `T`.`f2`\n"
+                                + "FROM `builtin`.`default`.`t1`,\n"
+                                + "LATERAL TABLE(`builtin`.`default`.`myFunc`(`b`)) AS `T` (`f1`, `f2`)");
     }
 
     @Test
