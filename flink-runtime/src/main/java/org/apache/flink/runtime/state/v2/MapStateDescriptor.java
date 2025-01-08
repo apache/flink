@@ -18,13 +18,15 @@
 
 package org.apache.flink.runtime.state.v2;
 
-import org.apache.flink.api.common.serialization.SerializerConfig;
-import org.apache.flink.api.common.serialization.SerializerConfigImpl;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.SerializerFactory;
 import org.apache.flink.api.common.state.v2.MapState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * {@link StateDescriptor} for {@link MapState}. This can be used to create partitioned map state
@@ -36,7 +38,7 @@ import javax.annotation.Nonnull;
 public class MapStateDescriptor<UK, UV> extends StateDescriptor<UV> {
 
     /** The serializer for the user key. */
-    @Nonnull private final TypeSerializer<UK> userKeySerializer;
+    @Nonnull private final StateSerializerReference<UK> userKeySerializer;
 
     /**
      * Creates a new {@code MapStateDescriptor} with the given stateId and type.
@@ -49,25 +51,8 @@ public class MapStateDescriptor<UK, UV> extends StateDescriptor<UV> {
             @Nonnull String stateId,
             @Nonnull TypeInformation<UK> userKeyTypeInfo,
             @Nonnull TypeInformation<UV> userValueTypeInfo) {
-        this(stateId, userKeyTypeInfo, userValueTypeInfo, new SerializerConfigImpl());
-    }
-
-    /**
-     * Creates a new {@code MapStateDescriptor} with the given stateId and type.
-     *
-     * @param stateId The (unique) stateId for the state.
-     * @param userKeyTypeInfo The type of the user keys in the state.
-     * @param userValueTypeInfo The type of the values in the state.
-     * @param serializerConfig The serializer related config used to generate {@code
-     *     TypeSerializer}.
-     */
-    public MapStateDescriptor(
-            @Nonnull String stateId,
-            @Nonnull TypeInformation<UK> userKeyTypeInfo,
-            @Nonnull TypeInformation<UV> userValueTypeInfo,
-            SerializerConfig serializerConfig) {
-        super(stateId, userValueTypeInfo, serializerConfig);
-        this.userKeySerializer = userKeyTypeInfo.createSerializer(serializerConfig);
+        super(stateId, userValueTypeInfo);
+        this.userKeySerializer = new StateSerializerReference<>(userKeyTypeInfo);
     }
 
     /**
@@ -82,23 +67,56 @@ public class MapStateDescriptor<UK, UV> extends StateDescriptor<UV> {
             @Nonnull TypeSerializer<UK> userKeySerializer,
             @Nonnull TypeSerializer<UV> userValueSerializer) {
         super(stateId, userValueSerializer);
-        this.userKeySerializer = userKeySerializer;
+        this.userKeySerializer = new StateSerializerReference<>(userKeySerializer);
     }
 
     @Nonnull
     public TypeSerializer<UK> getUserKeySerializer() {
-        return userKeySerializer.duplicate();
+        TypeSerializer<UK> serializer = userKeySerializer.get();
+        if (serializer != null) {
+            return serializer.duplicate();
+        } else {
+            throw new IllegalStateException("Serializer not yet initialized.");
+        }
+    }
+
+    @Internal
+    @Nullable
+    public TypeInformation<UK> getUserKeyTypeInformation() {
+        return userKeySerializer.getTypeInformation();
+    }
+
+    /**
+     * Checks whether the serializer has been initialized. Serializer initialization is lazy, to
+     * allow parametrization of serializers with an {@link ExecutionConfig} via {@link
+     * #initializeSerializerUnlessSet(ExecutionConfig)}.
+     *
+     * @return True if the serializers have been initialized, false otherwise.
+     */
+    @Override
+    public boolean isSerializerInitialized() {
+        return super.isSerializerInitialized() && userKeySerializer.isInitialized();
+    }
+
+    /**
+     * Initializes the serializer, unless it has been initialized before.
+     *
+     * @param executionConfig The execution config to use when creating the serializer.
+     */
+    @Override
+    public void initializeSerializerUnlessSet(ExecutionConfig executionConfig) {
+        super.initializeSerializerUnlessSet(executionConfig);
+        userKeySerializer.initializeUnlessSet(executionConfig);
+    }
+
+    @Override
+    public void initializeSerializerUnlessSet(SerializerFactory serializerFactory) {
+        super.initializeSerializerUnlessSet(serializerFactory);
+        userKeySerializer.initializeUnlessSet(serializerFactory);
     }
 
     @Override
     public Type getType() {
         return Type.MAP;
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public final boolean equals(Object o) {
-        return super.equals(o)
-                && userKeySerializer.equals(((MapStateDescriptor<UK, UV>) o).userKeySerializer);
     }
 }

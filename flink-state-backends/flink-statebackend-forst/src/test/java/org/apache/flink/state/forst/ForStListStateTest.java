@@ -18,7 +18,6 @@
 
 package org.apache.flink.state.forst;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.state.v2.ListStateDescriptor;
 import org.apache.flink.runtime.state.v2.internal.InternalListState;
@@ -35,7 +34,7 @@ public class ForStListStateTest extends ForStStateTestBase {
     @Test
     public void testMergeNamespace() throws Exception {
         ListStateDescriptor<Integer> descriptor =
-                new ListStateDescriptor<>("testState", BasicTypeInfo.INT_TYPE_INFO);
+                new ListStateDescriptor<>("testState", IntSerializer.INSTANCE);
         InternalListState<String, Integer, Integer> listState =
                 keyedBackend.createState(1, IntSerializer.INSTANCE, descriptor);
 

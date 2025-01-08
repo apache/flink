@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.state.v2;
 
-import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -41,21 +40,6 @@ public class ValueStateDescriptor<T> extends StateDescriptor<T> {
      */
     public ValueStateDescriptor(@Nonnull String stateId, @Nonnull TypeInformation<T> typeInfo) {
         super(stateId, typeInfo);
-    }
-
-    /**
-     * Creates a new {@code ValueStateDescriptor} with the given stateId and type.
-     *
-     * @param stateId The (unique) stateId for the state.
-     * @param typeInfo The type of the values in the state.
-     * @param serializerConfig The serializer related config used to generate {@code
-     *     TypeSerializer}.
-     */
-    public ValueStateDescriptor(
-            @Nonnull String stateId,
-            @Nonnull TypeInformation<T> typeInfo,
-            SerializerConfig serializerConfig) {
-        super(stateId, typeInfo, serializerConfig);
     }
 
     /**

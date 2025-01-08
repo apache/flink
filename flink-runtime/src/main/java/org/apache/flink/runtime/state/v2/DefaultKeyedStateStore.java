@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.v2;
 
+import org.apache.flink.api.common.functions.SerializerFactory;
 import org.apache.flink.api.common.state.v2.AggregatingState;
 import org.apache.flink.api.common.state.v2.ListState;
 import org.apache.flink.api.common.state.v2.MapState;
@@ -34,15 +35,20 @@ import javax.annotation.Nonnull;
 public class DefaultKeyedStateStore implements KeyedStateStore {
 
     private final AsyncKeyedStateBackend<?> asyncKeyedStateBackend;
+    protected final SerializerFactory serializerFactory;
 
-    public DefaultKeyedStateStore(@Nonnull AsyncKeyedStateBackend asyncKeyedStateBackend) {
+    public DefaultKeyedStateStore(
+            @Nonnull AsyncKeyedStateBackend asyncKeyedStateBackend,
+            SerializerFactory serializerFactory) {
         this.asyncKeyedStateBackend = Preconditions.checkNotNull(asyncKeyedStateBackend);
+        this.serializerFactory = Preconditions.checkNotNull(serializerFactory);
     }
 
     @Override
     public <T> ValueState<T> getValueState(@Nonnull ValueStateDescriptor<T> stateProperties) {
         Preconditions.checkNotNull(stateProperties, "The state properties must not be null");
         try {
+            stateProperties.initializeSerializerUnlessSet(serializerFactory);
             return asyncKeyedStateBackend.getOrCreateKeyedState(
                     VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateProperties);
         } catch (Exception e) {
@@ -54,6 +60,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
     public <T> ListState<T> getListState(@Nonnull ListStateDescriptor<T> stateProperties) {
         Preconditions.checkNotNull(stateProperties, "The state properties must not be null");
         try {
+            stateProperties.initializeSerializerUnlessSet(serializerFactory);
             return asyncKeyedStateBackend.getOrCreateKeyedState(
                     VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateProperties);
         } catch (Exception e) {
@@ -66,6 +73,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
             @Nonnull MapStateDescriptor<UK, UV> stateProperties) {
         Preconditions.checkNotNull(stateProperties, "The state properties must not be null");
         try {
+            stateProperties.initializeSerializerUnlessSet(serializerFactory);
             return asyncKeyedStateBackend.getOrCreateKeyedState(
                     VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateProperties);
         } catch (Exception e) {
@@ -78,6 +86,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
             @Nonnull ReducingStateDescriptor<T> stateProperties) {
         Preconditions.checkNotNull(stateProperties, "The state properties must not be null");
         try {
+            stateProperties.initializeSerializerUnlessSet(serializerFactory);
             return asyncKeyedStateBackend.getOrCreateKeyedState(
                     VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateProperties);
         } catch (Exception e) {
@@ -90,6 +99,7 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
             @Nonnull AggregatingStateDescriptor<IN, ACC, OUT> stateProperties) {
         Preconditions.checkNotNull(stateProperties, "The state properties must not be null");
         try {
+            stateProperties.initializeSerializerUnlessSet(serializerFactory);
             return asyncKeyedStateBackend.getOrCreateKeyedState(
                     VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateProperties);
         } catch (Exception e) {

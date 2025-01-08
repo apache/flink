@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state.v2;
 
 import org.apache.flink.api.common.functions.AggregateFunction;
-import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -53,23 +52,6 @@ public class AggregatingStateDescriptor<IN, ACC, OUT> extends StateDescriptor<AC
             @Nonnull AggregateFunction<IN, ACC, OUT> aggregateFunction,
             @Nonnull TypeInformation<ACC> typeInfo) {
         super(stateId, typeInfo);
-        this.aggregateFunction = checkNotNull(aggregateFunction);
-    }
-
-    /**
-     * Create a new state descriptor with the given name, function, and type.
-     *
-     * @param stateId The (unique) name for the state.
-     * @param aggregateFunction The {@code AggregateFunction} used to aggregate the state.
-     * @param typeInfo The type of the accumulator. The accumulator is stored in the state.
-     * @param serializerConfig The serializer related config used to generate TypeSerializer.
-     */
-    public AggregatingStateDescriptor(
-            @Nonnull String stateId,
-            @Nonnull AggregateFunction<IN, ACC, OUT> aggregateFunction,
-            @Nonnull TypeInformation<ACC> typeInfo,
-            SerializerConfig serializerConfig) {
-        super(stateId, typeInfo, serializerConfig);
         this.aggregateFunction = checkNotNull(aggregateFunction);
     }
 

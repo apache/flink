@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.state.v2;
 
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
@@ -48,22 +47,6 @@ public class ReducingStateDescriptor<T> extends StateDescriptor<T> {
             @Nonnull ReduceFunction<T> reduceFunction,
             @Nonnull TypeInformation<T> typeInfo) {
         super(name, typeInfo);
-        this.reduceFunction = checkNotNull(reduceFunction);
-    }
-
-    /**
-     * Creates a new {@code ReducingStateDescriptor} with the given name and default value.
-     *
-     * @param name The (unique) name for the state.
-     * @param reduceFunction The {@code ReduceFunction} used to aggregate the state.
-     * @param typeInfo The type of the values in the state.
-     */
-    public ReducingStateDescriptor(
-            @Nonnull String name,
-            @Nonnull ReduceFunction<T> reduceFunction,
-            @Nonnull TypeInformation<T> typeInfo,
-            SerializerConfig serializerConfig) {
-        super(name, typeInfo, serializerConfig);
         this.reduceFunction = checkNotNull(reduceFunction);
     }
 

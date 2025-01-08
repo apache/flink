@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.forst;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
@@ -107,6 +108,7 @@ public class ForStKeyedStateBackendBuilder<K>
 
     private final int numberOfKeyGroups;
     private final KeyGroupRange keyGroupRange;
+    private final ExecutionConfig executionConfig;
     private final TtlTimeProvider ttlTimeProvider;
 
     private final Collection<KeyedStateHandle> restoreStateHandles;
@@ -139,6 +141,7 @@ public class ForStKeyedStateBackendBuilder<K>
             TypeSerializer<K> keySerializer,
             int numberOfKeyGroups,
             KeyGroupRange keyGroupRange,
+            ExecutionConfig executionConfig,
             ForStPriorityQueueConfig priorityQueueConfig,
             TtlTimeProvider ttlTimeProvider,
             MetricGroup metricGroup,
@@ -153,6 +156,7 @@ public class ForStKeyedStateBackendBuilder<K>
                 StateSerializerProvider.fromNewRegisteredSerializer(keySerializer);
         this.numberOfKeyGroups = numberOfKeyGroups;
         this.keyGroupRange = keyGroupRange;
+        this.executionConfig = executionConfig;
         this.priorityQueueConfig = priorityQueueConfig;
         this.ttlTimeProvider = ttlTimeProvider;
         this.metricGroup = metricGroup;
@@ -303,6 +307,7 @@ public class ForStKeyedStateBackendBuilder<K>
                 optionsContainer.getRemoteBasePath());
         return new ForStKeyedStateBackend<>(
                 backendUID,
+                executionConfig,
                 this.optionsContainer,
                 keyGroupPrefixBytes,
                 this.keySerializerProvider.currentSchemaSerializer(),
