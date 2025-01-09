@@ -22,7 +22,7 @@ limitations under the License.
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalFilter(condition=[LIKE($2, _UTF-16LE'%hello%')])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[b, cnt])
 +- LogicalProject(b=[$0], cnt=[$1])
@@ -33,11 +33,11 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fie
                :- LogicalProject(a=[$0], b=[$1], c=[$2])
                :  +- LogicalProject(a=[$0], b=[$1], c=[$2])
                :     +- LogicalFilter(condition=[LIKE($2, _UTF-16LE'%hello%')])
-               :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+               :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
                +- LogicalProject(a=[$0], b=[$1], c=[$2])
                   +- LogicalProject(a=[$0], b=[$1], c=[$2])
                      +- LogicalFilter(condition=[LIKE($2, _UTF-16LE'%world%')])
-                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[b, cnt])
 +- LogicalProject(b=[$0], cnt=[$1])
@@ -48,18 +48,18 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fiel
                :- LogicalProject(a=[$0], b=[$1], c=[$2])
                :  +- LogicalProject(a=[$0], b=[$1], c=[$2])
                :     +- LogicalFilter(condition=[LIKE($2, _UTF-16LE'%hello%')])
-               :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+               :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
                +- LogicalProject(a=[$0], b=[$1], c=[$2])
                   +- LogicalProject(a=[$0], b=[$1], c=[$2])
                      +- LogicalFilter(condition=[LIKE($2, _UTF-16LE'%world%')])
-                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c], changelogMode=[NONE])
 +- Calc(select=[a, b, c], where=[LIKE(c, '%hello%')], changelogMode=[I])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[b, cnt], changelogMode=[NONE])
 +- Calc(select=[b, cnt], where=[<(b, 4)], changelogMode=[I,UB,UA])
@@ -68,9 +68,9 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[b,
          +- Union(all=[true], union=[b, a], changelogMode=[I])
             :- Calc(select=[b, a], changelogMode=[I])
             :  +- Calc(select=[a, b, c], where=[LIKE(c, '%hello%')], changelogMode=[I])
-            :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
             +- Calc(select=[b, a], where=[LIKE(c, '%world%')], changelogMode=[I])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[b, cnt], changelogMode=[NONE])
 +- Calc(select=[b, cnt], where=[SEARCH(b, Sarg[[4..6)])], changelogMode=[I,UB,UA])
@@ -79,9 +79,9 @@ LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[b, 
          +- Union(all=[true], union=[b, a], changelogMode=[I])
             :- Calc(select=[b, a], changelogMode=[I])
             :  +- Calc(select=[a, b, c], where=[LIKE(c, '%hello%')], changelogMode=[I])
-            :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
             +- Calc(select=[b, a], where=[LIKE(c, '%world%')], changelogMode=[I])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -94,7 +94,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink1`], fi
       +- LogicalProject(sum_a=[$1], c=[$0])
          +- LogicalAggregate(group=[{0}], sum_a=[SUM($1)])
             +- LogicalProject(c=[$2], a=[$0])
-               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fields=[total_min])
 +- LogicalAggregate(group=[{}], total_min=[MIN($0)])
@@ -102,7 +102,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fi
       +- LogicalProject(sum_a=[$1], c=[$0])
          +- LogicalAggregate(group=[{0}], sum_a=[SUM($1)])
             +- LogicalProject(c=[$2], a=[$0])
-               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -114,7 +114,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink1`], fields=[t
          +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS sum_a], changelogMode=[I,UB,UA])
             +- Exchange(distribution=[hash[c]], changelogMode=[I])
                +- Calc(select=[c, a], changelogMode=[I])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fields=[total_min], changelogMode=[NONE])
 +- GroupAggregate(select=[MIN_RETRACT(sum_a) AS total_min], changelogMode=[I,UB,UA,D])
@@ -123,7 +123,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fields=[t
          +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS sum_a], changelogMode=[I,UB,UA])
             +- Exchange(distribution=[hash[c]], changelogMode=[I])
                +- Calc(select=[c, a], changelogMode=[I])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -135,30 +135,30 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fie
    :- LogicalProject(a1=[$0], b1=[$1])
    :  +- LogicalProject(a1=[$0], b1=[$1])
    :     +- LogicalFilter(condition=[<=($0, 10)])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalProject(a=[$0], b1=[$1])
       +- LogicalProject(a=[$2], b1=[$1])
          +- LogicalFilter(condition=[=($2, $0)])
             +- LogicalJoin(condition=[true], joinType=[inner])
                :- LogicalProject(a1=[$0], b1=[$1])
                :  +- LogicalFilter(condition=[<=($0, 10)])
-               :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
+               :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b1])
 +- LogicalUnion(all=[true])
    :- LogicalProject(a1=[$0], b1=[$1])
    :  +- LogicalProject(a1=[$0], b1=[$1])
    :     +- LogicalFilter(condition=[<=($0, 10)])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalProject(a=[$0], b1=[$1])
       +- LogicalProject(a=[$2], b1=[$1])
          +- LogicalFilter(condition=[=($2, $0)])
             +- LogicalJoin(condition=[true], joinType=[inner])
                :- LogicalProject(a1=[$0], b1=[$1])
                :  +- LogicalFilter(condition=[<=($0, 10)])
-               :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
+               :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -166,28 +166,28 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fie
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b1], changelogMode=[NONE])
 +- Union(all=[true], union=[a, b], changelogMode=[I])
    :- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
-   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
    +- Calc(select=[a0 AS a, b AS b1], changelogMode=[I])
       +- Join(joinType=[InnerJoin], where=[=(a0, a)], select=[a, b, a0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
          :- Exchange(distribution=[hash[a]], changelogMode=[I])
          :  +- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
-         :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
          +- Exchange(distribution=[hash[a]], changelogMode=[I])
             +- Calc(select=[a], changelogMode=[I])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e], changelogMode=[I])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b1], changelogMode=[NONE])
 +- Union(all=[true], union=[a, b], changelogMode=[I])
    :- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
-   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
    +- Calc(select=[a0 AS a, b AS b1], changelogMode=[I])
       +- Join(joinType=[InnerJoin], where=[=(a0, a)], select=[a, b, a0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
          :- Exchange(distribution=[hash[a]], changelogMode=[I])
          :  +- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
-         :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
          +- Exchange(distribution=[hash[a]], changelogMode=[I])
             +- Calc(select=[a], changelogMode=[I])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e], changelogMode=[I])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -200,23 +200,23 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fie
       +- LogicalJoin(condition=[true], joinType=[inner])
          :- LogicalProject(a1=[$0], b1=[$1])
          :  +- LogicalFilter(condition=[<=($0, 10)])
-         :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b1])
 +- LogicalUnion(all=[true])
    :- LogicalProject(a1=[$0], b1=[$1])
    :  +- LogicalProject(a1=[$0], b1=[$1])
    :     +- LogicalFilter(condition=[<=($0, 10)])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalProject(a=[$0], b1=[$1])
       +- LogicalProject(a=[$2], b1=[$1])
          +- LogicalFilter(condition=[=($2, $0)])
             +- LogicalJoin(condition=[true], joinType=[inner])
                :- LogicalProject(a1=[$0], b1=[$1])
                :  +- LogicalFilter(condition=[<=($0, 10)])
-               :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]])
+               :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -226,23 +226,23 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a,
    +- Join(joinType=[InnerJoin], where=[=(a0, a)], select=[a, b, a0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
       :- Exchange(distribution=[hash[a]], changelogMode=[I])
       :  +- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
-      :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
       +- Exchange(distribution=[hash[a]], changelogMode=[I])
          +- Calc(select=[a], changelogMode=[I])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e], changelogMode=[I])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b1], changelogMode=[NONE])
 +- Union(all=[true], union=[a, b], changelogMode=[I])
    :- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
-   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
    +- Calc(select=[a0 AS a, b AS b1], changelogMode=[I])
       +- Join(joinType=[InnerJoin], where=[=(a0, a)], select=[a, b, a0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
          :- Exchange(distribution=[hash[a]], changelogMode=[I])
          :  +- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
-         :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
          +- Exchange(distribution=[hash[a]], changelogMode=[I])
             +- Calc(select=[a], changelogMode=[I])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e], changelogMode=[I])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -255,12 +255,12 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fie
       +- LogicalJoin(condition=[true], joinType=[inner])
          :- LogicalProject(a1=[$0], b=[$1])
          :  +- LogicalFilter(condition=[<=($0, 10)])
-         :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
          +- LogicalProject(a2=[$0], c=[$2])
             +- LogicalFilter(condition=[>=($1, 5)])
                +- LogicalProject(a=[$0], b=[$1], c=[$2])
                   +- LogicalFilter(condition=[>=($0, 0)])
-                     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a1, b, c1])
 +- LogicalProject(a1=[$2], b=[$3], c1=[$1])
@@ -270,18 +270,18 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fie
          :  +- LogicalFilter(condition=[<($1, 5)])
          :     +- LogicalProject(a=[$0], b=[$1], c=[$2])
          :        +- LogicalFilter(condition=[>=($0, 0)])
-         :           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+         :           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
          +- LogicalProject(a1=[$0], b=[$1], c2=[$3])
             +- LogicalFilter(condition=[=($0, $2)])
                +- LogicalJoin(condition=[true], joinType=[inner])
                   :- LogicalProject(a1=[$0], b=[$1])
                   :  +- LogicalFilter(condition=[<=($0, 10)])
-                  :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+                  :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
                   +- LogicalProject(a2=[$0], c=[$2])
                      +- LogicalFilter(condition=[>=($1, 5)])
                         +- LogicalProject(a=[$0], b=[$1], c=[$2])
                            +- LogicalFilter(condition=[>=($0, 0)])
-                              +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+                              +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -291,11 +291,11 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a1
    +- Join(joinType=[InnerJoin], where=[=(a, a2)], select=[a, b, a2, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
       :- Exchange(distribution=[hash[a]], changelogMode=[I])
       :  +- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
-      :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
       +- Exchange(distribution=[hash[a2]], changelogMode=[I])
          +- Calc(select=[a AS a2, c], where=[>=(b, 5)], changelogMode=[I])
             +- Calc(select=[a, b, c], where=[>=(a, 0)], changelogMode=[I])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a1, b, c1], changelogMode=[NONE])
 +- Calc(select=[a1, b, c1], changelogMode=[I])
@@ -303,18 +303,18 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a1
       :- Exchange(distribution=[hash[a3]], changelogMode=[I])
       :  +- Calc(select=[a AS a3, c AS c1], where=[<(b, 5)], changelogMode=[I])
       :     +- Calc(select=[a, b, c], where=[>=(a, 0)], changelogMode=[I])
-      :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
       +- Exchange(distribution=[hash[a1]], changelogMode=[I])
          +- Calc(select=[a1, b], changelogMode=[I])
             +- Calc(select=[a AS a1, b, c AS c2], changelogMode=[I])
                +- Join(joinType=[InnerJoin], where=[=(a, a2)], select=[a, b, a2, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
                   :- Exchange(distribution=[hash[a]], changelogMode=[I])
                   :  +- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
-                  :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+                  :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
                   +- Exchange(distribution=[hash[a2]], changelogMode=[I])
                      +- Calc(select=[a AS a2, c], where=[>=(b, 5)], changelogMode=[I])
                         +- Calc(select=[a, b, c], where=[>=(a, 0)], changelogMode=[I])
-                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -325,13 +325,13 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink1`], fi
 +- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
    +- LogicalProject(a=[$0])
       +- LogicalProject(a=[random_udf($0)], c=[$2])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fields=[total_min])
 +- LogicalAggregate(group=[{}], total_min=[MIN($0)])
    +- LogicalProject(a=[$0])
       +- LogicalProject(a=[random_udf($0)], c=[$2])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -340,13 +340,13 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink1`], fields=[t
 +- GroupAggregate(select=[SUM(a) AS total_sum], changelogMode=[I,UB,UA])
    +- Exchange(distribution=[single], changelogMode=[I])
       +- Calc(select=[random_udf(a) AS a], changelogMode=[I])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fields=[total_min], changelogMode=[NONE])
 +- GroupAggregate(select=[MIN(a) AS total_min], changelogMode=[I,UB,UA])
    +- Exchange(distribution=[single], changelogMode=[I])
       +- Calc(select=[random_udf(a) AS a], changelogMode=[I])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -364,12 +364,12 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink1`], fi
          :           +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
          :              :- LogicalProject(a=[$0], b=[-($1, MOD($1, 300))], c=[$2])
          :              :  +- LogicalFilter(condition=[>=($1, UNIX_TIMESTAMP(_UTF-16LE'${startTime}'))])
-         :              :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+         :              :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
          :              +- LogicalTableFunctionScan(invocation=[split($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
          +- LogicalProject(a=[$0], total_c=[0])
             +- LogicalProject(a=[$0], b=[-($1, MOD($1, 300))], c=[$2])
                +- LogicalFilter(condition=[>=($1, UNIX_TIMESTAMP(_UTF-16LE'${startTime}'))])
-                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fields=[a, total_c])
 +- LogicalProject(a=[$0], total_c=[$1])
@@ -382,12 +382,12 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fi
          :           +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
          :              :- LogicalProject(a=[$0], b=[-($1, MOD($1, 300))], c=[$2])
          :              :  +- LogicalFilter(condition=[>=($1, UNIX_TIMESTAMP(_UTF-16LE'${startTime}'))])
-         :              :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+         :              :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
          :              +- LogicalTableFunctionScan(invocation=[split($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
          +- LogicalProject(a=[$0], total_c=[0])
             +- LogicalProject(a=[$0], b=[-($1, MOD($1, 300))], c=[$2])
                +- LogicalFilter(condition=[>=($1, UNIX_TIMESTAMP(_UTF-16LE'${startTime}'))])
-                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -401,10 +401,10 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink1`], fields=[a
    :           +- Calc(select=[a, b, EXPR$0 AS c], changelogMode=[I])
    :              +- Correlate(invocation=[split($cor0.c)], correlate=[table(split($cor0.c))], select=[a,b,c,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) EXPR$0)], joinType=[INNER], changelogMode=[I])
    :                 +- Calc(select=[a, -(b, MOD(b, 300)) AS b, c], where=[AND(>=(b, UNIX_TIMESTAMP('${startTime}')), <>(c, ''))], changelogMode=[I])
-   :                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+   :                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
    +- Calc(select=[a, CAST(total_c AS BIGINT) AS total_c], where=[>(a, 50)], changelogMode=[I])
       +- Calc(select=[a, 0 AS total_c], where=[>=(b, UNIX_TIMESTAMP('${startTime}'))], changelogMode=[I])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fields=[a, total_c], changelogMode=[NONE])
 +- Union(all=[true], union=[a, total_c], changelogMode=[I,UB,UA])
@@ -415,10 +415,10 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fields=[a
    :           +- Calc(select=[a, b, EXPR$0 AS c], changelogMode=[I])
    :              +- Correlate(invocation=[split($cor0.c)], correlate=[table(split($cor0.c))], select=[a,b,c,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) EXPR$0)], joinType=[INNER], changelogMode=[I])
    :                 +- Calc(select=[a, -(b, MOD(b, 300)) AS b, c], where=[AND(>=(b, UNIX_TIMESTAMP('${startTime}')), <>(c, ''))], changelogMode=[I])
-   :                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+   :                    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
    +- Calc(select=[a, CAST(total_c AS BIGINT) AS total_c], where=[<(a, 50)], changelogMode=[I])
       +- Calc(select=[a, 0 AS total_c], where=[>=(b, UNIX_TIMESTAMP('${startTime}'))], changelogMode=[I])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -430,18 +430,18 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fiel
    +- LogicalProject(a=[$0])
       +- LogicalUnion(all=[true])
          :- LogicalProject(a=[$0], c=[$2])
-         :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+         :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
          +- LogicalProject(d=[$0], f=[$2])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[total_min])
 +- LogicalAggregate(group=[{}], total_min=[MIN($0)])
    +- LogicalProject(a=[$0])
       +- LogicalUnion(all=[true])
          :- LogicalProject(a=[$0], c=[$2])
-         :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+         :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
          +- LogicalProject(d=[$0], f=[$2])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -452,10 +452,10 @@ LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[tot
       +- Union(all=[true], union=[a], changelogMode=[I])
          :- Calc(select=[a], changelogMode=[I])
          :  +- Calc(select=[a, c], changelogMode=[I])
-         :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
          +- Calc(select=[d AS a], changelogMode=[I])
             +- Calc(select=[d, f], changelogMode=[I])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f], changelogMode=[I])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[d, e, f], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[total_min], changelogMode=[NONE])
 +- GroupAggregate(select=[MIN(a) AS total_min], changelogMode=[I,UB,UA])
@@ -463,10 +463,10 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[to
       +- Union(all=[true], union=[a], changelogMode=[I])
          :- Calc(select=[a], changelogMode=[I])
          :  +- Calc(select=[a, c], changelogMode=[I])
-         :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
          +- Calc(select=[d AS a], changelogMode=[I])
             +- Calc(select=[d, f], changelogMode=[I])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f], changelogMode=[I])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[d, e, f], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -479,11 +479,11 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink1`], fi
       +- LogicalUnion(all=[true])
          :- LogicalUnion(all=[true])
          :  :- LogicalProject(a=[$0], c=[$2])
-         :  :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+         :  :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
          :  +- LogicalProject(d=[$0], f=[$2])
-         :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
          +- LogicalProject(a=[$0], c=[$2])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fields=[total_min])
 +- LogicalAggregate(group=[{}], total_min=[MIN($0)])
@@ -491,19 +491,19 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fi
       +- LogicalUnion(all=[true])
          :- LogicalUnion(all=[true])
          :  :- LogicalProject(a=[$0], c=[$2])
-         :  :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+         :  :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
          :  +- LogicalProject(d=[$0], f=[$2])
-         :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
          +- LogicalProject(a=[$0], c=[$2])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink3`], fields=[a])
 +- LogicalProject(a=[$0])
    +- LogicalUnion(all=[true])
       :- LogicalProject(a=[$0], c=[$2])
-      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
       +- LogicalProject(d=[$0], f=[$2])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -515,12 +515,12 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink1`], fields=[t
          :- Union(all=[true], union=[a], changelogMode=[I])
          :  :- Calc(select=[a], changelogMode=[I])
          :  :  +- Calc(select=[a, c], changelogMode=[I])
-         :  :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         :  :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
          :  +- Calc(select=[d AS a], changelogMode=[I])
          :     +- Calc(select=[d, f], changelogMode=[I])
-         :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f], changelogMode=[I])
+         :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[d, e, f], changelogMode=[I])
          +- Calc(select=[a], changelogMode=[I])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fields=[total_min], changelogMode=[NONE])
 +- GroupAggregate(select=[MIN(a) AS total_min], changelogMode=[I,UB,UA])
@@ -529,21 +529,21 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fields=[t
          :- Union(all=[true], union=[a], changelogMode=[I])
          :  :- Calc(select=[a], changelogMode=[I])
          :  :  +- Calc(select=[a, c], changelogMode=[I])
-         :  :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         :  :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
          :  +- Calc(select=[d AS a], changelogMode=[I])
          :     +- Calc(select=[d, f], changelogMode=[I])
-         :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f], changelogMode=[I])
+         :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[d, e, f], changelogMode=[I])
          +- Calc(select=[a], changelogMode=[I])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink3`], fields=[a], changelogMode=[NONE])
 +- Union(all=[true], union=[a], changelogMode=[I])
    :- Calc(select=[a], changelogMode=[I])
    :  +- Calc(select=[a, c], changelogMode=[I])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
    +- Calc(select=[d AS a], changelogMode=[I])
       +- Calc(select=[d, f], changelogMode=[I])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[d, e, f], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -553,9 +553,9 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink3`], fields=[a]
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, c])
 +- LogicalUnion(all=[true])
    :- LogicalProject(a=[$0], c=[$2])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalProject(d=[$0], f=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[total_sum])
 +- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
@@ -564,11 +564,11 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fie
          :- LogicalProject(a=[$0], c=[$1])
          :  +- LogicalUnion(all=[true])
          :     :- LogicalProject(a=[$0], c=[$2])
-         :     :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+         :     :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
          :     +- LogicalProject(d=[$0], f=[$2])
-         :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]])
+         :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
          +- LogicalProject(a=[$0], c=[$2])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[total_min])
 +- LogicalAggregate(group=[{}], total_min=[MIN($0)])
@@ -577,11 +577,11 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fiel
          :- LogicalProject(a=[$0], c=[$1])
          :  +- LogicalUnion(all=[true])
          :     :- LogicalProject(a=[$0], c=[$2])
-         :     :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+         :     :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
          :     +- LogicalProject(d=[$0], f=[$2])
-         :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]])
+         :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
          +- LogicalProject(a=[$0], c=[$2])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -589,9 +589,9 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fiel
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, c], changelogMode=[NONE])
 +- Union(all=[true], union=[a, c], changelogMode=[I])
    :- Calc(select=[a, c], changelogMode=[I])
-   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
    +- Calc(select=[d, f], changelogMode=[I])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f], changelogMode=[I])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[d, e, f], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[total_sum], changelogMode=[NONE])
 +- GroupAggregate(select=[SUM(a) AS total_sum], changelogMode=[I,UB,UA])
@@ -600,12 +600,12 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[to
          :- Calc(select=[a], changelogMode=[I])
          :  +- Union(all=[true], union=[a, c], changelogMode=[I])
          :     :- Calc(select=[a, c], changelogMode=[I])
-         :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         :     :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
          :     +- Calc(select=[d, f], changelogMode=[I])
-         :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f], changelogMode=[I])
+         :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[d, e, f], changelogMode=[I])
          +- Calc(select=[a], changelogMode=[I])
             +- Calc(select=[a, c], changelogMode=[I])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[total_min], changelogMode=[NONE])
 +- GroupAggregate(select=[MIN(a) AS total_min], changelogMode=[I,UA])
@@ -614,12 +614,12 @@ LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[tot
          :- Calc(select=[a], changelogMode=[I])
          :  +- Union(all=[true], union=[a, c], changelogMode=[I])
          :     :- Calc(select=[a, c], changelogMode=[I])
-         :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         :     :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
          :     +- Calc(select=[d, f], changelogMode=[I])
-         :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f], changelogMode=[I])
+         :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[d, e, f], changelogMode=[I])
          +- Calc(select=[a], changelogMode=[I])
             +- Calc(select=[a, c], changelogMode=[I])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -632,11 +632,11 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fiel
       +- LogicalUnion(all=[true])
          :- LogicalUnion(all=[true])
          :  :- LogicalProject(a=[$0], c=[$2])
-         :  :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+         :  :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
          :  +- LogicalProject(d=[$0], f=[$2])
-         :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
          +- LogicalProject(a=[$0], c=[$2])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[total_min])
 +- LogicalAggregate(group=[{}], total_min=[MIN($0)])
@@ -644,11 +644,11 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fie
       +- LogicalUnion(all=[true])
          :- LogicalUnion(all=[true])
          :  :- LogicalProject(a=[$0], c=[$2])
-         :  :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+         :  :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
          :  +- LogicalProject(d=[$0], f=[$2])
-         :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
          +- LogicalProject(a=[$0], c=[$2])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -660,13 +660,13 @@ LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[tot
          :- Union(all=[true], union=[a], changelogMode=[I])
          :  :- Calc(select=[a], changelogMode=[I])
          :  :  +- Calc(select=[a, c], changelogMode=[I])
-         :  :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         :  :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
          :  +- Calc(select=[d AS a], changelogMode=[I])
          :     +- Calc(select=[d, f], changelogMode=[I])
-         :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f], changelogMode=[I])
+         :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[d, e, f], changelogMode=[I])
          +- Calc(select=[a], changelogMode=[I])
             +- Calc(select=[a, c], changelogMode=[I])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[total_min], changelogMode=[NONE])
 +- GroupAggregate(select=[MIN(a) AS total_min], changelogMode=[I,UB,UA])
@@ -675,13 +675,13 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[to
          :- Union(all=[true], union=[a], changelogMode=[I])
          :  :- Calc(select=[a], changelogMode=[I])
          :  :  +- Calc(select=[a, c], changelogMode=[I])
-         :  :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         :  :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
          :  +- Calc(select=[d AS a], changelogMode=[I])
          :     +- Calc(select=[d, f], changelogMode=[I])
-         :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f], changelogMode=[I])
+         :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[d, e, f], changelogMode=[I])
          +- Calc(select=[a], changelogMode=[I])
             +- Calc(select=[a, c], changelogMode=[I])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -691,7 +691,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[to
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalFilter(condition=[LIKE($2, _UTF-16LE'%hello%')])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink1`], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
@@ -700,11 +700,11 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink1`], fi
          :- LogicalProject(a=[$0], b=[$1], c=[$2])
          :  +- LogicalProject(a=[$0], b=[$1], c=[$2])
          :     +- LogicalFilter(condition=[LIKE($2, _UTF-16LE'%hello%')])
-         :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+         :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
          +- LogicalProject(a=[$0], b=[$1], c=[$2])
             +- LogicalProject(a=[$0], b=[$1], c=[$2])
                +- LogicalFilter(condition=[LIKE($2, _UTF-16LE'%world%')])
-                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fields=[b, cnt])
 +- LogicalProject(b=[$0], cnt=[$1])
@@ -715,11 +715,11 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fi
                :- LogicalProject(a=[$0], b=[$1], c=[$2])
                :  +- LogicalProject(a=[$0], b=[$1], c=[$2])
                :     +- LogicalFilter(condition=[LIKE($2, _UTF-16LE'%hello%')])
-               :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+               :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
                +- LogicalProject(a=[$0], b=[$1], c=[$2])
                   +- LogicalProject(a=[$0], b=[$1], c=[$2])
                      +- LogicalFilter(condition=[LIKE($2, _UTF-16LE'%world%')])
-                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[b, cnt])
 +- LogicalProject(b=[$0], cnt=[$1])
@@ -730,27 +730,27 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fiel
                :- LogicalProject(a=[$0], b=[$1], c=[$2])
                :  +- LogicalProject(a=[$0], b=[$1], c=[$2])
                :     +- LogicalFilter(condition=[LIKE($2, _UTF-16LE'%hello%')])
-               :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+               :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
                +- LogicalProject(a=[$0], b=[$1], c=[$2])
                   +- LogicalProject(a=[$0], b=[$1], c=[$2])
                      +- LogicalFilter(condition=[LIKE($2, _UTF-16LE'%world%')])
-                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c], changelogMode=[NONE])
 +- Calc(select=[a, b, c], where=[LIKE(c, '%hello%')], changelogMode=[I])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`retractSink1`], fields=[a, b, c], changelogMode=[NONE])
 +- Union(all=[true], union=[a, b, c], changelogMode=[I])
    :- Calc(select=[a, b, c], where=[>=(b, 5)], changelogMode=[I])
    :  +- Calc(select=[a, b, c], where=[LIKE(c, '%hello%')], changelogMode=[I])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
    +- Calc(select=[a, b, c], where=[>=(b, 5)], changelogMode=[I])
       +- Calc(select=[a, b, c], where=[LIKE(c, '%world%')], changelogMode=[I])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fields=[b, cnt], changelogMode=[NONE])
 +- GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS cnt], changelogMode=[I,UB,UA])
@@ -758,10 +758,10 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fields=[b
       +- Union(all=[true], union=[b, a], changelogMode=[I])
          :- Calc(select=[b, a], where=[<(b, 4)], changelogMode=[I])
          :  +- Calc(select=[a, b, c], where=[LIKE(c, '%hello%')], changelogMode=[I])
-         :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
          +- Calc(select=[b, a], where=[<(b, 4)], changelogMode=[I])
             +- Calc(select=[a, b, c], where=[LIKE(c, '%world%')], changelogMode=[I])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[b, cnt], changelogMode=[NONE])
 +- GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS cnt], changelogMode=[I,UB,UA])
@@ -769,10 +769,10 @@ LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[b, 
       +- Union(all=[true], union=[b, a], changelogMode=[I])
          :- Calc(select=[b, a], where=[<(b, 4)], changelogMode=[I])
          :  +- Calc(select=[a, b, c], where=[LIKE(c, '%hello%')], changelogMode=[I])
-         :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
          +- Calc(select=[b, a], where=[<(b, 4)], changelogMode=[I])
             +- Calc(select=[a, b, c], where=[LIKE(c, '%world%')], changelogMode=[I])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -782,7 +782,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[b, 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[c, cnt])
 +- LogicalAggregate(group=[{0}], cnt=[COUNT($1)])
    +- LogicalProject(c=[$2], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -791,7 +791,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[c,
 +- GroupAggregate(groupBy=[c], select=[c, COUNT(a) AS cnt], changelogMode=[I,UB,UA])
    +- Exchange(distribution=[hash[c]], changelogMode=[I])
       +- Calc(select=[c, a], changelogMode=[I])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -806,18 +806,18 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fiel
          :  +- LogicalFilter(condition=[<($1, 5)])
          :     +- LogicalProject(a=[$0], b=[$1], c=[$2])
          :        +- LogicalFilter(condition=[>=($0, 0)])
-         :           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+         :           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
          +- LogicalProject(a1=[$0], b=[$1], c2=[$3])
             +- LogicalFilter(condition=[=($0, $2)])
                +- LogicalJoin(condition=[true], joinType=[inner])
                   :- LogicalProject(a1=[$0], b=[$1])
                   :  +- LogicalFilter(condition=[<=($0, 10)])
-                  :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+                  :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
                   +- LogicalProject(a2=[$0], c=[$2])
                      +- LogicalFilter(condition=[>=($1, 5)])
                         +- LogicalProject(a=[$0], b=[$1], c=[$2])
                            +- LogicalFilter(condition=[>=($0, 0)])
-                              +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+                              +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -827,16 +827,16 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a1,
    +- Join(joinType=[InnerJoin], where=[=(a1, a3)], select=[a3, c1, a1, b], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
       :- Exchange(distribution=[hash[a3]], changelogMode=[I])
       :  +- Calc(select=[a AS a3, c AS c1], where=[AND(>=(a, 0), <(b, 5))], changelogMode=[I])
-      :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
       +- Exchange(distribution=[hash[a1]], changelogMode=[I])
          +- Calc(select=[a AS a1, b], changelogMode=[I])
             +- Join(joinType=[InnerJoin], where=[=(a, a2)], select=[a, b, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
                :- Exchange(distribution=[hash[a]], changelogMode=[I])
                :  +- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
-               :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+               :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
                +- Exchange(distribution=[hash[a2]], changelogMode=[I])
                   +- Calc(select=[a AS a2], where=[AND(>=(a, 0), >=(b, 5))], changelogMode=[I])
-                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -848,14 +848,14 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fiel
    :- LogicalProject(a1=[$0], b1=[$1])
    :  +- LogicalProject(a1=[$0], b1=[$1])
    :     +- LogicalFilter(condition=[<=($0, 10)])
-   :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalProject(a=[$0], b1=[$1])
       +- LogicalProject(a=[$2], b1=[$1])
          +- LogicalFilter(condition=[=($2, $0)])
             +- LogicalJoin(condition=[true], joinType=[inner])
                :- LogicalProject(a1=[$0], b1=[$1])
                :  +- LogicalFilter(condition=[<=($0, 10)])
-               :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+               :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
@@ -864,12 +864,12 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fiel
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a1, b1], changelogMode=[NONE])
 +- Union(all=[true], union=[a, b], changelogMode=[I])
    :- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
-   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
    +- Calc(select=[a0 AS a, b AS b1], changelogMode=[I])
       +- Join(joinType=[InnerJoin], where=[=(a0, a)], select=[a, b, a0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
          :- Exchange(distribution=[hash[a]], changelogMode=[I])
          :  +- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
-         :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
          +- Exchange(distribution=[hash[a]], changelogMode=[I])
             +- Calc(select=[a], changelogMode=[I])
                +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e], changelogMode=[I])
@@ -885,7 +885,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fiel
       +- LogicalJoin(condition=[true], joinType=[inner])
          :- LogicalProject(a1=[$0], b=[$1])
          :  +- LogicalFilter(condition=[<=($0, 10)])
-         :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
          +- LogicalProject(a3=[$0], b1=[$3], c1=[$1])
             +- LogicalFilter(condition=[=($2, $0)])
                +- LogicalJoin(condition=[true], joinType=[inner])
@@ -893,18 +893,18 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fiel
                   :  +- LogicalFilter(condition=[<($1, 5)])
                   :     +- LogicalProject(a=[$0], b=[$1], c=[$2])
                   :        +- LogicalFilter(condition=[>=($0, 0)])
-                  :           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+                  :           +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
                   +- LogicalProject(a1=[$0], b=[$1], c2=[$3])
                      +- LogicalFilter(condition=[=($0, $2)])
                         +- LogicalJoin(condition=[true], joinType=[inner])
                            :- LogicalProject(a1=[$0], b=[$1])
                            :  +- LogicalFilter(condition=[<=($0, 10)])
-                           :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+                           :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
                            +- LogicalProject(a2=[$0], c=[$2])
                               +- LogicalFilter(condition=[>=($1, 5)])
                                  +- LogicalProject(a=[$0], b=[$1], c=[$2])
                                     +- LogicalFilter(condition=[>=($0, 0)])
-                                       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+                                       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -914,22 +914,22 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, 
    +- Join(joinType=[InnerJoin], where=[=(a, a3)], select=[a, a3, b1, c1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
       :- Exchange(distribution=[hash[a]], changelogMode=[I])
       :  +- Calc(select=[a], where=[<=(a, 10)], changelogMode=[I])
-      :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
       +- Exchange(distribution=[hash[a3]], changelogMode=[I])
          +- Calc(select=[a3, b AS b1, c1], changelogMode=[I])
             +- Join(joinType=[InnerJoin], where=[=(a1, a3)], select=[a3, c1, a1, b], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
                :- Exchange(distribution=[hash[a3]], changelogMode=[I])
                :  +- Calc(select=[a AS a3, c AS c1], where=[AND(>=(a, 0), <(b, 5))], changelogMode=[I])
-               :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+               :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
                +- Exchange(distribution=[hash[a1]], changelogMode=[I])
                   +- Calc(select=[a AS a1, b], changelogMode=[I])
                      +- Join(joinType=[InnerJoin], where=[=(a, a2)], select=[a, b, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
                         :- Exchange(distribution=[hash[a]], changelogMode=[I])
                         :  +- Calc(select=[a, b], where=[<=(a, 10)], changelogMode=[I])
-                        :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+                        :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
                         +- Exchange(distribution=[hash[a2]], changelogMode=[I])
                            +- Calc(select=[a AS a2], where=[AND(>=(a, 0), >=(b, 5))], changelogMode=[I])
-                              +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+                              +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -943,9 +943,9 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fiel
       :  +- LogicalFilter(condition=[AND(=($1, $4), =($0, $6))])
       :     +- LogicalJoin(condition=[true], joinType=[inner])
       :        :- LogicalJoin(condition=[true], joinType=[inner])
-      :        :  :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-      :        :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]])
-      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(i, j, k, l, m)]]])
+      :        :  :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      :        :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
       +- LogicalTableFunctionScan(invocation=[split($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
 ]]>
     </Resource>
@@ -957,11 +957,11 @@ LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, 
       :- Exchange(distribution=[hash[a]], changelogMode=[I])
       :  +- Join(joinType=[InnerJoin], where=[=(b, e)], select=[a, b, c, d, e, f], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], changelogMode=[I])
       :     :- Exchange(distribution=[hash[b]], changelogMode=[I])
-      :     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+      :     :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
       :     +- Exchange(distribution=[hash[e]], changelogMode=[I])
-      :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f], changelogMode=[I])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[d, e, f], changelogMode=[I])
       +- Exchange(distribution=[hash[i]], changelogMode=[I])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(i, j, k, l, m)]]], fields=[i, j, k, l, m], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[i, j, k, l, m], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -973,9 +973,9 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fie
    +- LogicalProject(a=[$0])
       +- LogicalUnion(all=[true])
          :- LogicalProject(a=[$0], c=[$2])
-         :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+         :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
          +- LogicalProject(d=[$0], f=[$2])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -985,9 +985,9 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[to
    +- Exchange(distribution=[single], changelogMode=[I])
       +- Union(all=[true], union=[a], changelogMode=[I])
          :- Calc(select=[a], changelogMode=[I])
-         :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
          +- Calc(select=[d AS a], changelogMode=[I])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(d, e, f)]]], fields=[d, e, f], changelogMode=[I])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[d, e, f], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -1000,7 +1000,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fie
       +- LogicalProject(a=[$0], b=[$1], c=[$2], rank_num=[$3])
          +- LogicalFilter(condition=[<=($3, 10)])
             +- LogicalProject(a=[$0], b=[$1], c=[$2], rank_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
-               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[a, b])
 +- LogicalProject(a=[$0], b=[$1])
@@ -1008,7 +1008,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fiel
       +- LogicalProject(a=[$0], b=[$1], c=[$2], rank_num=[$3])
          +- LogicalFilter(condition=[<=($3, 10)])
             +- LogicalProject(a=[$0], b=[$1], c=[$2], rank_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
-               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1017,13 +1017,13 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[a]
 +- Calc(select=[a], where=[>(a, 6)], changelogMode=[I,UB,UA,D])
    +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[c DESC], select=[a, b, c, w0$o0], changelogMode=[I,UB,UA,D])
       +- Exchange(distribution=[hash[b]], changelogMode=[I])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[a, b], changelogMode=[NONE])
 +- Calc(select=[a, b], where=[<(a, 6)], changelogMode=[I,UB,UA,D])
    +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[c DESC], select=[a, b, c, w0$o0], changelogMode=[I,UB,UA,D])
       +- Exchange(distribution=[hash[b]], changelogMode=[I])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -1034,11 +1034,11 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fiel
 +- LogicalUnion(all=[true])
    :- LogicalAggregate(group=[{0, 1}], a_sum=[SUM($2)])
    :  +- LogicalProject(b=[$1], c=[$2], a=[$0])
-   :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalProject(b=[1], c=[$0], a_sum=[$1])
       +- LogicalAggregate(group=[{0}], a_sum=[SUM($1)])
          +- LogicalProject(c=[$2], a=[$0])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1047,12 +1047,12 @@ LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[b, 
 +- Union(all=[true], union=[b, c, a_sum], changelogMode=[I,UA])
    :- GroupAggregate(groupBy=[b, c], select=[b, c, SUM(a) AS a_sum], changelogMode=[I,UA])
    :  +- Exchange(distribution=[hash[b, c]], changelogMode=[I])
-   :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
    +- Calc(select=[CAST(1 AS BIGINT) AS b, c, a_sum], changelogMode=[I,UA])
       +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS a_sum], changelogMode=[I,UA])
          +- Exchange(distribution=[hash[c]], changelogMode=[I])
             +- Calc(select=[c, a], changelogMode=[I])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -1064,13 +1064,13 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fie
    +- LogicalFilter(condition=[<=($3, 10)])
       +- LogicalProject(a=[$0], b=[$1], c=[$2], rank_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $2 DESC NULLS LAST)])
          +- LogicalProject(a=[$0], b=[$1], c=[$2])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[a, b])
 +- LogicalProject(a=[$0], b=[$1])
    +- LogicalFilter(condition=[<($0, 6)])
       +- LogicalProject(a=[$0], b=[$1], c=[$2])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -1078,11 +1078,11 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fiel
 LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[a, b, c, rank_num], changelogMode=[NONE])
 +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=10], partitionBy=[b], orderBy=[c DESC], select=[a, b, c, w0$o0], changelogMode=[I,UB,UA,D])
    +- Exchange(distribution=[hash[b]], changelogMode=[I])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[a, b], changelogMode=[NONE])
 +- Calc(select=[a, b], where=[<(a, 6)], changelogMode=[I])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>

@@ -225,6 +225,17 @@ public class CoreOptions {
     //  process parameters
     // ------------------------------------------------------------------------
 
+    public static final ConfigOption<String> FLINK_JAVA_HOME =
+            ConfigOptions.key("env.java.home")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Location where Java is installed. If not specified,"
+                                                    + " Flink will use your default Java installation.")
+                                    .build());
+
     public static final ConfigOption<String> FLINK_JVM_OPTIONS =
             ConfigOptions.key("env.java.opts.all")
                     .stringType()

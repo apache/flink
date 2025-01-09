@@ -150,10 +150,10 @@ FRESHNESS = INTERVAL '5' HOUR
 - The materialized table data will be refreshed as closely as possible within the defined freshness but cannot guarantee complete satisfaction.
 - In CONTINUOUS mode, setting a data freshness interval that is too short can impact job performance as it aligns with the checkpoint interval. To optimize checkpoint performance, consider [enabling-changelog]({{< ref "docs/ops/state/state_backends" >}}#incremental-checkpoints).
 - In FULL mode, data freshness must be translated into a cron expression, consequently, only freshness intervals within predefined time spans are presently accommodated, this design ensures alignment with cron's capabilities. Specifically, support for the following freshness:
-    - Second: 30, 15, 10, 5, 2, and 1 second intervals.
-    - Minute: 30, 15, 10, 5, 2, and 1 minute intervals.
-    - Hour: 8, 4, 2, and 1 hour intervals.
-    - Day: 1 day.
+    - Second: 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30.
+    - Minute: 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30.
+    - Hour: 1, 2, 3, 4, 6, 8, 12.
+    - Day: 1.
 
 ## REFRESH_MODE
 
@@ -165,15 +165,15 @@ FRESHNESS = INTERVAL '5' HOUR
 ```sql
 -- The refresh mode of the created materialized table is CONTINUOUS, and the job's checkpoint interval is 1 hour.
 CREATE MATERIALIZED TABLE my_materialized_table
-    REFRESH_MODE = CONTINUOUS
     FRESHNESS = INTERVAL '1' HOUR
+    REFRESH_MODE = CONTINUOUS
     AS SELECT
        ...    
 
 -- The refresh mode of the created materialized table is FULL, and the job's schedule cycle is 10 minutes.
 CREATE MATERIALIZED TABLE my_materialized_table
-    REFRESH_MODE = FULL
     FRESHNESS = INTERVAL '10' MINUTE
+    REFRESH_MODE = FULL
     AS SELECT
        ...    
 ```
@@ -192,7 +192,7 @@ CREATE MATERIALIZED TABLE my_materialized_table
 
 ## Examples
 
-**(Assuming `materialized-table.refresh-mode.freshness-threshold` is 30 minutes)**
+Assuming `materialized-table.refresh-mode.freshness-threshold` is 30 minutes.
 
 Create a materialized table with a data freshness of 10 seconds and the derived refresh mode is CONTINUOUS:
 
@@ -255,8 +255,8 @@ CREATE MATERIALIZED TABLE my_materialized_table_full
 ## Limitations
 
 - Does not support explicitly specifying columns
-- Does not support modified query statements
-- Does not support using temporary tables, temporary views, or temporary functions in the select query
+- Does not support modifying query statements
+- Does not support referring to temporary tables, temporary views, or temporary functions in the select query
 
 # ALTER MATERIALIZED TABLE
 

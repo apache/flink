@@ -161,6 +161,7 @@ keyword, thus must be escaped) in a catalog named 'cat.1' and database named 'db
     TableEnvironment.create_temporary_system_function
     TableEnvironment.create_temporary_table
     TableEnvironment.create_temporary_view
+    TableEnvironment.create_view
     TableEnvironment.drop_function
     TableEnvironment.drop_table
     TableEnvironment.drop_temporary_function

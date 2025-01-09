@@ -131,6 +131,8 @@ public abstract class InputGate
         return availabilityHelper.getAvailableFuture();
     }
 
+    public abstract void resumeGateConsumption() throws IOException;
+
     public abstract void resumeConsumption(InputChannelInfo channelInfo) throws IOException;
 
     public abstract void acknowledgeAllRecordsProcessed(InputChannelInfo channelInfo)

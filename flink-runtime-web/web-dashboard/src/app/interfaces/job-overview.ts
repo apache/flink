@@ -30,6 +30,7 @@ export interface JobsItem {
   'last-modification': number;
   tasks: TaskStatus;
   completed?: boolean;
+  'pending-operators'?: number;
 }
 
 export interface TaskStatus {
@@ -44,4 +45,5 @@ export interface TaskStatus {
   SCHEDULED: number;
   TOTAL: number;
   INITIALIZING: number;
+  PENDING: number;
 }

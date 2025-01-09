@@ -65,6 +65,8 @@ public final class ConfigConstants {
 
     // ----------------------------- Environment Variables ----------------------------
 
+    public static final String ENV_JAVA_HOME = "JAVA_HOME";
+
     /** The environment variable name which contains the location of the configuration directory. */
     public static final String ENV_FLINK_CONF_DIR = "FLINK_CONF_DIR";
 

@@ -1035,6 +1035,29 @@ class TableEnvironment(object):
                 raise ValueError("Invalid arguments for 'fields': %r" %
                                  ','.join([repr(item) for item in fields_or_schema]))
 
+    def create_view(self,
+                    view_path: str,
+                    table: Table,
+                    ignore_if_exists: Optional[bool] = False):
+        """
+        Registers a :class:`~pyflink.table.Table` API object as a view similar to SQL views.
+
+        This method can only create permanent objects. Temporary objects can shadow permanent ones.
+        If a temporary object exists in a given path,
+        make sure to drop the temporary object first using :func:`drop_temporary_view`.
+
+        :param view_path: The path under which the view will be registered.
+                          See also the :class:`~pyflink.table.TableEnvironment` class description
+                          for the format of the path.
+        :param table:     The view to register.
+        :param ignore_if_exists: If a view or a table exists and the given flag is set,
+                                 no operation is executed. An exception is thrown otherwise.
+
+        .. versionadded:: 2.0.0
+        """
+
+        self._j_tenv.createView(view_path, table, ignore_if_exists)
+
     def add_python_file(self, file_path: str):
         """
         Adds a python dependency which could be python files, python packages or

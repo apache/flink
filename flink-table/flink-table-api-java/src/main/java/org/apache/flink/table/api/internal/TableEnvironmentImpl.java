@@ -506,13 +506,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
-    public void createTable(String path, TableDescriptor descriptor, boolean ignoreIfExists) {
+    public boolean createTable(String path, TableDescriptor descriptor, boolean ignoreIfExists) {
         Preconditions.checkNotNull(path, "Path must not be null.");
         Preconditions.checkNotNull(descriptor, "Table descriptor must not be null.");
 
         final ObjectIdentifier tableIdentifier =
                 catalogManager.qualifyIdentifier(getParser().parseIdentifier(path));
-        catalogManager.createTable(descriptor.toCatalogTable(), tableIdentifier, ignoreIfExists);
+        return catalogManager.createTable(
+                descriptor.toCatalogTable(), tableIdentifier, ignoreIfExists);
     }
 
     @Override
@@ -541,6 +542,24 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         CatalogBaseTable tableTable = new QueryOperationCatalogView(queryOperation);
 
         catalogManager.createTemporaryTable(tableTable, tableIdentifier, false);
+    }
+
+    @Override
+    public void createView(String path, Table view) {
+        createView(path, view, false);
+    }
+
+    @Override
+    public boolean createView(String path, Table view, boolean ignoreIfExists) {
+        Preconditions.checkNotNull(path, "Path must not be null.");
+        Preconditions.checkNotNull(view, "Table view must not be null.");
+        UnresolvedIdentifier identifier = getParser().parseIdentifier(path);
+
+        ObjectIdentifier viewIdentifier = catalogManager.qualifyIdentifier(identifier);
+        QueryOperation queryOperation =
+                qualifyQueryOperation(viewIdentifier, view.getQueryOperation());
+        CatalogBaseTable tableTable = new QueryOperationCatalogView(queryOperation);
+        return catalogManager.createTable(tableTable, viewIdentifier, ignoreIfExists);
     }
 
     @Override
@@ -1347,8 +1366,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return planner.translate(modifyOperations);
     }
 
-    @Override
-    public void registerTableSourceInternal(String name, TableSource<?> tableSource) {
+    /** TODO FLINK-36132 Remove this method later. */
+    private void registerTableSourceInternal(String name, TableSource<?> tableSource) {
         validateTableSource(tableSource);
         ObjectIdentifier objectIdentifier =
                 catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(name));

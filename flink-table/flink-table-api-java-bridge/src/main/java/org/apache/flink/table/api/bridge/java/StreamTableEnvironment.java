@@ -700,28 +700,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
     <T> Table fromDataStream(DataStream<T> dataStream, Expression... fields);
 
     /**
-     * Creates a view from the given {@link DataStream}. Registered views can be referenced in SQL
-     * queries.
-     *
-     * <p>The field names of the {@link Table} are automatically derived from the type of the {@link
-     * DataStream}.
-     *
-     * <p>The view is registered in the namespace of the current catalog and database. To register
-     * the view in a different catalog use {@link #createTemporaryView(String, DataStream)}.
-     *
-     * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
-     * it will be inaccessible in the current session. To make the permanent object available again
-     * you can drop the corresponding temporary object.
-     *
-     * @param name The name under which the {@link DataStream} is registered in the catalog.
-     * @param dataStream The {@link DataStream} to register.
-     * @param <T> The type of the {@link DataStream} to register.
-     * @deprecated use {@link #createTemporaryView(String, DataStream)}
-     */
-    @Deprecated
-    <T> void registerDataStream(String name, DataStream<T> dataStream);
-
-    /**
      * Creates a view from the given {@link DataStream} in a given path with specified field names.
      * Registered views can be referenced in SQL queries.
      *

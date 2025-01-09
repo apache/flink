@@ -17,13 +17,9 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
-import org.apache.flink.table.legacy.api.Types
-import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
 
-import com.google.common.collect.ImmutableSet
 import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Base test class for [[PruneAggregateCallRule]]. */
@@ -32,12 +28,17 @@ abstract class PruneAggregateCallRuleTestBase extends TableTestBase {
 
   @BeforeEach
   def setup(): Unit = {
-    util.addTableSource(
-      "T1",
-      Array[TypeInformation[_]](Types.INT, Types.INT, Types.STRING, Types.INT),
-      Array("a1", "b1", "c1", "d1"),
-      FlinkStatistic.builder().uniqueKeys(ImmutableSet.of(ImmutableSet.of("a1"))).build()
-    )
+    util.tableEnv.executeSql(s"""
+                                |CREATE TABLE T1 (
+                                |  a1 INT PRIMARY KEY NOT ENFORCED,
+                                |  b1 INT,
+                                |  c1 STRING,
+                                |  d1 BIGINT
+                                |) WITH (
+                                |  'connector' = 'values',
+                                |  'bounded' = 'true'
+                                |)
+                                |""".stripMargin)
     util.addTableSource[(Int, Int, String, Long)]("T2", 'a2, 'b2, 'c2, 'd2)
   }
 

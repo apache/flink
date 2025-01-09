@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.api.SqlParserException;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSort;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan;
@@ -25,22 +27,28 @@ import org.apache.flink.table.planner.plan.optimize.program.BatchOptimizeContext
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkHepRuleSetProgramBuilder;
 import org.apache.flink.table.planner.plan.optimize.program.HEP_RULES_EXECUTION_TYPE;
+import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
+import org.apache.flink.table.planner.utils.TableTestBase;
 
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.tools.RuleSets;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /** Test for {@link PushLimitIntoTableSourceScanRule}. */
-class PushLimitIntoTableSourceScanRuleTest extends PushLimitIntoLegacyTableSourceScanRuleTest {
+class PushLimitIntoTableSourceScanRuleTest extends TableTestBase {
+
+    private final BatchTableTestUtil util = batchTestUtil(TableConfig.getDefault());
 
     @BeforeEach
-    @Override
     public void setup() {
-        util().buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE());
+        util.buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE());
         CalciteConfig calciteConfig =
-                TableConfigUtils.getCalciteConfig(util().tableEnv().getConfig());
+                TableConfigUtils.getCalciteConfig(util.tableEnv().getConfig());
         calciteConfig
                 .getBatchProgram()
                 .get()
@@ -69,6 +77,60 @@ class PushLimitIntoTableSourceScanRuleTest extends PushLimitIntoLegacyTableSourc
                         + " 'connector' = 'values',\n"
                         + " 'bounded' = 'true'\n"
                         + ")";
-        util().tableEnv().executeSql(ddl);
+        util.tableEnv().executeSql(ddl);
+    }
+
+    @Test
+    void testLimitWithNegativeOffset() {
+        assertThatExceptionOfType(SqlParserException.class)
+                .isThrownBy(
+                        () -> util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT 10 OFFSET -1"));
+    }
+
+    @Test
+    void testNegativeLimitWithoutOffset() {
+        assertThatExceptionOfType(SqlParserException.class)
+                .isThrownBy(() -> util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT -1"));
+    }
+
+    @Test
+    void testMysqlLimit() {
+        assertThatExceptionOfType(SqlParserException.class)
+                .isThrownBy(() -> util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT 1, 10"));
+    }
+
+    @Test
+    void testCanPushdownLimitWithoutOffset() {
+        util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT 5");
+    }
+
+    @Test
+    void testCanPushdownLimitWithOffset() {
+        util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT 10 OFFSET 1");
+    }
+
+    @Test
+    void testCanPushdownFetchWithOffset() {
+        util.verifyRelPlan("SELECT a, c FROM LimitTable OFFSET 10 ROWS FETCH NEXT 10 ROWS ONLY");
+    }
+
+    @Test
+    void testCanPushdownFetchWithoutOffset() {
+        util.verifyRelPlan("SELECT a, c FROM LimitTable FETCH FIRST 10 ROWS ONLY");
+    }
+
+    @Test
+    void testCannotPushDownWithoutLimit() {
+        util.verifyRelPlan("SELECT a, c FROM LimitTable OFFSET 10");
+    }
+
+    @Test
+    void testCannotPushDownWithoutFetch() {
+        util.verifyRelPlan("SELECT a, c FROM LimitTable OFFSET 10 ROWS");
+    }
+
+    @Test
+    void testCannotPushDownWithOrderBy() {
+        util.verifyRelPlan("SELECT a, c FROM LimitTable ORDER BY c LIMIT 10");
     }
 }

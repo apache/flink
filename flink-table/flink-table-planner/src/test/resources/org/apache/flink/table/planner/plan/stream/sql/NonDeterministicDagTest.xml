@@ -34,7 +34,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, cn
 +- LogicalProject(a=[$0], cnt=[$1], valid_uv=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
    +- LogicalAggregate(group=[{0}], cnt=[COUNT()], agg#1=[COUNT(DISTINCT $1) FILTER $2])
       +- LogicalProject(a=[$0], c=[$2], $f2=[IS TRUE(>($1, -(UNIX_TIMESTAMP(), 180)))])
-         +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -44,7 +44,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, cnt, vali
    +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt, COUNT(DISTINCT c) FILTER $f2 AS $f2])
       +- Exchange(distribution=[hash[a]])
          +- Calc(select=[a, c, (b > (UNIX_TIMESTAMP() - 180)) IS TRUE AS $f2])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+            +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -66,7 +66,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, cn
 +- LogicalProject(a=[$0], cnt=[$1], valid_uv=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL])
    +- LogicalAggregate(group=[{0}], cnt=[COUNT()], agg#1=[COUNT(DISTINCT $1) FILTER $2])
       +- LogicalProject(a=[$0], c=[$2], $f2=[IS TRUE(>($1, -(UNIX_TIMESTAMP(), 180)))])
-         +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -76,7 +76,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, cnt, vali
    +- GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt, COUNT(DISTINCT c) FILTER $f2 AS $f2])
       +- Exchange(distribution=[hash[a]])
          +- Calc(select=[a, c, (b > (UNIX_TIMESTAMP() - 180)) IS TRUE AS $f2])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+            +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1896,7 +1896,7 @@ from T
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[EXPR$0, ndCnt, mc])
 +- LogicalAggregate(group=[{}], EXPR$0=[MAX($0)], ndCnt=[ndAggFunc($1)], mc=[MAX($2)])
    +- LogicalProject(a=[$0], b=[$1], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1905,7 +1905,7 @@ Sink(table=[default_catalog.default_database.sink_without_pk], fields=[EXPR$0, n
 +- GroupAggregate(select=[MAX(a) AS EXPR$0, ndAggFunc(b) AS ndCnt, MAX(c) AS mc])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, b, c])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1925,7 +1925,7 @@ from T
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[EXPR$0, ndCnt, mc])
 +- LogicalAggregate(group=[{}], EXPR$0=[MAX($0)], ndCnt=[ndAggFunc($1)], mc=[MAX($2)])
    +- LogicalProject(a=[$0], b=[$1], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1934,7 +1934,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[EXPR$0, ndCn
 +- GroupAggregate(select=[MAX(a) AS EXPR$0, ndAggFunc(b) AS ndCnt, MAX(c) AS mc])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, b, c])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1954,7 +1954,7 @@ from T
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[EXPR$0, ndCnt, mc])
 +- LogicalAggregate(group=[{}], EXPR$0=[MAX($0)], ndCnt=[ndAggFunc($1)], mc=[MAX($2)])
    +- LogicalProject(a=[$0], b=[$1], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1963,7 +1963,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[EXPR$0, ndCn
 +- GroupAggregate(select=[MAX(a) AS EXPR$0, ndAggFunc(b) AS ndCnt, MAX(c) AS mc])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, b, c])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -2579,7 +2579,7 @@ group by a
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, ndCnt, mc])
 +- LogicalAggregate(group=[{0}], ndCnt=[ndAggFunc($1)], mc=[MAX($2)])
    +- LogicalProject(a=[$0], b=[$1], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -2588,7 +2588,7 @@ Sink(table=[default_catalog.default_database.sink_without_pk], fields=[a, ndCnt,
 +- GroupAggregate(groupBy=[a], select=[a, ndAggFunc(b) AS ndCnt, MAX(c) AS mc])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -2609,7 +2609,7 @@ group by a
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, ndCnt, mc])
 +- LogicalAggregate(group=[{0}], ndCnt=[ndAggFunc($1)], mc=[MAX($2)])
    +- LogicalProject(a=[$0], b=[$1], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -2618,7 +2618,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, ndCnt, mc
 +- GroupAggregate(groupBy=[a], select=[a, ndAggFunc(b) AS ndCnt, MAX(c) AS mc])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -2639,7 +2639,7 @@ group by a
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, ndCnt, mc])
 +- LogicalAggregate(group=[{0}], ndCnt=[ndAggFunc($1)], mc=[MAX($2)])
    +- LogicalProject(a=[$0], b=[$1], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -2648,7 +2648,7 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, ndCnt, mc
 +- GroupAggregate(groupBy=[a], select=[a, ndAggFunc(b) AS ndCnt, MAX(c) AS mc])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>

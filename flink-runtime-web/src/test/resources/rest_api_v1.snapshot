@@ -811,6 +811,9 @@
                 "additionalProperties" : {
                   "type" : "integer"
                 }
+              },
+              "pending-operators" : {
+                "type" : "integer"
               }
             }
           }

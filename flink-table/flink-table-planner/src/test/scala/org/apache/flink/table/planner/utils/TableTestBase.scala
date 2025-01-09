@@ -18,10 +18,12 @@
 package org.apache.flink.table.planner.utils
 
 import org.apache.flink.FlinkVersion
-import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
+import org.apache.flink.api.common.typeinfo.{AtomicType, BasicArrayTypeInfo, BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
-import org.apache.flink.configuration.BatchExecutionOptions
+import org.apache.flink.configuration.{BatchExecutionOptions, ConfigOption, ConfigOptions}
 import org.apache.flink.legacy.table.factories.StreamTableSourceFactory
 import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, UpsertStreamTableSink}
 import org.apache.flink.legacy.table.sources.StreamTableSource
@@ -30,6 +32,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
+import org.apache.flink.streaming.api.legacy.io.CollectionInputFormat
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.java.{StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
@@ -37,12 +40,14 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.{StatementSetImpl, TableEnvironmentImpl, TableEnvironmentInternal, TableImpl}
 import org.apache.flink.table.api.typeutils.CaseClassTypeInfo
 import org.apache.flink.table.catalog._
-import org.apache.flink.table.data.RowData
+import org.apache.flink.table.connector.ChangelogMode
+import org.apache.flink.table.connector.source.{DynamicTableSource, InputFormatProvider, ScanTableSource}
+import org.apache.flink.table.data.{DecimalDataUtils, RowData}
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
 import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.factories.{FactoryUtil, PlannerFactoryUtil}
+import org.apache.flink.table.factories._
 import org.apache.flink.table.functions._
 import org.apache.flink.table.legacy.api.TableSchema
 import org.apache.flink.table.legacy.descriptors.Schema.SCHEMA
@@ -52,6 +57,7 @@ import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.{ModifyOperation, QueryOperation}
 import org.apache.flink.table.planner.calcite.CalciteConfig
 import org.apache.flink.table.planner.delegation.PlannerBase
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.operations.{InternalDataStreamQueryOperation, PlannerQueryOperation, RichTableSourceQueryOperation}
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWatermarkAssigner
@@ -65,11 +71,14 @@ import org.apache.flink.table.planner.runtime.utils.{TestingAppendTableSink, Tes
 import org.apache.flink.table.planner.sinks.CollectRowTableSink
 import org.apache.flink.table.planner.utils.PlanKind.PlanKind
 import org.apache.flink.table.planner.utils.TableTestUtil.{replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
+import org.apache.flink.table.planner.utils.TestSimpleDynamicTableSourceFactory.{BOUNDED, IDENTIFIER}
 import org.apache.flink.table.resource.ResourceManager
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
-import org.apache.flink.table.types.logical.LogicalType
-import org.apache.flink.table.types.utils.TypeConversions
-import org.apache.flink.table.typeutils.FieldInfoUtils
+import org.apache.flink.table.types._
+import org.apache.flink.table.types.logical.{LegacyTypeInformationType, LogicalType, LogicalTypeRoot}
+import org.apache.flink.table.types.utils.{LegacyTypeInfoDataTypeConverter, TypeConversions}
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+import org.apache.flink.table.typeutils.{FieldInfoUtils, TimeIndicatorTypeInfo}
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 import org.apache.flink.util.{FlinkUserCodeClassLoaders, MutableURLClassLoader}
@@ -96,6 +105,7 @@ import java.time.Duration
 import java.util.Collections
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 /** Test base for testing Table API / SQL plans. */
 abstract class TableTestBase {
@@ -228,8 +238,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Create a [[TestTableSource]] with the given schema, and registers this TableSource under given
-   * name into the TableEnvironment's catalog.
+   * Create a [[TestSimpleDynamicTableSource]] with the given schema, and registers this TableSource
+   * under given name into the TableEnvironment's catalog.
    *
    * @param name
    *   table name
@@ -253,18 +263,121 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       }
       val types = fieldTypes.map(TypeConversions.fromLegacyInfoToDataType)
       val names = FieldInfoUtils.getFieldNames(typeInfo)
-      TableSchema.builder().fields(names, types).build()
+      TableSchema.builder().fields(names, types).build().toSchema
     } else {
-      TableSchema.fromResolvedSchema(
-        FieldInfoUtils.getFieldsInfo(typeInfo, fields.toArray).toResolvedSchema)
+      val typeInfoSchema = FieldInfoUtils.getFieldsInfo(typeInfo, fields.toArray)
+
+      val schemaBuilder = Schema.newBuilder()
+      val fieldNames = typeInfoSchema.getFieldNames
+      val fieldTypes = typeInfoSchema.getFieldTypes
+      val fieldIndices = typeInfoSchema.getIndices
+
+      (0 until fieldIndices.length).foreach(
+        idx => {
+          val fieldIndex = fieldIndices(idx)
+          if (
+            fieldIndex == TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER ||
+            fieldIndex == TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER
+          ) {
+            schemaBuilder.columnByExpression(fieldNames(idx), "PROCTIME()")
+          } else if (
+            fieldIndex == TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER ||
+            fieldIndex == TimeIndicatorTypeInfo.ROWTIME_BATCH_MARKER
+          ) {
+            schemaBuilder.column(fieldNames(idx), fieldTypes(idx))
+            schemaBuilder.watermark(fieldNames(idx), s"${fieldNames(idx)}")
+          } else {
+            // Fallback to original behavior to keep compatibility.
+            // See more at FieldInfoUtils#toResolvedSchema.
+            schemaBuilder.column(fieldNames(idx), resolveLegacyTypeInfo(fieldTypes(idx)))
+          }
+        })
+      schemaBuilder.build()
     }
 
-    addTableSource(name, new TestTableSource(isBounded, tableSchema))
+    addTableSource(name, tableSchema)
   }
 
   /**
-   * Create a [[TestTableSource]] with the given schema, table stats and unique keys, and registers
-   * this TableSource under given name into the TableEnvironment's catalog.
+   * This is a temporary solution to maintain compatibility with the old type system in tests. See
+   * more at [[LegacyTypeInfoDataTypeConverter]].
+   *
+   * Currently, we support to resolve the following common legacy types in tests:
+   *
+   *   - CaseClassTypeInfo
+   *   - BasicArrayTypeInfo
+   *   - java.math.BigDecimal
+   */
+  private def resolveLegacyTypeInfo(dataType: DataType): DataType = {
+    val visitor = new DataTypeVisitor[DataType] {
+      override def visit(atomicDataType: AtomicDataType): DataType = {
+        if (!atomicDataType.getLogicalType.isInstanceOf[LegacyTypeInformationType[_]]) {
+          return atomicDataType
+        }
+
+        val legacyType = atomicDataType.getLogicalType.asInstanceOf[LegacyTypeInformationType[_]]
+
+        // resolve CaseClassTypeInfo
+        if (legacyType.getTypeInformation.isInstanceOf[CaseClassTypeInfo[_]]) {
+          val innerType = atomicDataType.getLogicalType
+            .asInstanceOf[LegacyTypeInformationType[_]]
+            .getTypeInformation
+            .asInstanceOf[CaseClassTypeInfo[_]]
+
+          val innerFieldNames = innerType.getFieldNames
+          val innerFieldTypes = innerType.getFieldTypes
+
+          val rowFields = ArrayBuffer[DataTypes.Field]()
+          (0 until innerFieldNames.length).foreach(
+            i => {
+              rowFields += DataTypes.FIELD(
+                innerFieldNames(i),
+                resolveLegacyTypeInfo(fromLegacyInfoToDataType(innerFieldTypes(i))))
+            })
+          DataTypes.ROW(rowFields: _*)
+        }
+        // resolve BasicArrayTypeInfo
+        else if (legacyType.getTypeInformation.isInstanceOf[BasicArrayTypeInfo[_, _]]) {
+          val arrayType = legacyType.getTypeInformation.asInstanceOf[BasicArrayTypeInfo[_, _]]
+          DataTypes.ARRAY(
+            resolveLegacyTypeInfo(fromLegacyInfoToDataType(arrayType.getComponentInfo)))
+        }
+        // resolve java.math.BigDecimal
+        else if (
+          legacyType.getTypeInformation
+            .isInstanceOf[BasicTypeInfo[_]] && legacyType.getTypeRoot == LogicalTypeRoot.DECIMAL
+        ) {
+          new AtomicDataType(DecimalDataUtils.DECIMAL_SYSTEM_DEFAULT)
+        } else {
+          throw new UnsupportedOperationException(s"Unsupported legacy type info: $legacyType")
+        }
+      }
+
+      override def visit(collectionDataType: CollectionDataType): DataType = {
+        val elementType = collectionDataType.getElementDataType.accept(this)
+        new CollectionDataType(
+          DataTypes.ARRAY(elementType).getLogicalType,
+          collectionDataType.getElementDataType.accept(this))
+      }
+
+      override def visit(fieldsDataType: FieldsDataType): DataType = {
+        fieldsDataType
+      }
+
+      override def visit(keyValueDataType: KeyValueDataType): DataType = {
+        val keyType = keyValueDataType.getKeyDataType.accept(this)
+        val valueType = keyValueDataType.getValueDataType.accept(this)
+        new KeyValueDataType(DataTypes.MAP(keyType, valueType).getLogicalType, keyType, valueType)
+      }
+    }
+
+    dataType.accept(visitor)
+
+  }
+
+  /**
+   * Create a [[TestSimpleDynamicTableSource]] with the given schema, and registers this TableSource
+   * under given name into the TableEnvironment's catalog.
    *
    * @param name
    *   table name
@@ -277,11 +390,10 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    */
   def addTableSource(
       name: String,
-      types: Array[TypeInformation[_]],
+      types: Array[AbstractDataType[_]],
       fields: Array[String]): Table = {
-    val schema = new TableSchema(fields, types)
-    val tableSource = new TestTableSource(isBounded, schema)
-    addTableSource(name, tableSource)
+    val schema = Schema.newBuilder().fromFields(fields, types).build()
+    addTableSource(name, schema)
   }
 
   /**
@@ -289,15 +401,32 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    *
    * @param name
    *   table name
-   * @param tableSource
-   *   table source
+   * @param schema
+   *   table schema
    * @return
    *   returns the registered [[Table]].
    */
-  def addTableSource(name: String, tableSource: TableSource[_]): Table = {
-    getTableEnv
+  def addTableSource(
+      name: String,
+      schema: Schema
+  ): Table = {
+    val options = new util.HashMap[String, String]()
+    options.put("connector", IDENTIFIER)
+    options.put(BOUNDED.key(), isBounded.toString)
+
+    val table = CatalogTable.newBuilder().schema(schema).options(options).build()
+    val catalogManager = getTableEnv
       .asInstanceOf[TableEnvironmentInternal]
-      .registerTableSourceInternal(name, tableSource)
+      .getCatalogManager
+
+    catalogManager.createTable(
+      table,
+      ObjectIdentifier.of(
+        catalogManager.getCurrentCatalog,
+        catalogManager.getCurrentDatabase,
+        name),
+      false)
+
     getTableEnv.from(name)
   }
 
@@ -1470,17 +1599,6 @@ class TestTableSource(override val isBounded: Boolean, schema: TableSchema)
   override def getTableSchema: TableSchema = schema
 }
 
-object TestTableSource {
-  def createTemporaryTable(
-      tEnv: TableEnvironment,
-      isBounded: Boolean,
-      tableSchema: TableSchema,
-      tableName: String): Unit = {
-    val source = new TestTableSource(isBounded, tableSchema)
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, source)
-  }
-}
-
 class TestTableSourceFactory extends StreamTableSourceFactory[Row] {
   override def createStreamTableSource(
       properties: util.Map[String, String]): StreamTableSource[Row] = {
@@ -1502,6 +1620,63 @@ class TestTableSourceFactory extends StreamTableSourceFactory[Row] {
     properties.add("*")
     properties
   }
+}
+
+/**
+ * Different with table in [[TestValuesTableFactory]], this table source does not support all
+ * features like agg pushdown, filter pushdown, etc.
+ */
+class TestSimpleDynamicTableSource(bounded: Boolean, producedDataType: DataType)
+  extends ScanTableSource {
+
+  override def getChangelogMode: ChangelogMode = ChangelogMode.insertOnly()
+
+  override def getScanRuntimeProvider(
+      runtimeProviderContext: ScanTableSource.ScanContext): ScanTableSource.ScanRuntimeProvider = {
+
+    val dataType: TypeInformation[RowData] =
+      runtimeProviderContext.createTypeInformation(producedDataType)
+    val serializer: TypeSerializer[RowData] = dataType.createSerializer(new SerializerConfigImpl)
+    // use InputFormatProvider here to ensure the source is not chainable
+    InputFormatProvider.of(new CollectionInputFormat[RowData](Collections.emptyList(), serializer))
+  }
+
+  override def copy(): DynamicTableSource = {
+    new TestSimpleDynamicTableSource(bounded, producedDataType)
+  }
+
+  override def asSummaryString(): String = {
+    "TestSimpleDynamicTableSource"
+  }
+}
+
+class TestSimpleDynamicTableSourceFactory extends DynamicTableSourceFactory {
+
+  override def createDynamicTableSource(
+      context: DynamicTableFactory.Context): DynamicTableSource = {
+    val helper = FactoryUtil.createTableFactoryHelper(this, context);
+    helper.validate()
+    val isBounded = helper.getOptions.get(BOUNDED)
+    val producedDataType = context.getPhysicalRowDataType
+    new TestSimpleDynamicTableSource(isBounded, producedDataType)
+  }
+
+  override def factoryIdentifier(): String = IDENTIFIER
+
+  override def requiredOptions(): util.Set[ConfigOption[_]] = {
+    new util.HashSet(util.Arrays.asList(BOUNDED))
+  }
+
+  override def optionalOptions(): util.Set[ConfigOption[_]] = {
+    Collections.emptySet()
+  }
+}
+
+object TestSimpleDynamicTableSourceFactory {
+  val IDENTIFIER = "test-dynamic-table-source"
+
+  val BOUNDED: ConfigOption[java.lang.Boolean] =
+    ConfigOptions.key("bounded").booleanType().noDefaultValue()
 }
 
 class TestingTableEnvironment private (

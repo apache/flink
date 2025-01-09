@@ -25,7 +25,7 @@ limitations under the License.
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], EXPR$0=[AVG($2)])
    +- LogicalProject(a=[$0], c=[$2], d=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -36,7 +36,7 @@ Calc(select=[EXPR$0])
       +- LocalHashAggregate(groupBy=[a, c, $e], select=[a, c, $e, Partial_AVG(d) AS (sum$0, count$1)])
          +- Expand(projects=[{a, c, d, 0 AS $e}, {a, null AS c, d, 1 AS $e}, {null AS a, c, d, 2 AS $e}, {null AS a, null AS c, d, 3 AS $e}])
             +- Calc(select=[a, c, d])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+               +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -49,7 +49,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], EXPR$0=[COUNT($2)])
    +- LogicalProject(b=[$1], c=[$2], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -60,7 +60,7 @@ Calc(select=[EXPR$0])
       +- LocalHashAggregate(groupBy=[b, c, $e], select=[b, c, $e, Partial_COUNT(a) AS count$0])
          +- Expand(projects=[{b, c, a, 0 AS $e}, {b, null AS c, a, 1 AS $e}, {null AS b, c, a, 2 AS $e}, {null AS b, null AS c, a, 3 AS $e}])
             +- Calc(select=[b, c, a])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+               +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -73,7 +73,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$3])
 +- LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1}, {0, 2}]], EXPR$0=[AVG($3)])
    +- LogicalProject(b=[$1], c=[$2], d=[$3], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -82,7 +82,7 @@ Calc(select=[EXPR$0])
 +- HashAggregate(isMerge=[false], groupBy=[b, c, d, $e], select=[b, c, d, $e, AVG(a) AS EXPR$0])
    +- Exchange(distribution=[hash[b, c, d, $e]])
       +- Expand(projects=[{a, b, c, null AS d, 1 AS $e}, {a, b, null AS c, d, 2 AS $e}])
-         +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -95,7 +95,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$3])
 +- LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1}, {0, 2}]], EXPR$0=[COUNT()])
    +- LogicalProject(b=[$1], c=[$2], d=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -105,7 +105,7 @@ Calc(select=[EXPR$0])
    +- Exchange(distribution=[hash[b, c, d, $e]])
       +- Expand(projects=[{b, c, null AS d, 1 AS $e}, {b, null AS c, d, 2 AS $e}])
          +- Calc(select=[b, c, d])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+            +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -118,7 +118,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], EXPR$0=[AVG($2)])
    +- LogicalProject(b=[$1], c=[$2], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -129,7 +129,7 @@ Calc(select=[EXPR$0])
       +- LocalHashAggregate(groupBy=[b, c, $e], select=[b, c, $e, Partial_AVG(a) AS (sum$0, count$1)])
          +- Expand(projects=[{b, c, a, 0 AS $e}, {b, null AS c, a, 1 AS $e}, {null AS b, null AS c, a, 3 AS $e}])
             +- Calc(select=[b, c, a])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+               +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -142,7 +142,7 @@ Calc(select=[EXPR$0])
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], EXPR$0=[COUNT()])
    +- LogicalProject(b=[$1], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -153,7 +153,7 @@ Calc(select=[EXPR$0])
       +- LocalHashAggregate(groupBy=[b, c, $e], select=[b, c, $e, Partial_COUNT(*) AS count1$0])
          +- Expand(projects=[{b, c, 0 AS $e}, {b, null AS c, 1 AS $e}, {null AS b, null AS c, 3 AS $e}])
             +- Calc(select=[b, c])
-               +- LegacyTableSourceScan(table=[[default_catalog, default_database, t, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+               +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>

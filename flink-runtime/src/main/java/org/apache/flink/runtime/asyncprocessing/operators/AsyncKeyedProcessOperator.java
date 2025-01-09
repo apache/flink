@@ -22,12 +22,13 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationContext;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclaredVariable;
-import org.apache.flink.runtime.asyncprocessing.streaming.api.AsyncKeyedProcessFunction;
+import org.apache.flink.runtime.asyncprocessing.functions.DeclaringAsyncKeyedProcessFunction;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.SimpleTimerService;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -40,10 +41,13 @@ import org.apache.flink.util.function.ThrowingConsumer;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
-/** A {@link StreamOperator} for executing {@link AsyncKeyedProcessFunction}. */
+/**
+ * A {@link StreamOperator} for executing {@link KeyedProcessFunction} with async state processing.
+ * It is recommended to use {@link DeclaringAsyncKeyedProcessFunction} instead.
+ */
 @Internal
 public class AsyncKeyedProcessOperator<K, IN, OUT>
-        extends AbstractAsyncStateUdfStreamOperator<OUT, AsyncKeyedProcessFunction<K, IN, OUT>>
+        extends AbstractAsyncStateUdfStreamOperator<OUT, KeyedProcessFunction<K, IN, OUT>>
         implements OneInputStreamOperator<IN, OUT>, Triggerable<K, VoidNamespace> {
 
     private static final long serialVersionUID = 1L;
@@ -62,7 +66,7 @@ public class AsyncKeyedProcessOperator<K, IN, OUT>
     private transient ThrowingConsumer<IN, Exception> processor;
     private transient ThrowingConsumer<Long, Exception> timerProcessor;
 
-    public AsyncKeyedProcessOperator(AsyncKeyedProcessFunction<K, IN, OUT> function) {
+    public AsyncKeyedProcessOperator(KeyedProcessFunction<K, IN, OUT> function) {
         super(function);
     }
 
@@ -71,7 +75,6 @@ public class AsyncKeyedProcessOperator<K, IN, OUT>
     public void open() throws Exception {
         super.open();
         declarationContext = new DeclarationContext(getDeclarationManager());
-        userFunction.open(declarationContext);
         sharedTimestamp =
                 declarationContext.declareVariable(
                         LongSerializer.INSTANCE,
@@ -86,12 +89,19 @@ public class AsyncKeyedProcessOperator<K, IN, OUT>
         TimerService timerService = new SimpleTimerService(internalTimerService);
 
         context = new ContextImpl(userFunction, timerService, sharedTimestamp);
-        onTimerContext =
-                new OnTimerContextImpl(
-                        userFunction, timerService, declarationContext, sharedTimestamp);
+        onTimerContext = new OnTimerContextImpl(userFunction, timerService, declarationContext);
 
-        processor = userFunction.declareProcess(declarationContext, context, collector);
-        timerProcessor = userFunction.declareOnTimer(declarationContext, onTimerContext, collector);
+        if (userFunction instanceof DeclaringAsyncKeyedProcessFunction) {
+            DeclaringAsyncKeyedProcessFunction declaringFunction =
+                    (DeclaringAsyncKeyedProcessFunction) userFunction;
+            declaringFunction.declareVariables(declarationContext);
+            processor = declaringFunction.declareProcess(declarationContext, context, collector);
+            timerProcessor =
+                    declaringFunction.declareOnTimer(declarationContext, onTimerContext, collector);
+        } else {
+            processor = (in) -> userFunction.processElement(in, context, collector);
+            timerProcessor = (in) -> userFunction.onTimer(in, onTimerContext, collector);
+        }
     }
 
     @Override
@@ -114,19 +124,18 @@ public class AsyncKeyedProcessOperator<K, IN, OUT>
 
     private void invokeUserFunction(TimeDomain timeDomain, InternalTimer<K, VoidNamespace> timer)
             throws Exception {
-        onTimerContext.setTimeDomain(timeDomain);
-        sharedTimestamp.set(timer.getTimestamp());
+        onTimerContext.setTime(timer.getTimestamp(), timeDomain);
         timerProcessor.accept(timer.getTimestamp());
     }
 
-    private class ContextImpl extends AsyncKeyedProcessFunction<K, IN, OUT>.Context {
+    private class ContextImpl extends KeyedProcessFunction<K, IN, OUT>.Context {
 
         private final TimerService timerService;
 
         private final DeclaredVariable<Long> timestamp;
 
         ContextImpl(
-                AsyncKeyedProcessFunction<K, IN, OUT> function,
+                KeyedProcessFunction<K, IN, OUT> function,
                 TimerService timerService,
                 DeclaredVariable<Long> timestamp) {
             function.super();
@@ -160,7 +169,7 @@ public class AsyncKeyedProcessOperator<K, IN, OUT>
         }
     }
 
-    private class OnTimerContextImpl extends AsyncKeyedProcessFunction<K, IN, OUT>.OnTimerContext {
+    private class OnTimerContextImpl extends KeyedProcessFunction<K, IN, OUT>.OnTimerContext {
 
         private final TimerService timerService;
 
@@ -169,19 +178,21 @@ public class AsyncKeyedProcessOperator<K, IN, OUT>
         private final DeclaredVariable<Long> timestamp;
 
         OnTimerContextImpl(
-                AsyncKeyedProcessFunction<K, IN, OUT> function,
+                KeyedProcessFunction<K, IN, OUT> function,
                 TimerService timerService,
-                DeclarationContext declarationContext,
-                DeclaredVariable<Long> timestamp) {
+                DeclarationContext declarationContext) {
             function.super();
             this.timerService = checkNotNull(timerService);
             this.timeDomain =
                     declarationContext.declareVariable(
                             StringSerializer.INSTANCE, "_OnTimerContextImpl$timeDomain", null);
-            this.timestamp = timestamp;
+            this.timestamp =
+                    declarationContext.declareVariable(
+                            LongSerializer.INSTANCE, "_OnTimerContextImpl$timestamp", null);
         }
 
-        public void setTimeDomain(TimeDomain one) {
+        public void setTime(long time, TimeDomain one) {
+            timestamp.set(time);
             timeDomain.set(one.name());
         }
 

@@ -17,10 +17,9 @@
  */
 package org.apache.flink.table.planner.plan.common
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
-import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
+import org.apache.flink.table.types.AbstractDataType
 
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.junit.jupiter.api.{BeforeEach, Test}
@@ -197,7 +196,7 @@ abstract class DistinctAggregateTestBase(withExecPlan: Boolean) extends TableTes
   def testTooManyDistinctAggOnDifferentColumn(): Unit = {
     // max group count must be less than 64
     val fieldNames = (0 until 64).map(i => s"f$i").toArray
-    val fieldTypes: Array[TypeInformation[_]] = Array.fill(fieldNames.length)(Types.INT)
+    val fieldTypes: Array[AbstractDataType[_]] = Array.fill(fieldNames.length)(DataTypes.INT)
     util.addTableSource("MyTable64", fieldTypes, fieldNames)
 
     val distinctList = fieldNames.map(f => s"COUNT(DISTINCT $f)").mkString(", ")

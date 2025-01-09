@@ -193,7 +193,7 @@ public class ExecutionEnvironmentImpl implements ExecutionEnvironment {
             return fromSource(new WrappedSource<>(generatorSource), "Collection Source");
         } else {
             throw new UnsupportedOperationException(
-                    "Unsupported type of sink, you could use DataStreamV2SourceUtils to wrap a FLIP-27 based source.");
+                    "Unsupported type of source, you could use DataStreamV2SourceUtils to wrap a FLIP-27 based source.");
         }
     }
 

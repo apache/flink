@@ -1002,7 +1002,6 @@ Flink 对 `MATCH_RECOGNIZE` 子句实现是一项长期持续的工作，目前�
   * `CLASSIFIER` 函数，尚不支持返回行映射到的模式变量。
 * `SUBSET` - 它允许创建模式变量的逻辑组，并在 `DEFINE` 和 `MEASURES` 子句中使用这些组。
 * Physical offsets - `PREV/NEXT`，它为所有可见事件建立索引，而不是仅将那些映射到模式变量的事件编入索引（如 [logical offsets](#logical-offsets) 的情况）。
-* 提取时间属性 - 目前无法为后续基于时间的操作提取时间属性。
 * `MATCH_RECOGNIZE` 仅 SQL 支持。Table API 中没有等效项。
 * Aggregations:
   * 不支持 distinct aggregations。

@@ -678,7 +678,8 @@ public final class TestValuesTableFactory
                             lookupThreshold,
                             enableAggregatePushDown,
                             customShuffleIsDeterministic,
-                            customShuffleEmptyPartitioner);
+                            customShuffleEmptyPartitioner,
+                            context.getPrimaryKeyIndexes());
                 } else {
                     return new TestValuesScanLookupTableSource(
                             context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType(),
@@ -704,7 +705,8 @@ public final class TestValuesTableFactory
                             cache,
                             reloadTrigger,
                             lookupThreshold,
-                            enableAggregatePushDown);
+                            enableAggregatePushDown,
+                            context.getPrimaryKeyIndexes());
                 }
             }
         } else {
@@ -1736,6 +1738,8 @@ public final class TestValuesTableFactory
 
         protected final DataType originType;
 
+        protected final int[] primaryKeyIndices;
+
         private TestValuesScanLookupTableSource(
                 DataType originType,
                 DataType producedDataType,
@@ -1760,7 +1764,8 @@ public final class TestValuesTableFactory
                 @Nullable LookupCache cache,
                 @Nullable CacheReloadTrigger reloadTrigger,
                 int lookupThreshold,
-                boolean enableAggregatePushDown) {
+                boolean enableAggregatePushDown,
+                int[] primaryKeyIndices) {
             super(
                     producedDataType,
                     changelogMode,
@@ -1786,6 +1791,7 @@ public final class TestValuesTableFactory
             this.cache = cache;
             this.reloadTrigger = reloadTrigger;
             this.lookupThreshold = lookupThreshold;
+            this.primaryKeyIndices = primaryKeyIndices;
         }
 
         @SuppressWarnings({"unchecked", "rawtypes"})
@@ -1833,6 +1839,9 @@ public final class TestValuesTableFactory
                 throw new UnsupportedOperationException(
                         "nestedProjectionSupported is unsupported for lookup source currently.");
             }
+
+            data = deduplicateDataByPk(data);
+
             DataStructureConverter converter = context.createDataStructureConverter(originType);
             RowType originRowType =
                     RowType.of(
@@ -1881,6 +1890,33 @@ public final class TestValuesTableFactory
                     return LookupFunctionProvider.of(lookupFunction);
                 }
             }
+        }
+
+        private List<Row> deduplicateDataByPk(List<Row> data) {
+            if (primaryKeyIndices.length == 0) {
+                return data;
+            }
+            // <pk, data>
+            LinkedHashMap<Row, Row> pkMap = new LinkedHashMap<>();
+            for (Row row : data) {
+                Row pk = extractPk(row);
+                RowKind originalRowKind = row.getKind();
+                if (originalRowKind == RowKind.INSERT || originalRowKind == RowKind.UPDATE_AFTER) {
+                    row.setKind(RowKind.INSERT);
+                    pkMap.put(pk, row);
+                } else {
+                    pkMap.remove(pk);
+                }
+            }
+            return new ArrayList<>(pkMap.values());
+        }
+
+        private Row extractPk(Row row) {
+            Object[] pk = new Object[primaryKeyIndices.length];
+            for (int i = 0; i < primaryKeyIndices.length; i++) {
+                pk[i] = row.getField(primaryKeyIndices[i]);
+            }
+            return Row.of(pk);
         }
 
         /** Does not support nested projection. */
@@ -1970,7 +2006,8 @@ public final class TestValuesTableFactory
                     cache,
                     reloadTrigger,
                     lookupThreshold,
-                    enableAggregatePushDown);
+                    enableAggregatePushDown,
+                    primaryKeyIndices);
         }
     }
 
@@ -2011,7 +2048,8 @@ public final class TestValuesTableFactory
                 int lookupThreshold,
                 boolean enableAggregatePushDown,
                 boolean customShuffleIsDeterministic,
-                boolean customShuffleEmptyPartitioner) {
+                boolean customShuffleEmptyPartitioner,
+                int[] primaryKeyIndices) {
             super(
                     originType,
                     producedDataType,
@@ -2036,7 +2074,8 @@ public final class TestValuesTableFactory
                     cache,
                     reloadTrigger,
                     lookupThreshold,
-                    enableAggregatePushDown);
+                    enableAggregatePushDown,
+                    primaryKeyIndices);
             this.customShuffleIsDeterministic = customShuffleIsDeterministic;
             this.customShuffleEmptyPartitioner = customShuffleEmptyPartitioner;
         }
@@ -2069,7 +2108,8 @@ public final class TestValuesTableFactory
                     lookupThreshold,
                     enableAggregatePushDown,
                     customShuffleIsDeterministic,
-                    customShuffleEmptyPartitioner);
+                    customShuffleEmptyPartitioner,
+                    primaryKeyIndices);
         }
 
         @Override
