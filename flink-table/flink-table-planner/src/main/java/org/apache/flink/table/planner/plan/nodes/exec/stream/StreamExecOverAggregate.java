@@ -313,11 +313,6 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             ExecNodeConfig config,
             RelBuilder relBuilder,
             FlinkTypeFactory typeFactory) {
-        boolean[] needRetractions = new boolean[aggCalls.size()];
-        if (timeAttribute.equals(TimeAttribute.NON_TIME)) {
-            Arrays.fill(needRetractions, true);
-        }
-
         AggregateInfoList aggInfoList =
                 AggregateUtil.transformToStreamAggregateInfoList(
                         typeFactory,
@@ -325,7 +320,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                         // inputSchema.relDataType
                         aggInputRowType,
                         JavaScalaConversionUtil.toScala(aggCalls),
-                        needRetractions,
+                        new boolean[aggCalls.size()],
                         false, // needInputCount
                         true, // isStateBackendDataViews
                         true); // needDistinctInfo
@@ -344,10 +339,6 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                         .needAccumulate()
                         // over agg code gen must pass the constants
                         .withConstants(JavaScalaConversionUtil.toScala(constants));
-
-        if (timeAttribute.equals(TimeAttribute.NON_TIME)) {
-            aggsGenerator.needRetract();
-        }
 
         GeneratedAggsHandleFunction genAggsHandler =
                 aggsGenerator.generateAggsHandler("UnboundedOverAggregateHelper", aggInfoList);
@@ -409,19 +400,11 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                         new EqualiserCodeGenerator(inputRowType, ctx.classLoader())
                                 .generateRecordEqualiser("FirstMatchingRowEqualiser");
 
-                final GeneratedRecordComparator genRecordComparator =
+                final GeneratedRecordComparator generatedRecordComparator =
                         ComparatorCodeGenerator.gen(
                                 config,
                                 ctx.classLoader(),
                                 "SortComparator",
-                                inputRowType,
-                                SortUtil.getAscendingSortSpec(orderKeys));
-
-                final GeneratedRecordComparator keyGenRecordComparator =
-                        ComparatorCodeGenerator.gen(
-                                config,
-                                ctx.classLoader(),
-                                "KeySortComparator",
                                 RowType.of(DataTypes.BIGINT().getLogicalType(), sortKeyType),
                                 SortUtil.getAscendingSortSpec(orderKeys));
 
@@ -433,14 +416,14 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                         TableConfigUtils.getMaxIdleStateRetentionTime(config),
                         genAggsHandler,
                         generatedEqualiser,
-                        genRecordComparator,
-                        keyGenRecordComparator,
+                        generatedRecordComparator,
                         flattenAccTypes,
                         fieldTypes,
                         sortKeyFieldGetter,
                         sortKeyIdx);
             default:
-                throw new TableException("Unsupported unbounded operation");
+                throw new TableException(
+                        "Unsupported unbounded operation encountered for over aggregate");
         }
     }
 

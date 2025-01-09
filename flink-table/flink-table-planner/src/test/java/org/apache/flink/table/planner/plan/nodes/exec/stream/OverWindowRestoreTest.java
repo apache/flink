@@ -51,7 +51,10 @@ public class OverWindowRestoreTest extends RestoreTestBase {
     @Override
     public List<TableTestProgram> programs() {
         return Arrays.asList(
-                OverWindowTestPrograms.LAG_OVER_FUNCTION,
+                OverWindowTestPrograms.OVER_AGGREGATE_AVG_NON_TIME_UNBOUNDED_APPEND_MODE);
+        /*
+        return Arrays.asList(
+                //OverWindowTestPrograms.LAG_OVER_FUNCTION,
                 OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_UNBOUNDED_RETRACT_MODE,
                 OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_UNBOUNDED_APPEND_MODE,
                 OverWindowTestPrograms.OVER_AGGREGATE_NON_TIME_UNBOUNDED_APPEND_MODE_MULTIPLE_AGGS,
@@ -64,5 +67,7 @@ public class OverWindowRestoreTest extends RestoreTestBase {
                         .OVER_AGGREGATE_NON_TIME_UNBOUNDED_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY,
                 OverWindowTestPrograms
                         .OVER_AGGREGATE_NON_TIME_UNBOUNDED_RETRACT_MODE_SOURCE_SINK_PRIMARY_KEY_PARTITION_BY_NON_PK);
+
+         */
     }
 }

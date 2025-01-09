@@ -804,6 +804,53 @@ public class OverWindowTestPrograms {
                                     + "FROM source_t")
                     .build();
 
+    static final TableTestProgram OVER_AGGREGATE_AVG_NON_TIME_UNBOUNDED_APPEND_MODE =
+            TableTestProgram.of(
+                            "over-aggregate-avg-append-mode",
+                            "validates restoring an unbounded preceding avg function in append mode")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("key STRING", "val BIGINT", "ts BIGINT")
+                                    .addOption("changelog-mode", "I")
+                                    .producedBeforeRestore(
+                                            Row.of("key1", 1L, 100L),
+                                            Row.of("key1", 2L, 200L),
+                                            Row.of("key1", 5L, 500L),
+                                            Row.of("key1", 6L, 600L),
+                                            Row.of("key2", 1L, 100L),
+                                            Row.of("key2", 2L, 200L))
+                                    .producedAfterRestore(Row.of("key1", 4L, 400L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            "key STRING",
+                                            "val BIGINT",
+                                            "ts BIGINT",
+                                            "avg_val BIGINT")
+                                    .consumedBeforeRestore(
+                                            Row.of("key1", 1L, 100L, 1L),
+                                            Row.of("key1", 2L, 200L, 1L),
+                                            Row.of("key1", 5L, 500L, 2L),
+                                            Row.of("key1", 6L, 600L, 3L),
+                                            Row.of("key2", 1L, 100L, 1L),
+                                            Row.of("key2", 2L, 200L, 1L))
+                                    .consumedAfterRestore(
+                                            Row.of("key1", 4L, 400L, 2L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 2L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 3L),
+                                            Row.ofKind(RowKind.UPDATE_BEFORE, "key1", 6L, 600L, 3L),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "key1", 6L, 600L, 3L))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT key, val, ts, AVG(val) OVER ("
+                                    + "PARTITION BY key "
+                                    + "ORDER BY val "
+                                    + "RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) "
+                                    + "AS avg_val "
+                                    + "FROM source_t")
+                    .build();
+
     static final TableTestProgram OVER_AGGREGATE_NON_TIME_UNBOUNDED_APPEND_MODE_MULTIPLE_AGGS =
             TableTestProgram.of(
                             "over-aggregate-sum-append-mode-multiple-aggs",
