@@ -19,13 +19,10 @@
 package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.core.testutils.CompletedScheduledFuture;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
-import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
-import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -33,13 +30,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ScheduledFuture;
-import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.scheduler.adaptive.WaitingForResourcesTest.assertNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -183,73 +175,5 @@ class RestartingTest {
 
     public Restarting createRestartingState(MockRestartingContext ctx) {
         return createRestartingState(ctx, new StateTrackingMockExecutionGraph());
-    }
-
-    private static class MockRestartingContext extends MockStateWithExecutionGraphContext
-            implements Restarting.Context {
-
-        private final StateValidator<ExecutingTest.CancellingArguments> cancellingStateValidator =
-                new StateValidator<>("Cancelling");
-
-        private final StateValidator<ExecutionGraph> waitingForResourcesStateValidator =
-                new StateValidator<>("WaitingForResources");
-
-        private final StateValidator<ExecutionGraph> creatingExecutionGraphStateValidator =
-                new StateValidator<>("CreatingExecutionGraph");
-
-        public void setExpectCancelling(Consumer<ExecutingTest.CancellingArguments> asserter) {
-            cancellingStateValidator.expectInput(asserter);
-        }
-
-        public void setExpectWaitingForResources() {
-            waitingForResourcesStateValidator.expectInput(assertNonNull());
-        }
-
-        public void setExpectCreatingExecutionGraph() {
-            creatingExecutionGraphStateValidator.expectInput(assertNonNull());
-        }
-
-        @Override
-        public void goToCanceling(
-                ExecutionGraph executionGraph,
-                ExecutionGraphHandler executionGraphHandler,
-                OperatorCoordinatorHandler operatorCoordinatorHandler,
-                List<ExceptionHistoryEntry> failureCollection) {
-            cancellingStateValidator.validateInput(
-                    new ExecutingTest.CancellingArguments(
-                            executionGraph, executionGraphHandler, operatorCoordinatorHandler));
-            hadStateTransition = true;
-        }
-
-        @Override
-        public void archiveFailure(RootExceptionHistoryEntry failure) {}
-
-        @Override
-        public void goToWaitingForResources(@Nullable ExecutionGraph previousExecutionGraph) {
-            waitingForResourcesStateValidator.validateInput(previousExecutionGraph);
-            hadStateTransition = true;
-        }
-
-        @Override
-        public void goToCreatingExecutionGraph(@Nullable ExecutionGraph previousExecutionGraph) {
-            creatingExecutionGraphStateValidator.validateInput(previousExecutionGraph);
-            hadStateTransition = true;
-        }
-
-        @Override
-        public ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay) {
-            if (!hadStateTransition) {
-                action.run();
-            }
-            return CompletedScheduledFuture.create(null);
-        }
-
-        @Override
-        public void close() throws Exception {
-            super.close();
-            cancellingStateValidator.close();
-            waitingForResourcesStateValidator.close();
-            creatingExecutionGraphStateValidator.close();
-        }
     }
 }
