@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.batch.sql.adaptive
 
+import org.apache.flink.configuration.BatchExecutionOptions
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.utils.TableTestBase
@@ -118,6 +119,18 @@ class AdaptiveJoinTest extends TableTestBase {
         |  (SELECT d2 FROM T JOIN T2 ON d2 = a) t2
         |ON t1.a = t2.d2
         |""".stripMargin
+    util.verifyExecPlan(sql)
+  }
+
+  // Currently, adaptive join optimization and batch job progress recovery cannot be enabled
+  // simultaneously so we should disable it here.
+  // TODO: If job recovery for adaptive execution is supported in the future, this logic will
+  //  need to be removed.
+  @Test
+  def testAdaptiveJoinWithBatchJobRecovery(): Unit = {
+    util.tableEnv.getConfig
+      .set(BatchExecutionOptions.JOB_RECOVERY_ENABLED, Boolean.box(true))
+    val sql = "SELECT * FROM T1, T2 WHERE a1 = a2"
     util.verifyExecPlan(sql)
   }
 }

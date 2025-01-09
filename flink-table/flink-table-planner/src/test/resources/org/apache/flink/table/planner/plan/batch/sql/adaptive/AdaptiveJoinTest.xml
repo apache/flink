@@ -228,4 +228,27 @@ MultipleInput(readOrder=[0,1,1,2], members=[\nHashJoin(joinType=[InnerJoin], whe
 ]]>
 		</Resource>
 	</TestCase>
+	<TestCase name="testAdaptiveJoinWithBatchJobRecovery">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM T1, T2 WHERE a1 = a2]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
++- LogicalFilter(condition=[=($0, $4)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+HashJoin(joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, c1, d1, a2, b2, c2, d2], build=[left])
+:- Exchange(distribution=[hash[a1]])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
++- Exchange(distribution=[hash[a2]])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2, d2)]]], fields=[a2, b2, c2, d2])
+]]>
+		</Resource>
+	</TestCase>
 </Root>
