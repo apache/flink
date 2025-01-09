@@ -21,7 +21,6 @@ package org.apache.flink.table.types.extraction;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.StateTypeStrategy;
-import org.apache.flink.table.types.inference.StateTypeStrategyWrapper;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategy;
 
@@ -122,7 +121,7 @@ interface FunctionResultTemplate {
         }
 
         private static StateTypeStrategy createStateTypeStrategy(DataType dataType) {
-            return StateTypeStrategyWrapper.of(TypeStrategies.explicit(dataType));
+            return StateTypeStrategy.of(TypeStrategies.explicit(dataType));
         }
 
         private static TypeStrategy createTypeStrategy(DataType dataType) {

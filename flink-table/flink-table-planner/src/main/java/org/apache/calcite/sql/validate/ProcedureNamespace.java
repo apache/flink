@@ -70,26 +70,9 @@ public final class ProcedureNamespace extends AbstractNamespace {
         }
         final SqlTableFunction tableFunction = (SqlTableFunction) operator;
         final SqlReturnTypeInference rowTypeInference = tableFunction.getRowTypeInference();
-        final RelDataType rowRelDataType =
-                requireNonNull(
-                        rowTypeInference.inferReturnType(callBinding),
-                        () -> "got null from inferReturnType for call " + callBinding.getCall());
-        // For BridgingSqlFunction the type can still be atomic
-        // and will be wrapped with a proper field alias
-        return toStruct(rowRelDataType, getNode());
-    }
-
-    /** Converts a type to a struct if it is not already. */
-    protected RelDataType toStruct(RelDataType type, SqlNode unnest) {
-        if (type.isStruct()) {
-            return validator.getTypeFactory().createTypeWithNullability(type, false);
-        }
-        return validator
-                .getTypeFactory()
-                .builder()
-                .kind(type.getStructKind())
-                .add(validator.deriveAlias(unnest, 0), type)
-                .build();
+        return requireNonNull(
+                rowTypeInference.inferReturnType(callBinding),
+                () -> "got null from inferReturnType for call " + callBinding.getCall());
     }
 
     public SqlNode getNode() {

@@ -160,7 +160,7 @@ public final class TypeInference {
                         .collect(Collectors.toList());
         if (!invalidStateEntries.isEmpty()) {
             throw new ValidationException(
-                    "Invalid state names. A state entry must follow the pattern [a-zA-Z_$][a-zA-Z_$0-9]. But found: "
+                    "Invalid state names. A state entry must follow the pattern [a-zA-Z_$][a-zA-Z_$0-9]*. But found: "
                             + invalidStateEntries);
         }
     }
@@ -233,8 +233,7 @@ public final class TypeInference {
         public Builder accumulatorTypeStrategy(TypeStrategy accumulatorTypeStrategy) {
             Preconditions.checkNotNull(
                     accumulatorTypeStrategy, "Accumulator type strategy must not be null.");
-            this.stateTypeStrategies.put(
-                    "acc", StateTypeStrategyWrapper.of(accumulatorTypeStrategy));
+            this.stateTypeStrategies.put("acc", StateTypeStrategy.of(accumulatorTypeStrategy));
             return this;
         }
 

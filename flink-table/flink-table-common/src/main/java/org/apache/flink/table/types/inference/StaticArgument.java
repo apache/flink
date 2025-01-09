@@ -173,6 +173,10 @@ public class StaticArgument {
         return traits;
     }
 
+    public boolean is(StaticArgumentTrait trait) {
+        return traits.contains(trait);
+    }
+
     @Override
     public String toString() {
         final StringBuilder s = new StringBuilder();
@@ -181,13 +185,18 @@ public class StaticArgument {
         // (myTypedTable ROW<i INT> {TABLE BY ROW})
         // (myUntypedTable {TABLE BY ROW})
         s.append(name);
+        s.append(" =>");
         if (dataType != null) {
             s.append(" ");
             s.append(dataType);
         }
         if (!traits.equals(EnumSet.of(StaticArgumentTrait.SCALAR))) {
             s.append(" ");
-            s.append(traits.stream().map(Enum::name).collect(Collectors.joining(", ", "{", "}")));
+            s.append(
+                    traits.stream()
+                            .map(Enum::name)
+                            .map(n -> n.replace('_', ' '))
+                            .collect(Collectors.joining(", ", "{", "}")));
         }
         return s.toString();
     }
@@ -218,7 +227,7 @@ public class StaticArgument {
             throw new ValidationException(
                     String.format(
                             "Invalid argument name '%s'. An argument must follow "
-                                    + "the pattern [a-zA-Z_$][a-zA-Z_$0-9].",
+                                    + "the pattern [a-zA-Z_$][a-zA-Z_$0-9]*.",
                             name));
         }
     }

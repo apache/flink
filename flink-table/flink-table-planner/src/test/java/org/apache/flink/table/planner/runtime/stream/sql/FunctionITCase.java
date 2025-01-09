@@ -1172,7 +1172,7 @@ public class FunctionITCase extends StreamingTestBase {
                                                         + " NamedArgumentsScalarFunction(in2 => i2, in1 => i1) as s1 FROM TestTable")
                                         .await())
                 .hasMessageContaining(
-                        "SQL validation failed. Could not find the argument names. Currently named arguments are not supported for varArgs and multi different argument names with overload function");
+                        "SQL validation failed. Unsupported function signature. Function must not be overloaded or use varargs.");
     }
 
     @Test

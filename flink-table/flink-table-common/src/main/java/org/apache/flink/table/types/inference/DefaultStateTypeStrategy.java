@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.types.inference;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
@@ -26,18 +26,14 @@ import java.util.Objects;
 import java.util.Optional;
 
 /** A helper class that wraps a {@link TypeStrategy} into a {@link StateTypeStrategy}. */
-@PublicEvolving
-public class StateTypeStrategyWrapper implements StateTypeStrategy {
+@Internal
+class DefaultStateTypeStrategy implements StateTypeStrategy {
 
     private final TypeStrategy typeStrategy;
 
-    private StateTypeStrategyWrapper(TypeStrategy typeStrategy) {
+    DefaultStateTypeStrategy(TypeStrategy typeStrategy) {
         this.typeStrategy =
                 Preconditions.checkNotNull(typeStrategy, "Type strategy must not be null.");
-    }
-
-    public static StateTypeStrategyWrapper of(TypeStrategy typeStrategy) {
-        return new StateTypeStrategyWrapper(typeStrategy);
     }
 
     @Override
@@ -50,8 +46,8 @@ public class StateTypeStrategyWrapper implements StateTypeStrategy {
         if (this == o) {
             return true;
         }
-        if (o instanceof StateTypeStrategyWrapper) {
-            return Objects.equals(typeStrategy, ((StateTypeStrategyWrapper) o).typeStrategy);
+        if (o instanceof DefaultStateTypeStrategy) {
+            return Objects.equals(typeStrategy, ((DefaultStateTypeStrategy) o).typeStrategy);
         }
         if (o instanceof TypeStrategy) {
             return Objects.equals(typeStrategy, o);

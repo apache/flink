@@ -43,9 +43,7 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
 public final class OperatorBindingCallContext extends AbstractSqlCallContext {
 
     private final SqlOperatorBinding binding;
-
     private final List<DataType> argumentDataTypes;
-
     private final @Nullable DataType outputDataType;
 
     public OperatorBindingCallContext(
@@ -61,7 +59,7 @@ public final class OperatorBindingCallContext extends AbstractSqlCallContext {
 
         this.binding = binding;
         this.argumentDataTypes =
-                new AbstractList<DataType>() {
+                new AbstractList<>() {
                     @Override
                     public DataType get(int pos) {
                         LogicalType logicalType =

@@ -21,6 +21,7 @@ package org.apache.flink.table.types.inference.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -89,6 +90,12 @@ public final class AdaptedCallContext implements CallContext {
             return Optional.empty();
         }
         return originalContext.getArgumentValue(pos, clazz);
+    }
+
+    @Override
+    public Optional<TableSemantics> getTableSemantics(int pos) {
+        // table arguments remain regardless of casting
+        return originalContext.getTableSemantics(pos);
     }
 
     @Override

@@ -24,6 +24,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
+import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.utils.AdaptedCallContext;
 import org.apache.flink.table.types.inference.utils.UnknownCallContext;
@@ -32,6 +33,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import javax.annotation.Nullable;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -108,14 +110,14 @@ public final class TypeInferenceUtil {
         final List<DataType> actualTypes = callContext.getArgumentDataTypes();
 
         typeInference
-                .getTypedArguments()
+                .getStaticArguments()
                 .ifPresent(
-                        (dataTypes) -> {
-                            if (actualTypes.size() != dataTypes.size()) {
+                        staticArgs -> {
+                            if (actualTypes.size() != staticArgs.size()) {
                                 throw new ValidationException(
                                         String.format(
                                                 "Invalid number of arguments. %d arguments expected after argument expansion but %d passed.",
-                                                dataTypes.size(), actualTypes.size()));
+                                                staticArgs.size(), actualTypes.size()));
                             }
                         });
 
@@ -149,7 +151,7 @@ public final class TypeInferenceUtil {
     public static DataType inferOutputType(
             CallContext callContext, TypeStrategy outputTypeStrategy) {
         final Optional<DataType> potentialOutputType = outputTypeStrategy.inferType(callContext);
-        if (!potentialOutputType.isPresent()) {
+        if (potentialOutputType.isEmpty()) {
             throw new ValidationException(
                     "Could not infer an output type for the given arguments.");
         }
@@ -165,8 +167,10 @@ public final class TypeInferenceUtil {
     /** Generates a signature of the given {@link FunctionDefinition}. */
     public static String generateSignature(
             TypeInference typeInference, String name, FunctionDefinition definition) {
-        if (typeInference.getTypedArguments().isPresent()) {
-            return formatNamedOrTypedArguments(name, typeInference);
+        final List<StaticArgument> staticArguments =
+                typeInference.getStaticArguments().orElse(null);
+        if (staticArguments != null) {
+            return formatStaticArguments(name, staticArguments);
         }
         return typeInference.getInputTypeStrategy().getExpectedSignatures(definition).stream()
                 .map(s -> formatSignature(name, s))
@@ -389,25 +393,10 @@ public final class TypeInferenceUtil {
         return new Result(adaptedCallContext.getArgumentDataTypes(), accumulatorType, outputType);
     }
 
-    private static String formatNamedOrTypedArguments(String name, TypeInference typeInference) {
-        final Optional<List<String>> optionalNames = typeInference.getNamedArguments();
-        final Optional<List<DataType>> optionalDataTypes = typeInference.getTypedArguments();
-        final int count =
-                Math.max(
-                        optionalNames.map(List::size).orElse(0),
-                        optionalDataTypes.map(List::size).orElse(0));
+    private static String formatStaticArguments(String name, List<StaticArgument> staticArguments) {
         final String arguments =
-                IntStream.range(0, count)
-                        .mapToObj(
-                                pos -> {
-                                    final StringBuilder builder = new StringBuilder();
-                                    optionalNames.ifPresent(
-                                            names -> builder.append(names.get(pos)).append(" => "));
-                                    optionalDataTypes.ifPresent(
-                                            dataTypes ->
-                                                    builder.append(dataTypes.get(pos).toString()));
-                                    return builder.toString();
-                                })
+                staticArguments.stream()
+                        .map(StaticArgument::toString)
                         .collect(Collectors.joining(", "));
         return String.format("%s(%s)", name, arguments);
     }
@@ -436,15 +425,46 @@ public final class TypeInferenceUtil {
         final AdaptedCallContext adaptedCallContext =
                 new AdaptedCallContext(callContext, outputType);
 
-        // typed arguments have highest priority
-        typeInference.getTypedArguments().ifPresent(adaptedCallContext::setExpectedArguments);
+        // Static arguments have the highest priority
+        final List<StaticArgument> staticArgs = typeInference.getStaticArguments().orElse(null);
+        if (staticArgs != null) {
+            final List<DataType> fromStaticArgs =
+                    IntStream.range(0, staticArgs.size())
+                            .mapToObj(
+                                    pos -> {
+                                        final StaticArgument expectedArg = staticArgs.get(pos);
+                                        if (expectedArg.is(StaticArgumentTrait.TABLE)) {
+                                            final TableSemantics semantics =
+                                                    callContext.getTableSemantics(pos).orElse(null);
+                                            if (semantics == null) {
+                                                if (throwOnFailure) {
+                                                    throw new ValidationException(
+                                                            String.format(
+                                                                    "Invalid argument value. "
+                                                                            + "Argument '%s' expects a table to be passed.",
+                                                                    expectedArg.getName()));
+                                                }
+                                                return null;
+                                            }
+                                            return semantics.dataType();
+                                        }
+                                        return expectedArg.getDataType().orElse(null);
+                                    })
+                            .collect(Collectors.toList());
+            if (fromStaticArgs.stream().allMatch(Objects::nonNull)) {
+                adaptedCallContext.setExpectedArguments(fromStaticArgs);
+            } else if (throwOnFailure) {
+                throw new ValidationException("Invalid input arguments.");
+            }
+        }
 
+        // Even if static arguments are defined, the input strategy is always called
+        // for validation purposes
         final List<DataType> inferredDataTypes =
                 typeInference
                         .getInputTypeStrategy()
                         .inferInputTypes(adaptedCallContext, throwOnFailure)
                         .orElse(null);
-
         if (inferredDataTypes != null) {
             adaptedCallContext.setExpectedArguments(inferredDataTypes);
         } else if (throwOnFailure) {
@@ -470,7 +490,7 @@ public final class TypeInferenceUtil {
         }
         final Optional<DataType> potentialAccumulatorType =
                 accumulatorTypeStrategy.inferType(callContext);
-        if (!potentialAccumulatorType.isPresent()) {
+        if (potentialAccumulatorType.isEmpty()) {
             throw new ValidationException(
                     "Could not infer an accumulator type for the given arguments.");
         }
