@@ -1065,6 +1065,11 @@ under the License.
 
 		<profile>
 			<id>java11-target</id>
+
+			<properties>
+				<target.java.version>11</target.java.version>
+			</properties>
+
 			<build>
 				<plugins>
 					<plugin>
@@ -1426,7 +1431,7 @@ under the License.
 										<!-- versions for certain build tools are enforced to match the CI setup -->
 										<!-- the rules below should stay in sync with Flink Release wiki documentation and the CI scripts -->
 										<requireJavaVersion>
-											<version>[17.*)</version>
+											<version>[${target.java.version}.*)</version>
 										</requireJavaVersion>
 									</rules>
 								</configuration>
