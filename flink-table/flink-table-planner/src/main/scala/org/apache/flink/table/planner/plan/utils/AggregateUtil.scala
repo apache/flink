@@ -1178,7 +1178,7 @@ object AggregateUtil extends Enumeration {
       .exists(_.getKind == FunctionKind.TABLE_AGGREGATE)
   }
 
-  def enableAsyncState(config: ReadableConfig, aggInfoList: AggregateInfoList): Boolean = {
+  def isAsyncStateEnabled(config: ReadableConfig, aggInfoList: AggregateInfoList): Boolean = {
     // Currently, we do not support async state with agg functions that include DataView.
     val containsDataViewInAggInfo =
       aggInfoList.aggInfos.toStream.stream().anyMatch(agg => !agg.viewSpecs.isEmpty)

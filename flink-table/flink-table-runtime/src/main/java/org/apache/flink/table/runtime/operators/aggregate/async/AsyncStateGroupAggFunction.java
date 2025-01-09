@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.aggregate.asyncprocessing;
+package org.apache.flink.table.runtime.operators.aggregate.async;
 
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.v2.ValueState;
@@ -25,7 +25,6 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
-import org.apache.flink.table.runtime.operators.aggregate.GroupAggFunction;
 import org.apache.flink.table.runtime.operators.aggregate.GroupAggFunctionBase;
 import org.apache.flink.table.runtime.operators.aggregate.utils.GroupAggHelper;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -43,7 +42,7 @@ public class AsyncStateGroupAggFunction extends GroupAggFunctionBase {
     private transient AsyncStateGroupAggHelper aggHelper = null;
 
     /**
-     * Creates a {@link GroupAggFunction}.
+     * Creates a {@link AsyncStateGroupAggFunction}.
      *
      * @param genAggsHandler The code generated function used to handle aggregates.
      * @param genRecordEqualiser The code generated equaliser used to equal RowData.
@@ -74,16 +73,13 @@ public class AsyncStateGroupAggFunction extends GroupAggFunctionBase {
     public void open(OpenContext openContext) throws Exception {
         super.open(openContext);
 
-        final StreamingRuntimeContext runtimeContext =
-                (StreamingRuntimeContext) getRuntimeContext();
-
         InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
         ValueStateDescriptor<RowData> accDesc = new ValueStateDescriptor<>("accState", accTypeInfo);
         if (ttlConfig.isEnabled()) {
             accDesc.enableTimeToLive(ttlConfig);
         }
 
-        accState = runtimeContext.getValueState(accDesc);
+        accState = ((StreamingRuntimeContext) getRuntimeContext()).getValueState(accDesc);
         aggHelper = new AsyncStateGroupAggHelper();
     }
 
@@ -103,12 +99,12 @@ public class AsyncStateGroupAggFunction extends GroupAggFunctionBase {
 
         @Override
         protected void updateAccumulatorsState(RowData accumulators) throws Exception {
-            accState.update(accumulators);
+            accState.asyncUpdate(accumulators);
         }
 
         @Override
         protected void clearAccumulatorsState() throws Exception {
-            accState.clear();
+            accState.asyncClear();
         }
     }
 }

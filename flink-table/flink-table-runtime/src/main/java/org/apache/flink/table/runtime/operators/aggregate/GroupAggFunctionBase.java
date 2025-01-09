@@ -27,7 +27,7 @@ import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
-import org.apache.flink.table.runtime.operators.aggregate.asyncprocessing.AsyncStateGroupAggFunction;
+import org.apache.flink.table.runtime.operators.aggregate.async.AsyncStateGroupAggFunction;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfig;
