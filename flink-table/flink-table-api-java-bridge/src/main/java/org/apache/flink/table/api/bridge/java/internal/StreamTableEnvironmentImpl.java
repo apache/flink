@@ -311,12 +311,6 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
     }
 
     @Override
-    public <T> void createTemporaryView(
-            String path, DataStream<T> dataStream, Expression... fields) {
-        createTemporaryView(path, fromDataStream(dataStream, fields));
-    }
-
-    @Override
     public <T> DataStream<T> toAppendStream(Table table, Class<T> clazz) {
         TypeInformation<T> typeInfo = extractTypeInformation(table, clazz);
         return toAppendStream(table, typeInfo);
