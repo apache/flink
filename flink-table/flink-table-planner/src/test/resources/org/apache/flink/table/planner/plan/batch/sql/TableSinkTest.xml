@@ -30,14 +30,14 @@ Sink(table=[default_catalog.default_database.MyCtasSource], fields=[b, c, d])
 +- Calc(select=[b, c, d])
    +- Sort(orderBy=[a ASC])
       +- Exchange(distribution=[single])
-         +- Values(tuples=[[{ 1, 1, 2, _UTF-16LE'd1' }]], values=[a, b, c, d])
+         +- Values(tuples=[[{ 1, 2, _UTF-16LE'd1', 1 }]], values=[b, c, d, a])
 
 == Optimized Execution Plan ==
 Sink(table=[default_catalog.default_database.MyCtasSource], fields=[b, c, d])
 +- Calc(select=[b, c, d])
    +- Sort(orderBy=[a ASC])
       +- Exchange(distribution=[single])
-         +- Values(tuples=[[{ 1, 1, 2, _UTF-16LE'd1' }]], values=[a, b, c, d])
+         +- Values(tuples=[[{ 1, 2, _UTF-16LE'd1', 1 }]], values=[b, c, d, a])
 ]]>
     </Resource>
   </TestCase>
