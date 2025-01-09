@@ -28,6 +28,7 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.listener.CatalogModificationListener;
 import org.apache.flink.table.catalog.listener.CatalogModificationListenerFactory;
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
@@ -52,7 +53,8 @@ public class TableFactoryUtil {
     public static <T> TableSource<T> findAndCreateTableSource(TableSourceFactory.Context context) {
         try {
             return TableFactoryService.find(
-                            TableSourceFactory.class, context.getTable().toProperties())
+                            TableSourceFactory.class,
+                            ((ResolvedCatalogTable) context.getTable()).toProperties())
                     .createTableSource(context);
         } catch (Throwable t) {
             throw new TableException("findAndCreateTableSource failed.", t);
@@ -81,7 +83,8 @@ public class TableFactoryUtil {
     public static <T> TableSink<T> findAndCreateTableSink(TableSinkFactory.Context context) {
         try {
             return TableFactoryService.find(
-                            TableSinkFactory.class, context.getTable().toProperties())
+                            TableSinkFactory.class,
+                            ((ResolvedCatalogTable) context.getTable()).toProperties())
                     .createTableSink(context);
         } catch (Throwable t) {
             throw new TableException("findAndCreateTableSink failed.", t);

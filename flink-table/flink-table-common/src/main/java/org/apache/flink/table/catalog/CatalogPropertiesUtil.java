@@ -236,7 +236,7 @@ public final class CatalogPropertiesUtil {
                     .schema(schema)
                     .comment(comment)
                     .partitionKeys(partitionKeys)
-                    .options(properties)
+                    .options(options)
                     .snapshot(snapshot)
                     .build();
         } catch (Exception e) {

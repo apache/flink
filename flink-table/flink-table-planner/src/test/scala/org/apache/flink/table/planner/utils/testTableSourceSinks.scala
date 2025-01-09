@@ -462,11 +462,11 @@ class TestOptionsTableFactory extends TableSourceFactory[Row] with TableSinkFact
   }
 
   override def createTableSource(context: TableSourceFactory.Context): TableSource[Row] = {
-    createPropertiesSource(context.getTable.toProperties)
+    createPropertiesSource(context.getTable.asInstanceOf[ResolvedCatalogTable].toProperties)
   }
 
   override def createTableSink(context: TableSinkFactory.Context): TableSink[Row] = {
-    createPropertiesSink(context.getTable.toProperties)
+    createPropertiesSink(context.getTable.asInstanceOf[ResolvedCatalogTable].toProperties)
   }
 }
 
