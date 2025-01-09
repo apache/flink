@@ -830,8 +830,12 @@ class CatalogBaseTable(object):
 
         gateway = get_gateway()
         return CatalogBaseTable(
-            gateway.jvm.org.apache.flink.table.catalog.CatalogTableImpl(
-                schema._j_table_schema, partition_keys, properties, comment))
+            gateway.jvm.org.apache.flink.table.catalog.CatalogTable.newBuilder()
+            .schema(schema._j_table_schema.toSchema())
+            .comment(comment)
+            .partitionKeys(partition_keys)
+            .options(properties)
+            .build())
 
     @staticmethod
     def create_view(

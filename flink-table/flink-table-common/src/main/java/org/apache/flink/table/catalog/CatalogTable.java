@@ -98,19 +98,6 @@ public interface CatalogTable extends CatalogBaseTable {
      */
     CatalogTable copy(Map<String, String> options);
 
-    /**
-     * Serializes this instance into a map of string-based properties.
-     *
-     * <p>Compared to the pure table options in {@link #getOptions()}, the map includes schema,
-     * partitioning, and other characteristics in a serialized form.
-     *
-     * @deprecated Only a {@link ResolvedCatalogTable} is serializable to properties.
-     */
-    @Deprecated
-    default Map<String, String> toProperties() {
-        return Collections.emptyMap();
-    }
-
     /** Return the snapshot specified for the table. Return Optional.empty() if not specified. */
     default Optional<Long> getSnapshot() {
         return Optional.empty();
