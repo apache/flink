@@ -43,6 +43,7 @@ public class FileMappingManagerTest {
         FSDataOutputStream os = localFS.create(new Path(src), FileSystem.WriteMode.OVERWRITE);
         os.write(233);
         os.close();
+        fileMappingManager.createFile(new Path(src));
         String dst = tempDir.toString() + "/dst";
         fileMappingManager.link(src, dst);
         assertThat(fileMappingManager.realPath(new Path(dst)).path.toString()).isEqualTo(src);
@@ -60,6 +61,7 @@ public class FileMappingManagerTest {
         FSDataOutputStream os = localFS.create(new Path(src), FileSystem.WriteMode.OVERWRITE);
         os.write(233);
         os.close();
+        fileMappingManager.createFile(new Path(src));
         String dstB = tempDir.toString() + "/b";
         fileMappingManager.link(src, dstB);
         assertThat(fileMappingManager.realPath(new Path(dstB)).path.toString()).isEqualTo(src);
@@ -87,6 +89,7 @@ public class FileMappingManagerTest {
         FSDataOutputStream os = localFS.create(new Path(src), FileSystem.WriteMode.OVERWRITE);
         os.write(233);
         os.close();
+        fileMappingManager.createFile(new Path(src));
         String dst = tempDir.toString() + "/dst";
         fileMappingManager.link(src, dst);
         // delete src
@@ -102,13 +105,15 @@ public class FileMappingManagerTest {
     void testDirectoryDelete() throws IOException {
         FileSystem localFS = FileSystem.getLocalFileSystem();
         FileMappingManager fileMappingManager =
-                new FileMappingManager(localFS, localFS, tempDir.toString(), tempDir.toString());
+                new FileMappingManager(
+                        localFS, localFS, tempDir.toString() + "/db", tempDir.toString() + "/db");
         String testDir = tempDir + "/testDir";
         localFS.mkdirs(new Path(testDir));
         String src = testDir + "/source";
         FSDataOutputStream os = localFS.create(new Path(src), FileSystem.WriteMode.OVERWRITE);
         os.write(233);
         os.close();
+        fileMappingManager.createFile(new Path(src));
         String dst = tempDir.toString() + "/dst";
         fileMappingManager.link(src, dst);
 
@@ -127,13 +132,15 @@ public class FileMappingManagerTest {
     void testDirectoryRename() throws IOException {
         FileSystem localFS = FileSystem.getLocalFileSystem();
         FileMappingManager fileMappingManager =
-                new FileMappingManager(localFS, localFS, tempDir.toString(), tempDir.toString());
+                new FileMappingManager(
+                        localFS, localFS, tempDir.toString() + "/db", tempDir.toString() + "/db");
         String testDir = tempDir + "/testDir";
         localFS.mkdirs(new Path(testDir));
         String src = testDir + "/source";
         FSDataOutputStream os = localFS.create(new Path(src), FileSystem.WriteMode.OVERWRITE);
         os.write(233);
         os.close();
+        fileMappingManager.createFile(new Path(src));
 
         String linkedDirTmp = tempDir.toString() + "/linkedDir.tmp";
         localFS.mkdirs(new Path(linkedDirTmp));
@@ -175,13 +182,15 @@ public class FileMappingManagerTest {
     void testCreateFileBeforeRename() throws IOException {
         FileSystem localFS = FileSystem.getLocalFileSystem();
         FileMappingManager fileMappingManager =
-                new FileMappingManager(localFS, localFS, tempDir.toString(), tempDir.toString());
+                new FileMappingManager(
+                        localFS, localFS, tempDir.toString() + "/db", tempDir.toString() + "/db");
         String testDir = tempDir + "/testDir";
         localFS.mkdirs(new Path(testDir));
         String src = testDir + "/source";
         FSDataOutputStream os = localFS.create(new Path(src), FileSystem.WriteMode.OVERWRITE);
         os.write(233);
         os.close();
+        fileMappingManager.createFile(new Path(src));
 
         String linkedDirTmp = tempDir.toString() + "/linkedDir.tmp";
         localFS.mkdirs(new Path(linkedDirTmp));

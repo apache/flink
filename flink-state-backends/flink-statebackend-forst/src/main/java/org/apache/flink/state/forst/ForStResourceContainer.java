@@ -78,8 +78,7 @@ public final class ForStResourceContainer implements AutoCloseable {
     // the filename length limit is 255 on most operating systems
     // In rocksdb, if db_log_dir is non empty, the log files will be in the specified dir,
     // and the db data dir's absolute path will be used as the log file name's prefix.
-    private static final int INSTANCE_PATH_LENGTH_LIMIT =
-            255 / 2 - FORST_RELOCATE_LOG_SUFFIX.length();
+    private static final int INSTANCE_PATH_LENGTH_LIMIT = 255 - FORST_RELOCATE_LOG_SUFFIX.length();
 
     @Nullable private FlinkEnv flinkEnv = null;
 
@@ -396,9 +395,8 @@ public final class ForStResourceContainer implements AutoCloseable {
         }
     }
 
-    private void clearDirectories(Path basePath) throws IOException {
-        FileSystem fileSystem =
-                forStFileSystem != null ? forStFileSystem : basePath.getFileSystem();
+    private static void clearDirectories(Path basePath) throws IOException {
+        FileSystem fileSystem = basePath.getFileSystem();
         if (fileSystem.exists(basePath)) {
             fileSystem.delete(basePath, true);
         }
@@ -485,19 +483,11 @@ public final class ForStResourceContainer implements AutoCloseable {
 
         String logDir = internalGetOption(ForStConfigurableOptions.LOG_DIR);
         if (logDir == null || logDir.isEmpty()) {
-            if (localForStPath == null
-                    || localForStPath.getPath().length() <= INSTANCE_PATH_LENGTH_LIMIT) {
+            // only relocate db log dir in local mode
+            if (remoteForStPath == null
+                    && localForStPath != null
+                    && localForStPath.getPath().length() <= INSTANCE_PATH_LENGTH_LIMIT) {
                 relocateDefaultDbLogDir(currentOptions);
-            } else if (remoteForStPath != null) { // log must put in local
-                Path relocatedPath = localForStPath.getParent().getParent();
-                LOG.warn("ForSt remote path is not null, relocate log in  {}.", relocatedPath);
-                currentOptions.setDbLogDir(relocatedPath.toString());
-            } else {
-                // disable log relocate when instance path length exceeds limit to prevent ForSt
-                // log file creation failure, details in FLINK-31743
-                LOG.warn(
-                        "ForSt local path length exceeds limit : {}, disable log relocate.",
-                        localForStPath);
             }
         } else {
             currentOptions.setDbLogDir(logDir);

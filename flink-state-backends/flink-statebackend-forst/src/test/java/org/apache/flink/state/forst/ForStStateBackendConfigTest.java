@@ -93,7 +93,8 @@ public class ForStStateBackendConfigTest {
         final File logFile = File.createTempFile(getClass().getSimpleName() + "-", ".log");
         // set the environment variable 'log.file' with the Flink log file location
         System.setProperty("log.file", logFile.getPath());
-        try (ForStResourceContainer container = backend.createOptionsAndResourceContainer(null)) {
+        try (ForStResourceContainer container =
+                backend.createOptionsAndResourceContainer(new Path(tempFolder.toString()))) {
             assertEquals(
                     ForStConfigurableOptions.LOG_LEVEL.defaultValue(),
                     container.getDbOptions().infoLogLevel());
