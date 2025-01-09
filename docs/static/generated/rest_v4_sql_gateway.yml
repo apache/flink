@@ -270,7 +270,7 @@ paths:
             schema:
               $ref: '#/components/schemas/DeployScriptRequestBody'
       responses:
-        "202":
+        "200":
           description: The request was successful.
           content:
             application/json:
@@ -374,7 +374,7 @@ components:
             type: string
         script:
           type: string
-        scriptPath:
+        scriptUri:
           type: string
     DeployScriptResponseBody:
       type: object
