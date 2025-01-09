@@ -125,7 +125,15 @@ public class StreamOperatorStateHandler {
         this.keyedStateStoreV2 =
                 asyncKeyedStateBackend != null
                         ? new org.apache.flink.runtime.state.v2.DefaultKeyedStateStore(
-                                asyncKeyedStateBackend)
+                                asyncKeyedStateBackend,
+                                new SerializerFactory() {
+                                    @Override
+                                    public <T> TypeSerializer<T> createSerializer(
+                                            TypeInformation<T> typeInformation) {
+                                        return typeInformation.createSerializer(
+                                                executionConfig.getSerializerConfig());
+                                    }
+                                })
                         : null;
     }
 

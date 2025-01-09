@@ -18,6 +18,7 @@
 package org.apache.flink.state.forst;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
@@ -91,6 +92,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
 
     private static final Logger LOG = LoggerFactory.getLogger(ForStKeyedStateBackend.class);
+
+    private final ExecutionConfig executionConfig;
 
     /** Number of bytes required to prefix the key groups. */
     private final int keyGroupPrefixBytes;
@@ -178,6 +181,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
 
     public ForStKeyedStateBackend(
             UUID backendUID,
+            ExecutionConfig executionConfig,
             ForStResourceContainer optionsContainer,
             int keyGroupPrefixBytes,
             TypeSerializer<K> keySerializer,
@@ -197,6 +201,7 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
             TtlTimeProvider ttlTimeProvider,
             ForStDBTtlCompactFiltersManager ttlCompactFiltersManager) {
         this.backendUID = backendUID;
+        this.executionConfig = executionConfig;
         this.optionsContainer = Preconditions.checkNotNull(optionsContainer);
         this.keyGroupPrefixBytes = keyGroupPrefixBytes;
         this.keyGroupRange = keyContext.getKeyGroupRange();
@@ -242,6 +247,9 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
         checkNotNull(namespaceSerializer, "Namespace serializer");
         InternalKeyedState<K, ?, ?> kvState = keyValueStatesByName.get(stateDesc.getStateId());
         if (kvState == null) {
+            if (!stateDesc.isSerializerInitialized()) {
+                stateDesc.initializeSerializerUnlessSet(executionConfig);
+            }
             kvState = createState(defaultNamespace, namespaceSerializer, stateDesc);
             keyValueStatesByName.put(stateDesc.getStateId(), kvState);
         }

@@ -259,7 +259,7 @@ class StreamingRuntimeContextTest {
         StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config, true);
         org.apache.flink.runtime.state.v2.ValueStateDescriptor<TaskInfo> descr =
                 new org.apache.flink.runtime.state.v2.ValueStateDescriptor<>(
-                        "name", TypeInformation.of(TaskInfo.class), serializerConfig);
+                        "name", TypeInformation.of(TaskInfo.class));
         context.getValueState(descr);
 
         org.apache.flink.runtime.state.v2.ValueStateDescriptor<?> descrIntercepted =
@@ -283,7 +283,7 @@ class StreamingRuntimeContextTest {
         StreamingRuntimeContext context = createRuntimeContext(descriptorCapture, config, true);
         org.apache.flink.runtime.state.v2.ListStateDescriptor<TaskInfo> descr =
                 new org.apache.flink.runtime.state.v2.ListStateDescriptor<>(
-                        "name", TypeInformation.of(TaskInfo.class), serializerConfig);
+                        "name", TypeInformation.of(TaskInfo.class));
         context.getListState(descr);
 
         org.apache.flink.runtime.state.v2.ListStateDescriptor<?> descrIntercepted =
@@ -309,8 +309,7 @@ class StreamingRuntimeContextTest {
                 new org.apache.flink.runtime.state.v2.MapStateDescriptor<>(
                         "name",
                         TypeInformation.of(String.class),
-                        TypeInformation.of(TaskInfo.class),
-                        serializerConfig);
+                        TypeInformation.of(TaskInfo.class));
         context.getMapState(descr);
 
         org.apache.flink.runtime.state.v2.MapStateDescriptor<?, ?> descrIntercepted =
@@ -339,7 +338,7 @@ class StreamingRuntimeContextTest {
 
         org.apache.flink.runtime.state.v2.ReducingStateDescriptor<TaskInfo> descr =
                 new org.apache.flink.runtime.state.v2.ReducingStateDescriptor<>(
-                        "name", reducer, TypeInformation.of(TaskInfo.class), serializerConfig);
+                        "name", reducer, TypeInformation.of(TaskInfo.class));
 
         context.getReducingState(descr);
 
@@ -371,10 +370,7 @@ class StreamingRuntimeContextTest {
         org.apache.flink.runtime.state.v2.AggregatingStateDescriptor<String, TaskInfo, String>
                 descr =
                         new org.apache.flink.runtime.state.v2.AggregatingStateDescriptor<>(
-                                "name",
-                                aggregate,
-                                TypeInformation.of(TaskInfo.class),
-                                serializerConfig);
+                                "name", aggregate, TypeInformation.of(TaskInfo.class));
 
         context.getAggregatingState(descr);
 
@@ -505,7 +501,15 @@ class StreamingRuntimeContextTest {
             operator.getRuntimeContext()
                     .setKeyedStateStoreV2(
                             new org.apache.flink.runtime.state.v2.DefaultKeyedStateStore(
-                                    asyncKeyedStateBackend));
+                                    asyncKeyedStateBackend,
+                                    new SerializerFactory() {
+                                        @Override
+                                        public <T> TypeSerializer<T> createSerializer(
+                                                TypeInformation<T> typeInformation) {
+                                            return typeInformation.createSerializer(
+                                                    config.getSerializerConfig());
+                                        }
+                                    }));
         }
 
         return operator;

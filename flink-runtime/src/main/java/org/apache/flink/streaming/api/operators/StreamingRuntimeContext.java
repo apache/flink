@@ -272,6 +272,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
             org.apache.flink.runtime.state.v2.ValueStateDescriptor<T> stateProperties) {
         org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStore =
                 checkPreconditionsAndGetKeyedStateStoreV2(stateProperties);
+        stateProperties.initializeSerializerUnlessSet(this::createSerializer);
         return keyedStateStore.getValueState(stateProperties);
     }
 
@@ -279,6 +280,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
             org.apache.flink.runtime.state.v2.ListStateDescriptor<T> stateProperties) {
         org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStore =
                 checkPreconditionsAndGetKeyedStateStoreV2(stateProperties);
+        stateProperties.initializeSerializerUnlessSet(this::createSerializer);
         return keyedStateStore.getListState(stateProperties);
     }
 
@@ -286,6 +288,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
             org.apache.flink.runtime.state.v2.MapStateDescriptor<UK, UV> stateProperties) {
         org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStore =
                 checkPreconditionsAndGetKeyedStateStoreV2(stateProperties);
+        stateProperties.initializeSerializerUnlessSet(this::createSerializer);
         return keyedStateStore.getMapState(stateProperties);
     }
 
@@ -293,6 +296,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
             org.apache.flink.runtime.state.v2.ReducingStateDescriptor<T> stateProperties) {
         org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStore =
                 checkPreconditionsAndGetKeyedStateStoreV2(stateProperties);
+        stateProperties.initializeSerializerUnlessSet(this::createSerializer);
         return keyedStateStore.getReducingState(stateProperties);
     }
 
@@ -302,6 +306,7 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
                             stateProperties) {
         org.apache.flink.runtime.state.v2.KeyedStateStore keyedStateStore =
                 checkPreconditionsAndGetKeyedStateStoreV2(stateProperties);
+        stateProperties.initializeSerializerUnlessSet(this::createSerializer);
         return keyedStateStore.getAggregatingState(stateProperties);
     }
 
