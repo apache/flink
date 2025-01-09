@@ -86,7 +86,13 @@ public class SqlYARNApplicationITCase extends YarnTestBase {
     }
 
     private void runSqlClient() throws Exception {
-        Path path = flinkLibFolder.getParentFile().toPath().resolve("bin").resolve("sql-client.sh");
+        Path path =
+                flinkLibFolder
+                        .getParentFile()
+                        .toPath()
+                        .resolve("bin")
+                        .resolve("sql-client.sh")
+                        .toAbsolutePath();
         if (!path.toFile().exists()) {
             throw new RuntimeException();
         }
@@ -108,6 +114,8 @@ public class SqlYARNApplicationITCase extends YarnTestBase {
                         YarnConfigOptions.UserJarInclusion.LAST.name()));
         parameters.add("-f");
         parameters.add(script.getAbsolutePath());
+
+        LOG.info("Running process with parameters: {}", parameters);
 
         ProcessBuilder builder = new ProcessBuilder(parameters);
         // prepare environment
