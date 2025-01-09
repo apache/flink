@@ -322,7 +322,7 @@ class FunctionGenerator private (tableConfig: ReadableConfig) {
       Some(BuiltInMethods.CEIL_INTEGRAL),
       Some(BuiltInMethods.CEIL_DEC),
       Some(BuiltInMethods.TIMESTAMP_CEIL_TIME_ZONE),
-      Some(BuiltInMethods.TIMESTAMP_CEIL_TIME_ZONE_FOR_HIGH_PRECISiON)
+      Some(BuiltInMethods.TIMESTAMP_CEIL_TIME_ZONE_FOR_HIGH_PRECISION)
     )
   )
 

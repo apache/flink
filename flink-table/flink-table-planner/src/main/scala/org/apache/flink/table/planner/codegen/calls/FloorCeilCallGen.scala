@@ -79,9 +79,7 @@ class FloorCeilCallGen(
                  |  $nanosTerm,
                  |  $timeZone),
                  |  ${qualifyMethod(temporalPrecisionMethod.get)}(${terms(1)},
-                 |  $longTerm,
-                 |  $nanosTerm,
-                 |  $timeZone))
+                 |  $nanosTerm))
                  |""".stripMargin
 
             // for Unix Date / Unix Time

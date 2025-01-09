@@ -1255,17 +1255,12 @@ public class DateTimeUtils {
         }
     }
 
-    public static int timestampFloorForHighPrecision(
-            TimeUnitRange range, long ts, int ns, TimeZone tz) {
-        // assume that we are at UTC timezone, just for algorithm performance
-        long offset = tz.getOffset(ts);
-        long utcTs = ts + offset;
-
+    public static int timestampFloorForHighPrecision(TimeUnitRange range, int ns) {
         switch (range) {
             case NANOSECOND:
                 return ns;
             case MICROSECOND:
-                return floorForHighPrecision(utcTs, ns);
+                return floorForHighPrecision(ns);
             case MILLISECOND:
             case SECOND:
             case MINUTE:
@@ -1324,17 +1319,12 @@ public class DateTimeUtils {
         }
     }
 
-    public static int timestampCeilForHighPrecision(
-            TimeUnitRange range, long ts, int ns, TimeZone tz) {
-        // assume that we are at UTC timezone, just for algorithm performance
-        long offset = tz.getOffset(ts);
-        long utcTs = ts + offset;
-
+    public static int timestampCeilForHighPrecision(TimeUnitRange range, int ns) {
         switch (range) {
             case NANOSECOND:
                 return ns;
             case MICROSECOND:
-                return ceilForHighPrecision(utcTs, ns);
+                return ceilForHighPrecision(ns);
             case MILLISECOND:
             case SECOND:
             case MINUTE:
@@ -1372,7 +1362,7 @@ public class DateTimeUtils {
         }
     }
 
-    private static int floorForHighPrecision(long a, int b) {
+    private static int floorForHighPrecision(int b) {
         long q = b / NANOS_PER_MICROSECOND;
         if (q < 0) {
             return (int) (q * NANOS_PER_MICROSECOND - NANOS_PER_MICROSECOND);
@@ -1399,7 +1389,7 @@ public class DateTimeUtils {
         }
     }
 
-    private static int ceilForHighPrecision(long a, int b) {
+    private static int ceilForHighPrecision(int b) {
         long q = b / NANOS_PER_MICROSECOND;
         long r = b % NANOS_PER_MICROSECOND;
         if (q > 0 && r > 0) {
