@@ -63,34 +63,20 @@ public class SystemTypeInference {
     public static TypeInference of(FunctionKind functionKind, TypeInference origin) {
         final TypeInference.Builder builder = TypeInference.newBuilder();
 
-        final List<StaticArgument> defaultArgs =
-                applyDefaultArgs(builder, functionKind, origin.getStaticArguments().orElse(null));
-        builder.inputTypeStrategy(origin.getInputTypeStrategy());
+        final List<StaticArgument> systemArgs =
+                deriveSystemArgs(functionKind, origin.getStaticArguments().orElse(null));
+        if (systemArgs != null) {
+            builder.staticArguments(systemArgs);
+        }
+        builder.inputTypeStrategy(
+                deriveSystemInputStrategy(functionKind, systemArgs, origin.getInputTypeStrategy()));
         builder.stateTypeStrategies(origin.getStateTypeStrategies());
-        builder.outputTypeStrategy(origin.getOutputTypeStrategy());
-
-        final List<StaticArgument> systemArgs = applySystemArgs(builder, functionKind, defaultArgs);
-        applySystemInputStrategy(builder, functionKind, systemArgs, origin);
-        applySystemOutputStrategy(builder, functionKind, origin);
-
+        builder.outputTypeStrategy(
+                deriveSystemOutputStrategy(functionKind, origin.getOutputTypeStrategy()));
         return builder.build();
     }
 
     // --------------------------------------------------------------------------------------------
-
-    private static @Nullable List<StaticArgument> applyDefaultArgs(
-            TypeInference.Builder builder,
-            FunctionKind functionKind,
-            @Nullable List<StaticArgument> defaultArgs) {
-        if (defaultArgs == null) {
-            return null;
-        }
-        if (functionKind != FunctionKind.PROCESS_TABLE) {
-            checkScalarArgsOnly(defaultArgs);
-        }
-        builder.staticArguments(defaultArgs);
-        return defaultArgs;
-    }
 
     private static void checkScalarArgsOnly(List<StaticArgument> defaultArgs) {
         defaultArgs.forEach(
@@ -105,23 +91,23 @@ public class SystemTypeInference {
                 });
     }
 
-    private static @Nullable List<StaticArgument> applySystemArgs(
-            TypeInference.Builder builder,
-            FunctionKind functionKind,
-            @Nullable List<StaticArgument> defaultArgs) {
+    private static @Nullable List<StaticArgument> deriveSystemArgs(
+            FunctionKind functionKind, @Nullable List<StaticArgument> declaredArgs) {
         if (functionKind != FunctionKind.PROCESS_TABLE) {
-            return defaultArgs;
+            if (declaredArgs != null) {
+                checkScalarArgsOnly(declaredArgs);
+            }
+            return declaredArgs;
         }
-        if (defaultArgs == null) {
+        if (declaredArgs == null) {
             throw new ValidationException(
                     "Function requires a static signature that is not overloaded and doesn't contain varargs.");
         }
 
-        checkReservedArgs(defaultArgs);
+        checkReservedArgs(declaredArgs);
 
-        final List<StaticArgument> newStaticArgs = new ArrayList<>(defaultArgs);
+        final List<StaticArgument> newStaticArgs = new ArrayList<>(declaredArgs);
         newStaticArgs.addAll(PROCESS_TABLE_FUNCTION_SYSTEM_ARGS);
-        builder.staticArguments(newStaticArgs);
         return newStaticArgs;
     }
 
@@ -140,24 +126,22 @@ public class SystemTypeInference {
         }
     }
 
-    private static void applySystemInputStrategy(
-            TypeInference.Builder builder,
+    private static InputTypeStrategy deriveSystemInputStrategy(
             FunctionKind functionKind,
             @Nullable List<StaticArgument> staticArgs,
-            TypeInference origin) {
+            InputTypeStrategy inputStrategy) {
         if (functionKind != FunctionKind.PROCESS_TABLE) {
-            return;
+            return inputStrategy;
         }
-        builder.inputTypeStrategy(
-                new SystemInputStrategy(staticArgs, origin.getInputTypeStrategy()));
+        return new SystemInputStrategy(staticArgs, inputStrategy);
     }
 
-    private static void applySystemOutputStrategy(
-            TypeInference.Builder builder, FunctionKind functionKind, TypeInference origin) {
+    private static TypeStrategy deriveSystemOutputStrategy(
+            FunctionKind functionKind, TypeStrategy outputStrategy) {
         if (functionKind != FunctionKind.TABLE && functionKind != FunctionKind.PROCESS_TABLE) {
-            return;
+            return outputStrategy;
         }
-        builder.outputTypeStrategy(new SystemOutputStrategy(origin.getOutputTypeStrategy()));
+        return new SystemOutputStrategy(outputStrategy);
     }
 
     private static class SystemOutputStrategy implements TypeStrategy {
@@ -210,7 +194,9 @@ public class SystemTypeInference {
 
         @Override
         public ArgumentCount getArgumentCount() {
-            // Static arguments declare the count
+            // Static arguments take precedence. Thus, the input strategy only serves as a
+            // validation layer. Since the count is already validated we don't need to validate it a
+            // second time.
             return InputTypeStrategies.WILDCARD.getArgumentCount();
         }
 
