@@ -643,7 +643,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
      */
     StreamStatementSet createStatementSet();
 
-
     /**
      * Creates a view from the given {@link DataStream} in a given path with specified field names.
      * Registered views can be referenced in SQL queries.
