@@ -266,6 +266,10 @@ object FlinkBatchRuleSets {
     CoreRules.AGGREGATE_UNION_AGGREGATE,
     // expand distinct aggregate to normal aggregate with groupby
     FlinkAggregateExpandDistinctAggregatesRule.INSTANCE,
+    CoreRules.PROJECT_JOIN_JOIN_REMOVE,
+    CoreRules.PROJECT_JOIN_REMOVE,
+    CoreRules.AGGREGATE_JOIN_JOIN_REMOVE,
+    CoreRules.AGGREGATE_JOIN_REMOVE,
 
     // reduce aggregate functions like AVG, STDDEV_POP etc.
     CoreRules.AGGREGATE_REDUCE_FUNCTIONS,
