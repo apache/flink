@@ -530,7 +530,7 @@ abstract class PlannerBase(
       staticPartitions: JMap[String, String],
       isOverwrite: Boolean): RelNode = {
     val input = createRelBuilder.queryOperation(queryOperation).build()
-    val table = catalogManager.resolveCatalogTable(createTableOperation.getCatalogTable)
+    val table = createTableOperation.getCatalogTable
 
     val identifier = createTableOperation.getTableIdentifier
     val catalog = toScala(catalogManager.getCatalog(identifier.getCatalogName))

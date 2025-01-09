@@ -263,7 +263,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
         Operation operation = parse(sql, planner, parser);
         assertThat(operation).isInstanceOf(CreateTableOperation.class);
         CreateTableOperation op = (CreateTableOperation) operation;
-        CatalogTable catalogTable = op.getCatalogTable();
+        ResolvedCatalogTable catalogTable = op.getCatalogTable();
         assertThat(catalogTable.getPartitionKeys()).hasSameElementsAs(Arrays.asList("a", "d"));
         assertThat(catalogTable.getSchema().getFieldNames())
                 .isEqualTo(new String[] {"a", "b", "c", "d"});
@@ -275,9 +275,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                             DataTypes.INT(),
                             DataTypes.VARCHAR(Integer.MAX_VALUE)
                         });
-        assertThat(catalogTable).isInstanceOf(ResolvedCatalogTable.class);
-        ResolvedCatalogTable resolvedCatalogTable = (ResolvedCatalogTable) catalogTable;
-        resolvedCatalogTable
+        catalogTable
                 .getResolvedSchema()
                 .getColumn(0)
                 .ifPresent(
@@ -418,7 +416,7 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                 SqlNodeToOperationConversion.convert(planner, catalogManager, node).get();
         assertThat(operation).isInstanceOf(CreateTableOperation.class);
         CreateTableOperation op = (CreateTableOperation) operation;
-        CatalogTable catalogTable = op.getCatalogTable();
+        ResolvedCatalogTable catalogTable = op.getCatalogTable();
         Map<String, String> properties = catalogTable.toProperties();
         Map<String, String> expected = new HashMap<>();
         expected.put("schema.0.name", "a");

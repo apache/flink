@@ -1196,15 +1196,18 @@ public class HiveParserDDLSemanticAnalyzer {
         if (uniqueConstraint != null) {
             notNullColSet.addAll(uniqueConstraint.getColumns());
         }
-        Schema schema = HiveTableUtil.createSchema(cols, partCols, notNullColSet, uniqueConstraint);
+        ResolvedSchema schema =
+                HiveTableUtil.createResolvedSchema(cols, partCols, notNullColSet, uniqueConstraint);
         return new CreateTableOperation(
                 identifier,
-                CatalogTable.newBuilder()
-                        .schema(schema)
-                        .comment(comment)
-                        .partitionKeys(HiveCatalog.getFieldNames(partCols))
-                        .options(props)
-                        .build(),
+                new ResolvedCatalogTable(
+                        CatalogTable.newBuilder()
+                                .schema(Schema.newBuilder().fromResolvedSchema(schema).build())
+                                .comment(comment)
+                                .partitionKeys(HiveCatalog.getFieldNames(partCols))
+                                .options(props)
+                                .build(),
+                        schema),
                 ifNotExists,
                 isTemporary);
     }
