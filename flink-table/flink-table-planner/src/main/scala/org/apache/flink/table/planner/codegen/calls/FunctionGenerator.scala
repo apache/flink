@@ -278,7 +278,8 @@ class FunctionGenerator private (tableConfig: ReadableConfig) {
       BuiltInMethods.FLOOR,
       Some(BuiltInMethods.FLOOR_INTEGRAL),
       Some(BuiltInMethods.FLOOR_DEC),
-      Some(BuiltInMethods.TIMESTAMP_FLOOR_TIME_ZONE))
+      Some(BuiltInMethods.TIMESTAMP_FLOOR_TIME_ZONE),
+      Some(BuiltInMethods.TIMESTAMP_FLOOR_TIME_ZONE_FOR_HIGH_PRECISiON))
   )
 
   // TODO: fixme if CALCITE-3199 fixed
@@ -320,7 +321,9 @@ class FunctionGenerator private (tableConfig: ReadableConfig) {
       BuiltInMethods.CEIL,
       Some(BuiltInMethods.CEIL_INTEGRAL),
       Some(BuiltInMethods.CEIL_DEC),
-      Some(BuiltInMethods.TIMESTAMP_CEIL_TIME_ZONE))
+      Some(BuiltInMethods.TIMESTAMP_CEIL_TIME_ZONE),
+      Some(BuiltInMethods.TIMESTAMP_CEIL_TIME_ZONE_FOR_HIGH_PRECISiON)
+    )
   )
 
   // CURRENT_ROW_TIMESTAMP evaluates in row-level

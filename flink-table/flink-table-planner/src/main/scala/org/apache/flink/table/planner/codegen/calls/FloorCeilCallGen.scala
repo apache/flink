@@ -32,8 +32,9 @@ class FloorCeilCallGen(
     arithmeticMethod: Method,
     arithmeticIntegralMethod: Option[Method] = None,
     decimalMethod: Option[Method] = None,
-    temporalMethod: Option[Method] = None)
-  extends MethodCallGen(arithmeticMethod) {
+    temporalMethod: Option[Method] = None,
+    temporalPrecisionMethod: Option[Method] = None
+) extends MethodCallGen(arithmeticMethod) {
 
   override def generate(
       ctx: CodeGeneratorContext,
@@ -74,6 +75,10 @@ class FloorCeilCallGen(
               s"""
                  |$TIMESTAMP_DATA.fromEpochMillis(
                  |  ${qualifyMethod(temporalMethod.get)}(${terms(1)},
+                 |  $longTerm,
+                 |  $nanosTerm,
+                 |  $timeZone),
+                 |  ${qualifyMethod(temporalPrecisionMethod.get)}(${terms(1)},
                  |  $longTerm,
                  |  $nanosTerm,
                  |  $timeZone))

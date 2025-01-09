@@ -389,9 +389,25 @@ object BuiltInMethods {
     classOf[Int],
     classOf[TimeZone])
 
+  val TIMESTAMP_FLOOR_TIME_ZONE_FOR_HIGH_PRECISiON = Types.lookupMethod(
+    classOf[DateTimeUtils],
+    "timestampFloorForHighPrecision",
+    classOf[TimeUnitRange],
+    classOf[Long],
+    classOf[Int],
+    classOf[TimeZone])
+
   val TIMESTAMP_CEIL_TIME_ZONE = Types.lookupMethod(
     classOf[DateTimeUtils],
     "timestampCeil",
+    classOf[TimeUnitRange],
+    classOf[Long],
+    classOf[Int],
+    classOf[TimeZone])
+
+  val TIMESTAMP_CEIL_TIME_ZONE_FOR_HIGH_PRECISiON = Types.lookupMethod(
+    classOf[DateTimeUtils],
+    "timestampCeilForHighPrecision",
     classOf[TimeUnitRange],
     classOf[Long],
     classOf[Int],

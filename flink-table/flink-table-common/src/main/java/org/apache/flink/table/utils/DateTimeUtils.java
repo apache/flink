@@ -95,6 +95,9 @@ public class DateTimeUtils {
     /** The number of nanoseconds in a millisecond. */
     private static final long NANOS_PER_MILLISECOND = 1000000L;
 
+    /** The number of microseconds in a millisecond. */
+    private static final long NANOS_PER_MICROSECOND = 1000L;
+
     /** The number of milliseconds in a minute. */
     private static final long MILLIS_PER_MINUTE = 60000L;
 
@@ -1252,6 +1255,36 @@ public class DateTimeUtils {
         }
     }
 
+    public static int timestampFloorForHighPrecision(
+            TimeUnitRange range, long ts, int ns, TimeZone tz) {
+        // assume that we are at UTC timezone, just for algorithm performance
+        long offset = tz.getOffset(ts);
+        long utcTs = ts + offset;
+
+        switch (range) {
+            case NANOSECOND:
+                return ns;
+            case MICROSECOND:
+                return floorForHighPrecision(utcTs, ns);
+            case MILLISECOND:
+            case SECOND:
+            case MINUTE:
+            case HOUR:
+            case DAY:
+            case MILLENNIUM:
+            case CENTURY:
+            case DECADE:
+            case MONTH:
+            case YEAR:
+            case QUARTER:
+            case WEEK:
+                return 0;
+            default:
+                // it is more effective to use arithmetic Method
+                throw new AssertionError(range);
+        }
+    }
+
     /**
      * Keep the algorithm consistent with Calcite DateTimeUtils.julianDateFloor, but here we take
      * time zone into account.
@@ -1286,7 +1319,36 @@ public class DateTimeUtils {
                 int days = (int) (utcTs / MILLIS_PER_DAY + EPOCH_JULIAN);
                 return julianDateFloor(range, days, false) * MILLIS_PER_DAY - offset;
             default:
-                // for MINUTE and SECONDS etc...,
+                // it is more effective to use arithmetic Method
+                throw new AssertionError(range);
+        }
+    }
+
+    public static int timestampCeilForHighPrecision(
+            TimeUnitRange range, long ts, int ns, TimeZone tz) {
+        // assume that we are at UTC timezone, just for algorithm performance
+        long offset = tz.getOffset(ts);
+        long utcTs = ts + offset;
+
+        switch (range) {
+            case NANOSECOND:
+                return ns;
+            case MICROSECOND:
+                return ceilForHighPrecision(utcTs, ns);
+            case MILLISECOND:
+            case SECOND:
+            case MINUTE:
+            case HOUR:
+            case DAY:
+            case MILLENNIUM:
+            case CENTURY:
+            case DECADE:
+            case MONTH:
+            case YEAR:
+            case QUARTER:
+            case WEEK:
+                return 0;
+            default:
                 // it is more effective to use arithmetic Method
                 throw new AssertionError(range);
         }
@@ -1310,6 +1372,15 @@ public class DateTimeUtils {
         }
     }
 
+    private static int floorForHighPrecision(long a, int b) {
+        long q = b / NANOS_PER_MICROSECOND;
+        if (q < 0) {
+            return (int) (q * NANOS_PER_MICROSECOND - NANOS_PER_MICROSECOND);
+        } else {
+            return (int) (q * NANOS_PER_MICROSECOND);
+        }
+    }
+
     private static long ceil(long a, long b) {
         long r = a % b;
         if (r > 0) {
@@ -1325,6 +1396,16 @@ public class DateTimeUtils {
             return a + 1L;
         } else {
             return a;
+        }
+    }
+
+    private static int ceilForHighPrecision(long a, int b) {
+        long q = b / NANOS_PER_MICROSECOND;
+        long r = b % NANOS_PER_MICROSECOND;
+        if (q > 0 && r > 0) {
+            return (int) ((q + 1) * NANOS_PER_MICROSECOND);
+        } else {
+            return (int) (q * NANOS_PER_MICROSECOND);
         }
     }
 
