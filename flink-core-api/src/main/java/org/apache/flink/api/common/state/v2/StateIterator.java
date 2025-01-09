@@ -19,10 +19,10 @@
 package org.apache.flink.api.common.state.v2;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.Collection;
-import java.util.function.Consumer;
-import java.util.function.Function;
 
 /**
  * Asynchronous iterators allow to iterate over data that comes asynchronously, on-demand.
@@ -40,7 +40,8 @@ public interface StateIterator<T> {
      * @return the Future that will trigger when this iterator and all returned state future get its
      *     results.
      */
-    <U> StateFuture<Collection<U>> onNext(Function<T, StateFuture<? extends U>> iterating);
+    <U> StateFuture<Collection<U>> onNext(
+            FunctionWithException<T, StateFuture<? extends U>, Exception> iterating);
 
     /**
      * Async iterate the data and call the callback when data is ready.
@@ -48,7 +49,7 @@ public interface StateIterator<T> {
      * @param iterating the data action when it is ready.
      * @return the Future that will trigger when this iterator ends.
      */
-    StateFuture<Void> onNext(Consumer<T> iterating);
+    StateFuture<Void> onNext(ThrowingConsumer<T, Exception> iterating);
 
     /** Return if this iterator is empty synchronously. */
     boolean isEmpty();
