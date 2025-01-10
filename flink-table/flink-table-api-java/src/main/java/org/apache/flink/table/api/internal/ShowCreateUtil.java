@@ -90,7 +90,9 @@ public class ShowCreateUtil {
                             "SHOW CREATE VIEW is only supported for views, but %s is a table. Please use SHOW CREATE TABLE instead.",
                             viewIdentifier.asSerializableString()));
         }
-        if (view.getOrigin() instanceof QueryOperationCatalogView) {
+        final CatalogBaseTable origin = view.getOrigin();
+        if (origin instanceof QueryOperationCatalogView
+                && !((QueryOperationCatalogView) origin).supportsShowCreateView()) {
             throw new TableException(
                     "SHOW CREATE VIEW is not supported for views registered by Table API.");
         }
@@ -99,7 +101,7 @@ public class ShowCreateUtil {
                         .append(buildCreateFormattedPrefix("VIEW", isTemporary, viewIdentifier));
         sb.append(extractFormattedColumnNames(view, PRINT_INDENT)).append("\n)\n");
         extractComment(view).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
-        sb.append("AS ").append(((CatalogView) view.getOrigin()).getExpandedQuery()).append("\n");
+        sb.append("AS ").append(((CatalogView) origin).getExpandedQuery()).append("\n");
 
         return sb.toString();
     }
