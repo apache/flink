@@ -106,7 +106,8 @@ public class PlannerMocks {
                         },
                         functionCatalog.asLookup(parser::parseIdentifier),
                         catalogManager.getDataTypeFactory(),
-                        parser::parseSqlExpression));
+                        parser::parseSqlExpression),
+                parser);
     }
 
     public FlinkPlannerImpl getPlanner() {
