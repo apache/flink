@@ -160,7 +160,7 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
                 target, filesystem, bufferSize, fileStateThreshold, !absolutePath);
     }
 
-    private Path getTargetPath(CheckpointedStateScope scope) {
+    public Path getTargetPath(CheckpointedStateScope scope) {
         return scope == CheckpointedStateScope.EXCLUSIVE
                 ? checkpointDirectory
                 : sharedStateDirectory;

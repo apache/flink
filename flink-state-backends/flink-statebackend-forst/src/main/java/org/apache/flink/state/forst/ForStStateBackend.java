@@ -28,12 +28,14 @@ import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.description.InlineElement;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractManagedMemoryStateBackend;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
@@ -74,6 +76,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
+import static org.apache.flink.configuration.StateRecoveryOptions.RESTORE_MODE;
 import static org.apache.flink.configuration.description.TextElement.text;
 import static org.apache.flink.state.forst.ForStConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD;
 import static org.apache.flink.state.forst.ForStConfigurableOptions.USE_DELETE_FILES_IN_RANGE_DURING_RESCALING;
@@ -175,6 +178,9 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
      * rescaling.
      */
     private final TernaryBoolean rescalingUseDeleteFilesInRange;
+
+    /** The recovery claim mode. */
+    private RecoveryClaimMode recoveryClaimMode = RecoveryClaimMode.DEFAULT;
 
     private boolean remoteShareWithCheckpoint;
 
@@ -285,6 +291,10 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                         original.rescalingUseDeleteFilesInRange,
                         USE_DELETE_FILES_IN_RANGE_DURING_RESCALING,
                         config);
+
+        if (config.getOptional(RESTORE_MODE).isPresent()) {
+            recoveryClaimMode = config.get(RESTORE_MODE);
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -427,6 +437,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                         sharedResources,
                         localBasePath,
                         remoteBasePath,
+                        env.getCheckpointStorageAccess(),
                         parameters.getMetricGroup(),
                         nativeMetricOptions.isStatisticsEnabled());
 
@@ -459,7 +470,8 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                                         USE_INGEST_DB_RESTORE_MODE.defaultValue()))
                         .setRescalingUseDeleteFilesInRange(
                                 rescalingUseDeleteFilesInRange.getOrDefault(
-                                        USE_DELETE_FILES_IN_RANGE_DURING_RESCALING.defaultValue()));
+                                        USE_DELETE_FILES_IN_RANGE_DURING_RESCALING.defaultValue()))
+                        .setRecoveryClaimMode(recoveryClaimMode);
 
         return builder.build();
     }
@@ -510,6 +522,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                         sharedResources,
                         instanceBasePath,
                         null,
+                        env.getCheckpointStorageAccess(),
                         null,
                         nativeMetricOptions.isStatisticsEnabled());
 
@@ -551,7 +564,8 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                                         USE_INGEST_DB_RESTORE_MODE.defaultValue()))
                         .setRescalingUseDeleteFilesInRange(
                                 rescalingUseDeleteFilesInRange.getOrDefault(
-                                        USE_DELETE_FILES_IN_RANGE_DURING_RESCALING.defaultValue()));
+                                        USE_DELETE_FILES_IN_RANGE_DURING_RESCALING.defaultValue()))
+                        .setRecoveryClaimMode(recoveryClaimMode);
         return builder.build();
     }
 
@@ -779,7 +793,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
     @VisibleForTesting
     ForStResourceContainer createOptionsAndResourceContainer(@Nullable Path localBasePath) {
-        return createOptionsAndResourceContainer(null, localBasePath, null, null, false);
+        return createOptionsAndResourceContainer(null, localBasePath, null, null, null, false);
     }
 
     @VisibleForTesting
@@ -787,6 +801,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
             @Nullable OpaqueMemoryResource<ForStSharedResources> sharedResources,
             @Nullable Path localBasePath,
             @Nullable Path remoteBasePath,
+            @Nullable CheckpointStorageAccess checkpointStorageAccess,
             @Nullable MetricGroup metricGroup,
             boolean enableStatistics) {
 
@@ -796,6 +811,8 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                 sharedResources,
                 localBasePath,
                 remoteBasePath,
+                recoveryClaimMode,
+                checkpointStorageAccess,
                 metricGroup,
                 enableStatistics);
     }

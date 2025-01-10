@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.forst;
+package org.apache.flink.state.forst.datatransfer;
 
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
@@ -27,6 +27,8 @@ import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.state.forst.ForStKeyedStateBackend;
+import org.apache.flink.state.forst.StateHandleTransferSpec;
 import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -43,8 +45,6 @@ import javax.annotation.Nullable;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -61,8 +61,6 @@ import static org.apache.flink.util.concurrent.Executors.newDirectExecutorServic
 /** Data transfer util class for {@link ForStKeyedStateBackend}. */
 public class ForStStateDataTransfer implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(ForStStateDataTransfer.class);
-
-    private static final int READ_BUFFER_SIZE = 64 * 1024;
 
     // TODO: Add ConfigOption replace this field after ForSt checkpoint implementation stable
     public static final int DEFAULT_THREAD_NUM = 4;
@@ -209,6 +207,10 @@ public class ForStStateDataTransfer implements Closeable {
                 executorService);
     }
 
+    private FileSystem getDbFileSystem() {
+        return forStFs != null ? forStFs : FileSystem.getLocalFileSystem();
+    }
+
     private HandleAndLocalPath transferFile(
             Path filePath,
             long maxTransferBytes,
@@ -218,61 +220,16 @@ public class ForStStateDataTransfer implements Closeable {
             CloseableRegistry tmpResourcesRegistry)
             throws IOException {
 
-        if (maxTransferBytes < 0) {
-            // Means transfer whole file to checkpoint storage.
-            maxTransferBytes = Long.MAX_VALUE;
+        DataTransferStrategy strategy =
+                DataTransferStrategyBuilder.buildForSnapshot(forStFs, checkpointStreamFactory);
 
-            // TODO: Optimizing transfer with fast duplicate
-        }
-
-        InputStream inputStream = null;
-        CheckpointStateOutputStream outputStream = null;
-
-        try {
-            final byte[] buffer = new byte[READ_BUFFER_SIZE];
-
-            FileSystem sourceFilesystem = forStFs == null ? filePath.getFileSystem() : forStFs;
-            inputStream = sourceFilesystem.open(filePath, READ_BUFFER_SIZE);
-            closeableRegistry.registerCloseable(inputStream);
-
-            outputStream = checkpointStreamFactory.createCheckpointStateOutputStream(stateScope);
-            closeableRegistry.registerCloseable(outputStream);
-
-            while (maxTransferBytes > 0) {
-                int maxReadBytes = (int) Math.min(maxTransferBytes, READ_BUFFER_SIZE);
-                int readBytes = inputStream.read(buffer, 0, maxReadBytes);
-
-                if (readBytes == -1) {
-                    break;
-                }
-
-                outputStream.write(buffer, 0, readBytes);
-
-                maxTransferBytes -= readBytes;
-            }
-
-            final StreamStateHandle result;
-            if (closeableRegistry.unregisterCloseable(outputStream)) {
-                result = outputStream.closeAndGetHandle();
-                outputStream = null;
-            } else {
-                result = null;
-            }
-            tmpResourcesRegistry.registerCloseable(
-                    () -> StateUtil.discardStateObjectQuietly(result));
-
-            return HandleAndLocalPath.of(result, filePath.getName());
-
-        } finally {
-
-            if (closeableRegistry.unregisterCloseable(inputStream)) {
-                IOUtils.closeQuietly(inputStream);
-            }
-
-            if (closeableRegistry.unregisterCloseable(outputStream)) {
-                IOUtils.closeQuietly(outputStream);
-            }
-        }
+        return strategy.transferToCheckpoint(
+                filePath,
+                maxTransferBytes,
+                checkpointStreamFactory,
+                stateScope,
+                closeableRegistry,
+                tmpResourcesRegistry);
     }
 
     /**
@@ -282,7 +239,9 @@ public class ForStStateDataTransfer implements Closeable {
      * @throws Exception If anything about the transfer goes wrong.
      */
     public void transferAllStateDataToDirectory(
-            Collection<StateHandleTransferSpec> transferSpecs, CloseableRegistry closeableRegistry)
+            Collection<StateHandleTransferSpec> transferSpecs,
+            CloseableRegistry closeableRegistry,
+            RecoveryClaimMode recoveryClaimMode)
             throws Exception {
 
         // We use this closer for fine-grained shutdown of all parallel transferring.
@@ -292,7 +251,8 @@ public class ForStStateDataTransfer implements Closeable {
 
         try {
             List<CompletableFuture<Void>> futures =
-                    transferAllStateDataToDirectoryAsync(transferSpecs, internalCloser)
+                    transferAllStateDataToDirectoryAsync(
+                                    transferSpecs, internalCloser, recoveryClaimMode)
                             .collect(Collectors.toList());
 
             // Wait until either all futures completed successfully or one failed exceptionally.
@@ -306,8 +266,7 @@ public class ForStStateDataTransfer implements Closeable {
                     .forEach(
                             dir -> {
                                 try {
-                                    FileSystem fs = forStFs != null ? forStFs : dir.getFileSystem();
-                                    fs.delete(dir, true);
+                                    getDbFileSystem().delete(dir, true);
                                 } catch (IOException ignored) {
                                     LOG.warn("Failed to delete transfer destination.", ignored);
                                 }
@@ -326,7 +285,12 @@ public class ForStStateDataTransfer implements Closeable {
     /** Asynchronously runs the specified transfer requests on executorService. */
     private Stream<CompletableFuture<Void>> transferAllStateDataToDirectoryAsync(
             Collection<StateHandleTransferSpec> transferSpecs,
-            CloseableRegistry closeableRegistry) {
+            CloseableRegistry closeableRegistry,
+            RecoveryClaimMode recoveryClaimMode) {
+        DataTransferStrategy strategy =
+                DataTransferStrategyBuilder.buildForRestore(
+                        forStFs, transferSpecs, recoveryClaimMode);
+
         return transferSpecs.stream()
                 .flatMap(
                         spec ->
@@ -346,50 +310,12 @@ public class ForStStateDataTransfer implements Closeable {
                                                                     localPath);
                                                     return ThrowingRunnable.unchecked(
                                                             () ->
-                                                                    transferDataFromStateHandle(
+                                                                    strategy.transferFromCheckpoint(
                                                                             sourceHandle,
                                                                             targetPath,
                                                                             closeableRegistry));
                                                 }))
                 .map(runnable -> CompletableFuture.runAsync(runnable, executorService));
-    }
-
-    private void transferDataFromStateHandle(
-            StreamStateHandle sourceHandle, Path targetPath, CloseableRegistry closeableRegistry)
-            throws IOException {
-
-        if (closeableRegistry.isClosed()) {
-            // This means other transfer which is registered with the same registry failed, return
-            // directly for fast fail.
-            return;
-        }
-
-        FileSystem targetFs = forStFs != null ? forStFs : targetPath.getFileSystem();
-
-        // TODO: Use fast duplicate if possible.
-
-        try {
-            FSDataInputStream input = sourceHandle.openInputStream();
-            closeableRegistry.registerCloseable(input);
-
-            OutputStream output = targetFs.create(targetPath, FileSystem.WriteMode.NO_OVERWRITE);
-            closeableRegistry.registerCloseable(output);
-
-            byte[] buffer = new byte[READ_BUFFER_SIZE];
-            while (true) {
-                int numBytes = input.read(buffer);
-                if (numBytes == -1) {
-                    break;
-                }
-                output.write(buffer, 0, numBytes);
-            }
-            closeableRegistry.unregisterAndCloseAll(output, input);
-        } catch (Exception ex) {
-            // Quickly close all open streams. This also stops all concurrent transfers because they
-            // are registered with the same registry.
-            IOUtils.closeQuietly(closeableRegistry);
-            throw new IOException(ex);
-        }
     }
 
     @Override
