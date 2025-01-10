@@ -25,7 +25,6 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.stats._
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ColumnIntervalUtil, FlinkRelOptUtil, RankUtil}
-import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, VariableRankRange}
 import org.apache.flink.util.Preconditions
@@ -73,31 +72,16 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
     val statistic = relOptTable.getStatistic
     val colStats = statistic.getColumnStats(fieldName)
     if (colStats != null) {
-      val minValue = colStats.getMinValue
-      val maxValue = colStats.getMaxValue
       val min = colStats.getMin
       val max = colStats.getMax
 
-      Preconditions.checkArgument(
-        (minValue == null && maxValue == null) || (max == null && min == null))
-
-      if (minValue != null || maxValue != null) {
-        ValueInterval(convertNumberToBigDecimal(minValue), convertNumberToBigDecimal(maxValue))
-      } else if (max != null || min != null) {
+      if (max != null || min != null) {
         ValueInterval(convertNumberToBigDecimal(min), convertNumberToBigDecimal(max))
       } else {
         null
       }
     } else {
       null
-    }
-  }
-
-  private def convertNumberToBigDecimal(number: Number): Number = {
-    if (number != null) {
-      new JBigDecimal(number.toString)
-    } else {
-      number
     }
   }
 
