@@ -207,6 +207,9 @@ class JoinITCase extends BatchTestBase {
       tEnv.getConfig.set(
         OptimizerConfigOptions.TABLE_OPTIMIZER_ADAPTIVE_BROADCAST_JOIN_STRATEGY,
         OptimizerConfigOptions.AdaptiveBroadcastJoinStrategy.NONE)
+      tEnv.getConfig.set(
+        OptimizerConfigOptions.TABLE_OPTIMIZER_ADAPTIVE_SKEWED_JOIN_OPTIMIZATION_STRATEGY,
+        OptimizerConfigOptions.AdaptiveSkewedJoinOptimizationStrategy.NONE)
       val sink = (new CollectRowTableSink).configure(Array("c"), Array(Types.STRING))
       tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("outputTable", sink)
       val stmtSet = tEnv.createStatementSet()

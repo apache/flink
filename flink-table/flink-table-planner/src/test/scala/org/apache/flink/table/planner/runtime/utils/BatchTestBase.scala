@@ -35,6 +35,7 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.DEFAULT_PARALLELISM
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase._
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestingTableEnvironment}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.runtime.util.RowDataTestUtil
@@ -91,29 +92,8 @@ class BatchTestBase extends BatchAbstractTestBase {
     TestValuesTableFactory.clearAllData()
   }
 
-  /**
-   * Explain ast tree nodes of table and the logical plan after optimization.
-   *
-   * @param table
-   *   table to explain for
-   * @return
-   *   string presentation of of explaining
-   */
-  def explainLogical(table: Table): String = {
-    val ast = TableTestUtil.toRelNode(table)
-    val logicalPlan = getPlan(ast)
-
-    s"== Abstract Syntax Tree ==" +
-      System.lineSeparator +
-      s"${FlinkRelOptUtil.toString(ast)}" +
-      System.lineSeparator +
-      s"== Optimized Logical Plan ==" +
-      System.lineSeparator +
-      s"$logicalPlan"
-  }
-
   def checkResult(sqlQuery: String, expectedResult: Seq[Row], isSorted: Boolean = false): Unit = {
-    check(sqlQuery, (result: Seq[Row]) => checkSame(expectedResult, result, isSorted))
+    check(sqlQuery, (result: Seq[Row]) => checkSame(expectedResult, result, isSorted), tEnv)
   }
 
   def checkTableResult(table: Table, expectedResult: Seq[Row], isSorted: Boolean = false): Unit = {
@@ -137,31 +117,9 @@ class BatchTestBase extends BatchAbstractTestBase {
         """.stripMargin
           Some(errorMessage)
         } else None
-      }
+      },
+      tEnv
     )
-  }
-
-  private def getPlan(relNode: RelNode): String = {
-    val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
-    val optimized = planner.optimize(relNode)
-    FlinkRelOptUtil.toString(optimized, SqlExplainLevel.EXPPLAN_ATTRIBUTES)
-  }
-
-  def check(sqlQuery: String, checkFunc: Seq[Row] => Option[String]): Unit = {
-    val table = parseQuery(sqlQuery)
-    val result = executeQuery(table)
-
-    checkFunc(result).foreach {
-      results =>
-        val plan = explainLogical(table)
-        fail(s"""
-                |Results do not match for query:
-                |  $sqlQuery
-                |$results
-                |Plan:
-                |  $plan
-       """.stripMargin)
-    }
   }
 
   def checkTable(table: Table, checkFunc: Seq[Row] => Option[String]): Unit = {
@@ -169,7 +127,7 @@ class BatchTestBase extends BatchAbstractTestBase {
 
     checkFunc(result).foreach {
       results =>
-        val plan = explainLogical(table)
+        val plan = explainLogical(table, tEnv)
         fail(s"""
                 |Results do not match:
                 |$results
@@ -310,10 +268,12 @@ class BatchTestBase extends BatchAbstractTestBase {
     }
   }
 
-  def parseQuery(sqlQuery: String): Table = tEnv.sqlQuery(sqlQuery)
+  def parseQuery(sqlQuery: String): Table = {
+    BatchTestBase.parseQuery(sqlQuery, tEnv)
+  }
 
   def executeQuery(table: Table): Seq[Row] = {
-    CollectionUtil.iteratorToList(table.execute().collect()).asScala
+    BatchTestBase.executeQuery(table)
   }
 
   def executeQuery(sqlQuery: String): Seq[Row] = {
@@ -325,43 +285,9 @@ class BatchTestBase extends BatchAbstractTestBase {
     if (!isSorted) seq.map(_.toString).sortBy(s => s) else seq.map(_.toString)
   }
 
-  def checkSame(
-      expectedResult: Seq[Row],
-      result: Seq[Row],
-      isSorted: Boolean = false): Option[String] = {
-    if (
-      expectedResult.size != result.size
-      || !prepareResult(expectedResult, isSorted).equals(prepareResult(result, isSorted))
-    ) {
-      val errorMessage =
-        s"""
-           |Results
-           |${sideBySide(
-            s"== Correct Result - ${expectedResult.size} ==" +:
-              prepareResult(expectedResult, isSorted),
-            s"== Actual Result - ${result.size} ==" +:
-              prepareResult(result, isSorted)
-          ).mkString("\n")}
-        """.stripMargin
-      Some(errorMessage)
-    } else None
-  }
-
   private def checkEmpty(result: Seq[Row]) = {
     val expectedResult = Nil
     checkSame(expectedResult, result, isSorted = true)
-  }
-
-  private def sideBySide(left: Seq[String], right: Seq[String]) = {
-    val maxLeftSize = left.map(_.length).max
-    val leftPadded = left ++ Seq.fill(math.max(right.size - left.size, 0))("")
-    val rightPadded = right ++ Seq.fill(math.max(left.size - right.size, 0))("")
-
-    leftPadded.zip(rightPadded).map {
-      case (l, r) =>
-        (if (l == r || l.startsWith("== Correct")) " " else "!") +
-          l + (" " * ((maxLeftSize - l.length) + 3)) + r
-    }
   }
 
   implicit def registerCollection(
@@ -541,6 +467,112 @@ object BatchTestBase {
       tableConfig.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Default)
     } else {
       tableConfig.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.AdaptiveBatch)
+    }
+  }
+
+  def checkResult(
+      sqlQuery: String,
+      expectedResult: Seq[Row],
+      tEnv: TableEnvironment,
+      isSorted: Boolean = false): Unit = {
+    check(sqlQuery, (result: Seq[Row]) => checkSame(expectedResult, result, isSorted), tEnv)
+  }
+
+  def check(
+      sqlQuery: String,
+      checkFunc: Seq[Row] => Option[String],
+      tEnv: TableEnvironment): Unit = {
+    val table = parseQuery(sqlQuery, tEnv)
+    val result = executeQuery(table)
+
+    checkFunc(result).foreach {
+      results =>
+        val plan = explainLogical(table, tEnv)
+        fail(s"""
+                |Results do not match for query:
+                |  $sqlQuery
+                |$results
+                |Plan:
+                |  $plan
+       """.stripMargin)
+    }
+  }
+
+  def parseQuery(sqlQuery: String, tEnv: TableEnvironment): Table = tEnv.sqlQuery(sqlQuery)
+
+  def executeQuery(table: Table): Seq[Row] = {
+    CollectionUtil.iteratorToList(table.execute().collect()).asScala
+  }
+
+  def executeQuery(sqlQuery: String, tEnv: TableEnvironment): Seq[Row] = {
+    val table = parseQuery(sqlQuery, tEnv)
+    executeQuery(table)
+  }
+
+  /**
+   * Explain ast tree nodes of table and the logical plan after optimization.
+   *
+   * @param table
+   *   table to explain for
+   * @param tEnv
+   *   table environment
+   * @return
+   *   string presentation of explaining
+   */
+  def explainLogical(table: Table, tEnv: TableEnvironment): String = {
+    val ast = TableTestUtil.toRelNode(table)
+    val logicalPlan = getPlan(ast, tEnv)
+
+    s"== Abstract Syntax Tree ==" +
+      System.lineSeparator +
+      s"${FlinkRelOptUtil.toString(ast)}" +
+      System.lineSeparator +
+      s"== Optimized Logical Plan ==" +
+      System.lineSeparator +
+      s"$logicalPlan"
+  }
+
+  private def getPlan(relNode: RelNode, tEnv: TableEnvironment): String = {
+    val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
+    val optimized = planner.optimize(relNode)
+    FlinkRelOptUtil.toString(optimized, SqlExplainLevel.EXPPLAN_ATTRIBUTES)
+  }
+
+  def checkSame(
+      expectedResult: Seq[Row],
+      result: Seq[Row],
+      isSorted: Boolean = false): Option[String] = {
+    if (
+      expectedResult.size != result.size
+      || !prepareResult(expectedResult, isSorted).equals(prepareResult(result, isSorted))
+    ) {
+      val errorMessage =
+        s"""
+           |Results
+           |${sideBySide(
+            s"== Correct Result - ${expectedResult.size} ==" +:
+              prepareResult(expectedResult, isSorted),
+            s"== Actual Result - ${result.size} ==" +:
+              prepareResult(result, isSorted)
+          ).mkString("\n")}
+        """.stripMargin
+      Some(errorMessage)
+    } else None
+  }
+
+  private def prepareResult(seq: Seq[Row], isSorted: Boolean): Seq[String] = {
+    if (!isSorted) seq.map(_.toString).sortBy(s => s) else seq.map(_.toString)
+  }
+
+  private def sideBySide(left: Seq[String], right: Seq[String]): Seq[String] = {
+    val maxLeftSize = left.map(_.length).max
+    val leftPadded = left ++ Seq.fill(math.max(right.size - left.size, 0))("")
+    val rightPadded = right ++ Seq.fill(math.max(left.size - right.size, 0))("")
+
+    leftPadded.zip(rightPadded).map {
+      case (l, r) =>
+        (if (l == r || l.startsWith("== Correct")) " " else "!") +
+          l + (" " * ((maxLeftSize - l.length) + 3)) + r
     }
   }
 }

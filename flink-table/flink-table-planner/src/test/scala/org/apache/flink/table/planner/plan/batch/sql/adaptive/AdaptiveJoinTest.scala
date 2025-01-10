@@ -133,4 +133,16 @@ class AdaptiveJoinTest extends TableTestBase {
     val sql = "SELECT * FROM T1, T2 WHERE a1 = a2"
     util.verifyExecPlan(sql)
   }
+
+  @Test
+  def testAdaptiveJoinWithAdaptiveSkewedOptimizationEnabled(): Unit = {
+    util.tableConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_ADAPTIVE_BROADCAST_JOIN_STRATEGY,
+      OptimizerConfigOptions.AdaptiveBroadcastJoinStrategy.NONE)
+    util.tableConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_ADAPTIVE_SKEWED_JOIN_OPTIMIZATION_STRATEGY,
+      OptimizerConfigOptions.AdaptiveSkewedJoinOptimizationStrategy.AUTO)
+    val sql = "SELECT * FROM T1, T2 WHERE a1 = a2"
+    util.verifyExecPlan(sql)
+  }
 }
