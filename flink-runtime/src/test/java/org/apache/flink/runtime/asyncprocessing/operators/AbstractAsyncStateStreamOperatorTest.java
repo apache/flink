@@ -48,6 +48,7 @@ import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.LinkedList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
@@ -212,15 +213,21 @@ public class AbstractAsyncStateStreamOperatorTest {
         testHarness.setStateBackend(buildAsyncStateBackend(new HashMapStateBackend()));
         try {
             testHarness.open();
+
+            // Repeat twice
+            testHarness.processElementInternal(new StreamRecord<>(Tuple2.of(5, "5")));
             CompletableFuture<Void> future =
                     testHarness.processElementInternal(new StreamRecord<>(Tuple2.of(5, "5")));
 
             testHarness.drainStateRequests();
-            future.get(10000, TimeUnit.MILLISECONDS);
             // If the AEC could avoid deadlock, there should not be any timeout exception.
-            testHarness.drainStateRequests();
+            future.get(10000, TimeUnit.MILLISECONDS);
             testOperator.getLastProcessedFuture().get(10000, TimeUnit.MILLISECONDS);
-            assertThat(testOperator.getProcessed()).isEqualTo(requests);
+
+            assertThat(testOperator.getProcessed()).isEqualTo(requests * 2);
+            // This ensures the order is correct according to the priority in AEC.
+            assertThat(testOperator.getProcessedOrders())
+                    .isEqualTo(testOperator.getExpectedProcessedOrders());
         } finally {
             testHarness.close();
         }
@@ -573,6 +580,8 @@ public class AbstractAsyncStateStreamOperatorTest {
 
         private final int numAsyncProcesses;
         private final CompletableFuture<Void> lastProcessedFuture = new CompletableFuture<>();
+        private final LinkedList<Integer> processedOrders = new LinkedList<>();
+        private final LinkedList<Integer> expectedProcessedOrders = new LinkedList<>();
 
         TestOperatorWithMultipleDirectAsyncProcess(
                 ElementOrder elementOrder, int numAsyncProcesses) {
@@ -583,25 +592,39 @@ public class AbstractAsyncStateStreamOperatorTest {
         @Override
         public void processElement(StreamRecord<Tuple2<Integer, String>> element) throws Exception {
             for (int i = 0; i < numAsyncProcesses; i++) {
+                final int finalI = i;
                 if (i < numAsyncProcesses - 1) {
                     asyncProcessWithKey(
                             element.getValue().f0,
                             () -> {
                                 processed.incrementAndGet();
+                                processedOrders.add(finalI);
                             });
                 } else {
                     asyncProcessWithKey(
                             element.getValue().f0,
                             () -> {
                                 processed.incrementAndGet();
-                                lastProcessedFuture.complete(null);
+                                processedOrders.add(finalI);
+                                if (!lastProcessedFuture.isDone()) {
+                                    lastProcessedFuture.complete(null);
+                                }
                             });
                 }
+                expectedProcessedOrders.add(finalI);
             }
         }
 
-        public CompletableFuture<Void> getLastProcessedFuture() {
+        CompletableFuture<Void> getLastProcessedFuture() {
             return lastProcessedFuture;
+        }
+
+        LinkedList<Integer> getProcessedOrders() {
+            return processedOrders;
+        }
+
+        LinkedList<Integer> getExpectedProcessedOrders() {
+            return expectedProcessedOrders;
         }
     }
 

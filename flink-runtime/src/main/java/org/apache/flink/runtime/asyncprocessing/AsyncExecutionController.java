@@ -223,7 +223,10 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
                     this::disposeContext,
                     KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism),
                     epochManager.onEpoch(currentContext.getEpoch()),
-                    currentContext.getVariablesReference());
+                    currentContext.getVariablesReference(),
+                    // When inheriting, we increase the priority by 1 to ensure that the record is
+                    // processed right after the current record if possible.
+                    currentContext.getPriority() + 1);
         } else {
             return new RecordContext<>(
                     record == null ? RecordContext.EMPTY_RECORD : record,
