@@ -35,7 +35,7 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
-import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -56,7 +56,7 @@ import static org.assertj.core.api.Assertions.fail;
  * async processing, please use methods of test harness instead of operator.
  */
 public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
-        extends OneInputStreamOperatorTestHarness<IN, OUT> {
+        extends KeyedOneInputStreamOperatorTestHarness<K, IN, OUT> {
 
     /** Empty if the {@link #operator} is not {@link MultipleInputStreamOperator}. */
     private final List<Input<IN>> inputs = new ArrayList<>();
@@ -113,7 +113,7 @@ public class AsyncKeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
             int numSubtasks,
             int subtaskIndex)
             throws Exception {
-        super(operatorFactory, maxParallelism, numSubtasks, subtaskIndex);
+        super(operatorFactory, keySelector, keyType, maxParallelism, numSubtasks, subtaskIndex);
 
         ClosureCleaner.clean(keySelector, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
         config.setStatePartitioner(0, keySelector);

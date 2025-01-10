@@ -16,31 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.aggregate;
+package org.apache.flink.table.runtime.operators.aggregate.async;
 
 import org.apache.flink.api.common.functions.OpenContext;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.state.v2.ValueState;
+import org.apache.flink.runtime.state.v2.ValueStateDescriptor;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
+import org.apache.flink.table.runtime.operators.aggregate.GroupAggFunctionBase;
 import org.apache.flink.table.runtime.operators.aggregate.utils.GroupAggHelper;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 
-/** Aggregate Function used for the groupby (without window) aggregate. */
-public class GroupAggFunction extends GroupAggFunctionBase {
+/** Aggregate Function used for the groupby (without window) aggregate with async state api. */
+public class AsyncStateGroupAggFunction extends GroupAggFunctionBase {
 
-    private static final long serialVersionUID = -4767158666069797704L;
+    private static final long serialVersionUID = 1L;
 
     // stores the accumulators
     private transient ValueState<RowData> accState = null;
 
-    private transient SyncStateGroupAggHelper aggHelper = null;
+    private transient AsyncStateGroupAggHelper aggHelper = null;
 
     /**
-     * Creates a {@link GroupAggFunction}.
+     * Creates a {@link AsyncStateGroupAggFunction}.
      *
      * @param genAggsHandler The code generated function used to handle aggregates.
      * @param genRecordEqualiser The code generated equaliser used to equal RowData.
@@ -51,7 +53,7 @@ public class GroupAggFunction extends GroupAggFunctionBase {
      * @param generateUpdateBefore Whether this operator will generate UPDATE_BEFORE messages.
      * @param stateRetentionTime state idle retention time which unit is MILLISECONDS.
      */
-    public GroupAggFunction(
+    public AsyncStateGroupAggFunction(
             GeneratedAggsHandleFunction genAggsHandler,
             GeneratedRecordEqualiser genRecordEqualiser,
             LogicalType[] accTypes,
@@ -76,31 +78,33 @@ public class GroupAggFunction extends GroupAggFunctionBase {
         if (ttlConfig.isEnabled()) {
             accDesc.enableTimeToLive(ttlConfig);
         }
-        accState = getRuntimeContext().getState(accDesc);
 
-        aggHelper = new SyncStateGroupAggHelper();
+        accState = ((StreamingRuntimeContext) getRuntimeContext()).getValueState(accDesc);
+        aggHelper = new AsyncStateGroupAggHelper();
     }
 
     @Override
     public void processElement(RowData input, Context ctx, Collector<RowData> out)
             throws Exception {
         RowData currentKey = ctx.getCurrentKey();
-        aggHelper.processElement(input, currentKey, accState.value(), out);
+        accState.asyncValue()
+                .thenAccept(acc -> aggHelper.processElement(input, currentKey, acc, out));
     }
 
-    private class SyncStateGroupAggHelper extends GroupAggHelper {
-        public SyncStateGroupAggHelper() {
+    private class AsyncStateGroupAggHelper extends GroupAggHelper {
+
+        public AsyncStateGroupAggHelper() {
             super(recordCounter, generateUpdateBefore, ttlConfig, function, equaliser);
         }
 
         @Override
         protected void updateAccumulatorsState(RowData accumulators) throws Exception {
-            accState.update(accumulators);
+            accState.asyncUpdate(accumulators);
         }
 
         @Override
         protected void clearAccumulatorsState() throws Exception {
-            accState.clear();
+            accState.asyncClear();
         }
     }
 }

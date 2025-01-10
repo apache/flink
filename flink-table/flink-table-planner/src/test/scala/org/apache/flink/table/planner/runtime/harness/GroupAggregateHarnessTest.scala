@@ -22,7 +22,7 @@ import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, 
 import org.apache.flink.table.api.{EnvironmentSettings, _}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
-import org.apache.flink.table.api.config.AggregatePhaseStrategy
+import org.apache.flink.table.api.config.{AggregatePhaseStrategy, ExecutionConfigOptions}
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, TABLE_EXEC_MINIBATCH_ENABLED, TABLE_EXEC_MINIBATCH_SIZE}
 import org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY
 import org.apache.flink.table.data.RowData
@@ -38,6 +38,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedT
 import org.apache.flink.types.Row
 import org.apache.flink.types.RowKind._
 
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
@@ -50,7 +51,10 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode)
+class GroupAggregateHarnessTest(
+    mode: StateBackendMode,
+    miniBatch: MiniBatchMode,
+    enableAsyncState: Boolean)
   extends HarnessTestBase(mode) {
 
   @BeforeEach
@@ -71,6 +75,9 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
       case MiniBatchOff =>
         tableConfig.getConfiguration.removeConfig(TABLE_EXEC_MINIBATCH_ALLOW_LATENCY)
     }
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED,
+      Boolean.box(enableAsyncState))
   }
 
   @TestTemplate
@@ -112,18 +119,38 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
 
     // retract after clean up
     testHarness.processElement(binaryRecord(UPDATE_BEFORE, "ccc", 3L: JLong))
-    // not output
+    // has no output for sync state because of ttl
+    // has output for async state op because it is not supported to set ttl yet
+    if (enableAsyncState) {
+      expectedOutput.add(binaryRecord(DELETE, "ccc", 3L: JLong))
+    }
 
     // accumulate
     testHarness.processElement(binaryRecord(INSERT, "aaa", 4L: JLong))
-    expectedOutput.add(binaryRecord(INSERT, "aaa", 4L: JLong))
+    if (enableAsyncState) {
+      expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 1L: JLong))
+      expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 5L: JLong))
+    } else {
+      expectedOutput.add(binaryRecord(INSERT, "aaa", 4L: JLong))
+    }
+
     testHarness.processElement(binaryRecord(INSERT, "bbb", 2L: JLong))
-    expectedOutput.add(binaryRecord(INSERT, "bbb", 2L: JLong))
+    if (enableAsyncState) {
+      expectedOutput.add(binaryRecord(UPDATE_BEFORE, "bbb", 1L: JLong))
+      expectedOutput.add(binaryRecord(UPDATE_AFTER, "bbb", 3L: JLong))
+    } else {
+      expectedOutput.add(binaryRecord(INSERT, "bbb", 2L: JLong))
+    }
 
     // retract
     testHarness.processElement(binaryRecord(INSERT, "aaa", 5L: JLong))
-    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 4L: JLong))
-    expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 9L: JLong))
+    if (enableAsyncState) {
+      expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 5L: JLong))
+      expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 10L: JLong))
+    } else {
+      expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 4L: JLong))
+      expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 9L: JLong))
+    }
 
     // accumulate
     testHarness.processElement(binaryRecord(INSERT, "eee", 6L: JLong))
@@ -131,16 +158,32 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
 
     // retract
     testHarness.processElement(binaryRecord(INSERT, "aaa", 7L: JLong))
-    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 9L: JLong))
-    expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 16L: JLong))
+    if (enableAsyncState) {
+      expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 10L: JLong))
+      expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 17L: JLong))
+    } else {
+      expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 9L: JLong))
+      expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 16L: JLong))
+    }
+
     testHarness.processElement(binaryRecord(INSERT, "bbb", 3L: JLong))
-    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "bbb", 2L: JLong))
-    expectedOutput.add(binaryRecord(UPDATE_AFTER, "bbb", 5L: JLong))
+    if (enableAsyncState) {
+      expectedOutput.add(binaryRecord(UPDATE_BEFORE, "bbb", 3L: JLong))
+      expectedOutput.add(binaryRecord(UPDATE_AFTER, "bbb", 6L: JLong))
+    } else {
+      expectedOutput.add(binaryRecord(UPDATE_BEFORE, "bbb", 2L: JLong))
+      expectedOutput.add(binaryRecord(UPDATE_AFTER, "bbb", 5L: JLong))
+    }
 
     // accumulate
     testHarness.processElement(binaryRecord(INSERT, "aaa", 0L: JLong))
-    expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 16L: JLong))
-    expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 16L: JLong))
+    if (enableAsyncState) {
+      expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 17L: JLong))
+      expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 17L: JLong))
+    } else {
+      expectedOutput.add(binaryRecord(UPDATE_BEFORE, "aaa", 16L: JLong))
+      expectedOutput.add(binaryRecord(UPDATE_AFTER, "aaa", 16L: JLong))
+    }
 
     val result = testHarness.getOutput
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
@@ -328,6 +371,13 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
     val t1 = tEnv.sqlQuery(sql)
     val testHarness = createHarnessTester(t1.toRetractStream[Row], "GroupAggregate")
     val outputTypes = Array(DataTypes.STRING().getLogicalType, DataTypes.BIGINT().getLogicalType)
+
+    if (enableAsyncState) {
+      assertThat(isAsyncStateOperator(testHarness)).isTrue
+    } else {
+      assertThat(isAsyncStateOperator(testHarness)).isFalse
+    }
+
     (testHarness, outputTypes)
   }
 
@@ -386,6 +436,9 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
       DataTypes.BIGINT().getLogicalType
     )
 
+    // async state agg with data view is not supported yet
+    assertThat(isAsyncStateOperator(testHarness)).isFalse
+
     (testHarness, outputTypes)
   }
 
@@ -397,17 +450,19 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
     // expect no exception happens
     testHarness.close()
   }
+
 }
 
 object GroupAggregateHarnessTest {
 
-  @Parameters(name = "StateBackend={0}, MiniBatch={1}")
+  @Parameters(name = "StateBackend={0}, MiniBatch={1},  EnableAsyncState={2}")
   def parameters(): JCollection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
-      Array(HEAP_BACKEND, MiniBatchOff),
-      Array(HEAP_BACKEND, MiniBatchOn),
-      Array(ROCKSDB_BACKEND, MiniBatchOff),
-      Array(ROCKSDB_BACKEND, MiniBatchOn)
+      Array(HEAP_BACKEND, MiniBatchOff, Boolean.box(false)),
+      Array(HEAP_BACKEND, MiniBatchOff, Boolean.box(true)),
+      Array(HEAP_BACKEND, MiniBatchOn, Boolean.box(false)),
+      Array(ROCKSDB_BACKEND, MiniBatchOff, Boolean.box(false)),
+      Array(ROCKSDB_BACKEND, MiniBatchOn, Boolean.box(false))
     )
   }
 }
