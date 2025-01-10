@@ -310,7 +310,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
 
         protected final KeyContext keyContext;
 
-        // metrics
+        // metrics used for cache
         private long hitCount = 0L;
         private long requestCount = 0L;
 

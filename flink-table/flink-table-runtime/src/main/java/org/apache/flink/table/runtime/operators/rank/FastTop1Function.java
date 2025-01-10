@@ -91,7 +91,6 @@ public class FastTop1Function extends AbstractSyncStateTopNFunction
 
         helper = new SyncStateFastTop1Helper();
 
-        // metrics
         helper.registerMetric();
     }
 

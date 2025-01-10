@@ -103,7 +103,6 @@ public class AsyncStateFastTop1Function extends AbstractAsyncStateTopNFunction
 
         helper = new AsyncStateFastTop1Helper();
 
-        // metrics
         helper.registerMetric();
     }
 
