@@ -92,8 +92,10 @@ public class ShowCreateUtil {
                             "SHOW CREATE VIEW is only supported for views, but %s is a table. Please use SHOW CREATE TABLE instead.",
                             viewIdentifier.asSerializableString()));
         }
-        StringBuilder stringBuilder = new StringBuilder();
-        if (view.getOrigin() instanceof QueryOperationCatalogView) {
+        final StringBuilder stringBuilder = new StringBuilder();
+        final CatalogBaseTable origin = view.getOrigin();
+        if (origin instanceof QueryOperationCatalogView
+                && !((QueryOperationCatalogView) origin).supportsShowCreateView()) {
             throw new TableException(
                     "SHOW CREATE VIEW is not supported for views registered by Table API.");
         } else {

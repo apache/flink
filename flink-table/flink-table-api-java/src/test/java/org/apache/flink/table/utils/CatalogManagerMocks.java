@@ -71,7 +71,8 @@ public final class CatalogManagerMocks {
             builder.catalogStoreHolder(catalogStoreHolder);
         }
         final CatalogManager catalogManager = builder.build();
-        catalogManager.initSchemaResolver(true, ExpressionResolverMocks.dummyResolver());
+        catalogManager.initSchemaResolver(
+                true, ExpressionResolverMocks.dummyResolver(), new ParserMock());
         return catalogManager;
     }
 

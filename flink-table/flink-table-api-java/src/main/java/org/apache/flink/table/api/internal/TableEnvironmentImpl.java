@@ -217,7 +217,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         getParser()::parseSqlExpression,
                         isStreamingMode);
         catalogManager.initSchemaResolver(
-                isStreamingMode, operationTreeBuilder.getResolverBuilder());
+                isStreamingMode, operationTreeBuilder.getResolverBuilder(), getParser());
         this.operationCtx =
                 new ExecutableOperationContextImpl(
                         catalogManager,
