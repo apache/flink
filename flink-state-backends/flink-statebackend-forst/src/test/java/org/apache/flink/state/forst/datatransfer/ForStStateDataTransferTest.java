@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.forst;
+package org.apache.flink.state.forst.datatransfer;
 
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileStatus;
@@ -33,6 +34,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.state.forst.StateHandleTransferSpec;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -455,7 +457,8 @@ class ForStStateDataTransferTest extends TestLogger {
                             new StateHandleTransferSpec(
                                     incrementalKeyedStateHandle,
                                     Path.fromLocalFile(TempDirUtils.newFolder(temporaryFolder)))),
-                    new CloseableRegistry());
+                    new CloseableRegistry(),
+                    RecoveryClaimMode.DEFAULT);
             fail();
         } catch (Exception e) {
             assertEquals(expectedCause, e.getCause());
@@ -479,7 +482,7 @@ class ForStStateDataTransferTest extends TestLogger {
 
         try (ForStStateDataTransfer stateTransfer = new ForStStateDataTransfer(4)) {
             stateTransfer.transferAllStateDataToDirectory(
-                    transferRequests, new CloseableRegistry());
+                    transferRequests, new CloseableRegistry(), RecoveryClaimMode.DEFAULT);
         }
 
         for (int i = 0; i < numRemoteHandles; ++i) {
@@ -524,7 +527,8 @@ class ForStStateDataTransferTest extends TestLogger {
 
         CloseableRegistry closeableRegistry = new CloseableRegistry();
         try (ForStStateDataTransfer stateTransfer = new ForStStateDataTransfer(5)) {
-            stateTransfer.transferAllStateDataToDirectory(transferRequests, closeableRegistry);
+            stateTransfer.transferAllStateDataToDirectory(
+                    transferRequests, closeableRegistry, RecoveryClaimMode.DEFAULT);
             fail("Exception is expected");
         } catch (IOException ignore) {
         }

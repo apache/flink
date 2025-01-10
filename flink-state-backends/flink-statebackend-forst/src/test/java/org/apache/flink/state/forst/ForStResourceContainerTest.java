@@ -18,9 +18,11 @@
 
 package org.apache.flink.state.forst;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
+import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
 import org.apache.flink.state.forst.fs.StringifiedForStFileSystem;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -316,6 +318,13 @@ public class ForStResourceContainerTest {
                         localBasePath,
                         remoteBasePath,
                         null,
+                        new FsCheckpointStorageAccess(
+                                new Path(TMP_FOLDER.newFolder().getPath()),
+                                null,
+                                new JobID(),
+                                1024,
+                                4096),
+                        null,
                         false)) {
             optionsContainer.prepareDirectories();
             assertTrue(new File(localBasePath.getPath()).exists());
@@ -338,7 +347,7 @@ public class ForStResourceContainerTest {
         DBOptions dbOptions2 =
                 new DBOptions().setCreateIfMissing(true).setAvoidFlushDuringShutdown(true);
         ForStFlinkFileSystem fileSystem =
-                ForStFlinkFileSystem.get(remoteBasePath.toUri(), localBasePath, null);
+                ForStFlinkFileSystem.get(remoteBasePath.toUri(), localBasePath, null, null);
         dbOptions2.setEnv(
                 new FlinkEnv(
                         remoteBasePath.toString(), new StringifiedForStFileSystem(fileSystem)));

@@ -22,10 +22,13 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
+import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
@@ -103,11 +106,22 @@ public class ForStStateTestBase {
         aec.drainInflightRecords(0);
     }
 
-    private static MockEnvironment getMockEnvironment(File tempDir) {
-        return MockEnvironment.builder()
-                .setUserCodeClassLoader(ForStStateBackendConfigTest.class.getClassLoader())
-                .setTaskManagerRuntimeInfo(
-                        new TestingTaskManagerRuntimeInfo(new Configuration(), tempDir))
-                .build();
+    private static MockEnvironment getMockEnvironment(File tempDir) throws IOException {
+        MockEnvironment env =
+                MockEnvironment.builder()
+                        .setUserCodeClassLoader(ForStStateBackendConfigTest.class.getClassLoader())
+                        .setTaskManagerRuntimeInfo(
+                                new TestingTaskManagerRuntimeInfo(new Configuration(), tempDir))
+                        .build();
+
+        CheckpointStorageAccess checkpointStorageAccess =
+                new FsCheckpointStorageAccess(
+                        new Path(tempDir.getPath(), "checkpoint"),
+                        null,
+                        env.getJobID(),
+                        1024,
+                        4096);
+        env.setCheckpointStorageAccess(checkpointStorageAccess);
+        return env;
     }
 }

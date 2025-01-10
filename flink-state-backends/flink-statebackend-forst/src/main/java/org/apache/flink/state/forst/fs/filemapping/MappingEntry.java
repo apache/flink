@@ -18,9 +18,10 @@
 
 package org.apache.flink.state.forst.fs.filemapping;
 
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.asyncprocessing.ReferenceCounted;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,34 +33,79 @@ import javax.annotation.Nullable;
  * N.
  */
 public class MappingEntry extends ReferenceCounted {
+
     private static final Logger LOG = LoggerFactory.getLogger(MappingEntry.class);
 
-    /** The reference of file mapping manager. */
-    private final FileSystem fileSystem;
+    MappingEntrySource source;
 
-    /** The original path of file. */
-    String sourcePath;
+    FileOwnership fileOwnership;
 
-    /** Whether the file is local. */
-    boolean isLocal;
-
-    boolean recursive;
+    final boolean isDirectory;
 
     /** When delete a directory, if the directory is the parent of this source file, track it. */
     @Nullable MappingEntry parentDir;
 
     public MappingEntry(
             int initReference,
-            FileSystem fileSystem,
-            String sourcePath,
-            boolean isLocal,
-            boolean recursive) {
+            StreamStateHandle stateHandle,
+            FileOwnership fileOwnership,
+            boolean isDirectory) {
+        this(
+                initReference,
+                new HandleBackedMappingEntrySource(stateHandle),
+                fileOwnership,
+                isDirectory);
+    }
+
+    public MappingEntry(
+            int initReference, Path sourcePath, FileOwnership fileOwnership, boolean isDirectory) {
+        this(
+                initReference,
+                new FileBackedMappingEntrySource(sourcePath),
+                fileOwnership,
+                isDirectory);
+    }
+
+    public MappingEntry(
+            int initReference,
+            MappingEntrySource source,
+            FileOwnership fileOwnership,
+            boolean isDirectory) {
         super(initReference);
-        this.fileSystem = fileSystem;
-        this.sourcePath = sourcePath;
+        this.source = source;
         this.parentDir = null;
-        this.isLocal = isLocal;
-        this.recursive = recursive;
+        this.fileOwnership = fileOwnership;
+        this.isDirectory = isDirectory;
+    }
+
+    public void setFileOwnership(FileOwnership ownership) {
+        this.fileOwnership = ownership;
+    }
+
+    public void setSource(StreamStateHandle stateHandle) {
+        if (source instanceof HandleBackedMappingEntrySource) {
+            Preconditions.checkArgument(
+                    ((HandleBackedMappingEntrySource) source).getStateHandle().equals(stateHandle),
+                    "MappingSource is already back by a different StateHandle: %s, the new one is: %s",
+                    source,
+                    stateHandle);
+            return;
+        }
+
+        LOG.trace("Set source for file: {}, the source is now backed by: {}", this, stateHandle);
+        this.source = new HandleBackedMappingEntrySource(stateHandle);
+    }
+
+    public MappingEntrySource getSource() {
+        return source;
+    }
+
+    public @Nullable Path getSourcePath() {
+        return source.getFilePath();
+    }
+
+    public FileOwnership getFileOwnership() {
+        return fileOwnership;
     }
 
     @Override
@@ -68,9 +114,13 @@ public class MappingEntry extends ReferenceCounted {
             if (parentDir != null) {
                 parentDir.release();
             }
-            fileSystem.delete(new Path(sourcePath), recursive);
+            if (fileOwnership == FileOwnership.NOT_OWNED) {
+                // If the source file is not owned by DB, do not delete it.
+                return;
+            }
+            source.delete(isDirectory);
         } catch (Exception e) {
-            LOG.warn("Failed to delete file {}.", sourcePath, e);
+            LOG.warn("Failed to delete file {}.", source, e);
         }
     }
 
@@ -82,6 +132,18 @@ public class MappingEntry extends ReferenceCounted {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        return sourcePath.equals(((MappingEntry) o).sourcePath);
+        return source.equals(((MappingEntry) o).source);
+    }
+
+    @Override
+    public String toString() {
+        return "MappingEntry{"
+                + "source="
+                + source
+                + ", fileOwnership="
+                + fileOwnership
+                + ", isDirectory= "
+                + isDirectory
+                + '}';
     }
 }
