@@ -205,4 +205,15 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
     public boolean isHostNetworkEnabled() {
         return flinkConfig.get(KubernetesConfigOptions.KUBERNETES_HOSTNETWORK_ENABLED);
     }
+
+
+    public String getVolumeLogs() {
+        return flinkConfig.get(KubernetesConfigOptions.KUBERNETES_LOG_VOLUME_HOSTPATH);
+
+    }
+
+    public String getVolumeMountPath() {
+        return flinkConfig.get(KubernetesConfigOptions.KUBERNETES_LOG_VOLUMES_MOUNT_MOUNTPATH);
+
+    }
 }

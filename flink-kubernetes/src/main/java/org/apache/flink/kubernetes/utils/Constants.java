@@ -120,4 +120,6 @@ public class Constants {
     public static final String KUBERNETES_ZERO_RESOURCE_VERSION = "0";
 
     public static final String USER_ARTIFACTS_VOLUME = "user-artifacts-volume";
+
+    public static final String FLINK_LOG = "flink-log";
 }
