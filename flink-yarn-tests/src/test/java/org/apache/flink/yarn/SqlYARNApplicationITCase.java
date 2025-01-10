@@ -93,10 +93,12 @@ public class SqlYARNApplicationITCase extends YarnTestBase {
                                 .toPath()
                                 .resolve("bin")
                                 .resolve("sql-client.sh")
-                                .toAbsolutePath()
                                 .toUri());
         if (!sqlClientScript.exists()) {
             throw new RuntimeException();
+        } else {
+            // make sure the subprocess has permission to execute the file.
+            Runtime.getRuntime().exec("chmod +x " + sqlClientScript.getCanonicalPath()).waitFor();
         }
 
         List<String> parameters = new ArrayList<>();
