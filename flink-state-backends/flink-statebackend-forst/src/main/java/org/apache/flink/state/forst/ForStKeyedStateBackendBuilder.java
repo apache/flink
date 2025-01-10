@@ -20,6 +20,7 @@ package org.apache.flink.state.forst;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataInputDeserializer;
@@ -41,7 +42,7 @@ import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
-import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
+import org.apache.flink.state.forst.datatransfer.ForStStateDataTransfer;
 import org.apache.flink.state.forst.restore.ForStHeapTimersFullRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStIncrementalRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStNoneRestoreOperation;
@@ -65,7 +66,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -133,6 +133,8 @@ public class ForStKeyedStateBackendBuilder<K>
     private double overlapFractionThreshold = 0.5;
     private boolean useIngestDbRestoreMode = false;
 
+    private RecoveryClaimMode recoveryClaimMode = RecoveryClaimMode.DEFAULT;
+
     public ForStKeyedStateBackendBuilder(
             String operatorIdentifier,
             ClassLoader userCodeClassLoader,
@@ -194,6 +196,11 @@ public class ForStKeyedStateBackendBuilder<K>
         return this;
     }
 
+    ForStKeyedStateBackendBuilder<K> setRecoveryClaimMode(RecoveryClaimMode recoveryClaimMode) {
+        this.recoveryClaimMode = recoveryClaimMode;
+        return this;
+    }
+
     @Override
     public ForStKeyedStateBackend<K> build() throws BackendBuildingException {
         ColumnFamilyHandle defaultColumnFamilyHandle = null;
@@ -241,6 +248,7 @@ public class ForStKeyedStateBackendBuilder<K>
 
         try {
             optionsContainer.prepareDirectories();
+            optionsContainer.buildDataTransferStrategy();
             restoreOperation =
                     getForStRestoreOperation(
                             keyGroupPrefixBytes,
@@ -381,7 +389,8 @@ public class ForStKeyedStateBackendBuilder<K>
                             restoreStateHandles, IncrementalRemoteKeyedStateHandle.class),
                     overlapFractionThreshold,
                     useIngestDbRestoreMode,
-                    rescalingUseDeleteFilesInRange);
+                    rescalingUseDeleteFilesInRange,
+                    recoveryClaimMode);
         } else if (priorityQueueConfig.getPriorityQueueStateType()
                 == ForStStateBackend.PriorityQueueStateType.HEAP) {
             // Note: This branch can be touched after ForSt Support canonical savepoint,
@@ -421,12 +430,11 @@ public class ForStKeyedStateBackendBuilder<K>
             @Nonnull
                     SortedMap<Long, Collection<IncrementalKeyedStateHandle.HandleAndLocalPath>>
                             uploadedStateHandles,
-            long lastCompletedCheckpointId)
-            throws IOException {
-
-        ForStFlinkFileSystem forStFs = optionsContainer.getFileSystem();
+            long lastCompletedCheckpointId) {
         ForStStateDataTransfer stateTransfer =
-                new ForStStateDataTransfer(ForStStateDataTransfer.DEFAULT_THREAD_NUM, forStFs);
+                new ForStStateDataTransfer(
+                        ForStStateDataTransfer.DEFAULT_THREAD_NUM,
+                        optionsContainer.getDataTransferStrategy());
 
         if (enableIncrementalCheckpointing) {
             return new ForStIncrementalSnapshotStrategy<>(

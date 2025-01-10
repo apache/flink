@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.forst;
+package org.apache.flink.state.forst.datatransfer;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -33,6 +33,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.state.forst.StateHandleTransferSpec;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;

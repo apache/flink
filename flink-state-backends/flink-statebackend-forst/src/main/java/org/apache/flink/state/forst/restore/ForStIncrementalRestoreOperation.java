@@ -20,6 +20,7 @@ package org.apache.flink.state.forst.restore;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
@@ -45,8 +46,8 @@ import org.apache.flink.state.forst.ForStIncrementalCheckpointUtils;
 import org.apache.flink.state.forst.ForStNativeMetricOptions;
 import org.apache.flink.state.forst.ForStOperationUtils;
 import org.apache.flink.state.forst.ForStResourceContainer;
-import org.apache.flink.state.forst.ForStStateDataTransfer;
 import org.apache.flink.state.forst.StateHandleTransferSpec;
+import org.apache.flink.state.forst.datatransfer.ForStStateDataTransfer;
 import org.apache.flink.state.forst.sync.ForStIteratorWrapper;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -126,6 +127,8 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
 
     private boolean isKeySerializerCompatibilityChecked;
 
+    private final RecoveryClaimMode recoveryClaimMode;
+
     public ForStIncrementalRestoreOperation(
             String operatorIdentifier,
             KeyGroupRange keyGroupRange,
@@ -148,7 +151,8 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
             @Nonnull Collection<IncrementalRemoteKeyedStateHandle> restoreStateHandles,
             double overlapFractionThreshold,
             boolean useIngestDbRestoreMode,
-            boolean useDeleteFilesInRange) {
+            boolean useDeleteFilesInRange,
+            RecoveryClaimMode recoveryClaimMode) {
 
         this.forstHandle =
                 new ForStHandle(
@@ -177,6 +181,7 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
         this.overlapFractionThreshold = overlapFractionThreshold;
         this.useIngestDbRestoreMode = useIngestDbRestoreMode;
         this.useDeleteFilesInRange = useDeleteFilesInRange;
+        this.recoveryClaimMode = recoveryClaimMode;
     }
 
     /**
@@ -256,7 +261,7 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
         try (ForStStateDataTransfer transfer =
                 new ForStStateDataTransfer(
                         ForStStateDataTransfer.DEFAULT_THREAD_NUM,
-                        optionsContainer.getFileSystem())) {
+                        optionsContainer.getDataTransferStrategy())) {
             transfer.transferAllStateDataToDirectory(specs, cancelStreamRegistry);
         }
     }
@@ -946,6 +951,10 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
                         ? "/" + stateHandleSpec.getTransferDestination().getName()
                         : stateHandleSpec.getTransferDestination().toString();
 
+        // do not relocate log file for temp db
+        DBOptions dbOptions = new DBOptions(this.forstHandle.getDbOptions());
+        dbOptions.setDbLogDir("");
+
         RocksDB restoreDb =
                 ForStOperationUtils.openDB(
                         dbName,
@@ -953,7 +962,7 @@ public class ForStIncrementalRestoreOperation<K> implements ForStRestoreOperatio
                         columnFamilyHandles,
                         createColumnFamilyOptions(
                                 this.forstHandle.getColumnFamilyOptionsFactory(), "default"),
-                        this.forstHandle.getDbOptions());
+                        dbOptions);
 
         return new RestoredDBInstance(
                 restoreDb,

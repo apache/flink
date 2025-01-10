@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -44,10 +45,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.configuration.StateRecoveryOptions.RESTORE_MODE;
 import static org.apache.flink.state.forst.ForStConfigurableOptions.USE_DELETE_FILES_IN_RANGE_DURING_RESCALING;
 import static org.apache.flink.state.forst.ForStConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
 import static org.apache.flink.state.forst.ForStOptions.LOCAL_DIRECTORIES;
@@ -58,6 +61,12 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 /** Tests for the async keyed state backend part of {@link ForStStateBackend}. */
 @ExtendWith(ParameterizedTestExtension.class)
 class ForStStateBackendV2Test extends StateBackendTestV2Base<ForStStateBackend> {
+
+    enum RestoreMode {
+        FAILOVER,
+        MANUALLY_RESTORE_CLAIM,
+        MANUALLY_RESTORE_NO_CLAIM,
+    }
 
     @TempDir private static java.nio.file.Path tempFolder;
     @TempDir private static java.nio.file.Path tempFolderForForStLocal;
@@ -74,34 +83,78 @@ class ForStStateBackendV2Test extends StateBackendTestV2Base<ForStStateBackend> 
                         return new FileSystemCheckpointStorage(new Path(checkpointPath), 0, -1);
                     };
 
-    @Parameters(
-            name =
-                    "CheckpointStorage: {0}, hasLocalDir: {1}, hasRemoteDir: {2}, useIngestDbRestoreMode: {3}, useDeleteFileInRange: {4}")
-    public static List<Object[]> modes() {
-        return Arrays.asList(
-                new Object[][] {
-                    {jobManagerCheckpointStorage, true, false, false, false},
-                    {filesystemCheckpointStorage, true, false, true, false},
-                    {filesystemCheckpointStorage, false, true, false, true},
-                    {filesystemCheckpointStorage, false, true, true, true},
-                    {filesystemCheckpointStorage, true, true, true, true},
-                    {filesystemCheckpointStorage, true, true, false, false}
-                });
+    private static final SupplierWithException<CheckpointStorage, IOException>
+            dbReusableCheckpointStorage =
+                    () -> {
+                        String checkpointPath = "file://" + tempFolderForForstRemote.toString();
+                        return new FileSystemCheckpointStorage(new Path(checkpointPath), 0, -1);
+                    };
+
+    private static List<Object[]> addAllCasesForParameter(
+            List<Object[]> baseCases, Object[] parameterCases) {
+        List<Object[]> newCases = new ArrayList<>();
+        for (Object[] baseCase : baseCases) {
+            for (Object param : parameterCases) {
+                Object[] newCase = Arrays.copyOf(baseCase, baseCase.length + 1);
+                newCase[baseCase.length] = param;
+                newCases.add(newCase);
+            }
+        }
+        return newCases;
     }
 
-    @Parameter public SupplierWithException<CheckpointStorage, IOException> storageSupplier;
+    @Parameters(
+            name =
+                    " hasLocalDir: {0},"
+                            + " hasRemoteDir: {1},"
+                            + " useIngestDbRestoreMode: {2},"
+                            + " useDeleteFileInRange: {3},"
+                            + " CheckpointStorage: {4}, "
+                            + " restoreMode: {5}")
+    public static List<Object[]> modes() {
+        // ---------- base cases ----------
+        // combination of parameters: [hasLocalDir, hasRemoteDir, useIngestDbRestoreMode,
+        // useDeleteFileInRange]
+        List<Object[]> cases =
+                Arrays.asList(
+                        new Object[][] {
+                            {true, false, true, false},
+                            {false, true, false, true},
+                            {false, true, true, true},
+                            {true, true, true, true},
+                            {true, true, false, false},
+                        });
+
+        // ---------- enumerate different cases for CheckpointStorage ----------
+        cases =
+                addAllCasesForParameter(
+                        cases,
+                        new Object[] {filesystemCheckpointStorage, dbReusableCheckpointStorage});
+        // a special case for jobManagerCheckpointStorage
+        cases.add(new Object[] {true, false, false, false, jobManagerCheckpointStorage});
+
+        // ---------- enumerate different cases for restoreMode ----------
+        cases = addAllCasesForParameter(cases, RestoreMode.values());
+
+        return cases;
+    }
+
+    @Parameter public boolean hasLocalDir;
 
     @Parameter(1)
-    public boolean hasLocalDir;
-
-    @Parameter(2)
     public boolean hasRemoteDir;
 
-    @Parameter(3)
+    @Parameter(2)
     public boolean useIngestDbRestoreMode;
 
-    @Parameter(4)
+    @Parameter(3)
     public boolean useDeleteFileInRange;
+
+    @Parameter(4)
+    public SupplierWithException<CheckpointStorage, IOException> storageSupplier;
+
+    @Parameter(5)
+    public RestoreMode restoreMode;
 
     @Override
     protected CheckpointStorage getCheckpointStorage() throws Exception {
@@ -120,7 +173,20 @@ class ForStStateBackendV2Test extends StateBackendTestV2Base<ForStStateBackend> 
         }
         config.set(USE_INGEST_DB_RESTORE_MODE, useIngestDbRestoreMode);
         config.set(USE_DELETE_FILES_IN_RANGE_DURING_RESCALING, useDeleteFileInRange);
+        config.set(
+                RESTORE_MODE,
+                restoreMode == RestoreMode.MANUALLY_RESTORE_NO_CLAIM
+                        ? RecoveryClaimMode.NO_CLAIM
+                        : RecoveryClaimMode.CLAIM);
         return backend.configure(config, Thread.currentThread().getContextClassLoader());
+    }
+
+    @Override
+    protected void restoreJob() throws Exception {
+        if (restoreMode != RestoreMode.FAILOVER) {
+            jobID = new JobID();
+            env = buildMockEnv();
+        }
     }
 
     @TestTemplate

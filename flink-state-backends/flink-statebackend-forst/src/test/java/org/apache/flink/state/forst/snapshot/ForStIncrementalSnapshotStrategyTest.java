@@ -31,7 +31,7 @@ import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
 import org.apache.flink.runtime.state.v2.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.state.forst.ForStExtension;
 import org.apache.flink.state.forst.ForStOperationUtils;
-import org.apache.flink.state.forst.ForStStateDataTransfer;
+import org.apache.flink.state.forst.datatransfer.ForStStateDataTransfer;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
 import org.forstdb.ColumnFamilyHandle;

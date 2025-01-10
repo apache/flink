@@ -86,6 +86,7 @@ public class ForStFlinkFileSystemTest {
                 ForStFlinkFileSystem.get(
                         new URI(tempDir.toString()),
                         new org.apache.flink.core.fs.Path(tempDir.toString()),
+                        null,
                         null);
         testReadAndWriteWithByteBuffer(fileSystem);
     }
@@ -97,6 +98,7 @@ public class ForStFlinkFileSystemTest {
                         new ByteBufferReadableLocalFileSystem(),
                         tempDir.toString(),
                         tempDir.toString(),
+                        null,
                         fileBasedCache);
         testReadAndWriteWithByteBuffer(fileSystem);
     }
@@ -176,6 +178,7 @@ public class ForStFlinkFileSystemTest {
                         new ByteBufferReadableLocalFileSystem(),
                         tempDir.toString(),
                         tempDir.toString(),
+                        null,
                         fileBasedCache);
 
         org.apache.flink.core.fs.Path testFilePath =
@@ -202,20 +205,20 @@ public class ForStFlinkFileSystemTest {
                         new ByteBufferReadableLocalFileSystem(),
                         remotePath.toString(),
                         localPath.toString(),
+                        null,
                         fileBasedCache);
         fileSystem.mkdirs(remotePath);
         fileSystem.mkdirs(localPath);
 
-        ByteBufferWritableFSDataOutputStream os =
-                fileSystem.create(new org.apache.flink.core.fs.Path(remotePath, "CURRENT"));
+        org.apache.flink.core.fs.Path dbFilePath =
+                new org.apache.flink.core.fs.Path(remotePath, "CURRENT");
+        ByteBufferWritableFSDataOutputStream os = fileSystem.create(dbFilePath);
+        org.apache.flink.core.fs.Path sourceFileRealPath =
+                fileSystem.getMappingEntry(dbFilePath).getSourcePath();
         os.write(233);
         os.sync();
         os.close();
-        assertThat(
-                        localPath
-                                .getFileSystem()
-                                .exists(new org.apache.flink.core.fs.Path(localPath, "CURRENT")))
-                .isTrue();
+        assertThat(localPath.getFileSystem().exists(sourceFileRealPath)).isTrue();
         ByteBufferReadableFSDataInputStream is =
                 fileSystem.open(new org.apache.flink.core.fs.Path(remotePath, "CURRENT"));
         assertThat(is.read()).isEqualTo(233);
@@ -262,53 +265,54 @@ public class ForStFlinkFileSystemTest {
                         new ByteBufferReadableLocalFileSystem(),
                         remotePath.toString(),
                         localPath.toString(),
+                        null,
                         cache);
         fileSystem.mkdirs(remotePath);
         fileSystem.mkdirs(localPath);
         byte[] tmpBytes = new byte[233];
-        ByteBufferWritableFSDataOutputStream os =
-                fileSystem.create(new org.apache.flink.core.fs.Path(remotePath, "1.sst"));
-        os.write(tmpBytes);
-        os.write(89);
-        os.sync();
-        os.close();
-        assertThat(fileSystem.exists(new org.apache.flink.core.fs.Path(remotePath, "1.sst")))
-                .isTrue();
-        assertThat(
-                        cachePath
-                                .getFileSystem()
-                                .exists(new org.apache.flink.core.fs.Path(cachePath, "1.sst")))
-                .isTrue();
+        org.apache.flink.core.fs.Path sstRemotePath1 =
+                new org.apache.flink.core.fs.Path(remotePath, "1.sst");
+        ByteBufferWritableFSDataOutputStream os1 = fileSystem.create(sstRemotePath1);
+        org.apache.flink.core.fs.Path sstRealPath1 =
+                fileSystem.getMappingEntry(sstRemotePath1).getSourcePath();
+        assertThat(sstRealPath1).isNotNull();
+        org.apache.flink.core.fs.Path cachePath1 =
+                new org.apache.flink.core.fs.Path(cachePath, sstRealPath1.getName());
+        os1.write(tmpBytes);
+        os1.write(89);
+        os1.sync();
+        os1.close();
+        assertThat(fileSystem.exists(sstRemotePath1)).isTrue();
+        assertThat(cachePath.getFileSystem().exists(cachePath1)).isTrue();
         assertThat(registeredGauges.get("forst.fileCache.usedBytes").getValue()).isEqualTo(234L);
         assertThat(registeredCounters.get("forst.fileCache.hit").getCount()).isEqualTo(0L);
         assertThat(registeredCounters.get("forst.fileCache.miss").getCount()).isEqualTo(0L);
-        FileCacheEntry cacheEntry = cache.get(cachePath.getPath() + "/1.sst");
-        assertThat(cacheEntry).isNotNull();
-        assertThat(cacheEntry.getReferenceCount()).isEqualTo(1);
+        FileCacheEntry cacheEntry1 = cache.get(cachePath.getPath() + "/" + sstRealPath1.getName());
+        assertThat(cacheEntry1).isNotNull();
+        assertThat(cacheEntry1.getReferenceCount()).isEqualTo(1);
 
-        ByteBufferReadableFSDataInputStream is =
-                fileSystem.open(new org.apache.flink.core.fs.Path(remotePath, "1.sst"));
+        ByteBufferReadableFSDataInputStream is = fileSystem.open(sstRemotePath1);
 
         assertThat(is.read(tmpBytes)).isEqualTo(233);
-        assertThat(cacheEntry.getReferenceCount()).isEqualTo(1);
-        assertThat(cacheEntry.getReferenceCount()).isEqualTo(1);
+        assertThat(cacheEntry1.getReferenceCount()).isEqualTo(1);
+        assertThat(cacheEntry1.getReferenceCount()).isEqualTo(1);
         assertThat(registeredCounters.get("forst.fileCache.hit").getCount()).isEqualTo(2L);
         // evict
-        ByteBufferWritableFSDataOutputStream os1 =
-                fileSystem.create(new org.apache.flink.core.fs.Path(remotePath, "2.sst"));
-        os1.write(tmpBytes);
-        os1.sync();
-        os1.close();
-        assertThat(fileSystem.exists(new org.apache.flink.core.fs.Path(remotePath, "1.sst")))
-                .isTrue();
-        assertThat(fileSystem.exists(new org.apache.flink.core.fs.Path(cachePath, "1.sst")))
-                .isFalse();
-        assertThat(
-                        cachePath
-                                .getFileSystem()
-                                .exists(new org.apache.flink.core.fs.Path(cachePath, "2.sst")))
-                .isTrue();
-        assertThat(cacheEntry.getReferenceCount()).isEqualTo(0);
+        org.apache.flink.core.fs.Path sstRemotePath2 =
+                new org.apache.flink.core.fs.Path(remotePath, "2.sst");
+        ByteBufferWritableFSDataOutputStream os2 = fileSystem.create(sstRemotePath2);
+        org.apache.flink.core.fs.Path sstRealPath2 =
+                fileSystem.getMappingEntry(sstRemotePath2).getSourcePath();
+        assertThat(sstRealPath2).isNotNull();
+        org.apache.flink.core.fs.Path cachePath2 =
+                new org.apache.flink.core.fs.Path(cachePath, sstRealPath2.getName());
+        os2.write(tmpBytes);
+        os2.sync();
+        os2.close();
+        assertThat(fileSystem.exists(sstRemotePath1)).isTrue();
+        assertThat(fileSystem.exists(cachePath1)).isFalse();
+        assertThat(cachePath.getFileSystem().exists(cachePath2)).isTrue();
+        assertThat(cacheEntry1.getReferenceCount()).isEqualTo(0);
         assertThat(registeredGauges.get("forst.fileCache.usedBytes").getValue()).isEqualTo(233L);
         // read after evict
         assertThat(is.read()).isEqualTo(89);

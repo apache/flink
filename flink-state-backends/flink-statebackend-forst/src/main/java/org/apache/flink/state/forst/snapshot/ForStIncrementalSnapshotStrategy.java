@@ -36,7 +36,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.state.forst.ForStOperationUtils;
 import org.apache.flink.state.forst.ForStResourceContainer;
-import org.apache.flink.state.forst.ForStStateDataTransfer;
+import org.apache.flink.state.forst.datatransfer.ForStStateDataTransfer;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ResourceGuard;
 

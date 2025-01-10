@@ -22,12 +22,18 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
+import org.apache.flink.runtime.state.CheckpointStorageAccess;
+import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
+import org.apache.flink.state.forst.datatransfer.DataTransferStrategy;
+import org.apache.flink.state.forst.datatransfer.DataTransferStrategyBuilder;
 import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
 import org.apache.flink.state.forst.fs.StringifiedForStFileSystem;
+import org.apache.flink.state.forst.fs.filemapping.FileOwnershipDecider;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -92,7 +98,6 @@ public final class ForStResourceContainer implements AutoCloseable {
     @Nullable private final Path localForStPath;
 
     @Nullable private Path cacheBasePath;
-
     private long cacheCapacity;
 
     private long cacheReservedSize;
@@ -105,6 +110,12 @@ public final class ForStResourceContainer implements AutoCloseable {
 
     /** The ForSt file system. Null when remote dir is not set. */
     @Nullable private ForStFlinkFileSystem forStFileSystem;
+
+    private final RecoveryClaimMode claimMode;
+
+    private final FileOwnershipDecider fileOwnershipDecider;
+
+    private DataTransferStrategy dataTransferStrategy;
 
     /**
      * The shared resource among ForSt instances. This resource is not part of the 'handlesToClose',
@@ -125,19 +136,46 @@ public final class ForStResourceContainer implements AutoCloseable {
 
     @VisibleForTesting
     public ForStResourceContainer() {
-        this(new Configuration(), null, null, null, null, null, false);
+        this(
+                new Configuration(),
+                null,
+                null,
+                null,
+                null,
+                RecoveryClaimMode.DEFAULT,
+                null,
+                null,
+                false);
     }
 
     @VisibleForTesting
     public ForStResourceContainer(@Nullable ForStOptionsFactory optionsFactory) {
-        this(new Configuration(), optionsFactory, null, null, null, null, false);
+        this(
+                new Configuration(),
+                optionsFactory,
+                null,
+                null,
+                null,
+                RecoveryClaimMode.DEFAULT,
+                null,
+                null,
+                false);
     }
 
     @VisibleForTesting
     public ForStResourceContainer(
             @Nullable ForStOptionsFactory optionsFactory,
             @Nullable OpaqueMemoryResource<ForStSharedResources> sharedResources) {
-        this(new Configuration(), optionsFactory, sharedResources, null, null, null, false);
+        this(
+                new Configuration(),
+                optionsFactory,
+                sharedResources,
+                null,
+                null,
+                RecoveryClaimMode.DEFAULT,
+                null,
+                null,
+                false);
     }
 
     public ForStResourceContainer(
@@ -146,6 +184,8 @@ public final class ForStResourceContainer implements AutoCloseable {
             @Nullable OpaqueMemoryResource<ForStSharedResources> sharedResources,
             @Nullable Path localBasePath,
             @Nullable Path remoteBasePath,
+            RecoveryClaimMode claimMode,
+            @Nullable CheckpointStorageAccess checkpointStorageAccess,
             MetricGroup metricGroup,
             boolean enableStatistics) {
 
@@ -158,6 +198,11 @@ public final class ForStResourceContainer implements AutoCloseable {
         this.remoteBasePath = remoteBasePath;
         this.remoteForStPath =
                 remoteBasePath != null ? new Path(remoteBasePath, DB_DIR_STRING) : null;
+        this.claimMode = claimMode;
+        this.fileOwnershipDecider =
+                new FileOwnershipDecider(
+                        claimMode,
+                        isDbPathUnderCheckpointPath(checkpointStorageAccess, remoteForStPath));
 
         this.enableStatistics = enableStatistics;
         this.handlesToClose = new ArrayList<>();
@@ -165,6 +210,45 @@ public final class ForStResourceContainer implements AutoCloseable {
         this.cacheCapacity = configuration.get(CACHE_SIZE_BASE_LIMIT);
         this.cacheReservedSize = configuration.get(CACHE_RESERVED_SIZE);
         this.metricGroup = metricGroup;
+    }
+
+    private static boolean isDbPathUnderCheckpointPath(
+            @Nullable CheckpointStorageAccess checkpointStorageAccess,
+            @Nullable Path dbRemotePath) {
+        if (dbRemotePath == null) {
+            return false;
+        }
+
+        // For checkpoint other that FsCheckpointStorageAccess, we treat it as 'DB path not under
+        // checkpoint path', since we cannot reuse checkpoint files in such case.
+        // todo: Support enabling 'cp file reuse' with FsMergingCheckpointStorageAccess
+        if (checkpointStorageAccess == null
+                || checkpointStorageAccess.getClass() != FsCheckpointStorageAccess.class) {
+            return false;
+        }
+
+        FsCheckpointStorageAccess fsCheckpointStorageAccess =
+                (FsCheckpointStorageAccess) checkpointStorageAccess;
+        FileSystem checkpointFS = fsCheckpointStorageAccess.getFileSystem();
+        FileSystem dbRemoteFS;
+        try {
+            dbRemoteFS = dbRemotePath.getFileSystem();
+        } catch (IOException e) {
+            throw new RuntimeException(
+                    "Failed to get FileSystem from dbRemotePath: " + dbRemotePath, e);
+        }
+
+        if (!checkpointFS.equals(dbRemoteFS)) {
+            // different file system
+            return false;
+        } else {
+            // same file system
+            String checkpointPathStr =
+                    fsCheckpointStorageAccess.getCheckpointsDirectory().getPath();
+            String dbRemotePathStr = dbRemotePath.getPath();
+            return checkpointPathStr.equals(dbRemotePathStr)
+                    || dbRemotePathStr.startsWith(checkpointPathStr);
+        }
     }
 
     /** Gets the ForSt {@link DBOptions} to be used for ForSt instances. */
@@ -340,11 +424,14 @@ public final class ForStResourceContainer implements AutoCloseable {
      */
     public void prepareDirectories() throws Exception {
         if (remoteBasePath != null && remoteForStPath != null) {
-            prepareDirectories(remoteBasePath, remoteForStPath);
+            prepareDirectories(
+                    remoteBasePath,
+                    remoteForStPath,
+                    !fileOwnershipDecider.isDbPathUnderCheckpointPath());
         }
         if (localBasePath != null && localForStPath != null) {
             prepareDirectories(
-                    new Path(localBasePath.getPath()), new Path(localForStPath.getPath()));
+                    new Path(localBasePath.getPath()), new Path(localForStPath.getPath()), true);
         }
         if (remoteForStPath != null && localForStPath != null) {
             if (cacheBasePath == null && localBasePath != null) {
@@ -357,6 +444,7 @@ public final class ForStResourceContainer implements AutoCloseable {
                     ForStFlinkFileSystem.get(
                             remoteForStPath.toUri(),
                             localForStPath,
+                            fileOwnershipDecider,
                             ForStFlinkFileSystem.getFileBasedCache(
                                     cacheBasePath, cacheCapacity, cacheReservedSize, metricGroup));
         } else {
@@ -364,11 +452,30 @@ public final class ForStResourceContainer implements AutoCloseable {
         }
     }
 
+    public void buildDataTransferStrategy() {
+        DataTransferStrategyBuilder dtsBuilder = new DataTransferStrategyBuilder();
+        dtsBuilder.withFileOwnershipDecider(fileOwnershipDecider);
+        if (remoteForStPath != null) {
+            Preconditions.checkArgument(
+                    forStFileSystem != null,
+                    "Unexpected: remoteForStPath is set, but ForSt file system is null.");
+            dtsBuilder.withDbRemotePath(forStFileSystem, remoteForStPath);
+        } else {
+            dtsBuilder.withoutDbRemotePath();
+        }
+        dataTransferStrategy = dtsBuilder.build();
+    }
+
     public ForStFlinkFileSystem getFileSystem() {
         return forStFileSystem;
     }
 
-    private static void prepareDirectories(Path basePath, Path dbPath) throws IOException {
+    public DataTransferStrategy getDataTransferStrategy() {
+        return dataTransferStrategy;
+    }
+
+    private static void prepareDirectories(Path basePath, Path dbPath, boolean clearDbPath)
+            throws IOException {
         FileSystem fileSystem = basePath.getFileSystem();
         if (fileSystem.exists(basePath)) {
             if (!fileSystem.getFileStatus(basePath).isDir()) {
@@ -378,12 +485,21 @@ public final class ForStResourceContainer implements AutoCloseable {
             throw new IOException(
                     String.format("Could not create ForSt directory at %s.", basePath));
         }
-        if (fileSystem.exists(dbPath)) {
-            fileSystem.delete(dbPath, true);
-        }
-        if (!fileSystem.mkdirs(dbPath)) {
-            throw new IOException(
-                    String.format("Could not create ForSt db directory at %s.", dbPath));
+        if (clearDbPath) {
+            if (fileSystem.exists(dbPath)) {
+                fileSystem.delete(dbPath, true);
+            }
+            if (!fileSystem.mkdirs(dbPath)) {
+                throw new IOException(
+                        String.format("Could not create ForSt db directory at %s.", dbPath));
+            }
+        } else {
+            if (!fileSystem.exists(dbPath)) {
+                if (!fileSystem.mkdirs(dbPath)) {
+                    throw new IOException(
+                            String.format("Could not create ForSt db directory at %s.", dbPath));
+                }
+            }
         }
     }
 
@@ -394,7 +510,7 @@ public final class ForStResourceContainer implements AutoCloseable {
      */
     public void clearDirectories() throws Exception {
         if (remoteBasePath != null) {
-            clearDirectories(remoteBasePath);
+            forStFileSystem.delete(remoteBasePath, true);
         }
         if (localBasePath != null) {
             clearDirectories(localBasePath);

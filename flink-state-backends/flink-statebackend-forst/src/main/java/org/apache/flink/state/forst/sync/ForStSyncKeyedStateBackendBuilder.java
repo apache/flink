@@ -21,6 +21,7 @@ package org.apache.flink.state.forst.sync;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
@@ -53,8 +54,7 @@ import org.apache.flink.state.forst.ForStNativeMetricOptions;
 import org.apache.flink.state.forst.ForStOperationUtils;
 import org.apache.flink.state.forst.ForStResourceContainer;
 import org.apache.flink.state.forst.ForStStateBackend;
-import org.apache.flink.state.forst.ForStStateDataTransfer;
-import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
+import org.apache.flink.state.forst.datatransfer.ForStStateDataTransfer;
 import org.apache.flink.state.forst.restore.ForStHeapTimersFullRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStIncrementalRestoreOperation;
 import org.apache.flink.state.forst.restore.ForStNoneRestoreOperation;
@@ -148,6 +148,8 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
     private ColumnFamilyHandle injectedDefaultColumnFamilyHandle; // for testing
     private AsyncExceptionHandler asyncExceptionHandler;
 
+    private RecoveryClaimMode recoveryClaimMode;
+
     public ForStSyncKeyedStateBackendBuilder(
             String operatorIdentifier,
             ClassLoader userCodeClassLoader,
@@ -193,6 +195,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
         this.customInitializationMetrics = customInitializationMetrics;
         this.enableIncrementalCheckpointing = false;
         this.nativeMetricOptions = new ForStNativeMetricOptions();
+        this.recoveryClaimMode = RecoveryClaimMode.DEFAULT;
     }
 
     @VisibleForTesting
@@ -304,6 +307,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
             SortedMap<Long, Collection<HandleAndLocalPath>> materializedSstFiles = new TreeMap<>();
             long lastCompletedCheckpointId = -1L;
             prepareDirectories();
+            optionsContainer.buildDataTransferStrategy();
             restoreOperation =
                     getForStDBRestoreOperation(
                             keyGroupPrefixBytes,
@@ -438,6 +442,12 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
         return this;
     }
 
+    public ForStSyncKeyedStateBackendBuilder<K> setRecoveryClaimMode(
+            RecoveryClaimMode recoveryClaimMode) {
+        this.recoveryClaimMode = recoveryClaimMode;
+        return this;
+    }
+
     private ForStSnapshotStrategyBase<K, ?> initializeSnapshotStrategy(
             @Nonnull RocksDB db,
             @Nonnull ResourceGuard forstResourceGuard,
@@ -452,12 +462,10 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
             long lastCompletedCheckpointId)
             throws IOException {
 
-        ForStFlinkFileSystem forStFs =
-                optionsContainer.getRemoteForStPath() != null
-                        ? ForStFlinkFileSystem.get(optionsContainer.getRemoteForStPath().toUri())
-                        : null;
         ForStStateDataTransfer stateTransfer =
-                new ForStStateDataTransfer(ForStStateDataTransfer.DEFAULT_THREAD_NUM, forStFs);
+                new ForStStateDataTransfer(
+                        ForStStateDataTransfer.DEFAULT_THREAD_NUM,
+                        optionsContainer.getDataTransferStrategy());
 
         if (enableIncrementalCheckpointing) {
             return new ForStIncrementalSnapshotStrategy<>(
@@ -534,7 +542,8 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
                             restoreStateHandles, IncrementalRemoteKeyedStateHandle.class),
                     overlapFractionThreshold,
                     useIngestDbRestoreMode,
-                    rescalingUseDeleteFilesInRange);
+                    rescalingUseDeleteFilesInRange,
+                    recoveryClaimMode);
         } else if (priorityQueueConfig.getPriorityQueueStateType()
                 == ForStStateBackend.PriorityQueueStateType.HEAP) {
             // Note: This branch can be touched after ForSt Support canonical savepoint,
