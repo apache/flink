@@ -1293,7 +1293,7 @@ public class DateTimeUtils {
             case NANOSECOND:
                 return ts;
             case MICROSECOND:
-                return ts;
+                return ceilForHighPrecision(utcTs, ns) - offset;
             case MILLISECOND:
                 return ceil(utcTs, ns) - offset;
             case SECOND:
@@ -1393,10 +1393,24 @@ public class DateTimeUtils {
         long q = b / NANOS_PER_MICROSECOND;
         long r = b % NANOS_PER_MICROSECOND;
         if (q > 0 && r > 0) {
+            if (q + 1 == NANOS_PER_MICROSECOND) {
+                return 0;
+            }
             return (int) ((q + 1) * NANOS_PER_MICROSECOND);
         } else {
             return (int) (q * NANOS_PER_MICROSECOND);
         }
+    }
+
+    private static long ceilForHighPrecision(long a, int b) {
+        long q = b / NANOS_PER_MICROSECOND;
+        long r = b % NANOS_PER_MICROSECOND;
+        if (q > 0 && r > 0) {
+            if (q + 1 == NANOS_PER_MICROSECOND) {
+                return a + 1L;
+            }
+        }
+        return a;
     }
 
     private static long julianDateFloor(TimeUnitRange range, int julian, boolean floor) {

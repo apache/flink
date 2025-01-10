@@ -445,7 +445,7 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 LocalTime.of(11, 22, 33),
                                 LocalDate.of(1990, 10, 14),
                                 LocalDateTime.of(2020, 2, 29, 1, 56, 59, 987654321),
-                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 924325471))
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 999999471))
                         .andDataTypes(TIME(), DATE(), TIMESTAMP(), TIMESTAMP(9))
                         .testResult(
                                 $("f0").ceil(TimeIntervalUnit.MILLISECOND),
@@ -616,7 +616,7 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                         .ceil(TimeIntervalUnit.MILLISECOND)
                                         .cast(STRING()),
                                 "CAST(CEIL(CAST(f3 AS TIMESTAMP_LTZ(9)) TO MILLISECOND) AS STRING)",
-                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 925_000_000)
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 51, 0)
                                         .format(TIMESTAMP_FORMATTER),
                                 STRING().nullable())
                         .testResult(
@@ -624,7 +624,7 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                         .ceil(TimeIntervalUnit.MICROSECOND)
                                         .cast(STRING()),
                                 "CAST(CEIL(CAST(f3 AS TIMESTAMP_LTZ(9)) TO MICROSECOND) AS STRING)",
-                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 924_326_000)
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 51, 0)
                                         .format(TIMESTAMP_FORMATTER),
                                 STRING().nullable())
                         .testResult(
@@ -632,7 +632,7 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                         .ceil(TimeIntervalUnit.NANOSECOND)
                                         .cast(STRING()),
                                 "CAST(CEIL(CAST(f3 AS TIMESTAMP_LTZ(9)) TO NANOSECOND) AS STRING)",
-                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 924_325_471)
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 999_999_471)
                                         .format(TIMESTAMP_FORMATTER),
                                 STRING().nullable()));
     }
@@ -646,7 +646,7 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 LocalTime.of(11, 22, 33),
                                 LocalDate.of(1990, 10, 14),
                                 LocalDateTime.of(2020, 2, 29, 1, 56, 59, 987654321),
-                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 924325471))
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 999999471))
                         .andDataTypes(TIME(), DATE(), TIMESTAMP(), TIMESTAMP(9))
                         .testResult(
                                 $("f0").floor(TimeIntervalUnit.MILLISECOND),
@@ -817,7 +817,7 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                         .floor(TimeIntervalUnit.MILLISECOND)
                                         .cast(STRING()),
                                 "CAST(FLOOR(CAST(f3 AS TIMESTAMP_LTZ(9)) TO MILLISECOND) AS STRING)",
-                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 924_000_000)
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 999_000_000)
                                         .format(TIMESTAMP_FORMATTER),
                                 STRING().nullable())
                         .testResult(
@@ -825,7 +825,7 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                         .floor(TimeIntervalUnit.MICROSECOND)
                                         .cast(STRING()),
                                 "CAST(FLOOR(CAST(f3 AS TIMESTAMP_LTZ(9)) TO MICROSECOND) AS STRING)",
-                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 924_325_000)
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 999_999_000)
                                         .format(TIMESTAMP_FORMATTER),
                                 STRING().nullable())
                         .testResult(
@@ -833,7 +833,7 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                         .floor(TimeIntervalUnit.NANOSECOND)
                                         .cast(STRING()),
                                 "CAST(FLOOR(CAST(f3 AS TIMESTAMP_LTZ(9)) TO NANOSECOND) AS STRING)",
-                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 924_325_471)
+                                LocalDateTime.of(2021, 9, 24, 9, 20, 50, 999_999_471)
                                         .format(TIMESTAMP_FORMATTER),
                                 STRING().nullable()));
     }
