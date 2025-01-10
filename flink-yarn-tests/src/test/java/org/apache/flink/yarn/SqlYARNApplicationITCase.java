@@ -86,20 +86,22 @@ public class SqlYARNApplicationITCase extends YarnTestBase {
     }
 
     private void runSqlClient() throws Exception {
-        Path path =
-                flinkLibFolder
-                        .getParentFile()
-                        .toPath()
-                        .resolve("bin")
-                        .resolve("sql-client.sh")
-                        .toAbsolutePath();
-        if (!path.toFile().exists()) {
+        File sqlClientScript =
+                new File(
+                        flinkLibFolder
+                                .getParentFile()
+                                .toPath()
+                                .resolve("bin")
+                                .resolve("sql-client.sh")
+                                .toAbsolutePath()
+                                .toUri());
+        if (!sqlClientScript.exists()) {
             throw new RuntimeException();
         }
 
         List<String> parameters = new ArrayList<>();
         // command line parameters: sql-client.sh -Dkey=value -f <path-to-script>
-        parameters.add(path.toString());
+        parameters.add(sqlClientScript.getCanonicalPath());
         parameters.add(
                 getSqlClientParameter(JobManagerOptions.TOTAL_PROCESS_MEMORY.key(), "768MB"));
         parameters.add(getSqlClientParameter(TaskManagerOptions.TOTAL_PROCESS_MEMORY.key(), "1g"));
