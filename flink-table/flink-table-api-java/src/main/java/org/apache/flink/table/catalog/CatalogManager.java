@@ -43,9 +43,12 @@ import org.apache.flink.table.catalog.listener.CreateDatabaseEvent;
 import org.apache.flink.table.catalog.listener.CreateTableEvent;
 import org.apache.flink.table.catalog.listener.DropDatabaseEvent;
 import org.apache.flink.table.catalog.listener.DropTableEvent;
+import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver.ExpressionResolverBuilder;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
@@ -66,6 +69,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static java.lang.String.format;
@@ -93,6 +97,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     private @Nullable String currentDatabaseName;
 
     private DefaultSchemaResolver schemaResolver;
+    private Parser parser;
 
     // The name of the built-in catalog
     private final String builtInCatalogName;
@@ -274,9 +279,12 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * @see TableEnvironmentImpl#create(EnvironmentSettings)
      */
     public void initSchemaResolver(
-            boolean isStreamingMode, ExpressionResolverBuilder expressionResolverBuilder) {
+            boolean isStreamingMode,
+            ExpressionResolverBuilder expressionResolverBuilder,
+            Parser parser) {
         this.schemaResolver =
                 new DefaultSchemaResolver(isStreamingMode, typeFactory, expressionResolverBuilder);
+        this.parser = parser;
     }
 
     /** Returns a {@link SchemaResolver} for creating {@link ResolvedSchema} from {@link Schema}. */
@@ -1496,8 +1504,53 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         if (view instanceof ResolvedCatalogView) {
             return (ResolvedCatalogView) view;
         }
+
+        if (view instanceof QueryOperationCatalogView) {
+            final QueryOperation queryOperation =
+                    ((QueryOperationCatalogView) view).getQueryOperation();
+            return new ResolvedCatalogView(view, queryOperation.getResolvedSchema());
+        }
+
         final ResolvedSchema resolvedSchema = view.getUnresolvedSchema().resolve(schemaResolver);
-        return new ResolvedCatalogView(view, resolvedSchema);
+        final List<Operation> parse;
+        try {
+            parse = parser.parse(view.getExpandedQuery());
+        } catch (Throwable e) {
+            // in case of a failure during parsing, let the lower layers fail
+            return new ResolvedCatalogView(view, resolvedSchema);
+        }
+        if (parse.size() != 1 || !(parse.get(0) instanceof QueryOperation)) {
+            // parsing a view should result in a single query operation
+            // if it is not what we expect, we let the lower layers fail
+            return new ResolvedCatalogView(view, resolvedSchema);
+        } else {
+            final QueryOperation operation = (QueryOperation) parse.get(0);
+            final ResolvedSchema querySchema = operation.getResolvedSchema();
+            if (querySchema.getColumns().size() != resolvedSchema.getColumns().size()) {
+                // in case the query does not match the number of expected columns, let the lower
+                // layers fail
+                return new ResolvedCatalogView(view, resolvedSchema);
+            }
+            final ResolvedSchema renamedQuerySchema =
+                    new ResolvedSchema(
+                            IntStream.range(0, resolvedSchema.getColumnCount())
+                                    .mapToObj(
+                                            i ->
+                                                    querySchema
+                                                            .getColumn(i)
+                                                            .get()
+                                                            .rename(
+                                                                    resolvedSchema
+                                                                            .getColumnNames()
+                                                                            .get(i)))
+                                    .collect(Collectors.toList()),
+                            resolvedSchema.getWatermarkSpecs(),
+                            resolvedSchema.getPrimaryKey().orElse(null));
+            return new ResolvedCatalogView(
+                    // pass a view that has the query parsed and
+                    // validated already
+                    new QueryOperationCatalogView(operation, view), renamedQuerySchema);
+        }
     }
 
     /**

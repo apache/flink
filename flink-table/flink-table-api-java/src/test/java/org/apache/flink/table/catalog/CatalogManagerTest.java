@@ -32,6 +32,7 @@ import org.apache.flink.table.catalog.listener.DropDatabaseEvent;
 import org.apache.flink.table.catalog.listener.DropTableEvent;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.table.utils.ExpressionResolverMocks;
+import org.apache.flink.table.utils.ParserMock;
 
 import org.junit.jupiter.api.Test;
 
@@ -129,7 +130,8 @@ class CatalogManagerTest {
                                 dropFuture,
                                 dropTemporaryFuture));
 
-        catalogManager.initSchemaResolver(true, ExpressionResolverMocks.dummyResolver());
+        catalogManager.initSchemaResolver(
+                true, ExpressionResolverMocks.dummyResolver(), new ParserMock());
         // Create a view
         catalogManager.createTable(
                 CatalogView.of(Schema.newBuilder().build(), null, "", "", Collections.emptyMap()),

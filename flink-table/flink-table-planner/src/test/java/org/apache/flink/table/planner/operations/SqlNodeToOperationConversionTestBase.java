@@ -99,7 +99,8 @@ public class SqlNodeToOperationConversionTestBase {
     public void before() throws TableAlreadyExistException, DatabaseNotExistException {
         catalogManager.initSchemaResolver(
                 isStreamingMode,
-                ExpressionResolverMocks.basicResolver(catalogManager, functionCatalog, parser));
+                ExpressionResolverMocks.basicResolver(catalogManager, functionCatalog, parser),
+                parser);
 
         final ObjectPath path1 = new ObjectPath(catalogManager.getCurrentDatabase(), "t1");
         final ObjectPath path2 = new ObjectPath(catalogManager.getCurrentDatabase(), "t2");

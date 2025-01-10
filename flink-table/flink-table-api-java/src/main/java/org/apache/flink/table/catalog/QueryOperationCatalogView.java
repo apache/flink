@@ -24,6 +24,8 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.operations.QueryOperation;
 
+import javax.annotation.Nullable;
+
 import java.util.Map;
 import java.util.Optional;
 
@@ -32,9 +34,16 @@ import java.util.Optional;
 public final class QueryOperationCatalogView implements CatalogView {
 
     private final QueryOperation queryOperation;
+    private final @Nullable CatalogView originalView;
 
     public QueryOperationCatalogView(QueryOperation queryOperation) {
+        this(queryOperation, null);
+    }
+
+    public QueryOperationCatalogView(
+            final QueryOperation queryOperation, final CatalogView originalView) {
         this.queryOperation = queryOperation;
+        this.originalView = originalView;
     }
 
     public QueryOperation getQueryOperation() {
@@ -48,17 +57,23 @@ public final class QueryOperationCatalogView implements CatalogView {
 
     @Override
     public Map<String, String> getOptions() {
-        throw new TableException("A view backed by a query operation has no options.");
+        if (originalView == null) {
+            throw new TableException("A view backed by a query operation has no options.");
+        } else {
+            return originalView.getOptions();
+        }
     }
 
     @Override
     public String getComment() {
-        return queryOperation.asSummaryString();
+        return Optional.ofNullable(originalView)
+                .map(CatalogView::getComment)
+                .orElseGet(queryOperation::asSummaryString);
     }
 
     @Override
     public QueryOperationCatalogView copy() {
-        return new QueryOperationCatalogView(queryOperation);
+        return new QueryOperationCatalogView(queryOperation, originalView);
     }
 
     @Override
@@ -73,13 +88,26 @@ public final class QueryOperationCatalogView implements CatalogView {
 
     @Override
     public String getOriginalQuery() {
-        throw new TableException(
-                "A view backed by a query operation has no serializable representation.");
+        if (originalView == null) {
+            throw new TableException(
+                    "A view backed by a query operation has no serializable representation.");
+        } else {
+            return originalView.getOriginalQuery();
+        }
     }
 
     @Override
     public String getExpandedQuery() {
-        throw new TableException(
-                "A view backed by a query operation has no serializable representation.");
+        if (originalView == null) {
+            throw new TableException(
+                    "A view backed by a query operation has no serializable representation.");
+        } else {
+            return originalView.getExpandedQuery();
+        }
+    }
+
+    @Internal
+    public boolean supportsShowCreateView() {
+        return originalView != null;
     }
 }
