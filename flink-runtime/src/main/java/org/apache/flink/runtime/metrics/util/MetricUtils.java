@@ -20,6 +20,7 @@ package org.apache.flink.runtime.metrics.util;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
@@ -65,6 +66,7 @@ import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.ConfigConstants.METRICS_OPERATOR_NAME_MAX_LENGTH;
 import static org.apache.flink.runtime.metrics.util.SystemResourcesMetricsInitializer.instantiateSystemMetrics;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -83,6 +85,8 @@ public class MetricUtils {
     @VisibleForTesting static final String METRIC_GROUP_MEMORY = "Memory";
 
     @VisibleForTesting static final String METRIC_GROUP_MANAGED_MEMORY = "Managed";
+    private static final String WRITER_SUFFIX = ": " + ConfigConstants.WRITER_NAME;
+    private static final String COMMITTER_SUFFIX = ": " + ConfigConstants.COMMITTER_NAME;
 
     private MetricUtils() {}
 
@@ -364,6 +368,34 @@ public class MetricUtils {
                             + " - CPU load metrics will not be available.",
                     e);
         }
+    }
+
+    public static String truncateOperatorName(String operatorName) {
+        if (operatorName != null && operatorName.length() > METRICS_OPERATOR_NAME_MAX_LENGTH) {
+            LOG.warn(
+                    "The operator name {} exceeded the {} characters length limit and was truncated.",
+                    operatorName,
+                    METRICS_OPERATOR_NAME_MAX_LENGTH);
+            if (operatorName.endsWith(WRITER_SUFFIX)) {
+                return operatorName.substring(
+                                0,
+                                Math.max(
+                                        0,
+                                        METRICS_OPERATOR_NAME_MAX_LENGTH - WRITER_SUFFIX.length()))
+                        + WRITER_SUFFIX;
+            }
+            if (operatorName.endsWith(COMMITTER_SUFFIX)) {
+                return operatorName.substring(
+                                0,
+                                Math.max(
+                                        0,
+                                        METRICS_OPERATOR_NAME_MAX_LENGTH
+                                                - COMMITTER_SUFFIX.length()))
+                        + COMMITTER_SUFFIX;
+            }
+            return operatorName.substring(0, METRICS_OPERATOR_NAME_MAX_LENGTH);
+        }
+        return operatorName;
     }
 
     private static final class AttributeGauge<T> implements Gauge<T> {
