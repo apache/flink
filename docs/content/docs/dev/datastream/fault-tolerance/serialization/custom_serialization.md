@@ -56,18 +56,6 @@ ListStateDescriptor<Tuple2<String, Integer>> descriptor =
 checkpointedState = getRuntimeContext().getListState(descriptor);
 ```
 {{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-class CustomTypeSerializer extends TypeSerializer[(String, Integer)] {...}
-
-val descriptor = new ListStateDescriptor[(String, Integer)](
-    "state-name",
-    new CustomTypeSerializer)
-)
-
-checkpointedState = getRuntimeContext.getListState(descriptor)
-```
-{{< /tab >}}
 {{< /tabs >}}
 
 ## State serializers and schema evolution
