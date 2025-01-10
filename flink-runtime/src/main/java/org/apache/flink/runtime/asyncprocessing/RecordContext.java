@@ -38,7 +38,7 @@ import java.util.function.Consumer;
  * @param <K> The type of the key inside the record.
  */
 public class RecordContext<K> extends ReferenceCounted<RecordContext.DisposerRunner> {
-    /** The empty record for timer and non-record input usage. */
+    /** The empty record for non-record input usage. */
     static final Object EMPTY_RECORD = new Object();
 
     /** The record to be processed. */

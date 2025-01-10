@@ -385,7 +385,18 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         // 2. If the state request is for a newly entered record, the in-flight record number should
         // be less than the max in-flight record number.
         // Note: the currentContext may be updated by {@code StateFutureFactory#build}.
-        drainInflightRecords(maxInFlightRecordNum);
+        if (currentContext.getRecord() != RecordContext.EMPTY_RECORD) {
+            // We only drain the records when there is a real record or timer assigned.
+            // Typically, if it is an empty record, this is a derived request by another request (by
+            // initializing a process directly via #asyncProcessWithKey), meaning that we are in
+            // middle of another processing and creating a new one here. If we block here, there
+            // might be a deadlock (current processing waiting here to drain while draining the
+            // current processing).
+            // There probably cause the number of records actually run to be greater than the limit.
+            // But overall it is under-control since there should not be many derived requests
+            // within each request.
+            drainInflightRecords(maxInFlightRecordNum);
+        }
         // 3. Ensure the currentContext is restored.
         setCurrentContext(storedContext);
         inFlightRecordNum.incrementAndGet();
