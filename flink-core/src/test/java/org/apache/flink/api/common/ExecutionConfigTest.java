@@ -118,9 +118,12 @@ public class ExecutionConfigTest {
         } else {
             config.disableClosureCleaner();
         }
-        config.getSerializerConfig().setForceAvro(forceAvroEnabled);
-        config.getSerializerConfig().setForceKryo(forceKryoEnabled);
-        config.getSerializerConfig().setGenericTypes(!disableGenericTypes);
+
+        final SerializerConfigImpl serializerConfig =
+                (SerializerConfigImpl) config.getSerializerConfig();
+        serializerConfig.setForceAvro(forceAvroEnabled);
+        serializerConfig.setForceKryo(forceKryoEnabled);
+        serializerConfig.setGenericTypes(!disableGenericTypes);
         if (objectReuseEnabled) {
             config.enableObjectReuse();
         } else {

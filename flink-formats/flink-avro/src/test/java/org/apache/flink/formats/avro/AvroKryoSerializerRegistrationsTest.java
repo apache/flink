@@ -90,7 +90,7 @@ class AvroKryoSerializerRegistrationsTest {
     @Test
     void testEnableForceKryoAvroRegister() {
         ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.getSerializerConfig().setForceKryoAvro(true);
+        ((SerializerConfigImpl) executionConfig.getSerializerConfig()).setForceKryoAvro(true);
         final Kryo kryo =
                 new KryoSerializer<>(Integer.class, executionConfig.getSerializerConfig())
                         .getKryo();
