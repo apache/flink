@@ -18,7 +18,6 @@
 package org.apache.flink.types;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -69,7 +68,7 @@ public class PojoTestUtils {
      *     Kryo for one or more fields
      */
     public static <T> void assertSerializedAsPojoWithoutKryo(Class<T> clazz) throws AssertionError {
-        final SerializerConfig serializerConfig = new SerializerConfigImpl();
+        final SerializerConfigImpl serializerConfig = new SerializerConfigImpl();
         serializerConfig.setGenericTypes(false);
 
         final TypeInformation<T> typeInformation = TypeInformation.of(clazz);

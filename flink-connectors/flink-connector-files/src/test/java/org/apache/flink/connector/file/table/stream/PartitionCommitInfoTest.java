@@ -18,7 +18,6 @@
 
 package org.apache.flink.connector.file.table.stream;
 
-import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
@@ -30,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 public class PartitionCommitInfoTest {
     @Test
     public void testPartitionCommitSerializer() {
-        SerializerConfig serializerConfig = new SerializerConfigImpl();
+        SerializerConfigImpl serializerConfig = new SerializerConfigImpl();
         serializerConfig.setGenericTypes(false);
         assertNotNull(
                 TypeInformation.of(PartitionCommitInfo.class).createSerializer(serializerConfig));
