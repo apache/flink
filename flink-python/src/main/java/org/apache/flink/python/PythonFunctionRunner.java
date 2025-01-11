@@ -44,6 +44,8 @@ public interface PythonFunctionRunner extends AutoCloseable {
     /** Send the triggered timer to the Python function. */
     void processTimer(byte[] timerData) throws Exception;
 
+    void drainUnregisteredTimers();
+
     /**
      * Retrieves the Python function result.
      *
