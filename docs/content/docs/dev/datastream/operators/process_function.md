@@ -94,11 +94,11 @@ session windows. We use `KeyedProcessFunction` here to illustrate the basic patt
 {{< tab "Java" >}}
 
 ```java
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction.Context;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction.OnTimerContext;

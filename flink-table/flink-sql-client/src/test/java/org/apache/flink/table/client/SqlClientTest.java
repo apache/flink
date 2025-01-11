@@ -19,6 +19,7 @@
 package org.apache.flink.table.client;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.gateway.rest.DeployScriptITCase;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.util.FileUtils;
@@ -27,10 +28,12 @@ import org.apache.flink.util.Preconditions;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
@@ -39,7 +42,6 @@ import java.util.List;
 import static org.apache.flink.configuration.DeploymentOptions.TARGET;
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link SqlClient}. */
 class SqlClientTest extends SqlClientTestBase {
@@ -251,14 +253,6 @@ class SqlClientTest extends SqlClientTestBase {
     }
 
     @Test
-    void testExecuteSqlWithHDFSFile() {
-        String[] args = new String[] {"-f", "hdfs://path/to/file/test.sql"};
-        assertThatThrownBy(() -> runSqlClient(args))
-                .isInstanceOf(SqlClientException.class)
-                .hasMessage("SQL Client only supports to load files in local.");
-    }
-
-    @Test
     public void testPrintEmbeddedModeHelp() throws Exception {
         runTestCliHelp(new String[] {"embedded", "--help"}, "cli/embedded-mode-help.out");
     }
@@ -271,6 +265,17 @@ class SqlClientTest extends SqlClientTestBase {
     @Test
     public void testPrintAllModeHelp() throws Exception {
         runTestCliHelp(new String[] {"--help"}, "cli/all-mode-help.out");
+    }
+
+    @Test
+    public void testDeployScript(@TempDir Path home) throws Exception {
+        DeployScriptITCase.TestApplicationClusterClientFactory.id = "test-application";
+        Path script = home.resolve("script.sql");
+        assertThat(script.toFile().createNewFile()).isTrue();
+        String[] args = {"-f", script.toString(), "-Dexecution.target=test-application"};
+        assertThat(runSqlClient(args))
+                .contains("[INFO] Deploy script in application mode:")
+                .contains("Cluster ID: test");
     }
 
     private void runTestCliHelp(String[] args, String expected) throws Exception {

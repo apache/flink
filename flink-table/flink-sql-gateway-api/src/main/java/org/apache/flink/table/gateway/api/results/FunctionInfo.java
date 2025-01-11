@@ -39,6 +39,7 @@ public class FunctionInfo {
 
     /** Identifier of the function. */
     private final FunctionIdentifier identifier;
+
     /** Kind of the function. If the value is null, it means kind of the function is unresolved. */
     private final @Nullable FunctionKind kind;
 

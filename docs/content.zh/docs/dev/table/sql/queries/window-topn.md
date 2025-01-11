@@ -90,8 +90,7 @@ Flink SQL> SELECT *
     SELECT *, ROW_NUMBER() OVER (PARTITION BY window_start, window_end ORDER BY price DESC) as rownum
     FROM (
       SELECT window_start, window_end, supplier_id, SUM(price) as price, COUNT(*) as cnt
-      FROM TABLE(
-        TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
+      FROM TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES)
       GROUP BY window_start, window_end, supplier_id
     )
   ) WHERE rownum <= 3;
@@ -117,8 +116,7 @@ Flink SQL> SELECT *
 Flink SQL> SELECT *
   FROM (
     SELECT *, ROW_NUMBER() OVER (PARTITION BY window_start, window_end ORDER BY price DESC) as rownum
-    FROM TABLE(
-               TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
+    FROM TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES)
   ) WHERE rownum <= 3;
 +------------------+-------+------+-------------+------------------+------------------+--------+
 |          bidtime | price | item | supplier_id |     window_start |       window_end | rownum |

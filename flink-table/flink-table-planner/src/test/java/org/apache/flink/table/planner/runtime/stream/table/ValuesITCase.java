@@ -30,6 +30,8 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -326,18 +328,23 @@ class ValuesITCase extends StreamingTestBase {
         assertThat(actual).containsExactlyInAnyOrderElementsOf(expected);
     }
 
-    @Test
-    void testRegisteringValuesWithComplexTypes() {
+    @ParameterizedTest(name = "{index}: isTemporaryView ({0})")
+    @ValueSource(booleans = {true, false})
+    void testRegisteringValuesWithComplexTypes(final boolean isTemporaryView) {
         Map<Integer, Integer> mapData = new HashMap<>();
         mapData.put(1, 1);
         mapData.put(2, 2);
 
         Row row = Row.of(mapData, Row.of(1, 2, 3), new Integer[] {1, 2});
         Table values = tEnv().fromValues(Collections.singletonList(row));
-        tEnv().createTemporaryView("values_t", values);
+        final String path = "values_t";
+        if (isTemporaryView) {
+            tEnv().createTemporaryView(path, values);
+        } else {
+            tEnv().createView(path, values);
+        }
         List<Row> results =
-                CollectionUtil.iteratorToList(
-                        tEnv().executeSql("select * from values_t").collect());
+                CollectionUtil.iteratorToList(tEnv().executeSql("select * from " + path).collect());
 
         assertThat(results).containsExactly(row);
     }
@@ -368,14 +375,14 @@ class ValuesITCase extends StreamingTestBase {
             })
     public static class CustomScalarFunction extends ScalarFunction {
         public String eval(
-                byte tinyint,
-                short smallInt,
-                int integer,
-                long bigint,
-                float floating,
-                double doublePrecision,
+                Byte tinyint,
+                Short smallInt,
+                Integer integer,
+                Long bigint,
+                Float floating,
+                Double doublePrecision,
                 BigDecimal decimal,
-                boolean bool,
+                Boolean bool,
                 LocalTime time,
                 LocalDate date,
                 //				Period dateTimeInteraval, TODO TIMESTAMP WITH TIMEZONE not supported yet

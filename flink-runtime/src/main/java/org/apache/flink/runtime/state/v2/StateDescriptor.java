@@ -19,13 +19,14 @@
 package org.apache.flink.runtime.state.v2;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.serialization.SerializerConfig;
-import org.apache.flink.api.common.serialization.SerializerConfigImpl;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.SerializerFactory;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.Serializable;
 
@@ -55,7 +56,7 @@ public abstract class StateDescriptor<T> implements Serializable {
     @Nonnull private final String stateId;
 
     /** The serializer for the type. */
-    @Nonnull private final TypeSerializer<T> typeSerializer;
+    @Nonnull private final StateSerializerReference<T> typeSerializer;
 
     /** The configuration of state time-to-live(TTL), it is disabled by default. */
     @Nonnull private StateTtlConfig ttlConfig = StateTtlConfig.DISABLED;
@@ -68,25 +69,20 @@ public abstract class StateDescriptor<T> implements Serializable {
      * @param stateId The stateId of the {@code StateDescriptor}.
      * @param typeInfo The type information for the values in the state.
      */
-    protected StateDescriptor(@Nonnull String stateId, TypeInformation<T> typeInfo) {
-        this(stateId, typeInfo, new SerializerConfigImpl());
+    protected StateDescriptor(@Nonnull String stateId, @Nonnull TypeInformation<T> typeInfo) {
+        this.stateId = checkNotNull(stateId, "state id must not be null");
+        this.typeSerializer = new StateSerializerReference<>(typeInfo);
     }
 
     /**
-     * Create a new {@code StateDescriptor} with the given stateId and the given type information.
+     * Create a new {@code StateDescriptor} with the given stateId and the given type serializer.
      *
      * @param stateId The stateId of the {@code StateDescriptor}.
-     * @param typeInfo The type information for the values in the state.
-     * @param serializerConfig The serializer related config used to generate {@code
-     *     TypeSerializer}.
+     * @param serializer The type serializer for the values in the state.
      */
-    protected StateDescriptor(
-            @Nonnull String stateId,
-            @Nonnull TypeInformation<T> typeInfo,
-            SerializerConfig serializerConfig) {
+    protected StateDescriptor(@Nonnull String stateId, TypeSerializer<T> serializer) {
         this.stateId = checkNotNull(stateId, "stateId must not be null");
-        checkNotNull(typeInfo, "type information must not be null");
-        this.typeSerializer = typeInfo.createSerializer(serializerConfig);
+        this.typeSerializer = new StateSerializerReference<>(serializer);
     }
 
     // ------------------------------------------------------------------------
@@ -115,7 +111,45 @@ public abstract class StateDescriptor<T> implements Serializable {
 
     @Nonnull
     public TypeSerializer<T> getSerializer() {
-        return typeSerializer.duplicate();
+        TypeSerializer<T> serializer = typeSerializer.get();
+        if (serializer != null) {
+            return serializer.duplicate();
+        } else {
+            throw new IllegalStateException("Serializer not yet initialized.");
+        }
+    }
+
+    @Internal
+    @Nullable
+    public TypeInformation<T> getTypeInformation() {
+        return typeSerializer.getTypeInformation();
+    }
+
+    // ------------------------------------------------------------------------
+
+    /**
+     * Checks whether the serializer has been initialized. Serializer initialization is lazy, to
+     * allow parametrization of serializers with an {@link ExecutionConfig} via {@link
+     * #initializeSerializerUnlessSet(ExecutionConfig)}.
+     *
+     * @return True if the serializers have been initialized, false otherwise.
+     */
+    public boolean isSerializerInitialized() {
+        return typeSerializer.isInitialized();
+    }
+
+    /**
+     * Initializes the serializer, unless it has been initialized before.
+     *
+     * @param executionConfig The execution config to use when creating the serializer.
+     */
+    public void initializeSerializerUnlessSet(ExecutionConfig executionConfig) {
+        typeSerializer.initializeUnlessSet(executionConfig);
+    }
+
+    @Internal
+    public void initializeSerializerUnlessSet(SerializerFactory serializerFactory) {
+        typeSerializer.initializeUnlessSet(serializerFactory);
     }
 
     // ------------------------------------------------------------------------

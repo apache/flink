@@ -21,7 +21,6 @@ import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, RetractStream
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
-import org.apache.flink.table.catalog.{ManagedTableListener, ResolvedCatalogBaseTable}
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.`trait`.UpdateKindTrait.{beforeAfterOrNone, onlyAfterOrNone, BEFORE_AND_AFTER, ONLY_UPDATE_AFTER}
@@ -638,29 +637,6 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           }
 
         case normalize: StreamPhysicalChangelogNormalize =>
-          val contextResolvedTable = normalize.contextResolvedTable
-          val tableIdentifier = contextResolvedTable.getIdentifier
-          if (
-            !contextResolvedTable.isAnonymous
-            && requiredTrait == UpdateKindTrait.ONLY_UPDATE_AFTER
-          ) {
-            val catalogName = tableIdentifier.getCatalogName
-            val catalog = context.getCatalogManager.getCatalog(catalogName).orElse(null)
-            val catalogTable = contextResolvedTable.getResolvedTable[ResolvedCatalogBaseTable[_]]
-            if (ManagedTableListener.isManagedTable(catalog, catalogTable)) {
-              // if requiredTrait is ONLY_UPDATE_AFTER and table is ManagedTable,
-              // we can eliminate current normalize stage,
-              // cuz ManagedTable has preserved complete delete messages.
-              val input = normalize.getInput match {
-                case exchange: StreamPhysicalExchange =>
-                  exchange.getInput
-                case _ =>
-                  normalize.getInput
-              }
-              val inputPhysicalRel = input.asInstanceOf[StreamPhysicalRel]
-              return this.visit(inputPhysicalRel, UpdateKindTrait.ONLY_UPDATE_AFTER)
-            }
-          }
           // changelog normalize currently only supports input only sending UPDATE_AFTER
           val children = visitChildren(normalize, UpdateKindTrait.ONLY_UPDATE_AFTER)
           // use requiredTrait as providedTrait,

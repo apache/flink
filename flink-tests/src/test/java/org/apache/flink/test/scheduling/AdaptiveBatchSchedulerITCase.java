@@ -31,8 +31,18 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
+import org.apache.flink.runtime.scheduler.adaptivebatch.OperatorsFinished;
+import org.apache.flink.runtime.scheduler.adaptivebatch.StreamGraphOptimizationStrategy;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.graph.StreamGraphContext;
+import org.apache.flink.streaming.api.graph.StreamNode;
+import org.apache.flink.streaming.api.graph.util.ImmutableStreamEdge;
+import org.apache.flink.streaming.api.graph.util.StreamEdgeUpdateRequestInfo;
+import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,8 +50,10 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -128,6 +140,72 @@ class AdaptiveBatchSchedulerITCase {
         source2.map(new NumberCounter()).name("map2").slotSharingGroup("group4");
 
         env.execute();
+    }
+
+    @Test
+    void testAdaptiveOptimizeStreamGraph() throws Exception {
+        final Configuration configuration = createConfiguration();
+        configuration.set(
+                StreamGraphOptimizationStrategy.STREAM_GRAPH_OPTIMIZATION_STRATEGY,
+                List.of(TestingStreamGraphOptimizerStrategy.class.getName()));
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        env.disableOperatorChaining();
+        env.setParallelism(8);
+
+        SingleOutputStreamOperator<Long> source1 =
+                env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
+                        .setParallelism(SOURCE_PARALLELISM_1)
+                        .name("source1");
+        SingleOutputStreamOperator<Long> source2 =
+                env.fromSequence(0, NUMBERS_TO_PRODUCE - 1)
+                        .setParallelism(SOURCE_PARALLELISM_2)
+                        .name("source2");
+
+        source1.keyBy(i -> i % SOURCE_PARALLELISM_1)
+                .map(i -> i)
+                .name("map1")
+                .rebalance()
+                .union(source2)
+                .rebalance()
+                .map(new NumberCounter())
+                .name("map2")
+                .setParallelism(1);
+
+        StreamGraph streamGraph = env.getStreamGraph();
+        StreamNode sourceNode1 =
+                streamGraph.getStreamNodes().stream()
+                        .filter(node -> node.getOperatorName().contains("source1"))
+                        .findFirst()
+                        .get();
+        StreamNode mapNode1 =
+                streamGraph.getStreamNodes().stream()
+                        .filter(node -> node.getOperatorName().contains("map1"))
+                        .findFirst()
+                        .get();
+
+        TestingStreamGraphOptimizerStrategy.convertToRescaleEdgeIds.add(
+                sourceNode1.getOutEdges().get(0).getEdgeId());
+        TestingStreamGraphOptimizerStrategy.convertToBroadcastEdgeIds.add(
+                mapNode1.getOutEdges().get(0).getEdgeId());
+
+        env.execute(streamGraph);
+
+        Map<Long, Long> numberCountResultMap =
+                numberCountResults.stream()
+                        .flatMap(map -> map.entrySet().stream())
+                        .collect(
+                                Collectors.toMap(
+                                        Map.Entry::getKey, Map.Entry::getValue, Long::sum));
+
+        // One part comes from source1, while the other parts come from the broadcast results of
+        // source2.
+        Map<Long, Long> expectedResult =
+                LongStream.range(0, NUMBERS_TO_PRODUCE)
+                        .boxed()
+                        .collect(Collectors.toMap(Function.identity(), i -> 2L));
+        assertThat(numberCountResultMap).isEqualTo(expectedResult);
     }
 
     private void testSchedulingBase(Boolean useSourceParallelismInference) throws Exception {
@@ -255,6 +333,40 @@ class AdaptiveBatchSchedulerITCase {
         @Override
         public int inferParallelism(Context context) {
             return expectedParallelism;
+        }
+    }
+
+    public static final class TestingStreamGraphOptimizerStrategy
+            implements StreamGraphOptimizationStrategy {
+
+        private static final Set<String> convertToBroadcastEdgeIds = new HashSet<>();
+        private static final Set<String> convertToRescaleEdgeIds = new HashSet<>();
+
+        @Override
+        public boolean onOperatorsFinished(
+                OperatorsFinished operatorsFinished, StreamGraphContext context) throws Exception {
+            List<Integer> finishedStreamNodeIds = operatorsFinished.getFinishedStreamNodeIds();
+            List<StreamEdgeUpdateRequestInfo> requestInfos = new ArrayList<>();
+            for (Integer finishedStreamNodeId : finishedStreamNodeIds) {
+                for (ImmutableStreamEdge outEdge :
+                        context.getStreamGraph()
+                                .getStreamNode(finishedStreamNodeId)
+                                .getOutEdges()) {
+                    StreamEdgeUpdateRequestInfo requestInfo =
+                            new StreamEdgeUpdateRequestInfo(
+                                    outEdge.getEdgeId(),
+                                    outEdge.getSourceId(),
+                                    outEdge.getTargetId());
+                    if (convertToBroadcastEdgeIds.contains(outEdge.getEdgeId())) {
+                        requestInfo.withOutputPartitioner(new BroadcastPartitioner<>());
+                        requestInfos.add(requestInfo);
+                    } else if (convertToRescaleEdgeIds.contains(outEdge.getEdgeId())) {
+                        requestInfo.withOutputPartitioner(new RescalePartitioner<>());
+                        requestInfos.add(requestInfo);
+                    }
+                }
+            }
+            return context.modifyStreamEdge(requestInfos);
         }
     }
 }

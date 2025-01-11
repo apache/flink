@@ -21,8 +21,10 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +35,8 @@ import java.util.stream.Stream;
 @Internal
 public class JoinQueryOperation implements QueryOperation {
 
+    private static final String INPUT_1_ALIAS = "$$T1_JOIN";
+    private static final String INPUT_2_ALIAS = "$$T2_JOIN";
     private final QueryOperation left;
     private final QueryOperation right;
     private final JoinType joinType;
@@ -108,13 +112,30 @@ public class JoinQueryOperation implements QueryOperation {
 
     @Override
     public String asSerializableString() {
+
+        Map<Integer, String> inputAliases = new HashMap<>();
+        inputAliases.put(0, INPUT_1_ALIAS);
+        inputAliases.put(1, correlated ? CalculatedQueryOperation.INPUT_ALIAS : INPUT_2_ALIAS);
+
         return String.format(
-                "SELECT %s FROM (%s\n) %s JOIN %s ON %s",
-                OperationUtils.formatSelectColumns(resolvedSchema),
+                "SELECT %s FROM (%s\n) %s %s JOIN %s ON %s",
+                getSelectList(),
                 OperationUtils.indent(left.asSerializableString()),
+                INPUT_1_ALIAS,
                 joinType.toString().replaceAll("_", " "),
                 rightToSerializable(),
-                condition.asSerializableString());
+                OperationExpressionsUtils.scopeReferencesWithAlias(inputAliases, condition)
+                        .asSerializableString());
+    }
+
+    private String getSelectList() {
+        String leftColumns =
+                OperationUtils.formatSelectColumns(left.getResolvedSchema(), INPUT_1_ALIAS);
+        String rightColumns =
+                OperationUtils.formatSelectColumns(
+                        right.getResolvedSchema(),
+                        correlated ? CalculatedQueryOperation.INPUT_ALIAS : INPUT_2_ALIAS);
+        return leftColumns + ", " + rightColumns;
     }
 
     private String rightToSerializable() {
@@ -125,6 +146,8 @@ public class JoinQueryOperation implements QueryOperation {
         s.append(OperationUtils.indent(right.asSerializableString()));
         if (!correlated) {
             s.append("\n)");
+            s.append(" ");
+            s.append(INPUT_2_ALIAS);
         }
         return s.toString();
     }

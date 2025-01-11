@@ -91,7 +91,9 @@ public class TableSchema {
         this.primaryKey = primaryKey;
     }
 
-    /** @deprecated Use the {@link Builder} instead. */
+    /**
+     * @deprecated Use the {@link Builder} instead.
+     */
     @Deprecated
     public TableSchema(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
         DataType[] fieldDataTypes = fromLegacyInfoToDataType(fieldTypes);
@@ -292,7 +294,9 @@ public class TableSchema {
         return ROW(fields).notNull();
     }
 
-    /** @deprecated Use {@link #toRowDataType()} instead. */
+    /**
+     * @deprecated Use {@link #toRowDataType()} instead.
+     */
     @Deprecated
     @SuppressWarnings("unchecked")
     public TypeInformation<Row> toRowType() {

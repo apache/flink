@@ -489,10 +489,10 @@ And that's it, a fully functional, stateful, distributed streaming application!
 {{< tabs "finalapplication" >}}
 {{< tab "Java" >}}
 ```java
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.walkthrough.common.entity.Alert;

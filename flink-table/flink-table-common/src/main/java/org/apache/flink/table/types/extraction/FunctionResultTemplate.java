@@ -20,47 +20,129 @@ package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.StateTypeStrategy;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategy;
 
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
-/** Template of a function intermediate result (i.e. accumulator) or final result (i.e. output). */
+import static org.apache.flink.table.types.extraction.ExtractionUtils.extractionError;
+
+/** Template of a function intermediate result (i.e. state) or final result (i.e. output). */
 @Internal
-final class FunctionResultTemplate {
+interface FunctionResultTemplate {
 
-    final DataType dataType;
-
-    private FunctionResultTemplate(DataType dataType) {
-        this.dataType = dataType;
+    static FunctionOutputTemplate ofOutput(DataType dataType) {
+        return new FunctionOutputTemplate(dataType);
     }
 
-    static FunctionResultTemplate of(DataType dataType) {
-        return new FunctionResultTemplate(dataType);
+    static FunctionStateTemplate ofState(LinkedHashMap<String, DataType> state) {
+        return new FunctionStateTemplate(state);
     }
 
-    TypeStrategy toTypeStrategy() {
-        return TypeStrategies.explicit(dataType);
-    }
+    @Internal
+    class FunctionOutputTemplate implements FunctionResultTemplate {
 
-    Class<?> toClass() {
-        return dataType.getConversionClass();
-    }
+        private final DataType dataType;
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
+        private FunctionOutputTemplate(DataType dataType) {
+            this.dataType = dataType;
         }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
+
+        TypeStrategy toTypeStrategy() {
+            return TypeStrategies.explicit(dataType);
         }
-        FunctionResultTemplate that = (FunctionResultTemplate) o;
-        return dataType.equals(that.dataType);
+
+        Class<?> toClass() {
+            return dataType.getConversionClass();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            final FunctionOutputTemplate template = (FunctionOutputTemplate) o;
+            return Objects.equals(dataType, template.dataType);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(dataType);
+        }
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(dataType);
+    @Internal
+    class FunctionStateTemplate implements FunctionResultTemplate {
+
+        private final LinkedHashMap<String, DataType> state;
+
+        private FunctionStateTemplate(LinkedHashMap<String, DataType> state) {
+            this.state = state;
+        }
+
+        List<Class<?>> toClassList() {
+            return state.values().stream()
+                    .map(DataType::getConversionClass)
+                    .collect(Collectors.toList());
+        }
+
+        LinkedHashMap<String, StateTypeStrategy> toStateTypeStrategies() {
+            return state.entrySet().stream()
+                    .collect(
+                            Collectors.toMap(
+                                    Map.Entry::getKey,
+                                    e -> createStateTypeStrategy(e.getValue()),
+                                    (o, n) -> o,
+                                    LinkedHashMap::new));
+        }
+
+        String toAccumulatorStateName() {
+            checkSingleStateEntry();
+            return state.keySet().iterator().next();
+        }
+
+        TypeStrategy toAccumulatorTypeStrategy() {
+            checkSingleStateEntry();
+            return createTypeStrategy(state.values().iterator().next());
+        }
+
+        private void checkSingleStateEntry() {
+            if (state.size() != 1) {
+                throw extractionError("Aggregating functions support only one state entry.");
+            }
+        }
+
+        private static StateTypeStrategy createStateTypeStrategy(DataType dataType) {
+            return StateTypeStrategy.of(TypeStrategies.explicit(dataType));
+        }
+
+        private static TypeStrategy createTypeStrategy(DataType dataType) {
+            return TypeStrategies.explicit(dataType);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            final FunctionStateTemplate that = (FunctionStateTemplate) o;
+            return Objects.equals(state, that.state);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(state);
+        }
     }
 }

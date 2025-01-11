@@ -137,6 +137,7 @@ class CleanupRetryStrategyFactoryTest {
         assertThat(retryStrategy.getRetryDelay()).isEqualTo(expectedDelay);
         assertThat(retryStrategy.getNumRemainingRetries()).isEqualTo(expectedMaxAttempts);
     }
+
     /* *********************************************
      * ExponentialBackoffDelayRetryStrategy tests
      * *********************************************/

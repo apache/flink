@@ -137,6 +137,7 @@ import static org.apache.flink.client.deployment.application.ApplicationConfigur
 import static org.apache.flink.configuration.ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_LIB_DIR;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_OPT_DIR;
+import static org.apache.flink.configuration.ConfigConstants.ENV_JAVA_HOME;
 import static org.apache.flink.configuration.ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX;
 import static org.apache.flink.configuration.ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX;
 import static org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever.JOB_GRAPH_FILE_PATH;
@@ -534,7 +535,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                     flinkConfiguration
                             .getOptional(PipelineOptions.JARS)
                             .orElse(Collections.emptyList());
-            Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
+            Preconditions.checkArgument(
+                    pipelineJars.size() <= 1, "Should only have at most one jar.");
         }
 
         try {
@@ -986,14 +988,23 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         }
 
         // only for application mode
-        // Python jar file only needs to be shipped and should not be added to classpath.
-        if (YarnApplicationClusterEntryPoint.class.getName().equals(yarnClusterEntrypoint)
-                && PackagedProgramUtils.isPython(configuration.get(APPLICATION_MAIN_CLASS))) {
-            fileUploader.registerMultipleLocalResources(
-                    Collections.singletonList(
-                            new Path(PackagedProgramUtils.getPythonJar().toURI())),
-                    ConfigConstants.DEFAULT_FLINK_OPT_DIR,
-                    LocalResourceType.FILE);
+        if (YarnApplicationClusterEntryPoint.class.getName().equals(yarnClusterEntrypoint)) {
+            // Python jar/Sql Gateway jar only need to be shipped and should not be added to
+            // classpath.
+            if (PackagedProgramUtils.isPython(configuration.get(APPLICATION_MAIN_CLASS))) {
+                fileUploader.registerMultipleLocalResources(
+                        Collections.singletonList(
+                                new Path(PackagedProgramUtils.getPythonJar().toURI())),
+                        ConfigConstants.DEFAULT_FLINK_OPT_DIR,
+                        LocalResourceType.FILE);
+            } else if (PackagedProgramUtils.isSqlApplication(
+                    configuration.get(APPLICATION_MAIN_CLASS))) {
+                fileUploader.registerMultipleLocalResources(
+                        Collections.singletonList(
+                                new Path(PackagedProgramUtils.getSqlGatewayJar().toURI())),
+                        ConfigConstants.DEFAULT_FLINK_OPT_DIR,
+                        LocalResourceType.FILE);
+            }
         }
 
         // Upload and register user jars
@@ -1307,7 +1318,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                                     + "If log aggregation is enabled on your cluster, use this command to further investigate the issue:\n"
                                     + "yarn logs -applicationId "
                                     + appId);
-                    // break ..
+                // break ..
                 case RUNNING:
                     LOG.info("YARN application has been deployed successfully.");
                     break loop;
@@ -1968,6 +1979,10 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                 ConfigurationUtils.getPrefixedKeyValuePairs(
                         ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX,
                         this.flinkConfiguration));
+        // set JAVA_HOME
+        this.flinkConfiguration
+                .getOptional(CoreOptions.FLINK_JAVA_HOME)
+                .ifPresent(javaHome -> env.put(ENV_JAVA_HOME, javaHome));
         // set Flink app class path
         env.put(ENV_FLINK_CLASSPATH, classPathStr);
         // Set FLINK_LIB_DIR to `lib` folder under working dir in container

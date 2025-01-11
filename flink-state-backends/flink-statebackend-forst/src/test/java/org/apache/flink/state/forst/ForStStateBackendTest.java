@@ -31,7 +31,6 @@ import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.function.SupplierWithException;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -39,10 +38,10 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.flink.state.forst.ForStConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
 import static org.apache.flink.state.forst.ForStOptions.LOCAL_DIRECTORIES;
 
 /** Tests for the partitioned state part of {@link ForStStateBackendTest}. */
-@Disabled("ForStStateBackend is not support checkpoint yet, some tests can't run")
 @ExtendWith(ParameterizedTestExtension.class)
 class ForStStateBackendTest extends StateBackendTestBase<ForStStateBackend> {
     @TempDir private static java.nio.file.Path tempFolder;
@@ -79,8 +78,8 @@ class ForStStateBackendTest extends StateBackendTestBase<ForStStateBackend> {
         ForStStateBackend backend = new ForStStateBackend();
         Configuration config = new Configuration();
         config.set(LOCAL_DIRECTORIES, tempFolder.toString());
-        backend.configure(config, Thread.currentThread().getContextClassLoader());
-        return new ForStStateBackend();
+        config.set(USE_INGEST_DB_RESTORE_MODE, true);
+        return backend.configure(config, Thread.currentThread().getContextClassLoader());
     }
 
     @Override
@@ -90,6 +89,14 @@ class ForStStateBackendTest extends StateBackendTestBase<ForStStateBackend> {
 
     @Override
     protected boolean supportsAsynchronousSnapshots() {
+        return true;
+    }
+
+    /**
+     * @return true if state backend is safe to reuse state.
+     */
+    @Override
+    protected boolean isSafeToReuseKVState() {
         return true;
     }
 }

@@ -869,7 +869,6 @@ SqlAlterTable SqlAlterTable() :
     boolean ifNotExists = false;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
-    SqlNodeList partitionSpec = null;
     SqlDistribution distribution = null;
     SqlIdentifier constraintName;
     SqlTableConstraint constraint;
@@ -1047,17 +1046,6 @@ SqlAlterTable SqlAlterTable() :
             }
          )
         )
-    |
-        [
-            <PARTITION>
-            {   partitionSpec = new SqlNodeList(getPos());
-                PartitionSpecCommaList(partitionSpec);
-            }
-        ]
-        <COMPACT>
-        {
-            return new SqlAlterTableCompact(startPos.plus(getPos()), tableIdentifier, partitionSpec, ifExists);
-        }
     )
 }
 
@@ -2009,6 +1997,7 @@ SqlAlterMaterializedTable SqlAlterMaterializedTable() :
     SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
     SqlNodeList partSpec = SqlNodeList.EMPTY;
     SqlNode freshness = null;
+    SqlNode asQuery = null;
 }
 {
     <ALTER> <MATERIALIZED> <TABLE> { startPos = getPos();}
@@ -2088,6 +2077,15 @@ SqlAlterMaterializedTable SqlAlterMaterializedTable() :
                     startPos.plus(getPos()),
                     tableIdentifier,
                     propertyKeyList);
+            }
+        |
+        <AS>
+            asQuery = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+            {
+                return new SqlAlterMaterializedTableAsQuery(
+                    startPos.plus(getPos()),
+                    tableIdentifier,
+                    asQuery);
             }
     )
 }

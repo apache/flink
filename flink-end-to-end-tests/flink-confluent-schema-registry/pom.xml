@@ -138,16 +138,6 @@ under the License.
 					<excludes>**/example/avro/*</excludes>
 				</configuration>
 			</plugin>
-			<!-- [FLINK-36245] Skip compile TestAvroConsumerConfluent as Kafka connector is not support 2.0 for now -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<configuration>
-					<excludes>
-						<exclude>org/apache/flink/schema/registry/test/TestAvroConsumerConfluent.java</exclude>
-					</excludes>
-				</configuration>
-			</plugin>
 		</plugins>
 	</build>
 </project>

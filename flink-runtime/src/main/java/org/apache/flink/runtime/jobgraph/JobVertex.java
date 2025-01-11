@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobgraph;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.configuration.Configuration;
@@ -515,18 +516,24 @@ public class JobVertex implements java.io.Serializable {
                 id, key -> new IntermediateDataSet(id, partitionType, this));
     }
 
-    public JobEdge connectNewDataSetAsInput(
-            JobVertex input, DistributionPattern distPattern, ResultPartitionType partitionType) {
-        return connectNewDataSetAsInput(input, distPattern, partitionType, false);
-    }
-
+    @VisibleForTesting
     public JobEdge connectNewDataSetAsInput(
             JobVertex input,
             DistributionPattern distPattern,
             ResultPartitionType partitionType,
-            boolean isBroadcast) {
+            IntermediateDataSetID intermediateDataSetId,
+            boolean isBroadcast,
+            boolean isForward) {
         return connectNewDataSetAsInput(
-                input, distPattern, partitionType, new IntermediateDataSetID(), isBroadcast);
+                input,
+                distPattern,
+                partitionType,
+                intermediateDataSetId,
+                isBroadcast,
+                isForward,
+                -1,
+                distPattern != DistributionPattern.POINTWISE,
+                distPattern != DistributionPattern.POINTWISE && !isBroadcast);
     }
 
     public JobEdge connectNewDataSetAsInput(
@@ -534,12 +541,25 @@ public class JobVertex implements java.io.Serializable {
             DistributionPattern distPattern,
             ResultPartitionType partitionType,
             IntermediateDataSetID intermediateDataSetId,
-            boolean isBroadcast) {
+            boolean isBroadcast,
+            boolean isForward,
+            int typeNumber,
+            boolean interInputsKeysCorrelated,
+            boolean intraInputKeyCorrelated) {
 
         IntermediateDataSet dataSet =
                 input.getOrCreateResultDataSet(intermediateDataSetId, partitionType);
 
-        JobEdge edge = new JobEdge(dataSet, this, distPattern, isBroadcast);
+        JobEdge edge =
+                new JobEdge(
+                        dataSet,
+                        this,
+                        distPattern,
+                        isBroadcast,
+                        isForward,
+                        typeNumber,
+                        interInputsKeysCorrelated,
+                        intraInputKeyCorrelated);
         this.inputs.add(edge);
         dataSet.addConsumer(edge);
         return edge;

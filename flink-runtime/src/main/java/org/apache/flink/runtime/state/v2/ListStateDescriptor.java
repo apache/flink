@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.state.v2;
 
-import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.state.v2.ListState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+
+import javax.annotation.Nonnull;
 
 /**
  * {@link StateDescriptor} for {@link ListState}. This can be used to create partitioned list state
@@ -36,21 +38,19 @@ public class ListStateDescriptor<T> extends StateDescriptor<T> {
      * @param stateId The (unique) stateId for the state.
      * @param typeInfo The type of the values in the state.
      */
-    public ListStateDescriptor(String stateId, TypeInformation<T> typeInfo) {
+    public ListStateDescriptor(@Nonnull String stateId, @Nonnull TypeInformation<T> typeInfo) {
         super(stateId, typeInfo);
     }
 
     /**
-     * Creates a new {@code ListStateDescriptor} with the given stateId and type.
+     * Create a new {@code ListStateDescriptor} with the given stateId and the given type
+     * serializer.
      *
      * @param stateId The (unique) stateId for the state.
-     * @param typeInfo The type of the values in the state.
-     * @param serializerConfig The serializer related config used to generate {@code
-     *     TypeSerializer}.
+     * @param serializer The type serializer for the values in the state.
      */
-    public ListStateDescriptor(
-            String stateId, TypeInformation<T> typeInfo, SerializerConfig serializerConfig) {
-        super(stateId, typeInfo, serializerConfig);
+    public ListStateDescriptor(@Nonnull String stateId, @Nonnull TypeSerializer<T> serializer) {
+        super(stateId, serializer);
     }
 
     @Override

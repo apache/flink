@@ -30,7 +30,6 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffload
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.executiongraph.InternalExecutionGraphAccessor;
@@ -151,16 +150,18 @@ public class TaskDeploymentDescriptorFactory {
 
             IntermediateDataSetID resultId = consumedIntermediateResult.getId();
             ResultPartitionType partitionType = consumedIntermediateResult.getResultType();
-            IndexRange subpartitionRange =
-                    executionVertex
-                            .getExecutionVertexInputInfo(resultId)
-                            .getSubpartitionIndexRange();
+            IntermediateResultPartition[] partitions = consumedIntermediateResult.getPartitions();
 
             inputGates.add(
                     new InputGateDeploymentDescriptor(
                             resultId,
                             partitionType,
-                            subpartitionRange,
+                            ConsumedSubpartitionContext.buildConsumedSubpartitionContext(
+                                    executionVertex
+                                            .getExecutionVertexInputInfo(resultId)
+                                            .getConsumedSubpartitionGroups(),
+                                    consumedPartitionGroup,
+                                    index -> partitions[index].getPartitionId()),
                             consumedPartitionGroup.size(),
                             getConsumedPartitionShuffleDescriptors(
                                     consumedIntermediateResult,

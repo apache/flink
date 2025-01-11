@@ -24,6 +24,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
@@ -244,6 +245,23 @@ public class RecordWriterOutput<OUT>
         try {
             serializationDelegate.setInstance(recordAttributes);
             recordWriter.broadcastEmit(serializationDelegate);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    @Override
+    public void emitWatermark(WatermarkEvent watermark) {
+        if (!recordWriter.isSubpartitionDerivable()) {
+            LOG.warn(
+                    watermark
+                            + " will be ignored, because its correctness cannot not be "
+                            + "guaranteed when the subpartition information is not derivable.");
+            return;
+        }
+
+        try {
+            recordWriter.broadcastEvent(watermark, false);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

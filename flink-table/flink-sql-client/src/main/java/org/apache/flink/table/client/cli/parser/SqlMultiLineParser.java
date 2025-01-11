@@ -53,12 +53,16 @@ public class SqlMultiLineParser extends DefaultParser {
 
     /** Sql command parser. */
     private final SqlCommandParser parser;
+
     /** Mode of the CliClient. */
     private final CliClient.ExecutionMode mode;
+
     /** Sql command executor. */
     private final Executor executor;
+
     /** Exception caught in parsing. */
     private SqlExecutionException parseException = null;
+
     /** Result printer. */
     private Printer printer;
 

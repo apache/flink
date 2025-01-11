@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.connector.datagen.table.DataGenTableSourceFactory;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -33,7 +32,6 @@ import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.factories.ManagedTableFactory;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 
@@ -46,16 +44,13 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX;
 import static org.apache.flink.table.catalog.hive.util.Constants.IDENTIFIER;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for HiveCatalog. */
 public class HiveCatalogTest {
@@ -89,179 +84,6 @@ public class HiveCatalogTest {
     }
 
     @Test
-    public void testCreateAndGetFlinkManagedTable() throws Exception {
-        CatalogTable table =
-                new ResolvedCatalogTable(
-                        CatalogTable.of(
-                                schema,
-                                "Flink managed table",
-                                new ArrayList<>(),
-                                Collections.emptyMap()),
-                        resolvedSchema);
-        hiveCatalog.createTable(tablePath, table, false);
-        Table hiveTable = hiveCatalog.getHiveTable(tablePath);
-        assertThat(hiveTable.getParameters())
-                .containsEntry(
-                        FLINK_PROPERTY_PREFIX + CONNECTOR.key(),
-                        ManagedTableFactory.DEFAULT_IDENTIFIER);
-        CatalogBaseTable retrievedTable = hiveCatalog.instantiateCatalogTable(hiveTable);
-        assertThat(retrievedTable.getOptions()).isEmpty();
-    }
-
-    @Test
-    public void testAlterFlinkNonManagedTableToFlinkManagedTable() throws Exception {
-        Map<String, String> originOptions =
-                Collections.singletonMap(
-                        FactoryUtil.CONNECTOR.key(), DataGenTableSourceFactory.IDENTIFIER);
-        CatalogTable originTable =
-                new ResolvedCatalogTable(
-                        CatalogTable.of(
-                                schema,
-                                "Flink non-managed table",
-                                new ArrayList<>(),
-                                originOptions),
-                        resolvedSchema);
-        hiveCatalog.createTable(tablePath, originTable, false);
-
-        Map<String, String> newOptions = Collections.emptyMap();
-
-        CatalogTable newTable =
-                new ResolvedCatalogTable(
-                        CatalogTable.of(
-                                schema, "Flink managed table", new ArrayList<>(), newOptions),
-                        resolvedSchema);
-        assertThatThrownBy(() -> hiveCatalog.alterTable(tablePath, newTable, false))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(
-                        "Changing catalog table type is not allowed. "
-                                + "Existing table type is 'FLINK_NON_MANAGED_TABLE', but new table type is 'FLINK_MANAGED_TABLE'");
-    }
-
-    @Test
-    public void testAlterFlinkNonManagedTableToHiveTable() throws Exception {
-        Map<String, String> originOptions =
-                Collections.singletonMap(
-                        FactoryUtil.CONNECTOR.key(), DataGenTableSourceFactory.IDENTIFIER);
-        CatalogTable originTable =
-                new ResolvedCatalogTable(
-                        CatalogTable.of(
-                                schema,
-                                "Flink non-managed table",
-                                new ArrayList<>(),
-                                originOptions),
-                        resolvedSchema);
-        hiveCatalog.createTable(tablePath, originTable, false);
-
-        Map<String, String> newOptions = getLegacyFileSystemConnectorOptions("/test_path");
-        newOptions.put(FactoryUtil.CONNECTOR.key(), IDENTIFIER);
-        CatalogTable newTable =
-                new ResolvedCatalogTable(
-                        CatalogTable.of(schema, "Hive table", new ArrayList<>(), newOptions),
-                        resolvedSchema);
-        assertThatThrownBy(() -> hiveCatalog.alterTable(tablePath, newTable, false))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(
-                        "Changing catalog table type is not allowed. "
-                                + "Existing table type is 'FLINK_NON_MANAGED_TABLE', but new table type is 'HIVE_TABLE'");
-    }
-
-    @Test
-    public void testAlterFlinkManagedTableToFlinkManagedTable() throws Exception {
-        Map<String, String> originOptions = Collections.emptyMap();
-        CatalogTable originTable =
-                new ResolvedCatalogTable(
-                        CatalogTable.of(
-                                schema, "Flink managed table", new ArrayList<>(), originOptions),
-                        resolvedSchema);
-        hiveCatalog.createTable(tablePath, originTable, false);
-
-        Map<String, String> newOptions =
-                Collections.singletonMap(
-                        FactoryUtil.CONNECTOR.key(), DataGenTableSourceFactory.IDENTIFIER);
-        CatalogTable newTable =
-                new ResolvedCatalogTable(
-                        CatalogTable.of(
-                                schema, "Flink non-managed table", new ArrayList<>(), newOptions),
-                        resolvedSchema);
-        assertThatThrownBy(() -> hiveCatalog.alterTable(tablePath, newTable, false))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(
-                        "Changing catalog table type is not allowed. "
-                                + "Existing table type is 'FLINK_MANAGED_TABLE', but new table type is 'FLINK_NON_MANAGED_TABLE'");
-    }
-
-    @Test
-    public void testAlterFlinkManagedTableToHiveTable() throws Exception {
-        Map<String, String> originOptions = Collections.emptyMap();
-        CatalogTable originTable =
-                new ResolvedCatalogTable(
-                        CatalogTable.of(
-                                schema, "Flink managed table", new ArrayList<>(), originOptions),
-                        resolvedSchema);
-        hiveCatalog.createTable(tablePath, originTable, false);
-
-        Map<String, String> newOptions = getLegacyFileSystemConnectorOptions("/test_path");
-        newOptions.put(FactoryUtil.CONNECTOR.key(), IDENTIFIER);
-        CatalogTable newTable =
-                new ResolvedCatalogTable(
-                        CatalogTable.of(schema, "Hive table", new ArrayList<>(), newOptions),
-                        resolvedSchema);
-        assertThatThrownBy(() -> hiveCatalog.alterTable(tablePath, newTable, false))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(
-                        "Changing catalog table type is not allowed. "
-                                + "Existing table type is 'FLINK_MANAGED_TABLE', but new table type is 'HIVE_TABLE'");
-    }
-
-    @Test
-    public void testAlterHiveTableToFlinkManagedTable() throws Exception {
-        Map<String, String> originOptions = getLegacyFileSystemConnectorOptions("/test_path");
-        originOptions.put(FactoryUtil.CONNECTOR.key(), IDENTIFIER);
-        CatalogTable originTable =
-                new ResolvedCatalogTable(
-                        CatalogTable.of(schema, "Hive table", new ArrayList<>(), originOptions),
-                        resolvedSchema);
-        hiveCatalog.createTable(tablePath, originTable, false);
-
-        Map<String, String> newOptions = Collections.emptyMap();
-        CatalogTable newTable =
-                new ResolvedCatalogTable(
-                        CatalogTable.of(
-                                schema, "Flink managed table", new ArrayList<>(), newOptions),
-                        resolvedSchema);
-        assertThatThrownBy(() -> hiveCatalog.alterTable(tablePath, newTable, false))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(
-                        "Changing catalog table type is not allowed. "
-                                + "Existing table type is 'HIVE_TABLE', but new table type is 'FLINK_MANAGED_TABLE'");
-    }
-
-    @Test
-    public void testAlterHiveTableToFlinkNonManagedTable() throws Exception {
-        Map<String, String> originOptions = getLegacyFileSystemConnectorOptions("/test_path");
-        originOptions.put(FactoryUtil.CONNECTOR.key(), IDENTIFIER);
-        CatalogTable originTable =
-                new ResolvedCatalogTable(
-                        CatalogTable.of(schema, "Hive table", new ArrayList<>(), originOptions),
-                        resolvedSchema);
-        hiveCatalog.createTable(tablePath, originTable, false);
-
-        Map<String, String> newOptions =
-                Collections.singletonMap(
-                        FactoryUtil.CONNECTOR.key(), DataGenTableSourceFactory.IDENTIFIER);
-        CatalogTable newTable =
-                new ResolvedCatalogTable(
-                        CatalogTable.of(
-                                schema, "Flink managed table", new ArrayList<>(), newOptions),
-                        resolvedSchema);
-        assertThatThrownBy(() -> hiveCatalog.alterTable(tablePath, newTable, false))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(
-                        "Changing catalog table type is not allowed. "
-                                + "Existing table type is 'HIVE_TABLE', but new table type is 'FLINK_NON_MANAGED_TABLE'");
-    }
-
-    @Test
     public void testCreateGenericTable() {
         Table hiveTable =
                 HiveTableUtil.instantiateHiveTable(
@@ -273,8 +95,7 @@ public class HiveCatalogTest {
                                         new ArrayList<>(),
                                         getLegacyFileSystemConnectorOptions("/test_path")),
                                 resolvedSchema),
-                        HiveTestUtils.createHiveConf(),
-                        false);
+                        HiveTestUtils.createHiveConf());
 
         Map<String, String> prop = hiveTable.getParameters();
         assertThat(HiveCatalog.isHiveTable(prop)).isFalse();
@@ -293,8 +114,7 @@ public class HiveCatalogTest {
                         new ResolvedCatalogTable(
                                 CatalogTable.of(schema, null, new ArrayList<>(), options),
                                 resolvedSchema),
-                        HiveTestUtils.createHiveConf(),
-                        false);
+                        HiveTestUtils.createHiveConf());
 
         Map<String, String> prop = hiveTable.getParameters();
         assertThat(HiveCatalog.isHiveTable(prop)).isTrue();

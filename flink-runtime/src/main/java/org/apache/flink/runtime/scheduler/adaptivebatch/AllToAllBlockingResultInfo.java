@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
-import org.apache.flink.runtime.executiongraph.IndexRange;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
@@ -26,7 +26,10 @@ import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -34,27 +37,55 @@ import static org.apache.flink.util.Preconditions.checkState;
 /** Information of All-To-All result. */
 public class AllToAllBlockingResultInfo extends AbstractBlockingResultInfo {
 
-    private final boolean isBroadcast;
+    private final boolean singleSubpartitionContainsAllData;
+
+    private boolean isBroadcast;
 
     /**
      * Aggregated subpartition bytes, which aggregates the subpartition bytes with the same
      * subpartition index in different partitions. Note that We can aggregate them because they will
      * be consumed by the same downstream task.
      */
-    @Nullable private List<Long> aggregatedSubpartitionBytes;
+    @Nullable protected List<Long> aggregatedSubpartitionBytes;
+
+    @VisibleForTesting
+    AllToAllBlockingResultInfo(
+            IntermediateDataSetID resultId,
+            int numOfPartitions,
+            int numOfSubpartitions,
+            boolean isBroadcast,
+            boolean singleSubpartitionContainsAllData) {
+        this(
+                resultId,
+                numOfPartitions,
+                numOfSubpartitions,
+                singleSubpartitionContainsAllData,
+                new HashMap<>());
+        this.isBroadcast = isBroadcast;
+    }
 
     AllToAllBlockingResultInfo(
             IntermediateDataSetID resultId,
             int numOfPartitions,
             int numOfSubpartitions,
-            boolean isBroadcast) {
-        super(resultId, numOfPartitions, numOfSubpartitions);
-        this.isBroadcast = isBroadcast;
+            boolean singleSubpartitionContainsAllData,
+            Map<Integer, long[]> subpartitionBytesByPartitionIndex) {
+        super(resultId, numOfPartitions, numOfSubpartitions, subpartitionBytesByPartitionIndex);
+        this.singleSubpartitionContainsAllData = singleSubpartitionContainsAllData;
     }
 
     @Override
     public boolean isBroadcast() {
         return isBroadcast;
+    }
+
+    @Override
+    public boolean isSingleSubpartitionContainsAllData() {
+        return singleSubpartitionContainsAllData;
+    }
+
+    void setBroadcast(boolean isBroadcast) {
+        this.isBroadcast = isBroadcast;
     }
 
     @Override
@@ -74,61 +105,71 @@ public class AllToAllBlockingResultInfo extends AbstractBlockingResultInfo {
 
     @Override
     public long getNumBytesProduced() {
-        checkState(aggregatedSubpartitionBytes != null, "Not all partition infos are ready");
-        if (isBroadcast) {
-            return aggregatedSubpartitionBytes.get(0);
+        checkState(
+                aggregatedSubpartitionBytes != null
+                        || subpartitionBytesByPartitionIndex.size() == numOfPartitions,
+                "Not all partition infos are ready");
+
+        List<Long> bytes =
+                Optional.ofNullable(aggregatedSubpartitionBytes)
+                        .orElse(getAggregatedSubpartitionBytesInternal());
+        if (singleSubpartitionContainsAllData) {
+            return bytes.get(0);
         } else {
-            return aggregatedSubpartitionBytes.stream().reduce(0L, Long::sum);
+            return bytes.stream().reduce(0L, Long::sum);
         }
-    }
-
-    @Override
-    public long getNumBytesProduced(
-            IndexRange partitionIndexRange, IndexRange subpartitionIndexRange) {
-        checkState(aggregatedSubpartitionBytes != null, "Not all partition infos are ready");
-        checkState(
-                partitionIndexRange.getStartIndex() == 0
-                        && partitionIndexRange.getEndIndex() == numOfPartitions - 1,
-                "For All-To-All edges, the partition range should always be [0, %s).",
-                numOfPartitions);
-        checkState(
-                subpartitionIndexRange.getEndIndex() < numOfSubpartitions,
-                "Subpartition index %s is out of range.",
-                subpartitionIndexRange.getEndIndex());
-
-        return aggregatedSubpartitionBytes
-                .subList(
-                        subpartitionIndexRange.getStartIndex(),
-                        subpartitionIndexRange.getEndIndex() + 1)
-                .stream()
-                .reduce(0L, Long::sum);
     }
 
     @Override
     public void recordPartitionInfo(int partitionIndex, ResultPartitionBytes partitionBytes) {
-        // Once all partitions are finished, we can convert the subpartition bytes to aggregated
-        // value to reduce the space usage, because the distribution of source splits does not
-        // affect the distribution of data consumed by downstream tasks of ALL_TO_ALL edges(Hashing
-        // or Rebalancing, we do not consider rare cases such as custom partitions here).
         if (aggregatedSubpartitionBytes == null) {
             super.recordPartitionInfo(partitionIndex, partitionBytes);
-
-            if (subpartitionBytesByPartitionIndex.size() == numOfPartitions) {
-                long[] aggregatedBytes = new long[numOfSubpartitions];
-                subpartitionBytesByPartitionIndex
-                        .values()
-                        .forEach(
-                                subpartitionBytes -> {
-                                    checkState(subpartitionBytes.length == numOfSubpartitions);
-                                    for (int i = 0; i < subpartitionBytes.length; ++i) {
-                                        aggregatedBytes[i] += subpartitionBytes[i];
-                                    }
-                                });
-                this.aggregatedSubpartitionBytes =
-                        Arrays.stream(aggregatedBytes).boxed().collect(Collectors.toList());
-                this.subpartitionBytesByPartitionIndex.clear();
-            }
         }
+    }
+
+    /**
+     * Aggregates the subpartition bytes to reduce space usage.
+     *
+     * <p>Once all partitions are finished and all consumer jobVertices are initialized, we can
+     * convert the subpartition bytes to aggregated value to reduce the space usage, because the
+     * distribution of source splits does not affect the distribution of data consumed by downstream
+     * tasks of ALL_TO_ALL edges(Hashing or Rebalancing, we do not consider rare cases such as
+     * custom partitions here).
+     */
+    protected void aggregateSubpartitionBytes() {
+        if (subpartitionBytesByPartitionIndex.size() == numOfPartitions) {
+            this.aggregatedSubpartitionBytes = getAggregatedSubpartitionBytesInternal();
+            this.subpartitionBytesByPartitionIndex.clear();
+        }
+    }
+
+    /**
+     * Aggregates the bytes of subpartitions across all partition indices without modifying the
+     * existing state. This method is intended for querying purposes only.
+     *
+     * <p>The method computes the sum of the bytes for each subpartition across all partitions and
+     * returns a list containing these summed values.
+     *
+     * <p>This method is needed in scenarios where aggregated results are required, but fine-grained
+     * statistics should remain not aggregated. Specifically, when not all consumer vertices of this
+     * result info are created or initialized, this result info could not be aggregated. And the
+     * existing consumer vertices of this info still require these aggregated result for scheduling.
+     *
+     * @return a list of aggregated byte counts for each subpartition.
+     */
+    private List<Long> getAggregatedSubpartitionBytesInternal() {
+        long[] aggregatedBytes = new long[numOfSubpartitions];
+        subpartitionBytesByPartitionIndex
+                .values()
+                .forEach(
+                        subpartitionBytes -> {
+                            checkState(subpartitionBytes.length == numOfSubpartitions);
+                            for (int i = 0; i < subpartitionBytes.length; ++i) {
+                                aggregatedBytes[i] += subpartitionBytes[i];
+                            }
+                        });
+
+        return Arrays.stream(aggregatedBytes).boxed().collect(Collectors.toList());
     }
 
     @Override
@@ -139,7 +180,14 @@ public class AllToAllBlockingResultInfo extends AbstractBlockingResultInfo {
     }
 
     public List<Long> getAggregatedSubpartitionBytes() {
-        checkState(aggregatedSubpartitionBytes != null, "Not all partition infos are ready");
-        return Collections.unmodifiableList(aggregatedSubpartitionBytes);
+        checkState(
+                aggregatedSubpartitionBytes != null
+                        || subpartitionBytesByPartitionIndex.size() == numOfPartitions,
+                "Not all partition infos are ready");
+        if (aggregatedSubpartitionBytes == null) {
+            return getAggregatedSubpartitionBytesInternal();
+        } else {
+            return Collections.unmodifiableList(aggregatedSubpartitionBytes);
+        }
     }
 }

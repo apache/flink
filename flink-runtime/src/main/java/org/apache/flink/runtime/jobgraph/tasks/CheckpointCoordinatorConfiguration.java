@@ -71,7 +71,9 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
     private final boolean enableCheckpointsAfterTasksFinish;
 
-    /** @deprecated use {@link #builder()}. */
+    /**
+     * @deprecated use {@link #builder()}.
+     */
     @Deprecated
     @VisibleForTesting
     public CheckpointCoordinatorConfiguration(

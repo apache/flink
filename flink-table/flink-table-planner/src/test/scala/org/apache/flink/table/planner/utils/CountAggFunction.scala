@@ -42,7 +42,7 @@ class CountAggFunction extends AggregateFunction[JLong, CountAccumulator] {
     acc.f0 += 1L
   }
 
-  def retract(acc: CountAccumulator, @DataTypeHint("INT") value: Any): Unit = {
+  def retract(acc: CountAccumulator, value: Any): Unit = {
     if (value != null) {
       acc.f0 -= 1L
     }

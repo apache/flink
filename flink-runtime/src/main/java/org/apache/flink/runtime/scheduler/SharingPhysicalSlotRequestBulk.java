@@ -48,7 +48,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * SlotSharingExecutionSlotAllocator} to cancel all logical slots requests for executions of all
  * bulk's {@link ExecutionSlotSharingGroup}s.
  */
-class SharingPhysicalSlotRequestBulk implements PhysicalSlotRequestBulk {
+public class SharingPhysicalSlotRequestBulk implements PhysicalSlotRequestBulk {
     private final Map<ExecutionSlotSharingGroup, List<ExecutionVertexID>> executions;
 
     private final Map<ExecutionSlotSharingGroup, ResourceProfile> pendingRequests;
@@ -57,7 +57,7 @@ class SharingPhysicalSlotRequestBulk implements PhysicalSlotRequestBulk {
 
     private final BiConsumer<ExecutionVertexID, Throwable> logicalSlotRequestCanceller;
 
-    SharingPhysicalSlotRequestBulk(
+    public SharingPhysicalSlotRequestBulk(
             Map<ExecutionSlotSharingGroup, List<ExecutionVertexID>> executions,
             Map<ExecutionSlotSharingGroup, ResourceProfile> pendingRequests,
             BiConsumer<ExecutionVertexID, Throwable> logicalSlotRequestCanceller) {
@@ -99,7 +99,7 @@ class SharingPhysicalSlotRequestBulk implements PhysicalSlotRequestBulk {
      * @param group {@link ExecutionSlotSharingGroup} of the pending request
      * @param allocationId {@link AllocationID} of the fulfilled request
      */
-    void markFulfilled(ExecutionSlotSharingGroup group, AllocationID allocationId) {
+    public void markFulfilled(ExecutionSlotSharingGroup group, AllocationID allocationId) {
         pendingRequests.remove(group);
         fulfilledRequests.put(group, allocationId);
     }

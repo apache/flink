@@ -41,8 +41,6 @@ import javax.annotation.Nullable;
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /** */
 public class KeyedTwoOutputProcessOperator<KEY, IN, OUT_MAIN, OUT_SIDE>
         extends TwoOutputProcessOperator<IN, OUT_MAIN, OUT_SIDE>
@@ -120,36 +118,32 @@ public class KeyedTwoOutputProcessOperator<KEY, IN, OUT_MAIN, OUT_SIDE>
 
     @Override
     public void onProcessingTime(InternalTimer<KEY, VoidNamespace> timer) throws Exception {
-        // align the key context with the registered timer.
-        partitionedContext
-                .getStateManager()
-                .executeInKeyContext(
-                        () ->
-                                userFunction.onProcessingTimer(
-                                        timer.getTimestamp(),
-                                        getMainCollector(),
-                                        getSideCollector(),
-                                        partitionedContext),
-                        timer.getKey());
+        userFunction.onProcessingTimer(
+                timer.getTimestamp(), getMainCollector(), getSideCollector(), partitionedContext);
     }
 
     @Override
     protected TwoOutputNonPartitionedContext<OUT_MAIN, OUT_SIDE> getNonPartitionedContext() {
         return new DefaultTwoOutputNonPartitionedContext<>(
-                context, partitionedContext, mainCollector, sideCollector, true, keySet);
+                context,
+                partitionedContext,
+                mainCollector,
+                sideCollector,
+                true,
+                keySet,
+                output,
+                watermarkDeclarationMap);
     }
 
     @Override
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({"rawtypes"})
     public void setKeyContextElement1(StreamRecord record) throws Exception {
-        setKeyContextElement(record, getStateKeySelector1());
+        super.setKeyContextElement1(record);
+        keySet.add(getCurrentKey());
     }
 
-    private <T> void setKeyContextElement(StreamRecord<T> record, KeySelector<T, ?> selector)
-            throws Exception {
-        checkNotNull(selector);
-        Object key = selector.getKey(record.getValue());
-        setCurrentKey(key);
-        keySet.add(key);
+    @Override
+    public boolean isAsyncStateProcessingEnabled() {
+        return true;
     }
 }

@@ -20,15 +20,18 @@ package org.apache.flink.table.types.extraction;
 
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.annotation.InputGroup;
 import org.apache.flink.table.annotation.ProcedureHint;
+import org.apache.flink.table.annotation.StateHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AsyncScalarFunction;
+import org.apache.flink.table.functions.ProcessTableFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
@@ -37,6 +40,9 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
+import org.apache.flink.table.types.inference.StateTypeStrategy;
+import org.apache.flink.table.types.inference.StaticArgument;
+import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategy;
@@ -48,7 +54,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -72,70 +81,68 @@ class TypeInferenceExtractorTest {
         return Stream.of(
                 // function hint defines everything
                 TestSpec.forScalarFunction(FullFunctionHint.class)
-                        .expectNamedArguments("i", "s")
-                        .expectTypedArguments(DataTypes.INT(), DataTypes.STRING())
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"i", "s"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(DataTypes.INT()),
-                                            InputTypeStrategies.explicit(DataTypes.STRING())
-                                        }),
-                                TypeStrategies.explicit(DataTypes.BOOLEAN())),
-
+                        .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
+                        .expectStaticArgument(StaticArgument.scalar("s", DataTypes.STRING(), false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.BOOLEAN())),
+                // ---
                 // function hint defines everything with overloading
                 TestSpec.forScalarFunction(FullFunctionHints.class)
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.INT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.INT()))),
                                 TypeStrategies.explicit(DataTypes.INT()))
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.BIGINT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.BIGINT()))),
                                 TypeStrategies.explicit(DataTypes.BIGINT())),
-
+                // ---
                 // global output hint with local input overloading
                 TestSpec.forScalarFunction(GlobalOutputFunctionHint.class)
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.INT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.INT()))),
                                 TypeStrategies.explicit(DataTypes.INT()))
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.STRING())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.STRING()))),
                                 TypeStrategies.explicit(DataTypes.INT())),
-
+                // ---
                 // unsupported output overloading
                 TestSpec.forScalarFunction(InvalidSingleOutputFunctionHint.class)
                         .expectErrorMessage(
                                 "Function hints that lead to ambiguous results are not allowed."),
-
+                // ---
                 // global and local overloading
                 TestSpec.forScalarFunction(SplitFullFunctionHints.class)
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.INT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.INT()))),
                                 TypeStrategies.explicit(DataTypes.INT()))
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.BIGINT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.BIGINT()))),
                                 TypeStrategies.explicit(DataTypes.BIGINT())),
-
+                // ---
                 // global and local overloading with unsupported output overloading
                 TestSpec.forScalarFunction(InvalidFullOutputFunctionHint.class)
                         .expectErrorMessage(
                                 "Function hints with same input definition but different result types are not allowed."),
-
+                // ---
                 // ignore argument names during overloading
                 TestSpec.forScalarFunction(InvalidFullOutputFunctionWithArgNamesHint.class)
                         .expectErrorMessage(
                                 "Function hints with same input definition but different result types are not allowed."),
-
+                // ---
                 // invalid data type hint
                 TestSpec.forScalarFunction(IncompleteFunctionHint.class)
-                        .expectErrorMessage(
-                                "Data type hint does neither specify a data type nor input group for use as function argument."),
-
+                        .expectErrorMessage("Data type missing for scalar argument at position 1."),
+                // ---
                 // varargs and ANY input group
                 TestSpec.forScalarFunction(ComplexFunctionHint.class)
                         .expectOutputMapping(
@@ -147,66 +154,46 @@ class TypeInferenceExtractorTest {
                                             InputTypeStrategies.ANY
                                         }),
                                 TypeStrategies.explicit(DataTypes.BOOLEAN())),
-
+                // ---
                 // global input hints and local output hints
                 TestSpec.forScalarFunction(GlobalInputFunctionHints.class)
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.INT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.INT()))),
                                 TypeStrategies.explicit(DataTypes.INT()))
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.BIGINT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.BIGINT()))),
                                 TypeStrategies.explicit(DataTypes.INT())),
-
+                // ---
                 // no arguments
                 TestSpec.forScalarFunction(ZeroArgFunction.class)
-                        .expectNamedArguments()
-                        .expectTypedArguments()
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[0], new ArgumentTypeStrategy[0]),
-                                TypeStrategies.explicit(DataTypes.INT())),
-
+                        .expectEmptyStaticArguments()
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
                 // no arguments async
                 TestSpec.forAsyncScalarFunction(ZeroArgFunctionAsync.class)
-                        .expectNamedArguments()
-                        .expectTypedArguments()
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[0], new ArgumentTypeStrategy[0]),
-                                TypeStrategies.explicit(DataTypes.INT())),
-
+                        .expectEmptyStaticArguments()
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
                 // test primitive arguments extraction
                 TestSpec.forScalarFunction(MixedArgFunction.class)
-                        .expectNamedArguments("i", "d")
-                        .expectTypedArguments(
-                                DataTypes.INT().notNull().bridgedTo(int.class), DataTypes.DOUBLE())
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"i", "d"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(
-                                                    DataTypes.INT().notNull().bridgedTo(int.class)),
-                                            InputTypeStrategies.explicit(DataTypes.DOUBLE())
-                                        }),
-                                TypeStrategies.explicit(DataTypes.INT())),
-
+                        .expectStaticArgument(
+                                StaticArgument.scalar(
+                                        "i", DataTypes.INT().notNull().bridgedTo(int.class), false))
+                        .expectStaticArgument(StaticArgument.scalar("d", DataTypes.DOUBLE(), false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
                 // test primitive arguments extraction async
                 TestSpec.forAsyncScalarFunction(MixedArgFunctionAsync.class)
-                        .expectNamedArguments("i", "d")
-                        .expectTypedArguments(
-                                DataTypes.INT().notNull().bridgedTo(int.class), DataTypes.DOUBLE())
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"i", "d"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(
-                                                    DataTypes.INT().notNull().bridgedTo(int.class)),
-                                            InputTypeStrategies.explicit(DataTypes.DOUBLE())
-                                        }),
-                                TypeStrategies.explicit(DataTypes.INT())),
-
+                        .expectStaticArgument(
+                                StaticArgument.scalar(
+                                        "i", DataTypes.INT().notNull().bridgedTo(int.class), false))
+                        .expectStaticArgument(StaticArgument.scalar("d", DataTypes.DOUBLE(), false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
                 // test overloaded arguments extraction
                 TestSpec.forScalarFunction(OverloadedFunction.class)
                         .expectOutputMapping(
@@ -226,7 +213,7 @@ class TypeInferenceExtractorTest {
                                         }),
                                 TypeStrategies.explicit(
                                         DataTypes.BIGINT().notNull().bridgedTo(long.class))),
-
+                // ---
                 // test overloaded arguments extraction async
                 TestSpec.forAsyncScalarFunction(OverloadedFunctionAsync.class)
                         .expectOutputMapping(
@@ -245,7 +232,7 @@ class TypeInferenceExtractorTest {
                                             InputTypeStrategies.explicit(DataTypes.STRING())
                                         }),
                                 TypeStrategies.explicit(DataTypes.BIGINT())),
-
+                // ---
                 // test varying arguments extraction
                 TestSpec.forScalarFunction(VarArgFunction.class)
                         .expectOutputMapping(
@@ -258,7 +245,7 @@ class TypeInferenceExtractorTest {
                                                     DataTypes.INT().notNull().bridgedTo(int.class))
                                         }),
                                 TypeStrategies.explicit(DataTypes.STRING())),
-
+                // ---
                 // test varying arguments extraction async
                 TestSpec.forAsyncScalarFunction(VarArgFunctionAsync.class)
                         .expectOutputMapping(
@@ -271,7 +258,7 @@ class TypeInferenceExtractorTest {
                                                     DataTypes.INT().notNull().bridgedTo(int.class))
                                         }),
                                 TypeStrategies.explicit(DataTypes.STRING())),
-
+                // ---
                 // test varying arguments extraction with byte
                 TestSpec.forScalarFunction(VarArgWithByteFunction.class)
                         .expectOutputMapping(
@@ -284,7 +271,7 @@ class TypeInferenceExtractorTest {
                                                             .bridgedTo(byte.class))
                                         }),
                                 TypeStrategies.explicit(DataTypes.STRING())),
-
+                // ---
                 // test varying arguments extraction with byte async
                 TestSpec.forAsyncScalarFunction(VarArgWithByteFunctionAsync.class)
                         .expectOutputMapping(
@@ -297,149 +284,140 @@ class TypeInferenceExtractorTest {
                                                             .bridgedTo(byte.class))
                                         }),
                                 TypeStrategies.explicit(DataTypes.STRING())),
-
+                // ---
                 // output hint with input extraction
                 TestSpec.forScalarFunction(ExtractWithOutputHintFunction.class)
-                        .expectNamedArguments("i")
-                        .expectTypedArguments(DataTypes.INT())
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"i"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(DataTypes.INT())
-                                        }),
-                                TypeStrategies.explicit(DataTypes.INT())),
-
+                        .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
                 // output hint with input extraction
                 TestSpec.forAsyncScalarFunction(ExtractWithOutputHintFunctionAsync.class)
-                        .expectNamedArguments("i")
-                        .expectTypedArguments(DataTypes.INT())
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"i"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(DataTypes.INT())
-                                        }),
-                                TypeStrategies.explicit(DataTypes.INT())),
-
+                        .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
                 // output extraction with input hints
                 TestSpec.forScalarFunction(ExtractWithInputHintFunction.class)
-                        .expectNamedArguments("i", "b")
-                        .expectTypedArguments(DataTypes.INT(), DataTypes.BOOLEAN())
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"i", "b"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(DataTypes.INT()),
-                                            InputTypeStrategies.explicit(DataTypes.BOOLEAN())
-                                        }),
+                        .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
+                        .expectStaticArgument(
+                                StaticArgument.scalar("b", DataTypes.BOOLEAN(), false))
+                        .expectOutput(
                                 TypeStrategies.explicit(
                                         DataTypes.DOUBLE().notNull().bridgedTo(double.class))),
-
+                // ---
+                // non-scalar args
+                TestSpec.forScalarFunction(TableArgScalarFunction.class)
+                        .expectErrorMessage(
+                                "Only scalar arguments are supported at this location. "
+                                        + "But argument 't' declared the following traits: [TABLE_AS_ROW]"),
+                // ---
                 // different accumulator depending on input
                 TestSpec.forAggregateFunction(InputDependentAccumulatorFunction.class)
-                        .expectAccumulatorMapping(
-                                InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.BIGINT())),
-                                TypeStrategies.explicit(
-                                        DataTypes.ROW(DataTypes.FIELD("f", DataTypes.BIGINT()))))
-                        .expectAccumulatorMapping(
-                                InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.STRING())),
-                                TypeStrategies.explicit(
-                                        DataTypes.ROW(DataTypes.FIELD("f", DataTypes.STRING()))))
+                        .expectAccumulator(
+                                TypeStrategies.mapping(
+                                        Map.of(
+                                                InputTypeStrategies.sequence(
+                                                        List.of("arg0"),
+                                                        List.of(
+                                                                InputTypeStrategies.explicit(
+                                                                        DataTypes.BIGINT()))),
+                                                TypeStrategies.explicit(
+                                                        DataTypes.ROW(
+                                                                DataTypes.FIELD(
+                                                                        "f", DataTypes.BIGINT()))),
+                                                InputTypeStrategies.sequence(
+                                                        List.of("arg0"),
+                                                        List.of(
+                                                                InputTypeStrategies.explicit(
+                                                                        DataTypes.STRING()))),
+                                                TypeStrategies.explicit(
+                                                        DataTypes.ROW(
+                                                                DataTypes.FIELD(
+                                                                        "f",
+                                                                        DataTypes.STRING()))))))
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.BIGINT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.BIGINT()))),
                                 TypeStrategies.explicit(DataTypes.STRING()))
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.STRING())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.STRING()))),
                                 TypeStrategies.explicit(DataTypes.STRING())),
-
+                // ---
                 // input, accumulator, and output are spread across the function
                 TestSpec.forAggregateFunction(AggregateFunctionWithManyAnnotations.class)
-                        .expectNamedArguments("r")
-                        .expectTypedArguments(
-                                DataTypes.ROW(
-                                        DataTypes.FIELD("i", DataTypes.INT()),
-                                        DataTypes.FIELD("b", DataTypes.BOOLEAN())))
-                        .expectAccumulatorMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"r"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(
-                                                    DataTypes.ROW(
-                                                            DataTypes.FIELD("i", DataTypes.INT()),
-                                                            DataTypes.FIELD(
-                                                                    "b", DataTypes.BOOLEAN())))
-                                        }),
+                        .expectStaticArgument(
+                                StaticArgument.scalar(
+                                        "r",
+                                        DataTypes.ROW(
+                                                DataTypes.FIELD("i", DataTypes.INT()),
+                                                DataTypes.FIELD("b", DataTypes.BOOLEAN())),
+                                        false))
+                        .expectAccumulator(
                                 TypeStrategies.explicit(
                                         DataTypes.ROW(DataTypes.FIELD("b", DataTypes.BOOLEAN()))))
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"r"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(
-                                                    DataTypes.ROW(
-                                                            DataTypes.FIELD("i", DataTypes.INT()),
-                                                            DataTypes.FIELD(
-                                                                    "b", DataTypes.BOOLEAN())))
-                                        }),
-                                TypeStrategies.explicit(DataTypes.STRING())),
-
+                        .expectOutput(TypeStrategies.explicit(DataTypes.STRING())),
+                // ---
+                // accumulator with state hint
+                TestSpec.forAggregateFunction(StateHintAggregateFunction.class)
+                        .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
+                        .expectState("myAcc", TypeStrategies.explicit(MyState.TYPE))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
+                // accumulator with state hint in function hint
+                TestSpec.forAggregateFunction(StateHintInFunctionHintAggregateFunction.class)
+                        .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
+                        .expectState("myAcc", TypeStrategies.explicit(MyState.TYPE))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
                 // test for table functions
                 TestSpec.forTableFunction(OutputHintTableFunction.class)
-                        .expectNamedArguments("i")
-                        .expectTypedArguments(DataTypes.INT().notNull().bridgedTo(int.class))
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"i"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(
-                                                    DataTypes.INT().notNull().bridgedTo(int.class))
-                                        }),
+                        .expectStaticArgument(
+                                StaticArgument.scalar(
+                                        "i", DataTypes.INT().notNull().bridgedTo(int.class), false))
+                        .expectOutput(
                                 TypeStrategies.explicit(
                                         DataTypes.ROW(
                                                 DataTypes.FIELD("i", DataTypes.INT()),
                                                 DataTypes.FIELD("b", DataTypes.BOOLEAN())))),
-
+                // ---
                 // mismatch between hints and implementation regarding return type
                 TestSpec.forScalarFunction(InvalidMethodScalarFunction.class)
                         .expectErrorMessage(
                                 "Considering all hints, the method should comply with the signature:\n"
                                         + "java.lang.String eval(int[])"),
-
+                // ---
                 // mismatch between hints and implementation regarding return type
                 TestSpec.forAsyncScalarFunction(InvalidMethodScalarFunctionAsync.class)
                         .expectErrorMessage(
                                 "Considering all hints, the method should comply with the signature:\n"
                                         + "eval(java.util.concurrent.CompletableFuture, int[])"),
-
+                // ---
                 // mismatch between hints and implementation regarding accumulator
                 TestSpec.forAggregateFunction(InvalidMethodAggregateFunction.class)
                         .expectErrorMessage(
                                 "Considering all hints, the method should comply with the signature:\n"
-                                        + "accumulate(java.lang.Integer, int, boolean)"),
-
+                                        + "accumulate(java.lang.Integer, int, boolean)\n"
+                                        + "Pattern: (<accumulator> [, <argument>]*)"),
+                // ---
                 // no implementation
                 TestSpec.forTableFunction(MissingMethodTableFunction.class)
                         .expectErrorMessage(
                                 "Could not find a publicly accessible method named 'eval'."),
-
+                // ---
                 // named arguments with overloaded function
                 // expected no named argument for overloaded function
                 TestSpec.forScalarFunction(NamedArgumentsScalarFunction.class),
-
+                // ---
                 // scalar function that takes any input
                 TestSpec.forScalarFunction(InputGroupScalarFunction.class)
-                        .expectNamedArguments("o")
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
                                         new String[] {"o"},
                                         new ArgumentTypeStrategy[] {InputTypeStrategies.ANY}),
                                 TypeStrategies.explicit(DataTypes.STRING())),
-
+                // ---
                 // scalar function that takes any input as vararg
                 TestSpec.forScalarFunction(VarArgInputGroupScalarFunction.class)
                         .expectOutputMapping(
@@ -447,6 +425,7 @@ class TypeInferenceExtractorTest {
                                         new String[] {"o"},
                                         new ArgumentTypeStrategy[] {InputTypeStrategies.ANY}),
                                 TypeStrategies.explicit(DataTypes.STRING())),
+                // ---
                 TestSpec.forScalarFunction(
                                 "Scalar function with implicit overloading order",
                                 OrderedScalarFunction.class)
@@ -464,159 +443,158 @@ class TypeInferenceExtractorTest {
                                             InputTypeStrategies.explicit(DataTypes.BIGINT())
                                         }),
                                 TypeStrategies.explicit(DataTypes.BIGINT())),
+                // ---
                 TestSpec.forScalarFunction(
                                 "Scalar function with explicit overloading order by class annotations",
                                 OrderedScalarFunction2.class)
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.BIGINT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.BIGINT()))),
                                 TypeStrategies.explicit(DataTypes.BIGINT()))
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.INT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.INT()))),
                                 TypeStrategies.explicit(DataTypes.INT())),
+                // ---
                 TestSpec.forScalarFunction(
                                 "Scalar function with explicit overloading order by method annotations",
                                 OrderedScalarFunction3.class)
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.BIGINT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.BIGINT()))),
                                 TypeStrategies.explicit(DataTypes.BIGINT()))
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.INT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.INT()))),
                                 TypeStrategies.explicit(DataTypes.INT())),
+                // ---
                 TestSpec.forTableFunction(
                                 "A data type hint on the class is used instead of a function output hint",
                                 DataTypeHintOnTableFunctionClass.class)
-                        .expectNamedArguments()
-                        .expectTypedArguments()
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {}, new ArgumentTypeStrategy[] {}),
+                        .expectEmptyStaticArguments()
+                        .expectOutput(
                                 TypeStrategies.explicit(
                                         DataTypes.ROW(DataTypes.FIELD("i", DataTypes.INT())))),
+                // ---
                 TestSpec.forTableFunction(
                                 "A data type hint on the method is used instead of a function output hint",
                                 DataTypeHintOnTableFunctionMethod.class)
-                        .expectNamedArguments("i")
-                        .expectTypedArguments(DataTypes.INT())
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"i"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(DataTypes.INT())
-                                        }),
+                        .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
+                        .expectOutput(
                                 TypeStrategies.explicit(
                                         DataTypes.ROW(DataTypes.FIELD("i", DataTypes.INT())))),
+                // ---
                 TestSpec.forTableFunction(
                                 "Invalid data type hint on top of method and class",
                                 InvalidDataTypeHintOnTableFunction.class)
                         .expectErrorMessage(
                                 "More than one data type hint found for output of function. "
                                         + "Please use a function hint instead."),
+                // ---
                 TestSpec.forScalarFunction(
                                 "A data type hint on the method is used for enriching (not a function output hint)",
                                 DataTypeHintOnScalarFunction.class)
-                        .expectNamedArguments()
-                        .expectTypedArguments()
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {}, new ArgumentTypeStrategy[] {}),
+                        .expectEmptyStaticArguments()
+                        .expectOutput(
                                 TypeStrategies.explicit(
                                         DataTypes.ROW(DataTypes.FIELD("i", DataTypes.INT()))
                                                 .bridgedTo(RowData.class))),
+                // ---
                 TestSpec.forAsyncScalarFunction(
                                 "A data type hint on the method is used for enriching (not a function output hint)",
                                 DataTypeHintOnScalarFunctionAsync.class)
-                        .expectNamedArguments()
-                        .expectTypedArguments()
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {}, new ArgumentTypeStrategy[] {}),
+                        .expectEmptyStaticArguments()
+                        .expectOutput(
                                 TypeStrategies.explicit(
                                         DataTypes.ROW(DataTypes.FIELD("i", DataTypes.INT()))
                                                 .bridgedTo(RowData.class))),
+                // ---
                 TestSpec.forScalarFunction(
                                 "Scalar function with arguments hints",
                                 ArgumentHintScalarFunction.class)
-                        .expectNamedArguments("f1", "f2")
-                        .expectTypedArguments(DataTypes.STRING(), DataTypes.INT())
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"f1", "f2"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(DataTypes.STRING()),
-                                            InputTypeStrategies.explicit(DataTypes.INT())
-                                        }),
-                                TypeStrategies.explicit(DataTypes.STRING())),
+                        .expectStaticArgument(
+                                StaticArgument.scalar("f1", DataTypes.STRING(), false))
+                        .expectStaticArgument(StaticArgument.scalar("f2", DataTypes.INT(), false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.STRING())),
+                // ---
                 TestSpec.forScalarFunction(
                                 "Scalar function with arguments hints missing type",
                                 ArgumentHintMissingTypeScalarFunction.class)
-                        .expectErrorMessage("The type of the argument at position 0 is not set."),
+                        .expectErrorMessage("Data type missing for scalar argument at position 0."),
+                // ---
                 TestSpec.forScalarFunction(
                                 "Scalar function with arguments hints all missing name",
                                 ArgumentHintMissingNameScalarFunction.class)
-                        .expectTypedArguments(DataTypes.STRING(), DataTypes.INT()),
+                        .expectStaticArgument(
+                                StaticArgument.scalar("arg0", DataTypes.STRING(), false))
+                        .expectStaticArgument(StaticArgument.scalar("arg1", DataTypes.INT(), false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.STRING())),
+                // ---
                 TestSpec.forScalarFunction(
                                 "Scalar function with arguments hints all missing partial name",
                                 ArgumentHintMissingPartialNameScalarFunction.class)
                         .expectErrorMessage(
-                                "The argument name in function hint must be either fully set or not set at all."),
+                                "Argument names in function hint must be either fully set or not set at all."),
+                // ---
                 TestSpec.forScalarFunction(
                                 "Scalar function with arguments hints name conflict",
                                 ArgumentHintNameConflictScalarFunction.class)
                         .expectErrorMessage(
                                 "Argument name conflict, there are at least two argument names that are the same."),
+                // ---
                 TestSpec.forScalarFunction(
                                 "Scalar function with arguments hints on method parameter",
                                 ArgumentHintOnParameterScalarFunction.class)
-                        .expectNamedArguments("in1", "in2")
-                        .expectTypedArguments(DataTypes.STRING(), DataTypes.INT())
-                        .expectOptionalArguments(false, false)
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"in1", "in2"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(DataTypes.STRING()),
-                                            InputTypeStrategies.explicit(DataTypes.INT())
-                                        }),
-                                TypeStrategies.explicit(DataTypes.STRING())),
+                        .expectStaticArgument(
+                                StaticArgument.scalar("in1", DataTypes.STRING(), false))
+                        .expectStaticArgument(StaticArgument.scalar("in2", DataTypes.INT(), false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.STRING())),
+                // ---
                 TestSpec.forScalarFunction(
                                 "Scalar function with arguments hints and inputs hints both defined",
                                 ArgumentsAndInputsScalarFunction.class)
                         .expectErrorMessage(
                                 "Argument and input hints cannot be declared in the same function hint."),
+                // ---
                 TestSpec.forScalarFunction(
-                                "Scalar function with argument hint and dataType hint declared in the same parameter",
+                                "Scalar function with argument hint and data type hint declared in the same parameter",
                                 ArgumentsHintAndDataTypeHintScalarFunction.class)
                         .expectErrorMessage(
-                                "Argument and dataType hints cannot be declared in the same parameter at position 0."),
+                                "Argument and data type hints cannot be declared at the same time at position 0."),
+                // ---
                 TestSpec.forScalarFunction(
                                 "An invalid scalar function that declare FunctionHint for both class and method in the same class.",
                                 InvalidFunctionHintOnClassAndMethod.class)
                         .expectErrorMessage(
                                 "Argument and input hints cannot be declared in the same function hint."),
+                // ---
                 TestSpec.forScalarFunction(
                                 "A valid scalar class that declare FunctionHint for both class and method in the same class.",
                                 ValidFunctionHintOnClassAndMethod.class)
-                        .expectNamedArguments("f1", "f2")
-                        .expectTypedArguments(DataTypes.STRING(), DataTypes.INT())
-                        .expectOptionalArguments(true, true),
+                        .expectStaticArgument(StaticArgument.scalar("f1", DataTypes.STRING(), true))
+                        .expectStaticArgument(StaticArgument.scalar("f2", DataTypes.INT(), true)),
+                // ---
                 TestSpec.forScalarFunction(
                                 "The FunctionHint of the function conflicts with the method.",
                                 ScalarFunctionWithFunctionHintConflictMethod.class)
                         .expectErrorMessage(
                                 "Considering all hints, the method should comply with the signature"),
+                // ---
                 // For function with overloaded function, argument name will be empty
                 TestSpec.forScalarFunction(
                         "Scalar function with overloaded functions and arguments hint declared.",
                         ArgumentsHintScalarFunctionWithOverloadedFunction.class),
+                // ---
                 TestSpec.forScalarFunction(
                                 "Scalar function with argument type not null but optional.",
                                 ArgumentHintNotNullTypeWithOptionalsScalarFunction.class)
                         .expectErrorMessage(
                                 "Argument at position 0 is optional but its type doesn't accept null value."),
+                // ---
                 TestSpec.forScalarFunction(
                                 "Scalar function with arguments hint and variable length args",
                                 ArgumentHintVariableLengthScalarFunction.class)
@@ -627,53 +605,182 @@ class TypeInferenceExtractorTest {
                                             InputTypeStrategies.explicit(DataTypes.STRING()),
                                             InputTypeStrategies.explicit(DataTypes.INT())
                                         }),
-                                TypeStrategies.explicit(DataTypes.STRING())));
+                                TypeStrategies.explicit(DataTypes.STRING())),
+                // ---
+                TestSpec.forProcessTableFunction(StatelessProcessTableFunction.class)
+                        .expectStaticArgument(
+                                StaticArgument.scalar(
+                                        "i", DataTypes.INT().notNull().bridgedTo(int.class), false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
+                TestSpec.forProcessTableFunction(StateProcessTableFunction.class)
+                        .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
+                        .expectState("s", TypeStrategies.explicit(MyState.TYPE))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
+                TestSpec.forProcessTableFunction(NamedStateProcessTableFunction.class)
+                        .expectStaticArgument(
+                                StaticArgument.scalar("myArg", DataTypes.INT(), false))
+                        .expectState("myState", TypeStrategies.explicit(MyState.TYPE))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
+                TestSpec.forProcessTableFunction(MultiStateProcessTableFunction.class)
+                        .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
+                        .expectState("s1", TypeStrategies.explicit(MyFirstState.TYPE))
+                        .expectState("s2", TypeStrategies.explicit(MySecondState.TYPE))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
+                TestSpec.forProcessTableFunction(UntypedTableArgProcessTableFunction.class)
+                        .expectStaticArgument(
+                                StaticArgument.table(
+                                        "t",
+                                        Row.class,
+                                        false,
+                                        EnumSet.of(StaticArgumentTrait.TABLE_AS_ROW)))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
+                TestSpec.forProcessTableFunction(TypedTableArgProcessTableFunction.class)
+                        .expectStaticArgument(
+                                StaticArgument.table(
+                                        "t",
+                                        TypedTableArgProcessTableFunction.Customer.TYPE,
+                                        false,
+                                        EnumSet.of(StaticArgumentTrait.TABLE_AS_ROW)))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
+                TestSpec.forProcessTableFunction(ComplexProcessTableFunction.class)
+                        .expectStaticArgument(
+                                StaticArgument.table(
+                                        "setTable",
+                                        RowData.class,
+                                        false,
+                                        EnumSet.of(
+                                                StaticArgumentTrait.TABLE_AS_SET,
+                                                StaticArgumentTrait.OPTIONAL_PARTITION_BY)))
+                        .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
+                        .expectStaticArgument(
+                                StaticArgument.table(
+                                        "rowTable",
+                                        Row.class,
+                                        true,
+                                        EnumSet.of(StaticArgumentTrait.TABLE_AS_ROW)))
+                        .expectStaticArgument(StaticArgument.scalar("s", DataTypes.STRING(), true))
+                        .expectState("s1", TypeStrategies.explicit(MyFirstState.TYPE))
+                        .expectState(
+                                "other",
+                                TypeStrategies.explicit(
+                                        DataTypes.ROW(DataTypes.FIELD("f", DataTypes.FLOAT()))))
+                        .expectOutput(
+                                TypeStrategies.explicit(
+                                        DataTypes.ROW(DataTypes.FIELD("b", DataTypes.BOOLEAN())))),
+                // ---
+                TestSpec.forProcessTableFunction(ComplexProcessTableFunctionWithFunctionHint.class)
+                        .expectStaticArgument(
+                                StaticArgument.table(
+                                        "setTable",
+                                        RowData.class,
+                                        false,
+                                        EnumSet.of(
+                                                StaticArgumentTrait.TABLE_AS_SET,
+                                                StaticArgumentTrait.OPTIONAL_PARTITION_BY)))
+                        .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
+                        .expectStaticArgument(
+                                StaticArgument.table(
+                                        "rowTable",
+                                        Row.class,
+                                        true,
+                                        EnumSet.of(StaticArgumentTrait.TABLE_AS_ROW)))
+                        .expectStaticArgument(StaticArgument.scalar("s", DataTypes.STRING(), true))
+                        .expectState("s1", TypeStrategies.explicit(MyFirstState.TYPE))
+                        .expectState(
+                                "other",
+                                TypeStrategies.explicit(
+                                        DataTypes.ROW(DataTypes.FIELD("f", DataTypes.FLOAT()))))
+                        .expectOutput(
+                                TypeStrategies.explicit(
+                                        DataTypes.ROW(DataTypes.FIELD("b", DataTypes.BOOLEAN())))),
+                // ---
+                TestSpec.forProcessTableFunction(WrongStateOrderProcessTableFunction.class)
+                        .expectErrorMessage(
+                                "Considering all hints, the method should comply with the signature:\n"
+                                        + "eval(org.apache.flink.table.types.extraction.TypeInferenceExtractorTest.MyFirstState, int)\n"
+                                        + "Pattern: (<context>? [, <state>]* [, <argument>]*)"),
+                // ---
+                TestSpec.forProcessTableFunction(MissingStateTypeProcessTableFunction.class)
+                        .expectErrorMessage(
+                                "Could not extract a data type from 'class java.lang.Object' in parameter 0 of method 'eval'"),
+                // ---
+                TestSpec.forProcessTableFunction(EnrichedExtractionStateProcessTableFunction.class)
+                        .expectState("d", TypeStrategies.explicit(DataTypes.DECIMAL(3, 2)))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
+                TestSpec.forProcessTableFunction(WrongTypedTableProcessTableFunction.class)
+                        .expectErrorMessage(
+                                "Invalid data type 'INT' for table argument 'i'. "
+                                        + "Typed table arguments must use a composite type (i.e. row or structured type)."),
+                // ---
+                TestSpec.forProcessTableFunction(WrongArgumentTraitsProcessTableFunction.class)
+                        .expectErrorMessage(
+                                "Invalid argument traits for argument 'r'. "
+                                        + "Trait OPTIONAL_PARTITION_BY requires TABLE_AS_SET."),
+                // ---
+                TestSpec.forProcessTableFunction(
+                                MixingStaticAndInputGroupProcessTableFunction.class)
+                        .expectErrorMessage(
+                                "Process table functions require a non-overloaded, non-vararg, and static signature."),
+                // ---
+                TestSpec.forProcessTableFunction(MultiEvalProcessTableFunction.class)
+                        .expectErrorMessage(
+                                "Process table functions require a non-overloaded, non-vararg, and static signature."));
     }
 
     private static Stream<TestSpec> procedureSpecs() {
         return Stream.of(
                 // procedure hint defines everything
                 TestSpec.forProcedure(FullProcedureHint.class)
-                        .expectNamedArguments("i", "s")
-                        .expectTypedArguments(DataTypes.INT(), DataTypes.STRING())
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"i", "s"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(DataTypes.INT()),
-                                            InputTypeStrategies.explicit(DataTypes.STRING())
-                                        }),
-                                TypeStrategies.explicit(DataTypes.BOOLEAN())),
-                // procedure hint defines everything
+                        .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
+                        .expectStaticArgument(StaticArgument.scalar("s", DataTypes.STRING(), false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.BOOLEAN())),
+                // ---
+                // procedure hints define everything
                 TestSpec.forProcedure(FullProcedureHints.class)
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.INT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.INT()))),
                                 TypeStrategies.explicit(DataTypes.INT()))
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.BIGINT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.BIGINT()))),
                                 TypeStrategies.explicit(DataTypes.BIGINT())),
+                // ---
                 // global output hint with local input overloading
                 TestSpec.forProcedure(GlobalOutputProcedureHint.class)
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.INT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.INT()))),
                                 TypeStrategies.explicit(DataTypes.INT()))
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.STRING())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.STRING()))),
                                 TypeStrategies.explicit(DataTypes.INT())),
+                // ---
                 // global and local overloading
                 TestSpec.forProcedure(SplitFullProcedureHints.class)
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.INT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.INT()))),
                                 TypeStrategies.explicit(DataTypes.INT()))
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.BIGINT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.BIGINT()))),
                                 TypeStrategies.explicit(DataTypes.BIGINT())),
+                // ---
                 // varargs and ANY input group
                 TestSpec.forProcedure(ComplexProcedureHint.class)
                         .expectOutputMapping(
@@ -685,41 +792,33 @@ class TypeInferenceExtractorTest {
                                             InputTypeStrategies.ANY
                                         }),
                                 TypeStrategies.explicit(DataTypes.BOOLEAN())),
+                // ---
                 // global input hints and local output hints
                 TestSpec.forProcedure(GlobalInputProcedureHints.class)
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.INT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.INT()))),
                                 TypeStrategies.explicit(DataTypes.INT()))
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.BIGINT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.BIGINT()))),
                                 TypeStrategies.explicit(DataTypes.INT())),
-
+                // ---
                 // no arguments
                 TestSpec.forProcedure(ZeroArgProcedure.class)
-                        .expectNamedArguments()
-                        .expectTypedArguments()
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[0], new ArgumentTypeStrategy[0]),
-                                TypeStrategies.explicit(DataTypes.INT())),
-
+                        .expectEmptyStaticArguments()
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
                 // test primitive arguments extraction
                 TestSpec.forProcedure(MixedArgProcedure.class)
-                        .expectNamedArguments("i", "d")
-                        .expectTypedArguments(
-                                DataTypes.INT().notNull().bridgedTo(int.class), DataTypes.DOUBLE())
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"i", "d"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(
-                                                    DataTypes.INT().notNull().bridgedTo(int.class)),
-                                            InputTypeStrategies.explicit(DataTypes.DOUBLE())
-                                        }),
-                                TypeStrategies.explicit(DataTypes.INT())),
-
+                        .expectStaticArgument(
+                                StaticArgument.scalar(
+                                        "i", DataTypes.INT().notNull().bridgedTo(int.class), false))
+                        .expectStaticArgument(StaticArgument.scalar("d", DataTypes.DOUBLE(), false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
                 // test overloaded arguments extraction
                 TestSpec.forProcedure(OverloadedProcedure.class)
                         .expectOutputMapping(
@@ -739,7 +838,7 @@ class TypeInferenceExtractorTest {
                                         }),
                                 TypeStrategies.explicit(
                                         DataTypes.BIGINT().notNull().bridgedTo(long.class))),
-
+                // ---
                 // test varying arguments extraction
                 TestSpec.forProcedure(VarArgProcedure.class)
                         .expectOutputMapping(
@@ -752,7 +851,7 @@ class TypeInferenceExtractorTest {
                                                     DataTypes.INT().notNull().bridgedTo(int.class))
                                         }),
                                 TypeStrategies.explicit(DataTypes.STRING())),
-
+                // ---
                 // test varying arguments extraction with byte
                 TestSpec.forProcedure(VarArgWithByteProcedure.class)
                         .expectOutputMapping(
@@ -765,52 +864,41 @@ class TypeInferenceExtractorTest {
                                                             .bridgedTo(byte.class))
                                         }),
                                 TypeStrategies.explicit(DataTypes.STRING())),
-
+                // ---
                 // output hint with input extraction
                 TestSpec.forProcedure(ExtractWithOutputHintProcedure.class)
-                        .expectNamedArguments("i")
-                        .expectTypedArguments(DataTypes.INT())
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"i"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(DataTypes.INT())
-                                        }),
-                                TypeStrategies.explicit(DataTypes.INT())),
-
+                        .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
+                        .expectOutput(TypeStrategies.explicit(DataTypes.INT())),
+                // ---
                 // output extraction with input hints
                 TestSpec.forProcedure(ExtractWithInputHintProcedure.class)
-                        .expectNamedArguments("i", "b")
-                        .expectTypedArguments(DataTypes.INT(), DataTypes.BOOLEAN())
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"i", "b"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(DataTypes.INT()),
-                                            InputTypeStrategies.explicit(DataTypes.BOOLEAN())
-                                        }),
+                        .expectStaticArgument(StaticArgument.scalar("i", DataTypes.INT(), false))
+                        .expectStaticArgument(
+                                StaticArgument.scalar("b", DataTypes.BOOLEAN(), false))
+                        .expectOutput(
                                 TypeStrategies.explicit(
                                         DataTypes.DOUBLE().notNull().bridgedTo(double.class))),
+                // ---
                 // named arguments with overloaded function
                 // expected no named argument for overloaded function
                 TestSpec.forProcedure(NamedArgumentsProcedure.class),
-
-                // scalar function that takes any input
+                // ---
+                // procedure function that takes any input
                 TestSpec.forProcedure(InputGroupProcedure.class)
-                        .expectNamedArguments("o")
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
                                         new String[] {"o"},
                                         new ArgumentTypeStrategy[] {InputTypeStrategies.ANY}),
                                 TypeStrategies.explicit(DataTypes.STRING())),
-
-                // scalar function that takes any input as vararg
+                // ---
+                // procedure function that takes any input as vararg
                 TestSpec.forProcedure(VarArgInputGroupProcedure.class)
                         .expectOutputMapping(
                                 InputTypeStrategies.varyingSequence(
                                         new String[] {"o"},
                                         new ArgumentTypeStrategy[] {InputTypeStrategies.ANY}),
                                 TypeStrategies.explicit(DataTypes.STRING())),
+                // ---
                 TestSpec.forProcedure(
                                 "Procedure with implicit overloading order", OrderedProcedure.class)
                         .expectOutputMapping(
@@ -827,203 +915,169 @@ class TypeInferenceExtractorTest {
                                             InputTypeStrategies.explicit(DataTypes.BIGINT())
                                         }),
                                 TypeStrategies.explicit(DataTypes.BIGINT())),
+                // ---
                 TestSpec.forProcedure(
                                 "Procedure with explicit overloading order by class annotations",
                                 OrderedProcedure2.class)
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.BIGINT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.BIGINT()))),
                                 TypeStrategies.explicit(DataTypes.BIGINT()))
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.INT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.INT()))),
                                 TypeStrategies.explicit(DataTypes.INT())),
+                // ---
                 TestSpec.forProcedure(
                                 "Procedure with explicit overloading order by method annotations",
                                 OrderedProcedure3.class)
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.BIGINT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.BIGINT()))),
                                 TypeStrategies.explicit(DataTypes.BIGINT()))
                         .expectOutputMapping(
                                 InputTypeStrategies.sequence(
-                                        InputTypeStrategies.explicit(DataTypes.INT())),
+                                        List.of("arg0"),
+                                        List.of(InputTypeStrategies.explicit(DataTypes.INT()))),
                                 TypeStrategies.explicit(DataTypes.INT())),
+                // ---
                 TestSpec.forProcedure(
                                 "A data type hint on the method is used for enriching (not a function output hint)",
                                 DataTypeHintOnProcedure.class)
-                        .expectNamedArguments()
-                        .expectTypedArguments()
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {}, new ArgumentTypeStrategy[] {}),
+                        .expectEmptyStaticArguments()
+                        .expectOutput(
                                 TypeStrategies.explicit(
                                         DataTypes.ROW(DataTypes.FIELD("i", DataTypes.INT()))
                                                 .bridgedTo(RowData.class))),
+                // ---
                 // unsupported output overloading
                 TestSpec.forProcedure(InvalidSingleOutputProcedureHint.class)
                         .expectErrorMessage(
                                 "Procedure hints that lead to ambiguous results are not allowed."),
+                // ---
                 // global and local overloading with unsupported output overloading
                 TestSpec.forProcedure(InvalidFullOutputProcedureHint.class)
                         .expectErrorMessage(
                                 "Procedure hints with same input definition but different result types are not allowed."),
+                // ---
                 // ignore argument names during overloading
                 TestSpec.forProcedure(InvalidFullOutputProcedureWithArgNamesHint.class)
                         .expectErrorMessage(
                                 "Procedure hints with same input definition but different result types are not allowed."),
+                // ---
                 // invalid data type hint
                 TestSpec.forProcedure(IncompleteProcedureHint.class)
-                        .expectErrorMessage(
-                                "Data type hint does neither specify a data type nor input group for use as function argument."),
+                        .expectErrorMessage("Data type missing for scalar argument at position 1."),
+                // ---
                 // mismatch between hints and implementation regarding return type
                 TestSpec.forProcedure(InvalidMethodProcedure.class)
                         .expectErrorMessage(
                                 "Considering all hints, the method should comply with the signature:\n"
-                                        + "java.lang.String[] call(_, int[])"),
+                                        + "java.lang.String[] call(_, int[])\n"
+                                        + "Pattern: (<context> [, <argument>]*)"),
+                // ---
                 // no implementation
                 TestSpec.forProcedure(MissingMethodProcedure.class)
                         .expectErrorMessage(
                                 "Could not find a publicly accessible method named 'call'."),
+                // ---
                 TestSpec.forProcedure(
                                 "Named arguments procedure with argument hint on method",
                                 ArgumentHintOnMethodProcedure.class)
-                        .expectNamedArguments("f1", "f2")
-                        .expectTypedArguments(DataTypes.STRING(), DataTypes.INT())
-                        .expectOptionalArguments(true, true)
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"f1", "f2"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(DataTypes.STRING()),
-                                            InputTypeStrategies.explicit(DataTypes.INT())
-                                        }),
+                        .expectStaticArgument(StaticArgument.scalar("f1", DataTypes.STRING(), true))
+                        .expectStaticArgument(StaticArgument.scalar("f2", DataTypes.INT(), true))
+                        .expectOutput(
                                 TypeStrategies.explicit(
                                         DataTypes.INT().notNull().bridgedTo(int.class))),
+                // ---
                 TestSpec.forProcedure(
                                 "Named arguments procedure with argument hint on class",
                                 ArgumentHintOnClassProcedure.class)
-                        .expectNamedArguments("f1", "f2")
-                        .expectTypedArguments(DataTypes.STRING(), DataTypes.INT())
-                        .expectOptionalArguments(true, true)
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"f1", "f2"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(DataTypes.STRING()),
-                                            InputTypeStrategies.explicit(DataTypes.INT())
-                                        }),
+                        .expectStaticArgument(StaticArgument.scalar("f1", DataTypes.STRING(), true))
+                        .expectStaticArgument(StaticArgument.scalar("f2", DataTypes.INT(), true))
+                        .expectOutput(
                                 TypeStrategies.explicit(
                                         DataTypes.INT().notNull().bridgedTo(int.class))),
+                // ---
                 TestSpec.forProcedure(
                                 "Named arguments procedure with argument hint on parameter",
                                 ArgumentHintOnParameterProcedure.class)
-                        .expectNamedArguments("parameter_f1", "parameter_f2")
-                        .expectTypedArguments(
-                                DataTypes.STRING(), DataTypes.INT().bridgedTo(int.class))
-                        .expectOptionalArguments(true, false)
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"parameter_f1", "parameter_f2"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(DataTypes.STRING()),
-                                            InputTypeStrategies.explicit(
-                                                    DataTypes.INT().bridgedTo(int.class))
-                                        }),
+                        .expectStaticArgument(
+                                StaticArgument.scalar("parameter_f1", DataTypes.STRING(), true))
+                        .expectStaticArgument(
+                                StaticArgument.scalar(
+                                        "parameter_f2",
+                                        DataTypes.INT().bridgedTo(int.class),
+                                        false))
+                        .expectOutput(
                                 TypeStrategies.explicit(
                                         DataTypes.INT().notNull().bridgedTo(int.class))),
+                // ---
                 TestSpec.forProcedure(
                                 "Named arguments procedure with argument hint on method and parameter",
                                 ArgumentHintOnMethodAndParameterProcedure.class)
-                        .expectNamedArguments("local_f1", "local_f2")
-                        .expectTypedArguments(DataTypes.STRING(), DataTypes.INT())
-                        .expectOptionalArguments(true, true)
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"local_f1", "local_f2"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(DataTypes.STRING()),
-                                            InputTypeStrategies.explicit(DataTypes.INT())
-                                        }),
+                        .expectStaticArgument(
+                                StaticArgument.scalar("local_f1", DataTypes.STRING(), true))
+                        .expectStaticArgument(
+                                StaticArgument.scalar("local_f2", DataTypes.INT(), true))
+                        .expectOutput(
                                 TypeStrategies.explicit(
                                         DataTypes.INT().notNull().bridgedTo(int.class))),
+                // ---
                 TestSpec.forProcedure(
                                 "Named arguments procedure with argument hint on class and method",
                                 ArgumentHintOnClassAndMethodProcedure.class)
-                        .expectNamedArguments("global_f1", "global_f2")
-                        .expectTypedArguments(DataTypes.STRING(), DataTypes.INT())
-                        .expectOptionalArguments(false, false)
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"global_f1", "global_f2"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(DataTypes.STRING()),
-                                            InputTypeStrategies.explicit(DataTypes.INT())
-                                        }),
+                        .expectStaticArgument(
+                                StaticArgument.scalar("global_f1", DataTypes.STRING(), false))
+                        .expectStaticArgument(
+                                StaticArgument.scalar("global_f2", DataTypes.INT(), false))
+                        .expectOutput(
                                 TypeStrategies.explicit(
                                         DataTypes.INT().notNull().bridgedTo(int.class))),
+                // ---
                 TestSpec.forProcedure(
                                 "Named arguments procedure with argument hint on class and method and parameter",
                                 ArgumentHintOnClassAndMethodAndParameterProcedure.class)
-                        .expectNamedArguments("global_f1", "global_f2")
-                        .expectTypedArguments(DataTypes.STRING(), DataTypes.INT())
-                        .expectOptionalArguments(false, false)
-                        .expectOutputMapping(
-                                InputTypeStrategies.sequence(
-                                        new String[] {"global_f1", "global_f2"},
-                                        new ArgumentTypeStrategy[] {
-                                            InputTypeStrategies.explicit(DataTypes.STRING()),
-                                            InputTypeStrategies.explicit(DataTypes.INT())
-                                        }),
+                        .expectStaticArgument(
+                                StaticArgument.scalar("global_f1", DataTypes.STRING(), false))
+                        .expectStaticArgument(
+                                StaticArgument.scalar("global_f2", DataTypes.INT(), false))
+                        .expectOutput(
                                 TypeStrategies.explicit(
                                         DataTypes.INT().notNull().bridgedTo(int.class))),
+                // ---
                 TestSpec.forProcedure(
                                 "Named arguments procedure with argument hint type not null but optional",
                                 ArgumentHintNotNullWithOptionalProcedure.class)
                         .expectErrorMessage(
                                 "Argument at position 1 is optional but its type doesn't accept null value."),
+                // ---
                 TestSpec.forProcedure(
                                 "Named arguments procedure with argument name conflict",
                                 ArgumentHintNameConflictProcedure.class)
                         .expectErrorMessage(
                                 "Argument name conflict, there are at least two argument names that are the same."),
+                // ---
                 TestSpec.forProcedure(
                                 "Named arguments procedure with optional type on primitive type",
                                 ArgumentHintOptionalOnPrimitiveParameterConflictProcedure.class)
                         .expectErrorMessage(
-                                "Argument at position 1 is optional but a primitive type doesn't accept null value."));
+                                "Considering all hints, the method should comply with the signature:\n"
+                                        + "int[] call(_, java.lang.String, java.lang.Integer)"));
     }
 
     @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("testData")
-    void testArgumentNames(TestSpec testSpec) {
-        if (testSpec.expectedArgumentNames != null) {
-            assertThat(testSpec.typeInferenceExtraction.get().getNamedArguments())
-                    .isEqualTo(Optional.of(testSpec.expectedArgumentNames));
-        } else if (testSpec.expectedErrorMessage == null) {
-            assertThat(testSpec.typeInferenceExtraction.get().getNamedArguments())
-                    .isEqualTo(Optional.empty());
-        }
-    }
-
-    @ParameterizedTest(name = "{index}: {0}")
-    @MethodSource("testData")
-    void testArgumentOptionals(TestSpec testSpec) {
-        if (testSpec.expectedArgumentOptionals != null) {
-            assertThat(testSpec.typeInferenceExtraction.get().getOptionalArguments())
-                    .isEqualTo(Optional.of(testSpec.expectedArgumentOptionals));
-        }
-    }
-
-    @ParameterizedTest(name = "{index}: {0}")
-    @MethodSource("testData")
-    void testArgumentTypes(TestSpec testSpec) {
-        if (testSpec.expectedArgumentTypes != null) {
-            assertThat(testSpec.typeInferenceExtraction.get().getTypedArguments())
-                    .isEqualTo(Optional.of(testSpec.expectedArgumentTypes));
-        } else if (testSpec.expectedErrorMessage == null) {
-            assertThat(testSpec.typeInferenceExtraction.get().getTypedArguments())
-                    .isEqualTo(Optional.empty());
+    void testStaticArguments(TestSpec testSpec) {
+        if (testSpec.expectedStaticArguments != null) {
+            final Optional<List<StaticArgument>> staticArguments =
+                    testSpec.typeInferenceExtraction.get().getStaticArguments();
+            assertThat(staticArguments).isPresent();
+            assertThat(staticArguments.get())
+                    .containsExactlyElementsOf(testSpec.expectedStaticArguments);
         }
     }
 
@@ -1041,16 +1095,14 @@ class TypeInferenceExtractorTest {
 
     @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("testData")
-    void testAccumulatorTypeStrategy(TestSpec testSpec) {
-        if (!testSpec.expectedAccumulatorStrategies.isEmpty()) {
-            assertThat(
-                            testSpec.typeInferenceExtraction
-                                    .get()
-                                    .getAccumulatorTypeStrategy()
-                                    .isPresent())
-                    .isEqualTo(true);
-            assertThat(testSpec.typeInferenceExtraction.get().getAccumulatorTypeStrategy().get())
-                    .isEqualTo(TypeStrategies.mapping(testSpec.expectedAccumulatorStrategies));
+    void testStateTypeStrategies(TestSpec testSpec) {
+        if (!testSpec.expectedStateStrategies.isEmpty()) {
+            assertThat(testSpec.typeInferenceExtraction.get().getStateTypeStrategies())
+                    .isNotEmpty();
+            assertThat(testSpec.typeInferenceExtraction.get().getStateTypeStrategies())
+                    .isEqualTo(testSpec.expectedStateStrategies);
+        } else if (testSpec.expectedErrorMessage == null) {
+            assertThat(testSpec.typeInferenceExtraction.get().getStateTypeStrategies()).isEmpty();
         }
     }
 
@@ -1058,8 +1110,13 @@ class TypeInferenceExtractorTest {
     @MethodSource("testData")
     void testOutputTypeStrategy(TestSpec testSpec) {
         if (!testSpec.expectedOutputStrategies.isEmpty()) {
-            assertThat(testSpec.typeInferenceExtraction.get().getOutputTypeStrategy())
-                    .isEqualTo(TypeStrategies.mapping(testSpec.expectedOutputStrategies));
+            if (testSpec.expectedOutputStrategies.size() == 1) {
+                assertThat(testSpec.typeInferenceExtraction.get().getOutputTypeStrategy())
+                        .isEqualTo(testSpec.expectedOutputStrategies.values().iterator().next());
+            } else {
+                assertThat(testSpec.typeInferenceExtraction.get().getOutputTypeStrategy())
+                        .isEqualTo(TypeStrategies.mapping(testSpec.expectedOutputStrategies));
+            }
         }
     }
 
@@ -1088,13 +1145,9 @@ class TypeInferenceExtractorTest {
 
         final Supplier<TypeInference> typeInferenceExtraction;
 
-        @Nullable List<String> expectedArgumentNames;
+        @Nullable List<StaticArgument> expectedStaticArguments;
 
-        @Nullable List<Boolean> expectedArgumentOptionals;
-
-        @Nullable List<DataType> expectedArgumentTypes;
-
-        Map<InputTypeStrategy, TypeStrategy> expectedAccumulatorStrategies;
+        LinkedHashMap<String, StateTypeStrategy> expectedStateStrategies;
 
         Map<InputTypeStrategy, TypeStrategy> expectedOutputStrategies;
 
@@ -1103,7 +1156,7 @@ class TypeInferenceExtractorTest {
         private TestSpec(String description, Supplier<TypeInference> typeInferenceExtraction) {
             this.description = description;
             this.typeInferenceExtraction = typeInferenceExtraction;
-            this.expectedAccumulatorStrategies = new LinkedHashMap<>();
+            this.expectedStateStrategies = new LinkedHashMap<>();
             this.expectedOutputStrategies = new LinkedHashMap<>();
         }
 
@@ -1163,6 +1216,14 @@ class TypeInferenceExtractorTest {
                                     new DataTypeFactoryMock(), function));
         }
 
+        static TestSpec forProcessTableFunction(Class<? extends ProcessTableFunction<?>> function) {
+            return new TestSpec(
+                    function.getSimpleName(),
+                    () ->
+                            TypeInferenceExtractor.forProcessTableFunction(
+                                    new DataTypeFactoryMock(), function));
+        }
+
         static TestSpec forProcedure(Class<? extends Procedure> procedure) {
             return forProcedure(null, procedure);
         }
@@ -1176,29 +1237,46 @@ class TypeInferenceExtractorTest {
                                     new DataTypeFactoryMock(), procedure));
         }
 
-        TestSpec expectNamedArguments(String... expectedArgumentNames) {
-            this.expectedArgumentNames = Arrays.asList(expectedArgumentNames);
+        TestSpec expectEmptyStaticArguments() {
+            this.expectedStaticArguments = new ArrayList<>();
             return this;
         }
 
-        TestSpec expectOptionalArguments(Boolean... expectedArgumentOptionals) {
-            this.expectedArgumentOptionals = Arrays.asList(expectedArgumentOptionals);
+        TestSpec expectStaticArgument(StaticArgument argument) {
+            if (this.expectedStaticArguments == null) {
+                this.expectedStaticArguments = new ArrayList<>();
+            }
+            this.expectedStaticArguments.add(argument);
             return this;
         }
 
-        TestSpec expectTypedArguments(DataType... expectedArgumentTypes) {
-            this.expectedArgumentTypes = Arrays.asList(expectedArgumentTypes);
+        TestSpec expectAccumulator(TypeStrategy typeStrategy) {
+            this.expectedStateStrategies.put("acc", StateTypeStrategy.of(typeStrategy));
             return this;
         }
 
-        TestSpec expectAccumulatorMapping(
-                InputTypeStrategy validator, TypeStrategy accumulatorStrategy) {
-            this.expectedAccumulatorStrategies.put(validator, accumulatorStrategy);
+        TestSpec expectState(String name, StateTypeStrategy stateTypeStrategy) {
+            this.expectedStateStrategies.put(name, stateTypeStrategy);
+            return this;
+        }
+
+        TestSpec expectState(String name, TypeStrategy typeStrategy) {
+            this.expectedStateStrategies.put(name, StateTypeStrategy.of(typeStrategy));
+            return this;
+        }
+
+        TestSpec expectState(LinkedHashMap<String, StateTypeStrategy> stateTypeStrategy) {
+            this.expectedStateStrategies.putAll(stateTypeStrategy);
             return this;
         }
 
         TestSpec expectOutputMapping(InputTypeStrategy validator, TypeStrategy outputStrategy) {
             this.expectedOutputStrategies.put(validator, outputStrategy);
+            return this;
+        }
+
+        TestSpec expectOutput(TypeStrategy outputStrategy) {
+            this.expectedOutputStrategies.put(InputTypeStrategies.WILDCARD, outputStrategy);
             return this;
         }
 
@@ -1410,6 +1488,39 @@ class TypeInferenceExtractorTest {
         @Override
         public Row createAccumulator() {
             return null;
+        }
+    }
+
+    private static class StateHintAggregateFunction extends AggregateFunction<Integer, MyState> {
+        public void accumulate(
+                @StateHint(name = "myAcc") MyState acc, @ArgumentHint(name = "i") Integer i) {}
+
+        @Override
+        public Integer getValue(MyState accumulator) {
+            return null;
+        }
+
+        @Override
+        public MyState createAccumulator() {
+            return new MyState();
+        }
+    }
+
+    @FunctionHint(
+            state = {@StateHint(name = "myAcc", type = @DataTypeHint(bridgedTo = MyState.class))},
+            arguments = {@ArgumentHint(name = "i", type = @DataTypeHint("INT"))})
+    private static class StateHintInFunctionHintAggregateFunction
+            extends AggregateFunction<Integer, Object> {
+        public void accumulate(Object acc, Integer i) {}
+
+        @Override
+        public Integer getValue(Object accumulator) {
+            return null;
+        }
+
+        @Override
+        public Object createAccumulator() {
+            return new Object();
         }
     }
 
@@ -1768,7 +1879,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentHintOnMethodProcedure implements Procedure {
         @ProcedureHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1", isOptional = true),
                     @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2", isOptional = true)
                 })
@@ -1778,7 +1889,7 @@ class TypeInferenceExtractorTest {
     }
 
     @ProcedureHint(
-            argument = {
+            arguments = {
                 @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1", isOptional = true),
                 @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2", isOptional = true)
             })
@@ -1796,29 +1907,19 @@ class TypeInferenceExtractorTest {
                                 name = "parameter_f1",
                                 isOptional = true)
                         String f1,
-                @ArgumentHint(
-                                type = @DataTypeHint("INT"),
-                                name = "parameter_f2",
-                                isOptional = false)
-                        int f2) {
+                @ArgumentHint(type = @DataTypeHint("INT"), name = "parameter_f2") int f2) {
             return null;
         }
     }
 
     @ProcedureHint(
-            argument = {
-                @ArgumentHint(
-                        type = @DataTypeHint("STRING"),
-                        name = "global_f1",
-                        isOptional = false),
-                @ArgumentHint(
-                        type = @DataTypeHint("INTEGER"),
-                        name = "global_f2",
-                        isOptional = false)
+            arguments = {
+                @ArgumentHint(type = @DataTypeHint("STRING"), name = "global_f1"),
+                @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "global_f2")
             })
     private static class ArgumentHintOnClassAndMethodProcedure implements Procedure {
         @ProcedureHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(
                             type = @DataTypeHint("STRING"),
                             name = "local_f1",
@@ -1835,7 +1936,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentHintOnMethodAndParameterProcedure implements Procedure {
         @ProcedureHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(
                             type = @DataTypeHint("STRING"),
                             name = "local_f1",
@@ -1862,19 +1963,13 @@ class TypeInferenceExtractorTest {
     }
 
     @ProcedureHint(
-            argument = {
-                @ArgumentHint(
-                        type = @DataTypeHint("STRING"),
-                        name = "global_f1",
-                        isOptional = false),
-                @ArgumentHint(
-                        type = @DataTypeHint("INTEGER"),
-                        name = "global_f2",
-                        isOptional = false)
+            arguments = {
+                @ArgumentHint(type = @DataTypeHint("STRING"), name = "global_f1"),
+                @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "global_f2")
             })
     private static class ArgumentHintOnClassAndMethodAndParameterProcedure implements Procedure {
         @ProcedureHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(
                             type = @DataTypeHint("STRING"),
                             name = "local_f1",
@@ -1898,7 +1993,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentHintNotNullWithOptionalProcedure implements Procedure {
         @ProcedureHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1", isOptional = true),
                     @ArgumentHint(
                             type = @DataTypeHint("INTEGER NOT NULL"),
@@ -1912,7 +2007,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentHintNameConflictProcedure implements Procedure {
         @ProcedureHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1", isOptional = true),
                     @ArgumentHint(
                             type = @DataTypeHint("INTEGER NOT NULL"),
@@ -1927,7 +2022,7 @@ class TypeInferenceExtractorTest {
     private static class ArgumentHintOptionalOnPrimitiveParameterConflictProcedure
             implements Procedure {
         @ProcedureHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1", isOptional = true),
                     @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2", isOptional = true)
                 })
@@ -1974,7 +2069,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentHintScalarFunction extends ScalarFunction {
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
                     @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
                 })
@@ -1984,7 +2079,7 @@ class TypeInferenceExtractorTest {
     }
 
     private static class ArgumentHintMissingTypeScalarFunction extends ScalarFunction {
-        @FunctionHint(argument = {@ArgumentHint(name = "f1"), @ArgumentHint(name = "f2")})
+        @FunctionHint(arguments = {@ArgumentHint(name = "f1"), @ArgumentHint(name = "f2")})
         public String eval(String f1, Integer f2) {
             return "";
         }
@@ -1992,7 +2087,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentHintMissingNameScalarFunction extends ScalarFunction {
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING")),
                     @ArgumentHint(type = @DataTypeHint("INTEGER"))
                 })
@@ -2003,7 +2098,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentHintMissingPartialNameScalarFunction extends ScalarFunction {
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "in1"),
                     @ArgumentHint(type = @DataTypeHint("INTEGER"))
                 })
@@ -2014,7 +2109,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentHintNameConflictScalarFunction extends ScalarFunction {
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(name = "in1", type = @DataTypeHint("STRING")),
                     @ArgumentHint(name = "in1", type = @DataTypeHint("INTEGER"))
                 })
@@ -2033,7 +2128,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentsAndInputsScalarFunction extends ScalarFunction {
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
                     @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
                 },
@@ -2054,13 +2149,13 @@ class TypeInferenceExtractorTest {
     }
 
     @FunctionHint(
-            argument = {
+            arguments = {
                 @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
                 @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
             })
     private static class InvalidFunctionHintOnClassAndMethod extends ScalarFunction {
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
                     @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
                 },
@@ -2071,13 +2166,13 @@ class TypeInferenceExtractorTest {
     }
 
     @FunctionHint(
-            argument = {
+            arguments = {
                 @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1", isOptional = true),
                 @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2", isOptional = true)
             })
     private static class ValidFunctionHintOnClassAndMethod extends ScalarFunction {
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
                     @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
                 })
@@ -2087,12 +2182,12 @@ class TypeInferenceExtractorTest {
     }
 
     @FunctionHint(
-            argument = {
+            arguments = {
                 @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
                 @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
             })
     @FunctionHint(
-            argument = {
+            arguments = {
                 @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f1"),
                 @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
             })
@@ -2104,7 +2199,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentsHintScalarFunctionWithOverloadedFunction extends ScalarFunction {
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
                     @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
                 })
@@ -2113,7 +2208,7 @@ class TypeInferenceExtractorTest {
         }
 
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f2")
                 })
@@ -2124,7 +2219,7 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentHintNotNullTypeWithOptionalsScalarFunction extends ScalarFunction {
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(
                             type = @DataTypeHint("STRING NOT NULL"),
                             name = "f1",
@@ -2138,13 +2233,183 @@ class TypeInferenceExtractorTest {
 
     private static class ArgumentHintVariableLengthScalarFunction extends ScalarFunction {
         @FunctionHint(
-                argument = {
+                arguments = {
                     @ArgumentHint(type = @DataTypeHint("STRING"), name = "f1"),
                     @ArgumentHint(type = @DataTypeHint("INTEGER"), name = "f2")
                 },
                 isVarArgs = true)
         public String eval(String f1, Integer... f2) {
             return "";
+        }
+    }
+
+    private static class StatelessProcessTableFunction extends ProcessTableFunction<Integer> {
+        public void eval(int i) {}
+    }
+
+    public static class MyState {
+        static final DataType TYPE =
+                DataTypes.STRUCTURED(
+                        MyState.class,
+                        DataTypes.FIELD("d", DataTypes.DOUBLE().notNull().bridgedTo(double.class)));
+        public double d;
+    }
+
+    public static class MyFirstState {
+        static final DataType TYPE =
+                DataTypes.STRUCTURED(MyFirstState.class, DataTypes.FIELD("d", DataTypes.DOUBLE()));
+        public Double d;
+    }
+
+    public static class MySecondState {
+        static final DataType TYPE =
+                DataTypes.STRUCTURED(MySecondState.class, DataTypes.FIELD("i", DataTypes.INT()));
+        public Integer i;
+    }
+
+    private static class StateProcessTableFunction extends ProcessTableFunction<Integer> {
+        public void eval(@StateHint MyState s, Integer i) {}
+    }
+
+    private static class NamedStateProcessTableFunction extends ProcessTableFunction<Integer> {
+        public void eval(
+                @StateHint(name = "myState") MyState s, @ArgumentHint(name = "myArg") Integer i) {}
+    }
+
+    private static class MultiStateProcessTableFunction extends ProcessTableFunction<Integer> {
+        public void eval(@StateHint MyFirstState s1, @StateHint MySecondState s2, Integer i) {}
+    }
+
+    private static class UntypedTableArgProcessTableFunction extends ProcessTableFunction<Integer> {
+        public void eval(@ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row t) {}
+    }
+
+    private static class TypedTableArgProcessTableFunction extends ProcessTableFunction<Integer> {
+        public static class Customer {
+            static final DataType TYPE =
+                    DataTypes.STRUCTURED(
+                            Customer.class,
+                            DataTypes.FIELD("age", DataTypes.INT()),
+                            DataTypes.FIELD("name", DataTypes.STRING()));
+            public String name;
+            public Integer age;
+        }
+
+        public void eval(@ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Customer t) {}
+    }
+
+    @DataTypeHint("ROW<b BOOLEAN>")
+    private static class ComplexProcessTableFunction extends ProcessTableFunction<Row> {
+        public void eval(
+                Context context,
+                @StateHint(name = "s1") MyFirstState s1,
+                @StateHint(name = "other", type = @DataTypeHint("ROW<f FLOAT>")) Row s2,
+                @ArgumentHint(
+                                value = {
+                                    ArgumentTrait.TABLE_AS_SET,
+                                    ArgumentTrait.OPTIONAL_PARTITION_BY
+                                },
+                                name = "setTable")
+                        RowData t1,
+                @ArgumentHint(name = "i") Integer i,
+                @ArgumentHint(
+                                value = {ArgumentTrait.TABLE_AS_ROW},
+                                name = "rowTable",
+                                isOptional = true)
+                        Row t2,
+                @ArgumentHint(isOptional = true, name = "s") String s) {}
+    }
+
+    @FunctionHint(
+            state = {
+                @StateHint(name = "s1", type = @DataTypeHint(bridgedTo = MyFirstState.class)),
+                @StateHint(name = "other", type = @DataTypeHint("ROW<f FLOAT>"))
+            },
+            arguments = {
+                @ArgumentHint(
+                        name = "setTable",
+                        value = {ArgumentTrait.TABLE_AS_SET, ArgumentTrait.OPTIONAL_PARTITION_BY},
+                        type = @DataTypeHint(bridgedTo = RowData.class)),
+                @ArgumentHint(name = "i", type = @DataTypeHint("INT")),
+                @ArgumentHint(
+                        name = "rowTable",
+                        value = {ArgumentTrait.TABLE_AS_ROW},
+                        isOptional = true),
+                @ArgumentHint(name = "s", isOptional = true, type = @DataTypeHint("STRING"))
+            },
+            output = @DataTypeHint("ROW<b BOOLEAN>"))
+    private static class ComplexProcessTableFunctionWithFunctionHint
+            extends ProcessTableFunction<Row> {
+
+        public void eval(
+                Context context,
+                MyFirstState arg0,
+                Row arg1,
+                RowData arg2,
+                Integer arg3,
+                Row arg4,
+                String arg5) {}
+    }
+
+    private static class WrongStateOrderProcessTableFunction extends ProcessTableFunction<Integer> {
+
+        public void eval(int i, @StateHint MyFirstState state) {}
+    }
+
+    private static class MissingStateTypeProcessTableFunction
+            extends ProcessTableFunction<Integer> {
+
+        public void eval(@StateHint Object state) {}
+    }
+
+    private static class EnrichedExtractionStateProcessTableFunction
+            extends ProcessTableFunction<Integer> {
+
+        public void eval(
+                @StateHint(
+                                type =
+                                        @DataTypeHint(
+                                                defaultDecimalPrecision = 3,
+                                                defaultDecimalScale = 2))
+                        BigDecimal d) {}
+    }
+
+    private static class WrongTypedTableProcessTableFunction extends ProcessTableFunction<Integer> {
+        public void eval(@ArgumentHint(ArgumentTrait.TABLE_AS_SET) Integer i) {}
+    }
+
+    private static class WrongArgumentTraitsProcessTableFunction
+            extends ProcessTableFunction<Integer> {
+        public void eval(
+                @ArgumentHint({ArgumentTrait.TABLE_AS_ROW, ArgumentTrait.OPTIONAL_PARTITION_BY})
+                        Row r) {}
+    }
+
+    private static class MixingStaticAndInputGroupProcessTableFunction
+            extends ProcessTableFunction<Integer> {
+        public void eval(
+                @ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row r,
+                @DataTypeHint(inputGroup = InputGroup.ANY) Object o) {}
+    }
+
+    private static class InvalidInputGroupTableArgProcessTableFunction
+            extends ProcessTableFunction<Integer> {
+        public void eval(
+                @ArgumentHint(
+                                value = ArgumentTrait.TABLE_AS_ROW,
+                                type = @DataTypeHint(inputGroup = InputGroup.ANY))
+                        Row r) {}
+    }
+
+    private static class MultiEvalProcessTableFunction extends ProcessTableFunction<Integer> {
+        public void eval(int i) {}
+
+        public void eval(String i) {}
+    }
+
+    private static class TableArgScalarFunction extends ScalarFunction {
+        public int eval(@ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row t) {
+            return 0;
         }
     }
 }

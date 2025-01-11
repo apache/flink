@@ -1,7 +1,7 @@
 {
-  "flinkVersion" : "1.20",
+  "flinkVersion" : "2.0",
   "nodes" : [ {
-    "id" : 17,
+    "id" : 1,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -62,7 +62,7 @@
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[ts, a, b, c])",
     "inputProperties" : [ ]
   }, {
-    "id" : 18,
+    "id" : 2,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
@@ -106,7 +106,7 @@
     "outputType" : "ROW<`ts` BIGINT, `a` BIGINT, `b` INT, `c` VARCHAR(2147483647), `rowtime` TIMESTAMP(3)>",
     "description" : "Calc(select=[ts, a, b, c, TO_TIMESTAMP(FROM_UNIXTIME(ts)) AS rowtime])"
   }, {
-    "id" : 19,
+    "id" : 3,
     "type" : "stream-exec-watermark-assigner_1",
     "watermarkExpr" : {
       "kind" : "INPUT_REF",
@@ -146,7 +146,7 @@
     },
     "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])"
   }, {
-    "id" : 20,
+    "id" : 4,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
@@ -213,7 +213,7 @@
     },
     "description" : "Calc(select=[ts, a, b, c, rowtime, 4 AS $5])"
   }, {
-    "id" : 21,
+    "id" : 5,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -251,7 +251,7 @@
     },
     "description" : "Exchange(distribution=[hash[c]])"
   }, {
-    "id" : 22,
+    "id" : 6,
     "type" : "stream-exec-over-aggregate_1",
     "overSpec" : {
       "partition" : {
@@ -349,7 +349,7 @@
     },
     "description" : "OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[ts, a, b, c, rowtime, $5, LTCNT(a, $5) AS w0$o0, COUNT(a) AS w0$o1, $SUM0(a) AS w0$o2])"
   }, {
-    "id" : 23,
+    "id" : 7,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
@@ -447,7 +447,7 @@
     },
     "description" : "Calc(select=[c, ts, rowtime, b, w0$o0 AS EXPR$4, w0$o1 AS EXPR$5, CASE((w0$o1 > 0), w0$o2, null:BIGINT) AS EXPR$6])"
   }, {
-    "id" : 24,
+    "id" : 8,
     "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -529,50 +529,50 @@
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[c, ts, rowtime, b, EXPR$4, EXPR$5, EXPR$6])"
   } ],
   "edges" : [ {
-    "source" : 17,
-    "target" : 18,
+    "source" : 1,
+    "target" : 2,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 18,
-    "target" : 19,
+    "source" : 2,
+    "target" : 3,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 19,
-    "target" : 20,
+    "source" : 3,
+    "target" : 4,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 20,
-    "target" : 21,
+    "source" : 4,
+    "target" : 5,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 21,
-    "target" : 22,
+    "source" : 5,
+    "target" : 6,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 22,
-    "target" : 23,
+    "source" : 6,
+    "target" : 7,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 23,
-    "target" : 24,
+    "source" : 7,
+    "target" : 8,
     "shuffle" : {
       "type" : "FORWARD"
     },

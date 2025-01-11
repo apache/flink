@@ -259,7 +259,10 @@ public class LogicalTypeParserTest {
     @MethodSource("testData")
     void testParsing(TestSpec testSpec) {
         if (testSpec.expectedType != null) {
-            assertThat(LogicalTypeParser.parse(testSpec.typeString))
+            assertThat(
+                            LogicalTypeParser.parse(
+                                    testSpec.typeString,
+                                    Thread.currentThread().getContextClassLoader()))
                     .isEqualTo(testSpec.expectedType);
         }
     }
@@ -271,7 +274,10 @@ public class LogicalTypeParserTest {
             if (!testSpec.expectedType.is(UNRESOLVED)
                     && testSpec.expectedType.getChildren().stream()
                             .noneMatch(t -> t.is(UNRESOLVED))) {
-                assertThat(LogicalTypeParser.parse(testSpec.expectedType.asSerializableString()))
+                assertThat(
+                                LogicalTypeParser.parse(
+                                        testSpec.expectedType.asSerializableString(),
+                                        Thread.currentThread().getContextClassLoader()))
                         .isEqualTo(testSpec.expectedType);
             }
         }
@@ -281,7 +287,11 @@ public class LogicalTypeParserTest {
     @MethodSource("testData")
     void testErrorMessage(TestSpec testSpec) {
         if (testSpec.expectedErrorMessage != null) {
-            assertThatThrownBy(() -> LogicalTypeParser.parse(testSpec.typeString))
+            assertThatThrownBy(
+                            () ->
+                                    LogicalTypeParser.parse(
+                                            testSpec.typeString,
+                                            Thread.currentThread().getContextClassLoader()))
                     .isInstanceOf(ValidationException.class)
                     .hasMessageContaining(testSpec.expectedErrorMessage);
         }

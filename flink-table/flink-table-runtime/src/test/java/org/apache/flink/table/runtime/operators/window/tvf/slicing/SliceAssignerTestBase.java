@@ -34,10 +34,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
-import static org.assertj.core.api.HamcrestCondition.matching;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Utilities for testing {@link SliceAssigner}s. */
 abstract class SliceAssignerTestBase {
@@ -51,12 +49,7 @@ abstract class SliceAssignerTestBase {
     }
 
     protected static void assertErrorMessage(Runnable runnable, String errorMessage) {
-        try {
-            runnable.run();
-            fail("should fail.");
-        } catch (Exception e) {
-            assertThat(e).satisfies(matching(containsMessage(errorMessage)));
-        }
+        assertThatThrownBy(runnable::run).hasMessageContaining(errorMessage);
     }
 
     protected static long assignSliceEnd(SliceAssigner assigner, long timestamp) {

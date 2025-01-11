@@ -19,7 +19,7 @@ import atexit
 import os
 import sys
 import tempfile
-from typing import Union, List, Tuple, Iterable
+from typing import Union, List, Tuple, Iterable, Optional
 
 from py4j.java_gateway import get_java_class, get_method
 
@@ -405,7 +405,8 @@ class TableEnvironment(object):
         """
         return self._j_tenv.dropTemporaryFunction(path)
 
-    def create_temporary_table(self, path: str, descriptor: TableDescriptor):
+    def create_temporary_table(self, path: str, descriptor: TableDescriptor,
+                               ignoreIfExists: Optional[bool] = False):
         """
         Registers the given :class:`~pyflink.table.TableDescriptor` as a temporary catalog table.
 
@@ -424,16 +425,20 @@ class TableEnvironment(object):
             ...         .build())
             ...     .option("rows-per-second", 10)
             ...     .option("fields.f0.kind", "random")
-            ...     .build())
+            ...     .build(),
+            ...  True)
 
         :param path: The path under which the table will be registered.
         :param descriptor: Template for creating a CatalogTable instance.
+        :param ignoreIfExists: If a table exists under the given path and this flag is set,
+                               no operation is executed. An exception is thrown otherwise.
 
         .. versionadded:: 1.14.0
         """
-        self._j_tenv.createTemporaryTable(path, descriptor._j_table_descriptor)
+        self._j_tenv.createTemporaryTable(path, descriptor._j_table_descriptor, ignoreIfExists)
 
-    def create_table(self, path: str, descriptor: TableDescriptor):
+    def create_table(self, path: str, descriptor: TableDescriptor,
+                     ignoreIfExists: Optional[bool] = False):
         """
         Registers the given :class:`~pyflink.table.TableDescriptor` as a catalog table.
 
@@ -451,14 +456,17 @@ class TableEnvironment(object):
             ...                   .build())
             ...     .option("rows-per-second", 10)
             ...     .option("fields.f0.kind", "random")
-            ...     .build())
+            ...     .build(),
+            ...  True)
 
         :param path: The path under which the table will be registered.
         :param descriptor: Template for creating a CatalogTable instance.
+        :param ignoreIfExists: If a table exists under the given path and this flag is set,
+                               no operation is executed. An exception is thrown otherwise.
 
         .. versionadded:: 1.14.0
         """
-        self._j_tenv.createTable(path, descriptor._j_table_descriptor)
+        self._j_tenv.createTable(path, descriptor._j_table_descriptor, ignoreIfExists)
 
     def from_path(self, path: str) -> Table:
         """
@@ -649,6 +657,22 @@ class TableEnvironment(object):
         """
         return self._j_tenv.dropTemporaryTable(table_path)
 
+    def drop_table(self, table_path: str, ignore_if_not_exists: Optional[bool] = True) -> bool:
+        """
+        Drops a table registered in the given path.
+
+        This method can only drop permanent objects. Temporary objects can shadow permanent ones.
+        If a temporary object exists in a given path,
+        make sure to drop the temporary object first using :func:`drop_temporary_table`.
+
+        :param table_path: The path of the registered table.
+        :param ignore_if_not_exists: Ignore if table does not exist.
+        :return: True if a table existed in the given path and was removed.
+
+        .. versionadded:: 2.0.0
+        """
+        return self._j_tenv.dropTable(table_path, ignore_if_not_exists)
+
     def drop_temporary_view(self, view_path: str) -> bool:
         """
         Drops a temporary view registered in the given path.
@@ -656,11 +680,28 @@ class TableEnvironment(object):
         If a permanent table or view with a given path exists, it will be used
         from now on for any queries that reference this path.
 
+        :param view_path: The path of the registered temporary view.
         :return: True if a view existed in the given path and was removed.
 
         .. versionadded:: 1.10.0
         """
         return self._j_tenv.dropTemporaryView(view_path)
+
+    def drop_view(self, view_path: str, ignore_if_not_exists: Optional[bool] = True) -> bool:
+        """
+        Drops a view registered in the given path.
+
+        This method can only drop permanent objects. Temporary objects can shadow permanent ones.
+        If a temporary object exists in a given path,
+        make sure to drop the temporary object first using :func:`drop_temporary_view`.
+
+        :param view_path: The path of the registered view.
+        :param ignore_if_not_exists: Ignore if view does not exist.
+        :return: True if a view existed in the given path and was removed
+
+        .. versionadded:: 2.0.0
+        """
+        return self._j_tenv.dropView(view_path, ignore_if_not_exists)
 
     def explain_sql(self, stmt: str, *extra_details: ExplainDetail) -> str:
         """
@@ -993,6 +1034,29 @@ class TableEnvironment(object):
             else:
                 raise ValueError("Invalid arguments for 'fields': %r" %
                                  ','.join([repr(item) for item in fields_or_schema]))
+
+    def create_view(self,
+                    view_path: str,
+                    table: Table,
+                    ignore_if_exists: Optional[bool] = False):
+        """
+        Registers a :class:`~pyflink.table.Table` API object as a view similar to SQL views.
+
+        This method can only create permanent objects. Temporary objects can shadow permanent ones.
+        If a temporary object exists in a given path,
+        make sure to drop the temporary object first using :func:`drop_temporary_view`.
+
+        :param view_path: The path under which the view will be registered.
+                          See also the :class:`~pyflink.table.TableEnvironment` class description
+                          for the format of the path.
+        :param table:     The view to register.
+        :param ignore_if_exists: If a view or a table exists and the given flag is set,
+                                 no operation is executed. An exception is thrown otherwise.
+
+        .. versionadded:: 2.0.0
+        """
+
+        self._j_tenv.createView(view_path, table, ignore_if_exists)
 
     def add_python_file(self, file_path: str):
         """
@@ -1327,10 +1391,10 @@ class TableEnvironment(object):
             data_type = data_type.bridgedTo(
                 load_java_class('org.apache.flink.table.data.RowData'))
 
-            j_arrow_table_source = \
-                jvm.org.apache.flink.table.runtime.arrow.ArrowUtils.createArrowTableSource(
+            j_arrow_table_source_descriptor = \
+                jvm.org.apache.flink.table.runtime.arrow.ArrowUtils.createArrowTableSourceDesc(
                     data_type, temp_file.name)
-            return Table(self._j_tenv.fromTableSource(j_arrow_table_source), self)
+            return Table(getattr(self._j_tenv, "from")(j_arrow_table_source_descriptor), self)
         finally:
             os.unlink(temp_file.name)
 

@@ -44,8 +44,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
+import static org.apache.flink.configuration.ConfigConstants.ENV_JAVA_HOME;
+import static org.apache.flink.configuration.ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX;
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.YARN_CONTAINER_START_COMMAND_TEMPLATE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -55,6 +58,19 @@ class UtilsTest {
 
     private static final String YARN_RM_ARBITRARY_SCHEDULER_CLAZZ =
             "org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler";
+
+    private static final TaskExecutorProcessSpec TASK_EXECUTOR_PROCESS_SPEC =
+            new TaskExecutorProcessSpec(
+                    new CPUResource(1.0),
+                    new MemorySize(0), // frameworkHeapSize
+                    new MemorySize(0), // frameworkOffHeapSize
+                    new MemorySize(111), // taskHeapSize
+                    new MemorySize(0), // taskOffHeapSize
+                    new MemorySize(222), // networkMemSize
+                    new MemorySize(0), // managedMemorySize
+                    new MemorySize(333), // jvmMetaspaceSize
+                    new MemorySize(0), // jvmOverheadSize
+                    Collections.emptyList());
 
     @Test
     void testDeleteApplicationFiles(@TempDir Path tempDir) throws Exception {
@@ -208,20 +224,8 @@ class UtilsTest {
     @Test
     void testGetTaskManagerShellCommand() {
         final Configuration cfg = new Configuration();
-        final TaskExecutorProcessSpec taskExecutorProcessSpec =
-                new TaskExecutorProcessSpec(
-                        new CPUResource(1.0),
-                        new MemorySize(0), // frameworkHeapSize
-                        new MemorySize(0), // frameworkOffHeapSize
-                        new MemorySize(111), // taskHeapSize
-                        new MemorySize(0), // taskOffHeapSize
-                        new MemorySize(222), // networkMemSize
-                        new MemorySize(0), // managedMemorySize
-                        new MemorySize(333), // jvmMetaspaceSize
-                        new MemorySize(0), // jvmOverheadSize
-                        Collections.emptyList());
         final ContaineredTaskManagerParameters containeredParams =
-                new ContaineredTaskManagerParameters(taskExecutorProcessSpec, new HashMap<>());
+                new ContaineredTaskManagerParameters(TASK_EXECUTOR_PROCESS_SPEC, new HashMap<>());
 
         // no logging, with/out krb5
         final String java = "$JAVA_HOME/bin/java";
@@ -238,7 +242,8 @@ class UtilsTest {
                         + " -Dlog4j.configurationFile=file:./conf/log4j.properties"; // if set
         final String mainClass = "org.apache.flink.yarn.UtilsTest";
         final String dynamicConfigs =
-                TaskExecutorProcessUtils.generateDynamicConfigsStr(taskExecutorProcessSpec).trim();
+                TaskExecutorProcessUtils.generateDynamicConfigsStr(TASK_EXECUTOR_PROCESS_SPEC)
+                        .trim();
         final String basicArgs = "--configDir ./conf";
         final String mainArgs = "-Djobmanager.rpc.address=host1 -Dkey.a=v1";
         final String args = dynamicConfigs + " " + basicArgs + " " + mainArgs;
@@ -672,6 +677,27 @@ class UtilsTest {
                                 defaultJvmOpts,
                                 jvmOpts,
                                 Utils.IGNORE_UNRECOGNIZED_VM_OPTIONS));
+    }
+
+    @Test
+    void testGetTaskManagerEnvsWithJavaHomeSet() {
+        final Configuration cfg = new Configuration();
+        cfg.set(CoreOptions.FLINK_JAVA_HOME, "/opt/jdk");
+        cfg.setString(CONTAINERIZED_TASK_MANAGER_ENV_PREFIX + "key", "val");
+        final ContaineredTaskManagerParameters containeredParams =
+                ContaineredTaskManagerParameters.create(cfg, TASK_EXECUTOR_PROCESS_SPEC);
+        final Map<String, String> envVars = containeredParams.taskManagerEnv();
+        assertThat(envVars).containsEntry(ENV_JAVA_HOME, "/opt/jdk").containsEntry("key", "val");
+    }
+
+    @Test
+    void testGetTaskManagerEnvsWithoutJavaHomeSet() {
+        final Configuration cfg = new Configuration();
+        cfg.setString(CONTAINERIZED_TASK_MANAGER_ENV_PREFIX + "key", "val");
+        final ContaineredTaskManagerParameters containeredParams =
+                ContaineredTaskManagerParameters.create(cfg, TASK_EXECUTOR_PROCESS_SPEC);
+        final Map<String, String> envVars = containeredParams.taskManagerEnv();
+        assertThat(envVars).doesNotContainKey(ENV_JAVA_HOME);
     }
 
     private static void verifyUnitResourceVariousSchedulers(

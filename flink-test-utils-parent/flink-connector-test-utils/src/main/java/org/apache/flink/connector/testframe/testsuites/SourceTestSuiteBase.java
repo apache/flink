@@ -675,10 +675,12 @@ public abstract class SourceTestSuiteBase<T> {
                 new CollectSinkOperatorFactory<>(serializer, accumulatorName);
 
         CollectStreamSink<T> sink = new CollectStreamSink<>(stream, factory);
+        String operatorUid = "dataStreamCollect";
         sink.name("Data stream collect sink");
+        sink.uid(operatorUid);
         stream.getExecutionEnvironment().addOperator(sink.getTransformation());
         return new CollectIteratorBuilder<>(
-                accumulatorName,
+                operatorUid,
                 serializer,
                 accumulatorName,
                 stream.getExecutionEnvironment().getCheckpointConfig());

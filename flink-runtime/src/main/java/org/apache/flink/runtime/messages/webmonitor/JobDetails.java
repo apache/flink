@@ -61,6 +61,7 @@ public class JobDetails implements Serializable {
     private static final String FIELD_NAME_LAST_MODIFICATION = "last-modification";
     private static final String FIELD_NAME_TOTAL_NUMBER_TASKS = "total";
     private static final String FIELD_NAME_TASKS = "tasks";
+    private static final String FIELD_NAME_PENDING_OPERATORS = "pending-operators";
 
     private final JobID jobId;
 
@@ -82,6 +83,8 @@ public class JobDetails implements Serializable {
 
     private transient Map<String, Integer> lazyTaskInfo = null;
 
+    private final int pendingOperators;
+
     /**
      * The map holds the attempt number of the current execution attempt in the Execution, which is
      * considered as the representing execution for the subtask of the vertex. The keys and values
@@ -102,7 +105,8 @@ public class JobDetails implements Serializable {
             @JsonProperty(FIELD_NAME_DURATION) long duration,
             @JsonProperty(FIELD_NAME_STATUS) JobStatus status,
             @JsonProperty(FIELD_NAME_LAST_MODIFICATION) long lastUpdateTime,
-            @JsonProperty(FIELD_NAME_TASKS) Map<String, Integer> taskInfo) {
+            @JsonProperty(FIELD_NAME_TASKS) Map<String, Integer> taskInfo,
+            @JsonProperty(FIELD_NAME_PENDING_OPERATORS) int pendingOperators) {
         this(
                 jobId,
                 jobName,
@@ -112,7 +116,9 @@ public class JobDetails implements Serializable {
                 status,
                 lastUpdateTime,
                 extractNumTasksPerState(taskInfo),
-                taskInfo.get(FIELD_NAME_TOTAL_NUMBER_TASKS));
+                taskInfo.get(FIELD_NAME_TOTAL_NUMBER_TASKS),
+                new HashMap<>(),
+                pendingOperators);
     }
 
     @VisibleForTesting
@@ -150,6 +156,32 @@ public class JobDetails implements Serializable {
             int[] tasksPerState,
             int numTasks,
             Map<String, Map<Integer, CurrentAttempts>> currentExecutionAttempts) {
+        this(
+                jobId,
+                jobName,
+                startTime,
+                endTime,
+                duration,
+                status,
+                lastUpdateTime,
+                tasksPerState,
+                numTasks,
+                currentExecutionAttempts,
+                0);
+    }
+
+    public JobDetails(
+            JobID jobId,
+            String jobName,
+            long startTime,
+            long endTime,
+            long duration,
+            JobStatus status,
+            long lastUpdateTime,
+            int[] tasksPerState,
+            int numTasks,
+            Map<String, Map<Integer, CurrentAttempts>> currentExecutionAttempts,
+            int pendingOperators) {
         this.jobId = checkNotNull(jobId);
         this.jobName = checkNotNull(jobName);
         this.startTime = startTime;
@@ -164,6 +196,7 @@ public class JobDetails implements Serializable {
         this.tasksPerState = checkNotNull(tasksPerState);
         this.numTasks = numTasks;
         this.currentExecutionAttempts = checkNotNull(currentExecutionAttempts);
+        this.pendingOperators = pendingOperators;
     }
 
     public static JobDetails createDetailsForJob(AccessExecutionGraph job) {
@@ -215,7 +248,8 @@ public class JobDetails implements Serializable {
                 lastChanged,
                 countsPerStatus,
                 numTotalTasks,
-                currentExecutionAttempts);
+                currentExecutionAttempts,
+                job.getPendingOperatorCount());
     }
 
     // ------------------------------------------------------------------------
@@ -271,6 +305,11 @@ public class JobDetails implements Serializable {
         return lazyTaskInfo;
     }
 
+    @JsonProperty(FIELD_NAME_PENDING_OPERATORS)
+    public int getPendingOperators() {
+        return pendingOperators;
+    }
+
     @JsonIgnore
     public int getNumTasks() {
         return numTasks;
@@ -285,6 +324,7 @@ public class JobDetails implements Serializable {
     public Map<String, Map<Integer, CurrentAttempts>> getCurrentExecutionAttempts() {
         return currentExecutionAttempts;
     }
+
     // ------------------------------------------------------------------------
 
     private static int[] extractNumTasksPerState(Map<String, Integer> ex) {
@@ -311,7 +351,8 @@ public class JobDetails implements Serializable {
                     && this.jobId.equals(that.jobId)
                     && this.jobName.equals(that.jobName)
                     && Arrays.equals(this.tasksPerState, that.tasksPerState)
-                    && this.currentExecutionAttempts.equals(that.currentExecutionAttempts);
+                    && this.currentExecutionAttempts.equals(that.currentExecutionAttempts)
+                    && this.pendingOperators == that.pendingOperators;
         } else {
             return false;
         }
@@ -328,6 +369,7 @@ public class JobDetails implements Serializable {
         result = 31 * result + Arrays.hashCode(tasksPerState);
         result = 31 * result + numTasks;
         result = 31 * result + currentExecutionAttempts.hashCode();
+        result = 31 * result + pendingOperators;
         return result;
     }
 
@@ -351,6 +393,8 @@ public class JobDetails implements Serializable {
                 + Arrays.toString(tasksPerState)
                 + ", numTasks="
                 + numTasks
+                + ", pendingOperators="
+                + pendingOperators
                 + '}';
     }
 

@@ -21,7 +21,6 @@ package org.apache.flink.state.forst;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateFuture;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -120,7 +119,7 @@ public class ForStDBOperationTestBase {
     protected ContextKey<Integer, VoidNamespace> buildContextKey(int i) {
         int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(i, 128);
         RecordContext<Integer> recordContext =
-                new RecordContext<>(i, i, t -> {}, keyGroup, new Epoch(0));
+                new RecordContext<>(i, i, t -> {}, keyGroup, new Epoch(0), 0);
         return new ContextKey<>(recordContext, VoidNamespace.INSTANCE, null);
     }
 
@@ -128,7 +127,7 @@ public class ForStDBOperationTestBase {
             throws Exception {
         ColumnFamilyHandle cf = createColumnFamilyHandle(stateName);
         ValueStateDescriptor<String> valueStateDescriptor =
-                new ValueStateDescriptor<>(stateName, BasicTypeInfo.STRING_TYPE_INFO);
+                new ValueStateDescriptor<>(stateName, StringSerializer.INSTANCE);
         Supplier<SerializedCompositeKeyBuilder<Integer>> serializedKeyBuilder =
                 () -> new SerializedCompositeKeyBuilder<>(IntSerializer.INSTANCE, 2, 32);
         Supplier<DataOutputSerializer> valueSerializerView = () -> new DataOutputSerializer(32);
@@ -149,7 +148,7 @@ public class ForStDBOperationTestBase {
             throws Exception {
         ColumnFamilyHandle cf = createColumnFamilyHandle(stateName);
         ListStateDescriptor<String> valueStateDescriptor =
-                new ListStateDescriptor<>(stateName, BasicTypeInfo.STRING_TYPE_INFO);
+                new ListStateDescriptor<>(stateName, StringSerializer.INSTANCE);
         Supplier<SerializedCompositeKeyBuilder<Integer>> serializedKeyBuilder =
                 () -> new SerializedCompositeKeyBuilder<>(IntSerializer.INSTANCE, 2, 32);
         Supplier<DataOutputSerializer> valueSerializerView = () -> new DataOutputSerializer(32);
@@ -193,7 +192,7 @@ public class ForStDBOperationTestBase {
                                 return a + b;
                             }
                         },
-                        BasicTypeInfo.INT_TYPE_INFO);
+                        IntSerializer.INSTANCE);
         Supplier<SerializedCompositeKeyBuilder<String>> serializedKeyBuilder =
                 () -> new SerializedCompositeKeyBuilder<>(StringSerializer.INSTANCE, 2, 32);
         Supplier<DataOutputSerializer> valueSerializerView = () -> new DataOutputSerializer(32);
@@ -216,7 +215,7 @@ public class ForStDBOperationTestBase {
         ColumnFamilyHandle cf = createColumnFamilyHandle(stateName);
         MapStateDescriptor<String, String> mapStateDescriptor =
                 new MapStateDescriptor<>(
-                        stateName, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+                        stateName, StringSerializer.INSTANCE, StringSerializer.INSTANCE);
         Supplier<SerializedCompositeKeyBuilder<Integer>> serializedKeyBuilder =
                 () -> new SerializedCompositeKeyBuilder<>(IntSerializer.INSTANCE, 2, 32);
         Supplier<DataOutputSerializer> valueSerializerView = () -> new DataOutputSerializer(32);

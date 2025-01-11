@@ -42,8 +42,9 @@ import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.datastream.api.ExecutionEnvironment;
-import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream;
+import org.apache.flink.datastream.api.stream.NonKeyedPartitionStream.ProcessConfigurableAndNonKeyedPartitionStream;
 import org.apache.flink.datastream.impl.stream.NonKeyedPartitionStreamImpl;
+import org.apache.flink.datastream.impl.utils.StreamUtils;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
@@ -161,7 +162,8 @@ public class ExecutionEnvironmentImpl implements ExecutionEnvironment {
     }
 
     @Override
-    public <OUT> NonKeyedPartitionStream<OUT> fromSource(Source<OUT> source, String sourceName) {
+    public <OUT> ProcessConfigurableAndNonKeyedPartitionStream<OUT> fromSource(
+            Source<OUT> source, String sourceName) {
         if (source instanceof WrappedSource) {
             org.apache.flink.api.connector.source.Source<OUT, ?, ?> innerSource =
                     ((WrappedSource<OUT>) source).getWrappedSource();
@@ -176,7 +178,8 @@ public class ExecutionEnvironmentImpl implements ExecutionEnvironment {
                             resolvedTypeInfo,
                             getParallelism(),
                             false);
-            return new NonKeyedPartitionStreamImpl<>(this, sourceTransformation);
+            return StreamUtils.wrapWithConfigureHandle(
+                    new NonKeyedPartitionStreamImpl<>(this, sourceTransformation));
         } else if (source instanceof FromDataSource) {
             Collection<OUT> data = ((FromDataSource<OUT>) source).getData();
             TypeInformation<OUT> outType = extractTypeInfoFromCollection(data);
@@ -190,7 +193,7 @@ public class ExecutionEnvironmentImpl implements ExecutionEnvironment {
             return fromSource(new WrappedSource<>(generatorSource), "Collection Source");
         } else {
             throw new UnsupportedOperationException(
-                    "Unsupported type of sink, you could use DataStreamV2SourceUtils to wrap a FLIP-27 based source.");
+                    "Unsupported type of source, you could use DataStreamV2SourceUtils to wrap a FLIP-27 based source.");
         }
     }
 

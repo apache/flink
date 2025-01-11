@@ -26,6 +26,7 @@ import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
 import org.apache.flink.runtime.asyncprocessing.MockStateExecutor;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
+import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -63,6 +64,7 @@ class InternalTimerServiceAsyncImplTest {
                         new SyncMailboxExecutor(),
                         exceptionHandler,
                         new MockStateExecutor(),
+                        new DeclarationManager(),
                         128,
                         2,
                         1000L,
@@ -166,6 +168,29 @@ class InternalTimerServiceAsyncImplTest {
         assertThat(testTriggerable.eventTriggerCount).isEqualTo(2);
     }
 
+    @Test
+    void testSameKeyEventTimerFireOrder() throws Exception {
+        keyContext.setCurrentKey("key-1");
+        service.registerEventTimeTimer("event-timer-1", 1L);
+
+        SameTimerTriggerable testTriggerable = new SameTimerTriggerable(asyncExecutionController);
+        service.startTimerService(
+                IntSerializer.INSTANCE, StringSerializer.INSTANCE, testTriggerable);
+        assertThat(testTriggerable.eventTriggerCount).isEqualTo(0);
+        // the event timer should be triggered at watermark 1
+        service.advanceWatermark(1L);
+        assertThat(testTriggerable.eventTriggerCount).isEqualTo(1);
+        assertThat(asyncExecutionController.getInFlightRecordNum()).isEqualTo(0);
+
+        keyContext.setCurrentKey("key-1");
+        service.registerEventTimeTimer("event-timer-2", 2L);
+        service.registerEventTimeTimer("event-timer-3", 3L);
+        assertThat(testTriggerable.eventTriggerCount).isEqualTo(1);
+        service.advanceWatermark(3L);
+        assertThat(asyncExecutionController.getInFlightRecordNum()).isEqualTo(0);
+        assertThat(testTriggerable.eventTriggerCount).isEqualTo(3);
+    }
+
     private static <K, N> InternalTimerServiceAsyncImpl<K, N> createInternalTimerService(
             TaskIOMetricGroup taskIOMetricGroup,
             KeyGroupRange keyGroupsList,
@@ -188,6 +213,30 @@ class InternalTimerServiceAsyncImplTest {
                 priorityQueueSetFactory.create("__async_event_timers", timerSerializer),
                 StreamTaskCancellationContext.alwaysRunning(),
                 asyncExecutionController);
+    }
+
+    private static class SameTimerTriggerable implements Triggerable<Integer, String> {
+
+        private AsyncExecutionController aec;
+
+        private static int eventTriggerCount = 0;
+
+        public SameTimerTriggerable(AsyncExecutionController aec) {
+            this.aec = aec;
+        }
+
+        @Override
+        public void onEventTime(InternalTimer<Integer, String> timer) throws Exception {
+            RecordContext<Integer> recordContext = aec.buildContext("record", "key");
+            aec.setCurrentContext(recordContext);
+            aec.handleRequestSync(null, StateRequestType.SYNC_POINT, null);
+            eventTriggerCount++;
+        }
+
+        @Override
+        public void onProcessingTime(InternalTimer<Integer, String> timer) throws Exception {
+            // skip
+        }
     }
 
     private static class TestTriggerable implements Triggerable<Integer, String> {

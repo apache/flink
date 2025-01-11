@@ -40,6 +40,7 @@ import org.apache.calcite.plan.RelTraitDef;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 
@@ -134,7 +135,11 @@ public class PlannerMocks {
 
     public PlannerMocks registerTemporaryTable(String tableName, Schema tableSchema) {
         final CatalogTable table =
-                CatalogTable.of(tableSchema, null, Collections.emptyList(), Collections.emptyMap());
+                CatalogTable.of(
+                        tableSchema,
+                        null,
+                        Collections.emptyList(),
+                        Map.of("connector", TestSimpleDynamicTableSourceFactory.IDENTIFIER()));
 
         this.getCatalogManager()
                 .createTemporaryTable(

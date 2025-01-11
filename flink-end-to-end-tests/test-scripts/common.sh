@@ -533,10 +533,12 @@ function check_logs_for_non_empty_out_files {
 
 function shutdown_all {
   stop_cluster
+  stop_sql_gateway
   # stop TMs which started by command: bin/taskmanager.sh start
   "$FLINK_DIR"/bin/taskmanager.sh stop-all
   tm_kill_all
   jm_kill_all
+  gw_kill_all
 }
 
 function stop_cluster {
@@ -681,6 +683,10 @@ function jm_kill_all {
 # Kills all task manager.
 function tm_kill_all {
   kill_all 'TaskManagerRunner|TaskManager'
+}
+
+function gw_kill_all {
+  kill_all 'SqlGateway'
 }
 
 # Kills all processes that match the given name.

@@ -44,10 +44,14 @@ public interface EventGenerator<K, E> {
      */
     boolean canGenerateEventAtWatermark(long globalWatermark);
 
-    /** @return true if, in general and for some global watermark, more events can been produced */
+    /**
+     * @return true if, in general and for some global watermark, more events can been produced
+     */
     boolean hasMoreEvents();
 
-    /** @return the watermark that tracks this generator's progress */
+    /**
+     * @return the watermark that tracks this generator's progress
+     */
     long getLocalWatermark();
 
     /**
@@ -56,6 +60,8 @@ public interface EventGenerator<K, E> {
      */
     EventGenerator<K, E> getNextGenerator(long globalWatermark);
 
-    /** @return key for the generated events */
+    /**
+     * @return key for the generated events
+     */
     K getKey();
 }

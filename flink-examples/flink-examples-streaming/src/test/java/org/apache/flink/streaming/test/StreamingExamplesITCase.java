@@ -141,6 +141,25 @@ public class StreamingExamplesITCase extends AbstractTestBaseJUnit4 {
         compareResultsByLinesInMemory(WordCountData.COUNTS_AS_TUPLES, resultPath);
     }
 
+    @Test
+    public void testWordCountWithAsyncState() throws Exception {
+        final String textPath = createTempFile("text.txt", WordCountData.TEXT);
+        final String resultPath = getTempDirPath("result");
+
+        org.apache.flink.streaming.examples.wordcount.WordCount.main(
+                new String[] {
+                    "--input",
+                    textPath,
+                    "--output",
+                    resultPath,
+                    "--execution-mode",
+                    "streaming",
+                    "--async-state"
+                });
+
+        compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, resultPath);
+    }
+
     /**
      * This {@link WatermarkStrategy} assigns the current system time as the event-time timestamp.
      * In a real use case you should use proper timestamps and an appropriate {@link

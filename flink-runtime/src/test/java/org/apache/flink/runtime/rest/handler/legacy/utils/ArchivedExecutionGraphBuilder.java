@@ -57,6 +57,8 @@ public class ArchivedExecutionGraphBuilder {
     private boolean isStoppable;
     private Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators;
     private CheckpointStatsSnapshot checkpointStatsSnapshot;
+    private String streamGraphJson;
+    private int pendingOperatorCounts = 0;
 
     public ArchivedExecutionGraphBuilder setJobID(JobID jobID) {
         this.jobID = jobID;
@@ -101,6 +103,11 @@ public class ArchivedExecutionGraphBuilder {
         return this;
     }
 
+    public ArchivedExecutionGraphBuilder setStreamGraphJson(String streamGraphJson) {
+        this.streamGraphJson = streamGraphJson;
+        return this;
+    }
+
     public ArchivedExecutionGraphBuilder setArchivedUserAccumulators(
             StringifiedAccumulatorResult[] archivedUserAccumulators) {
         this.archivedUserAccumulators = archivedUserAccumulators;
@@ -127,6 +134,11 @@ public class ArchivedExecutionGraphBuilder {
     public ArchivedExecutionGraphBuilder setCheckpointStatsSnapshot(
             CheckpointStatsSnapshot checkpointStatsSnapshot) {
         this.checkpointStatsSnapshot = checkpointStatsSnapshot;
+        return this;
+    }
+
+    public ArchivedExecutionGraphBuilder setPendingOperatorCounts(int pendingOperatorCounts) {
+        this.pendingOperatorCounts = pendingOperatorCounts;
         return this;
     }
 
@@ -171,6 +183,8 @@ public class ArchivedExecutionGraphBuilder {
                 "stateBackendName",
                 "checkpointStorageName",
                 TernaryBoolean.UNDEFINED,
-                "changelogStorageName");
+                "changelogStorageName",
+                streamGraphJson,
+                pendingOperatorCounts);
     }
 }

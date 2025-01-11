@@ -35,7 +35,9 @@ public interface StreamStateHandle extends StateObject {
      */
     FSDataInputStream openInputStream() throws IOException;
 
-    /** @return Content of this handle as bytes array if it is already in memory. */
+    /**
+     * @return Content of this handle as bytes array if it is already in memory.
+     */
     Optional<byte[]> asBytesIfInMemory();
 
     /**
@@ -46,6 +48,8 @@ public interface StreamStateHandle extends StateObject {
         return Optional.empty();
     }
 
-    /** @return a unique identifier of this handle. */
+    /**
+     * @return a unique identifier of this handle.
+     */
     PhysicalStateHandleID getStreamStateHandleID();
 }

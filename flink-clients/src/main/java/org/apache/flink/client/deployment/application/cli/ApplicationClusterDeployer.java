@@ -48,7 +48,7 @@ public class ApplicationClusterDeployer implements ApplicationDeployer {
         this.clientServiceLoader = checkNotNull(clientServiceLoader);
     }
 
-    public <ClusterID> void run(
+    public <ClusterID> ClusterID run(
             final Configuration configuration,
             final ApplicationConfiguration applicationConfiguration)
             throws Exception {
@@ -64,8 +64,10 @@ public class ApplicationClusterDeployer implements ApplicationDeployer {
             final ClusterSpecification clusterSpecification =
                     clientFactory.getClusterSpecification(configuration);
 
-            clusterDescriptor.deployApplicationCluster(
-                    clusterSpecification, applicationConfiguration);
+            return clusterDescriptor
+                    .deployApplicationCluster(clusterSpecification, applicationConfiguration)
+                    .getClusterClient()
+                    .getClusterId();
         }
     }
 }

@@ -124,7 +124,11 @@ import static java.util.Objects.requireNonNull;
 import static org.apache.calcite.linq4j.Nullness.castNonNull;
 
 /**
- * Copied to fix calcite issues. FLINK modifications are at lines
+ * RelDecorrelator replaces all correlated expressions (corExp) in a relational expression (RelNode)
+ * tree with non-correlated expressions that are produced from joining the RelNode that produces the
+ * corExp with the RelNode that references it.
+ *
+ * <p>TODO:
  *
  * <ol>
  *   <li>Was changed within FLINK-29280, FLINK-28682, FLINK-35804: Line 218 ~ 225, Line 273 ~ 288
@@ -1069,17 +1073,11 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
         // can directly add positions into corDefOutputs since join
         // does not change the output ordering from the inputs.
-        RelNode valueGen =
-                requireNonNull(
-                        createValueGenerator(corVarList, leftInputOutputCount, corDefOutputs),
-                        "createValueGenerator(...) is null");
+        final RelNode valueGen =
+                createValueGenerator(corVarList, leftInputOutputCount, corDefOutputs);
+        requireNonNull(valueGen, "valueGen");
 
-        RelNode join =
-                relBuilder
-                        .push(frame.r)
-                        .push(valueGen)
-                        .join(JoinRelType.INNER, relBuilder.literal(true), ImmutableSet.of())
-                        .build();
+        RelNode join = relBuilder.push(frame.r).push(valueGen).join(JoinRelType.INNER).build();
 
         // Join or Filter does not change the old input ordering. All
         // input fields from newLeftInput (i.e. the original input to the old
@@ -1130,7 +1128,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
                         return true;
                     }
                 }
-                // fall through
+            // fall through
             default:
                 return false;
         }
@@ -1822,10 +1820,11 @@ public class RelDecorrelator implements ReflectiveVisitor {
         @Override
         public RexNode visitLiteral(RexLiteral literal) {
             // Use nullIndicator to decide whether to project null.
-            // Do nothing if the literal is null.
+            // Do nothing if the literal is null or symbol.
             if (!RexUtil.isNull(literal)
                     && projectPulledAboveLeftCorrelator
-                    && (nullIndicator != null)) {
+                    && (nullIndicator != null)
+                    && !RexUtil.isSymbolLiteral(literal)) {
                 return createCaseExpression(nullIndicator, null, literal);
             }
             return literal;

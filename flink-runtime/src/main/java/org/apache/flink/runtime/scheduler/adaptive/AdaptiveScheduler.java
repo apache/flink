@@ -113,6 +113,7 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.JobInformation;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.ReservedSlots;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
+import org.apache.flink.runtime.scheduler.adaptivebatch.NonAdaptiveExecutionPlanSchedulingContext;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.metrics.DeploymentStateTimeMetrics;
@@ -403,6 +404,8 @@ public class AdaptiveScheduler
 
     private int numRestarts = 0;
 
+    private int numRescales = 0;
+
     private final MutableVertexAttemptNumberStore vertexAttemptNumberStore =
             new DefaultVertexAttemptNumberStore();
 
@@ -556,6 +559,7 @@ public class AdaptiveScheduler
                 jobManagerJobMetricGroup,
                 jobStatusStore,
                 () -> (long) numRestarts,
+                () -> (long) numRescales,
                 deploymentTimeMetrics,
                 tmpJobStatusListeners::add,
                 initializationTimestamp,
@@ -1134,6 +1138,11 @@ public class AdaptiveScheduler
     }
 
     @Override
+    public JobID getJobId() {
+        return jobInfo.getJobId();
+    }
+
+    @Override
     public ArchivedExecutionGraph getArchivedExecutionGraph(
             JobStatus jobStatus, @Nullable Throwable cause) {
         return ArchivedExecutionGraph.createSparseArchivedExecutionGraphWithJobVertices(
@@ -1261,7 +1270,11 @@ public class AdaptiveScheduler
                         forcedRestart,
                         userCodeClassLoader,
                         failureCollection));
+
         numRestarts++;
+        if (failureCollection.isEmpty()) {
+            numRescales++;
+        }
     }
 
     @Override
@@ -1436,6 +1449,7 @@ public class AdaptiveScheduler
                 // supports must be pipelined result partition, mark partition finish is
                 // no need.
                 rp -> false,
+                NonAdaptiveExecutionPlanSchedulingContext.INSTANCE,
                 LOG);
     }
 

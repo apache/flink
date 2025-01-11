@@ -19,6 +19,8 @@
 package org.apache.flink.datastream.impl.operators;
 
 import org.apache.flink.api.common.TaskInfo;
+import org.apache.flink.api.common.watermark.WatermarkHandlingResult;
+import org.apache.flink.api.common.watermark.WatermarkHandlingStrategy;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.ProcessingTimeManager;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
@@ -28,24 +30,34 @@ import org.apache.flink.datastream.impl.context.DefaultNonPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultPartitionedContext;
 import org.apache.flink.datastream.impl.context.DefaultRuntimeContext;
 import org.apache.flink.datastream.impl.context.UnsupportedProcessingTimeManager;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateUdfStreamOperator;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermark.AbstractInternalWatermarkDeclaration;
+
+import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /** Operator for {@link OneInputStreamProcessFunction}. */
 public class ProcessOperator<IN, OUT>
-        extends AbstractUdfStreamOperator<OUT, OneInputStreamProcessFunction<IN, OUT>>
+        extends AbstractAsyncStateUdfStreamOperator<OUT, OneInputStreamProcessFunction<IN, OUT>>
         implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
 
     protected transient DefaultRuntimeContext context;
 
-    protected transient DefaultPartitionedContext partitionedContext;
+    protected transient DefaultPartitionedContext<OUT> partitionedContext;
 
     protected transient NonPartitionedContext<OUT> nonPartitionedContext;
 
     protected transient TimestampCollector<OUT> outputCollector;
+
+    protected transient Map<String, AbstractInternalWatermarkDeclaration<?>>
+            watermarkDeclarationMap;
 
     public ProcessOperator(OneInputStreamProcessFunction<IN, OUT> userFunction) {
         super(userFunction);
@@ -63,23 +75,50 @@ public class ProcessOperator<IN, OUT>
                         taskInfo.getNumberOfParallelSubtasks(),
                         taskInfo.getMaxNumberOfParallelSubtasks(),
                         taskInfo.getTaskName(),
+                        taskInfo.getIndexOfThisSubtask(),
+                        taskInfo.getAttemptNumber(),
                         operatorContext.getMetricGroup());
+
+        outputCollector = getOutputCollector();
+        watermarkDeclarationMap =
+                config.getWatermarkDeclarations(getUserCodeClassloader()).stream()
+                        .collect(
+                                Collectors.toMap(
+                                        AbstractInternalWatermarkDeclaration::getIdentifier,
+                                        Function.identity()));
+
         partitionedContext =
-                new DefaultPartitionedContext(
+                new DefaultPartitionedContext<>(
                         context,
                         this::currentKey,
-                        this::setCurrentKey,
+                        getProcessorWithKey(),
                         getProcessingTimeManager(),
                         operatorContext,
                         getOperatorStateBackend());
         outputCollector = getOutputCollector();
         nonPartitionedContext = getNonPartitionedContext();
+        partitionedContext.setNonPartitionedContext(nonPartitionedContext);
+        userFunction.open(nonPartitionedContext);
     }
 
     @Override
     public void processElement(StreamRecord<IN> element) throws Exception {
         outputCollector.setTimestampFromStreamRecord(element);
         userFunction.processRecord(element.getValue(), outputCollector, partitionedContext);
+    }
+
+    @Override
+    public void processWatermarkInternal(WatermarkEvent watermark) throws Exception {
+        WatermarkHandlingResult watermarkHandlingResultByUserFunction =
+                userFunction.onWatermark(
+                        watermark.getWatermark(), outputCollector, nonPartitionedContext);
+        if (watermarkHandlingResultByUserFunction == WatermarkHandlingResult.PEEK
+                && watermarkDeclarationMap
+                                .get(watermark.getWatermark().getIdentifier())
+                                .getDefaultHandlingStrategy()
+                        == WatermarkHandlingStrategy.FORWARD) {
+            output.emitWatermark(watermark);
+        }
     }
 
     protected TimestampCollector<OUT> getOutputCollector() {
@@ -95,12 +134,45 @@ public class ProcessOperator<IN, OUT>
         throw new UnsupportedOperationException("The key is only defined for keyed operator");
     }
 
+    protected BiConsumer<Runnable, Object> getProcessorWithKey() {
+        if (isAsyncStateProcessingEnabled()) {
+            return (r, k) -> asyncProcessWithKey(k, r::run);
+        } else {
+            return (r, k) -> {
+                Object oldKey = currentKey();
+                try {
+                    r.run();
+                } finally {
+                    setCurrentKey(oldKey);
+                }
+            };
+        }
+    }
+
     protected ProcessingTimeManager getProcessingTimeManager() {
         return UnsupportedProcessingTimeManager.INSTANCE;
     }
 
     protected NonPartitionedContext<OUT> getNonPartitionedContext() {
         return new DefaultNonPartitionedContext<>(
-                context, partitionedContext, outputCollector, false, null);
+                context,
+                partitionedContext,
+                outputCollector,
+                false,
+                null,
+                output,
+                watermarkDeclarationMap);
+    }
+
+    @Override
+    public void close() throws Exception {
+        super.close();
+        userFunction.close();
+    }
+
+    @Override
+    public boolean isAsyncStateProcessingEnabled() {
+        // For non-keyed operators, we disable async state processing.
+        return false;
     }
 }

@@ -21,7 +21,9 @@ package org.apache.flink.runtime.executiongraph;
 
 /** Utility methods related to {@link ExecutionGraph}. */
 public class ExecutionGraphUtils {
-    /** @return Whether there is any blocking output edge in the execution graph. */
+    /**
+     * @return Whether there is any blocking output edge in the execution graph.
+     */
     public static boolean isAnyOutputBlocking(ExecutionGraph graph) {
         return graph.getRegisteredExecutions().values().stream()
                 .anyMatch(x -> x.getVertex().getJobVertex().getJobVertex().isAnyOutputBlocking());

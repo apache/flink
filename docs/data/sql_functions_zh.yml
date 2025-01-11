@@ -1334,8 +1334,10 @@ aggregate:
       在窗口分区内根据 rows 的排序为每一行分配一个唯一的序列号，从 1 开始。ROW_NUMBER 和 RANK 相似。ROW_NUMBER 按
       顺序对所有行进行编号（例如 1，2，3，4，5）。RANK 为等值 row 提供相同的序列值（例如 1，2，2，4，5）。
   - sql: LEAD(expression [, offset] [, default])
+    table: lead(expression [, offset] [, default])
     description: 返回窗口中当前行之后第 offset 行处的表达式值。offset 的默认值为 1，default 的默认值为 `NULL`。
   - sql: LAG(expression [, offset] [, default])
+    table: lag(expression [, offset] [, default])
     description: 返回窗口中当前行之前第 offset 行处的表达式值。offset 的默认值为 1，default 的默认值为 `NULL`。
   - sql: FIRST_VALUE(expression)
     table: FIELD.firstValue

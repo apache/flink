@@ -37,10 +37,6 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.functions.TableAggregateFunction;
-import org.apache.flink.table.functions.TableFunction;
-import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
@@ -121,56 +117,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
             StreamExecutionEnvironment executionEnvironment, EnvironmentSettings settings) {
         return StreamTableEnvironmentImpl.create(executionEnvironment, settings);
     }
-
-    /**
-     * Registers a {@link TableFunction} under a unique name in the TableEnvironment's catalog.
-     * Registered functions can be referenced in Table API and SQL queries.
-     *
-     * @param name The name under which the function is registered.
-     * @param tableFunction The TableFunction to register.
-     * @param <T> The type of the output row.
-     * @deprecated Use {@link #createTemporarySystemFunction(String, UserDefinedFunction)} instead.
-     *     Please note that the new method also uses the new type system and reflective extraction
-     *     logic. It might be necessary to update the function implementation as well. See the
-     *     documentation of {@link TableFunction} for more information on the new function design.
-     */
-    @Deprecated
-    <T> void registerFunction(String name, TableFunction<T> tableFunction);
-
-    /**
-     * Registers an {@link AggregateFunction} under a unique name in the TableEnvironment's catalog.
-     * Registered functions can be referenced in Table API and SQL queries.
-     *
-     * @param name The name under which the function is registered.
-     * @param aggregateFunction The AggregateFunction to register.
-     * @param <T> The type of the output value.
-     * @param <ACC> The type of aggregate accumulator.
-     * @deprecated Use {@link #createTemporarySystemFunction(String, UserDefinedFunction)} instead.
-     *     Please note that the new method also uses the new type system and reflective extraction
-     *     logic. It might be necessary to update the function implementation as well. See the
-     *     documentation of {@link AggregateFunction} for more information on the new function
-     *     design.
-     */
-    @Deprecated
-    <T, ACC> void registerFunction(String name, AggregateFunction<T, ACC> aggregateFunction);
-
-    /**
-     * Registers an {@link TableAggregateFunction} under a unique name in the TableEnvironment's
-     * catalog. Registered functions can only be referenced in Table API.
-     *
-     * @param name The name under which the function is registered.
-     * @param tableAggregateFunction The TableAggregateFunction to register.
-     * @param <T> The type of the output value.
-     * @param <ACC> The type of aggregate accumulator.
-     * @deprecated Use {@link #createTemporarySystemFunction(String, UserDefinedFunction)} instead.
-     *     Please note that the new method also uses the new type system and reflective extraction
-     *     logic. It might be necessary to update the function implementation as well. See the
-     *     documentation of {@link TableAggregateFunction} for more information on the new function
-     *     design.
-     */
-    @Deprecated
-    <T, ACC> void registerFunction(
-            String name, TableAggregateFunction<T, ACC> tableAggregateFunction);
 
     /**
      * Converts the given {@link DataStream} into a {@link Table}.
@@ -752,28 +698,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
      */
     @Deprecated
     <T> Table fromDataStream(DataStream<T> dataStream, Expression... fields);
-
-    /**
-     * Creates a view from the given {@link DataStream}. Registered views can be referenced in SQL
-     * queries.
-     *
-     * <p>The field names of the {@link Table} are automatically derived from the type of the {@link
-     * DataStream}.
-     *
-     * <p>The view is registered in the namespace of the current catalog and database. To register
-     * the view in a different catalog use {@link #createTemporaryView(String, DataStream)}.
-     *
-     * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
-     * it will be inaccessible in the current session. To make the permanent object available again
-     * you can drop the corresponding temporary object.
-     *
-     * @param name The name under which the {@link DataStream} is registered in the catalog.
-     * @param dataStream The {@link DataStream} to register.
-     * @param <T> The type of the {@link DataStream} to register.
-     * @deprecated use {@link #createTemporaryView(String, DataStream)}
-     */
-    @Deprecated
-    <T> void registerDataStream(String name, DataStream<T> dataStream);
 
     /**
      * Creates a view from the given {@link DataStream} in a given path with specified field names.

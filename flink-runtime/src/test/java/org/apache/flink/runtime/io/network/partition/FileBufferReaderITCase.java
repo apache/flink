@@ -50,6 +50,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -145,8 +146,8 @@ class FileBufferReaderITCase {
         sink.setParallelism(parallelism);
         sink.setSlotSharingGroup(group2);
 
-        sink.connectNewDataSetAsInput(
-                source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+        connectNewDataSetAsInput(
+                sink, source, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
 
         return JobGraphTestUtils.batchJobGraph(source, sink);
     }

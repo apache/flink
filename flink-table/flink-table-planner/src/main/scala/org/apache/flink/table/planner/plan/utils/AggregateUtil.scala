@@ -17,7 +17,9 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.functions._
@@ -1174,5 +1176,20 @@ object AggregateUtil extends Enumeration {
             case _ => None
           })
       .exists(_.getKind == FunctionKind.TABLE_AGGREGATE)
+  }
+
+  def isAsyncStateEnabled(config: ReadableConfig, aggInfoList: AggregateInfoList): Boolean = {
+    // Currently, we do not support async state with agg functions that include DataView.
+    val containsDataViewInAggInfo =
+      aggInfoList.aggInfos.toStream.stream().anyMatch(agg => !agg.viewSpecs.isEmpty)
+
+    val containsDataViewInDistinctInfo =
+      aggInfoList.distinctInfos.toStream
+        .stream()
+        .anyMatch(distinct => distinct.dataViewSpec.isDefined)
+
+    config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED) &&
+    !containsDataViewInAggInfo &&
+    !containsDataViewInDistinctInfo
   }
 }

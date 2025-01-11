@@ -39,6 +39,9 @@ import java.util.Set;
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.state.forst.ForStOptions.CACHE_DIRECTORY;
+import static org.apache.flink.state.forst.ForStOptions.CACHE_RESERVED_SIZE;
+import static org.apache.flink.state.forst.ForStOptions.CACHE_SIZE_BASE_LIMIT;
 import static org.apache.flink.state.forst.ForStOptions.EXECUTOR_COORDINATOR_INLINE;
 import static org.apache.flink.state.forst.ForStOptions.EXECUTOR_READ_IO_PARALLELISM;
 import static org.apache.flink.state.forst.ForStOptions.EXECUTOR_WRITE_IO_INLINE;
@@ -324,8 +327,38 @@ public class ForStConfigurableOptions implements Serializable {
                                     + " and re-written to the same level as they were before. It makes sure a file goes through"
                                     + " compaction filters periodically. 0 means turning off periodic compaction.The default value is '30days'.");
 
+    public static final ConfigOption<Double> RESTORE_OVERLAP_FRACTION_THRESHOLD =
+            key("state.backend.forst.restore-overlap-fraction-threshold")
+                    .doubleType()
+                    .defaultValue(0.0)
+                    .withDescription(
+                            "The threshold of overlap fraction between the handle's key-group range and target key-group range. "
+                                    + "When restore base DB, only the handle which overlap fraction greater than or equal to threshold "
+                                    + "has a chance to be an initial handle. "
+                                    + "The default value is 0.0, there is always a handle will be selected for initialization. ");
+
+    public static final ConfigOption<Boolean> USE_INGEST_DB_RESTORE_MODE =
+            key("state.backend.forst.use-ingest-db-restore-mode")
+                    .booleanType()
+                    .defaultValue(Boolean.FALSE)
+                    .withDescription(
+                            "A recovery mode that directly clips and ingests multiple DBs during state recovery if the keys"
+                                    + " in the SST files does not exceed the declared key-group range.");
+
+    public static final ConfigOption<Boolean> USE_DELETE_FILES_IN_RANGE_DURING_RESCALING =
+            key("state.backend.forst.rescaling.use-delete-files-in-range")
+                    .booleanType()
+                    .defaultValue(Boolean.FALSE)
+                    .withDescription(
+                            "If true, during rescaling, the deleteFilesInRange API will be invoked "
+                                    + "to clean up the useless files so that local disk space can be reclaimed more promptly.");
+
     static final ConfigOption<?>[] CANDIDATE_CONFIGS =
             new ConfigOption<?>[] {
+                // cache
+                CACHE_DIRECTORY,
+                CACHE_SIZE_BASE_LIMIT,
+                CACHE_RESERVED_SIZE,
                 // configurable forst executor
                 EXECUTOR_COORDINATOR_INLINE,
                 EXECUTOR_WRITE_IO_INLINE,
@@ -354,6 +387,9 @@ public class ForStConfigurableOptions implements Serializable {
                 USE_BLOOM_FILTER,
                 BLOOM_FILTER_BITS_PER_KEY,
                 BLOOM_FILTER_BLOCK_BASED_MODE,
+                RESTORE_OVERLAP_FRACTION_THRESHOLD,
+                USE_INGEST_DB_RESTORE_MODE,
+                USE_DELETE_FILES_IN_RANGE_DURING_RESCALING
             };
 
     private static final Set<ConfigOption<?>> POSITIVE_INT_CONFIG_SET =

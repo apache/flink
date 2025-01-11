@@ -32,15 +32,12 @@ import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.Column;
-import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TestSchemaResolver;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.factories.ManagedTableFactory;
-import org.apache.flink.table.factories.TestManagedTableFactory;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.types.Row;
@@ -76,12 +73,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM;
-import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX;
-import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -559,57 +553,5 @@ public class HiveCatalogITCase {
                                     tableEnv.executeSql("select * from v2").collect());
                     assertThat(results).hasSize(3);
                 });
-    }
-
-    @Test
-    public void testCreateAndGetManagedTable() throws Exception {
-        TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-        String catalog = "myhive";
-        String database = "default";
-        String table = "managed_table";
-        ObjectIdentifier tableIdentifier = ObjectIdentifier.of(catalog, database, table);
-        try {
-            TestManagedTableFactory.MANAGED_TABLES.put(tableIdentifier, new AtomicReference<>());
-            tableEnv.registerCatalog(catalog, hiveCatalog);
-            tableEnv.useCatalog(catalog);
-            final String sql =
-                    String.format(
-                            "CREATE TABLE %s (\n"
-                                    + "  uuid varchar(40) not null,\n"
-                                    + "  price DECIMAL(10, 2),\n"
-                                    + "  currency STRING,\n"
-                                    + "  ts6 TIMESTAMP(6),\n"
-                                    + "  ts AS CAST(ts6 AS TIMESTAMP(3)),\n"
-                                    + "  WATERMARK FOR ts AS ts,\n"
-                                    + "  constraint ct1 PRIMARY KEY(uuid) NOT ENFORCED)\n",
-                            table);
-            tableEnv.executeSql(sql);
-
-            Map<String, String> expectedOptions = new HashMap<>();
-            expectedOptions.put(
-                    TestManagedTableFactory.ENRICHED_KEY, TestManagedTableFactory.ENRICHED_VALUE);
-
-            assertThat(TestManagedTableFactory.MANAGED_TABLES.get(tableIdentifier).get())
-                    .containsExactlyInAnyOrderEntriesOf(expectedOptions);
-
-            Map<String, String> expectedParameters = new HashMap<>();
-            expectedOptions.forEach((k, v) -> expectedParameters.put(FLINK_PROPERTY_PREFIX + k, v));
-            expectedParameters.put(
-                    FLINK_PROPERTY_PREFIX + CONNECTOR.key(),
-                    ManagedTableFactory.DEFAULT_IDENTIFIER);
-
-            assertThat(hiveCatalog.getHiveTable(tableIdentifier.toObjectPath()).getParameters())
-                    .containsAllEntriesOf(expectedParameters);
-
-            assertThat(hiveCatalog.getTable(tableIdentifier.toObjectPath()).getOptions())
-                    .containsExactlyEntriesOf(
-                            Collections.singletonMap(
-                                    TestManagedTableFactory.ENRICHED_KEY,
-                                    TestManagedTableFactory.ENRICHED_VALUE));
-
-        } finally {
-            tableEnv.executeSql(String.format("DROP TABLE %s", table));
-            assertThat(TestManagedTableFactory.MANAGED_TABLES.get(tableIdentifier).get()).isNull();
-        }
     }
 }

@@ -118,4 +118,9 @@ public class MemoryTierFactory implements TierFactory {
             TieredStorageNettyService nettyService) {
         return new MemoryTierConsumerAgent(tieredStorageConsumerSpecs, nettyService);
     }
+
+    @Override
+    public String identifier() {
+        return "memory";
+    }
 }

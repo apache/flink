@@ -510,6 +510,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             if (executionGraphInfoStore != null) {
                 try {
                     executionGraphInfoStore.close();
+                    executionGraphInfoStore = null;
                 } catch (Throwable t) {
                     exception = ExceptionUtils.firstOrSuppressed(t, exception);
                 }
@@ -591,7 +592,9 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                             shutDownApplicationFuture, () -> stopClusterServices(cleanupHaData));
 
             final CompletableFuture<Void> rpcSystemClassLoaderCloseFuture =
-                    FutureUtils.runAfterwards(serviceShutdownFuture, rpcSystem::close);
+                    rpcSystem != null
+                            ? FutureUtils.runAfterwards(serviceShutdownFuture, rpcSystem::close)
+                            : FutureUtils.completedVoidFuture();
 
             final CompletableFuture<Void> cleanupDirectoriesFuture =
                     FutureUtils.runAfterwards(

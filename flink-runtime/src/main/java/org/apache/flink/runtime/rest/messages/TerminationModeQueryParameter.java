@@ -49,7 +49,9 @@ public class TerminationModeQueryParameter
     public enum TerminationMode {
         CANCEL,
 
-        /** @deprecated Please use the "stop" command instead. */
+        /**
+         * @deprecated Please use the "stop" command instead.
+         */
         STOP
     }
 }

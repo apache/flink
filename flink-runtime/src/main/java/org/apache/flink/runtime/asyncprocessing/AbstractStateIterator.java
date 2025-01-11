@@ -106,7 +106,10 @@ public abstract class AbstractStateIterator<T> implements StateIterator<T> {
         Collection<StateFuture<? extends U>> resultFutures = new ArrayList<>();
 
         for (T item : cache) {
-            resultFutures.add(iterating.apply(item));
+            StateFuture<? extends U> resultFuture = iterating.apply(item);
+            if (resultFuture != null) {
+                resultFutures.add(resultFuture);
+            }
         }
         if (hasNext()) {
             return StateFutureUtils.combineAll(resultFutures)

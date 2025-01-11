@@ -63,6 +63,7 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
     private final N defaultNamespace;
 
     private final ThreadLocal<TypeSerializer<N>> namespaceSerializer;
+
     /** The data outputStream used for value serializer, which should be thread-safe. */
     final ThreadLocal<DataOutputSerializer> valueSerializerView;
 

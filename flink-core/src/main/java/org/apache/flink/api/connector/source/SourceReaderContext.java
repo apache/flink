@@ -19,6 +19,7 @@
 package org.apache.flink.api.connector.source;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.watermark.Watermark;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 import org.apache.flink.util.UserCodeClassLoader;
@@ -27,7 +28,9 @@ import org.apache.flink.util.UserCodeClassLoader;
 @Public
 public interface SourceReaderContext {
 
-    /** @return The metric group this source belongs to. */
+    /**
+     * @return The metric group this source belongs to.
+     */
     SourceReaderMetricGroup metricGroup();
 
     /** Gets the configuration with which Flink was started. */
@@ -39,7 +42,9 @@ public interface SourceReaderContext {
      */
     String getLocalHostName();
 
-    /** @return The index of this subtask. */
+    /**
+     * @return The index of this subtask.
+     */
     int getIndexOfSubtask();
 
     /**
@@ -70,6 +75,15 @@ public interface SourceReaderContext {
      * @return the parallelism of the Source.
      */
     default int currentParallelism() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Send the watermark to source output.
+     *
+     * <p>This should only be used for datastream v2.
+     */
+    default void emitWatermark(Watermark watermark) {
         throw new UnsupportedOperationException();
     }
 }

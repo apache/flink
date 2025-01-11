@@ -24,6 +24,7 @@ import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.TableChange;
+import org.apache.flink.table.catalog.TableChange.MaterializedTableChange;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 
 import java.util.List;
@@ -35,19 +36,19 @@ import java.util.stream.Collectors;
 @Internal
 public class AlterMaterializedTableChangeOperation extends AlterMaterializedTableOperation {
 
-    private final List<TableChange> tableChanges;
+    private final List<MaterializedTableChange> tableChanges;
     private final CatalogMaterializedTable catalogMaterializedTable;
 
     public AlterMaterializedTableChangeOperation(
             ObjectIdentifier tableIdentifier,
-            List<TableChange> tableChanges,
+            List<MaterializedTableChange> tableChanges,
             CatalogMaterializedTable catalogMaterializedTable) {
         super(tableIdentifier);
         this.tableChanges = tableChanges;
         this.catalogMaterializedTable = catalogMaterializedTable;
     }
 
-    public List<TableChange> getTableChanges() {
+    public List<MaterializedTableChange> getTableChanges() {
         return tableChanges;
     }
 
@@ -72,22 +73,13 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
     public String asSummaryString() {
         String changes =
                 tableChanges.stream()
-                        .map(
-                                tableChange -> {
-                                    if (tableChange
-                                            instanceof TableChange.MaterializedTableChange) {
-                                        return toString(
-                                                (TableChange.MaterializedTableChange) tableChange);
-                                    } else {
-                                        return AlterTableChangeOperation.toString(tableChange);
-                                    }
-                                })
+                        .map(AlterMaterializedTableChangeOperation::toString)
                         .collect(Collectors.joining(",\n"));
         return String.format(
                 "ALTER MATERIALIZED TABLE %s\n%s", tableIdentifier.asSummaryString(), changes);
     }
 
-    private String toString(TableChange.MaterializedTableChange tableChange) {
+    private static String toString(MaterializedTableChange tableChange) {
         if (tableChange instanceof TableChange.ModifyRefreshStatus) {
             TableChange.ModifyRefreshStatus refreshStatus =
                     (TableChange.ModifyRefreshStatus) tableChange;
@@ -99,9 +91,13 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
             return String.format(
                     "  MODIFY REFRESH HANDLER DESCRIPTION TO '%s'",
                     refreshHandler.getRefreshHandlerDesc());
+        } else if (tableChange instanceof TableChange.ModifyDefinitionQuery) {
+            TableChange.ModifyDefinitionQuery definitionQuery =
+                    (TableChange.ModifyDefinitionQuery) tableChange;
+            return String.format(
+                    " MODIFY DEFINITION QUERY TO '%s'", definitionQuery.getDefinitionQuery());
         } else {
-            throw new UnsupportedOperationException(
-                    String.format("Unknown materialized table change: %s.", tableChange));
+            return AlterTableChangeOperation.toString(tableChange);
         }
     }
 }

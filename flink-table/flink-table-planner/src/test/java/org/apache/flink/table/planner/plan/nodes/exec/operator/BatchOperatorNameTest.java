@@ -21,14 +21,8 @@ package org.apache.flink.table.planner.plan.nodes.exec.operator;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.legacy.api.TableSchema;
-import org.apache.flink.table.legacy.sinks.TableSink;
-import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableTestUtil;
-import org.apache.flink.table.planner.utils.TestLegacyFilterableTableSource;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.TestTemplate;
 
@@ -130,27 +124,6 @@ class BatchOperatorNameTest extends OperatorNameTestBase {
     void testSortLimit() {
         createTestSource();
         verifyQuery("select * from MyTable order by a limit 10");
-    }
-
-    @TestTemplate
-    void testLegacySourceSink() {
-        TableSchema schema = TestLegacyFilterableTableSource.defaultSchema();
-        TestLegacyFilterableTableSource.createTemporaryTable(
-                tEnv,
-                schema,
-                "MySource",
-                true,
-                TestLegacyFilterableTableSource.defaultRows().toList(),
-                TestLegacyFilterableTableSource.defaultFilterableFields());
-        TableSink<Row> sink =
-                ((BatchTableTestUtil) util)
-                        .createCollectTableSink(
-                                schema.getFieldNames(),
-                                schema.getTableColumns().stream()
-                                        .map(col -> col.getType().getLogicalType())
-                                        .toArray(LogicalType[]::new));
-        util.testingTableEnv().registerTableSinkInternal("MySink", sink);
-        verifyInsert("insert into MySink select * from MySource");
     }
 
     @TestTemplate

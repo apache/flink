@@ -485,22 +485,35 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public void createTemporaryTable(String path, TableDescriptor descriptor) {
+        this.createTemporaryTable(path, descriptor, false);
+    }
+
+    @Override
+    public void createTemporaryTable(
+            String path, TableDescriptor descriptor, boolean ignoreIfExists) {
         Preconditions.checkNotNull(path, "Path must not be null.");
         Preconditions.checkNotNull(descriptor, "Table descriptor must not be null.");
 
         final ObjectIdentifier tableIdentifier =
                 catalogManager.qualifyIdentifier(getParser().parseIdentifier(path));
-        catalogManager.createTemporaryTable(descriptor.toCatalogTable(), tableIdentifier, false);
+        catalogManager.createTemporaryTable(
+                descriptor.toCatalogTable(), tableIdentifier, ignoreIfExists);
     }
 
     @Override
     public void createTable(String path, TableDescriptor descriptor) {
+        this.createTable(path, descriptor, false);
+    }
+
+    @Override
+    public boolean createTable(String path, TableDescriptor descriptor, boolean ignoreIfExists) {
         Preconditions.checkNotNull(path, "Path must not be null.");
         Preconditions.checkNotNull(descriptor, "Table descriptor must not be null.");
 
         final ObjectIdentifier tableIdentifier =
                 catalogManager.qualifyIdentifier(getParser().parseIdentifier(path));
-        catalogManager.createTable(descriptor.toCatalogTable(), tableIdentifier, false);
+        return catalogManager.createTable(
+                descriptor.toCatalogTable(), tableIdentifier, ignoreIfExists);
     }
 
     @Override
@@ -529,6 +542,24 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         CatalogBaseTable tableTable = new QueryOperationCatalogView(queryOperation);
 
         catalogManager.createTemporaryTable(tableTable, tableIdentifier, false);
+    }
+
+    @Override
+    public void createView(String path, Table view) {
+        createView(path, view, false);
+    }
+
+    @Override
+    public boolean createView(String path, Table view, boolean ignoreIfExists) {
+        Preconditions.checkNotNull(path, "Path must not be null.");
+        Preconditions.checkNotNull(view, "Table view must not be null.");
+        UnresolvedIdentifier identifier = getParser().parseIdentifier(path);
+
+        ObjectIdentifier viewIdentifier = catalogManager.qualifyIdentifier(identifier);
+        QueryOperation queryOperation =
+                qualifyQueryOperation(viewIdentifier, view.getQueryOperation());
+        CatalogBaseTable tableTable = new QueryOperationCatalogView(queryOperation);
+        return catalogManager.createTable(tableTable, viewIdentifier, ignoreIfExists);
     }
 
     @Override
@@ -589,7 +620,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public String[] listDatabases() {
-        return catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get().listDatabases()
+        return catalogManager
+                .getCatalog(catalogManager.getCurrentCatalog())
+                .get()
+                .listDatabases()
                 .stream()
                 .sorted()
                 .toArray(String[]::new);
@@ -635,6 +669,18 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
+    public boolean dropTable(String path) {
+        return dropTable(path, true);
+    }
+
+    @Override
+    public boolean dropTable(String path, boolean ignoreIfNotExists) {
+        UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(path);
+        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        return catalogManager.dropTable(identifier, ignoreIfNotExists);
+    }
+
+    @Override
     public boolean dropTemporaryView(String path) {
         UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(path);
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
@@ -644,6 +690,18 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         } catch (ValidationException e) {
             return false;
         }
+    }
+
+    @Override
+    public boolean dropView(String path) {
+        return dropView(path, true);
+    }
+
+    @Override
+    public boolean dropView(String path, boolean ignoreIfNotExists) {
+        UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(path);
+        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        return catalogManager.dropView(identifier, ignoreIfNotExists);
     }
 
     @Override
@@ -1308,8 +1366,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return planner.translate(modifyOperations);
     }
 
-    @Override
-    public void registerTableSourceInternal(String name, TableSource<?> tableSource) {
+    /** TODO FLINK-36132 Remove this method later. */
+    private void registerTableSourceInternal(String name, TableSource<?> tableSource) {
         validateTableSource(tableSource);
         ObjectIdentifier objectIdentifier =
                 catalogManager.qualifyIdentifier(UnresolvedIdentifier.of(name));

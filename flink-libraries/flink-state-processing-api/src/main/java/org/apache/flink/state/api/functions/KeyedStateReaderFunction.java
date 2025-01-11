@@ -73,10 +73,14 @@ public abstract class KeyedStateReaderFunction<K, OUT> extends AbstractRichFunct
      */
     public interface Context {
 
-        /** @return All registered event time timers for the current key. */
+        /**
+         * @return All registered event time timers for the current key.
+         */
         Set<Long> registeredEventTimeTimers() throws Exception;
 
-        /** @return All registered processing time timers for the current key. */
+        /**
+         * @return All registered processing time timers for the current key.
+         */
         Set<Long> registeredProcessingTimeTimers() throws Exception;
     }
 }

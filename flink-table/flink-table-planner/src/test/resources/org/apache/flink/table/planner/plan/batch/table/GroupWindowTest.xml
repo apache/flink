@@ -21,7 +21,7 @@ limitations under the License.
       <![CDATA[
 LogicalProject(EXPR$0=[$0])
 +- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, long, 5)], properties=[])
-   +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -29,7 +29,7 @@ LogicalProject(EXPR$0=[$0])
 HashWindowAggregate(window=[TumblingGroupWindow('w, long, 5)], select=[Final_COUNT(count$0) AS EXPR$0])
 +- Exchange(distribution=[single])
    +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w, long, 5)], select=[Partial_COUNT(int) AS count$0])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]], fields=[long, int, string])
+      +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[long, int, string])
 ]]>
     </Resource>
   </TestCase>
@@ -38,7 +38,7 @@ HashWindowAggregate(window=[TumblingGroupWindow('w, long, 5)], select=[Final_COU
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1])
 +- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[SlidingGroupWindow('w, long, 8, 10)], properties=[])
-   +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -46,7 +46,7 @@ LogicalProject(string=[$0], EXPR$0=[$1])
 HashWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, long, 8, 10)], select=[string, Final_COUNT(count$0) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])
    +- LocalHashWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, long, 8, 10)], select=[string, Partial_COUNT(int) AS count$0])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]], fields=[long, int, string])
+      +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[long, int, string])
 ]]>
     </Resource>
   </TestCase>
@@ -55,7 +55,7 @@ HashWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, long, 8, 10
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1])
 +- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, long, 5)], properties=[])
-   +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -63,7 +63,7 @@ LogicalProject(string=[$0], EXPR$0=[$1])
 HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)], select=[string, Final_COUNT(count$0) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])
    +- LocalHashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)], select=[string, Partial_COUNT(int) AS count$0])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]], fields=[long, int, string])
+      +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[long, int, string])
 ]]>
     </Resource>
   </TestCase>
@@ -72,7 +72,7 @@ HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)],
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
 +- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3])
-   +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, int, string)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -80,7 +80,7 @@ LogicalProject(string=[$0], EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
 HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3], select=[string, Final_COUNT(count$0) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])
    +- LocalHashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3], select=[string, Partial_COUNT(int) AS count$0])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, int, string)]]], fields=[ts, int, string])
+      +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[ts, int, string])
 ]]>
     </Resource>
   </TestCase>
@@ -90,7 +90,7 @@ HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, ts, 720000
 LogicalProject(string=[$0], EXPR$0=[$1])
 +- LogicalWindowAggregate(group=[{2}], EXPR$0=[*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithMerge*($0, $3)], window=[TumblingGroupWindow('w, long, 5)], properties=[])
    +- LogicalProject(long=[$0], int=[$1], string=[$2], int0=[CAST($1):BIGINT])
-      +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -102,7 +102,7 @@ SortWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)],
          +- LocalSortWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)], select=[string, Partial_*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithMerge*(long, int0) AS EXPR$0])
             +- Calc(select=[long, int, string, CAST(int AS BIGINT) AS int0])
                +- Sort(orderBy=[string ASC, long ASC])
-                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]], fields=[long, int, string])
+                  +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[long, int, string])
 ]]>
     </Resource>
   </TestCase>
@@ -111,7 +111,7 @@ SortWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)],
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
 +- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3])
-   +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, int, string)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -119,7 +119,7 @@ LogicalProject(string=[$0], EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
 HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3], select=[string, Final_COUNT(count$0) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])
    +- LocalHashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3], select=[string, Partial_COUNT(int) AS count$0])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, int, string)]]], fields=[ts, int, string])
+      +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[ts, int, string])
 ]]>
     </Resource>
   </TestCase>

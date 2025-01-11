@@ -48,8 +48,10 @@ public final class CommittableCollectorSerializer<CommT>
     private static final int MAGIC_NUMBER = 0xb91f252c;
 
     private final SimpleVersionedSerializer<CommT> committableSerializer;
+
     /** Default values are used to deserialize from Flink 1 that didn't store the information. */
     private final int owningSubtaskId;
+
     /** Default values are used to deserialize from Flink 1 that didn't store the information. */
     private final int owningNumberOfSubtasks;
 
@@ -207,7 +209,7 @@ public final class CommittableCollectorSerializer<CommT>
 
         @Override
         public int getVersion() {
-            return 1;
+            return 2;
         }
 
         @Override
@@ -219,7 +221,6 @@ public final class CommittableCollectorSerializer<CommT>
                     new ArrayList<>(subtask.getRequests()),
                     out);
             out.writeInt(subtask.getNumCommittables());
-            out.writeInt(subtask.getNumDrained());
             out.writeInt(subtask.getNumFailed());
             return out.getCopyOfBuffer();
         }
@@ -236,7 +237,7 @@ public final class CommittableCollectorSerializer<CommT>
             return new SubtaskCommittableManager<>(
                     requests,
                     in.readInt(),
-                    in.readInt(),
+                    version >= 2 ? 0 : in.readInt(),
                     in.readInt(),
                     subtaskId,
                     checkNotNull(

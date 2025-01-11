@@ -40,6 +40,7 @@
     "org.apache.flink.sql.parser.ddl.SqlAlterDatabase"
     "org.apache.flink.sql.parser.ddl.SqlAlterFunction"
     "org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTable"
+    "org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableAsQuery"
     "org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableFreshness"
     "org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableOptions"
     "org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableRefreshMode"
@@ -52,7 +53,6 @@
     "org.apache.flink.sql.parser.ddl.SqlAlterTable.AlterTableContext"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableAdd"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableAddConstraint"
-    "org.apache.flink.sql.parser.ddl.SqlAlterTableCompact"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableDropColumn"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableDropDistribution"
@@ -174,7 +174,6 @@
     "CHANGELOG_MODE"
     "COLUMNS"
     "COMMENT"
-    "COMPACT"
     "COMPILE"
     "COMPUTE"
     "CONTINUOUS"
@@ -272,7 +271,6 @@
     "COMMAND_FUNCTION"
     "COMMAND_FUNCTION_CODE"
     "COMMITTED"
-    "COMPACT"
     "COMPILE"
     "CONDITIONAL"
     "CONDITION_NUMBER"
@@ -287,6 +285,8 @@
     "CURSOR_NAME"
     "DATA"
     "DATABASE"
+    "DATE_DIFF"
+    "DATETIME_DIFF"
     "DATETIME_INTERVAL_CODE"
     "DATETIME_INTERVAL_PRECISION"
     "DAYS"
@@ -708,4 +708,5 @@
   includeCompoundIdentifier: true
   includeBraces: true
   includeAdditionalDeclarations: false
+  includeParsingStringLiteralAsArrayLiteral: false
 }

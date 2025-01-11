@@ -45,8 +45,8 @@ You could also programmatically set it as follows:
 Configuration config = new Configuration();
 
 // register the class of the serializer as serializer for a type
-config.set(PipelineOptions.SERIALIZATION_CONFIG, 
-    "[org.example.MyCustomType: {type: kryo, kryo-type: registered, class: org.example.MyCustomSerializer}]");
+config.set(PipelineOptions.SERIALIZATION_CONFIG,
+    List.of("org.example.MyCustomType: {type: kryo, kryo-type: registered, class: org.example.MyCustomSerializer}"));
 
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```

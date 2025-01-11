@@ -17,10 +17,9 @@
  */
 package org.apache.flink.table.planner.plan.common
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
-import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
+import org.apache.flink.table.types.AbstractDataType
 
 import org.junit.jupiter.api.Test
 
@@ -102,7 +101,10 @@ abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
   def testCrossWithUnnestForMap(): Unit = {
     util.addTableSource(
       "MyTable",
-      Array[TypeInformation[_]](Types.INT, Types.LONG, Types.MAP(Types.STRING, Types.STRING)),
+      Array[AbstractDataType[_]](
+        DataTypes.INT,
+        DataTypes.BIGINT,
+        DataTypes.MAP(DataTypes.STRING, DataTypes.STRING)),
       Array("a", "b", "c"))
     verifyPlan("SELECT a, b, v FROM MyTable CROSS JOIN UNNEST(c) as f(k, v)")
   }

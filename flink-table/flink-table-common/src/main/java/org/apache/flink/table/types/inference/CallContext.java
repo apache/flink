@@ -23,6 +23,8 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.ProcessTableFunction;
+import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -44,7 +46,8 @@ public interface CallContext {
 
     /**
      * Returns {@code true} if the argument at the given position is a literal and {@code null},
-     * {@code false} otherwise.
+     * {@code false} otherwise. If the argument is declared as optional and has no value, true is
+     * returned.
      *
      * <p>Use {@link #isArgumentLiteral(int)} before to check if the argument is actually a literal.
      */
@@ -60,6 +63,17 @@ public interface CallContext {
      * <p>Use {@link #isArgumentLiteral(int)} before to check if the argument is actually a literal.
      */
     <T> Optional<T> getArgumentValue(int pos, Class<T> clazz);
+
+    /**
+     * Returns information about the table that has been passed to a table argument.
+     *
+     * <p>Semantics are only available for table arguments (i.e. arguments of a {@link
+     * ProcessTableFunction} that are annotated with {@code @ArgumentHint(TABLE_AS_SET)} or
+     * {@code @ArgumentHint(TABLE_AS_ROW)}).
+     */
+    default Optional<TableSemantics> getTableSemantics(int pos) {
+        return Optional.empty();
+    }
 
     /**
      * Returns the function's name usually referencing the function in a catalog.

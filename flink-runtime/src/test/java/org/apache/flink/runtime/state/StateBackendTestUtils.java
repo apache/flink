@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -28,6 +29,8 @@ import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.v2.internal.InternalKeyedState;
 import org.apache.flink.util.function.FunctionWithException;
 
 import javax.annotation.Nonnull;
@@ -114,12 +117,14 @@ public class StateBackendTestUtils {
 
         private final Supplier<org.apache.flink.api.common.state.v2.State> innerStateSupplier;
         private final StateExecutor stateExecutor;
+        private final PriorityQueueSetFactory factory;
 
         public TestAsyncKeyedStateBackend(
                 Supplier<org.apache.flink.api.common.state.v2.State> innerStateSupplier,
                 StateExecutor stateExecutor) {
             this.innerStateSupplier = innerStateSupplier;
             this.stateExecutor = stateExecutor;
+            this.factory = new HeapPriorityQueueSetFactory(new KeyGroupRange(0, 127), 128, 128);
         }
 
         @Override
@@ -127,13 +132,25 @@ public class StateBackendTestUtils {
             // do nothing
         }
 
+        @Override
+        public <N, S extends org.apache.flink.api.common.state.v2.State, SV>
+                S getOrCreateKeyedState(
+                        N defaultNamespace,
+                        TypeSerializer<N> namespaceSerializer,
+                        org.apache.flink.runtime.state.v2.StateDescriptor<SV> stateDesc)
+                        throws Exception {
+            stateDesc.initializeSerializerUnlessSet(new ExecutionConfig());
+            return (S) innerStateSupplier.get();
+        }
+
         @Nonnull
         @Override
-        @SuppressWarnings("unchecked")
-        public <N, S extends org.apache.flink.api.common.state.v2.State, SV> S createState(
+        public <N, S extends InternalKeyedState, SV> S createStateInternal(
                 @Nonnull N defaultNamespace,
                 @Nonnull TypeSerializer<N> namespaceSerializer,
-                @Nonnull org.apache.flink.runtime.state.v2.StateDescriptor<SV> stateDesc) {
+                @Nonnull org.apache.flink.runtime.state.v2.StateDescriptor<SV> stateDesc)
+                throws Exception {
+            stateDesc.initializeSerializerUnlessSet(new ExecutionConfig());
             return (S) innerStateSupplier.get();
         }
 
@@ -141,6 +158,11 @@ public class StateBackendTestUtils {
         @Override
         public StateExecutor createStateExecutor() {
             return stateExecutor;
+        }
+
+        @Override
+        public KeyGroupRange getKeyGroupRange() {
+            return new KeyGroupRange(0, 127);
         }
 
         @Override
@@ -172,6 +194,15 @@ public class StateBackendTestUtils {
                 throws Exception {
             // do nothing
             return null;
+        }
+
+        @Nonnull
+        @Override
+        public <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
+                KeyGroupedInternalPriorityQueue<T> create(
+                        @Nonnull String stateName,
+                        @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
+            return factory.create(stateName, byteOrderedElementSerializer);
         }
     }
 

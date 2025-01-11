@@ -458,22 +458,6 @@ WatermarkAssigner(rowtime=[timestamp], watermark=[timestamp])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testLegacyTableSourceScan">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testProcTimeTemporalJoinOnUpsertSource">
     <Resource name="sql">
       <![CDATA[

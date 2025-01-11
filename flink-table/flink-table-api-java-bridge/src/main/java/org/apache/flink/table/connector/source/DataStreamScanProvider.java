@@ -51,16 +51,6 @@ public interface DataStreamScanProvider
      *
      * @see SingleOutputStreamOperator#uid(String)
      */
-    default DataStream<RowData> produceDataStream(
-            ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
-        return produceDataStream(execEnv);
-    }
-
-    /** Creates a scan Java {@link DataStream} from a {@link StreamExecutionEnvironment}. */
-    @Deprecated
-    default DataStream<RowData> produceDataStream(StreamExecutionEnvironment execEnv) {
-        throw new UnsupportedOperationException(
-                "This method is deprecated. "
-                        + "Use produceDataStream(ProviderContext, StreamExecutionEnvironment) instead");
-    }
+    DataStream<RowData> produceDataStream(
+            ProviderContext providerContext, StreamExecutionEnvironment execEnv);
 }

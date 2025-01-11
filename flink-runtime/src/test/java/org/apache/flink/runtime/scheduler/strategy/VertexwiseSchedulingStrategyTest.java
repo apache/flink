@@ -282,6 +282,6 @@ class VertexwiseSchedulingStrategyTest {
         return new VertexwiseSchedulingStrategy(
                 testingSchedulerOperation,
                 schedulingTopology,
-                (ignore1, ignore2) -> inputConsumableDecider);
+                (ignore1, ignore2, ignore3) -> inputConsumableDecider);
     }
 }

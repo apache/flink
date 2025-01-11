@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
@@ -64,4 +65,11 @@ public interface Output<T> extends Collector<T> {
      */
     @Experimental
     void emitRecordAttributes(RecordAttributes recordAttributes);
+
+    /**
+     * Emits a {@link org.apache.flink.api.common.watermark.Watermark} from an operator, wrapped in
+     * a {@link WatermarkEvent}.
+     */
+    @Experimental
+    void emitWatermark(WatermarkEvent watermark);
 }

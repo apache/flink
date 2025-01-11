@@ -27,4 +27,6 @@ import org.apache.flink.api.common.state.v2.ReducingState;
  * @param <T> Type of the value in the operator state.
  */
 public interface InternalReducingState<K, N, T>
-        extends InternalAggregatingState<K, N, T, T, T>, ReducingState<T> {}
+        extends InternalAggregatingState<K, N, T, T, T>,
+                ReducingState<T>,
+                InternalStateAccessible<T> {}

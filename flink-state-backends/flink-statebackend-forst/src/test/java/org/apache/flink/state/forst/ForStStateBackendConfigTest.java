@@ -93,7 +93,8 @@ public class ForStStateBackendConfigTest {
         final File logFile = File.createTempFile(getClass().getSimpleName() + "-", ".log");
         // set the environment variable 'log.file' with the Flink log file location
         System.setProperty("log.file", logFile.getPath());
-        try (ForStResourceContainer container = backend.createOptionsAndResourceContainer(null)) {
+        try (ForStResourceContainer container =
+                backend.createOptionsAndResourceContainer(new Path(tempFolder.toString()))) {
             assertEquals(
                     ForStConfigurableOptions.LOG_LEVEL.defaultValue(),
                     container.getDbOptions().infoLogLevel());
@@ -109,7 +110,7 @@ public class ForStStateBackendConfigTest {
         }
         try (ForStResourceContainer container =
                 backend.createOptionsAndResourceContainer(
-                        new File(longInstanceBasePath.toString()))) {
+                        new Path(longInstanceBasePath.toString()))) {
             assertTrue(container.getDbOptions().dbLogDir().isEmpty());
         } finally {
             logFile.delete();
@@ -145,10 +146,9 @@ public class ForStStateBackendConfigTest {
                 createKeyedStateBackend(forStStateBackend, env, IntSerializer.INSTANCE);
 
         try {
-            File instanceBasePath = keyedBackend.getLocalBasePath();
+            Path instanceBasePath = keyedBackend.getLocalBasePath();
             assertThat(
-                    instanceBasePath.getAbsolutePath(),
-                    anyOf(startsWith(testDir1), startsWith(testDir2)));
+                    instanceBasePath.getPath(), anyOf(startsWith(testDir1), startsWith(testDir2)));
 
             //noinspection NullArgumentToVariableArgMethod
             forStStateBackend.setLocalDbStoragePaths(null);
@@ -176,7 +176,8 @@ public class ForStStateBackendConfigTest {
                 forStStateBackend.configure(conf, Thread.currentThread().getContextClassLoader());
 
         ForStResourceContainer resourceContainer =
-                forStStateBackend.createOptionsAndResourceContainer(tempFolder.newFile());
+                forStStateBackend.createOptionsAndResourceContainer(
+                        new Path(tempFolder.newFile().getAbsolutePath()));
         ColumnFamilyOptions columnFamilyOptions = resourceContainer.getColumnOptions();
         assertArrayEquals(compressionTypes, columnFamilyOptions.compressionPerLevel().toArray());
 
@@ -233,9 +234,8 @@ public class ForStStateBackendConfigTest {
                 createKeyedStateBackend(forStBackend, env, IntSerializer.INSTANCE);
 
         try {
-            File instanceBasePath = keyedBackend.getLocalBasePath();
-            assertThat(
-                    instanceBasePath.getAbsolutePath(), startsWith(expectedPath.getAbsolutePath()));
+            Path instanceBasePath = keyedBackend.getLocalBasePath();
+            assertThat(instanceBasePath.getPath(), startsWith(expectedPath.getAbsolutePath()));
 
             //noinspection NullArgumentToVariableArgMethod
             forStBackend.setLocalDbStoragePaths(null);
@@ -289,11 +289,11 @@ public class ForStStateBackendConfigTest {
         ForStKeyedStateBackend<Integer> keyedBackend =
                 createKeyedStateBackend(forStBackend, env, IntSerializer.INSTANCE);
 
-        File localBasePath = keyedBackend.getLocalBasePath();
-        File localForStPath = new File(localBasePath, "db");
+        Path localBasePath = keyedBackend.getLocalBasePath();
+        Path localForStPath = new Path(localBasePath, "db");
 
         // avoid tests without relocate.
-        Assume.assumeTrue(localForStPath.getAbsolutePath().length() <= 255 - "_LOG".length());
+        Assume.assumeTrue(localForStPath.getPath().length() <= 255 - "_LOG".length());
 
         java.nio.file.Path[] relocatedDbLogs;
         try {
@@ -354,8 +354,8 @@ public class ForStStateBackendConfigTest {
                                 cancelStreamRegistry));
 
         try {
-            File instanceBasePath = keyedBackend.getLocalBasePath();
-            assertThat(instanceBasePath.getAbsolutePath(), startsWith(dir1.getAbsolutePath()));
+            Path instanceBasePath = keyedBackend.getLocalBasePath();
+            assertThat(instanceBasePath.getPath(), startsWith(dir1.getAbsolutePath()));
         } finally {
             keyedBackend.dispose();
             keyedBackend.close();

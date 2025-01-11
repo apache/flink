@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.state.v2;
 
-import org.apache.flink.api.common.serialization.SerializerConfigImpl;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -45,6 +45,7 @@ class StateDescriptorTest {
         // we use Kryo here, because it meets these conditions
         TestStateDescriptor<String> descr =
                 new TestStateDescriptor<>("foobar", new GenericTypeInfo<>(String.class));
+        descr.initializeSerializerUnlessSet(new ExecutionConfig());
 
         TypeSerializer<String> serializerA = descr.getSerializer();
         TypeSerializer<String> serializerB = descr.getSerializer();
@@ -109,7 +110,7 @@ class StateDescriptorTest {
         private static final long serialVersionUID = 1L;
 
         TestStateDescriptor(String name, TypeInformation<T> typeInfo) {
-            super(name, typeInfo, new SerializerConfigImpl());
+            super(name, typeInfo);
         }
 
         @Override
@@ -123,7 +124,7 @@ class StateDescriptorTest {
         private static final long serialVersionUID = 1L;
 
         OtherTestStateDescriptor(String name, TypeInformation<T> typeInfo) {
-            super(name, typeInfo, new SerializerConfigImpl());
+            super(name, typeInfo);
         }
 
         @Override

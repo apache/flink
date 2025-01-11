@@ -22,6 +22,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
@@ -30,32 +31,38 @@ import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{Us
 import org.apache.flink.table.planner.runtime.batch.sql.agg.{MyPojoAggFunction, VarArgsAggFunction}
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverloadedMaxFunction
-import org.apache.flink.table.planner.runtime.utils.StreamingWithAggTestBase.AggMode
-import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchMode
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.runtime.utils.StreamingWithAggTestBase.{AggMode, LocalGlobalOff, LocalGlobalOn}
+import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
+import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils._
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => mLocalTime}
 import org.apache.flink.table.runtime.functions.aggregate.{ListAggWithRetractAggFunction, ListAggWsWithRetractAggFunction}
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.data.Percentage
-import org.junit.jupiter.api.{Disabled, TestTemplate}
+import org.junit.jupiter.api.{BeforeEach, Disabled, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Integer => JInt, Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
 import java.time.Duration
+import java.util
 
 import scala.collection.{mutable, Seq}
+import scala.collection.JavaConversions._
 import scala.math.BigDecimal.double2bigDecimal
 import scala.util.Random
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
-class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: StateBackendMode)
+class AggregateITCase(
+    aggMode: AggMode,
+    miniBatch: MiniBatchMode,
+    backend: StateBackendMode,
+    enableAsyncState: Boolean)
   extends StreamingWithAggTestBase(aggMode, miniBatch, backend) {
 
   val data = List(
@@ -69,6 +76,15 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
     (8000L, 8, "Hello World"),
     (20000L, 20, "Hello World")
   )
+
+  @BeforeEach
+  override def before(): Unit = {
+    super.before()
+
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_ASYNC_STATE_ENABLED,
+      Boolean.box(enableAsyncState))
+  }
 
   @TestTemplate
   def testEmptyInputAggregation(): Unit = {
@@ -2075,5 +2091,21 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
 
     tEnv.dropTemporarySystemFunction("PERCENTILE")
+  }
+}
+
+object AggregateITCase {
+
+  @Parameters(name = "LocalGlobal={0}, {1}, StateBackend={2}, EnableAsyncState={3}")
+  def parameters(): util.Collection[Array[java.lang.Object]] = {
+    Seq[Array[AnyRef]](
+      Array(LocalGlobalOff, MiniBatchOff, HEAP_BACKEND, Boolean.box(false)),
+      Array(LocalGlobalOff, MiniBatchOff, HEAP_BACKEND, Boolean.box(true)),
+      Array(LocalGlobalOff, MiniBatchOn, HEAP_BACKEND, Boolean.box(false)),
+      Array(LocalGlobalOn, MiniBatchOn, HEAP_BACKEND, Boolean.box(false)),
+      Array(LocalGlobalOff, MiniBatchOff, ROCKSDB_BACKEND, Boolean.box(false)),
+      Array(LocalGlobalOff, MiniBatchOn, ROCKSDB_BACKEND, Boolean.box(false)),
+      Array(LocalGlobalOn, MiniBatchOn, ROCKSDB_BACKEND, Boolean.box(false))
+    )
   }
 }

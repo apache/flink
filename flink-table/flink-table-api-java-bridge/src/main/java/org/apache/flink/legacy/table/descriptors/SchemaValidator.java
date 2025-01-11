@@ -215,8 +215,8 @@ public class SchemaValidator implements DescriptorValidator {
                                         SCHEMA + "." + i + "." + ROWTIME_TIMESTAMPS_FROM);
                         builder.field(field, dataType);
                         break;
-                        // other timestamp strategies require a reverse timestamp extractor to
-                        // insert the timestamp into the output
+                    // other timestamp strategies require a reverse timestamp extractor to
+                    // insert the timestamp into the output
                     default:
                         throw new TableException(
                                 format(

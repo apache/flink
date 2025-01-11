@@ -193,17 +193,6 @@ class StreamTableEnvironmentImpl(
     createTable(queryOperation)
   }
 
-  override def registerDataStream[T](name: String, dataStream: DataStream[T]): Unit = {
-    registerTable(name, fromDataStream(dataStream))
-  }
-
-  override def registerDataStream[T](
-      name: String,
-      dataStream: DataStream[T],
-      fields: Expression*): Unit = {
-    registerTable(name, fromDataStream(dataStream, fields: _*))
-  }
-
   override def toAppendStream[T: TypeInformation](table: Table): DataStream[T] = {
     val returnType = createTypeInformation[T]
 
@@ -222,46 +211,6 @@ class StreamTableEnvironmentImpl(
       TypeConversions.fromLegacyInfoToDataType(returnType),
       OutputConversionModifyOperation.UpdateMode.RETRACT)
     toStreamInternal(table, modifyOperation)
-  }
-
-  override def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {
-    val typeInfo = UserDefinedFunctionHelper
-      .getReturnTypeOfTableFunction(tf, implicitly[TypeInformation[T]])
-    functionCatalog.registerTempSystemTableFunction(
-      name,
-      tf,
-      typeInfo
-    )
-  }
-
-  override def registerFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      f: AggregateFunction[T, ACC]): Unit = {
-    val typeInfo = UserDefinedFunctionHelper
-      .getReturnTypeOfAggregateFunction(f, implicitly[TypeInformation[T]])
-    val accTypeInfo = UserDefinedFunctionHelper
-      .getAccumulatorTypeOfAggregateFunction(f, implicitly[TypeInformation[ACC]])
-    functionCatalog.registerTempSystemAggregateFunction(
-      name,
-      f,
-      typeInfo,
-      accTypeInfo
-    )
-  }
-
-  override def registerFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      f: TableAggregateFunction[T, ACC]): Unit = {
-    val typeInfo = UserDefinedFunctionHelper
-      .getReturnTypeOfAggregateFunction(f, implicitly[TypeInformation[T]])
-    val accTypeInfo = UserDefinedFunctionHelper
-      .getAccumulatorTypeOfAggregateFunction(f, implicitly[TypeInformation[ACC]])
-    functionCatalog.registerTempSystemAggregateFunction(
-      name,
-      f,
-      typeInfo,
-      accTypeInfo
-    )
   }
 
   override def createTemporaryView[T](

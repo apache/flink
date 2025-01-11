@@ -42,6 +42,7 @@ public final class ConfigConstants {
      * configs mentioned below.
      */
     public static final String METRICS_REPORTER_PREFIX = "metrics.reporter.";
+
     /**
      * The prefix for per-trace reporter configs. Has to be combined with a reporter name and the
      * configs mentioned below.
@@ -63,6 +64,8 @@ public final class ConfigConstants {
     public static final int DEFAULT_LOCAL_NUMBER_TASK_MANAGER = 1;
 
     // ----------------------------- Environment Variables ----------------------------
+
+    public static final String ENV_JAVA_HOME = "JAVA_HOME";
 
     /** The environment variable name which contains the location of the configuration directory. */
     public static final String ENV_FLINK_CONF_DIR = "FLINK_CONF_DIR";
@@ -107,6 +110,13 @@ public final class ConfigConstants {
     // ---------------------------- Encoding ------------------------------
 
     public static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
+
+    /** The suffix of sink operator name. */
+    public static final String COMMITTER_NAME = "Committer";
+
+    public static final String WRITER_NAME = "Writer";
+
+    public static final int METRICS_OPERATOR_NAME_MAX_LENGTH = 80;
 
     /** Not instantiable. */
     private ConfigConstants() {}

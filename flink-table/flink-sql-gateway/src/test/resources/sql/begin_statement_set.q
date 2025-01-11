@@ -277,10 +277,3 @@ END;
 !output
 org.apache.flink.table.gateway.service.utils.SqlExecutionException: No Statement Set to submit. 'END' statement should be used after 'BEGIN STATEMENT SET'.
 !error
-
-BEGIN STATEMENT SET;
-INSERT INTO BatchTable SELECT * FROM (VALUES (1, 'Hello World'), (2, 'Hi'), (2, 'Hi'), (3, 'Hello'), (3, 'World'), (4, 'ADD'), (5, 'LINE'));
-END;
-!output
-java.lang.IllegalArgumentException: only single statement supported
-!error

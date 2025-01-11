@@ -21,7 +21,6 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.CatalogStore;
 import org.apache.flink.table.functions.UserDefinedFunction;
@@ -103,27 +102,6 @@ public class EnvironmentSettings {
     /** Creates a builder for creating an instance of {@link EnvironmentSettings}. */
     public static Builder newInstance() {
         return new Builder();
-    }
-
-    /**
-     * Creates an instance of {@link EnvironmentSettings} from configuration.
-     *
-     * @deprecated use {@link Builder#withConfiguration(Configuration)} instead.
-     */
-    @Deprecated
-    public static EnvironmentSettings fromConfiguration(ReadableConfig configuration) {
-        return new EnvironmentSettings(
-                (Configuration) configuration, Thread.currentThread().getContextClassLoader());
-    }
-
-    /**
-     * Convert the environment setting to the {@link Configuration}.
-     *
-     * @deprecated use {@link #getConfiguration} instead.
-     */
-    @Deprecated
-    public Configuration toConfiguration() {
-        return configuration;
     }
 
     /** Get the underlying {@link Configuration}. */

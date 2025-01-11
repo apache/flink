@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.io;
 
+import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
@@ -58,5 +59,10 @@ public class FinishedDataOutput<IN> implements PushingAsyncDataInput.DataOutput<
     @Override
     public void emitRecordAttributes(RecordAttributes recordAttributes) throws Exception {
         LOG.debug("Unexpected recordAttributes after finish() received.");
+    }
+
+    @Override
+    public void emitWatermark(WatermarkEvent watermark) throws Exception {
+        LOG.debug("Unexpected watermark {} after finish() received.", watermark);
     }
 }

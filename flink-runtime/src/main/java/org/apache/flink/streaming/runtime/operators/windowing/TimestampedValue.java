@@ -56,12 +56,16 @@ public class TimestampedValue<T> {
         this.hasTimestamp = true;
     }
 
-    /** @return The value wrapped in this {@link TimestampedValue}. */
+    /**
+     * @return The value wrapped in this {@link TimestampedValue}.
+     */
     public T getValue() {
         return value;
     }
 
-    /** @return The timestamp associated with this stream value in milliseconds. */
+    /**
+     * @return The timestamp associated with this stream value in milliseconds.
+     */
     public long getTimestamp() {
         if (hasTimestamp) {
             return timestamp;

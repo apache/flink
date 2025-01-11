@@ -947,7 +947,8 @@ class SingleInputGateTest extends InputGateTestBase {
                         netEnv,
                         localLocation,
                         new TestingConnectionManager(),
-                        new TestingResultPartitionManager(new NoOpResultSubpartitionView()));
+                        new TestingResultPartitionManager(new NoOpResultSubpartitionView()),
+                        partitionIds.length);
 
         for (InputChannel channel : gate.inputChannels()) {
             if (channel instanceof ChannelStateHolder) {
@@ -960,8 +961,7 @@ class SingleInputGateTest extends InputGateTestBase {
                             getInputChannelsInPartition(gate, partitionIds[i]).stream()
                                     .map(InputChannel::getConsumedSubpartitionIndexSet)
                                     .collect(Collectors.toList()))
-                    .containsExactlyInAnyOrder(
-                            new ResultSubpartitionIndexSet(0), new ResultSubpartitionIndexSet(1));
+                    .containsExactly(new ResultSubpartitionIndexSet(new IndexRange(0, 1)));
         }
 
         assertChannelsType(gate, LocalRecoveredInputChannel.class, partitionIds[0]);
@@ -1263,7 +1263,8 @@ class SingleInputGateTest extends InputGateTestBase {
                         netEnv,
                         ResourceID.generate(),
                         new TestingConnectionManager(),
-                        new TestingResultPartitionManager(new NoOpResultSubpartitionView()));
+                        new TestingResultPartitionManager(new NoOpResultSubpartitionView()),
+                        partitionIds.length * subpartitionRandSize);
         gate.setup();
 
         for (InputChannel inputChannel : gate.inputChannels()) {
@@ -1323,7 +1324,8 @@ class SingleInputGateTest extends InputGateTestBase {
                 netEnv,
                 ResourceID.generate(),
                 null,
-                null);
+                null,
+                partitionIds.length);
     }
 
     static SingleInputGate createSingleInputGate(
@@ -1333,25 +1335,29 @@ class SingleInputGateTest extends InputGateTestBase {
             NettyShuffleEnvironment netEnv,
             ResourceID localLocation,
             ConnectionManager connectionManager,
-            ResultPartitionManager resultPartitionManager)
+            ResultPartitionManager resultPartitionManager,
+            int numOfChannels)
             throws IOException {
 
-        ShuffleDescriptorAndIndex[] channelDescs =
-                new ShuffleDescriptorAndIndex[] {
-                    // Local
-                    new ShuffleDescriptorAndIndex(
-                            createRemoteWithIdAndLocation(partitionIds[0], localLocation), 0),
-                    // Remote
-                    new ShuffleDescriptorAndIndex(
-                            createRemoteWithIdAndLocation(partitionIds[1], ResourceID.generate()),
-                            1),
-                    // Unknown
+        ShuffleDescriptorAndIndex[] channelDescs = new ShuffleDescriptorAndIndex[numOfChannels];
+
+        // Local
+        channelDescs[0] =
+                new ShuffleDescriptorAndIndex(
+                        createRemoteWithIdAndLocation(partitionIds[0], localLocation), 0);
+        // Remote
+        channelDescs[1] =
+                new ShuffleDescriptorAndIndex(
+                        createRemoteWithIdAndLocation(partitionIds[1], ResourceID.generate()), 1);
+        // Unknown
+        for (int i = 2; i < numOfChannels; i++) {
+            channelDescs[i] =
                     new ShuffleDescriptorAndIndex(
                             new UnknownShuffleDescriptor(
                                     new ResultPartitionID(
                                             partitionIds[2], createExecutionAttemptId())),
-                            2)
-                };
+                            i);
+        }
 
         InputGateDeploymentDescriptor gateDesc =
                 new InputGateDeploymentDescriptor(

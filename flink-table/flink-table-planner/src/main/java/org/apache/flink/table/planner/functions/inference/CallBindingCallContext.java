@@ -19,18 +19,27 @@
 package org.apache.flink.table.planner.functions.inference;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.StaticArgument;
+import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCallBinding;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -48,28 +57,24 @@ import java.util.Optional;
 public final class CallBindingCallContext extends AbstractSqlCallContext {
 
     private final List<SqlNode> adaptedArguments;
-
     private final List<DataType> argumentDataTypes;
-
-    private final SqlCallBinding binding;
-
     private final @Nullable DataType outputType;
+    private final @Nullable List<StaticArgument> staticArguments;
 
     public CallBindingCallContext(
             DataTypeFactory dataTypeFactory,
             FunctionDefinition definition,
             SqlCallBinding binding,
-            @Nullable RelDataType outputType) {
+            @Nullable RelDataType outputType,
+            @Nullable List<StaticArgument> staticArguments) {
         super(
                 dataTypeFactory,
                 definition,
                 binding.getOperator().getNameAsId().toString(),
                 binding.getGroupCount() > 0);
-
         this.adaptedArguments = binding.operands(); // reorders the operands
-        this.binding = binding;
         this.argumentDataTypes =
-                new AbstractList<DataType>() {
+                new AbstractList<>() {
                     @Override
                     public DataType get(int pos) {
                         final LogicalType logicalType =
@@ -83,6 +88,7 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
                     }
                 };
         this.outputType = convertOutputType(binding, outputType);
+        this.staticArguments = staticArguments;
     }
 
     @Override
@@ -92,7 +98,8 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
 
     @Override
     public boolean isArgumentNull(int pos) {
-        return SqlUtil.isNullLiteral(adaptedArguments.get(pos), false);
+        return SqlUtil.isNullLiteral(adaptedArguments.get(pos), false)
+                || adaptedArguments.get(pos).getKind() == SqlKind.DEFAULT;
     }
 
     @Override
@@ -109,6 +116,22 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
     }
 
     @Override
+    public Optional<TableSemantics> getTableSemantics(int pos) {
+        final StaticArgument staticArg =
+                Optional.ofNullable(staticArguments).map(args -> args.get(pos)).orElse(null);
+        if (staticArg == null || !staticArg.is(StaticArgumentTrait.TABLE)) {
+            return Optional.empty();
+        }
+        final SqlNode sqlNode = adaptedArguments.get(pos);
+        if (!sqlNode.isA(SqlKind.QUERY) && noSetSemantics(sqlNode)) {
+            return Optional.empty();
+        }
+        return Optional.of(
+                CallBindingTableSemantics.create(
+                        argumentDataTypes.get(pos), staticArguments.get(pos), sqlNode));
+    }
+
+    @Override
     public List<DataType> getArgumentDataTypes() {
         return argumentDataTypes;
     }
@@ -118,6 +141,114 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
         return Optional.ofNullable(outputType);
     }
 
+    // --------------------------------------------------------------------------------------------
+    // TableSemantics
+    // --------------------------------------------------------------------------------------------
+
+    private static class CallBindingTableSemantics implements TableSemantics {
+
+        private final DataType dataType;
+        private final int[] partitionByColumns;
+
+        public static CallBindingTableSemantics create(
+                DataType tableDataType, StaticArgument staticArg, SqlNode sqlNode) {
+            checkNoOrderBy(sqlNode);
+            return new CallBindingTableSemantics(
+                    createDataType(tableDataType, staticArg),
+                    createPartitionByColumns(tableDataType, sqlNode));
+        }
+
+        private static void checkNoOrderBy(SqlNode sqlNode) {
+            final SqlNodeList orderByList = getSemanticsComponent(sqlNode, 2);
+            if (orderByList == null) {
+                return;
+            }
+            if (!orderByList.isEmpty()) {
+                throw new ValidationException("ORDER BY clause is currently not supported.");
+            }
+        }
+
+        private static @Nullable SqlNodeList getSemanticsComponent(SqlNode sqlNode, int pos) {
+            if (noSetSemantics(sqlNode)) {
+                return null;
+            }
+            // 0 => query, 1 => PARTITION BY, 2 => ORDER BY
+            final List<SqlNode> setSemantics = ((SqlCall) sqlNode).getOperandList();
+            return (SqlNodeList) setSemantics.get(pos);
+        }
+
+        private static DataType createDataType(DataType tableDataType, StaticArgument staticArg) {
+            final DataType dataType = staticArg.getDataType().orElse(null);
+            if (dataType != null) {
+                // Typed table argument
+                return dataType;
+            }
+            // Untyped table arguments
+            return tableDataType;
+        }
+
+        private static int[] createPartitionByColumns(DataType tableDataType, SqlNode sqlNode) {
+            final SqlNodeList partitionByList = getSemanticsComponent(sqlNode, 1);
+            if (partitionByList == null) {
+                return new int[0];
+            }
+            final List<String> tableColumns = DataType.getFieldNames(tableDataType);
+            return partitionByList.stream()
+                    .map(n -> ((SqlIdentifier) n).getSimple())
+                    .map(
+                            c -> {
+                                final int pos = tableColumns.indexOf(c);
+                                if (pos < 0) {
+                                    throw new ValidationException(
+                                            String.format(
+                                                    "Invalid column '%s' for PARTITION BY clause. "
+                                                            + "Available columns are: %s",
+                                                    c, tableColumns));
+                                }
+                                return pos;
+                            })
+                    .mapToInt(Integer::intValue)
+                    .toArray();
+        }
+
+        private CallBindingTableSemantics(DataType dataType, int[] partitionByColumns) {
+            this.dataType = dataType;
+            this.partitionByColumns = partitionByColumns;
+        }
+
+        @Override
+        public DataType dataType() {
+            return dataType;
+        }
+
+        @Override
+        public int[] partitionByColumns() {
+            return partitionByColumns;
+        }
+
+        @Override
+        public int[] orderByColumns() {
+            return new int[0];
+        }
+
+        @Override
+        public int timeColumn() {
+            return -1;
+        }
+
+        @Override
+        public List<String> coPartitionArgs() {
+            return List.of();
+        }
+
+        @Override
+        public Optional<ChangelogMode> changelogMode() {
+            return Optional.empty();
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Helper methods
     // --------------------------------------------------------------------------------------------
 
     private static @Nullable DataType convertOutputType(
@@ -130,5 +261,9 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
             final LogicalType logicalType = FlinkTypeFactory.toLogicalType(returnType);
             return TypeConversions.fromLogicalToDataType(logicalType);
         }
+    }
+
+    private static boolean noSetSemantics(SqlNode sqlNode) {
+        return sqlNode.getKind() != SqlKind.SET_SEMANTICS_TABLE;
     }
 }

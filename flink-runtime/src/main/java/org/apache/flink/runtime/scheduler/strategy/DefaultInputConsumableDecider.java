@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
 import java.util.Map;
@@ -40,12 +41,16 @@ public class DefaultInputConsumableDecider implements InputConsumableDecider {
 
     private final Function<ExecutionVertexID, Boolean> scheduledVertexRetriever;
 
+    private final Function<ExecutionVertexID, ExecutionState> executionStateRetriever;
+
     DefaultInputConsumableDecider(
             Function<ExecutionVertexID, Boolean> scheduledVertexRetriever,
             Function<IntermediateResultPartitionID, SchedulingResultPartition>
-                    resultPartitionRetriever) {
+                    resultPartitionRetriever,
+            Function<ExecutionVertexID, ExecutionState> executionStateRetriever) {
         this.scheduledVertexRetriever = scheduledVertexRetriever;
         this.resultPartitionRetriever = resultPartitionRetriever;
+        this.executionStateRetriever = executionStateRetriever;
     }
 
     @Override
@@ -86,7 +91,12 @@ public class DefaultInputConsumableDecider implements InputConsumableDecider {
                 ExecutionVertexID producerVertex =
                         resultPartitionRetriever.apply(partitionId).getProducer().getId();
                 if (!verticesToSchedule.contains(producerVertex)
-                        && !scheduledVertexRetriever.apply(producerVertex)) {
+                        && !scheduledVertexRetriever.apply(producerVertex)
+                        // For jm failover: the producer can be transitioned to FINISHED state not
+                        // touched by scheduling strategy. This means all producer
+                        // partitions finished, so we can schedule the downstream execution.
+                        && executionStateRetriever.apply(producerVertex)
+                                != ExecutionState.FINISHED) {
                     return false;
                 }
             }
@@ -112,9 +122,12 @@ public class DefaultInputConsumableDecider implements InputConsumableDecider {
         @Override
         public InputConsumableDecider createInstance(
                 SchedulingTopology schedulingTopology,
-                Function<ExecutionVertexID, Boolean> scheduledVertexRetriever) {
+                Function<ExecutionVertexID, Boolean> scheduledVertexRetriever,
+                Function<ExecutionVertexID, ExecutionState> executionStateRetriever) {
             return new DefaultInputConsumableDecider(
-                    scheduledVertexRetriever, schedulingTopology::getResultPartition);
+                    scheduledVertexRetriever,
+                    schedulingTopology::getResultPartition,
+                    executionStateRetriever);
         }
     }
 }

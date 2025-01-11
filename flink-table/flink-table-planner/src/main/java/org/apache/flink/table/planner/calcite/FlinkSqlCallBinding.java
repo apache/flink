@@ -42,14 +42,14 @@ import java.util.List;
 /** Binding supports to rewrite the DEFAULT operator. */
 public class FlinkSqlCallBinding extends SqlCallBinding {
 
-    private final List<RelDataType> fixArgumentTypes;
+    private final List<RelDataType> fixedArgumentTypes;
 
     private final List<SqlNode> rewrittenOperands;
 
     public FlinkSqlCallBinding(
             SqlValidator validator, @Nullable SqlValidatorScope scope, SqlCall call) {
         super(validator, scope, call);
-        this.fixArgumentTypes = getFixArgumentTypes();
+        this.fixedArgumentTypes = getFixedArgumentTypes();
         this.rewrittenOperands = getRewrittenOperands();
     }
 
@@ -75,7 +75,7 @@ public class FlinkSqlCallBinding extends SqlCallBinding {
 
         SqlNode operand = rewrittenOperands.get(ordinal);
         if (operand.getKind() == SqlKind.DEFAULT) {
-            return fixArgumentTypes.get(ordinal);
+            return fixedArgumentTypes.get(ordinal);
         }
 
         final RelDataType type = SqlTypeUtil.deriveType(this, operand);
@@ -84,10 +84,10 @@ public class FlinkSqlCallBinding extends SqlCallBinding {
     }
 
     public boolean isFixedParameters() {
-        return !fixArgumentTypes.isEmpty();
+        return !fixedArgumentTypes.isEmpty();
     }
 
-    private List<RelDataType> getFixArgumentTypes() {
+    private List<RelDataType> getFixedArgumentTypes() {
         SqlOperandTypeChecker sqlOperandTypeChecker = getOperator().getOperandTypeChecker();
         if (sqlOperandTypeChecker instanceof SqlOperandMetadata
                 && sqlOperandTypeChecker.isFixedParameters()) {
@@ -106,7 +106,7 @@ public class FlinkSqlCallBinding extends SqlCallBinding {
             if (operand instanceof SqlCall
                     && ((SqlCall) operand).getOperator() == SqlStdOperatorTable.DEFAULT) {
                 rewrittenOperands.add(
-                        new SqlDefaultOperator(fixArgumentTypes.get(rewrittenOperands.size()))
+                        new SqlDefaultOperator(fixedArgumentTypes.get(rewrittenOperands.size()))
                                 .createCall(SqlParserPos.ZERO));
             } else {
                 rewrittenOperands.add(operand);

@@ -56,6 +56,12 @@ under the License.
 
 	<dependencies>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-datastream-api</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 		<!-- core dependencies -->
 
 		<dependency>
@@ -232,7 +238,7 @@ under the License.
 		<dependency>
 			<groupId>io.airlift</groupId>
 			<artifactId>aircompressor</artifactId>
-			<version>0.21</version>
+			<version>0.27</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
@@ -301,7 +307,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.mockito</groupId>
-			<artifactId>mockito-inline</artifactId>
+			<artifactId>mockito-subclass</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

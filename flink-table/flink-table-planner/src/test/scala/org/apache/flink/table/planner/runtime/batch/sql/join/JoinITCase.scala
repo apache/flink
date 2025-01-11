@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.streaming.api.transformations.{LegacySinkTransformation, OneInputTransformation, TwoInputTransformation}
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.internal.{StatementSetImpl, TableEnvironmentInternal}
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
@@ -203,6 +204,9 @@ class JoinITCase extends BatchTestBase {
   @TestTemplate
   def testLongHashJoinGenerator(): Unit = {
     if (expectedJoinType == HashJoin) {
+      tEnv.getConfig.set(
+        OptimizerConfigOptions.TABLE_OPTIMIZER_ADAPTIVE_BROADCAST_JOIN_STRATEGY,
+        OptimizerConfigOptions.AdaptiveBroadcastJoinStrategy.NONE)
       val sink = (new CollectRowTableSink).configure(Array("c"), Array(Types.STRING))
       tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("outputTable", sink)
       val stmtSet = tEnv.createStatementSet()

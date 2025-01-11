@@ -19,6 +19,8 @@
 package org.apache.flink.datastream.api.function;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.watermark.Watermark;
+import org.apache.flink.api.common.watermark.WatermarkHandlingResult;
 import org.apache.flink.datastream.api.common.Collector;
 import org.apache.flink.datastream.api.context.NonPartitionedContext;
 import org.apache.flink.datastream.api.context.PartitionedContext;
@@ -26,6 +28,18 @@ import org.apache.flink.datastream.api.context.PartitionedContext;
 /** This contains all logical related to process records from two non-broadcast input. */
 @Experimental
 public interface TwoInputNonBroadcastStreamProcessFunction<IN1, IN2, OUT> extends ProcessFunction {
+    /**
+     * Initialization method for the function. It is called before the actual working methods (like
+     * processRecord) and thus suitable for one time setup work.
+     *
+     * <p>By default, this method does nothing.
+     *
+     * @throws Exception Implementations may forward exceptions, which are caught by the runtime.
+     *     When the runtime catches an exception, it aborts the task and lets the fail-over logic
+     *     decide whether to retry the task execution.
+     */
+    default void open(NonPartitionedContext<OUT> ctx) throws Exception {}
+
     /**
      * Process record from the first input and emit data through {@link Collector}.
      *
@@ -70,4 +84,28 @@ public interface TwoInputNonBroadcastStreamProcessFunction<IN1, IN2, OUT> extend
      * @param ctx runtime context in which this function is executed.
      */
     default void onProcessingTimer(long timestamp, Collector<OUT> output, PartitionedContext ctx) {}
+
+    /**
+     * Callback function when receive the watermark from the first input.
+     *
+     * @param watermark to process.
+     * @param output to emit record.
+     * @param ctx runtime context in which this function is executed.
+     */
+    default WatermarkHandlingResult onWatermarkFromFirstInput(
+            Watermark watermark, Collector<OUT> output, NonPartitionedContext<OUT> ctx) {
+        return WatermarkHandlingResult.PEEK;
+    }
+
+    /**
+     * Callback function when receive the watermark from the second input.
+     *
+     * @param watermark to process.
+     * @param output to emit record.
+     * @param ctx runtime context in which this function is executed.
+     */
+    default WatermarkHandlingResult onWatermarkFromSecondInput(
+            Watermark watermark, Collector<OUT> output, NonPartitionedContext<OUT> ctx) {
+        return WatermarkHandlingResult.PEEK;
+    }
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
@@ -49,6 +50,9 @@ public interface StreamOperatorStateContext {
     /** Returns the operator state backend for the stream operator. */
     OperatorStateBackend operatorStateBackend();
 
+    /** Returns the key serializer for keyed state backends. */
+    TypeSerializer<?> keySerializer();
+
     /**
      * Returns the keyed state backend for the stream operator. This method returns null for
      * non-keyed operators.
@@ -59,13 +63,19 @@ public interface StreamOperatorStateContext {
      * Returns the async keyed state backend for the stream operator. This method returns null for
      * operators which don't support async keyed state backend.
      */
-    AsyncKeyedStateBackend asyncKeyedStateBackend();
+    AsyncKeyedStateBackend<?> asyncKeyedStateBackend();
 
     /**
      * Returns the internal timer service manager for the stream operator. This method returns null
      * for non-keyed operators.
      */
     InternalTimeServiceManager<?> internalTimerServiceManager();
+
+    /**
+     * Returns the internal timer service manager create by async state backend for the stream
+     * operator. This method returns null for non-keyed operators.
+     */
+    InternalTimeServiceManager<?> asyncInternalTimerServiceManager();
 
     /**
      * Returns an iterable to obtain input streams for previously stored operator state partitions

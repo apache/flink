@@ -38,7 +38,6 @@ import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.FunctionLanguage;
-import org.apache.flink.table.catalog.ManagedTableListener;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -74,7 +73,6 @@ import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
-import org.apache.flink.table.factories.ManagedTableFactory;
 import org.apache.flink.table.legacy.api.constraints.UniqueConstraint;
 import org.apache.flink.table.legacy.factories.TableFactory;
 import org.apache.flink.table.resource.ResourceUri;
@@ -480,10 +478,7 @@ public class HiveCatalog extends AbstractCatalog {
             throw new DatabaseNotExistException(getName(), tablePath.getDatabaseName());
         }
 
-        boolean managedTable = ManagedTableListener.isManagedTable(this, resolvedTable);
-        Table hiveTable =
-                HiveTableUtil.instantiateHiveTable(
-                        tablePath, resolvedTable, hiveConf, managedTable);
+        Table hiveTable = HiveTableUtil.instantiateHiveTable(tablePath, resolvedTable, hiveConf);
 
         UniqueConstraint pkConstraint = null;
         ResolvedSchema resolvedSchema = resolvedTable.getResolvedSchema();
@@ -619,8 +614,7 @@ public class HiveCatalog extends AbstractCatalog {
                                 tablePath,
                                 (ResolvedCatalogBaseTable) newCatalogTable,
                                 hiveTable,
-                                hiveConf,
-                                false);
+                                hiveConf);
             } else {
                 alterTableViaProperties(
                         op,
@@ -636,8 +630,7 @@ public class HiveCatalog extends AbstractCatalog {
                             tablePath,
                             (ResolvedCatalogBaseTable) newCatalogTable,
                             hiveTable,
-                            hiveConf,
-                            ManagedTableListener.isManagedTable(this, newCatalogTable));
+                            hiveConf);
         }
         if (isHiveTable) {
             hiveTable.getParameters().remove(CONNECTOR.key());
@@ -766,12 +759,6 @@ public class HiveCatalog extends AbstractCatalog {
             comment = properties.remove(HiveCatalogConfig.COMMENT);
         } else {
             properties = retrieveFlinkProperties(properties);
-
-            if (ManagedTableFactory.DEFAULT_IDENTIFIER.equalsIgnoreCase(
-                    properties.get(CONNECTOR.key()))) {
-                // for Flink's managed table, we remove the connector option
-                properties.remove(CONNECTOR.key());
-            }
 
             CatalogTable catalogTable = CatalogPropertiesUtil.deserializeCatalogTable(properties);
             if (catalogTable.getUnresolvedSchema().getColumns().isEmpty()) {
@@ -1813,11 +1800,6 @@ public class HiveCatalog extends AbstractCatalog {
         }
 
         return result;
-    }
-
-    @Override
-    public boolean supportsManagedTable() {
-        return true;
     }
 
     @Internal

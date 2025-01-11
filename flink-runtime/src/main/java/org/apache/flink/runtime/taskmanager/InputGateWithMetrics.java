@@ -55,6 +55,10 @@ public class InputGateWithMetrics extends IndexedInputGate {
         return inputGate.getAvailableFuture();
     }
 
+    public void resumeGateConsumption() throws IOException {
+        inputGate.resumeGateConsumption();
+    }
+
     @Override
     public void resumeConsumption(InputChannelInfo channelInfo) throws IOException {
         inputGate.resumeConsumption(channelInfo);

@@ -34,10 +34,7 @@ import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.util.Optionality;
 
-import java.util.List;
-
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createName;
-import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createParamTypes;
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createSqlFunctionCategory;
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createSqlIdentifier;
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createSqlOperandTypeChecker;
@@ -59,8 +56,6 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
     private final ContextResolvedFunction resolvedFunction;
 
     private final TypeInference typeInference;
-
-    private final List<RelDataType> paramTypes;
 
     private BridgingSqlAggFunction(
             DataTypeFactory dataTypeFactory,
@@ -87,7 +82,6 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
         this.typeFactory = typeFactory;
         this.resolvedFunction = resolvedFunction;
         this.typeInference = typeInference;
-        this.paramTypes = createParamTypes(typeFactory, typeInference);
     }
 
     /**
@@ -150,19 +144,6 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
 
     public TypeInference getTypeInference() {
         return typeInference;
-    }
-
-    @Override
-    public List<RelDataType> getParamTypes() {
-        return paramTypes;
-    }
-
-    @Override
-    public List<String> getParamNames() {
-        if (typeInference.getNamedArguments().isPresent()) {
-            return typeInference.getNamedArguments().get();
-        }
-        return super.getParamNames();
     }
 
     @Override

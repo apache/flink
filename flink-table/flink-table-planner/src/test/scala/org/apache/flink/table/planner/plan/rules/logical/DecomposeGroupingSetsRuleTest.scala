@@ -17,11 +17,10 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
-import org.apache.flink.table.legacy.api.Types
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.types.AbstractDataType
 
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.junit.jupiter.api.Test
@@ -131,7 +130,7 @@ class DecomposeGroupingSetsRuleTest extends TableTestBase {
   def testTooManyGroupingFields(): Unit = {
     // max group count must be less than 64
     val fieldNames = (0 until 64).map(i => s"f$i").toArray
-    val fieldTypes: Array[TypeInformation[_]] = Array.fill(fieldNames.length)(Types.INT)
+    val fieldTypes: Array[AbstractDataType[_]] = Array.fill(fieldNames.length)(DataTypes.INT)
     util.addTableSource("MyTable64", fieldTypes, fieldNames)
 
     val fields = fieldNames.mkString(",")

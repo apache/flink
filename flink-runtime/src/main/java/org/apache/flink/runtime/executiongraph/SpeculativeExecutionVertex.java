@@ -209,8 +209,8 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
     private int getStatePriority(ExecutionState state) {
         // the more likely to reach FINISHED state, the higher priority, the smaller value
         switch (state) {
-                // CREATED/SCHEDULED/INITIALIZING/RUNNING/FINISHED are healthy states with an
-                // increasing priority
+            // CREATED/SCHEDULED/INITIALIZING/RUNNING/FINISHED are healthy states with an
+            // increasing priority
             case FINISHED:
                 return 0;
             case RUNNING:
@@ -223,8 +223,8 @@ public class SpeculativeExecutionVertex extends ExecutionVertex {
                 return 4;
             case CREATED:
                 return 5;
-                // if the vertex is not in a healthy state, shows its CANCELING state unless it is
-                // fully FAILED or CANCELED
+            // if the vertex is not in a healthy state, shows its CANCELING state unless it is
+            // fully FAILED or CANCELED
             case CANCELING:
                 return 6;
             case FAILED:

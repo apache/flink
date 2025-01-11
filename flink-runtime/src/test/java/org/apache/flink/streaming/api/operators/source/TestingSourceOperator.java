@@ -98,7 +98,8 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
                 new Configuration(),
                 "localhost",
                 emitProgressiveWatermarks,
-                () -> false);
+                () -> false,
+                Collections.emptyMap());
 
         this.subtaskIndex = subtaskIndex;
         this.parallelism = parallelism;

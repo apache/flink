@@ -406,7 +406,7 @@ describe function extended temp_upperudf;
 |              requirements |                                         $VAR_UDF_JAR_PATH_SPACE [] |
 |          is deterministic |                                       $VAR_UDF_JAR_PATH_SPACE true |
 | supports constant folding |                                       $VAR_UDF_JAR_PATH_SPACE true |
-|                 signature |                $VAR_UDF_JAR_PATH_SPACE c1.db.temp_upperudf(STRING) |
+|                 signature |        $VAR_UDF_JAR_PATH_SPACE c1.db.temp_upperudf(arg0 => STRING) |
 +---------------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
 10 rows in set
 !ok
@@ -437,7 +437,7 @@ desc function extended temp_upperudf;
 |              requirements |                                         $VAR_UDF_JAR_PATH_SPACE [] |
 |          is deterministic |                                       $VAR_UDF_JAR_PATH_SPACE true |
 | supports constant folding |                                       $VAR_UDF_JAR_PATH_SPACE true |
-|                 signature |                $VAR_UDF_JAR_PATH_SPACE c1.db.temp_upperudf(STRING) |
+|                 signature |        $VAR_UDF_JAR_PATH_SPACE c1.db.temp_upperudf(arg0 => STRING) |
 +---------------------------+---------------------------------------------$VAR_UDF_JAR_PATH_DASH+
 10 rows in set
 !ok
@@ -489,16 +489,16 @@ describe function `c1`.`db`.temp_upperudf;
 !ok
 
 describe function extended temp_upperudf;
-+---------------------------+-----------------------+
-|                 info name |            info value |
-+---------------------------+-----------------------+
-|        is system function |                  true |
-|              is temporary |                  true |
-|                      kind |                SCALAR |
-|              requirements |                    [] |
-|          is deterministic |                  true |
-| supports constant folding |                  true |
-|                 signature | temp_upperudf(STRING) |
-+---------------------------+-----------------------+
++---------------------------+-------------------------------+
+|                 info name |                    info value |
++---------------------------+-------------------------------+
+|        is system function |                          true |
+|              is temporary |                          true |
+|                      kind |                        SCALAR |
+|              requirements |                            [] |
+|          is deterministic |                          true |
+| supports constant folding |                          true |
+|                 signature | temp_upperudf(arg0 => STRING) |
++---------------------------+-------------------------------+
 7 rows in set
 !ok

@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.table.catalog.ContextResolvedTable
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecChangelogNormalize
@@ -40,8 +39,7 @@ class StreamPhysicalChangelogNormalize(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
-    val uniqueKeys: Array[Int],
-    val contextResolvedTable: ContextResolvedTable)
+    val uniqueKeys: Array[Int])
   extends SingleRel(cluster, traitSet, input)
   with StreamPhysicalRel {
 
@@ -50,16 +48,11 @@ class StreamPhysicalChangelogNormalize(
   override def deriveRowType(): RelDataType = getInput.getRowType
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new StreamPhysicalChangelogNormalize(
-      cluster,
-      traitSet,
-      inputs.get(0),
-      uniqueKeys,
-      contextResolvedTable)
+    new StreamPhysicalChangelogNormalize(cluster, traitSet, inputs.get(0), uniqueKeys)
   }
 
   def copy(traitSet: RelTraitSet, input: RelNode, uniqueKeys: Array[Int]): RelNode = {
-    new StreamPhysicalChangelogNormalize(cluster, traitSet, input, uniqueKeys, contextResolvedTable)
+    new StreamPhysicalChangelogNormalize(cluster, traitSet, input, uniqueKeys)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {

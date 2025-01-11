@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,13 +41,13 @@ public class DefaultContextUtils {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultContextUtils.class);
 
     public static DefaultContext buildDefaultContext(CliOptions.EmbeddedCliOptions options) {
-        final List<URL> jars;
+        final List<URI> jars;
         if (options.getJars() != null) {
             jars = options.getJars();
         } else {
             jars = Collections.emptyList();
         }
-        final List<URL> libDirs;
+        final List<URI> libDirs;
         if (options.getLibraryDirs() != null) {
             libDirs = options.getLibraryDirs();
         } else {
@@ -63,20 +64,22 @@ public class DefaultContextUtils {
                 Collections.emptyList(),
                 false);
     }
+
     // --------------------------------------------------------------------------------------------
 
-    private static List<URL> discoverDependencies(List<URL> jars, List<URL> libraries) {
-        final List<URL> dependencies = new ArrayList<>();
+    private static List<URI> discoverDependencies(List<URI> jars, List<URI> libraries) {
+        final List<URI> dependencies = new ArrayList<>();
         try {
             // find jar files
-            for (URL url : jars) {
-                JarUtils.checkJarFile(url);
-                dependencies.add(url);
+            for (URI uri : jars) {
+                // delay the file check until ResourceManager is created
+                // ResourceManager supports to download files from external system.
+                dependencies.add(uri);
             }
 
             // find jar files in library directories
-            for (URL libUrl : libraries) {
-                final File dir = new File(libUrl.toURI());
+            for (URI libURI : libraries) {
+                final File dir = new File(libURI);
                 if (!dir.isDirectory()) {
                     throw new SqlClientException("Directory expected: " + dir);
                 } else if (!dir.canRead()) {
@@ -91,7 +94,7 @@ public class DefaultContextUtils {
                     if (f.isFile() && f.getAbsolutePath().toLowerCase().endsWith(".jar")) {
                         final URL url = f.toURI().toURL();
                         JarUtils.checkJarFile(url);
-                        dependencies.add(url);
+                        dependencies.add(f.toURI());
                     }
                 }
             }

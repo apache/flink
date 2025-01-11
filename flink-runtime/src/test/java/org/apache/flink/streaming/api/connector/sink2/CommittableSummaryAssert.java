@@ -21,34 +21,30 @@ package org.apache.flink.streaming.api.connector.sink2;
 import org.assertj.core.api.AbstractObjectAssert;
 
 /** Custom assertions for {@link CommittableSummary}. */
-public class CommittableSummaryAssert
-        extends AbstractObjectAssert<CommittableSummaryAssert, CommittableSummary<?>> {
+public class CommittableSummaryAssert<CommT>
+        extends AbstractObjectAssert<CommittableSummaryAssert<CommT>, CommittableSummary<CommT>> {
 
-    public CommittableSummaryAssert(CommittableSummary<?> summary) {
+    public CommittableSummaryAssert(CommittableSummary<CommT> summary) {
         super(summary, CommittableSummaryAssert.class);
     }
 
-    public CommittableSummaryAssert hasSubtaskId(int subtaskId) {
+    public CommittableSummaryAssert<CommT> hasSubtaskId(int subtaskId) {
         return returns(subtaskId, CommittableSummary::getSubtaskId);
     }
 
-    public CommittableSummaryAssert hasNumberOfSubtasks(int numberOfSubtasks) {
+    public CommittableSummaryAssert<CommT> hasNumberOfSubtasks(int numberOfSubtasks) {
         return returns(numberOfSubtasks, CommittableSummary::getNumberOfSubtasks);
     }
 
-    public CommittableSummaryAssert hasOverallCommittables(int committableNumber) {
+    public CommittableSummaryAssert<CommT> hasOverallCommittables(int committableNumber) {
         return returns(committableNumber, CommittableSummary::getNumberOfCommittables);
     }
 
-    public CommittableSummaryAssert hasPendingCommittables(int committableNumber) {
-        return returns(committableNumber, CommittableSummary::getNumberOfPendingCommittables);
-    }
-
-    public CommittableSummaryAssert hasFailedCommittables(int committableNumber) {
+    public CommittableSummaryAssert<CommT> hasFailedCommittables(int committableNumber) {
         return returns(committableNumber, CommittableSummary::getNumberOfFailedCommittables);
     }
 
-    public CommittableSummaryAssert hasCheckpointId(long checkpointId) {
+    public CommittableSummaryAssert<CommT> hasCheckpointId(long checkpointId) {
         return returns(checkpointId, CommittableSummary::getCheckpointIdOrEOI);
     }
 }

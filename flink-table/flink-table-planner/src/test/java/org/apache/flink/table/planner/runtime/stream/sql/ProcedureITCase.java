@@ -192,7 +192,7 @@ class ProcedureITCase extends StreamingTestBase {
                                                 "call `system`.named_args_overload(d => 19, c => 'yuxia')"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Currently named arguments are not supported for varArgs and multi different argument names with overload function");
+                        "Unsupported function signature. Function must not be overloaded or use varargs.");
     }
 
     @Test

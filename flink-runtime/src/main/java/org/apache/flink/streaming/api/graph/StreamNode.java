@@ -38,6 +38,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -53,10 +54,13 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /** Class representing the operators in the streaming programs, with all their properties. */
 @Internal
-public class StreamNode {
+public class StreamNode implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final int id;
     private int parallelism;
+
     /**
      * Maximum parallelism for this stream node. The maximum parallelism is the upper limit for
      * dynamic scaling and the number of key groups used for partitioned state.
@@ -76,7 +80,9 @@ public class StreamNode {
     private KeySelector<?, ?>[] statePartitioners = new KeySelector[0];
     private TypeSerializer<?> stateKeySerializer;
 
-    private @Nullable StreamOperatorFactory<?> operatorFactory;
+    // Mark the operator factory as transient because we will manually parallelize its serialization
+    // when serializing StreamGraph.
+    private @Nullable transient StreamOperatorFactory<?> operatorFactory;
     private TypeSerializer<?>[] typeSerializersIn = new TypeSerializer[0];
     private TypeSerializer<?> typeSerializerOut;
 
@@ -219,7 +225,7 @@ public class StreamNode {
      *
      * @return Maximum parallelism
      */
-    int getMaxParallelism() {
+    public int getMaxParallelism() {
         return maxParallelism;
     }
 
@@ -228,7 +234,7 @@ public class StreamNode {
      *
      * @param maxParallelism Maximum parallelism to be set
      */
-    void setMaxParallelism(int maxParallelism) {
+    public void setMaxParallelism(int maxParallelism) {
         this.maxParallelism = maxParallelism;
     }
 
@@ -268,7 +274,6 @@ public class StreamNode {
         this.bufferTimeout = bufferTimeout;
     }
 
-    @VisibleForTesting
     public StreamOperator<?> getOperator() {
         assert operatorFactory != null && operatorFactory instanceof SimpleOperatorFactory;
         return (StreamOperator<?>) ((SimpleOperatorFactory) operatorFactory).getOperator();
@@ -460,5 +465,9 @@ public class StreamNode {
             return false;
         }
         return operatorFactory.getOperatorAttributes().isOutputOnlyAfterEndOfStream();
+    }
+
+    public void setOperatorFactory(StreamOperatorFactory<?> streamOperatorFactory) {
+        this.operatorFactory = streamOperatorFactory;
     }
 }

@@ -23,15 +23,10 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.AggregatePhaseStrategy;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.functions.TemporalTableFunction;
-import org.apache.flink.table.legacy.api.TableSchema;
-import org.apache.flink.table.legacy.sinks.TableSink;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestUtil;
-import org.apache.flink.table.planner.utils.TestLegacyFilterableTableSource;
 import org.apache.flink.table.planner.utils.Top3;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
@@ -380,26 +375,5 @@ class StreamOperatorNameTest extends OperatorNameTestBase {
                         + "   ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end ORDER BY rowtime DESC) as rownum\n"
                         + "  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE)))\n"
                         + "WHERE rownum <= 1");
-    }
-
-    /** Verify LegacySource and LegacySink. */
-    @TestTemplate
-    void testLegacySourceSink() {
-        TableSchema schema = TestLegacyFilterableTableSource.defaultSchema();
-        TestLegacyFilterableTableSource.createTemporaryTable(
-                tEnv,
-                schema,
-                "MySource",
-                true,
-                TestLegacyFilterableTableSource.defaultRows().toList(),
-                TestLegacyFilterableTableSource.defaultFilterableFields());
-        TableSink<Row> sink =
-                util.createAppendTableSink(
-                        schema.getFieldNames(),
-                        schema.getTableColumns().stream()
-                                .map(col -> col.getType().getLogicalType())
-                                .toArray(LogicalType[]::new));
-        util.testingTableEnv().registerTableSinkInternal("MySink", sink);
-        verifyInsert("insert into MySink select * from MySource");
     }
 }

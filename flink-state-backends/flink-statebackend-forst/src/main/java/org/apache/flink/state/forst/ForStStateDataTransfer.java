@@ -27,6 +27,7 @@ import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
@@ -37,6 +38,8 @@ import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -66,13 +69,13 @@ public class ForStStateDataTransfer implements Closeable {
 
     protected final ExecutorService executorService;
 
-    private final FileSystem forStFs;
+    @Nullable private final ForStFlinkFileSystem forStFs;
 
     public ForStStateDataTransfer(int threadNum) {
         this(threadNum, null);
     }
 
-    public ForStStateDataTransfer(int threadNum, FileSystem forStFs) {
+    public ForStStateDataTransfer(int threadNum, ForStFlinkFileSystem forStFs) {
         this.forStFs = forStFs;
         if (threadNum > 1) {
             executorService =
@@ -306,7 +309,7 @@ public class ForStStateDataTransfer implements Closeable {
                                     FileSystem fs = forStFs != null ? forStFs : dir.getFileSystem();
                                     fs.delete(dir, true);
                                 } catch (IOException ignored) {
-
+                                    LOG.warn("Failed to delete transfer destination.", ignored);
                                 }
                             });
 

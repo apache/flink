@@ -22,6 +22,9 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -38,7 +41,6 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.SharedObjects;
@@ -152,6 +154,7 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
             int maxParallelism,
             MiniCluster miniCluster)
             throws Exception {
+        JobID jobID = null;
         try {
             JobGraph jobGraph =
                     createJobGraphWithKeyedState(
@@ -163,15 +166,18 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
                             true,
                             100,
                             miniCluster);
+            jobID = jobGraph.getJobID();
             miniCluster.submitJob(jobGraph).get();
-            miniCluster.requestJobResult(jobGraph.getJobID()).get();
-            return getLatestCompletedCheckpointPath(jobGraph.getJobID(), miniCluster)
+            miniCluster.requestJobResult(jobID).get();
+            return getLatestCompletedCheckpointPath(jobID, miniCluster)
                     .orElseThrow(
                             () ->
                                     new IllegalStateException(
                                             "Cannot get completed checkpoint, job failed before completing checkpoint"));
         } finally {
-            CollectionSink.clearElementsSet();
+            if (jobID != null) {
+                CollectionSink.clearElementsSet(jobID);
+            }
         }
     }
 
@@ -184,6 +190,7 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
             MiniCluster miniCluster,
             String restorePath)
             throws Exception {
+        JobID jobID = null;
         try {
             JobGraph scaledJobGraph =
                     createJobGraphWithKeyedState(
@@ -195,13 +202,14 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
                             false,
                             100,
                             miniCluster);
+            jobID = scaledJobGraph.getJobID();
 
             scaledJobGraph.setSavepointRestoreSettings(forPath(restorePath));
 
             miniCluster.submitJob(scaledJobGraph).get();
-            miniCluster.requestJobResult(scaledJobGraph.getJobID()).get();
+            miniCluster.requestJobResult(jobID).get();
 
-            Set<Tuple2<Integer, Integer>> actualResult = CollectionSink.getElementsSet();
+            Set<Tuple2<Integer, Integer>> actualResult = CollectionSink.getElementsSet(jobID);
 
             Set<Tuple2<Integer, Integer>> expectedResult = new HashSet<>();
 
@@ -215,7 +223,9 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
             }
             assertEquals(expectedResult, actualResult);
         } finally {
-            CollectionSink.clearElementsSet();
+            if (jobID != null) {
+                CollectionSink.clearElementsSet(jobID);
+            }
         }
     }
 
@@ -257,17 +267,28 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
                 env.addSource(
                                 new NotifyingDefiniteKeySource(
                                         numberKeys, numberElements, failAfterEmission) {
+
+                                    String lastCheckpointPath = null;
+
+                                    /**
+                                     * This wait method waits at least two checkpoint finished to
+                                     * make sure the latest checkpoint contains all the source data.
+                                     */
                                     @Override
-                                    public void waitCheckpointCompleted() throws Exception {
+                                    public boolean waitCheckpointCompleted() throws Exception {
                                         Optional<String> mostRecentCompletedCheckpointPath =
                                                 getLatestCompletedCheckpointPath(
                                                         jobID.get(), miniClusterRef.get());
-                                        while (!mostRecentCompletedCheckpointPath.isPresent()) {
-                                            Thread.sleep(50);
-                                            mostRecentCompletedCheckpointPath =
-                                                    getLatestCompletedCheckpointPath(
-                                                            jobID.get(), miniClusterRef.get());
+                                        if (mostRecentCompletedCheckpointPath.isPresent()) {
+                                            if (lastCheckpointPath == null) {
+                                                lastCheckpointPath =
+                                                        mostRecentCompletedCheckpointPath.get();
+                                            } else if (!lastCheckpointPath.equals(
+                                                    mostRecentCompletedCheckpointPath.get())) {
+                                                return true;
+                                            }
                                         }
+                                        return false;
                                     }
                                 })
                         .keyBy(
@@ -282,7 +303,7 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
         DataStream<Tuple2<Integer, Integer>> result =
                 input.flatMap(new SubtaskIndexFlatMapper(numberElementsExpect));
 
-        result.addSink(new CollectionSink<>());
+        result.sinkTo(new CollectionSink<>());
 
         return env.getStreamGraph().getJobGraph(env.getClass().getClassLoader(), jobID.get());
     }
@@ -305,7 +326,9 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
             this.failAfterEmission = failAfterEmission;
         }
 
-        public void waitCheckpointCompleted() throws Exception {}
+        public boolean waitCheckpointCompleted() throws Exception {
+            return true;
+        }
 
         @Override
         public void run(SourceContext<Integer> ctx) throws Exception {
@@ -324,7 +347,18 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
                         counter++;
                     }
                 } else {
-                    waitCheckpointCompleted();
+                    boolean newCheckpoint = false;
+                    long waited = 0L;
+                    // maximum wait 5min
+                    while (!newCheckpoint && waited < 30000L) {
+                        synchronized (ctx.getCheckpointLock()) {
+                            newCheckpoint = waitCheckpointCompleted();
+                        }
+                        if (!newCheckpoint) {
+                            waited += 10L;
+                            Thread.sleep(10L);
+                        }
+                    }
                     if (failAfterEmission) {
                         throw new FlinkRuntimeException(
                                 "Make job fail artificially, to retain completed checkpoint.");
@@ -389,25 +423,59 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
         }
     }
 
-    private static class CollectionSink<IN> implements SinkFunction<IN> {
+    private static class CollectionSink<IN> implements Sink<IN> {
 
-        private static final Set<Object> elements =
-                Collections.newSetFromMap(new ConcurrentHashMap<>());
+        private static final ConcurrentHashMap<JobID, CollectionSinkWriter<?>> writers =
+                new ConcurrentHashMap<>();
 
         private static final long serialVersionUID = 1L;
 
         @SuppressWarnings("unchecked")
-        public static <IN> Set<IN> getElementsSet() {
-            return (Set<IN>) elements;
+        public static <IN> Set<IN> getElementsSet(JobID jobID) {
+            CollectionSinkWriter<IN> writer = (CollectionSinkWriter<IN>) writers.get(jobID);
+            if (writer == null) {
+                return Collections.emptySet();
+            } else {
+                return writer.getElementsSet();
+            }
         }
 
-        public static void clearElementsSet() {
-            elements.clear();
+        public static void clearElementsSet(JobID jobID) {
+            writers.remove(jobID);
         }
 
         @Override
-        public void invoke(IN value) throws Exception {
-            elements.add(value);
+        @SuppressWarnings("unchecked")
+        public SinkWriter<IN> createWriter(WriterInitContext context) throws IOException {
+            final CollectionSinkWriter<IN> writer =
+                    (CollectionSinkWriter<IN>)
+                            writers.computeIfAbsent(
+                                    context.getJobInfo().getJobId(),
+                                    (k) -> new CollectionSinkWriter<IN>());
+            return writer;
+        }
+
+        private static class CollectionSinkWriter<IN> implements SinkWriter<IN> {
+
+            private final Set<Object> elements =
+                    Collections.newSetFromMap(new ConcurrentHashMap<>());
+
+            @Override
+            public void write(IN element, Context context)
+                    throws IOException, InterruptedException {
+                elements.add(element);
+            }
+
+            @Override
+            public void flush(boolean endOfInput) throws IOException, InterruptedException {}
+
+            @Override
+            public void close() throws Exception {}
+
+            @SuppressWarnings("unchecked")
+            public <IN> Set<IN> getElementsSet() {
+                return (Set<IN>) elements;
+            }
         }
     }
 }
