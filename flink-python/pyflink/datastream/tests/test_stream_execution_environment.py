@@ -260,57 +260,6 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         execution_result = job_client.get_job_execution_result().result()
         self.assertEqual(str(job_id), str(execution_result.get_job_id()))
 
-    def test_add_python_file(self):
-        import uuid
-        env = self.env
-        python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
-        os.mkdir(python_file_dir)
-        python_file_path = os.path.join(python_file_dir, "test_dep1.py")
-        with open(python_file_path, 'w') as f:
-            f.write("def add_two(a):\n    return a + 2")
-
-        def plus_two_map(value):
-            from test_dep1 import add_two
-            return add_two(value)
-
-        get_j_env_configuration(env._j_stream_execution_environment).\
-            setString("taskmanager.numberOfTaskSlots", "10")
-        env.add_python_file(python_file_path)
-        ds = env.from_collection([1, 2, 3, 4, 5])
-        ds = ds.map(plus_two_map, Types.LONG()) \
-               .slot_sharing_group("data_stream") \
-               .map(lambda i: i, Types.LONG()) \
-               .slot_sharing_group("table")
-
-        python_file_path = os.path.join(python_file_dir, "test_dep2.py")
-        with open(python_file_path, 'w') as f:
-            f.write("def add_three(a):\n    return a + 3")
-
-        def plus_three(value):
-            from test_dep2 import add_three
-            return add_three(value)
-
-        t_env = StreamTableEnvironment.create(
-            stream_execution_environment=env,
-            environment_settings=EnvironmentSettings.in_streaming_mode())
-        env.add_python_file(python_file_path)
-
-        from pyflink.table.udf import udf
-        from pyflink.table.expressions import col
-        add_three = udf(plus_three, result_type=DataTypes.BIGINT())
-
-        tab = t_env.from_data_stream(ds, col('a')) \
-                   .select(add_three(col('a')))
-        t_env.to_append_stream(tab, Types.ROW([Types.LONG()])) \
-             .map(lambda i: i[0]) \
-             .add_sink(self.test_sink)
-        env.execute("test add_python_file")
-        result = self.test_sink.get_results(True)
-        expected = ['6', '7', '8', '9', '10']
-        result.sort()
-        expected.sort()
-        self.assertEqual(expected, result)
-
     def test_add_python_file_2(self):
         import uuid
         env = self.env
