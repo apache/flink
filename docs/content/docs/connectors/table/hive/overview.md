@@ -313,23 +313,12 @@ Below are the options supported when creating a `HiveCatalog` instance with YAML
       <td>String</td>
       <td>Path to Hadoop conf dir. Only local file system paths are supported. The recommended way to set Hadoop conf is via the <b>HADOOP_CONF_DIR</b> environment variable. Use the option only if environment variable doesn't work for you, e.g. if you want to configure each HiveCatalog separately.</td>
     </tr>
-    <tr>
-      <td><h5>flink.hive.&lt;key&gt;</h5></td>
-      <td>No</td>
-      <td style="word-wrap: break-word;">(none)</td>
-      <td>String</td>
-      <td>A general option to probe hive configuration through prefix 'flink.hive.'. Flink will remove the prefix to get &lt;key&gt; (from hive-site.xml) then set the &lt;key&gt; and value to hive configuration. For example, flink.hive.hive.metastore.client.socket.timeout=5 in Flink configuration and convert to hive.metastore.client.socket.timeout=5 in hive configuration.</td>
-    </tr>
-    <tr>
-      <td><h5>flink.hive.hadoop.&lt;key&gt;</h5></td>
-      <td>No</td>
-      <td style="word-wrap: break-word;">(none)</td>
-      <td>String</td>
-      <td>A general option to probe hadoop configuration for hive through prefix 'flink.hive.hadoop.'. Flink will remove the prefix to get &lt;key&gt; (from hdfs-site.xml and core-site.xml) then set the &lt;key&gt; and value to hadoop configuration for hive. For example, flink.hive.hadoop.dfs.client.socket-timeout=5000 in Flink configuration and convert to dfs.client.socket-timeout=5000 in hadoop configuration for hive.</td>
-    </tr>
     </tbody>
 </table>
 
+**NOTE**: The options used to configure HiveCatalog are derived from the configuration files from `hive-conf-dir` and `hadoop-conf-dir`, if you want to configure HiveCatalog by overwriting some options in these configuration files, you can add the options with prefix `flink.hive.` or `flink.hive.hadoop.` in your Flink table configuration. 
+For example, `flink.hive.hive.metastore.client.socket.timeout: 5` and `flink.hive.hadoop.dfs.client.socket-timeout: 5000` in Flink table configuration, it will be
+converted to options `hive.metastore.client.socket.timeout: 5` and `hadoop.dfs.client.socket-timeout: 5000`, then passing them to configure HiveCatalog.
 
 ## DDL
 
