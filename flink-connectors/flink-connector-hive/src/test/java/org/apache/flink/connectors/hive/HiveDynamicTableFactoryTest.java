@@ -42,6 +42,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.time.Duration;
+import java.util.Collections;
 
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_CLASS;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_KIND;
@@ -257,6 +258,7 @@ public class HiveDynamicTableFactoryTest {
                         hiveCatalog.getFactory().orElseThrow(IllegalStateException::new),
                 tableIdentifier,
                 tableEnvInternal.getCatalogManager().resolveCatalogTable(catalogTable),
+                Collections.emptyMap(),
                 tableEnv.getConfig(),
                 Thread.currentThread().getContextClassLoader(),
                 false);
@@ -273,6 +275,7 @@ public class HiveDynamicTableFactoryTest {
                         hiveCatalog.getFactory().orElseThrow(IllegalStateException::new),
                 tableIdentifier,
                 tableEnvInternal.getCatalogManager().resolveCatalogTable(catalogTable),
+                Collections.emptyMap(),
                 tableEnv.getConfig(),
                 Thread.currentThread().getContextClassLoader(),
                 false);
