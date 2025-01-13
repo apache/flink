@@ -470,7 +470,6 @@ abstract class PlannerBase(
         if (
           !contextResolvedTable.isAnonymous &&
           TableFactoryUtil.isLegacyConnectorOptions(
-            catalogManager.getCatalog(objectIdentifier.getCatalogName).orElse(null),
             tableConfig,
             isStreamingMode,
             objectIdentifier,
@@ -479,7 +478,6 @@ abstract class PlannerBase(
           )
         ) {
           val tableSink = TableFactoryUtil.findAndCreateTableSink(
-            catalog.orNull,
             objectIdentifier,
             tableToFind,
             getTableConfig,

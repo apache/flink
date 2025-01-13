@@ -235,7 +235,6 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
                         TableSchemaUtils.removeTimeAttributeFromResolvedSchema(
                                 originTable.getResolvedSchema());
                 TableFactoryUtil.findAndCreateTableSource(
-                        schemaTable.getContextResolvedTable().getCatalog().orElse(null),
                         schemaTable.getContextResolvedTable().getIdentifier(),
                         new ResolvedCatalogTable(
                                 CatalogTable.of(

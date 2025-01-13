@@ -99,7 +99,7 @@ public class DeletePushDownUtilsTest {
                         tableId, catalog, catalogManager.resolveCatalogTable(catalogTable));
         LogicalTableModify tableModify = getTableModifyFromSql("DELETE FROM t");
         Optional<DynamicTableSink> optionalDynamicTableSink =
-                DeletePushDownUtils.getDynamicTableSink(resolvedTable, tableModify, catalogManager);
+                DeletePushDownUtils.getDynamicTableSink(resolvedTable, tableModify);
         // verify we can get the dynamic table sink
         assertThat(optionalDynamicTableSink).isPresent();
         assertThat(optionalDynamicTableSink.get())
@@ -115,7 +115,7 @@ public class DeletePushDownUtilsTest {
                         tableId, catalog, catalogManager.resolveCatalogTable(catalogTable));
         tableModify = getTableModifyFromSql("DELETE FROM t1");
         optionalDynamicTableSink =
-                DeletePushDownUtils.getDynamicTableSink(resolvedTable, tableModify, catalogManager);
+                DeletePushDownUtils.getDynamicTableSink(resolvedTable, tableModify);
         // verify it should be empty since it's not an instance of DynamicTableSink but is legacy
         // TableSink
         assertThat(optionalDynamicTableSink).isEmpty();
