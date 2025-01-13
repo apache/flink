@@ -613,7 +613,7 @@ Here is an example to deploy script file in an Application Cluster.
       -Dkubernetes.container.image.ref=${FLINK_IMAGE_NAME}'
 ```
 
-After execution, SQL Client print the cluster id on the terminal. The script can contain any statement that is supported by Flink. But Application cluster only supports one job, please refer to the 
+After execution, SQL Client will print the cluster id on the terminal. The script can contain any statement supported by Flink. But Application cluster only supports one job, please refer to the 
 [Application Mode]({{< ref "docs/deployment/overview#application-mode" >}}) for the limitations.
 
 <span class="label label-danger">Attention</span> When deploying a script to the cluster, SQL Client only supports running with `--jars` startup option, other options, e.g. `--init` 
