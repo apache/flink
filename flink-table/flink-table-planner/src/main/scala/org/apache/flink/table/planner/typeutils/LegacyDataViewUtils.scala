@@ -193,30 +193,23 @@ object LegacyDataViewUtils {
         newTypeInfo
 
       case list: ListViewTypeInfo[_] =>
-        val listView = instance match {
-          case b: BinaryRawValueData[_] =>
-            b.getJavaObject.asInstanceOf[ListView[_]]
-          case _ =>
-            instance.asInstanceOf[ListView[_]]
-        }
-        val newTypeInfo = list
         if (!isStateBackedDataViews) {
           // add data view field if it is not backed by a state backend.
           // data view fields which are backed by state backend are not serialized.
-          newTypeInfo.setNullSerializer(false)
+          list.setNullSerializer(false)
         } else {
-          newTypeInfo.setNullSerializer(true)
+          list.setNullSerializer(true)
 
           // create list view specs with unique is (used as state name)
           val listViewSpec = new ListViewSpec(
             "agg" + aggIndex + "$" + fieldName,
             fieldIndex, // dataview field index in pojo
-            fromLegacyInfoToDataType(newTypeInfo),
-            newTypeInfo.getElementType.createSerializer(new SerializerConfigImpl)
+            fromLegacyInfoToDataType(list),
+            list.getElementType.createSerializer(new SerializerConfigImpl)
           )
           spec = Some(listViewSpec)
         }
-        newTypeInfo
+        list
 
       case t: TypeInformation[_] => t
     }
