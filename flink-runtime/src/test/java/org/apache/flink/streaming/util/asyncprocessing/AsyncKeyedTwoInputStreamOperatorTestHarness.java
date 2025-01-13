@@ -253,13 +253,19 @@ public class AsyncKeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
                             .getKeyedStateBackend();
 
         } else {
-            throw new UnsupportedOperationException();
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "Unsupported async keyed state backend: %s",
+                            asyncKeyedStateBackend.getClass().getCanonicalName()));
         }
 
         if (keyedStateBackend instanceof HeapKeyedStateBackend) {
             return ((HeapKeyedStateBackend) keyedStateBackend).numKeyValueStateEntries();
         } else {
-            throw new UnsupportedOperationException();
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "Unsupported keyed state backend: %s",
+                            keyedStateBackend.getClass().getCanonicalName()));
         }
     }
 

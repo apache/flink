@@ -24,6 +24,7 @@ import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateStreamOperator;
 import org.apache.flink.runtime.state.v2.ListStateDescriptor;
 import org.apache.flink.runtime.state.v2.internal.InternalListState;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -51,7 +52,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
-/** A {@link WindowJoinOperator} implemented by async state api. */
+/**
+ * A {@link AsyncStateWindowJoinOperator} implemented by async state api.
+ *
+ * <p>This class is nearly identical with {@link WindowJoinOperator}, but extending from {@link
+ * AbstractAsyncStateStreamOperator} to integrate with asynchronous state access.
+ *
+ * <p>Note: currently, {@link AsyncStateWindowJoinOperator} doesn't support early-fire and
+ * late-arrival. Thus, late elements (elements belong to emitted windows) will be simply dropped.
+ *
+ * <p>Note: currently, {@link AsyncStateWindowJoinOperator} doesn't support DELETE or UPDATE_BEFORE
+ * input row.
+ */
 public class AsyncStateWindowJoinOperator extends AsyncStateTableStreamOperator<RowData>
         implements TwoInputStreamOperator<RowData, RowData, RowData>,
                 Triggerable<RowData, Long>,
@@ -76,7 +88,6 @@ public class AsyncStateWindowJoinOperator extends AsyncStateTableStreamOperator<
 
     private transient WindowTimerService<Long> windowTimerService;
 
-    // ------------------------------------------------------------------------
     private transient JoinConditionWithNullFilters joinCondition;
 
     /** This is used for emitting elements with a given timestamp. */
@@ -231,7 +242,7 @@ public class AsyncStateWindowJoinOperator extends AsyncStateTableStreamOperator<
         }
 
         @Override
-        public void accToState(long windowEnd, RowData rowData, boolean isLeft) throws Exception {
+        public void accToState(long windowEnd, RowData rowData, boolean isLeft) {
             // no need to wait these async requests to end
             if (isLeft) {
                 leftWindowState.asyncAdd(windowEnd, rowData);
@@ -241,7 +252,7 @@ public class AsyncStateWindowJoinOperator extends AsyncStateTableStreamOperator<
         }
 
         @Override
-        public void clearState(long windowEnd, boolean isLeft) throws Exception {
+        public void clearState(long windowEnd, boolean isLeft) {
             // no need to wait these async requests to end
             if (isLeft) {
                 leftWindowState.asyncClear(windowEnd);

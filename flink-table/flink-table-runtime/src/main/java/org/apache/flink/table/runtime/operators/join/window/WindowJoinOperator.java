@@ -47,9 +47,9 @@ import java.time.ZoneId;
 import java.util.List;
 
 /**
- * Streaming window join operator.
+ * A streaming window join operator implemented by sync state api.
  *
- * <p>Note: currently, {@link WindowJoinOperator} doesn't support early-fire and late-arrival. Thus
+ * <p>Note: currently, {@link WindowJoinOperator} doesn't support early-fire and late-arrival. Thus,
  * late elements (elements belong to emitted windows) will be simply dropped.
  *
  * <p>Note: currently, {@link WindowJoinOperator} doesn't support DELETE or UPDATE_BEFORE input row.
@@ -78,7 +78,6 @@ public class WindowJoinOperator extends TableStreamOperator<RowData>
 
     private transient WindowTimerService<Long> windowTimerService;
 
-    // ------------------------------------------------------------------------
     private transient JoinConditionWithNullFilters joinCondition;
 
     /** This is used for emitting elements with a given timestamp. */
