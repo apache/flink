@@ -29,6 +29,14 @@ import org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionB
 
 import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfig;
 
+/**
+ * Base class for deduplicate function with async state api.
+ *
+ * @param <T> Type of the value in the state.
+ * @param <K> Type of the key.
+ * @param <IN> Type of the input elements.
+ * @param <OUT> Type of the returned elements.
+ */
 abstract class AsyncStateDeduplicateFunctionBase<T, K, IN, OUT>
         extends DeduplicateFunctionBase<T, K, IN, OUT> {
 
