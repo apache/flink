@@ -196,6 +196,11 @@ public abstract class WindowJoinHelper {
         }
     }
 
+    /**
+     * A processor to do the different logic for different {@link FlinkJoinType}.
+     *
+     * <p>TODO FLINK-37106 consider extracting common methods in different WindowJoinProcessor
+     */
     private interface WindowJoinProcessor {
 
         void doJoin(
