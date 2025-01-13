@@ -141,6 +141,12 @@ public class SerializedThrowable extends Exception implements Serializable {
         return fullStringifiedStackTrace;
     }
 
+    /**
+     * Add all suppressed exceptions to this exception.
+     *
+     * @param suppressed The suppressed exceptions to add.
+     * @param alreadySeen The set of exceptions that have already been seen.
+     */
     private void addAllSuppressed(Throwable[] suppressed, Set<Throwable> alreadySeen) {
         for (Throwable s : suppressed) {
             if (alreadySeen.add(s)) {
