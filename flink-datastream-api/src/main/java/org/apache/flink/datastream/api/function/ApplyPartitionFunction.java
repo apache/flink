@@ -33,5 +33,5 @@ public interface ApplyPartitionFunction<OUT> extends Function {
      * @param collector to output data.
      * @param ctx runtime context in which this function is executed.
      */
-    void apply(Collector<OUT> collector, PartitionedContext ctx) throws Exception;
+    void apply(Collector<OUT> collector, PartitionedContext<OUT> ctx) throws Exception;
 }

@@ -46,13 +46,15 @@ class KeyedTwoInputNonBroadcastProcessOperatorTest {
                             public void processRecordFromFirstInput(
                                     Integer record,
                                     Collector<Long> output,
-                                    PartitionedContext ctx) {
+                                    PartitionedContext<Long> ctx) {
                                 output.collect(Long.valueOf(record));
                             }
 
                             @Override
                             public void processRecordFromSecondInput(
-                                    Long record, Collector<Long> output, PartitionedContext ctx) {
+                                    Long record,
+                                    Collector<Long> output,
+                                    PartitionedContext<Long> ctx) {
                                 output.collect(record);
                             }
                         });
@@ -89,13 +91,15 @@ class KeyedTwoInputNonBroadcastProcessOperatorTest {
                             public void processRecordFromFirstInput(
                                     Integer record,
                                     Collector<Long> output,
-                                    PartitionedContext ctx) {
+                                    PartitionedContext<Long> ctx) {
                                 // do nothing.
                             }
 
                             @Override
                             public void processRecordFromSecondInput(
-                                    Long record, Collector<Long> output, PartitionedContext ctx) {
+                                    Long record,
+                                    Collector<Long> output,
+                                    PartitionedContext<Long> ctx) {
                                 // do nothing.
                             }
 
@@ -164,13 +168,15 @@ class KeyedTwoInputNonBroadcastProcessOperatorTest {
                             public void processRecordFromFirstInput(
                                     Integer record,
                                     Collector<Long> output,
-                                    PartitionedContext ctx) {
+                                    PartitionedContext<Long> ctx) {
                                 output.collect(Long.valueOf(record));
                             }
 
                             @Override
                             public void processRecordFromSecondInput(
-                                    Long record, Collector<Long> output, PartitionedContext ctx) {
+                                    Long record,
+                                    Collector<Long> output,
+                                    PartitionedContext<Long> ctx) {
                                 output.collect(record);
                             }
                         },
