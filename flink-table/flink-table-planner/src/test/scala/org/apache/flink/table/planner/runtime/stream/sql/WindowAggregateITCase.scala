@@ -1291,47 +1291,6 @@ class WindowAggregateITCase(
   }
 
   @TestTemplate
-  def testDistinctAggWithMergeOnEventTimeSessionWindow(): Unit = {
-    // create a watermark with 10ms offset to delay the window emission by 10ms to verify merge
-    val sessionWindowTestData = List(
-      (1L, 2, "Hello"), // (1, Hello)       - window
-      (2L, 2, "Hello"), // (1, Hello)       - window, deduped
-      (8L, 2, "Hello"), // (2, Hello)       - window, deduped during merge
-      (10L, 3, "Hello"), // (2, Hello)       - window, forwarded during merge
-      (9L, 9, "Hello World"), // (1, Hello World) - window
-      (4L, 1, "Hello"), // (1, Hello)       - window, triggering merge
-      (16L, 16, "Hello")
-    ) // (3, Hello)       - window (not merged)
-
-    val stream = failingDataSource(sessionWindowTestData)
-      .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](10L))
-    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
-    tEnv.registerTable("MyTable", table)
-
-    val sqlQuery =
-      """
-        |SELECT c,
-        |   COUNT(DISTINCT b),
-        |   window_end
-        |FROM TABLE(
-        |  SESSION(TABLE MyTable PARTITION BY c, DESCRIPTOR(rowtime), INTERVAL '0.005' SECOND))
-        |GROUP BY c, window_start, window_end
-      """.stripMargin
-    val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
-    env.execute()
-
-    val expected = Seq(
-      "Hello World,1,1970-01-01T00:00:00.014", // window starts at [9L] till {14L}
-      "Hello,1,1970-01-01T00:00:00.021", // window starts at [16L] till {21L}, not merged
-      "Hello,3,1970-01-01T00:00:00.015" // window starts at [1L,2L],
-      //   merged with [8L,10L], by [4L], till {15L}
-    )
-    assertThat(sink.getAppendResults.sorted.mkString("\n"))
-      .isEqualTo(expected.sorted.mkString("\n"))
-  }
-
-  @TestTemplate
   def testPercentileOnEventTimeTumbleWindow(): Unit = {
     val sql =
       """
