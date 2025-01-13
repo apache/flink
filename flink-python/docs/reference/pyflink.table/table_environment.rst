@@ -251,7 +251,6 @@ StreamTableEnvironment
     StreamTableEnvironment.sql_query
     StreamTableEnvironment.to_data_stream
     StreamTableEnvironment.to_changelog_stream
-    StreamTableEnvironment.to_append_stream
     StreamTableEnvironment.to_retract_stream
     StreamTableEnvironment.unload_module
     StreamTableEnvironment.use_catalog
